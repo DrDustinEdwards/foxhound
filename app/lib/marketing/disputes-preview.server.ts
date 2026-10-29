@@ -69,6 +69,7 @@ function buildDisputesPreview(now: Date): DisputesPreview {
     currency: d.currency ?? "usd",
     reason: d.reason ?? null,
     state: d.state as DisputeState,
+    status: d.status,
     createdAt: d.createdAt as Date,
     evidenceDeadline: d.evidenceDeadline ?? null,
     submittedAt: d.submittedAt ?? null,
@@ -87,6 +88,7 @@ function buildDisputesPreview(now: Date): DisputesPreview {
       state: d.state,
       submittedBy: d.submittedBy,
       hasEvidence: withEvidence.has(d.id),
+      stripeStatus: d.status,
     });
     return {
       id: d.id,

@@ -25,6 +25,7 @@ import {
   buildExhaustedSequenceFlip,
   type DueStepRow,
   queryDueRecoverySteps,
+  queryPendingRetryStepsForCustomer,
   chooseStepsPerPayment,
   toRetryContext,
   toEmailContext,
@@ -222,6 +223,8 @@ interface TickTally {
    *  brake engage reads as a deliberate stop, not as engine noise, and apart
    *  from `failed` because nothing failed. */
   skippedIneligible: number;
+  /** Retry steps held because Stripe has charges off on their connection. */
+  heldChargesDisabled: number;
   failed: number;
   exhausted: number;
   backlog: boolean;
@@ -261,6 +264,86 @@ export interface RecoveryTickDeps {
     row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & { stripeCustomerId: string },
     now: Date,
   ) => Promise<void>;
+}
+
+/**
+ * One retry step through the per-step guards: a missing connected token
+ * (reported, so each caller decides what to record), then a lost dispute
+ * (suppressed and recorded), then the executor, which holds the network's
+ * do-not-try-again stop and the expired-card guard. The tick and the card
+ * updater's retry-now both run retries through this, so their guards cannot
+ * drift apart.
+ */
+async function runGuardedRetry(
+  env: Env,
+  row: DueStepRow,
+  now: Date,
+  io: {
+    runRetry: RecoveryTickDeps["runRetry"];
+    lostDispute: RecoveryTickDeps["hasLostDispute"];
+    suppressRetry: RecoveryTickDeps["suppressRetry"];
+  },
+): Promise<"no_connection" | "dispute_lost" | { recovered: boolean }> {
+  const ctx = toRetryContext(row);
+  if (!ctx) return "no_connection";
+  const customerId = row.stripeCustomerId;
+  if (customerId && (await io.lostDispute(env, row.accountId, customerId))) {
+    await io.suppressRetry(env, { ...row, stripeCustomerId: customerId }, now);
+    return "dispute_lost";
+  }
+  return io.runRetry(env, ctx);
+}
+
+/**
+ * Stripe's card updater refreshed this customer's card
+ * (payment_method.automatically_updated), so each of the customer's active
+ * failed payments runs its next pending retry step NOW rather than at its
+ * scheduled time, on the new card. The step is the one the schedule would have
+ * charged next, so a success is the same foxhound_retry it would have been,
+ * only sooner, and a failure leaves the rest of the sequence as planned.
+ *
+ * Every guard the tick applies holds: the tick's enabled flag and the account
+ * gate (brake, cancellation, demo), only payments that are 'active' (so never
+ * one Stripe is still retrying, and never one recovered or canceled), and
+ * runGuardedRetry's lost-dispute, do-not-try-again and expired-card guards. A
+ * step with no connected token is left for the tick, which owns the bounded
+ * grace. The executor's step claim and Stripe idempotency key make a race with
+ * a concurrent tick on the same step harmless.
+ *
+ * Never throws: a failure here leaves the step pending for its scheduled run.
+ * Returns how many retries were attempted.
+ */
+export async function retryOnUpdatedCard(
+  env: Env,
+  accountId: string,
+  stripeCustomerId: string,
+  deps: Partial<Pick<RecoveryTickDeps, "runRetry" | "checkGuards" | "hasLostDispute" | "suppressRetry">> = {},
+): Promise<number> {
+  const io = {
+    runRetry: deps.runRetry ?? executeRetryStep,
+    lostDispute: deps.hasLostDispute ?? hasLostDispute,
+    suppressRetry: deps.suppressRetry ?? suppressRetryForLostDispute,
+  };
+  let attempted = 0;
+  try {
+    const guards = await (deps.checkGuards ?? checkTickGuards)(env, accountId);
+    if (!guards.tickEnabled || !guards.accountEligible) return 0;
+    const rows = chooseStepsPerPayment(
+      await queryPendingRetryStepsForCustomer(getDb(env), accountId, stripeCustomerId),
+    );
+    const now = new Date();
+    for (const row of rows) {
+      try {
+        const result = await runGuardedRetry(env, row, now, io);
+        if (typeof result === "object") attempted += 1;
+      } catch (err) {
+        console.error("card updater retry failed:", row.stepId, err instanceof Error ? err.message : err);
+      }
+    }
+  } catch (err) {
+    console.error("card updater retry lookup failed:", err instanceof Error ? err.message : err);
+  }
+  return attempted;
 }
 
 /**
@@ -355,6 +438,7 @@ export async function runRecoveryTick(
     recovered: 0,
     skipped: 0,
     skippedIneligible: 0,
+    heldChargesDisabled: 0,
     failed: 0,
     exhausted: 0,
     backlog: due.length >= RECOVERY_TICK_LIMIT,
@@ -390,8 +474,16 @@ export async function runRecoveryTick(
     const action = stepAction(row.stepType);
     try {
       if (action === "retry") {
-        const ctx = toRetryContext(row);
-        if (!ctx) {
+        if (row.chargesEnabled === false) {
+          // Stripe has turned off charges on this connection (account.updated),
+          // so the charge would fail and burn the step. Left pending with no
+          // write, as a disabled tick leaves it: the next tick tries again, and
+          // runs it once Stripe reports charges back on.
+          tally.heldChargesDisabled += 1;
+          continue;
+        }
+        const result = await runGuardedRetry(env, row, now, { runRetry, lostDispute, suppressRetry });
+        if (result === "no_connection") {
           // No connected token: cannot safely charge. Record the attempt with
           // bounded grace rather than either leaving it pending (re-selects
           // forever) or killing it outright (forfeits the silent retry on a
@@ -404,13 +496,10 @@ export async function runRecoveryTick(
           tally.skipped += 1;
           continue;
         }
-        const customerId = row.stripeCustomerId;
-        if (customerId && (await lostDispute(env, row.accountId, customerId))) {
-          await suppressRetry(env, { ...row, stripeCustomerId: customerId }, now);
+        if (result === "dispute_lost") {
           tally.skipped += 1;
           continue;
         }
-        const result = await runRetry(env, ctx);
         tally.retries += 1;
         if (result.recovered) tally.recovered += 1;
       } else if (action === "email") {
@@ -506,12 +595,16 @@ export async function runRecoveryTick(
     tally.skippedIneligible > 0
       ? `, ${tally.skippedIneligible} skipped (account paused mid-run)`
       : "";
+  const heldNote =
+    tally.heldChargesDisabled > 0
+      ? `, ${tally.heldChargesDisabled} retries held (Stripe charges off)`
+      : "";
   return {
     rowsProcessed: executed,
     message:
       `${tally.due} due, ${tally.chosen} payments, ${tally.retries} retries ` +
       `(${tally.recovered} recovered), ${tally.emails} emails, ` +
       `${tally.skipped} skipped, ${tally.failed} failed, ` +
-      `${tally.exhausted} exhausted${pausedNote}${failedNote}${sweepNote}${backlogNote}${haltedNote}`,
+      `${tally.exhausted} exhausted${pausedNote}${heldNote}${failedNote}${sweepNote}${backlogNote}${haltedNote}`,
   };
 }

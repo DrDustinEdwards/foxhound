@@ -5,7 +5,7 @@ import { accounts, stripeConnections } from "~/db/schema";
 import type { AuditResult } from "~/lib/audit/engine";
 import { compareTotals, buildMonthlyAuditEmail, MONTHLY_AUDIT_FROM_NAME } from "~/lib/audit/monthly-email";
 import { renderSignInLinkEmail } from "~/lib/auth/send-auth-email";
-import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
+import { CRON_SCHEDULE_DAILY, DAY_MS } from "~/lib/constants";
 import {
   buildFailureAlertEmail,
   buildStaleAlertEmail,
@@ -36,7 +36,12 @@ import { recoveryFooterNote } from "~/lib/engine/execute-step";
 import { criticalCustomersContent, thresholdAlertContent } from "~/lib/intelligence/alert-notify.server";
 import { digestContent } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
-import { buildExpiringCardEmail, expiringCardSubject } from "~/lib/recovery/expiring-card-email";
+import {
+  buildExpiringCardEmail,
+  buildNoPaymentMethodEmail,
+  expiringCardSubject,
+  noPaymentMethodSubject,
+} from "~/lib/recovery/expiring-card-email";
 import { resendFooterNote } from "~/lib/recovery/manual-action-deps.server";
 import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
 import { sequenceCompleteContent } from "~/lib/recovery/sequence-complete-notification.server";
@@ -133,6 +138,11 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
     type: "expiring_card",
     audience: "customer",
     description: "The expiring-card warning a merchant's customer gets before their card expires.",
+  },
+  {
+    type: "expiring_card_no_payment_method",
+    audience: "customer",
+    description: "The expiring-card alert's variant for a trialing customer with no payment method set up, sent before the trial converts.",
   },
   {
     type: "recovery_resend",
@@ -462,6 +472,22 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           customerName: null,
           expiresMonth: next.getUTCMonth() + 1,
           expiresYear: next.getUTCFullYear(),
+          senderName,
+          updateUrl: standIn,
+        }),
+        footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
+      });
+    }
+    if (type.type === "expiring_card_no_payment_method") {
+      // The trial-end month stands in for the row's month and year, as on a
+      // real 'no_payment_method' alert.
+      const trialEnd = new Date(now.getTime() + 3 * DAY_MS);
+      return job({
+        subject: noPaymentMethodSubject(),
+        blocks: buildNoPaymentMethodEmail({
+          customerName: null,
+          trialEndsMonth: trialEnd.getUTCMonth() + 1,
+          trialEndsYear: trialEnd.getUTCFullYear(),
           senderName,
           updateUrl: standIn,
         }),

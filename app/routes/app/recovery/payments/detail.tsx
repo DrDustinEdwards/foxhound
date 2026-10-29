@@ -825,6 +825,13 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
           {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")} &middot;{" "}
           {formatTimeAgo(recovery.recoveredAt, nowMs)}
+          {/* Only once Stripe's balance transaction has been read. Billing stays
+              on the gross amount above. */}
+          {recovery.netAmountCents != null && recovery.netCurrency ? (
+            <span className="mt-1 block text-label text-text-secondary">
+              Net after Stripe fees {formatMoney(recovery.netAmountCents, recovery.netCurrency)}
+            </span>
+          ) : null}
         </Banner>
       ) : null}
     </div>

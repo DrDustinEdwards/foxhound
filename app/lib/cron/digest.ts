@@ -255,7 +255,9 @@ export async function collectDigestNumbers(
           and(eq(winBackSequences.accountId, accountId), eq(winBackSequences.status, "active")),
         ),
       // NO WINDOW AT ALL: legacy counts every alert row ever recorded for the
-      // account, not the ones raised this week. Ported as found.
+      // account, not the ones raised this week. Ported as found. Cards only:
+      // the row reads "Cards expiring soon", which a trial with no payment
+      // method is not.
       db
         .select({ n: count() })
         .from(expiringCardAlerts)
@@ -263,6 +265,7 @@ export async function collectDigestNumbers(
           and(
             eq(expiringCardAlerts.accountId, accountId),
             isNull(expiringCardAlerts.deletedAt),
+            eq(expiringCardAlerts.reason, "card_expiring"),
           ),
         ),
       db

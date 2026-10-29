@@ -8,8 +8,10 @@ import {
   refundedRecoveryIdsFor,
 } from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { applyNetworkAdvice, classifyDecline, pickDeclineCode } from "~/lib/recovery/decline";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
 import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
+import { retryOnUpdatedCard } from "~/lib/cron/recovery-tick";
 
 import {
   buildClaimOnlyBatch,
@@ -17,16 +19,50 @@ import {
   buildRecoverBatch,
   buildRefundStampBatch,
   buildSequenceStartBatch,
+  type ChargeFacts,
 } from "./batches";
 import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
 import {
   findActiveFailedPayment,
   findRecoverableFailedPayment,
   resolveExpiringCard,
+  resolveRecoveredChargeFee,
   resolveRecoveryAttribution,
   resolveRefundedFailedPayment,
   tryWinbackReactivationFromInvoice,
+  type DeclineFacts,
+  resolveDeclineFacts,
 } from "./lookups";
+
+/**
+ * The best decline known for a failure: the charge's code over the event's,
+ * then the network advice over the code (recovery/decline.ts). With neither a
+ * code nor a charge read, a promotion keeps the category and advice intake
+ * stored rather than falling to "unknown". Pure.
+ */
+function bestDecline(
+  eventCode: string | null,
+  facts: DeclineFacts | null,
+  stored?: { declineCategory: string; networkAdviceCode: string | null },
+): { declineCode: string | null; declineCategory: DeclineCategory; chargeFacts: ChargeFacts | null } {
+  const declineCode = pickDeclineCode([facts?.declineCode, eventCode]);
+  const fromCode =
+    declineCode || !stored ? classifyDecline(declineCode) : (stored.declineCategory as DeclineCategory);
+  const advice = facts ? facts.networkAdviceCode : (stored?.networkAdviceCode ?? null);
+  return {
+    declineCode,
+    declineCategory: applyNetworkAdvice(fromCode, advice),
+    chargeFacts: facts
+      ? {
+          networkAdviceCode: facts.networkAdviceCode,
+          networkDeclineCode: facts.networkDeclineCode,
+          cardFunding: facts.cardFunding,
+          cardBrand: facts.cardBrand,
+          cardCountry: facts.cardCountry,
+        }
+      : null,
+  };
+}
 
 export async function handleIntake(
   ctx: WebhookContext,
@@ -44,7 +80,14 @@ export async function handleIntake(
     ) {
       // Stripe has stopped retrying. The sequence starts NOW, anchored on
       // this moment rather than on the original failure, which is what
-      // makes "Foxhound starts when Stripe stops" true.
+      // makes "Foxhound starts when Stripe stops" true. The final attempt's
+      // charge is read first, so the cadence is planned from the best
+      // category known.
+      const decline = bestDecline(
+        intent.declineCode,
+        await resolveDeclineFacts(env, connectionId, intent.invoiceId),
+        existing,
+      );
       const { applied } = await executeMoneyWrite(env, {
         accountId,
         // KEYED ON THE PAYMENT, NOT THE EVENT. Two different give-up events
@@ -59,7 +102,7 @@ export async function handleIntake(
             claim,
             failedPaymentId: existing.id,
             accountId,
-            declineCategory: intent.declineCategory,
+            ...decline,
             startedAt: receivedAt,
           }),
       });
@@ -80,6 +123,10 @@ export async function handleIntake(
       : { status: "duplicate" };
   }
   const failedPaymentId = crypto.randomUUID();
+  const decline = bestDecline(
+    intent.declineCode,
+    await resolveDeclineFacts(env, connectionId, intent.invoiceId),
+  );
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     idempotencyKey,
@@ -96,8 +143,7 @@ export async function handleIntake(
         customerName: intent.customerName,
         amountCents: intent.amountCents,
         currency: intent.currency,
-        declineCode: intent.declineCode,
-        declineCategory: intent.declineCategory,
+        ...decline,
         detectedAt: receivedAt,
         stripeGaveUp: intent.stripeGaveUp,
       }),
@@ -113,7 +159,7 @@ export async function handleStripeGaveUp(
   ctx: WebhookContext,
   intent: IntentOf<"stripe_gave_up">,
 ): Promise<WebhookOutcome> {
-  const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
+  const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
   const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
   if (!existing || existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
     const { applied } = await executeMoneyWrite(env, {
@@ -125,6 +171,11 @@ export async function handleStripeGaveUp(
       ? { status: "ignored", reason: existing ? "sequence_already_started" : "no_failed_payment" }
       : { status: "duplicate" };
   }
+  const decline = bestDecline(
+    null,
+    await resolveDeclineFacts(env, connectionId, intent.invoiceId),
+    existing,
+  );
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     // Same payment-scoped key as the payment_failed promotion above, so the
@@ -135,7 +186,7 @@ export async function handleStripeGaveUp(
         claim,
         failedPaymentId: existing.id,
         accountId,
-        declineCategory: existing.declineCategory as DeclineCategory,
+        ...decline,
         startedAt: receivedAt,
       }),
   });
@@ -179,6 +230,11 @@ export async function handleRecover(
   }
   const { attribution, recoveredByStepId, recoveryMethod } =
     await resolveRecoveryAttribution(env, failedPaymentId, receivedAt);
+  // What Stripe took, read BEFORE the batch and outside it, as intake reads its
+  // decline facts: the Durable Object batch makes no Stripe call. The read
+  // never throws, and a failed one records the recovery with the fee columns
+  // null; billing reads only the gross amount.
+  const chargeFee = await resolveRecoveredChargeFee(env, connectionId, intent.invoiceId);
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     idempotencyKey,
@@ -194,6 +250,7 @@ export async function handleRecover(
         recoveredByStepId,
         recoveryMethod,
         idempotencyKey: failedPaymentId,
+        chargeFee,
       }),
   });
   // THE MERCHANT NOTIFICATION, after the money write has committed and
@@ -258,6 +315,27 @@ export async function handleRecordExpiringCard(
     ],
   });
   return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
+// payment_method.automatically_updated: Stripe's card updater gave the customer
+// a new card, so an active failed payment is retried on it now. The claim
+// commits first; the retry follows, only on a first delivery, and through the
+// recovery tick's own guarded retry path (retryOnUpdatedCard), never a second
+// charging path. It never throws, so a failed retry cannot fail the webhook;
+// the step stays pending for its scheduled run.
+export async function handleCardAutoUpdated(
+  ctx: WebhookContext,
+  intent: IntentOf<"card_auto_updated">,
+): Promise<WebhookOutcome> {
+  const { env, accountId, claim, idempotencyKey } = ctx;
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) => buildClaimOnlyBatch(db, claim),
+  });
+  if (!applied) return { status: "duplicate" };
+  const attempted = await retryOnUpdatedCard(env, accountId, intent.customerId);
+  return attempted > 0 ? { status: "applied" } : { status: "ignored", reason: "no_retry_due" };
 }
 
 export async function handleStampRefund(

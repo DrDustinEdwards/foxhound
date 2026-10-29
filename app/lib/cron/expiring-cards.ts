@@ -1,6 +1,6 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 
-import type { Db } from "~/db";
+import type { Db, ExpiringCardAlertReason } from "~/db";
 import { accounts, expiringCardAlerts, getDb, stripeConnections } from "~/db";
 import { DAY_MS, EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
@@ -11,11 +11,7 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
-import {
-  buildExpiringCardEmail,
-  expiringCardSubject,
-  EXPIRING_CARD_TEMPLATE,
-} from "~/lib/recovery/expiring-card-email";
+import { expiringCardAlertContent, EXPIRING_CARD_TEMPLATE } from "~/lib/recovery/expiring-card-email";
 
 // THE EXPIRING-CARD ALERT CRON. Ported from legacy's
 // app/api/cron/expiring-cards/route.ts (blob `717f6bbe`, 15,163 bytes), which
@@ -105,6 +101,22 @@ export function isInsideLeadWindow(
   return expiry <= horizon && expiry >= now;
 }
 
+/**
+ * The renewal check's guard (invoice.upcoming and trial_will_end): true when
+ * the card will no longer be valid at `chargeAt`, so that charge will fail.
+ *
+ * A card is valid through the END of its expiry month, so it fails a charge
+ * made on or after the first of the following month. The lower bound is the
+ * lead window's, unchanged: a card already lapsed by its own measure is left
+ * to dunning, as both other writers leave it. Only the lead window's horizon
+ * is dropped, because the charge date, not a fixed lead, is what matters here.
+ */
+export function expiresBeforeCharge(expMonth: number, expYear: number, now: Date, chargeAt: Date): boolean {
+  const expiry = new Date(Date.UTC(expYear, expMonth - 1, 1));
+  const firstInvalid = new Date(Date.UTC(expYear, expMonth, 1));
+  return expiry >= now && firstInvalid <= chargeAt;
+}
+
 export interface CandidateInput {
   accountId: string;
   connectionId: string;
@@ -115,6 +127,8 @@ export interface CandidateInput {
   cardLast4: string | null;
   expiresMonth: number;
   expiresYear: number;
+  /** Omitted for a card: only the trial check records 'no_payment_method'. */
+  reason?: ExpiringCardAlertReason;
 }
 
 /**
@@ -139,6 +153,7 @@ export function buildCandidateUpsert(db: Db, input: CandidateInput, now: Date) {
       cardLast4: input.cardLast4,
       expiresMonth: input.expiresMonth,
       expiresYear: input.expiresYear,
+      reason: input.reason ?? "card_expiring",
       createdAt: now,
     })
     .onConflictDoNothing({
@@ -252,6 +267,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       cardLast4: expiringCardAlerts.cardLast4,
       expiresMonth: expiringCardAlerts.expiresMonth,
       expiresYear: expiringCardAlerts.expiresYear,
+      reason: expiringCardAlerts.reason,
       notificationsEnabled: accounts.expiringCardNotificationsEnabled,
       senderName: sql<string | null>`(
         select ${stripeConnections.senderName} from ${stripeConnections}
@@ -316,11 +332,10 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           to: alert.customerEmail,
           fromName: alert.senderName,
           replyTo: alert.replyToEmail,
-          subject: expiringCardSubject({
-            cardBrand: alert.cardBrand,
-            cardLast4: alert.cardLast4,
-          }),
-          blocks: buildExpiringCardEmail({
+          // The card copy, or the no-payment-method variant for a trial with
+          // nothing to charge (the row's reason picks).
+          ...expiringCardAlertContent({
+            reason: alert.reason,
             customerName: alert.customerName,
             cardBrand: alert.cardBrand,
             cardLast4: alert.cardLast4,
@@ -382,6 +397,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           expiresMonth: alert.expiresMonth,
           expiresYear: alert.expiresYear,
           cardBrand: alert.cardBrand,
+          reason: alert.reason,
         },
         idempotencyKey: `expiring-card-alert:${alert.id}`,
         outcomeAt: now,

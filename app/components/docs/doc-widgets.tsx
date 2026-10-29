@@ -260,6 +260,7 @@ function DisputeStates() {
     submitted: "Sent to Stripe. Waiting on the issuer.",
     resolved_won: "The issuer found for you.",
     resolved_lost: "The issuer found for the cardholder.",
+    inquiry_closed: "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
     <ol className="my-6 flex list-none flex-col gap-2 p-0">
