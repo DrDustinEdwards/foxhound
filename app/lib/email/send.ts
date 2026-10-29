@@ -123,6 +123,16 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   return message;
 }
 
+/** The message id from a binding send. The Email Service binding returns
+ *  `{ messageId }` (developers.cloudflare.com/email-service/api/send-emails/workers-api/,
+ *  EmailSendResult); `id` was this adapter's placeholder and is still read so
+ *  older test doubles keep working. This id is what Email Sending events carry
+ *  as payload.messageId, so it is how a bounce finds its send (events.ts). */
+function providerMessageIdOf(result: { id?: string; messageId?: string } | void): string | null {
+  if (!result) return null;
+  return result.messageId ?? result.id ?? null;
+}
+
 /**
  * Send one message through the Email Service binding. The single binding seam;
  * throws if the binding is not configured (Dustin provisions it). Returns the
@@ -138,7 +148,7 @@ export async function sendEmail(
   const baseUrl = env.BETTER_AUTH_URL ?? "";
   const message = buildEmailMessage(job, baseUrl);
   const result = await env.EMAIL.send(message);
-  return { providerMessageId: (result && "id" in result ? result.id : null) ?? null };
+  return { providerMessageId: providerMessageIdOf(result) };
 }
 
 /**
@@ -208,7 +218,7 @@ async function sendThroughAuthSender(
   if (!env.EMAIL) return { status: "failed", reason: "email_binding_missing" };
   try {
     const result = await env.EMAIL.send(authSenderMessage(message.to, message.rendered, message.fromName));
-    return { status: "sent", providerMessageId: (result && "id" in result ? result.id : null) ?? null };
+    return { status: "sent", providerMessageId: providerMessageIdOf(result) };
   } catch (cause) {
     return { status: "failed", reason: "provider_error", cause };
   }
