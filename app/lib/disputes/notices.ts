@@ -16,9 +16,9 @@ import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 // never auto-submits (RULES.md 5.6), so it is not built.
 //
 // WHAT IS NOT RECOVA'S, and why:
-// - The triage line ("Recommendation: FIGHT (80/100) ...") is left out of the
-//   new-dispute notice. Nothing in Foxhound writes a triage, and a line over
-//   data nothing writes would be a guess (RULES.md 3.18).
+// - The triage line ("Recommendation: FIGHT (80/100) ...") is Recova's, over the
+//   triage intake writes (app/lib/disputes/triage.ts). A dispute with no triage
+//   stored (one recorded before triage was ported) leaves the line out.
 // - Only Recova's auto-submit-OFF sentences are used, because auto-submit is
 //   never on (RULES.md 5.6; the build plan's E16 and E17 entries say so).
 // - The won notice's fee sentence states the fee the resolution writer
@@ -133,10 +133,17 @@ export interface CreatedNoticeInput {
   reason: string;
   evidenceDeadline: Date | null;
   disputeUrl: string;
+  triage?: { recommendation: string; confidence: number | null; reasoning: string | null } | null;
 }
 
-/** Recova's sendDisputeCreatedEmail, auto-submit off and without the triage
- *  line (see the header). */
+/** Recova's triage sentence, or null when the dispute has none stored. */
+function triageLine(triage: CreatedNoticeInput["triage"]): string | null {
+  if (!triage) return null;
+  const score = triage.confidence === null ? "" : ` (${triage.confidence}/100)`;
+  return `Recommendation: ${triage.recommendation.toUpperCase()}${score}. ${triage.reasoning ?? ""}`.trim();
+}
+
+/** Recova's sendDisputeCreatedEmail, auto-submit off. */
 export function createdNotice(input: CreatedNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const deadlineLine = input.evidenceDeadline
@@ -149,6 +156,7 @@ export function createdNotice(input: CreatedNoticeInput): NoticeMail {
       body: [
         `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
         deadlineLine,
+        ...(triageLine(input.triage) ? [triageLine(input.triage) as string] : []),
         "Auto-submit is off. We will remind you 3 days before the deadline.",
       ],
       action: { label: "Review dispute", url: input.disputeUrl },

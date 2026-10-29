@@ -3,6 +3,7 @@
 
 import { and, eq, isNull } from "drizzle-orm";
 import { disputes, getDb } from "~/db";
+import { mergeEvidence, readDisputeIntakeContext } from "~/lib/disputes/context.server";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { isDisputeResolved } from "~/lib/disputes/labels";
 import { sendDisputeCreatedNotice, sendDisputeOutcomeNotice } from "~/lib/disputes/notices.server";
@@ -64,7 +65,18 @@ export async function handleStampDispute(
     linked?.steps ?? [],
     await readDisputeProductDescription(getDb(env), accountId),
   );
-  const evidence = await draftDisputeEvidence(env, facts);
+  // Recova's Stripe context and triage (app/lib/disputes/triage.ts), read
+  // before the batch because an external call cannot ride it.
+  const stripeContext = await readDisputeIntakeContext(env, {
+    accountId,
+    connectionId,
+    stripeDisputeId: intent.stripeDisputeId,
+    chargeId: intent.chargeId,
+    customerId: linked?.failedPayment.stripeCustomerId ?? null,
+    amountCents: intent.amountCents,
+    reason: intent.reason,
+  });
+  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts));
   const disputeId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {
     accountId,
@@ -77,9 +89,9 @@ export async function handleStampDispute(
         stripeConnectionId: connectionId,
         stripeDisputeId: intent.stripeDisputeId,
         stripeChargeId: intent.chargeId,
-        stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? null,
-        customerEmail: linked?.failedPayment.customerEmail ?? null,
-        customerName: linked?.failedPayment.customerName ?? null,
+        stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? stripeContext.context.customerId,
+        customerEmail: linked?.failedPayment.customerEmail ?? stripeContext.context.customerEmail,
+        customerName: linked?.failedPayment.customerName ?? stripeContext.context.customerName,
         amountCents: intent.amountCents,
         currency: intent.currency,
         reason: intent.reason,
@@ -88,6 +100,7 @@ export async function handleStampDispute(
         createdAt: intent.createdAt,
         linkedFailedPaymentId: linked?.failedPayment.id ?? null,
         evidence,
+        contextColumns: stripeContext.columns,
       }),
   });
   // THE NEW-DISPUTE NOTICE (J06), after the intake has committed and

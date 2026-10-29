@@ -115,7 +115,10 @@ export type RetryResult =
    *  changed since the decline, or because the change could not be checked
    *  (app/lib/engine/card-change.ts). Terminal: no charge was made. */
   | "retry_skipped_card_unchanged"
-  | "retry_skipped_unverified";
+  | "retry_skipped_unverified"
+  /** A retry not attempted because the customer has a lost dispute with this
+   *  account (Recova's recovery_suppressed_retries). Terminal: no charge. */
+  | "retry_skipped_dispute_lost";
 
 /** Classify a completed invoices.pay call by the resulting invoice status. */
 export function classifyRetryStatus(invoiceStatus: string | null | undefined): RetryResult {

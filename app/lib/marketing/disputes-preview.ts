@@ -24,6 +24,8 @@ export interface PreviewDisputeRow {
   deadlineUrgency: DeadlineUrgency;
   /** "Oct 25": the deadline as a date, for the dispute table. */
   deadlineDate: string;
+  /** Recova's Triage column: the intake's fight or accept and its confidence. */
+  triage: { recommendation: "fight" | "accept"; confidence: number | null } | null;
 }
 
 export interface DisputesPreview {

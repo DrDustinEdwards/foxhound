@@ -55,8 +55,8 @@ import type { Route } from "./+types/disputes";
 //
 // ONE LINE IS NOT RECOVA'S: its page line and section line read "Automatically
 // triage chargebacks, stage evidence, and submit responses to Stripe." Foxhound
-// does not triage and never submits without the merchant's approval, so the
-// line says what it does (RULES.md 1.2, copy where Recova was untrue).
+// never submits without the merchant's approval, so the line says so (RULES.md
+// 1.2, copy where Recova was untrue).
 //
 // LOOK FROM CAPSOMER (Q10): PageHead, one panel card with Recova's rows,
 // Switch, a cap-input textarea, Button and Status, amber throughout. Recova's
@@ -67,7 +67,8 @@ export function meta() {
 }
 
 /** The page's line and the Disputes row's line (see above). */
-export const DISPUTES_SETTINGS_LINE = "Draft evidence for chargebacks and submit the responses you approve to Stripe.";
+export const DISPUTES_SETTINGS_LINE =
+  "Automatically triage chargebacks, stage evidence, and submit the responses you approve to Stripe.";
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

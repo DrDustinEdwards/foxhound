@@ -19,6 +19,7 @@ import {
 } from "~/lib/constants";
 import type { DeclineCategory, DisputeState } from "~/lib/constants";
 import type { EvidenceField } from "~/lib/disputes/evidence";
+import type { DisputeContextColumns } from "~/lib/disputes/triage";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
@@ -349,6 +350,9 @@ export interface DisputeIntakeInput {
   /** AI-drafted evidence, grounded only in real records (never fabricated;
    *  app/lib/disputes/evidence.ts). Empty when nothing grounds it. */
   evidence: EvidenceField[];
+  /** What Stripe said about the charge and customer, and Recova's triage over
+   *  it (app/lib/disputes/triage.ts). Absent on a caller that read nothing. */
+  contextColumns?: DisputeContextColumns;
 }
 
 /**
@@ -378,6 +382,7 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     createdAt: input.createdAt,
     stripeConnectionId: input.stripeConnectionId,
     state: "pending_review",
+    ...input.contextColumns,
   });
   const evidenceInserts = input.evidence.map((field) =>
     db.insert(disputeEvidence).values({

@@ -59,6 +59,9 @@ interface NoticeRow {
   customerName: string | null;
   customerEmail: string | null;
   evidenceDeadline: Date | null;
+  triageRecommendation: string | null;
+  triageConfidence: number | null;
+  triageReasoning: string | null;
   state: string;
   submittedAt: Date | null;
   resolvedAt: Date | null;
@@ -82,6 +85,9 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
       customerName: disputes.customerName,
       customerEmail: disputes.customerEmail,
       evidenceDeadline: disputes.evidenceDeadline,
+      triageRecommendation: disputes.triageRecommendation,
+      triageConfidence: disputes.triageConfidence,
+      triageReasoning: disputes.triageReasoning,
       state: disputes.state,
       submittedAt: disputes.submittedAt,
       resolvedAt: disputes.resolvedAt,
@@ -163,6 +169,13 @@ export async function sendDisputeCreatedNotice(
         reason: row.reason,
         evidenceDeadline: row.evidenceDeadline,
         disputeUrl: appUrl(env, `/disputes/${row.id}`),
+        triage: row.triageRecommendation
+          ? {
+              recommendation: row.triageRecommendation,
+              confidence: row.triageConfidence,
+              reasoning: row.triageReasoning,
+            }
+          : null,
       }),
       footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
     };
