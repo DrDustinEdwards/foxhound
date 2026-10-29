@@ -18,6 +18,7 @@ import {
   SIGN_IN_LIMITED,
 } from "~/lib/auth/rate-limit.server";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
+import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
 import { requestSignInLink, signInLinkAnswer } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -68,7 +69,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // visitor hitting /login otherwise saw the sign-in form while the header
   // already showed them authenticated.
   const session = await getSession(env, request);
-  if (session) throw redirect(next);
+  if (session) throw redirect(await signedInLanding(env, session, next));
   const code = params.get("error");
   return {
     next,

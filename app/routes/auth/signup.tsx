@@ -12,6 +12,7 @@ import {
 } from "~/components/auth-card";
 import { checkAuthLimit, limitedData, SIGN_UP_LIMITED } from "~/lib/auth/rate-limit.server";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
+import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
 import { requestSignInLink, signInLinkAnswer } from "~/lib/auth/sign-in-link.server";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
@@ -54,7 +55,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Validated the way /login validates it (app/lib/auth/next-path.ts).
   const next = safeNextPath(new URL(request.url).searchParams.get("next"));
   const session = await getSession(env, request);
-  if (session) throw redirect(next);
+  if (session) throw redirect(await signedInLanding(env, session, next));
   return { next, methods: signInMethods(env, { social: true }) };
 }
 

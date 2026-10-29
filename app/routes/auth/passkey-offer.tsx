@@ -6,6 +6,7 @@ import { redirect } from "react-router";
 import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
 import { authClient } from "~/lib/auth/client";
+import { signedInLanding } from "~/lib/auth/landing.server";
 import { safeNextPath } from "~/lib/auth/next-path";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -23,10 +24,12 @@ export function meta() {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const next = safeNextPath(new URL(request.url).searchParams.get("next"));
   const auth = await getAuth(env);
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) throw redirect("/login");
+  // Settled here, once signed in: an account not yet on Stripe goes on to
+  // /connect rather than an empty console.
+  const next = await signedInLanding(env, session, safeNextPath(new URL(request.url).searchParams.get("next")));
   const passkeys = await auth.api.listPasskeys({ headers: request.headers });
   if (passkeys.length > 0) throw redirect(next);
   return { next };
