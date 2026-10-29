@@ -284,6 +284,11 @@ export default [
   // switchAccountUrl. The switcher itself is phase (e).
   route("api/account/switch", "./routes/api/account-switch.ts"),
 
+  // Demo business switch: legacy's /api/demo/switch-account, which SiteNav.tsx
+  // passes to the switcher as switchAccountUrl in the demo. Action-only; it
+  // sets which demo business the visitor sees and writes nothing else.
+  route("api/demo/switch-account", "./routes/api/demo-switch-account.ts"),
+
   // The OAuth provider's three endpoints (J79), at Recova's paths. Action-only
   // resource routes; the work is in app/lib/oauth/provider.server.ts.
   route("api/oauth/token", "./routes/api/oauth-token.ts"),

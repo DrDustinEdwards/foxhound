@@ -34,15 +34,26 @@ export function accountInitial(a: SwitcherAccount): string {
 
 /** A switch is a POST, not a page, so an account's row carries this marker in
  *  place of an href and the header's link renderer draws a button for it
- *  (app/components/site-header.tsx). */
-const SWITCH_ACCOUNT_PREFIX = "#switch-account:";
+ *  (app/components/site-header.tsx). The marker names which endpoint the
+ *  switch posts to, legacy's `switchAccountUrl` (SiteNav.tsx): the session's
+ *  own accounts, or the demo's businesses. */
+export const ACCOUNT_SWITCH_URL = "/api/account/switch";
+export const DEMO_ACCOUNT_SWITCH_URL = "/api/demo/switch-account";
 
-function switchAccountHref(accountId: string): string {
-  return `${SWITCH_ACCOUNT_PREFIX}${accountId}`;
+const SWITCH_PREFIXES: Record<string, string> = {
+  [ACCOUNT_SWITCH_URL]: "#switch-account:",
+  [DEMO_ACCOUNT_SWITCH_URL]: "#switch-demo-account:",
+};
+
+function switchAccountHref(accountId: string, switchAccountUrl: string): string {
+  return `${SWITCH_PREFIXES[switchAccountUrl] ?? SWITCH_PREFIXES[ACCOUNT_SWITCH_URL]}${accountId}`;
 }
 
-export function switchTargetFromHref(href: string): string | null {
-  return href.startsWith(SWITCH_ACCOUNT_PREFIX) ? href.slice(SWITCH_ACCOUNT_PREFIX.length) : null;
+export function switchTargetFromHref(href: string): { accountId: string; switchAccountUrl: string } | null {
+  for (const [switchAccountUrl, prefix] of Object.entries(SWITCH_PREFIXES)) {
+    if (href.startsWith(prefix)) return { accountId: href.slice(prefix.length), switchAccountUrl };
+  }
+  return null;
 }
 
 let switching = false;
@@ -53,7 +64,7 @@ let switching = false;
  *  Pathname plus search, so a switch does not carry a fragment across accounts.
  *  `assign()` rather than legacy's `location.href = ...`: identical behavior,
  *  and the react-hooks/immutability rule rejects the assignment form. */
-export async function switchAccount(accountId: string, switchAccountUrl = "/api/account/switch"): Promise<void> {
+export async function switchAccount(accountId: string, switchAccountUrl = ACCOUNT_SWITCH_URL): Promise<void> {
   // One switch at a time, as the old menu's disabled rows had it: a second
   // click before the reload would race two POSTs for the session marker.
   if (switching) return;
@@ -88,7 +99,11 @@ function Tile({ initial }: { initial: string }) {
  *  all. Callers gate on `accounts.length > 0`; this returns null for an empty
  *  list too, so the anonymous header can never draw one. The tile's letter is
  *  the ACTIVE ACCOUNT's (legacy's accountInitial), so it changes on a switch. */
-export function businessSwitcher(accounts: SwitcherAccount[], activeAccountId: string | null): HeaderSwitcher | null {
+export function businessSwitcher(
+  accounts: SwitcherAccount[],
+  activeAccountId: string | null,
+  switchAccountUrl: string = ACCOUNT_SWITCH_URL,
+): HeaderSwitcher | null {
   const active = accounts.find((a) => a.id === activeAccountId) ?? accounts[0];
   if (!active) return null;
   return {
@@ -106,7 +121,7 @@ export function businessSwitcher(accounts: SwitcherAccount[], activeAccountId: s
             label: accountLabel(a),
             // The account you are on is marked current; its row switches
             // nothing (the renderer skips a current row), as legacy's did.
-            href: switchAccountHref(a.id),
+            href: switchAccountHref(a.id, switchAccountUrl),
             current: a.id === active.id,
             icon: <Tile initial={accountInitial(a)} />,
           })),

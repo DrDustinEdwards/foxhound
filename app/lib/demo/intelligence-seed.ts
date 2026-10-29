@@ -169,12 +169,29 @@ function heuristicTrajectory(recovery: RecoveryAggregate, seed: string): Traject
 }
 
 // ============================================================================
-// Dispute-only customers (net-new: Foxhound's disputes belong to Teamflow
-// customers not otherwise in the 200-customer base, except Harborline Group,
-// which IS in the base and just gets its dispute_signals merged in)
+// Dispute-only customers (net-new: a demo business's disputes mostly belong to
+// customers not otherwise in its 200-customer base. A disputed customer who IS
+// in the base, Teamflow's Harborline Group, just gets its dispute_signals
+// merged in.)
 // ============================================================================
 
-const HARBORLINE_STRIPE_ID = "cus_teamflow_harborline_group";
+/** The plan a net-new dispute-only customer is on, read off the disputed
+ *  charge. Teamflow's rule by default; Bolt Analytics sells Pro only. */
+export interface DisputeOnlyPlan {
+  tier: string;
+  planName: string;
+  mrrCents: number;
+}
+
+export function teamflowDisputeOnlyPlan(amountCents: number): DisputeOnlyPlan {
+  return amountCents >= 30000
+    ? { tier: "scale", planName: "Scale", mrrCents: 29900 }
+    : { tier: "growth", planName: "Growth", mrrCents: 9900 };
+}
+
+export function boltDisputeOnlyPlan(): DisputeOnlyPlan {
+  return { tier: "pro", planName: "Pro", mrrCents: 9900 };
+}
 
 interface DisputeAggregate {
   openDisputesCount: number;
@@ -276,7 +293,7 @@ function snapshotDates(now: Date): Date[] {
   return dates;
 }
 
-function buildSnapshots(accountId: string, roster: MrrRosterEntry[], now: Date): MrrSnapshotInsert[] {
+function buildSnapshots(accountId: string, idPrefix: string, roster: MrrRosterEntry[], now: Date): MrrSnapshotInsert[] {
   const rows: MrrSnapshotInsert[] = [];
   let priorByCustomer: Map<string, number> | null = null;
 
@@ -296,7 +313,7 @@ function buildSnapshots(accountId: string, roster: MrrRosterEntry[], now: Date):
 
     const fields = buildMrrSnapshotFields(priorByCustomer, current);
     rows.push({
-      id: `dmrr_${dates.length - 1 - m}`,
+      id: `${idPrefix}mrr_${dates.length - 1 - m}`,
       accountId,
       snapshotDate,
       totalMrrCents: fields.totalMrrCents,
@@ -332,14 +349,14 @@ function buildSnapshots(accountId: string, roster: MrrRosterEntry[], now: Date):
 
 // ============================================================================
 // Alerts (ported from legacy lib/demo-seeding/seed-alerts.ts: 3 rules + 1 fired
-// history row, scoped to the single Teamflow demo account)
+// history row, for each demo business, as legacy seeded them per account)
 // ============================================================================
 
-function buildAlerts(accountId: string, now: Date): { alerts: AlertInsert[]; history: AlertHistoryInsert[] } {
+function buildAlerts(accountId: string, p: string, now: Date): { alerts: AlertInsert[]; history: AlertHistoryInsert[] } {
   const threeDaysAgo = new Date(now.getTime() - 3 * DAY_MS);
   const alertRows: AlertInsert[] = [
     {
-      id: "dalert_recovery_rate",
+      id: `${p}alert_recovery_rate`,
       accountId,
       metric: "recovery_rate_pct",
       thresholdValue: 25,
@@ -351,7 +368,7 @@ function buildAlerts(accountId: string, now: Date): { alerts: AlertInsert[]; his
       createdAt: now,
     },
     {
-      id: "dalert_mrr_at_risk",
+      id: `${p}alert_mrr_at_risk`,
       accountId,
       metric: "mrr_at_risk_cents",
       thresholdValue: 200000,
@@ -363,7 +380,7 @@ function buildAlerts(accountId: string, now: Date): { alerts: AlertInsert[]; his
       createdAt: now,
     },
     {
-      id: "dalert_active_sequences",
+      id: `${p}alert_active_sequences`,
       accountId,
       metric: "active_sequences",
       thresholdValue: 10,
@@ -377,8 +394,8 @@ function buildAlerts(accountId: string, now: Date): { alerts: AlertInsert[]; his
   ];
   const historyRows: AlertHistoryInsert[] = [
     {
-      id: "dalerthist_mrr_at_risk",
-      alertId: "dalert_mrr_at_risk",
+      id: `${p}alerthist_mrr_at_risk`,
+      alertId: `${p}alert_mrr_at_risk`,
       accountId,
       metric: "mrr_at_risk_cents",
       thresholdValue: 200000,
@@ -403,15 +420,24 @@ export interface IntelligenceSeedInputs {
   failedPayments: FailedPaymentInsert[];
   recoveredPayments: RecoveredPaymentInsert[];
   disputes: DisputeInsert[];
+  /** Starts the ids of the rows not keyed by a customer (snapshots, alerts),
+   *  so two demo businesses never share one. Teamflow's "d" by default. */
+  idPrefix?: string;
+  disputeOnlyPlan?: (amountCents: number) => DisputeOnlyPlan;
 }
 
 export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): IntelligenceSeedResult {
   const { accountId, now, customers, failedPayments, recoveredPayments, disputes } = inputs;
+  const idPrefix = inputs.idPrefix ?? "d";
+  const disputeOnlyPlan = inputs.disputeOnlyPlan ?? teamflowDisputeOnlyPlan;
 
   const customerContextRows: CustomerContextInsert[] = [];
   const healthHistoryRows: HealthScoreHistoryInsert[] = [];
 
-  const harborlineDispute = disputes.find((d) => d.stripeCustomerId === HARBORLINE_STRIPE_ID) ?? null;
+  const baseIds = new Set(customers.map((c) => c.stripeCustomerId));
+  const baseDisputes = new Map(
+    disputes.filter((d) => baseIds.has(d.stripeCustomerId as string)).map((d) => [d.stripeCustomerId as string, d]),
+  );
 
   for (const c of customers) {
     const recovery = aggregateRecovery(c.stripeCustomerId, failedPayments, recoveredPayments);
@@ -421,9 +447,8 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
     const healthScore = trajectory[trajectory.length - 1]?.healthScore ?? 70;
     const healthFactors = deriveHealthFactors(trajectory);
     const engagementSignals = engagementSignalsFor(c.stripeCustomerId, c.scripted?.engagementOverride, recovery, now);
-    const disputeSignals = c.stripeCustomerId === HARBORLINE_STRIPE_ID && harborlineDispute
-      ? aggregateDispute(harborlineDispute)
-      : {};
+    const baseDispute = baseDisputes.get(c.stripeCustomerId);
+    const disputeSignals = baseDispute ? aggregateDispute(baseDispute) : {};
     const tenureMonths = Math.max(1, Math.round((now.getTime() - c.customerSince.getTime()) / (30 * DAY_MS)));
     const mrr = monthlyMrrCents(c);
     const ctxId = `dctx_${c.stripeCustomerId}`;
@@ -470,14 +495,13 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
     }
   }
 
-  // Net-new dispute-only customers (every seeded dispute except Harborline's,
-  // which is already one of the 200 base customers above).
+  // Net-new dispute-only customers (every seeded dispute whose customer is not
+  // already one of the 200 base customers above, as Harborline's is).
   const disputeOnlyRoster: { id: string; planName: string; joinedAt: Date; mrrCents: number }[] = [];
   for (const d of disputes) {
-    if (d.stripeCustomerId === HARBORLINE_STRIPE_ID) continue;
+    if (baseIds.has(d.stripeCustomerId as string)) continue;
     const seed = d.stripeCustomerId as string;
-    const tier = d.amountCents >= 30000 ? "scale" : "growth";
-    const mrrCents = tier === "scale" ? 29900 : 9900;
+    const { tier, planName, mrrCents } = disputeOnlyPlan(d.amountCents);
     const tenureMonths = 8 + seededInt(seed, 8);
     const joinedAt = new Date(now.getTime() - tenureMonths * 30 * DAY_MS);
     const ctxId = `dctx_${d.stripeCustomerId}`;
@@ -497,7 +521,7 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
       ltvCents: mrrCents * tenureMonths,
       currency: "usd",
       activeSubscriptionsCount: 1,
-      currentPlanName: tier === "scale" ? "Scale" : "Growth",
+      currentPlanName: planName,
       currentPlanTier: tier,
       recoverySignals: {},
       disputeSignals: agg,
@@ -526,12 +550,12 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
       });
     }
 
-    disputeOnlyRoster.push({ id: d.stripeCustomerId as string, planName: tier === "scale" ? "Scale" : "Growth", joinedAt, mrrCents });
+    disputeOnlyRoster.push({ id: d.stripeCustomerId as string, planName, joinedAt, mrrCents });
   }
 
   const roster = buildMrrRoster(customers, disputeOnlyRoster);
-  const mrrSnapshotRows = buildSnapshots(accountId, roster, now);
-  const { alerts: alertRows, history: alertHistoryRows } = buildAlerts(accountId, now);
+  const mrrSnapshotRows = buildSnapshots(accountId, idPrefix, roster, now);
+  const { alerts: alertRows, history: alertHistoryRows } = buildAlerts(accountId, idPrefix, now);
 
   return {
     customerContext: customerContextRows,

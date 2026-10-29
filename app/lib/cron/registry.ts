@@ -11,7 +11,7 @@ import {
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
 } from "~/lib/constants";
-import { DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
+import { DEMO_BUSINESSES, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
@@ -147,13 +147,14 @@ const intelligenceAi: CronHandler = async (env) => {
   };
 };
 
-/** The demo-account reset: wipes and rebuilds the seeded demo account daily, so a
- *  prospect clicking around cannot leave it broken for the next visitor. The
- *  seeder is deterministic + idempotent and makes no Stripe/AI call; the demo
- *  account is firewalled out of every other cron by its DEMO_ACCOUNT_ID_PREFIX. */
+/** The demo-account reset: wipes and rebuilds both seeded demo businesses
+ *  (Teamflow, Bolt Analytics) daily, so a prospect clicking around cannot leave
+ *  them broken for the next visitor. The seeder is deterministic + idempotent
+ *  and makes no Stripe/AI call; the demo accounts are firewalled out of every
+ *  other cron by their DEMO_ACCOUNT_ID_PREFIX. */
 const demoReset: CronHandler = async (env) => {
   await seedDemoAccount(getDb(env), new Date());
-  return { rowsProcessed: 1, message: "demo account reseeded" };
+  return { rowsProcessed: DEMO_BUSINESSES.length, message: `${DEMO_BUSINESSES.length} demo accounts reseeded` };
 };
 
 /** The never-executed and overdue detector (313). Ruling 311 measured that a cron

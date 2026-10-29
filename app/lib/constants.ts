@@ -632,7 +632,7 @@ export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
  *
  * At 500 that arithmetic lands around 2000-2500 and the tick could not have
  * completed a full batch. The old value only ever looked safe because a full
- * batch has never occurred: the platform has one seeded demo account.
+ * batch has never occurred: the platform's only seeded accounts are the two demo businesses.
  *
  * Lowering it costs nothing in correctness. Unprocessed due steps keep a null
  * result and a null executed_at, which is exactly what stepDueCondition selects,
