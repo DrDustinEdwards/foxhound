@@ -339,7 +339,6 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
       return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
     }
-  | {
     case "radar.early_fraud_warning.created":
     case "radar.early_fraud_warning.updated": {
       const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
