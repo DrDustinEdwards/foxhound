@@ -85,6 +85,8 @@ async function seed(opts: {
       stripeCustomerId: `cus_ctx_${c}`,
       customerName: `AtRisk ${c}`,
       healthScore: 10,
+      // The nightly scoring flags these for personal outreach (Recova's feed row).
+      recommendedAction: "personal_outreach",
       mrrContributionCents: r.mrr,
       currency: r.currency,
       createdAt: now,
@@ -112,7 +114,7 @@ describe("console read model: money per currency (RULES.md 3.20)", () => {
   it("formats an attention row's MRR in that customer's own currency", async () => {
     const db = await seed({ atRisk: [{ mrr: 9_000, currency: "eur" }] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    const row = view.attention.find((r) => r.key.startsWith("at-risk-"));
+    const row = view.attention.find((r) => r.key.startsWith("outreach-"));
     expect(row?.mrrCurrency).toBe("eur");
   });
 
@@ -127,14 +129,14 @@ describe("console read model: the Intelligence tile and rows", () => {
   // Recova counts every customer with a high-risk score (console/page.tsx,
   // intelligenceHighRiskResult has no limit). Foxhound had reused the three
   // rows it shows in the feed, so the tile stopped counting at three.
-  it("counts every high-risk customer, not only the three the feed shows", async () => {
+  it("counts every high-risk customer, not only the three outreach rows the feed shows", async () => {
     const db = await seed({
       atRisk: Array.from({ length: 5 }, () => ({ mrr: 1_000, currency: "usd" })),
     });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.tiles.highRiskCustomerCount).toBe(5);
     expect(view.tiles.highRiskMrr).toEqual([{ currency: "usd", cents: 5_000 }]);
-    expect(view.attention.filter((r) => r.key.startsWith("at-risk-"))).toHaveLength(3);
+    expect(view.attention.filter((r) => r.key.startsWith("outreach-"))).toHaveLength(3);
   });
 
 });

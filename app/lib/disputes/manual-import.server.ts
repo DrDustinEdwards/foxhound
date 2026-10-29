@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb, stripeConnections } from "~/db";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
-import { readDisputeProductDescription } from "~/lib/disputes/queries.server";
+import { readDisputeProductDescription, readDisputesEnabled } from "~/lib/disputes/queries.server";
 import { disputeIntakeFields, isStripeDisputeId } from "~/lib/disputes/stripe-dispute";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -73,6 +73,7 @@ export type ManualImportResult =
   | { status: "imported"; disputeId: string }
   | { status: "already_imported" }
   | { status: "invalid_id" }
+  | { status: "disputes_disabled" }
   | { status: "not_connected" }
   | { status: "not_found" };
 
@@ -113,6 +114,14 @@ export async function importDisputeFromStripe(
 ): Promise<ManualImportResult> {
   const stripeDisputeId = rawDisputeId.trim();
   if (!isStripeDisputeId(stripeDisputeId)) return { status: "invalid_id" };
+  // Disputes switched off on /settings/disputes: nothing is retrieved or
+  // written, as the webhook intake skips it (Recova's handleDisputeCreated
+  // step 1). Recova's sync still inserted a bare row before that step
+  // returned; Foxhound creates none, which is what "off" says.
+  if (!(await readDisputesEnabled(getDb(env), accountId))) {
+    console.log(`manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
+    return { status: "disputes_disabled" };
+  }
 
   const connection = await resolveAccountConnection(env, accountId);
   if (!connection?.stripeAccessToken) return { status: "not_connected" };

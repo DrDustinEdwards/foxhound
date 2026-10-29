@@ -231,3 +231,73 @@ export function buildMrrSnapshotFields(
     perChannelBreakdown: {},
   };
 }
+
+/** The columns of an mrr_snapshots row that rolling days into a month reads. */
+export interface DailyMrrRow {
+  snapshotDate: Date;
+  totalMrrCents: number;
+  newMrrCents: number;
+  expansionMrrCents: number;
+  contractionMrrCents: number;
+  churnMrrCents: number;
+  reactivationMrrCents: number;
+  newCustomersCount: number;
+  churnedCustomersCount: number;
+  voluntaryChurnRateBps: number | null;
+  involuntaryChurnRateBps: number | null;
+  netRevenueRetentionBps: number | null;
+  grossRevenueRetentionBps: number | null;
+}
+
+/**
+ * Daily snapshots rolled up into one row per UTC month, oldest first, for the
+ * readers that speak in months (the console, the monthly narrative, alerts).
+ * Each month is its LAST day's row, with the month's movements and customer
+ * counts summed and its rates measured against the month's starting MRR (the
+ * total of the day before its first row). Each day's churn rate was measured
+ * against that day's prior total, so a day's churned cents are its rate times
+ * the previous row's total. A month whose starting MRR is unknown (its first
+ * row is the series' first) keeps null rates, as an account's first sync does.
+ */
+export function rollUpByMonth<T extends DailyMrrRow>(rowsAsc: readonly T[]): T[] {
+  const monthOf = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+  const months: T[] = [];
+  let i = 0;
+  while (i < rowsAsc.length) {
+    const key = monthOf(rowsAsc[i].snapshotDate);
+    const start = i > 0 ? rowsAsc[i - 1].totalMrrCents : null;
+    let j = i;
+    const sum = { new: 0, exp: 0, contr: 0, churn: 0, react: 0, newCust: 0, churnedCust: 0, vol: 0, invol: 0 };
+    while (j < rowsAsc.length && monthOf(rowsAsc[j].snapshotDate) === key) {
+      const r = rowsAsc[j];
+      const prior = j > 0 ? rowsAsc[j - 1].totalMrrCents : 0;
+      sum.new += r.newMrrCents;
+      sum.exp += r.expansionMrrCents;
+      sum.contr += r.contractionMrrCents;
+      sum.churn += r.churnMrrCents;
+      sum.react += r.reactivationMrrCents;
+      sum.newCust += r.newCustomersCount;
+      sum.churnedCust += r.churnedCustomersCount;
+      sum.vol += ((r.voluntaryChurnRateBps ?? 0) * prior) / 10000;
+      sum.invol += ((r.involuntaryChurnRateBps ?? 0) * prior) / 10000;
+      j += 1;
+    }
+    const known = start !== null && start > 0;
+    months.push({
+      ...rowsAsc[j - 1],
+      newMrrCents: sum.new,
+      expansionMrrCents: sum.exp,
+      contractionMrrCents: sum.contr,
+      churnMrrCents: sum.churn,
+      reactivationMrrCents: sum.react,
+      newCustomersCount: sum.newCust,
+      churnedCustomersCount: sum.churnedCust,
+      voluntaryChurnRateBps: known ? bps(sum.vol, start) : null,
+      involuntaryChurnRateBps: known ? bps(sum.invol, start) : null,
+      netRevenueRetentionBps: known ? bps(start + sum.exp - sum.contr - sum.churn, start) : null,
+      grossRevenueRetentionBps: known ? bps(start - sum.contr - sum.churn, start) : null,
+    });
+    i = j;
+  }
+  return months;
+}

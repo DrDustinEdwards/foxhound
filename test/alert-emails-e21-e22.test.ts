@@ -44,8 +44,8 @@ const notify = await import("~/lib/intelligence/alert-notify.server");
 const {
   CRITICAL_CUSTOMERS_ALERT_LIVE,
 } = notify;
-const { evaluateAndRecordAlerts, runCriticalCustomersCheck, runIntelligenceAiForAccount } = await import(
-  "~/lib/intelligence/ai-run.server"
+const { evaluateAndRecordAlerts, runAlertsForAllAccounts, runCriticalCustomersCheck } = await import(
+  "~/lib/intelligence/alert-run.server"
 );
 const { ALERT_COOLDOWN_MARGIN_MS, ALERT_COOLDOWN_MS, evaluateAlerts } = await import("~/lib/intelligence/alerts");
 
@@ -249,23 +249,18 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
     expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
   });
 
-  it("the nightly run sends it: runIntelligenceAiForAccount reaches the alert mail", async () => {
+  it("the alerts run sends it: Recova's recovery rate, computed from the account's own rows", async () => {
     seedAccount();
-    // health_score_avg below 101 fires for any scored customer.
+    // No failed payments: Recova's recovery rate is 0, below 1.
     sqlite
       .prepare(
-        "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, created_at) VALUES (?, ?, 'health_score_avg', 101, 'below', 'email', 1, 1000)",
+        "INSERT INTO alerts (id, account_id, metric, threshold_value, direction, channel, enabled, created_at) VALUES (?, ?, 'recovery_rate_pct', 1, 'below', 'email', 1, 1000)",
       )
       .run(ALERT, ACCOUNT);
-    sqlite
-      .prepare(
-        "INSERT INTO customer_context (id, account_id, stripe_customer_id, customer_name, currency, created_at, updated_at) VALUES ('cc_1', ?, 'cus_1', 'Jane', 'usd', 1000, 1000)",
-      )
-      .run(ACCOUNT);
-    const result = await runIntelligenceAiForAccount(env, ACCOUNT, NOW.getTime());
-    expect(result.alertsFired).toBe(1);
+    const result = await runAlertsForAllAccounts(env, NOW.getTime());
+    expect(result.fired).toBe(1);
     expect(harness.sent).toHaveLength(1);
-    expect(harness.sent[0].subject).toBe("Foxhound alert: Average health score below threshold");
+    expect(harness.sent[0].subject).toBe("Foxhound alert: Recovery rate below threshold");
     expect(historyRows().map((r) => r.notification_sent)).toEqual([1]);
   });
 });

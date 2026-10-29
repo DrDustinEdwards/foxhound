@@ -206,6 +206,30 @@ export async function applyDisputeSettings(
   return { ok: true, fields, state };
 }
 
+/**
+ * The Disputes on/off switch (Recova's DisputesToggle, which posted to
+ * /api/disputes/{enable,disable} over account_products). One column; the
+ * description and ships-physical are left exactly as stored, as Recova's hidden
+ * inputs kept them while the section was collapsed.
+ */
+export async function applyDisputesEnabled(
+  db: Db,
+  accountId: string,
+  input: { enabled: unknown },
+  trace?: WriteTrace,
+): Promise<ApplyResult<{ enabled: boolean }>> {
+  const state = { enabled: asBoolean(input.enabled) };
+  const fields = ["disputes_enabled"];
+  await commit(
+    db,
+    accountId,
+    fields,
+    db.update(accounts).set({ disputesEnabled: state.enabled }).where(eq(accounts.id, accountId)),
+    trace,
+  );
+  return { ok: true, fields, state };
+}
+
 export interface NotificationSettingsState {
   notificationEmail: string | null;
   slackWebhookUrl: string | null;
@@ -590,7 +614,11 @@ export interface AlertCreateState {
   direction: string;
   thresholdValue: number;
   label: string | null;
+  channel: string;
 }
+
+/** Recova's two channels. Email is the default, as Recova's form opens on it. */
+const ALERT_CHANNELS = ["email", "slack"] as const;
 
 /** The three refusals, the form's own sentences. */
 const ALERT_METRIC_ERROR = "Choose a metric Foxhound tracks.";
@@ -614,7 +642,7 @@ const ALERT_NOT_FOUND_ERROR = "Select an alert.";
 export async function applyAlertCreate(
   db: Db,
   accountId: string,
-  input: { metric: unknown; direction: unknown; threshold: unknown; label?: unknown },
+  input: { metric: unknown; direction: unknown; threshold: unknown; label?: unknown; channel?: unknown },
   now: Date,
   trace?: WriteTrace,
 ): Promise<ApplyResult<AlertCreateState>> {
@@ -629,6 +657,7 @@ export async function applyAlertCreate(
     return { ok: false, error: ALERT_THRESHOLD_ERROR };
   }
   const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
+  const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel) ? String(input.channel) : "email";
 
   const state: AlertCreateState = {
     id: crypto.randomUUID(),
@@ -636,9 +665,10 @@ export async function applyAlertCreate(
     direction,
     thresholdValue,
     label: asOptionalText(input.label),
+    channel,
   };
   // A new row, so every column it names is a field this write touched.
-  const fields = ["metric", "direction", "threshold_value", "label"];
+  const fields = ["metric", "direction", "threshold_value", "label", "channel"];
   await commit(
     db,
     accountId,

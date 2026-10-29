@@ -64,7 +64,14 @@ export interface RetryStepContext {
   /** failed_payments.decline_category. Required, so every caller says it: an
    *  expired card's retry charges only a changed card (card-change.ts). */
   declineCategory: string;
+  /** failed_payments.network_advice_code. "do_not_try_again" stops the retry
+   *  whatever the category says, since a row's category can predate its
+   *  advice. */
+  networkAdviceCode?: string | null;
 }
+
+/** The terminal result on a retry the card network said never to attempt. */
+const RETRY_RESULT_DO_NOT_TRY_AGAIN = "retry_skipped_do_not_try_again";
 
 /** Stripe idempotency key for a retry charge: stable per step, so a redelivered
  *  tick that re-attempts the charge is deduped by Stripe (no double charge). */
@@ -201,6 +208,14 @@ export async function executeRetryStep(
   const checkChanged = deps.checkCardChanged ?? checkCardChanged;
 
   const now = new Date();
+  // THE NETWORK'S STOP, before any charge. The card network said this card
+  // must not be retried, and a retry against that advice can cost the
+  // merchant a network fee, so the step ends with no charge.
+  if (ctx.networkAdviceCode === "do_not_try_again") {
+    const skipped: RetryResult = RETRY_RESULT_DO_NOT_TRY_AGAIN;
+    await persistPatch(env, ctx.stepId, { executedAt: now, result: skipped, retryResult: skipped });
+    return { action: "retry", executed: true, recovered: false, retryResult: skipped };
+  }
   // THE EXPIRED-CARD GUARD, before any charge. An unchanged (or unreadable)
   // card ends the step with no charge; the sequence moves on to its next step.
   if (retryNeedsChangedCard(ctx.declineCategory)) {

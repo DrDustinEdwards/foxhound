@@ -118,7 +118,10 @@ export type RetryResult =
   | "retry_skipped_unverified"
   /** A retry not attempted because the customer has a lost dispute with this
    *  account (Recova's recovery_suppressed_retries). Terminal: no charge. */
-  | "retry_skipped_dispute_lost";
+  | "retry_skipped_dispute_lost"
+  /** A retry not attempted because the declined charge carried the network
+   *  advice code do_not_try_again (engine/retry-step.ts). Terminal: no charge. */
+  | "retry_skipped_do_not_try_again";
 
 /** Classify a completed invoices.pay call by the resulting invoice status. */
 export function classifyRetryStatus(invoiceStatus: string | null | undefined): RetryResult {

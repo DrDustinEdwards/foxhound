@@ -11,6 +11,7 @@ import {
 } from "~/lib/constants";
 import type { EmailStepContext } from "~/lib/engine/execute-step";
 import type { RetryStepContext } from "~/lib/engine/retry-step";
+import { isRetryStep } from "~/lib/recovery/schedule";
 import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 
 // The recovery tick: the sweep that runs due recovery_steps. Registered through
@@ -209,6 +210,8 @@ export interface DueStepRow {
   /** The payment's connection's stored charges_enabled (account.updated).
    *  False holds a retry step; NULL (never told) does not. */
   chargesEnabled?: boolean | null;
+  /** failed_payments.network_advice_code, for the do-not-try-again stop. */
+  networkAdviceCode?: string | null;
 }
 
 // The sample emails are the account's, saved on its primary connection by
@@ -258,6 +261,7 @@ function selectStepRows(db: Db) {
       replyToEmail: stripeConnections.replyToEmail,
       stripeCustomerId: failedPayments.stripeCustomerId,
       chargesEnabled: stripeConnections.chargesEnabled,
+      networkAdviceCode: failedPayments.networkAdviceCode,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -346,6 +350,33 @@ export async function queryStepForManualTrigger(
   return rows[0] ?? null;
 }
 
+/**
+ * The pending RETRY steps of one customer's active failed payments, for the
+ * card updater's retry-now (recovery-tick.ts retryOnUpdatedCard). Like the
+ * manual trigger, `stepDueCondition` is NOT applied, because the point is to
+ * run the retry before its scheduled time; the account processing gate is
+ * kept, for the same reason the manual trigger keeps it. Earliest first.
+ */
+export async function queryPendingRetryStepsForCustomer(
+  db: Db,
+  accountId: string,
+  stripeCustomerId: string,
+): Promise<DueStepRow[]> {
+  const rows = await selectStepRows(db)
+    .where(
+      and(
+        eq(recoverySteps.accountId, accountId),
+        eq(failedPayments.stripeCustomerId, stripeCustomerId),
+        eq(failedPayments.status, "active"),
+        isNull(failedPayments.deletedAt),
+        stepPendingCondition(),
+        accountProcessingEligibleCondition(),
+      ),
+    )
+    .orderBy(asc(recoverySteps.scheduledAt));
+  return rows.filter((row) => isRetryStep(row.stepType));
+}
+
 export function toRetryContext(row: DueStepRow): RetryStepContext | null {
   if (!row.connectionAccessToken) return null; // cannot charge without the connected token
   return {
@@ -357,6 +388,7 @@ export function toRetryContext(row: DueStepRow): RetryStepContext | null {
     currency: row.currency,
     connectionAccessToken: row.connectionAccessToken,
     declineCategory: row.declineCategory,
+    networkAdviceCode: row.networkAdviceCode ?? null,
   };
 }
 

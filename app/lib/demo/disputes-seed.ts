@@ -1,9 +1,10 @@
 import { DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import type { disputeApprovals, disputeEvidence, disputes } from "~/db";
+import type { disputeApprovals, disputeEvidence, disputes, earlyFraudWarnings } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
 // Disputes seed (TASK-foxhound-demo-data-engine.md Phase 3): the legacy
-// 8-dispute Teamflow set, ported near-verbatim, mapped onto Foxhound's dispute
+// 8-dispute Teamflow set and 3-dispute Bolt Analytics set (lib/demo-seeding/
+// seed-disputes.ts seedDisputes / seedBoltDisputes, blob `fd631d18`), ported near-verbatim, mapped onto Foxhound's dispute
 // state machine (draft|pending_review|submitted|resolved_won|resolved_lost)
 // and approval gate. Pure: returns plain insert rows; app/lib/demo/seed.ts
 // turns these into db.insert(...) batches.
@@ -32,7 +33,7 @@ export interface DisputesSeedResult {
   disputeApprovals: DisputeApprovalInsert[];
 }
 
-interface DisputeSpec {
+export interface DisputeSpec {
   id: string;
   stripeCustomerId: string;
   customerName: string;
@@ -57,7 +58,7 @@ interface DisputeSpec {
   resolvedDaysAgo: number | null;
 }
 
-const DISPUTE_SPECS: DisputeSpec[] = [
+export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
   {
     id: "ddisp_1",
     stripeCustomerId: "cus_teamflow_harborline_group",
@@ -238,17 +239,95 @@ const DISPUTE_SPECS: DisputeSpec[] = [
   },
 ];
 
-/** Build the 8-dispute Teamflow set. `memberEmail` is the demo account's
+// Bolt Analytics' three: one won, one lost, one awaiting a response. All three
+// are $99 Pro charges. Legacy's customers here (Lane Owens, Sage Pulse, Drift
+// Logic) are not in the 200-customer Bolt base, so each is a net-new customer.
+export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
+  {
+    id: "ddisp_bolt_1",
+    stripeCustomerId: "cus_bolt_dispute_lane_owens",
+    customerName: "Lane Owens",
+    customerEmail: "lane.owens@apex-stack.demo",
+    amountCents: 9900,
+    reason: "fraudulent",
+    state: "resolved_won",
+    foxhoundSubmitted: true,
+    triageRecommendation: "fight",
+    triageConfidence: 86,
+    triageReasoning: "6 prior successful charges, low Radar risk, and recovery email engagement on earlier failures.",
+    priorChargesCount: 6,
+    priorChargesTotal: 59400,
+    avsResult: "pass",
+    cvvResult: "pass",
+    radarRiskScore: 12,
+    radarRiskLevel: "normal",
+    smartDisputesStatus: "not_eligible",
+    createdDaysAgo: 20,
+    resolvedDaysAgo: 2,
+  },
+  {
+    id: "ddisp_bolt_2",
+    stripeCustomerId: "cus_bolt_dispute_sage_pulse",
+    customerName: "Sage Pulse",
+    customerEmail: "billing@sagepulse.demo",
+    amountCents: 9900,
+    reason: "subscription_canceled",
+    state: "resolved_lost",
+    foxhoundSubmitted: true,
+    triageRecommendation: "fight",
+    triageConfidence: 52,
+    triageReasoning: "Subscription dispute. The evidence is weaker than ideal but worth submitting.",
+    priorChargesCount: 2,
+    priorChargesTotal: 19800,
+    avsResult: "pass",
+    cvvResult: "unavailable",
+    radarRiskScore: 38,
+    radarRiskLevel: "elevated",
+    smartDisputesStatus: "not_eligible",
+    createdDaysAgo: 28,
+    resolvedDaysAgo: 8,
+  },
+  {
+    id: "ddisp_bolt_3",
+    stripeCustomerId: "cus_bolt_dispute_drift_logic",
+    customerName: "Drift Logic",
+    customerEmail: "admin@driftlogic.demo",
+    amountCents: 9900,
+    reason: "product_not_received",
+    state: "pending_review",
+    foxhoundSubmitted: false,
+    triageRecommendation: "fight",
+    triageConfidence: 70,
+    triageReasoning: "Stable subscription customer with engagement history.",
+    priorChargesCount: 4,
+    priorChargesTotal: 39600,
+    avsResult: "pass",
+    cvvResult: "pass",
+    radarRiskScore: 18,
+    radarRiskLevel: "normal",
+    smartDisputesStatus: "not_eligible",
+    createdDaysAgo: 3,
+    resolvedDaysAgo: null,
+  },
+];
+
+/** Build a demo business's dispute set (Teamflow's eight unless `specs` names
+ *  another). `memberEmail` is the demo account's
  *  single member, used as the approver on Foxhound-submitted disputes (the
  *  real flow stamps submitted_by with the approver's email, not a brand name). */
-export function buildDisputesSeed(accountId: string, now: Date, memberEmail: string): DisputesSeedResult {
+export function buildDisputesSeed(
+  accountId: string,
+  now: Date,
+  memberEmail: string,
+  specs: DisputeSpec[] = TEAMFLOW_DISPUTE_SPECS,
+): DisputesSeedResult {
   const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
 
   const disputeRows: DisputeInsert[] = [];
   const evidenceRows: DisputeEvidenceInsert[] = [];
   const approvalRows: DisputeApprovalInsert[] = [];
 
-  for (const spec of DISPUTE_SPECS) {
+  for (const spec of specs) {
     const createdAt = ago(spec.createdDaysAgo);
     const resolvedAt = spec.resolvedDaysAgo !== null ? ago(spec.resolvedDaysAgo) : null;
     const won = spec.state === "resolved_won";
@@ -332,4 +411,36 @@ export function buildDisputesSeed(accountId: string, now: Date, memberEmail: str
   }
 
   return { disputes: disputeRows, disputeEvidence: evidenceRows, disputeApprovals: approvalRows };
+}
+
+type EarlyFraudWarningInsert = typeof earlyFraudWarnings.$inferInsert;
+
+/** Four early fraud warnings on Teamflow customers: three still open, one the
+ *  merchant refunded. No stripe connection is referenced, as with the disputes. */
+export function buildEarlyFraudWarningsSeed(accountId: string, now: Date): EarlyFraudWarningInsert[] {
+  const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
+  const specs = [
+    { n: 1, name: "Northwind Labs", email: "ap@northwind-labs.demo", cents: 29900, type: "made_with_stolen_card", days: 1, refunded: false },
+    { n: 2, name: "Lumen Studio", email: "finance@lumen-studio.demo", cents: 14900, type: "unauthorized_use_of_card", days: 3, refunded: false },
+    { n: 3, name: null, email: "j.ortega@mailbox.demo", cents: 4900, type: "card_never_received", days: 6, refunded: false },
+    { n: 4, name: "Cobalt Freight", email: "billing@cobalt-freight.demo", cents: 9900, type: "made_with_lost_card", days: 12, refunded: true },
+  ];
+  return specs.map((s) => ({
+    id: `${accountId}_efw_${s.n}`,
+    accountId,
+    stripeWarningId: `dstripe_issfr_${s.n}`,
+    stripeChargeId: `dstripe_ch_efw_${s.n}`,
+    stripePaymentIntentId: `dstripe_pi_efw_${s.n}`,
+    stripeCustomerId: `cus_teamflow_efw_${s.n}`,
+    customerEmail: s.email,
+    customerName: s.name,
+    fraudType: s.type,
+    actionable: !s.refunded,
+    amountCents: s.cents,
+    currency: "usd",
+    createdAt: ago(s.days),
+    receivedAt: ago(s.days),
+    refundedAt: s.refunded ? ago(s.days - 1) : null,
+    stripeRefundId: s.refunded ? `dstripe_re_efw_${s.n}` : null,
+  }));
 }

@@ -794,7 +794,7 @@ const WRITE_TOOLS: McpTool[] = [
     // DELETION IS NAMED rather than left to be discovered, because it takes the
     // alert's firing history with it and that is not recoverable.
     description:
-      "Create, enable, disable or delete one of this account's nightly metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a plain count otherwise) and an optional label; enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. Alerts are recorded and shown in the app; nothing is delivered by email or Slack yet.",
+      "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day.",
     inputSchema: {
       type: "object",
       properties: {
@@ -807,6 +807,7 @@ const WRITE_TOOLS: McpTool[] = [
           description: "For create: dollars for amount metrics, a plain count otherwise.",
         },
         label: { type: "string", description: "For create: an optional name for the alert." },
+        channel: { type: "string", enum: ["email", "slack"], description: "For create: where a breach is sent. Defaults to email." },
       },
       required: ["action"],
     },
@@ -825,7 +826,7 @@ const WRITE_TOOLS: McpTool[] = [
             await applyAlertCreate(
               ctx.db,
               ctx.accountId,
-              { metric: args.metric, direction: args.direction, threshold: args.threshold, label: args.label },
+              { metric: args.metric, direction: args.direction, threshold: args.threshold, label: args.label, channel: args.channel },
               ctx.now,
               ctx.trace,
             ),

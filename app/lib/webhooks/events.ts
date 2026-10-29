@@ -20,6 +20,8 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
 //   account.updated            -> account_health (the connected account's own
 //                                 charges, payouts and requirements)
+//   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
+//   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -115,6 +117,43 @@ export type WebhookIntent =
       health: AccountHealth;
       observedAt: Date;
     }
+  | {
+      /** radar.early_fraud_warning.created or .updated. The charge's amount,
+       *  currency and customer are read by the handler, per this file's rule
+       *  that the classifier makes no Stripe call. */
+      kind: "early_fraud_warning";
+      created: boolean;
+      stripeWarningId: string;
+      chargeId: string;
+      paymentIntentId: string | null;
+      fraudType: string;
+      actionable: boolean;
+      createdAt: Date;
+    }
+  | {
+      /** invoice.upcoming or customer.subscription.trial_will_end: a charge is
+       *  coming at `chargeAt`, so the card it will use is checked now. Records
+       *  through the expiring-card table and never sends. */
+      kind: "renewal_card_check";
+      source: "invoice_upcoming" | "trial_will_end";
+      customerId: string;
+      /** From the event when it carries them; otherwise read off the customer. */
+      customerEmail: string | null;
+      customerName: string | null;
+      chargeAt: Date;
+      /** The charge's payment method sources, as card-change.ts resolves them:
+       *  the invoice's own default (invoice.upcoming only), then the
+       *  subscription (its id, or the event's own subscription object). */
+      invoiceDefault: string | null;
+      subscription: string | { default_payment_method: string | null } | null;
+    }
+  | {
+      /** payment_method.automatically_updated: the customer's card was
+       *  refreshed by Stripe's card updater, so an active failed payment is
+       *  retried on it now. */
+      kind: "card_auto_updated";
+      customerId: string;
+    }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -126,16 +165,15 @@ function asId(ref: string | { id?: string } | null | undefined): string | null {
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   switch (event.type) {
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice & {
-        charge?: string | { failure_code?: string } | null;
-      };
+      const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       // $0 invoices are not recoverable revenue; skip (legacy parity).
       if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
-      const declineCode =
-        invoice.last_finalization_error?.decline_code ??
-        (typeof invoice.charge === "object" ? invoice.charge?.failure_code : undefined) ??
-        null;
+      // Only what the event carries, which on the pinned API version is a
+      // finalization failure at most (the invoice has no `charge`). The real
+      // payment decline is read off the latest charge in handleIntake, and
+      // this code is its fallback.
+      const declineCode = invoice.last_finalization_error?.decline_code ?? null;
       return {
         kind: "intake",
         // Stripe sends `next_payment_attempt` as a unix timestamp while it
@@ -280,6 +318,15 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         paymentMethodId: pmId,
       };
     }
+    case "payment_method.automatically_updated": {
+      // Stripe's card updater replaced the card details (a new expiry or
+      // number from the network). Whether the customer has a payment to retry
+      // is the processor's question.
+      const paymentMethod = event.data.object as Stripe.PaymentMethod;
+      const customerId = asId(paymentMethod.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      return { kind: "card_auto_updated", customerId };
+    }
     case "invoice.marked_uncollectible": {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
@@ -291,6 +338,67 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       // this event for.
       if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
       return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
+    }
+  | {
+    case "radar.early_fraud_warning.created":
+    case "radar.early_fraud_warning.updated": {
+      const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
+      const chargeId = asId(warning.charge);
+      if (!warning.id || !chargeId) return { kind: "ignore", reason: "no_warning_charge" };
+      return {
+        kind: "early_fraud_warning",
+        created: event.type === "radar.early_fraud_warning.created",
+        stripeWarningId: warning.id,
+        chargeId,
+        paymentIntentId: asId(warning.payment_intent),
+        fraudType: warning.fraud_type ?? "unknown",
+        actionable: warning.actionable === true,
+        createdAt: new Date((warning.created ?? 0) * 1000),
+      };
+    }
+    case "invoice.upcoming": {
+      // A renewal Stripe will charge. An upcoming invoice has no id, and one
+      // the customer pays by hand, or one for nothing, charges no card.
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = asId(invoice.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      if (invoice.collection_method !== "charge_automatically") {
+        return { kind: "ignore", reason: "not_charged_automatically" };
+      }
+      if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
+      const chargeAtSeconds = invoice.next_payment_attempt ?? invoice.automatically_finalizes_at ?? null;
+      if (!chargeAtSeconds) return { kind: "ignore", reason: "no_charge_date" };
+      return {
+        kind: "renewal_card_check",
+        source: "invoice_upcoming",
+        customerId,
+        customerEmail: invoice.customer_email ?? null,
+        customerName: invoice.customer_name ?? null,
+        chargeAt: new Date(chargeAtSeconds * 1000),
+        invoiceDefault: asId(invoice.default_payment_method),
+        subscription: asId(invoice.parent?.subscription_details?.subscription),
+      };
+    }
+    case "customer.subscription.trial_will_end": {
+      // Sent three days before a trial converts. A subscription set to cancel
+      // at the trial's end, or invoiced by hand, will charge no card.
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = asId(subscription.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      if (!subscription.trial_end) return { kind: "ignore", reason: "no_trial_end" };
+      if (subscription.cancel_at_period_end || subscription.collection_method !== "charge_automatically") {
+        return { kind: "ignore", reason: "no_charge_at_trial_end" };
+      }
+      return {
+        kind: "renewal_card_check",
+        source: "trial_will_end",
+        customerId,
+        customerEmail: null,
+        customerName: null,
+        chargeAt: new Date(subscription.trial_end * 1000),
+        invoiceDefault: null,
+        subscription: { default_payment_method: asId(subscription.default_payment_method) },
+      };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };

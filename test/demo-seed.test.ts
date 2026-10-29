@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getRecoveryStats, getMrrAnalytics } from "~/lib/dashboard/stats.server";
-import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
+import { DEMO_ACCOUNT_ID, DEMO_BOLT_ACCOUNT_ID } from "~/lib/demo/constants";
+import { listDisputes } from "~/lib/disputes/queries.server";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import {
@@ -20,8 +21,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // seed) in place of the prior thin sketch, so every count below reflects the
 // richer, near-verbatim-ported dataset: 200 Teamflow customers (7 scripted
 // narratives) + 7 net-new dispute-only customers, the day-walk failed-payment
-// simulator, the 8-dispute Teamflow set, and 12 monthly MRR snapshots built
-// from the real movement math.
+// simulator, the 8-dispute Teamflow set, and MRR snapshots built from the real
+// movement math. The same reset seeds Recova's second business, Bolt Analytics
+// (200 Pro/Hobby customers + 3 disputes), from the same builders.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 
@@ -38,7 +40,7 @@ describe("demo seeder -> real loaders render populated data", () => {
     expect(stats.recoveredCount).toBeGreaterThan(0);
     expect(stats.revenueRecovered.length).toBeGreaterThan(0);
 
-    const mrr = await getMrrAnalytics(db, DEMO_ACCOUNT_ID);
+    const mrr = await getMrrAnalytics(db, DEMO_ACCOUNT_ID, now.getTime());
     expect(mrr.latest).not.toBeNull();
     expect(mrr.trend).toHaveLength(12);
     // Believable Teamflow-scale portfolio (200 customers).
@@ -54,6 +56,26 @@ describe("demo seeder -> real loaders render populated data", () => {
     expect(overview.atRiskCustomerCount).toBeGreaterThanOrEqual(2);
     expect(overview.narrative).not.toBeNull();
     expect(overview.mrrAtRiskCents).toBeGreaterThan(0);
+  });
+
+  it("seeds the second business, Bolt Analytics, as its own populated account", async () => {
+    const stats = await getRecoveryStats(db, DEMO_BOLT_ACCOUNT_ID, now.getTime());
+    expect(stats.totalFailedCount).toBeGreaterThan(0);
+    expect(stats.recoveredCount).toBeGreaterThan(0);
+
+    const overview = await getIntelligenceOverview(db, DEMO_BOLT_ACCOUNT_ID);
+    // 200 base customers + 3 net-new dispute-only customers.
+    expect(overview.scoredCustomerCount).toBe(203);
+    expect(overview.narrative).toMatch(/^Bolt Analytics/);
+    expect(overview.mrrAtRiskCents).toBeGreaterThan(0);
+
+    // Pro only, at $99: well under Teamflow's book.
+    const mrr = await getMrrAnalytics(db, DEMO_BOLT_ACCOUNT_ID, now.getTime());
+    expect(mrr.latest!.totalMrrCents).toBeGreaterThan(500_000);
+    expect(mrr.latest!.totalMrrCents).toBeLessThan(2_000_000);
+
+    const disputes = await listDisputes(db, DEMO_BOLT_ACCOUNT_ID);
+    expect(disputes.map((d) => d.customerName).sort()).toEqual(["Drift Logic", "Lane Owens", "Sage Pulse"]);
   });
 
   it("is deterministic + idempotent: re-seeding yields the same single portfolio", async () => {

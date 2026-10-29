@@ -13,7 +13,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 import { isEmailStep, isRetryStep, planRecoverySteps, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { isLastWinbackStep, nextWinbackStatus, planWinbackSteps, type WinbackStatus } from "~/lib/recovery/winback";
 
-import { DEMO_ACCOUNT_NAME } from "./constants";
+import { TEAMFLOW_DEMO, type DemoBusiness } from "./constants";
 import { demoEmailCopyFor, demoWinBackCopyFor } from "./email-copy";
 import {
   invoiceAmountCents,
@@ -38,6 +38,26 @@ import {
 // findAttributionSignals) can't tell a seeded row from a live one.
 
 const WALK_DAYS = 90;
+
+/** The business a seed is for: its account, the merchant name its emails sign
+ *  with, the prefix that keeps its row ids apart from the other business's,
+ *  and a salt for the day-walk's rolls so the two businesses do not fail on
+ *  the same days. Teamflow's salt is empty, so its data is what it always was. */
+interface SeedBusiness {
+  accountId: string;
+  merchantName: string;
+  idPrefix: string;
+  walkSalt: string;
+}
+
+function seedBusinessFor(business: DemoBusiness): SeedBusiness {
+  return {
+    accountId: business.accountId,
+    merchantName: business.name,
+    idPrefix: business.idPrefix,
+    walkSalt: business.idPrefix === TEAMFLOW_DEMO.idPrefix ? "" : business.idPrefix,
+  };
+}
 
 export type FailedPaymentInsert = typeof failedPayments.$inferInsert;
 type RecoveryStepInsert = typeof recoverySteps.$inferInsert;
@@ -266,7 +286,7 @@ function simulateOpenClick(seed: string): { openedAt: boolean; clickedAt: boolea
 }
 
 function buildFailure(
-  accountId: string,
+  biz: SeedBusiness,
   customer: DemoCustomer,
   category: DeclineCategory,
   declineCode: string,
@@ -276,7 +296,8 @@ function buildFailure(
   isRenewalNoise: boolean,
   forcedOutcome?: ResolvedOutcome,
 ): BuiltFailure {
-  const failedPaymentId = `dfp_${idSeq}`;
+  const { accountId, idPrefix: p } = biz;
+  const failedPaymentId = `${p}fp_${idSeq}`;
   const amountCents = invoiceAmountCents(customer);
   const schedule = planRecoverySteps({
     failedPaymentId,
@@ -299,7 +320,7 @@ function buildFailure(
   let stepIdSeq = 0;
   type Planned = (typeof schedule)[number];
   const stepFor = (planned: Planned): RecoveryStepInsert => ({
-    id: `dstep_${idSeq}_${stepIdSeq++}`,
+    id: `${p}step_${idSeq}_${stepIdSeq++}`,
     failedPaymentId,
     accountId,
     stepType: planned.stepType,
@@ -371,7 +392,7 @@ function buildFailure(
     amountCents,
     currency: "usd",
     planName: planNameFor(customer),
-    merchantName: DEMO_ACCOUNT_NAME,
+    merchantName: biz.merchantName,
   };
   for (const step of steps) {
     if (!isEmailStep(step.stepType)) continue;
@@ -383,8 +404,8 @@ function buildFailure(
 
   const failedPayment: FailedPaymentInsert = {
     id: failedPaymentId,
-    stripeEventId: `dfp_evt_${idSeq}`,
-    stripeInvoiceId: `dfp_inv_${idSeq}`,
+    stripeEventId: `${p}fp_evt_${idSeq}`,
+    stripeInvoiceId: `${p}fp_inv_${idSeq}`,
     stripeCustomerId: customer.stripeCustomerId,
     customerEmail: customer.customerEmail,
     customerName: customer.customerName,
@@ -419,7 +440,7 @@ function buildFailure(
       Math.round((outcome.recoveredAt.getTime() - detectedAt.getTime()) / DAY_MS),
     );
     recovered = {
-      id: `drp_${idSeq}`,
+      id: `${p}rp_${idSeq}`,
       failedPaymentId,
       recoveredAt: outcome.recoveredAt,
       amountCents,
@@ -450,7 +471,7 @@ function buildFailure(
 const WINBACK_CANDIDATE_LIMIT = 8;
 
 function buildWinback(
-  accountId: string,
+  biz: SeedBusiness,
   customers: DemoCustomer[],
   now: Date,
 ): { sequences: WinBackSequenceInsert[]; steps: WinBackStepInsert[] } {
@@ -460,12 +481,13 @@ function buildWinback(
     .sort((a, b) => a.daysAgoChurned - b.daysAgoChurned)
     .slice(0, WINBACK_CANDIDATE_LIMIT);
 
+  const { accountId, idPrefix: p } = biz;
   const sequences: WinBackSequenceInsert[] = [];
   const steps: WinBackStepInsert[] = [];
 
   eligible.forEach((entry, i) => {
     const { c, daysAgoChurned } = entry;
-    const seqId = `dwb_${i}`;
+    const seqId = `${p}wb_${i}`;
     const canceledAt = c.churnedAt!;
     const planned = planWinbackSteps({ winBackSequenceId: seqId, accountId, canceledAt });
     const seed = `${c.stripeCustomerId}:wb`;
@@ -490,11 +512,11 @@ function buildWinback(
       amountCents: monthlyTotalCents(c),
       currency: "usd",
       planName: planNameFor(c),
-      merchantName: DEMO_ACCOUNT_NAME,
+      merchantName: biz.merchantName,
     };
 
     planned.forEach((step) => {
-      const stepId = `dwbstep_${i}_${step.stepNumber}`;
+      const stepId = `${p}wbstep_${i}_${step.stepNumber}`;
       const due = step.scheduledAt.getTime() <= now.getTime();
       const isReactivatingStep = reactivateAfterStep === step.stepNumber && due;
       const copy = demoWinBackCopyFor(step.stepNumber, winBackContext);
@@ -541,7 +563,7 @@ function buildWinback(
     sequences.push({
       id: seqId,
       stripeCustomerId: c.stripeCustomerId,
-      stripeSubscriptionId: `dwb_sub_${i}`,
+      stripeSubscriptionId: `${p}wb_sub_${i}`,
       customerEmail: c.customerEmail,
       customerName: c.customerName,
       planName: planNameFor(c),
@@ -568,18 +590,22 @@ const CARD_BRANDS = ["Visa", "Mastercard", "Amex"] as const;
 const EXPIRING_ALERT_COUNT = 10;
 
 function buildExpiringCardAlerts(
-  accountId: string,
+  biz: SeedBusiness,
   customers: DemoCustomer[],
   now: Date,
 ): ExpiringCardAlertInsert[] {
-  const pool = customers.filter((c) => c.scripted === null && c.status === "active").slice(0, EXPIRING_ALERT_COUNT);
+  const { accountId, idPrefix: p } = biz;
+  // A free (Hobby) customer has no card on file to expire.
+  const pool = customers
+    .filter((c) => c.scripted === null && c.status === "active" && c.tier !== "hobby")
+    .slice(0, EXPIRING_ALERT_COUNT);
   return pool.map((c, i) => {
     const seed = `${c.stripeCustomerId}:card`;
     const monthsAhead = seededInt(`${seed}:m`, 3); // 0, 1, or 2 months out
     const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthsAhead, 1));
     const alreadyAlerted = seededInt(`${seed}:sent`, 3) === 0;
     return {
-      id: `dcard_${i}`,
+      id: `${p}card_${i}`,
       stripeCustomerId: c.stripeCustomerId,
       customerEmail: c.customerEmail,
       customerName: c.customerName,
@@ -605,7 +631,13 @@ function buildExpiringCardAlerts(
  * win-back sequences for a handful of recent churns, and a spread of
  * expiring-card alerts. Pure: returns plain insert rows.
  */
-export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], now: Date): RecoverySeedResult {
+export function buildRecoverySeed(
+  accountId: string,
+  customers: DemoCustomer[],
+  now: Date,
+  business: DemoBusiness = TEAMFLOW_DEMO,
+): RecoverySeedResult {
+  const biz = { ...seedBusinessFor(business), accountId };
   const failedPayments: FailedPaymentInsert[] = [];
   const recoverySteps: RecoveryStepInsert[] = [];
   const recoveredPayments: RecoveredPaymentInsert[] = [];
@@ -632,7 +664,7 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
                 causeMode: ev.declineCategory === "soft" || ev.declineCategory === "network" ? "retry" : "click",
               };
       const built = buildFailure(
-        accountId,
+        biz,
         c,
         ev.declineCategory,
         declineCode,
@@ -654,7 +686,7 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
   for (let dayAgoVal = WALK_DAYS; dayAgoVal >= 0; dayAgoVal--) {
     const day = daysAgo(dayAgoVal);
     const intensity = classifyDayIntensity(day);
-    const dailySeed = `walk:day:${dayAgoVal}`;
+    const dailySeed = `${biz.walkSalt}walk:day:${dayAgoVal}`;
     const numFailures = failuresForDay(intensity, dailySeed);
     for (let j = 0; j < numFailures; j++) {
       const pickSeed = `${dailySeed}:${j}`;
@@ -664,7 +696,7 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
       const category = classifyDecline(declineCode);
       const detectedAt = randomBusinessHour(day, pickSeed);
       idSeq++;
-      const built = buildFailure(accountId, customer, category, declineCode, detectedAt, now, idSeq, false);
+      const built = buildFailure(biz, customer, category, declineCode, detectedAt, now, idSeq, false);
       failedPayments.push(built.failedPayment);
       recoverySteps.push(...built.steps);
       if (built.recovered) recoveredPayments.push(built.recovered);
@@ -696,14 +728,14 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
     const dayAgoVal = Math.min(WALK_DAYS, 10 + topUpIndex * 3);
     topUpIndex++;
     const day = daysAgo(dayAgoVal);
-    const pickSeed = `walk:topup:${category}`;
+    const pickSeed = `${biz.walkSalt}walk:topup:${category}`;
     const customer =
       pickCustomerForDay(eligible, day, pickSeed, recentByCustomer) ?? eligible[0];
     if (!customer) continue;
     const declineCode = sampleDeclineCodeForCategory(pickSeed, category);
     const detectedAt = randomBusinessHour(day, pickSeed);
     idSeq++;
-    const built = buildFailure(accountId, customer, category, declineCode, detectedAt, now, idSeq, false);
+    const built = buildFailure(biz, customer, category, declineCode, detectedAt, now, idSeq, false);
     failedPayments.push(built.failedPayment);
     recoverySteps.push(...built.steps);
     if (built.recovered) recoveredPayments.push(built.recovered);
@@ -712,8 +744,8 @@ export function buildRecoverySeed(accountId: string, customers: DemoCustomer[], 
     recentByCustomer.set(customer.stripeCustomerId, arr);
   }
 
-  const { sequences: winBackSequenceRows, steps: winBackStepRows } = buildWinback(accountId, customers, now);
-  const expiringCardAlertRows = buildExpiringCardAlerts(accountId, customers, now);
+  const { sequences: winBackSequenceRows, steps: winBackStepRows } = buildWinback(biz, customers, now);
+  const expiringCardAlertRows = buildExpiringCardAlerts(biz, customers, now);
 
   return {
     failedPayments,

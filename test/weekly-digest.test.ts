@@ -132,6 +132,7 @@ describe("PLANT 1: the pure copy is legacy's", () => {
   it("the conditional rows appear once their counts are above zero", () => {
     const text = words(
       buildDigestBlocks({
+      personalOutreachCount: 0,
       totalFailed: 1,
       totalRecovered: 0,
       recoveredRevenueCents: 0,

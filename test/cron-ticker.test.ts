@@ -43,6 +43,7 @@ describe("five-minute ticker", () => {
       `run:${RECOVERY_TICK_CRON_NAME}`,
       "run:winback-send",
       `run:${DISPUTE_REMINDERS_CRON_NAME}`,
+      "run:alerts-evaluate",
     ]);
   });
 

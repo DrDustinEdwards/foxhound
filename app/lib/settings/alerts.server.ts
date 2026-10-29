@@ -21,17 +21,9 @@ export interface CreateAlertInput {
   direction: string;
   thresholdValue: number;
   label: string | null;
+  /** Recova's Email or Slack (ALERT_CHANNELS). */
+  channel: string;
 }
-
-/**
- * The channel every alert is created with.
- *
- * `alerts.channel` is NOT NULL and the schema keeps it. S28 renders no channel
- * picker (J33), so every alert carries this value, and since J94 it is the
- * channel the sender reads: an alert that fires is emailed to the account's
- * notification address (app/lib/intelligence/alert-notify.server.ts, row E21).
- */
-const ALERT_DEFAULT_CHANNEL = "email";
 
 /** THE STATEMENT, NOT THE AWAIT. Session 80: every settings write goes through
  *  `commit`, which hands the write and its trace row to `db.batch` together, so
@@ -51,7 +43,7 @@ export function buildAlertInsert(
     metric: input.metric,
     direction: input.direction,
     thresholdValue: input.thresholdValue,
-    channel: ALERT_DEFAULT_CHANNEL,
+    channel: input.channel,
     label: input.label,
     enabled: true,
     createdAt: now,

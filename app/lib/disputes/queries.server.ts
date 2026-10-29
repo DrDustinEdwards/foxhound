@@ -348,16 +348,38 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
 export async function readDisputeSettings(
   db: Db,
   accountId: string,
-): Promise<{ productDescription: string; shipsPhysical: boolean }> {
+): Promise<{ enabled: boolean; productDescription: string; shipsPhysical: boolean }> {
   const [row] = await db
     .select({
+      enabled: accounts.disputesEnabled,
       productDescription: accounts.disputeProductDescription,
       shipsPhysical: accounts.disputeShipsPhysical,
     })
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1);
-  return { productDescription: row?.productDescription ?? "", shipsPhysical: row?.shipsPhysical ?? false };
+  return {
+    enabled: row?.enabled ?? true,
+    productDescription: row?.productDescription ?? "",
+    shipsPhysical: row?.shipsPhysical ?? false,
+  };
+}
+
+/**
+ * The Disputes on/off switch, as dispute intake reads it. Recova's
+ * handleDisputeCreated step 1 (lib/dispute-handlers.ts, blob e2bb8de8) returned
+ * before doing anything unless the account's disputes product was active; the
+ * webhook intake and the manual import both ask this first. A read failure
+ * counts as ON, so a database hiccup never drops a chargeback the merchant
+ * needs to answer.
+ */
+export async function readDisputesEnabled(db: Db, accountId: string): Promise<boolean> {
+  try {
+    return (await readDisputeSettings(db, accountId)).enabled;
+  } catch (err) {
+    console.error("disputes_enabled read failed; treating Disputes as on", err);
+    return true;
+  }
 }
 
 /** The merchant's own product description for dispute evidence (S32). Recova's

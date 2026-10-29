@@ -85,6 +85,11 @@ export const accounts = sqliteTable("accounts", {
   disputeProductDescription: text("dispute_product_description"),
   disputeShipsPhysical: bool("dispute_ships_physical"),
   disputeAutoSubmit: bool("dispute_auto_submit"),
+  // The Disputes on/off switch on /settings/disputes (Recova's DisputesToggle
+  // over account_products). On by default, as Recova activated Disputes on
+  // Stripe connect; while off, dispute intake (webhook and manual import)
+  // creates no dispute.
+  disputesEnabled: bool("disputes_enabled").notNull().default(true),
   auditLookbackDays: integer("audit_lookback_days"),
   auditAutoRun: bool("audit_auto_run"),
   theme: text("theme").notNull().default("dark"),

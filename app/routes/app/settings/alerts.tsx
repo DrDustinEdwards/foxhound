@@ -28,6 +28,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { loadAlertTarget } from "~/lib/intelligence/alert-notify.server";
 import { getAlertsView } from "~/lib/intelligence/views.server";
 import {
   ALERT_DIRECTION_LABELS,
@@ -38,6 +39,7 @@ import {
   alertMetricLabel,
   alertShortCondition,
   alertThresholdPrefix,
+  alertThresholdSuffix,
   formatThresholdValue,
   type AlertDirection,
 } from "~/lib/settings/alert-metrics";
@@ -63,20 +65,10 @@ import type { Route } from "./+types/alerts";
 // a row in. ALERT_METRICS' own comment says it stands "until a settings UI for
 // creating alerts exists": this is that UI.
 //
-// TWO TRUTHFULNESS CONSTRAINTS, both RULES.md 1.2 and 2.7, kept by J33:
-//
-// 1. THE METRIC LIST IS FOXHOUND'S FOUR, NOT LEGACY'S ELEVEN. `evaluateAlerts`
-//    silently skips an alert whose metric it does not compute, so offering
-//    `recovery_rate_pct` or `open_disputes_count` would let a merchant build a
-//    rule that can never fire.
-// 2. NO CHANNEL PICKER, NO CHANNEL COLUMNS, AND NO NOTIFICATION PROMISE.
-//    When J33 shipped nothing delivered an alert, so Recova's subtitle ("Get
-//    notified when Recovery metrics cross a threshold.") and its "email goes
-//    to" note were not ported, nor a Channel column. J94 (rows E21, E22) now
-//    emails a firing to the notification address, on Recova's 24 hour
-//    cooldown rather than once per crossing. Its review round 1 made the lead
-//    true of that ("records each night one is past its threshold"); restoring
-//    Recova's subtitle and email note is left to Dustin (PR 156).
+// RECOVA'S PAGE IN FULL since the parity fixes of 2026-10-29: its eleven
+// metrics, each computed (computeAlertMetrics), its subtitle and "email goes
+// to" note, its Channel column and Email or Slack picker (Slack disabled until
+// a webhook is saved, as Recova's is), and its threshold "$" and "%".
 //
 // Legacy's transport is REST at /api/settings/alerts with optimistic updates
 // and silent reverts on failure. This is the route's own action, class (a),
@@ -93,8 +85,17 @@ const RECENT_TRIGGERS = 20;
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const view = await getAlertsView(getDb(env), auth.membership.accountId);
-  return { alerts: view.alerts, history: view.history.slice(0, RECENT_TRIGGERS) };
+  const db = getDb(env);
+  const [view, target] = await Promise.all([
+    getAlertsView(db, auth.membership.accountId),
+    loadAlertTarget(db, auth.membership.accountId),
+  ]);
+  return {
+    alerts: view.alerts,
+    history: view.history.slice(0, RECENT_TRIGGERS),
+    notificationEmail: target.notificationEmail,
+    hasSlack: !!target.slackWebhookUrl,
+  };
 }
 
 interface ActionResult {
@@ -125,6 +126,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         direction: form.get("direction"),
         threshold: form.get("threshold"),
         label: form.get("label"),
+        channel: form.get("channel"),
       },
       new Date(),
     );
@@ -182,7 +184,7 @@ function formatDateTime(at: Date): string {
 }
 
 export default function AlertSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { alerts, history } = loaderData;
+  const { alerts, history, notificationEmail, hasSlack } = loaderData;
   const result = actionData as ActionResult | undefined;
   const busy = useNavigation().state !== "idle";
   const [params] = useSearchParams();
@@ -195,7 +197,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
       <SettingsBackLink />
       {/* Recova's PageHeader sits mb-8 above the first card. */}
       <div className="mb-8">
-        <PageHead title="Alerts" lead="Foxhound checks these every night and records each night one is past its threshold." />
+        <PageHead title="Alerts" lead="Get notified when Recovery metrics cross a threshold." />
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
@@ -216,6 +218,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 text-label">
               <p className="m-0 text-text-secondary">
                 {alerts.length} {alerts.length === 1 ? "alert" : "alerts"} configured
+                {notificationEmail ? <span className="text-text-subtle"> · email goes to {notificationEmail}</span> : null}
               </p>
               {creating ? (
                 // Recova keeps the button on screen and disabled while the
@@ -238,7 +241,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
 
             {alerts.length === 0 && !creating ? (
               <p className="m-0 min-w-0 py-8 text-center text-label text-text-subtle">
-                No alerts yet. Create one to see when metrics need attention.
+                No alerts yet. Create one to get notified when metrics need attention.
               </p>
             ) : null}
 
@@ -251,6 +254,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
                         <th scope="col">Label</th>
                         <th scope="col">Metric</th>
                         <th scope="col">Condition</th>
+                        <th scope="col">Channel</th>
                         <th scope="col">Last triggered</th>
                         <th scope="col">Status</th>
                         <th scope="col" data-num="">
@@ -268,6 +272,11 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
                               <span className="text-text-subtle">{alertMetricLabel(a.metric)}</span>
                             </td>
                             <td>{condition}</td>
+                            <td>
+                              <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
+                                {a.channel}
+                              </span>
+                            </td>
                             <td>
                               <span className="font-mono text-text-subtle">{formatDate(a.lastTriggeredAt)}</span>
                             </td>
@@ -292,7 +301,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
               </div>
             ) : null}
 
-            {creating ? <CreateAlertForm busy={busy} error={createError} initialMetric={params.get("metric")} /> : null}
+            {creating ? <CreateAlertForm busy={busy} error={createError} initialMetric={params.get("metric")} hasSlack={hasSlack} /> : null}
           </div>
         </div>
       </div>
@@ -311,6 +320,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
                     <th scope="col">Metric</th>
                     <th scope="col">Condition</th>
                     <th scope="col">Actual value</th>
+                    <th scope="col">Channel</th>
                     <th scope="col">Fired at</th>
                   </tr>
                 </thead>
@@ -325,6 +335,11 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
                       </td>
                       <td>
                         <span className="font-mono">{formatThresholdValue(h.metric, h.actualValue)}</span>
+                      </td>
+                      <td>
+                        <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
+                          {h.channel}
+                        </span>
                       </td>
                       <td>
                         <span className="font-mono text-text-subtle">{formatDateTime(h.firedAt)}</span>
@@ -379,14 +394,18 @@ function CreateAlertForm({
   busy,
   error,
   initialMetric,
+  hasSlack,
 }: {
   busy: boolean;
   error?: string;
   initialMetric: string | null;
+  hasSlack: boolean;
 }) {
   const [metric, setMetric] = useState<string>(alertFormMetric(initialMetric));
   const [direction, setDirection] = useState<AlertDirection>(DIRECTION_ORDER[0]);
+  const [channel, setChannel] = useState<"email" | "slack">("email");
   const prefix = alertThresholdPrefix(metric);
+  const suffix = alertThresholdSuffix(metric);
 
   return (
     <div className="mt-6 min-w-0">
@@ -395,7 +414,6 @@ function CreateAlertForm({
           <input type="hidden" name="_action" value="create" />
           <div className="flex flex-col gap-4 text-label">
             <Field label="Metric">
-              {/* Only what the nightly evaluator computes. */}
               <Select
                 native
                 name="metric"
@@ -431,8 +449,9 @@ function CreateAlertForm({
                   min={0}
                   step={1}
                   required
-                  placeholder={prefix ? "5000" : "10"}
+                  placeholder={suffix ? "25" : prefix ? "5000" : "10"}
                 />
+                {suffix ? <InputGroupAddon align="inline-end">{suffix}</InputGroupAddon> : null}
               </InputGroup>
             </div>
 
@@ -443,8 +462,33 @@ function CreateAlertForm({
                 </>
               }
             >
-              <input className="cap-input" name="label" type="text" placeholder="e.g. Low health score warning" />
+              <input className="cap-input" name="label" type="text" placeholder="e.g. Low recovery rate warning" />
             </Field>
+
+            {/* Recova's Email or Slack. Slack waits for a webhook, as Recova's
+                button does, with its sentence saying where to add one. */}
+            <div className="min-w-0">
+              <Segmented
+                legend="Channel"
+                name="channel"
+                fill
+                value={channel}
+                onChange={setChannel}
+                options={[
+                  { value: "email", label: "Email" },
+                  { value: "slack", label: "Slack", disabled: !hasSlack },
+                ]}
+              />
+              {!hasSlack ? (
+                <p className="m-0 mt-1 text-micro text-text-subtle">
+                  Add a Slack webhook in{" "}
+                  <Link to="/settings/notifications" className="underline">
+                    Notifications settings
+                  </Link>{" "}
+                  first.
+                </p>
+              ) : null}
+            </div>
           </div>
 
           {error ? (

@@ -363,6 +363,7 @@ export interface AlertFiringView {
   actualValue: number;
   thresholdValue: number;
   direction: string;
+  channel: string;
   firedAt: Date;
   notificationSent: boolean;
 }
@@ -399,6 +400,7 @@ export async function getAlertsView(
         actualValue: alertHistory.actualValue,
         thresholdValue: alertHistory.thresholdValue,
         direction: alertHistory.direction,
+        channel: alertHistory.channel,
         firedAt: alertHistory.firedAt,
         notificationSent: alertHistory.notificationSent,
       })

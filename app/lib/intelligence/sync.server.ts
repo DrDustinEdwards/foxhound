@@ -330,7 +330,7 @@ export interface AccountSyncResult {
  *  mrr_snapshots row for the run. A no-op (customersProcessed: 0,
  *  snapshotWritten: false) when the account has no active Stripe connection
  *  yet, never an error. */
-async function runIntelligenceSyncForAccount(
+export async function runIntelligenceSyncForAccount(
   env: Env,
   accountId: string,
   nowMs: number,
@@ -450,6 +450,16 @@ async function runIntelligenceSyncForAccount(
     grossRevenueRetentionBps: snapshotFields.grossRevenueRetentionBps,
     createdAt: now,
   });
+
+  // Recova's compute-daily-metrics wrote accounts.mrr_estimate nightly from the
+  // active subscriptions, normalized to a month; this total is the same
+  // measure. A truncated scan would understate it, so it is left as it was.
+  if (!truncated) {
+    await db
+      .update(accounts)
+      .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
+      .where(eq(accounts.id, accountId));
+  }
 
   return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
 }

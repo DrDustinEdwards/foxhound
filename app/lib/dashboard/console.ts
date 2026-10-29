@@ -146,7 +146,7 @@ export function mrrMovementAlt(m: MovementTotals, currency: string): string {
 }
 
 /**
- * Whether the monthly intelligence-sync will write this account an MRR
+ * Whether the daily intelligence-sync will write this account an MRR
  * snapshot: it writes nothing without a Stripe connection
  * (runIntelligenceSyncForAccount) and skips paused and canceled accounts
  * (accountProcessingEligible).
@@ -160,7 +160,7 @@ export function mrrEmptySentence(state: MrrSyncState, firstSnapshot: string): st
     case "eligible":
       return firstSnapshot;
     case "unconnected":
-      return "MRR analytics start once Stripe is connected. Foxhound takes the first snapshot on its monthly run after that.";
+      return "MRR analytics start once Stripe is connected. Foxhound takes the first snapshot right after you connect, then one every day.";
     case "paused":
       return "Processing is paused for this account, so Foxhound is not taking MRR snapshots.";
     case "cancelled":

@@ -4,6 +4,7 @@ import type { Db } from "~/db/client";
 import { cronAlerts, cronRunHistory } from "~/db/schema";
 import {
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
@@ -17,6 +18,7 @@ import {
   renderFoxhoundAlertEmail,
   type EmailAlert,
 } from "~/lib/email/templates";
+import type { Rendered } from "capsomer/email";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 /** Cron-failure alerting (313). Ruling 311 measured that a failing cron records
@@ -85,6 +87,8 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   // reported as `unknown_schedule`, which is a blind spot rather than an alert,
   // so a new expression that skips this line silently stops being watched.
   [CRON_SCHEDULE_MONTHLY_AUDIT]: 31 * DAY_MS,
+  // The expiring-card alert at legacy's 09:00 (parity gap 11). Daily, so a day.
+  [CRON_SCHEDULE_EXPIRING_CARDS]: DAY_MS,
 };
 
 /** A job may miss this many periods before it is called stale. Two rather than
@@ -104,6 +108,7 @@ const CADENCE_LABEL: Record<string, string> = {
   [CRON_SCHEDULE_WEEKLY]: "weekly (Mon 08:00 UTC)",
   [CRON_SCHEDULE_MONTHLY]: "monthly (1st 04:00 UTC)",
   [CRON_SCHEDULE_MONTHLY_AUDIT]: "monthly (1st 09:00 UTC)",
+  [CRON_SCHEDULE_EXPIRING_CARDS]: "daily 09:00 UTC",
 };
 
 /** Recova's describeAge (check-cron-health/route.ts), its units and its floor
@@ -289,6 +294,36 @@ export function billingFailureError(failedAccountIds: string[], periodStart: Dat
   return `${failedAccountIds.length} account(s) failed to invoice for ${monthLabel}: ${failedAccountIds.join(", ")}.`;
 }
 
+/** A cron alert (E26, E27) on Capsomer's alert template, with Recova's footer
+ *  as wrapEmailHtml(body, 'Recova Ops') writes it with no unsubscribe token:
+ *  its sentence, then Manage email settings. Pure; the admin email preview
+ *  renders through it too. */
+export function renderCronAlertEmail(to: string, message: CronAlertMessage, baseUrl: string, now: Date): Rendered {
+  return renderFoxhoundAlertEmail({
+    subject: message.subject,
+    to,
+    alert: message.alert,
+    footer: [recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()), manageEmailSettingsLine(baseUrl)],
+  });
+}
+
+/** The dead-letter alert's subject and body, Foxhound's own. Pure. */
+export function deadLetterAlertMessage(
+  counts: { written: number; failed: number },
+  now: Date,
+): { subject: string; bodyHtml: string } {
+  return {
+    subject: "Foxhound dunning emails DEAD-LETTERED",
+    bodyHtml: [
+      `<p>${counts.written} dunning email(s) exhausted their queue retries and were dead-lettered at ${now.toISOString()}.</p>`,
+      counts.failed ? `<p>${counts.failed} dead letter(s) could not even be recorded.</p>` : "",
+      `<p>Query email_dead_letters for the rows. One alert per day.</p>`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
+}
+
 /** Send one alert, deduped, never throwing. A cron alert (E26, E27) goes on
  *  Capsomer's alert template with Recova's footer; the dead-letter alert,
  *  Foxhound's own, keeps its HTML body. */
@@ -305,17 +340,7 @@ export async function sendAlert(
 
   try {
     if ("alert" in message) {
-      // Recova's footer as wrapEmailHtml(body, 'Recova Ops') writes it with no
-      // unsubscribe token: its sentence, then Manage email settings.
-      const rendered = renderFoxhoundAlertEmail({
-        subject: message.subject,
-        to: SUPPORT_EMAIL,
-        alert: message.alert,
-        footer: [
-          recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()),
-          manageEmailSettingsLine(env.BETTER_AUTH_URL ?? ""),
-        ],
-      });
+      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, env.BETTER_AUTH_URL ?? "", now);
       const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
       if (outcome.status === "sent") return { sent: true };
       return { sent: false, reason: "send_failed", error: outcome.error ?? outcome.reason };
@@ -371,18 +396,7 @@ export async function alertDeadLetters(
       db,
       DEAD_LETTER_ALERT_KEY,
       "dead_letter",
-      {
-        subject: "Foxhound dunning emails DEAD-LETTERED",
-        bodyHtml: [
-          `<p>${counts.written} dunning email(s) exhausted their queue retries and were dead-lettered at ${now.toISOString()}.</p>`,
-          counts.failed
-            ? `<p>${counts.failed} dead letter(s) could not even be recorded.</p>`
-            : "",
-          `<p>Query email_dead_letters for the rows. One alert per day.</p>`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
+      deadLetterAlertMessage(counts, now),
       now,
     );
   } catch (err) {

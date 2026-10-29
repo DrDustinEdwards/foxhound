@@ -41,17 +41,12 @@ import {
 // phase migration-free. Renaming the table to match the merged email is a
 // migration and is recorded as seat debt rather than smuggled in here.
 //
-// LEGACY'S ALERTS RE-EVALUATION IS DELIBERATELY NOT PORTED, and this is the
-// walk's verdict rather than an omission. Legacy calls
-// `evaluateAlerts(supabase, accountId)` after each insert because two of ITS
-// alert metrics, `audit_leaking_cents` and `audit_leaking_delta_cents`, source
-// from the latest two audit runs (its own comment says so). Foxhound's
-// `evaluateAlerts` is a different function: PURE, taking precomputed metrics,
-// over `ALERT_METRICS`'s four (health_score_avg, mrr_at_risk_cents,
-// mrr_churn_cents, mrr_contraction_cents), none of which reads `audit_runs`.
-// It already runs nightly from `intelligence-ai`. Calling it here would re-run
-// that evaluator over a metric set no new audit row can change. A plant pins the
-// absence with this reason, so the next reader does not restore it as a gap.
+// LEGACY'S ALERTS RE-EVALUATION AFTER EACH AUDIT. Legacy called
+// `evaluateAlerts(supabase, accountId)` after each insert because two of its
+// alert metrics, `audit_leaking_cents` and `audit_leaking_delta_cents`, read the
+// latest two audit runs. Foxhound evaluates every account's alerts on the
+// recovery tick (alerts-evaluate, app/lib/cron/registry.ts), so a new audit row
+// is read within five minutes without a call here.
 
 /** The month a run fires in covers the month that just ended. The cron fires on
  *  the 1st, so on 2026-09-01 the run is September's send about August.
