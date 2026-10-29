@@ -145,10 +145,10 @@ describe("getMrrSnapshotSeries", () => {
     expect(points.map((p) => p.nrrPct)).toEqual([102.5, null]);
   });
 
-  it("windows to twelve months and returns oldest first", async () => {
+  it("windows to Recova's 90 days and returns oldest first", async () => {
     const db = await seed([
-      { monthsAgo: 14, nrrBps: 9_000 },
-      { monthsAgo: 3, nrrBps: 10_000 },
+      { monthsAgo: 4, nrrBps: 9_000 },
+      { monthsAgo: 2, nrrBps: 10_000 },
       { monthsAgo: 1, nrrBps: 11_000 },
     ]);
     const points = await getMrrSnapshotSeries(db, "acc_1", NOW);

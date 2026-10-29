@@ -51,7 +51,7 @@ import type { Route } from "./+types/connect-callback";
 // to a DIFFERENT Foxhound account silently moves it. Foxhound refuses that
 // instead, class (c) on a legacy defect.
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
+  const { env, ctx } = context.get(cloudflareContext);
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -87,12 +87,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const db = getDb(env);
   const memberships = await listMemberships(db, session.user.id);
 
+  // The first Intelligence sync, right after a connection is written, as
+  // Recova's dashboard promised a snapshot the night of connecting: here it is
+  // the moment of connecting, so the dashboard has data on the first visit. Off
+  // the redirect's path (waitUntil) and never fatal: the daily intelligence-sync
+  // run covers any account this misses, a large one cut off by the waitUntil
+  // limit included.
+  const syncSoon = (accountId: string) =>
+    ctx.waitUntil(
+      import("~/lib/intelligence/sync.server")
+        .then((m) => m.runIntelligenceSyncForAccount(env, accountId, Date.now()))
+        .catch((err) => console.error("first intelligence sync failed:", err instanceof Error ? err.message : err)),
+    );
+
   try {
     const oauth = await exchangeConnectCode(env, code);
 
     return action === ADD_ACCOUNT_ACTION
-      ? await addAccount(env, db, session.session.id, session.user.id, memberships, oauth)
-      : await attachToActiveAccount(env, db, session.session.activeAccountId ?? null, memberships, oauth);
+      ? await addAccount(env, db, session.session.id, session.user.id, memberships, oauth, syncSoon)
+      : await attachToActiveAccount(env, db, session.session.activeAccountId ?? null, memberships, oauth, syncSoon);
   } catch {
     // Do not log the error object: it can carry request context. The Stripe SDK
     // never surfaces the decrypted token here, but stay conservative.
@@ -161,6 +174,7 @@ async function addAccount(
   userId: string,
   memberships: { accountId: string }[],
   oauth: StripeOAuthResult,
+  syncSoon: (accountId: string) => void,
 ): Promise<Response> {
   // Is this Stripe account already live somewhere? Asked BEFORE anything is
   // written and before any further Stripe call, through the one predicate both
@@ -224,6 +238,7 @@ async function addAccount(
     ],
   });
 
+  syncSoon(accountId);
   return landOn(db, sessionId, accountId, connectionId);
 }
 
@@ -241,6 +256,7 @@ async function attachToActiveAccount(
   activeAccountId: string | null,
   memberships: Awaited<ReturnType<typeof listMemberships>>,
   oauth: StripeOAuthResult,
+  syncSoon: (accountId: string) => void,
 ): Promise<Response> {
   const membership = await resolveActiveMembershipFrom(db, memberships, activeAccountId);
   // No account to attach to; back to setup, where /connect creates one.
@@ -328,6 +344,7 @@ async function attachToActiveAccount(
           ],
   });
 
+  syncSoon(membership.accountId);
   return redirect(destinationFor(newConnectionId), {
     headers: { "Set-Cookie": clearStateCookie() },
   });

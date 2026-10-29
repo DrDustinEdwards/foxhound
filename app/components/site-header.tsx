@@ -38,7 +38,7 @@ export function renderHeaderLink({ href, children, onClick, ...rest }: LinkProps
         {...rest}
         onClick={() => {
           onClick?.();
-          if (!isCurrent) void switchAccount(switchTo);
+          if (!isCurrent) void switchAccount(switchTo.accountId, switchTo.switchAccountUrl);
         }}
       >
         {children}

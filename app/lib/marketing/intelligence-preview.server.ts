@@ -6,7 +6,14 @@ import { buildIntelligenceSeed } from "~/lib/demo/intelligence-seed";
 import { buildNarrativeSeed } from "~/lib/demo/narratives-seed";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
 import { planTierPill } from "~/lib/intelligence/customer-directory";
-import { monthKeyOf, monthLabel, planBreakdownRows } from "~/lib/intelligence/dashboard";
+import {
+  dayOverDayCents,
+  monthKeyOf,
+  monthLabel,
+  newMrrMonthToDateCents,
+  planBreakdownRows,
+  signedMoney,
+} from "~/lib/intelligence/dashboard";
 import { healthScoreBand, type HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
@@ -56,6 +63,8 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
   const snapshots = [...seed.mrrSnapshots].sort((a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime());
   const latest = snapshots[snapshots.length - 1];
   const currency = latest?.currency ?? "usd";
+  const daily = snapshots.map((r) => ({ at: r.snapshotDate, totalMrrCents: r.totalMrrCents, newMrrCents: r.newMrrCents ?? 0 }));
+  const delta = dayOverDayCents(daily);
 
   const scored = seed.customerContext.map((c) => ({
     id: c.stripeCustomerId,
@@ -101,6 +110,9 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     dashboard: {
       mrr: formatMoneyShort(latest?.totalMrrCents ?? 0, currency),
       activeCustomers: (latest?.activeCustomersCount ?? 0).toLocaleString("en-US"),
+      dayOverDay: delta ? signedMoney(delta, currency) : "--",
+      dayOverDaySign: delta ? (delta > 0 ? 1 : -1) : 0,
+      newMrrMtd: formatMoneyShort(newMrrMonthToDateCents(daily, now.getTime()), currency),
       currency,
       plans: planBreakdownRows(latest?.perPlanBreakdown ?? null),
       narrativeMonth: monthLabel(monthKeyOf(report.reportMonth)),

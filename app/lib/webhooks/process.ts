@@ -9,12 +9,14 @@ import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
 import { handleEarlyFraudWarning } from "./fraud-warning-handlers";
 import {
+  handleCardAutoUpdated,
   handleIntake,
   handleRecordExpiringCard,
   handleRecover,
   handleStampRefund,
   handleStripeGaveUp,
 } from "./recovery-handlers";
+import { handleRenewalCardCheck } from "./renewal-check";
 import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers";
 import { resolveConnection } from "./lookups";
 
@@ -84,10 +86,12 @@ export async function processConnectedWebhook(
     if (intent.kind === "winback_reactivate") return await handleWinbackReactivate(ctx, intent);
     if (intent.kind === "recover") return await handleRecover(ctx, intent);
     if (intent.kind === "record_expiring_card") return await handleRecordExpiringCard(ctx, intent);
+    if (intent.kind === "renewal_card_check") return await handleRenewalCardCheck(ctx, intent);
     if (intent.kind === "stamp_dispute") return await handleStampDispute(ctx, intent);
     if (intent.kind === "dispute_resolved") return await handleDisputeResolved(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
     if (intent.kind === "early_fraud_warning") return await handleEarlyFraudWarning(ctx, intent);
+    if (intent.kind === "card_auto_updated") return await handleCardAutoUpdated(ctx, intent);
     return await handleStampRefund(ctx, intent);
   } catch (err) {
     // Money path: surface so the endpoint 500s and Stripe retries (the batch is

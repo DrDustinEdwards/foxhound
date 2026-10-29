@@ -5,21 +5,22 @@ import { formatMoneyShort } from "~/lib/money-format";
 // S28's metric vocabulary, in a CLIENT-SAFE module because the create form
 // renders it. Nothing here touches the database.
 //
-// THE LIST IS FOXHOUND'S FOUR, NOT LEGACY'S ELEVEN, and that is the whole
-// decision on this row. `ALERT_METRICS` is the nightly evaluator's own enum
-// (app/lib/constants.ts) and `evaluateAlerts` SKIPS an alert whose metric key
-// has no computed value that run. Legacy's picker offers eleven, of which
-// Foxhound computes exactly one (`mrr_at_risk_cents`); offering the other ten
-// would let a merchant configure an alert that can never fire and never say so.
-// When the evaluator learns a metric, it goes in ALERT_METRICS and appears here
-// by construction, which is why this derives from that constant rather than
-// repeating it.
+// The list is Recova's eleven (AlertsClient.tsx, blob ee8dac99), labels word
+// for word. `ALERT_METRICS` is the evaluator's own enum (app/lib/constants.ts)
+// and computeAlertMetrics computes every one, so each choice here can fire.
 
 export const ALERT_METRIC_LABELS: Record<AlertMetric, string> = {
-  health_score_avg: "Average health score",
+  recovery_rate_pct: "Recovery rate",
   mrr_at_risk_cents: "MRR at risk",
-  mrr_churn_cents: "Churned MRR",
-  mrr_contraction_cents: "Contracted MRR",
+  active_sequences: "Active sequences",
+  emails_sent_7d: "Emails sent (7d)",
+  open_disputes_count: "Open disputes",
+  disputes_due_48h: "Disputes due in 48h",
+  dispute_amount_at_stake_cents: "Dispute amount at stake",
+  high_risk_customers_count: "High-risk customers",
+  intelligence_mrr_at_risk_cents: "MRR at risk (Intelligence)",
+  audit_leaking_cents: "Audit: revenue leaking",
+  audit_leaking_delta_cents: "Audit: leaking change vs prior month",
 };
 
 export const ALERT_DIRECTION_LABELS: Record<AlertDirection, string> = {
@@ -27,13 +28,21 @@ export const ALERT_DIRECTION_LABELS: Record<AlertDirection, string> = {
   above: "Rises above",
 };
 
-/** The metrics denominated in cents, so the form takes dollars and the table
- *  prints currency. `health_score_avg` is a 0 to 100 score and is neither. */
+/** Recova's cents metrics, so the form takes dollars and the table prints
+ *  currency. Recova's form converted only MRR at risk to cents and stored the
+ *  other four as typed, a hundredth of what they compare against; here all
+ *  five convert. */
 const CENTS_METRICS: ReadonlySet<string> = new Set([
   "mrr_at_risk_cents",
-  "mrr_churn_cents",
-  "mrr_contraction_cents",
+  "dispute_amount_at_stake_cents",
+  "intelligence_mrr_at_risk_cents",
+  "audit_leaking_cents",
+  "audit_leaking_delta_cents",
 ]);
+
+/** Recova's one percentage metric, printed with "%" and given a "%" after
+ *  the threshold box. */
+const PERCENT_METRIC = "recovery_rate_pct";
 
 export function isCentsMetric(metric: string): boolean {
   return CENTS_METRICS.has(metric);
@@ -51,12 +60,13 @@ export function alertMetricLabel(metric: string): string {
   return isAlertMetric(metric) ? ALERT_METRIC_LABELS[metric] : metric;
 }
 
-/** Threshold as the merchant reads it: currency for cents metrics, a bare
- *  number for the score. Mirrors legacy's formatThreshold. */
+/** Threshold as the merchant reads it: currency for cents metrics, "25%" for
+ *  the recovery rate, a bare number otherwise. Recova's formatThreshold. */
 export function formatThresholdValue(metric: string, value: number): string {
   if (isCentsMetric(metric)) {
     return formatMoneyShort(value, "usd");
   }
+  if (metric === PERCENT_METRIC) return `${value}%`;
   return String(value);
 }
 
@@ -87,6 +97,11 @@ export function alertConditionLabel(metric: string, direction: string, value: nu
  *  for the score. */
 export function alertThresholdPrefix(metric: string): string | null {
   return isCentsMetric(metric) ? "$" : null;
+}
+
+/** What sits after it: Recova's "%" for the recovery rate. */
+export function alertThresholdSuffix(metric: string): string | null {
+  return metric === PERCENT_METRIC ? "%" : null;
 }
 
 /** The metric the create form opens on: the one asked for, if the evaluator

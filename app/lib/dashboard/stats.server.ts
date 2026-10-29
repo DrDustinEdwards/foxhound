@@ -1,10 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 
 import { getBillableRecoveries } from "~/db/billable";
 import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { failedPayments, mrrSnapshots, recoveredPayments } from "~/db";
 import { recoveryFeeCents } from "~/lib/billing/fees";
+import { rollUpByMonth } from "~/lib/intelligence/mrr";
 
 // Dashboard read models (Phase 5 slice 5a). Every query is account-scoped and
 // read-only. "Fee owed" previews what the next billing run would invoice: it
@@ -92,23 +93,27 @@ export async function getRecoveryStats(
 type MrrSnapshotRow = typeof mrrSnapshots.$inferSelect;
 
 export interface MrrAnalytics {
+  /** This month so far: the latest snapshot, with the month's movements and
+   *  rates (rollUpByMonth). */
   latest: MrrSnapshotRow | null;
-  /** Chronological (oldest -> newest), for trend charts. */
+  /** One row per month, chronological (oldest -> newest), for trend charts. */
   trend: MrrSnapshotRow[];
 }
 
-const MRR_TREND_POINTS = 12;
+const MRR_TREND_MONTHS = 12;
 
-export async function getMrrAnalytics(db: Db, accountId: string): Promise<MrrAnalytics> {
+/** The console's and the narrative's MRR, by month. intelligence-sync writes a
+ *  row a day, so the rows are rolled up into months here; the window reaches
+ *  one day further back so the oldest month has its starting MRR. */
+export async function getMrrAnalytics(db: Db, accountId: string, nowMs: number = Date.now()): Promise<MrrAnalytics> {
+  const now = new Date(nowMs);
+  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (MRR_TREND_MONTHS - 1), 1));
   const rows = await db
     .select()
     .from(mrrSnapshots)
-    .where(eq(mrrSnapshots.accountId, accountId))
-    .orderBy(desc(mrrSnapshots.snapshotDate))
-    .limit(MRR_TREND_POINTS);
+    .where(and(eq(mrrSnapshots.accountId, accountId), gte(mrrSnapshots.snapshotDate, new Date(from.getTime() - 86_400_000 * 2))))
+    .orderBy(asc(mrrSnapshots.snapshotDate));
 
-  return {
-    latest: rows[0] ?? null,
-    trend: [...rows].reverse(),
-  };
+  const months = rollUpByMonth(rows).filter((m) => m.snapshotDate >= from);
+  return { latest: months[months.length - 1] ?? null, trend: months };
 }

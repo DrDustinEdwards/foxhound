@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "718a2bbb-8b9e-4ae6-a1e9-e9b305997e9e",
-  "prevId": "fd3f0dbc-b3a7-41bf-b10b-c6d67c8d9b8e",
+  "id": "b7f6a5ec-947f-4714-8a84-0c33f112092c",
+  "prevId": "d374b527-31a0-4bb6-ae3f-1b6aa75ef13d",
   "tables": {
     "audit_digest_runs": {
       "name": "audit_digest_runs",
@@ -2407,205 +2407,6 @@
         }
       }
     },
-    "early_fraud_warnings": {
-      "name": "early_fraud_warnings",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stripe_connection_id": {
-          "name": "stripe_connection_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stripe_warning_id": {
-          "name": "stripe_warning_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stripe_charge_id": {
-          "name": "stripe_charge_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stripe_payment_intent_id": {
-          "name": "stripe_payment_intent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stripe_customer_id": {
-          "name": "stripe_customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "customer_email": {
-          "name": "customer_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "customer_name": {
-          "name": "customer_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "failed_payment_id": {
-          "name": "failed_payment_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "fraud_type": {
-          "name": "fraud_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "actionable": {
-          "name": "actionable",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "amount_cents": {
-          "name": "amount_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "received_at": {
-          "name": "received_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "refunded_at": {
-          "name": "refunded_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "stripe_refund_id": {
-          "name": "stripe_refund_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "dismissed_at": {
-          "name": "dismissed_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "early_fraud_warnings_account_idx": {
-          "name": "early_fraud_warnings_account_idx",
-          "columns": [
-            "account_id"
-          ],
-          "isUnique": false
-        },
-        "early_fraud_warnings_account_warning_uq": {
-          "name": "early_fraud_warnings_account_warning_uq",
-          "columns": [
-            "account_id",
-            "stripe_warning_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "early_fraud_warnings_account_id_accounts_id_fk": {
-          "name": "early_fraud_warnings_account_id_accounts_id_fk",
-          "tableFrom": "early_fraud_warnings",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "early_fraud_warnings_stripe_connection_id_stripe_connections_id_fk": {
-          "name": "early_fraud_warnings_stripe_connection_id_stripe_connections_id_fk",
-          "tableFrom": "early_fraud_warnings",
-          "tableTo": "stripe_connections",
-          "columnsFrom": [
-            "stripe_connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "early_fraud_warnings_failed_payment_id_failed_payments_id_fk": {
-          "name": "early_fraud_warnings_failed_payment_id_failed_payments_id_fk",
-          "tableFrom": "early_fraud_warnings",
-          "tableTo": "failed_payments",
-          "columnsFrom": [
-            "failed_payment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "cron_alerts": {
       "name": "cron_alerts",
       "columns": {
@@ -3626,6 +3427,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "disputes_enabled": {
+          "name": "disputes_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
         "audit_lookback_days": {
           "name": "audit_lookback_days",
           "type": "integer",
@@ -4567,6 +4376,20 @@
         },
         "card_funding": {
           "name": "card_funding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "network_advice_code": {
+          "name": "network_advice_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "network_decline_code": {
+          "name": "network_decline_code",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

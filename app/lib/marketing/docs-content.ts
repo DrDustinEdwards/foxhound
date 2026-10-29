@@ -213,8 +213,8 @@ export const DOC_GUIDES: DocGuide[] = [
           "It sends once per recovery: a repeated webhook from Stripe does not produce a second email. A payment that recovers gets the recovery email and never the sequence-complete one, so you never get both for one payment.",
           { kind: "note", body: "Win-back and expiring-card alerts are switches on the features page rather than the notifications page, because they turn the engine off rather than changing who hears about it." },
           { kind: "h3", text: "Alerts" },
-          "Settings and Alerts lets you set a threshold on a metric Foxhound tracks: average health score, MRR at risk, churned MRR, and contracted MRR. Choose whether the metric dropping below or rising above your number counts, and Foxhound checks every night.",
-          "Every breach is recorded and shown under Recent triggers on that page, and emailed to your notification address, no more than once a day for each alert. Alerts are not posted to Slack.",
+          "Settings and Alerts lets you set a threshold on any of eleven metrics: recovery rate, MRR at risk, active sequences, emails sent in the last 7 days, open disputes, disputes due in 48 hours, dispute amount at stake, high-risk customers, MRR at risk from Intelligence, audit revenue leaking, and the change in leaking since the prior audit. Choose whether the metric dropping below or rising above your number counts, and whether the alert goes by email or to Slack.",
+          "Foxhound checks your alerts after each recovery run. Every breach is recorded and shown under Recent triggers on that page, and sent to the alert's channel no more than once a day for each alert: email goes to your notification address, Slack to the webhook on the notifications page.",
           { kind: "h3", text: "API keys" },
           "Settings and API keys issues credentials for external AI agents. A key is shown once, when you generate it, and only its hash is stored, so Foxhound cannot show it to you again. Name each key so you can tell them apart, and revoke any key from the same page. A revoked key stops working immediately.",
           { kind: "h3", text: "Connecting an agent" },
@@ -582,7 +582,22 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Recommendations",
         body: [
-          "Intelligence does not recommend an action for each customer yet, and the customers page has no Recommended action column. Each customer's own page lists the factors that moved their score instead, which is the part a person can act on.",
+          // Recova's Part 3 (docs/intelligence/page.tsx, blob e7f18266), with
+          // truthfulness fixes: Recova's "Seven action types" lists three no
+          // rule produces (recommend.ts), and its deprioritize line's "will be
+          // delayed 48 hours" never ran in Recova and does not in Foxhound.
+          // Each line is checked against recommend.ts's table.
+          // The nightly scoring batch writes the action (ai-run.server.ts),
+          // and the Recommendations page shows the two that ask for you.
+          { kind: "h3", text: "Four action types" },
+          "Intelligence produces one of four recommendations per customer:",
+          { kind: "list", items: [
+            [{ strong: "Personal outreach." }, " High value customer showing disengagement or failure history, or a customer who used to recover well and has stopped opening emails. Reach out directly."],
+            [{ strong: "Continue automated." }, " The automated flow is doing its job, no action needed from you."],
+            [{ strong: "Continue automated (priority)." }, " High value, not enough history to call it yet, flag for monitoring."],
+            [{ strong: "Continue automated (deprioritize)." }, " Not a high value customer, with weak engagement or recovery history. The automated sequence continues on its usual timing."],
+          ] },
+          "Customers needing action appear on the Recommendations page grouped by action type: personal outreach under Reach out personally, priority under Watch closely, highest MRR first. Customers on continue automated or continue automated (deprioritize) are excluded: they need nothing from you.",
         ],
       },
       {
@@ -595,8 +610,8 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "MRR trends",
         body: [
-          "The Intelligence dashboard charts total MRR and MRR by plan, net revenue retention over the last 12 months, where above 100% means expansion outran churn, and the MRR movement behind it by month: new, expansion, reactivation, contraction and churn.",
-          "A month whose total barely moves can still be hiding a lot of both, which is what the movement chart is for. Customer data is synced from Stripe monthly, so each bar is a month.",
+          "The Intelligence dashboard charts total MRR and MRR by plan, net revenue retention over the last 90 days, where above 100% means expansion outran churn, and the MRR movement behind it by week: new, expansion, reactivation, contraction and churn.",
+          "A week whose total barely moves can still be hiding a lot of both, which is what the movement chart is for. Customer data is synced from Stripe every day, and once right after you connect, so each bar is a week of those days.",
         ],
       },
       {
@@ -613,7 +628,7 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "With Intelligence active, Settings and Intelligence lists what Intelligence would deliver to you and marks it not built: there is no weekly narrative email or Slack post yet, so there is nothing to set there.",
           { kind: "h3", text: "Health alert" },
-          "Settings and Alerts lets you set a threshold on average health score, and also on MRR at risk, churned MRR or contracted MRR, firing when the metric drops below or rises above your number. Foxhound checks every night, records each breach under Recent triggers on that page, and emails it to your notification address, no more than once a day for each alert. It does not post alerts to Slack, and it does not alert on one customer's score.",
+          "Settings and Alerts lets you set a threshold on the number of high-risk customers, those with a health score of 33 or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.",
         ],
       },
     ],

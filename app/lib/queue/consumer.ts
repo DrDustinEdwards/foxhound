@@ -1,6 +1,6 @@
 import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME, EMAIL_QUEUE_NAME } from "~/lib/constants";
 import { processEmailJob } from "~/lib/email/dispatch";
-import { processEmailEvent, type EmailServiceEvent } from "~/lib/email/events";
+import { processEmailEvent } from "~/lib/email/events";
 import type { EmailJob } from "~/lib/email/types";
 
 // Single queue-consumer entry, dispatched by queue name:
@@ -25,7 +25,7 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
   if (batch.queue === EMAIL_EVENTS_QUEUE_NAME) {
     for (const message of batch.messages) {
       try {
-        await processEmailEvent(env, message.body as EmailServiceEvent);
+        await processEmailEvent(env, message.body);
         message.ack();
       } catch {
         message.retry();

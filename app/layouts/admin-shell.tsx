@@ -4,12 +4,10 @@ import {
   Activity,
   Bug,
   Clock,
-  FileText,
   LayoutDashboard,
   ListChecks,
   OctagonPause,
   ScrollText,
-  Share2,
   Store,
   Users,
   Webhook,
@@ -66,8 +64,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
   { id: "webhooks", label: "Webhooks", href: "/admin/platform/webhooks", group: "Platform", icon: icon(Webhook), match: (p) => p.startsWith("/admin/platform/webhooks") },
   { id: "brake", label: "Emergency brake", href: "/admin/brake", group: "Controls", icon: icon(OctagonPause), match: (p) => p.startsWith("/admin/brake") },
   { id: "staged", label: "Staged changes", href: "/admin/staged", group: "Controls", icon: icon(ListChecks), match: (p) => p.startsWith("/admin/staged") },
-  { id: "blog", label: "Blog", href: "/admin/blog", group: "Content", icon: icon(FileText), match: (p) => p.startsWith("/admin/blog") },
-  { id: "social", label: "Social", href: "/admin/social", group: "Content", icon: icon(Share2), match: (p) => p.startsWith("/admin/social") },
   { id: "audit-log", label: "Audit log", href: "/admin/platform/audit-log", group: "Records", icon: icon(ScrollText), match: (p) => p.startsWith("/admin/platform/audit-log") },
 ];
 

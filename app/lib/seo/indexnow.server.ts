@@ -25,10 +25,10 @@ import { INDEXNOW_KEY, INDEXNOW_KEY_PATH } from "./indexnow-key";
 // 2 and 3 are internals the Cloudflare-native stack needs and the user never
 // sees, the prime directive's first category that needs no per-item approval.
 //
-// WHERE THE HOOKS LIVE TODAY: the Carrel adapter (app/lib/carrel/adapter.server.ts)
-// and the /admin/blog editor (app/routes/admin/blog/detail.tsx). They move when
-// Carrel takes over blog publishing (J11, job_09c55603e321) and Prelum serves
-// the blog pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29).
+// WHERE THE HOOK LIVES TODAY: the Carrel adapter (app/lib/carrel/adapter.server.ts),
+// the one publish path since the /admin/blog editor was removed (RULES.md 7.4).
+// It moves when Prelum serves the blog pages (J19 job_deffd581af37, J61
+// job_2ee0cfdd5c29).
 
 const INDEXNOW_ORIGIN = "https://foxhoundapp.com";
 
