@@ -38,6 +38,8 @@ const STEP_RESULT_WORDS: Record<string, string> = {
   // An expired card's day 21 retry that did not charge (card-change.ts).
   retry_skipped_card_unchanged: "Skipped: card not updated",
   retry_skipped_unverified: "Skipped: card update not confirmed",
+  // A customer who won a dispute against the merchant is not charged again.
+  retry_skipped_dispute_lost: "Skipped: lost dispute on record",
   cancelled: "Canceled",
   skipped_inactive: "Skipped",
   error: "Error",

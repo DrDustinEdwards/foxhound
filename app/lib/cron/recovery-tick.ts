@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { type Db, accounts, cronConfig, failedPayments, getDb } from "~/db";
+import { type Db, accounts, cronConfig, disputes, failedPayments, getDb } from "~/db";
 import {
   FAILED_PAYMENT_STATUS_UNRECOVERED,
   RECOVERY_TICK_CRON_NAME,
@@ -12,6 +12,7 @@ import {
   executeRetryStep,
   type RetryStepContext,
 } from "~/lib/engine/retry-step";
+import { recordOutcome } from "~/lib/engine/outcomes";
 import { stepAction } from "~/lib/engine/step-runner";
 import { afterTransientFailureWith } from "~/lib/recovery/step-state";
 import {
@@ -133,6 +134,82 @@ export async function recordMissingTokenAttempt(
   return patch.result;
 }
 
+/** The terminal result on a retry step skipped because the customer has a lost
+ *  dispute with this account. */
+export const RETRY_RESULT_DISPUTE_LOST = "retry_skipped_dispute_lost";
+
+/**
+ * Whether this customer has a dispute with this account that the merchant lost.
+ * Recova stopped card retries for such a customer (handleDisputeClosed set
+ * customer_context.recovery_suppressed_retries, process-recovery skipped retry
+ * steps on it): charging a customer who already won a chargeback invites the
+ * next one. Read from the disputes table, not a customer_context flag, because
+ * the Intelligence sync rebuilds that row and would drop a flag it does not own.
+ *
+ * FAILS OPEN, as Recova's check did: an error reads as "no lost dispute" and the
+ * retry runs, so a read fault cannot silently stop recovery for everyone.
+ */
+export async function hasLostDispute(
+  env: Env,
+  accountId: string,
+  stripeCustomerId: string,
+): Promise<boolean> {
+  try {
+    const rows = await getDb(env)
+      .select({ id: disputes.id })
+      .from(disputes)
+      .where(
+        and(
+          eq(disputes.accountId, accountId),
+          eq(disputes.stripeCustomerId, stripeCustomerId),
+          eq(disputes.state, "resolved_lost"),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  } catch (err) {
+    console.error("lost-dispute check failed, retry proceeds:", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
+/**
+ * End a retry step without charging because of a lost dispute: the step goes
+ * terminal (claim-on-write, so a redelivered tick cannot double-write) and the
+ * suppression is recorded as Recova's recovery_retry_suppressed outcome, keyed
+ * on the step so a replay collapses. Emails in the sequence are unaffected.
+ */
+export async function suppressRetryForLostDispute(
+  env: Env,
+  row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & { stripeCustomerId: string },
+  now: Date,
+): Promise<void> {
+  const db = getDb(env);
+  await db.batch([
+    buildRetryAttemptPatch(db, row.stepId, {
+      attemptCount: row.attemptCount,
+      lastAttemptError: null,
+      nextRetryAt: null,
+      executedAt: now,
+      result: RETRY_RESULT_DISPUTE_LOST,
+    }),
+  ]);
+  await recordOutcome(env, {
+    accountId: row.accountId,
+    product: "recovery",
+    eventType: "recovery_retry_suppressed",
+    eventData: {
+      step_id: row.stepId,
+      step_type: row.stepType,
+      stripe_customer_id: row.stripeCustomerId,
+      reason: "dispute_lost",
+    },
+    outcome: "suppressed",
+    outcomeAt: now,
+    idempotencyKey: `recovery_retry_suppressed_${row.stepId}`,
+  });
+}
+
 interface TickTally {
   due: number;
   chosen: number;
@@ -175,6 +252,15 @@ export interface RecoveryTickDeps {
   /** Re-read the enabled flag + account eligibility before each step. Default:
    *  the real batched read. */
   checkGuards: (env: Env, accountId: string) => Promise<TickGuards>;
+  /** Whether the customer has a lost dispute with the account. Default: the
+   *  real fail-open read. */
+  hasLostDispute: (env: Env, accountId: string, stripeCustomerId: string) => Promise<boolean>;
+  /** Stamp the step terminal and record the suppression. */
+  suppressRetry: (
+    env: Env,
+    row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & { stripeCustomerId: string },
+    now: Date,
+  ) => Promise<void>;
 }
 
 /**
@@ -255,6 +341,8 @@ export async function runRecoveryTick(
   const flipExhausted = deps.flipExhausted ?? flipExhaustedSequences;
   const recordMissingToken = deps.recordMissingToken ?? recordMissingTokenAttempt;
   const checkGuards = deps.checkGuards ?? checkTickGuards;
+  const lostDispute = deps.hasLostDispute ?? hasLostDispute;
+  const suppressRetry = deps.suppressRetry ?? suppressRetryForLostDispute;
 
   const now = new Date();
   const due = await query(env, now);
@@ -313,6 +401,12 @@ export async function runRecoveryTick(
             { stepId: row.stepId, attemptCount: row.attemptCount },
             now,
           );
+          tally.skipped += 1;
+          continue;
+        }
+        const customerId = row.stripeCustomerId;
+        if (customerId && (await lostDispute(env, row.accountId, customerId))) {
+          await suppressRetry(env, { ...row, stripeCustomerId: customerId }, now);
           tally.skipped += 1;
           continue;
         }

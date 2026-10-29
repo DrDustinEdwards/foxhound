@@ -204,6 +204,8 @@ export interface DueStepRow {
   brandVoiceSamples?: string | null;
   /** The payment's connection's `reply_to_email` (J03), for the Reply-To. */
   replyToEmail?: string | null;
+  /** failed_payments.stripe_customer_id, for the lost-dispute retry check. */
+  stripeCustomerId?: string | null;
 }
 
 // The sample emails are the account's, saved on its primary connection by
@@ -251,6 +253,7 @@ function selectStepRows(db: Db) {
       brandVoiceFraud: stripeConnections.brandVoiceFraud,
       brandVoiceSamples: primarySamples,
       replyToEmail: stripeConnections.replyToEmail,
+      stripeCustomerId: failedPayments.stripeCustomerId,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
