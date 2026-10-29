@@ -19,6 +19,7 @@ import { getDb, stripeConnections } from "~/db";
 import {
   createAccountForUser,
   getSession,
+  MEMBER_ROLE,
   resolveActiveMembership,
   resolveMembership,
 } from "~/lib/auth";
@@ -79,6 +80,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     accountName: membership?.accountName ?? null,
     userName: session.user.name,
     hasConnection,
+    // Only an owner may attach a Stripe account; a member is told so instead of
+    // being offered a button the action and the callback would refuse.
+    isOwner: membership?.role === MEMBER_ROLE.OWNER,
     stripeEnabled: Boolean(env.STRIPE_CLIENT_ID),
     error: new URL(request.url).searchParams.get("error"),
   };
@@ -124,12 +128,19 @@ export async function action({ request, context }: Route.ActionArgs) {
       { status: 400 },
     );
   }
+  // ONLY AN OWNER STARTS THE FLOW, on the account the callback will attach to
+  // (the active one). The callback asks again before it exchanges the code, so
+  // this is the early, clear refusal rather than the only one.
+  const active = await resolveActiveMembership(db, session.user.id, session.session.activeAccountId ?? null);
+  if (active?.role !== MEMBER_ROLE.OWNER) {
+    return data({ error: OWNER_REQUIRED_MESSAGE }, { status: 403 });
+  }
   // MARKED "connect" as of ruling 329 phase (d). It used to be a bare
   // crypto.randomUUID(), which the callback could only read as "not
   // add_account". An unmarked state is how legacy's own add-account control
   // falls through to the upsert branch (DEFECT 1), so both flows now say what
   // they are and the callback refuses anything that says neither.
-  const state = buildConnectState(CONNECT_ACTION);
+  const state = buildConnectState(CONNECT_ACTION, session.user.id);
   return redirect(buildConnectAuthorizeUrl(env, state), {
     headers: { "Set-Cookie": setStateCookie(state) },
   });
@@ -232,6 +243,10 @@ function AccessDisclosure() {
   );
 }
 
+// Foxhound's own refusal: only an account owner attaches a Stripe account.
+// Shown by the action, the callback's bounce and the page itself.
+const OWNER_REQUIRED_MESSAGE = "Only an account owner can connect Stripe. Ask the owner to connect it.";
+
 // Recova's error words (app/connect/page.tsx lines 11 to 19) for every code
 // Foxhound's callback sends here. Recova's three setup codes (oauth_failed,
 // billing_setup_failed, account_products_setup_failed) are not carried:
@@ -246,6 +261,8 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   no_code: "Stripe did not return an authorization code. Please try again.",
   token_exchange_failed: "Stripe could not complete the connection. Please try again.",
   stripe_account_already_connected: "This Stripe account is already connected to a Foxhound account.",
+  owner_required: OWNER_REQUIRED_MESSAGE,
+  scope_refused: "Stripe did not grant the read and write access Foxhound needs. Please try again.",
 };
 const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
 
@@ -373,7 +390,9 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
         </div>
       ) : null}
       <AccessDisclosure />
-      {loaderData.stripeEnabled ? (
+      {!loaderData.isOwner ? (
+        <p className="text-center text-label text-text-tertiary">{OWNER_REQUIRED_MESSAGE}</p>
+      ) : loaderData.stripeEnabled ? (
         <Form method="post" className="grid">
           <Button type="submit" variant="primary" pending={busy}>
             {busy ? "Redirecting..." : "Connect Stripe"}

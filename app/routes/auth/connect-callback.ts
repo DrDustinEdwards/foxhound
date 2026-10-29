@@ -9,12 +9,14 @@ import {
   resolveActiveMembershipFrom,
   setSessionActiveAccount,
 } from "~/lib/auth";
+import type { Membership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import {
   exchangeConnectCode,
   fetchConnectedAccountName,
+  isMerchantConnectScope,
   type StripeOAuthResult,
 } from "~/lib/stripe/connect";
 import { ADD_ACCOUNT_ACTION, AUDIT_ACTION, verifyConnectState } from "~/lib/stripe/connect-state";
@@ -62,15 +64,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       headers: { "Set-Cookie": clearStateCookie() },
     });
 
-  if (oauthError) return bounce("denied");
+  if (oauthError) {
+    // Stripe's own reason (access_denied when the merchant cancels, or a
+    // misconfiguration such as an unregistered redirect_uri), so a failed connect
+    // is visible. Only these two params: there is no code on this path, and a
+    // code is a credential that is never logged.
+    const description = url.searchParams.get("error_description") ?? "";
+    console.warn("connect callback: Stripe returned an error:", oauthError.slice(0, 100), description.slice(0, 300));
+    return bounce("denied");
+  }
   if (!code) return bounce("no_code");
 
   // The whole trust decision, before the code is exchanged and before anything
   // is read or written: the state must be one WE minted (byte-identical to the
-  // HttpOnly cookie) and must name a known action. See verifyConnectState for
-  // why the comparison is on raw strings.
-  const action = verifyConnectState(state, readStateCookie(request));
-  if (!action) return bounce("invalid_state");
+  // HttpOnly cookie), must name a known action, and (below, once there is a
+  // session) must name the user signed in now. See verifyConnectState for why
+  // the comparison is on raw strings.
+  const minted = verifyConnectState(state, readStateCookie(request));
+  if (!minted) return bounce("invalid_state");
+  const { action } = minted;
   // AND IT MUST NOT BE THE AUDIT'S. Phase (f) added a third action to the shared
   // state shape, and this is the half of that decision that lives here: a state
   // minted by the anonymous read-only flow is refused BEFORE the exchange, so a
@@ -83,9 +95,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const session = await getSession(env, request);
   if (!session) throw redirect("/login");
+  // A flow started by one user is never finished by another, even in the same
+  // browser within the cookie's TTL (see buildConnectState).
+  if (minted.userId !== session.user.id) return bounce("invalid_state");
 
   const db = getDb(env);
   const memberships = await listMemberships(db, session.user.id);
+
+  // ONLY AN OWNER ATTACHES A STRIPE ACCOUNT to an existing Foxhound account,
+  // and the question is asked before the code is exchanged. "add_account" needs
+  // no check: it mints a new account with the caller as its owner.
+  let target: Membership | null = null;
+  if (action !== ADD_ACCOUNT_ACTION) {
+    target = await resolveActiveMembershipFrom(db, memberships, session.session.activeAccountId ?? null);
+    // No account to attach to; back to setup, where /connect creates one.
+    if (!target) return bounce("no_code");
+    if (target.role !== MEMBER_ROLE.OWNER) return bounce("owner_required");
+  }
 
   // The first Intelligence sync, right after a connection is written, as
   // Recova's dashboard promised a snapshot the night of connecting: here it is
@@ -102,10 +128,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   try {
     const oauth = await exchangeConnectCode(env, code);
+    // Both merchant flows retry invoices, so both need the write scope. Stripe
+    // grants what the authorize URL asked for, so anything else is refused
+    // rather than stored as a connection that would fail on its first retry.
+    if (!isMerchantConnectScope(oauth.scope)) {
+      console.error("connect callback: Stripe granted less than the write scope; refusing the connection");
+      return bounce("scope_refused");
+    }
 
-    return action === ADD_ACCOUNT_ACTION
-      ? await addAccount(env, db, session.session.id, session.user.id, memberships, oauth, syncSoon)
-      : await attachToActiveAccount(env, db, session.session.activeAccountId ?? null, memberships, oauth, syncSoon);
+    return target
+      ? await attachToActiveAccount(env, db, target, memberships, oauth, syncSoon)
+      : await addAccount(env, db, session.session.id, session.user.id, memberships, oauth, syncSoon);
   } catch (err) {
     // Log only the error's type, code and message, never the object: it can
     // carry request context. Without this line a misconfigured key or client ID
@@ -250,21 +283,18 @@ async function addAccount(
  * caller already holds.
  *
  * THE ACCOUNT IS THE ACTIVE ONE, resolved through the session marker by
- * `resolveActiveMembershipFrom`, never the earliest by the shim. That single
- * substitution is what closes the phase (e) hazard.
+ * `resolveActiveMembershipFrom` in the loader (which also checks the caller
+ * owns it), never the earliest by the shim. That single substitution is what
+ * closes the phase (e) hazard.
  */
 async function attachToActiveAccount(
   env: Env,
   db: Db,
-  activeAccountId: string | null,
-  memberships: Awaited<ReturnType<typeof listMemberships>>,
+  membership: Membership,
+  memberships: Membership[],
   oauth: StripeOAuthResult,
   syncSoon: (accountId: string) => void,
 ): Promise<Response> {
-  const membership = await resolveActiveMembershipFrom(db, memberships, activeAccountId);
-  // No account to attach to; back to setup, where /connect creates one.
-  if (!membership) return bounceTo("/connect?error=no_code");
-
   // THE SAME PREDICATE `addAccount` USES, which is the DEFECT 4 fix (356
   // binding 2). This lookup was scoped `inArray(accountId, memberships)`, so it
   // could only ever see the caller's own accounts: a Stripe account live on a
