@@ -309,6 +309,13 @@
       "when": 1792957581935,
       "tag": "0043_diagram_figures",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1793248240625,
+      "tag": "0047_expiring_card_alert_reason",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `expiring_card_alerts` ADD `reason` text DEFAULT 'card_expiring' NOT NULL;

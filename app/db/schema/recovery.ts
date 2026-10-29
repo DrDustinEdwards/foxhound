@@ -152,6 +152,8 @@ export const recoveredPayments = sqliteTable(
   ],
 );
 
+export type ExpiringCardAlertReason = "card_expiring" | "no_payment_method";
+
 export const expiringCardAlerts = sqliteTable(
   "expiring_card_alerts",
   {
@@ -168,6 +170,14 @@ export const expiringCardAlerts = sqliteTable(
     accountId: text("account_id").references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
+    // WHY THE ROW EXISTS (migration 0047). 'card_expiring' is every row the
+    // nightly scan and customer.updated write. 'no_payment_method' is a
+    // trialing customer with nothing to charge at conversion, recorded off
+    // customer.subscription.trial_will_end; its card columns are NULL and its
+    // expires_month/expires_year carry the TRIAL END month, which is when the
+    // missing card will be needed, so the unique tuple below dedupes it per
+    // trial-end month exactly as it dedupes a card per expiry month.
+    reason: text("reason").$type<ExpiringCardAlertReason>().notNull().default("card_expiring"),
   },
   (t) => [
     index("expiring_card_alerts_account_idx").on(t.accountId),

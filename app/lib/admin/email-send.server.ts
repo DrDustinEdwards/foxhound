@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db/schema";
 import { renderSignInLinkEmail } from "~/lib/auth/send-auth-email";
+import { DAY_MS } from "~/lib/constants";
 import {
   buildEmailMessage,
   buildRenderedTransactionalMessage,
@@ -16,7 +17,12 @@ import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recoveryFooterNote } from "~/lib/engine/execute-step";
 import { digestContent } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
-import { buildExpiringCardEmail, expiringCardSubject } from "~/lib/recovery/expiring-card-email";
+import {
+  buildExpiringCardEmail,
+  buildNoPaymentMethodEmail,
+  expiringCardSubject,
+  noPaymentMethodSubject,
+} from "~/lib/recovery/expiring-card-email";
 import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
 import { sequenceCompleteContent } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
@@ -107,6 +113,11 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
     type: "expiring_card",
     audience: "customer",
     description: "The expiring-card warning a merchant's customer gets before their card expires.",
+  },
+  {
+    type: "expiring_card_no_payment_method",
+    audience: "customer",
+    description: "The expiring-card alert's variant for a trialing customer with no payment method set up, sent before the trial converts.",
   },
   {
     type: "settings_test",
@@ -326,6 +337,22 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           customerName: null,
           expiresMonth: next.getUTCMonth() + 1,
           expiresYear: next.getUTCFullYear(),
+          senderName,
+          updateUrl: standIn,
+        }),
+        footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
+      });
+    }
+    if (type.type === "expiring_card_no_payment_method") {
+      // The trial-end month stands in for the row's month and year, as on a
+      // real 'no_payment_method' alert.
+      const trialEnd = new Date(now.getTime() + 3 * DAY_MS);
+      return job({
+        subject: noPaymentMethodSubject(),
+        blocks: buildNoPaymentMethodEmail({
+          customerName: null,
+          trialEndsMonth: trialEnd.getUTCMonth() + 1,
+          trialEndsYear: trialEnd.getUTCFullYear(),
           senderName,
           updateUrl: standIn,
         }),

@@ -95,13 +95,14 @@ const ALL_TYPES = [
   "winback_step2",
   "winback_step3",
   "expiring_card",
+  "expiring_card_no_payment_method",
   "settings_test",
   "weekly_digest",
   "recovery_notification",
   "sequence_complete",
   "sign_in_link",
 ];
-const CUSTOMER_TYPES = ALL_TYPES.slice(0, 11);
+const CUSTOMER_TYPES = ALL_TYPES.slice(0, 12);
 
 interface SentMessage {
   from: string;
