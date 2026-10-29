@@ -29,7 +29,10 @@ import {
 } from "lucide-react";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { Banner } from "capsomer/react/banner";
 import "capsomer/admin-shell.css";
+import "capsomer/banner.css";
+import "capsomer/button.css";
 import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
@@ -46,6 +49,7 @@ import {
 } from "~/components/site-header";
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
+import { IMPERSONATION_STOP_PATH } from "~/lib/admin/impersonation.server";
 import { authContext } from "~/lib/auth/context";
 import { adminPageName as routePageName } from "~/lib/admin/page";
 import { getDb } from "~/db";
@@ -133,6 +137,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     isAdmin: auth.isAdmin,
     isDemo: auth.isDemo,
     demoSignedIn: auth.demoSignedIn,
+    // An admin's read-only "View as merchant": the banner and its Stop.
+    viewingAs: auth.viewingAs ? { stopHref: IMPERSONATION_STOP_PATH } : null,
     theme: await resolveThemeForRequest(env, request),
     nav,
     userName: auth.userName,
@@ -191,8 +197,19 @@ function productPages(key: ProductKey): ProductNavLink[] {
 const ACCOUNT_PAGES = ["Settings", "Billing", "Team"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label));
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { accountName, accounts, activeAccountId, email, isAdmin, isDemo, demoSignedIn, theme, nav, userName } =
-    loaderData;
+  const {
+    accountName,
+    accounts,
+    activeAccountId,
+    email,
+    isAdmin,
+    isDemo,
+    demoSignedIn,
+    viewingAs,
+    theme,
+    nav,
+    userName,
+  } = loaderData;
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const submit = useSubmit();
@@ -373,6 +390,22 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
               {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
             </a>
           </div>
+        ) : null}
+        {/* An admin viewing this merchant read-only (Recova's "Impersonating:
+            {email}" banner with "Stop impersonating"). On every app page while
+            the view is open; Stop is a plain link because it leaves the app
+            for /admin, behind Access. */}
+        {viewingAs ? (
+          <Banner
+            tone="warn"
+            actions={
+              <a href={viewingAs.stopHref} className="cap-btn" data-size="sm">
+                Stop
+              </a>
+            }
+          >
+            Viewing as {accountName ?? "this merchant"} (read-only).
+          </Banner>
         ) : null}
         {/* Ruling 146: exactly one <main> on every app page. It is the shell's
             own (AdminShell's main region, #cap-main, the skip link's target),

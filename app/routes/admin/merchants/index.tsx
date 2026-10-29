@@ -181,8 +181,9 @@ export async function action({ context, request }: Route.ActionArgs) {
 // Billing exempt and pause can be undone, so they happen at once and offer
 // Undo in the page's message region. Recova's Disconnect is Foxhound's cancel
 // (cancelMerchant), which revokes the Stripe grant and cannot be undone, so it
-// opens Capsomer's confirm page and needs a typed word. Impersonate stays out
-// (ruling 125). Every action is a form or a link, so the page works without
+// opens Capsomer's confirm page and needs a typed word. Recova's Impersonate is
+// "View as merchant": read-only, 30 minutes, audited, posting to /admin/view-as
+// (app/lib/admin/impersonation.server.ts). Every action is a form or a link, so the page works without
 // script; the result of a post made without script shows in a banner with its
 // Undo as a form.
 //

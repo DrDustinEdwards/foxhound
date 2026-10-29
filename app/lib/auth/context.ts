@@ -54,6 +54,12 @@ export interface AuthContext {
    *  to your own /console" (signed in), without either of them re-deriving
    *  session state themselves. */
   demoSignedIn: boolean;
+  /** Set when an admin is viewing this account read-only from /admin ("View
+   *  as merchant", Recova's Impersonate). Only appShellMiddleware sets it, from
+   *  an open, unexpired admin_impersonations row whose admin still passes
+   *  Cloudflare Access (app/lib/admin/impersonation.server.ts). The read-only
+   *  guarantee is the middleware's method gate, as for the demo. */
+  viewingAs?: { adminEmail: string };
 }
 
 export const authContext = createContext<AuthContext>();
