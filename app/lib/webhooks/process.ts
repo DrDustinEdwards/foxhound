@@ -70,7 +70,14 @@ export async function processConnectedWebhook(
     receivedAt,
     payload: event,
   };
-  const intent = classifyStripeEvent(event);
+  // TEST-MODE EVENTS ARE CLAIMED AND IGNORED. Stripe sends a live Connect
+  // endpoint the connected accounts' test-mode events too, and Foxhound holds a
+  // live key only, so acting on one would mail a real customer about a test
+  // invoice and bill a recovery that never happened. Strictly false: an event
+  // without the field is not assumed to be a test.
+  const intent = event.livemode === false
+    ? ({ kind: "ignore", reason: "test_mode" } as const)
+    : classifyStripeEvent(event);
   const idempotencyKey = `webhook:${event.id}`;
   const ctx: WebhookContext = { env, event, receivedAt, accountId, connectionId, claim, idempotencyKey };
 

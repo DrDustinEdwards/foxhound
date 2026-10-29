@@ -31,7 +31,7 @@ import {
 // app/api/cron/weekly-digest/route.ts (blob `b6ff2a8c`, 22,247 bytes).
 //
 // MONDAY 08:00 UTC, legacy's cadence, which needed a NEW wrangler trigger
-// (`0 8 * * 1`): this is the first Foxhound cron that cannot reuse an existing
+// (`0 8 * * MON`; Cloudflare's 1 is Sunday): this is the first Foxhound cron that cannot reuse an existing
 // expression. The CronLockDurableObject lease in run.ts stops two ticks
 // overlapping.
 //

@@ -35,8 +35,9 @@ describe("describeCronSchedule", () => {
     expect(describeCronSchedule("*/1 * * * *")).toBe("Every minute");
     expect(describeCronSchedule("0 3 * * *")).toBe("Daily at 03:00 UTC");
     expect(describeCronSchedule("30 14 * * *")).toBe("Daily at 14:30 UTC");
-    expect(describeCronSchedule("0 8 * * 1")).toBe("Mondays at 08:00 UTC");
-    expect(describeCronSchedule("0 8 * * 0")).toBe("Sundays at 08:00 UTC");
+    expect(describeCronSchedule("0 8 * * MON")).toBe("Mondays at 08:00 UTC");
+    // Cloudflare numbers weekdays 1 = Sunday, so a bare 1 is a Sunday run.
+    expect(describeCronSchedule("0 8 * * 1")).toBe("Sundays at 08:00 UTC");
     expect(describeCronSchedule("0 4 1 * *")).toBe("Monthly on the 1st at 04:00 UTC");
     expect(describeCronSchedule("0 9 22 * *")).toBe("Monthly on the 22nd at 09:00 UTC");
     expect(describeCronSchedule("0 9 13 * *")).toBe("Monthly on the 13th at 09:00 UTC");

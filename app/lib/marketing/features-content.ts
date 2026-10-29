@@ -15,6 +15,7 @@ import {
   SEND_RETRY_BACKOFF_MINUTES,
   WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
+import { cronWeekdayIndex } from "~/lib/admin/crons";
 import { recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 import { DEMO_BUSINESSES } from "~/lib/demo/constants";
@@ -96,7 +97,7 @@ function cronIsDaily(expr: string): boolean {
 function cronCadence(expr: string): string {
   if (/^\*\/\d+ \* \* \* \*$/.test(expr)) return `every ${cronEveryMinutes(expr)} minutes`;
   if (cronIsDaily(expr)) return "nightly";
-  if (/^\d+ \d+ \* \* \d$/.test(expr)) return "weekly";
+  if (/^\d+ \d+ \* \* \w+$/.test(expr)) return "weekly";
   if (/^\d+ \d+ \d+ \* \*$/.test(expr)) return "monthly";
   throw new Error(`no cadence word for schedule: ${expr}`);
 }
@@ -126,9 +127,10 @@ const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 
 /** The weekday of a weekly "M H * * D" schedule. */
 function cronWeekday(expr: string): string {
-  const m = /^\d+ \d+ \* \* (\d)$/.exec(expr);
-  if (!m) throw new Error(`not a weekly schedule: ${expr}`);
-  return WEEKDAYS[Number(m[1]) % 7];
+  const m = /^\d+ \d+ \* \* (\w+)$/.exec(expr);
+  const day = m ? cronWeekdayIndex(m[1]) : null;
+  if (day === null) throw new Error(`not a weekly schedule: ${expr}`);
+  return WEEKDAYS[day];
 }
 
 function ordinal(n: number): string {
