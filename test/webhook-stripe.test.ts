@@ -113,6 +113,15 @@ describe("classifyStripeEvent", () => {
     expect(classifyStripeEvent(event("customer.updated", {})).kind).toBe("ignore");
   });
 
+  it("routes the card updater's pre-2020 event name to the same retry as the current one", () => {
+    for (const type of ["payment_method.automatically_updated", "payment_method.card_automatically_updated"]) {
+      expect(classifyStripeEvent(event(type, { id: "pm_1", customer: "cus_1" }))).toEqual({
+        kind: "card_auto_updated",
+        customerId: "cus_1",
+      });
+    }
+  });
+
   it("charge.dispute.closed -> dispute_resolved only for a definitive won/lost status", () => {
     expect(
       classifyStripeEvent(event("charge.dispute.closed", { id: "dp_1", status: "won" })),

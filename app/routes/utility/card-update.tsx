@@ -443,6 +443,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     const session = await createCardUpdateSession({
       accessToken,
       customerId: target.stripeCustomerId,
+      currency: target.currency,
       successUrl: `${url.origin}/p/${token}?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${url.origin}/p/${token}`,
     });

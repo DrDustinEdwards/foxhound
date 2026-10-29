@@ -1,3 +1,5 @@
+import type Stripe from "stripe";
+
 import {
   WINBACK_SEQUENCE_METADATA_KEY,
   WINBACK_STEP_METADATA_KEY,
@@ -19,12 +21,22 @@ export interface CardUpdateSession {
   url: string;
 }
 
+/** The customer's billing currency, for a setup session with no failed
+ *  payment to take one from. A customer never billed has none: usd then,
+ *  which still saves a card that later charges in any currency. */
+async function customerCurrency(stripe: Stripe, customerId: string): Promise<string> {
+  const customer = await stripe.customers.retrieve(customerId);
+  return ("deleted" in customer && customer.deleted ? null : customer.currency) ?? "usd";
+}
+
 /** A Stripe-hosted Checkout Session in `setup` mode on the connected account:
  *  collects a payment method for the given customer without us ever touching
  *  card data or the merchant's Stripe secret key. */
 export async function createCardUpdateSession(input: {
   accessToken: string;
   customerId: string;
+  /** The failed payment's currency; absent in alert mode, where nothing failed. */
+  currency?: string;
   successUrl: string;
   cancelUrl: string;
 }): Promise<CardUpdateSession> {
@@ -32,7 +44,11 @@ export async function createCardUpdateSession(input: {
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: input.customerId,
-    payment_method_types: ["card"],
+    // Endive removed payment_method_types from Checkout. A setup session now
+    // takes a currency instead, and allowed_payment_method_types keeps it to
+    // cards, as before.
+    currency: input.currency ?? (await customerCurrency(stripe, input.customerId)),
+    allowed_payment_method_types: ["card"],
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
   });

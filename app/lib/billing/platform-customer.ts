@@ -188,7 +188,12 @@ export async function createBillingSetupSession(
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: input.customerId,
-    payment_method_types: ["card"],
+    // Endive removed payment_method_types from Checkout. A setup session now
+    // takes a currency instead, and allowed_payment_method_types keeps it to
+    // cards. Foxhound's pricing is in USD; a saved card is charged in any
+    // invoice currency later.
+    currency: "usd",
+    allowed_payment_method_types: ["card"],
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
   });
