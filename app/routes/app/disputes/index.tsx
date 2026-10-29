@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { data, Link } from "react-router";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Pill, type Tone as PillTone } from "capsomer/react/status";
@@ -12,6 +12,7 @@ import "capsomer/table.css";
 // page whole under any layout, as /help does.
 import "~/site-header.css";
 
+import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
@@ -28,6 +29,7 @@ import {
   isDisputeResolved,
 } from "~/lib/disputes/labels";
 import { getDisputeFeesOwed } from "~/lib/disputes/fees-owed.server";
+import { isWarningIntent, listEarlyFraudWarnings, runWarningAction } from "~/lib/disputes/fraud-warnings.server";
 import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
 import { getCustomerHealthScores, getDisputesWithEvidence, listDisputes } from "~/lib/disputes/queries.server";
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
@@ -52,8 +54,11 @@ import type { Route } from "./+types/index";
 // The Fee column is not built. The Recovery cross-sell card is approved as not
 // built (APPROVED-DIFFERENCES, 2026-09-19).
 //
-// The loader is read-only, billing records included. The one write is the
-// existing manual import action.
+// The loader is read-only, billing records included. The writes are the
+// existing manual import action and the early fraud warning section's Refund
+// and Dismiss (app/lib/disputes/fraud-warnings.server.ts). That section is not
+// Recova's: Dustin approved building it on 2026-10-29. It shows only for an
+// account that has had a warning, below the disputes table.
 
 export function meta() {
   return [{ title: "Disputes - Foxhound" }];
@@ -67,9 +72,10 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   // Newest first, as Recova orders the list (created_at descending).
   const nowMs = Date.now();
-  const [disputes, feesOwed] = await Promise.all([
+  const [disputes, feesOwed, warnings] = await Promise.all([
     listDisputes(db, accountId),
     getDisputeFeesOwed(db, accountId, nowMs),
+    listEarlyFraudWarnings(db, accountId),
   ]);
 
   const parts = computeDisputeStats(
@@ -113,7 +119,15 @@ export async function loader({ context }: Route.LoaderArgs) {
   // renders DisputesDashboardView alone, and importing a real Stripe dispute
   // into the shared demo account is meaningless. The middleware's method gate
   // is still the boundary for a hand-crafted POST.
-  return { disputes, stats, health, withEvidence, nowMs, isDemo: auth.isDemo };
+  return {
+    disputes,
+    stats,
+    health,
+    withEvidence,
+    nowMs,
+    isDemo: auth.isDemo,
+    warnings: warnings.any ? warnings.open : null,
+  };
 }
 
 // Manual dispute import (ruling 400 halt ruling 1). The endpoint is this
@@ -137,6 +151,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   const auth = context.get(authContext);
 
   const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
+  if (isWarningIntent(intent)) {
+    const result = await runWarningAction(env, auth.membership.accountId, intent, String(form.get("warning_id") ?? ""));
+    return data(result.data, { status: result.status });
+  }
   const posted = form.get("stripe_dispute_id");
   const result = await importDisputeFromStripe(
     env,
@@ -157,7 +176,7 @@ const PILL_TONE: Record<Tone, PillTone | undefined> = {
 };
 
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
-  const { disputes, stats, health, withEvidence, nowMs, isDemo } = loaderData;
+  const { disputes, stats, health, withEvidence, nowMs, isDemo, warnings } = loaderData;
   const hasEvidence = new Set(withEvidence);
 
   return (
@@ -258,7 +277,16 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
           deliberate on legacy's part and kept here: an account with no disputes
           yet is exactly the one importing a dispute that predates the
           connection. */}
-      {isDemo ? null : <SyncDisputeLink result={actionData?.sync} />}
+      {warnings ? (
+        <EarlyFraudWarnings
+          warnings={warnings}
+          result={actionData && "efw" in actionData ? actionData.efw : undefined}
+          confirmId={actionData && "efwConfirm" in actionData ? actionData.efwConfirm : null}
+          readOnly={isDemo}
+        />
+      ) : null}
+
+      {isDemo ? null : <SyncDisputeLink result={actionData && "sync" in actionData ? actionData.sync : undefined} />}
     </div>
   );
 }

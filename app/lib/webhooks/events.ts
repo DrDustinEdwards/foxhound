@@ -17,6 +17,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
+//   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -104,6 +105,19 @@ export type WebhookIntent =
       /** Otherwise the payment method to retrieve, per this file's rule that the
        *  classifier makes no Stripe call. */
       paymentMethodId: string | null;
+    }
+  | {
+      /** radar.early_fraud_warning.created or .updated. The charge's amount,
+       *  currency and customer are read by the handler, per this file's rule
+       *  that the classifier makes no Stripe call. */
+      kind: "early_fraud_warning";
+      created: boolean;
+      stripeWarningId: string;
+      chargeId: string;
+      paymentIntentId: string | null;
+      fraudType: string;
+      actionable: boolean;
+      createdAt: Date;
     }
   | { kind: "ignore"; reason: string };
 
@@ -274,6 +288,22 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       return { kind: "stripe_gave_up", invoiceId: invoice.id };
+    }
+    case "radar.early_fraud_warning.created":
+    case "radar.early_fraud_warning.updated": {
+      const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
+      const chargeId = asId(warning.charge);
+      if (!warning.id || !chargeId) return { kind: "ignore", reason: "no_warning_charge" };
+      return {
+        kind: "early_fraud_warning",
+        created: event.type === "radar.early_fraud_warning.created",
+        stripeWarningId: warning.id,
+        chargeId,
+        paymentIntentId: asId(warning.payment_intent),
+        fraudType: warning.fraud_type ?? "unknown",
+        actionable: warning.actionable === true,
+        createdAt: new Date((warning.created ?? 0) * 1000),
+      };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };

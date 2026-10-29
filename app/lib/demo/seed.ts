@@ -15,6 +15,7 @@ import {
   disputeApprovals,
   disputeEvidence,
   disputes,
+  earlyFraudWarnings,
   expiringCardAlerts,
   failedPayments,
   getDb,
@@ -41,7 +42,7 @@ import {
   DEMO_RESET_CRON_NAME,
 } from "./constants";
 import { buildTeamflowBase } from "./customer-base";
-import { buildDisputesSeed } from "./disputes-seed";
+import { buildDisputesSeed, buildEarlyFraudWarningsSeed } from "./disputes-seed";
 import { buildIntelligenceSeed } from "./intelligence-seed";
 import { buildNarrativeSeed } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
@@ -95,6 +96,7 @@ async function wipeDemoAccount(db: Db): Promise<void> {
     db.delete(disputeApprovals).where(eq(disputeApprovals.accountId, acct)),
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, acct)),
     db.delete(disputes).where(eq(disputes.accountId, acct)),
+    db.delete(earlyFraudWarnings).where(eq(earlyFraudWarnings.accountId, acct)),
     db.delete(healthScoreHistory).where(eq(healthScoreHistory.accountId, acct)),
     db.delete(predictions).where(eq(predictions.accountId, acct)),
     db.delete(recoveredPayments).where(eq(recoveredPayments.accountId, acct)),
@@ -267,6 +269,12 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   await runBatched(
     db,
     disputesSeed.disputeApprovals.map((row) => db.insert(disputeApprovals).values(row)),
+  );
+  // Early fraud warnings: a few open ones so the dashboard's section shows,
+  // and one refunded. Never billable, so nothing below reads them.
+  await runBatched(
+    db,
+    buildEarlyFraudWarningsSeed(DEMO_ACCOUNT_ID, now).map((row) => db.insert(earlyFraudWarnings).values(row)),
   );
 
   // 5) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.

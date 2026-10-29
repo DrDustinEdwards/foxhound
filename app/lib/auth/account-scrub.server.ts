@@ -22,6 +22,7 @@ import {
   disputeApprovals,
   disputeEvidence,
   disputes,
+  earlyFraudWarnings,
   emailDeadLetters,
   emailSends,
   emailSuppressions,
@@ -190,6 +191,10 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     // ---- win-back: never billable (RULES.md 3.2), so none of it is evidence.
     db.delete(winBackSteps).where(inArray(winBackSteps.id, winBackStepsOfAccount)),
     db.delete(winBackSequences).where(eq(winBackSequences.accountId, accountId)),
+
+    // ---- early fraud warnings: never billable, so none of it is evidence.
+    // Deleted before the failed payments a warning can point at.
+    db.delete(earlyFraudWarnings).where(eq(earlyFraudWarnings.accountId, accountId)),
 
     // ---- recovery steps and failed payments: kept for recovered payments only.
     db
