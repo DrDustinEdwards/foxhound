@@ -21,8 +21,8 @@ import type Stripe from "stripe";
 
 import { getDb } from "~/db";
 import { hasCardUpdateSignal } from "~/lib/card-update/signal";
-import { collectPaginated } from "~/lib/stripe/reads";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
 import type { RetryStepContext } from "./retry-step";
 
@@ -71,17 +71,9 @@ async function declinedCard(
   stripe: Stripe,
   invoiceId: string,
 ): Promise<{ snapshot: CardSnapshot; paymentMethodId: string | null } | null> {
-  const payments = await collectPaginated(stripe.invoicePayments.list({ invoice: invoiceId }), (p) => ({
-    created: p.created,
-    paymentIntentId: idOf(p.payment.payment_intent),
-  }));
-  const latest = payments
-    .filter((p) => p.paymentIntentId)
-    .sort((a, b) => b.created - a.created)[0];
-  if (!latest?.paymentIntentId) return null;
-  const intent = await stripe.paymentIntents.retrieve(latest.paymentIntentId, { expand: ["latest_charge"] });
-  const charge = intent.latest_charge;
-  if (!charge || typeof charge === "string") return null;
+  const latest = await latestInvoiceCharge(stripe, invoiceId);
+  if (!latest) return null;
+  const { charge } = latest;
   const card = charge.payment_method_details?.card;
   if (!card) return null;
   return {
