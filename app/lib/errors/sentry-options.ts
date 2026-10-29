@@ -17,7 +17,7 @@ import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 //   headers, cookies and bodies, the trace context's url and header data, and
 //   raw console arguments. A scrubber that throws drops the event.
 //
-// @sentry/cloudflare stays pinned exactly (RULES.md 3.14).
+// Sentry never wraps the money Durable Object.
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 // DrizzleQueryError's message is "Failed query: <sql>\nparams: <values>".

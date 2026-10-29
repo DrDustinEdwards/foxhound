@@ -610,6 +610,12 @@ export const CRON_SCHEDULE_EXPIRING_CARDS = "0 9 * * *";
  *  the next reader gets misled. */
 export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
 /**
+ * Scheduled blog publishing (site-api v0.10.0): every minute, so a post or an
+ * update Carrel scheduled goes live within a minute of its time. The job is
+ * blog-schedules in the registry, and it runs site-api's runSchedules.
+ */
+export const CRON_SCHEDULE_BLOG = "* * * * *";
+/**
  * The five-minute ticker's alarm period (workers/cron-ticker.ts). The same five
  * minutes as CRON_SCHEDULE_RECOVERY_TICK, because the ticker exists to run that
  * schedule's jobs when Cloudflare stops firing the trigger, as it did from

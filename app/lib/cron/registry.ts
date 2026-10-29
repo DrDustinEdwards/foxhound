@@ -3,6 +3,7 @@ import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/month
 import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from "~/lib/billing/credit-note";
 import { computeBillingPeriod, describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
+  CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_WEEKLY,
@@ -11,6 +12,7 @@ import {
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
 } from "~/lib/constants";
+import { runBlogSchedules } from "~/lib/carrel/handler.server";
 import { DEMO_BUSINESSES, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
@@ -145,6 +147,20 @@ const intelligenceAi: CronHandler = async (env) => {
     message:
       `${results.length} accounts, ${customersScored} customers scored, ` +
       `${narrativesGenerated} narratives generated${skippedNote}`,
+  };
+};
+
+/** Scheduled blog publishing (site-api v0.10.0): puts live every post and
+ *  every update to a live post whose scheduled time has come, and tells
+ *  IndexNow about each. A schedule that fails is logged by site-api and listed
+ *  again on the next pass, so the run stays a success and says so. */
+const blogSchedules: CronHandler = async (env) => {
+  const run = await runBlogSchedules(env);
+  const failed = run.failed > 0 ? `, ${run.failed} failed (retried next pass)` : "";
+  const more = run.more ? ", more due" : "";
+  return {
+    rowsProcessed: run.applied.length,
+    message: `${run.applied.length} applied, ${run.skipped} skipped${failed}${more}`,
   };
 };
 
@@ -310,6 +326,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: DISPUTE_REMINDERS_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: disputeReminders },
   { name: "alerts-evaluate", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: alertsEvaluate },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
+  { name: "blog-schedules", schedule: CRON_SCHEDULE_BLOG, handler: blogSchedules },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },

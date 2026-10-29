@@ -3,13 +3,15 @@ import { readFileSync } from "node:fs";
 
 import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
+import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { describe, expect, it } from "vitest";
 
+import { getPostBySlug } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { handleCarrelRequest } from "~/lib/carrel/handler.server";
 import { parsePostSource, serializePostSource } from "~/lib/carrel/source";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 const KEY = "k".repeat(40);
 const ORIGIN = "https://foxhoundapp.com";
@@ -20,7 +22,7 @@ const CTX = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
   let adapterCalls = 0;
-  const adapter = carrelAdapter(db);
+  const adapter = carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)));
   const counted = new Proxy(adapter.content, {
     get(target, prop, receiver) {
       adapterCalls++;
@@ -173,18 +175,13 @@ describe("content round trip against the real schema", () => {
     expect(list.items).toHaveLength(1);
   });
 
-  it("scheduling and a slug change are refused; media answers 501", async () => {
+  it("a slug change is refused; media answers 501", async () => {
     const t = setup();
     await t.call("/content/p2/draft", {
       method: "PUT",
       body: JSON.stringify({ source: SOURCE, expectedVersion: null, changeId: "c1" }),
     });
     const doc = (await (await t.call("/content/p2")).json()) as { version: string };
-    const schedule = await t.call("/content/p2/schedule", {
-      method: "POST",
-      body: JSON.stringify({ expectedVersion: doc.version, changeId: "c2", publishAt: "2030-01-01T00:00:00Z" }),
-    });
-    expect(schedule.status).toBe(422);
     const renamed = await t.call("/content/p2/draft", {
       method: "PUT",
       body: JSON.stringify({
@@ -195,6 +192,58 @@ describe("content round trip against the real schema", () => {
     });
     expect(renamed.status).toBe(422);
     expect((await t.call("/media")).status).toBe(501);
+  });
+
+  it("a scheduled post goes live on the cron at its time, and a scheduled update leaves the live post served until then", async () => {
+    const t = setup();
+    const json = async (r: Response) => (await r.json()) as { version: string; status: string; publishAt: string | null };
+    const draft = await json(
+      await t.call("/content/s1/draft", { method: "PUT", body: JSON.stringify({ source: SOURCE, expectedVersion: null, changeId: "c1" }) }),
+    );
+    const at = "2030-01-01T15:00:00.000Z";
+    const scheduled = await json(
+      await t.call("/content/s1/schedule", {
+        method: "POST",
+        body: JSON.stringify({ expectedVersion: draft.version, changeId: "c2", publishAt: "2030-01-01T09:00:00-06:00" }),
+      }),
+    );
+    expect(scheduled.status).toBe("scheduled");
+    expect((await json(await t.call("/content/s1"))).publishAt).toBe(at);
+    const listed = (await (await t.call("/content?status=scheduled")).json()) as { items: Array<{ id: string }> };
+    expect(listed.items.map((i) => i.id)).toEqual(["s1"]);
+
+    // A minute early: nothing is due, and the post is not on the blog.
+    expect((await t.api.runSchedules({ now: new Date("2030-01-01T14:59:00Z") })).applied).toEqual([]);
+    expect(await getPostBySlug(t.db, "why-cards-fail")).toBeNull();
+
+    // The cron at its time puts it live, dated the time it was scheduled for.
+    const run = await t.api.runSchedules({ now: new Date("2030-01-01T15:00:30Z") });
+    expect(run.applied.map((a) => [a.id, a.kind])).toEqual([["s1", "publish"]]);
+    const live = await getPostBySlug(t.db, "why-cards-fail");
+    expect(live?.publishedAt?.toISOString()).toBe(at);
+    expect((await t.api.runSchedules({ now: new Date("2030-01-01T15:01:00Z") })).applied).toEqual([]);
+
+    // An update scheduled on the live post: the live version stays served.
+    const current = await json(await t.call("/content/s1"));
+    expect(current.status).toBe("published");
+    const update = await t.call("/content/s1/schedule", {
+      method: "POST",
+      body: JSON.stringify({
+        expectedVersion: current.version,
+        changeId: "c3",
+        publishAt: "2030-02-01T00:00:00Z",
+        source: SOURCE.replace("Hello", "Goodbye"),
+      }),
+    });
+    expect(update.status).toBe(200);
+    expect(await update.json()).toMatchObject({ status: "published", scheduledUpdate: { changeId: "c3" } });
+    expect((await getPostBySlug(t.db, "why-cards-fail"))?.body).toContain("Hello");
+
+    await t.api.runSchedules({ now: new Date("2030-02-01T00:00:00Z") });
+    const updated = await getPostBySlug(t.db, "why-cards-fail");
+    expect(updated?.body).toContain("Goodbye");
+    expect(updated?.publishedAt?.toISOString()).toBe(at);
+    expect((await t.call("/content/s1/schedule")).status).toBe(404);
   });
 
   it("the package's own conformance suite passes against the adapter", async () => {
