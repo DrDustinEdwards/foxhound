@@ -32,6 +32,7 @@ import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { listCustomerDirectory, listCustomerTiers, type CustomerDirectorySort } from "~/lib/intelligence/directory.server";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney } from "~/lib/money-format";
+import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";
 
@@ -52,8 +53,8 @@ import type { Route } from "./+types/customers";
 //
 // One Foxhound addition, approved: the filter bar ("The customers page has a
 // filter bar. "confirm", 2026-08-28", APPROVED-DIFFERENCES). The
-// recommended-action chip after the name waits for its producer (J78, row
-// S20).
+// recommended-action chip after the name is Recova's chipLabelFor over the
+// action the nightly scoring stores (J78).
 
 export function meta() {
   return [{ title: "Customers - Foxhound" }];
@@ -106,6 +107,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
         lastSeenAt: c.lastSeenAt,
         hasActiveRecovery: hasActiveRecoverySignal(c.recoverySignals),
         hasDisputeHistory: hasDisputeHistorySignal(c.disputeSignals),
+        chip: chipLabelFor(c.recommendedAction),
       })),
     },
     tiers,
@@ -233,6 +235,10 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               >
                                 {c.customerName ?? "(unnamed)"}
                               </Link>
+                              {/* Recova's recommended-action chip after the name. */}
+                              {c.chip ? (
+                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">{c.chip}</span>
+                              ) : null}
                               {/* Recova's second line under the name: the Stripe
                                   id, micro and mono. */}
                               <span className="block font-mono text-micro text-text-subtle">{c.stripeCustomerId}</span>

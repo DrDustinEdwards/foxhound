@@ -389,6 +389,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           to,
           ...digestContent({
             ...flags,
+            personalOutreachCount: 2,
             totalFailed: 12,
             totalRecovered: 7,
             recoveredRevenueCents: 69300,

@@ -34,6 +34,7 @@ interface CustomerDirectoryRow {
   lastSeenAt: Date | null;
   recoverySignals: unknown;
   disputeSignals: unknown;
+  recommendedAction: string | null;
 }
 
 export interface CustomerDirectoryResult {
@@ -109,6 +110,7 @@ export async function listCustomerDirectory(
       lastSeenAt: customerContext.lastSeenAt,
       recoverySignals: customerContext.recoverySignals,
       disputeSignals: customerContext.disputeSignals,
+      recommendedAction: customerContext.recommendedAction,
     })
     .from(customerContext)
     .where(where)
