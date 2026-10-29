@@ -61,7 +61,7 @@ export function buildWebhookClaim(db: Db, claim: WebhookClaimInput) {
   });
 }
 
-/** The declined charge's network and card facts (migration 0044), stored on
+/** The declined charge's network and card facts (migration 0049), stored on
  *  the failed payment when intake could read the charge. */
 export interface ChargeFacts {
   networkAdviceCode: string | null;
