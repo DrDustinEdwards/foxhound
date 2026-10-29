@@ -733,6 +733,13 @@ export const DELETE_ID_BATCH_SIZE = 90;
 // ---- Audit product (Phase 6 Pass 3: full-audit lift-band data/query layer) ----
 /** Trailing window the audit scans for failed/recovered invoices (legacy parity). */
 export const AUDIT_LOOKBACK_DAYS = 90;
+/** The audit's "Recoverable estimate": this share of the failed invoices, as
+ *  Recova's AUDIT_RECOVERY_ESTIMATE_PCT. It is an assumption, not a measured
+ *  rate, and the results page says so beside the figure (Dustin, 2026-10-29,
+ *  "30%, with its basis shown"). Published rates run from about 15 to 40% for
+ *  Stripe's retries alone to 60 to 70% for a full recovery program, so 30 is
+ *  the conservative end. Replace with Foxhound's measured rate once it has one. */
+export const AUDIT_RECOVERY_ESTIMATE_PCT = 30;
 /** Stripe's events API retains 30 days regardless of the audit's lookback, so the
  *  Card Updater signal is measured over 30 days on BOTH sides of its ratio. Legacy
  *  hardcodes the same number for the same reason and documents it in its type. */

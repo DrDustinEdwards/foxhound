@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
@@ -13,9 +14,15 @@ import {
   SCOPE_UNREAD,
   type AuditRunView,
 } from "~/lib/audit/render";
+import type { MoneyTotals } from "~/lib/audit/engine";
 import { drawExpiringCardsTimeline, expiringCardsMonths } from "~/lib/audit/timeline";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { CAU_EVENT_RETENTION_DAYS, DISPUTE_FEE_CAP_CENTS, type DeclineCategory } from "~/lib/constants";
+import {
+  AUDIT_RECOVERY_ESTIMATE_PCT,
+  CAU_EVENT_RETENTION_DAYS,
+  DISPUTE_FEE_CAP_CENTS,
+  type DeclineCategory,
+} from "~/lib/constants";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoneyShort } from "~/lib/money-format";
 
@@ -48,10 +55,15 @@ import { formatMoneyShort } from "~/lib/money-format";
 // rather than printing a zero (365 binding 2). Recova's `?? 0` is where a
 // failed Stripe read becomes a merchant with no disputes.
 //
-// WHAT IS NOT RENDERED, and why. Recova's "Recoverable estimate" (a fixed
-// platform recovery rate) and its two "Platform median" churn figures are
-// statistics with no source and no Foxhound ledger behind them (RULES.md 2.3),
-// so they stay out, with the count-up that animated the estimate.
+// THE RECOVERABLE ESTIMATE is Recova's, a fixed share of the failed invoices
+// with its count-up, restored on Dustin's ruling of 2026-10-29 ("30%, with its
+// basis shown"). Truthfulness fix: Recova called the 30% a "platform average
+// recovery rate", which it never measured, so the line under the figure names
+// it as an assumption and gives the published range.
+//
+// WHAT IS NOT RENDERED, and why. Recova's two "Platform median" churn figures
+// are statistics with no source and no Foxhound ledger behind them (RULES.md
+// 2.3), so they stay out.
 
 /** The call-to-action state. Recova has a third, "inactive", for an account
  *  without the product; every Foxhound account has Recovery and Disputes
@@ -336,11 +348,59 @@ export function AuditRecoverySection({
                 secondary={plural(pastDue.count, "subscription")}
               />
             )}
+
+            {failed !== null ? <RecoverableEstimate totals={recoverableTotals(failed.totals)} currency={cur} /> : null}
           </>
         )}
       </Panel>
     </div>
   );
+}
+
+/** Recova's RecoverableCountUp: the figure counts up from zero over 600ms
+ *  with a cubic ease. The server renders the final figure, so the page reads
+ *  right before scripts load, and a reader who asks for reduced motion sees
+ *  it still. */
+function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; currency: string }) {
+  const [progress, setProgress] = useState(1);
+  // Keyed on the figures, not the array, so a parent re-render does not
+  // restart the count.
+  const key = totals.map((t) => `${t.currency}:${t.cents}`).join(",");
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (!anyAbove(totals)) return;
+    let frame = 0;
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - start) / 600, 1);
+      setProgress(1 - Math.pow(1 - t, 3));
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the figures
+  }, [key]);
+  const shown = totals.map((t) => ({ currency: t.currency, cents: Math.round(t.cents * progress) }));
+  return (
+    <>
+      <div className="my-5 border-t border-border" />
+      <div className="mb-2">
+        <div className="mb-1 text-micro uppercase tracking-[0.06em] text-text-tertiary">Recoverable estimate</div>
+        <div className="font-mono text-title font-bold text-success-text">
+          <Lines lines={formatTotals(shown, currency)} />
+        </div>
+      </div>
+      <p className="m-0 text-micro text-text-subtle">
+        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. Full recovery programs
+        typically recover 30 to 70%.
+      </p>
+    </>
+  );
+}
+
+/** The estimate's totals: the assumed share of each currency's failed invoices. */
+function recoverableTotals(failed: MoneyTotals): MoneyTotals {
+  return failed.map((t) => ({ currency: t.currency, cents: Math.round((t.cents * AUDIT_RECOVERY_ESTIMATE_PCT) / 100) }));
 }
 
 // ---- Disputes unmanaged -----------------------------------------------------
