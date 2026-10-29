@@ -106,9 +106,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return action === ADD_ACCOUNT_ACTION
       ? await addAccount(env, db, session.session.id, session.user.id, memberships, oauth, syncSoon)
       : await attachToActiveAccount(env, db, session.session.activeAccountId ?? null, memberships, oauth, syncSoon);
-  } catch {
-    // Do not log the error object: it can carry request context. The Stripe SDK
-    // never surfaces the decrypted token here, but stay conservative.
+  } catch (err) {
+    // Log only the error's type, code and message, never the object: it can
+    // carry request context. Without this line a misconfigured key or client ID
+    // is invisible (the first live connect failed here with nothing in the logs).
+    const e = err as { type?: unknown; code?: unknown; message?: unknown };
+    console.error("connect callback failed:", String(e?.type ?? ""), String(e?.code ?? ""), String(e?.message ?? ""));
     return bounce("token_exchange_failed");
   }
 }
