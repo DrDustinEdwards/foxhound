@@ -57,11 +57,17 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     recoveredPayments: recovery.recoveredPayments,
     disputes: disputes.disputes,
   });
-  const report = buildNarrativeSeed(DEMO_ACCOUNT_ID, now);
 
   // getMrrSnapshotSeries orders by snapshot date; the dashboard reads the last.
   const snapshots = [...seed.mrrSnapshots].sort((a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime());
   const latest = snapshots[snapshots.length - 1];
+  const { report } = buildNarrativeSeed({
+    accountId: DEMO_ACCOUNT_ID,
+    now,
+    customers: seed.customerContext,
+    latestMrr: latest,
+    idPrefix: "d",
+  });
   const currency = latest?.currency ?? "usd";
   const daily = snapshots.map((r) => ({ at: r.snapshotDate, totalMrrCents: r.totalMrrCents, newMrrCents: r.newMrrCents ?? 0 }));
   const delta = dayOverDayCents(daily);

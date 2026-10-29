@@ -66,7 +66,8 @@ describe("demo seeder -> real loaders render populated data", () => {
     const overview = await getIntelligenceOverview(db, DEMO_BOLT_ACCOUNT_ID);
     // 200 base customers + 3 net-new dispute-only customers.
     expect(overview.scoredCustomerCount).toBe(203);
-    expect(overview.narrative).toMatch(/^Bolt Analytics/);
+    // Written from Bolt's own book: its at-risk anchor, Driftwave Labs.
+    expect(overview.narrative).toContain("Driftwave Labs");
     expect(overview.mrrAtRiskCents).toBeGreaterThan(0);
 
     // Pro only, at $99: well under Teamflow's book.

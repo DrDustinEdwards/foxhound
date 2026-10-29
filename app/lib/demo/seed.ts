@@ -51,7 +51,7 @@ import {
   teamflowDisputeOnlyPlan,
   type DisputeOnlyPlan,
 } from "./intelligence-seed";
-import { BOLT_NARRATIVE, buildNarrativeSeed, TEAMFLOW_NARRATIVE } from "./narratives-seed";
+import { buildNarrativeSeed } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
 
 // The demo seeder. Builds the demo businesses as real accounts (Teamflow and
@@ -68,8 +68,8 @@ import { buildRecoverySeed } from "./recovery-seed";
 //  - Firewall: the account id carries DEMO_ACCOUNT_ID_PREFIX and the row is
 //    billing_exempt + processing_paused, so every Stripe/AI account enumeration
 //    (billable.ts, recovery-tick, intelligence sync/ai) skips it. Every seed
-//    module makes NO Stripe or Anthropic call: narratives/assessments are
-//    pre-written strings, never a live model call. Every write here is a direct
+//    module makes NO Stripe or Anthropic call: the narrative and assessments
+//    come from narrative.ts's template, never a live model call. Every write here is a direct
 //    db.insert/db.batch, never lib/engine/outcomes.ts's recordOutcome() -
 //    demo rows must never reach the Network Intelligence Layer.
 //  - Deterministic + idempotent: a fixed FNV-1a seed + fixed ids mean the same
@@ -95,12 +95,11 @@ async function runBatched(db: Db, statements: BatchItem<"sqlite">[]): Promise<vo
 }
 
 /** What makes each demo business its own: its customer base, its disputes, its
- *  narrative, and the plan a net-new disputed customer is on. Everything else
+ *  and the plan a net-new disputed customer is on. Everything else
  *  is built by the same builders for both. */
 interface DemoBusinessData {
   buildBase: (now: Date) => DemoCustomer[];
   disputeSpecs: DisputeSpec[];
-  narrative: string;
   disputeOnlyPlan: (amountCents: number) => DisputeOnlyPlan;
 }
 
@@ -108,13 +107,11 @@ const BUSINESS_DATA: Record<string, DemoBusinessData> = {
   [TEAMFLOW_DEMO.accountId]: {
     buildBase: buildTeamflowBase,
     disputeSpecs: TEAMFLOW_DISPUTE_SPECS,
-    narrative: TEAMFLOW_NARRATIVE,
     disputeOnlyPlan: teamflowDisputeOnlyPlan,
   },
   [BOLT_DEMO.accountId]: {
     buildBase: buildBoltBase,
     disputeSpecs: BOLT_DISPUTE_SPECS,
-    narrative: BOLT_NARRATIVE,
     disputeOnlyPlan: boltDisputeOnlyPlan,
   },
 };
@@ -183,8 +180,14 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     idPrefix: business.idPrefix,
     disputeOnlyPlan: data.disputeOnlyPlan,
   });
-  const narrative = buildNarrativeSeed(accountId, now, data.narrative, business.idPrefix);
   const latestMrr = intelligence.mrrSnapshots[intelligence.mrrSnapshots.length - 1];
+  const narrative = buildNarrativeSeed({
+    accountId,
+    now,
+    customers: intelligence.customerContext,
+    latestMrr,
+    idPrefix: business.idPrefix,
+  });
 
   // 1) Account + member. billing_exempt + processing_paused = the firewall flags
   //    (belt and suspenders alongside the demo_ id prefix).
@@ -231,7 +234,12 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
   //    history + predictions for the at-risk subset.
   await runBatched(
     db,
-    intelligence.customerContext.map((row) => db.insert(customerContext).values(row)),
+    intelligence.customerContext.map((row) => {
+      const aiAssessment = narrative.assessments.get(row.id!) ?? null;
+      return db.insert(customerContext).values(
+        aiAssessment ? { ...row, aiAssessment, aiAssessmentGeneratedAt: now } : row,
+      );
+    }),
   );
   await runBatched(
     db,
@@ -332,8 +340,8 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
   await runBatched(db, intelligence.alerts.map((row) => db.insert(alerts).values(row)));
   await runBatched(db, intelligence.alertHistory.map((row) => db.insert(alertHistory).values(row)));
 
-  // 6) Intelligence report narrative (pre-written, NEVER an AI call).
-  await db.insert(intelligenceReports).values(narrative);
+  // 6) Intelligence report narrative (the merchants' template, NEVER an AI call).
+  await db.insert(intelligenceReports).values(narrative.report);
 
   // 7) Billing ledger: one finalized invoice covering the billable subset of
   //    this run's own recoveries + disputes. isBillableRecoveryRow/

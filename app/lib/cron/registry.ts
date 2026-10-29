@@ -130,23 +130,19 @@ const alertsEvaluate: CronHandler = async (env) => {
   return { rowsProcessed: fired, message: `${accounts} accounts, ${fired} alerts fired` };
 };
 
-/** The Intelligence AI half (health scoring -> predictions -> nightly
- *  narrative), wrapped as a cron handler. Runs on the daily/nightly
- *  schedule (PRICING.md: "nightly AI analyst narrative"), reusing
- *  CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. Score/
- *  predict/alert always commit; the narrative fails safe (a skipped narrative
- *  is visible in the message, never a failed run). */
+/** Intelligence's nightly run (health scoring -> predictions -> the month's
+ *  narrative), wrapped as a cron handler on the daily schedule, reusing
+ *  CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. No model call:
+ *  the narrative is a template (narrative.ts). One account's failure is
+ *  visible in the message, never a failed run. */
 const intelligenceAi: CronHandler = async (env) => {
   const results = await runIntelligenceAiForAllAccounts(env, Date.now());
   const customersScored = results.reduce((sum, r) => sum + r.customersScored, 0);
-  const narrativesGenerated = results.filter((r) => r.narrativeGenerated).length;
-  const skipped = results.filter((r) => r.narrativeSkippedReason !== null).length;
-  const skippedNote = skipped > 0 ? `, ${skipped} narrative(s) skipped` : "";
+  const failed = results.filter((r) => r.error !== null).length;
+  const failedNote = failed > 0 ? `, ${failed} account(s) failed` : "";
   return {
     rowsProcessed: customersScored,
-    message:
-      `${results.length} accounts, ${customersScored} customers scored, ` +
-      `${narrativesGenerated} narratives generated${skippedNote}`,
+    message: `${results.length} accounts, ${customersScored} customers scored${failedNote}`,
   };
 };
 

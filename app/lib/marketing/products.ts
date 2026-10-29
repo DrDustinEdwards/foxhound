@@ -53,7 +53,7 @@ export const PRODUCTS: Record<ProductKey, ProductDef> = {
   intelligence: {
     key: "intelligence",
     name: "Intelligence",
-    description: "MRR analytics, churn prediction, customer health scoring, and a nightly AI analyst.",
+    description: "MRR analytics, churn prediction, customer health scoring, and a nightly plain-English summary.",
     price: "Free",
     priceLabel: "for every account",
     href: "/product/intelligence",

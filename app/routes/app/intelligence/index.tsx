@@ -65,8 +65,8 @@ import type { Route } from "./+types/index";
 // Recova's ninety days of daily rows (trends.server.ts). The movement chart
 // sums each week, where Recova drew every 7th day under a "by week" caption
 // (a truthfulness fix, dashboard.ts weeklyMovements). The
-// narrative is Foxhound's (narrative.ts), generated through
-// report-generate.server.ts, and it says so when it cannot run.
+// narrative is Foxhound's (narrative.ts), a template written from the
+// engine's facts with no model call, through report-generate.server.ts.
 //
 // The "Most at-risk customers" table is Foxhound's own and HELD for Dustin
 // (TASK-seven-walked-pages.md): it is kept exactly as it was, after the summary.
@@ -332,8 +332,7 @@ function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["health
  * and the month's report, or a line saying there is none. Reports come from
  * the loader (Recova's local cache of twelve months) and the button posts to
  * this route's action. Every failure is said in the card, Recova's words where
- * Recova had them; a missing or unfunded AI key is said as such (launch
- * blocker 2).
+ * Recova had them.
  *
  * The button shows for the current month only. Foxhound's narrative is written
  * from today's facts, so a past month's report cannot be generated honestly,

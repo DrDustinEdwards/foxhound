@@ -86,10 +86,6 @@ describe("/intelligence/dashboard action", () => {
     ["invalid_month", 400],
     ["not_current_month", 400],
     ["rate_limited", 429],
-    ["ai_not_configured", 503],
-    ["ai_no_credit", 503],
-    ["generation_failed", 502],
-    ["limiter_unavailable", 503],
   ] as const)("answers %s with %i", async (error, expected) => {
     generateMonthlyReport.mockResolvedValue({ ok: false, error });
     const { status, body } = await answer({ intent: "generate", month: "2026-10" });

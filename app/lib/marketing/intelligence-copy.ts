@@ -41,7 +41,10 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 //     (INTELLIGENCE_FREE_SENTENCE).
 //   * The narrative. It is on the dashboard (ai-run.server.ts writes the
 //     month's report); the weekly digest lists top at-risk customers, not the
-//     narrative (digest-email.ts).
+//     narrative (digest-email.ts). Recova's "AI analyst" is a template in
+//     Foxhound, with no model call, because Intelligence is free (Dustin,
+//     2026-10-29: "so AI use isnt free for me. so why is this product free or
+//     why does it use AI, like i cant do both"), so no line says AI.
 //
 // Every one of these is listed in the J58 PR notes for the seat to read.
 
@@ -92,8 +95,9 @@ export const INTELLIGENCE_STEPS = [
     // score. The nightly AI analyst writes a plain-English assessment for
     // every at-risk customer." Foxhound's signals are risk.ts's, a sync reads
     // up to INTELLIGENCE_MAX_CUSTOMERS_SCANNED customers, and the narrative
-    // assesses the INTELLIGENCE_NARRATIVE_TOP_N most at risk (narrativeFactsFor).
-    body: `${signalCount} signals, ${signalList}, combine into a 0-100 health score for every customer Foxhound reads from Stripe, up to ${customerCap} per account. The nightly AI analyst writes a plain-English assessment for each of the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers.`,
+    // assesses the INTELLIGENCE_NARRATIVE_TOP_N most at risk (narrativeFactsFor),
+    // from a template, not a model (narrative.ts).
+    body: `${signalCount} signals, ${signalList}, combine into a 0-100 health score for every customer Foxhound reads from Stripe, up to ${customerCap} per account. Each night a plain-English assessment is written for each of the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers, from the signals that moved its score.`,
   },
   {
     // Recova's words, with one truthfulness fix: Recova reads "Seven" and
@@ -125,7 +129,7 @@ export function intelligenceBlocks(activeCustomers: string) {
       // every load" is Recova's words (app/routes/app/intelligence/index.tsx).
       // Recova names its demo's plans ("Starter, Growth, and Scale"); a
       // merchant's plans are their own, so no plan is named.
-      body: `MRR tracked across ${activeCustomers} active customers. Per-plan breakdown with bar proportions. Monthly AI narrative summarizing what happened and what to watch, on the dashboard. Day-over-day MRR delta shown on every load.`,
+      body: `MRR tracked across ${activeCustomers} active customers. Per-plan breakdown with bar proportions. Monthly narrative summarizing what happened and what to watch, on the dashboard. Day-over-day MRR delta shown on every load.`,
     },
     score: {
       eyebrow: "0-100 per customer",
@@ -154,7 +158,7 @@ export const INTELLIGENCE_PRICING = {
     // Truthfulness: Recova reads "Seven"; the rules produce four (see above).
     "Four recommendation types, actionable, not just labels",
     // Truthfulness: Recova reads "per at-risk customer".
-    `Nightly AI analyst plain-English assessment for the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers`,
+    `Nightly plain-English assessment for the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers`,
     // Truthfulness: Recova reads "Daily MRR snapshots with NRR, GRR, and
     // movement waterfall". GRR is computed but drawn nowhere, so it is not
     // ticked.
@@ -164,7 +168,7 @@ export const INTELLIGENCE_PRICING = {
     // Recova's "Customer timeline: recovery, dispute, and Intelligence events
     // in one view" is left out: the customer page has no timeline (customer.tsx).
     // Truthfulness: Recova reads "included in weekly digest".
-    "Monthly AI narrative report on the dashboard",
+    "Monthly narrative report on the dashboard",
     // Recova's "Intelligence signals feed into Recovery timing and Disputes
     // triage" is left out (APPROVED-DIFFERENCES, the Intelligence entry).
   ],

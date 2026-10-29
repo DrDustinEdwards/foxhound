@@ -1,6 +1,6 @@
 // Deterministic per-customer health scoring (PRICING.md universal-coverage
 // precondition: every customer must score, never "unknown"). Pure math only,
-// no AI call: the AI narrative (narrative.ts) PHRASES this score, it never
+// no AI call: the narrative (narrative.ts) states this score, it never
 // invents it. Weighs the deterministic signals customer_context already
 // carries (app/lib/intelligence/signals.ts); this file reads those values,
 // it does not recompute them.
@@ -15,7 +15,7 @@
 // DIRECTION (upgrade vs downgrade, annual->monthly vs monthly->annual).
 // Scoring change COUNT as general volatility, rather than guessing a
 // direction the data does not carry, is the same non-fabrication discipline
-// PRICING.md holds the AI narrative to. The one direction the score does
+// PRICING.md holds the narrative to. The one direction the score does
 // read is the one Stripe states outright: a scheduled cancellation, a paused
 // collection or a lower monthly amount, recorded as it happens from the
 // customer.subscription.updated webhook (subscription-change.ts).

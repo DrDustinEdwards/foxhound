@@ -106,7 +106,7 @@ export const PRICING_CARDS: PricingCard[] = [
     description: `Customer health scoring, churn prediction, and MRR trend analysis. ${INTELLIGENCE_FREE_SENTENCE}`,
     features: [
       "MRR, movements, churn, and cohorts",
-      "Health scores, churn risk, alerts, and the nightly AI analyst",
+      "Health scores, churn risk, alerts, and a nightly plain-English summary",
       // Recova's "Health signals feed Recovery timing and Disputes triage" is
       // removed: failed-payment retries and emails follow the decline category
       // alone, Disputes computes no triage (APPROVED-DIFFERENCES, Intelligence

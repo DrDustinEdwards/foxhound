@@ -1,26 +1,18 @@
-import { createAnthropicClient } from "~/lib/ai/client";
-import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
-import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
-import { MODEL_INTELLIGENCE_NARRATIVE } from "~/lib/constants";
+import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
-import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
-// The Intelligence nightly AI analyst narrative (PRICING.md: "nightly AI
-// analyst narrative", the one AI call in the paid layer). Mirrors
-// app/lib/recovery/email-generation.ts's seam shape exactly: a per-call
-// Anthropic client, Sonnet 5, thinking disabled, json_schema structured
-// output, brand sanitizers. STRUCTURAL non-fabrication, the same discipline
-// as app/lib/disputes/evidence.ts: with no facts to narrate, this returns a
-// short honest message WITHOUT ever calling the model. Every number and
-// customer in the prompt is a real value the caller (ai-run.server.ts)
-// computed from customer_context / mrr_snapshots / risk.ts; the model only
-// phrases them, it never sources one. Free text can still embellish around a
-// real number in prose (unlike evidence.ts's deterministic fields, this call
-// has no non-AI fallback for the narrative itself); the system prompt forbids
-// it explicitly, the same defense generateDunningEmail and
-// draftDisputeEvidence rely on, and the response is further filtered to only
-// accept customerAssessments for stripeCustomerIds that were actually in the
-// input list (a hallucinated id is dropped, never surfaced).
+// The Intelligence narrative and per-customer assessments, written from a
+// template (Dustin 2026-10-29: "so AI use isnt free for me. so why is this
+// product free or why does it use AI, like i cant do both"). Intelligence is
+// free, so it makes no model call: the narrative was a Sonnet call that only
+// phrased numbers the engine had already computed, every night for every
+// account, and the free analytics it competes with (ProfitWell Metrics,
+// ChartMogul, Baremetrics, Kirn) are rules-based too. AI stays on the paths
+// that earn a fee: recovery emails and dispute evidence.
+//
+// Every number and customer here is a real value narrativeFactsFor takes from
+// what the engine computed from customer_context / mrr_snapshots / risk.ts,
+// so the text cannot say anything the facts do not.
 
 export interface AtRiskCustomerFact {
   stripeCustomerId: string;
@@ -32,7 +24,6 @@ export interface AtRiskCustomerFact {
 }
 
 export interface NarrativeFacts {
-  accountName: string;
   currency: string;
   totalMrrCents: number;
   newMrrCents: number;
@@ -64,148 +55,119 @@ interface NarrativeCustomerAssessment {
 export interface NarrativeResult {
   narrative: string;
   customerAssessments: NarrativeCustomerAssessment[];
-  /** null when no model call was made (the no-facts short circuit). */
-  usage: { promptTokens: number; completionTokens: number } | null;
 }
 
-const OUTPUT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    narrative: { type: "string" },
-    customerAssessments: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          stripeCustomerId: { type: "string" },
-          assessment: { type: "string" },
-        },
-        required: ["stripeCustomerId", "assessment"],
-      },
-    },
-  },
-  required: ["narrative", "customerAssessments"],
-} as const;
-
-function buildSystemPrompt(): string {
-  return [
-    "You are an AI analyst writing a short revenue-risk narrative for a",
-    "subscription business, and one-sentence assessments for its most at-risk",
-    "customers.",
-    "You may state ONLY the facts given to you below. Never invent a number, a",
-    "customer name, a trend, or a cause that is not explicitly provided. If you",
-    "are unsure why a customer is at risk, describe the factor given rather than",
-    "guessing a reason.",
-    "Only write a customerAssessments entry for a stripeCustomerId that appears",
-    "in the list given to you; never invent or reference any other customer.",
-    "Never use em dashes or en dashes. No corporate filler, no AI-sounding",
-    "phrases.",
-    PLAIN_WRITING_PROMPT,
-    UNTRUSTED_DATA_RULE,
-  ].join("\n");
+/** Factor details as one sentence: "a; b; c." */
+function factorSentence(details: string[]): string {
+  const text = details.map((d) => d.replace(/\.$/, "")).join("; ");
+  return text.charAt(0).toUpperCase() + text.slice(1) + ".";
 }
 
-function buildUserPrompt(facts: NarrativeFacts): string {
-  const lines = [
-    `Business: ${untrusted(facts.accountName)}`,
-    `Total MRR: ${formatMoney(facts.totalMrrCents, facts.currency)}`,
-    `MRR movement this period: new ${formatMoney(facts.newMrrCents, facts.currency)}, ` +
-      `expansion ${formatMoney(facts.expansionMrrCents, facts.currency)}, ` +
-      `contraction ${formatMoney(facts.contractionMrrCents, facts.currency)}, ` +
-      `churn ${formatMoney(facts.churnMrrCents, facts.currency)}, ` +
-      `reactivation ${formatMoney(facts.reactivationMrrCents, facts.currency)}`,
-    `MRR at risk: ${formatMoney(facts.mrrAtRiskCents, facts.currency)} across ${facts.atRiskCustomerCount} customer(s)`,
-  ];
-  if (facts.topAtRiskCustomers.length > 0) {
-    lines.push("Most at-risk customers:");
-    for (const c of facts.topAtRiskCustomers) {
-      const name = c.customerName ? untrusted(c.customerName) : c.stripeCustomerId;
-      const factorText =
-        c.factorDetails.length > 0 ? c.factorDetails.join("; ") : "no specific factors on record";
-      lines.push(
-        `- ${name} (id ${c.stripeCustomerId}): health score ${c.healthScore}/100, ` +
-          `${formatMoney(c.mrrContributionCents, c.currency)} MRR. Factors: ${factorText}`,
-      );
-    }
-  }
-  lines.push(
-    "Write a short narrative (2-4 sentences) summarizing the MRR movement and",
-    "revenue risk above. Then write one brief assessment sentence for each",
-    "listed at-risk customer, using only their given factors.",
-  );
-  return lines.join("\n");
+function movementSentence(facts: NarrativeFacts): string {
+  const money = (cents: number) => formatMoney(cents, facts.currency);
+  const parts = [
+    [facts.newMrrCents, "new"],
+    [facts.expansionMrrCents, "expansion"],
+    [facts.reactivationMrrCents, "reactivation"],
+    [facts.contractionMrrCents, "contraction"],
+    [facts.churnMrrCents, "churned"],
+  ] as const;
+  const moved = parts.filter(([cents]) => cents !== 0).map(([cents, label]) => `${money(cents)} ${label}`);
+  if (moved.length === 0) return "No MRR moved this period.";
+  const net =
+    facts.newMrrCents + facts.expansionMrrCents + facts.reactivationMrrCents -
+    facts.contractionMrrCents - facts.churnMrrCents;
+  const netText = net === 0 ? "no net change" : `a net ${net > 0 ? "gain" : "loss"} of ${money(Math.abs(net))}`;
+  return `This period: ${moved.join(", ")}, ${netText}.`;
+}
+
+function riskSentence(facts: NarrativeFacts): string {
+  if (facts.atRiskCustomerCount === 0) return "No customer is at risk right now.";
+  const who = facts.atRiskCustomerCount === 1 ? "1 customer" : `${facts.atRiskCustomerCount} customers`;
+  const lowest = facts.topAtRiskCustomers[0];
+  const lowestText = lowest
+    ? ` The lowest health score is ${lowest.customerName ?? lowest.stripeCustomerId} at ${lowest.healthScore}/100.`
+    : "";
+  return `${formatMoney(facts.mrrAtRiskCents, facts.currency)} of MRR is at risk across ${who}.${lowestText}`;
+}
+
+function assessmentFor(c: AtRiskCustomerFact): string {
+  const head = `Health score ${c.healthScore}/100 on ${formatMoney(c.mrrContributionCents, c.currency)} of MRR.`;
+  return c.factorDetails.length > 0 ? `${head} ${factorSentence(c.factorDetails)}` : head;
+}
+
+/** A scored customer as the narrative needs it: from tonight's scoring run,
+ *  or from the scores customer_context holds when a merchant asks for a
+ *  report during the day (report-generate.server.ts). */
+export interface NarrativeCustomer {
+  customerContextId: string;
+  stripeCustomerId: string;
+  customerName: string | null;
+  mrrContributionCents: number;
+  score: number;
+  factors: readonly { detail: string }[];
+}
+
+/** The narrative's facts: the latest MRR snapshot's movements and the at-risk
+ *  customers, lowest score first, capped at INTELLIGENCE_NARRATIVE_TOP_N. One
+ *  computation for both the nightly run and the dashboard's button. */
+export function narrativeFactsFor(input: {
+  currency: string;
+  mrrLatest: {
+    totalMrrCents: number;
+    newMrrCents: number;
+    expansionMrrCents: number;
+    contractionMrrCents: number;
+    churnMrrCents: number;
+    reactivationMrrCents: number;
+  } | null;
+  scored: readonly NarrativeCustomer[];
+}): NarrativeFacts {
+  const { currency, mrrLatest, scored } = input;
+  const atRisk = scored
+    .filter((c) => c.score < HEALTH_SCORE_AT_RISK_THRESHOLD)
+    .sort((a, b) => a.score - b.score);
+  const topAtRiskCustomers: AtRiskCustomerFact[] = atRisk.slice(0, INTELLIGENCE_NARRATIVE_TOP_N).map((c) => ({
+    stripeCustomerId: c.stripeCustomerId,
+    customerName: c.customerName,
+    healthScore: c.score,
+    mrrContributionCents: c.mrrContributionCents,
+    currency,
+    factorDetails: c.factors.map((f) => f.detail),
+  }));
+  return {
+    currency,
+    totalMrrCents: mrrLatest?.totalMrrCents ?? 0,
+    newMrrCents: mrrLatest?.newMrrCents ?? 0,
+    expansionMrrCents: mrrLatest?.expansionMrrCents ?? 0,
+    contractionMrrCents: mrrLatest?.contractionMrrCents ?? 0,
+    churnMrrCents: mrrLatest?.churnMrrCents ?? 0,
+    reactivationMrrCents: mrrLatest?.reactivationMrrCents ?? 0,
+    mrrAtRiskCents: atRisk.reduce((sum, c) => sum + c.mrrContributionCents, 0),
+    atRiskCustomerCount: atRisk.length,
+    topAtRiskCustomers,
+  };
 }
 
 /**
- * Generate the nightly Intelligence narrative + per-customer assessments.
- * Structurally never fabricates: with no facts at all, returns a fixed
- * honest message WITHOUT calling the model (mirrors evidence.ts returning []
- * on no grounding). Throws if ANTHROPIC_API_KEY is unset AND there are facts
- * to narrate (mirrors generateDunningEmail's unconditional throw); the
- * caller (ai-run.server.ts) is responsible for the fail-safe catch so a
- * missing/unfunded key never blocks the deterministic score/prediction/alert
- * writes.
+ * The Intelligence narrative + per-customer assessments, nightly or on the
+ * dashboard's button. Pure: with no facts it returns the honest
+ * not-enough-data message and no assessments.
  */
-export async function generateIntelligenceNarrative(
-  env: Env,
-  facts: NarrativeFacts,
-): Promise<NarrativeResult> {
+export function writeIntelligenceNarrative(facts: NarrativeFacts): NarrativeResult {
   if (!hasNarrativeFacts(facts)) {
-    return { narrative: NOT_ENOUGH_DATA_NARRATIVE, customerAssessments: [], usage: null };
+    return { narrative: NOT_ENOUGH_DATA_NARRATIVE, customerAssessments: [] };
   }
-  if (!env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
-  }
-  const client = createAnthropicClient(env);
-  const call = (instruction = ""): Promise<NarrativeResult> => narrate(client, facts, instruction);
-  // One retry when the narrative or an assessment reads as machine-written
-  // (ai/plain-writing.ts). The usage recorded is the kept call's.
-  return retryStockPhrasing(
-    await call(),
-    (r) => [r.narrative, ...r.customerAssessments.map((a) => a.assessment)].join("\n\n"),
-    call,
-  );
-}
-
-async function narrate(
-  client: ReturnType<typeof createAnthropicClient>,
-  facts: NarrativeFacts,
-  instruction: string,
-): Promise<NarrativeResult> {
-  const response = await client.messages.create({
-    model: MODEL_INTELLIGENCE_NARRATIVE,
-    max_tokens: 2000,
-    thinking: { type: "disabled" },
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: OUTPUT_SCHEMA },
-    },
-    system: buildSystemPrompt(),
-    messages: [{ role: "user", content: buildUserPrompt(facts) + instruction }],
-  });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("intelligence narrative generation returned no text block");
-  }
-  const parsed = JSON.parse(textBlock.text) as {
-    narrative: string;
-    customerAssessments: { stripeCustomerId: string; assessment: string }[];
-  };
-
-  const allowedIds = new Set(facts.topAtRiskCustomers.map((c) => c.stripeCustomerId));
-  const customerAssessments = parsed.customerAssessments
-    .filter((a) => allowedIds.has(a.stripeCustomerId))
-    .map((a) => ({ stripeCustomerId: a.stripeCustomerId, assessment: sanitizeCopy(a.assessment) }));
-
+  const narrative = [
+    `Total MRR is ${formatMoney(facts.totalMrrCents, facts.currency)}.`,
+    movementSentence(facts),
+    riskSentence(facts),
+  ].join(" ");
   return {
-    narrative: sanitizeCopy(parsed.narrative),
-    customerAssessments,
-    usage: {
-      promptTokens: response.usage.input_tokens,
-      completionTokens: response.usage.output_tokens,
-    },
+    narrative,
+    customerAssessments: facts.topAtRiskCustomers.map((c) => ({
+      stripeCustomerId: c.stripeCustomerId,
+      assessment: assessmentFor(c),
+    })),
   };
 }

@@ -84,17 +84,13 @@ describe("S16 daily series: Recova's stat cards and weekly movement", () => {
 
 describe("S16 monthly summary: Recova's pager and Generate/Regenerate button", () => {
 
-  it("speaks every failure, including a missing or unfunded AI key, never silently", () => {
+  it("speaks every failure, never silently", () => {
     expect(narrativeErrorMessage("rate_limited")).toBe("You hit the hourly generation limit. Try again later.");
     expect(narrativeErrorMessage("invalid_month")).toBe("Invalid month.");
-    expect(narrativeErrorMessage("generation_failed")).toBe("Generation failed. Please try again.");
     // Recova's server-500 sentence for an error thrown on the server; its
     // "Network error." was for a request that never got an answer.
     expect(narrativeErrorMessage("server_error")).toBe("Could not generate the report. Try again or contact support.");
     expect(narrativeErrorMessage("server_error")).not.toMatch(/Network error/);
-    expect(narrativeErrorMessage("limiter_unavailable")).toBe("Reports cannot be generated right now. Try again shortly.");
-    expect(narrativeErrorMessage("ai_not_configured")).toMatch(/AI analyst is not set up/);
-    expect(narrativeErrorMessage("ai_no_credit")).toMatch(/out of credit/);
     expect(narrativeErrorMessage(undefined)).toBe("Could not generate the report. Try again or contact support.");
   });
 });
