@@ -85,8 +85,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { action } = minted;
   // AND IT MUST NOT BE THE AUDIT'S. Phase (f) added a third action to the shared
   // state shape, and this is the half of that decision that lives here: a state
-  // minted by the anonymous read-only flow is refused BEFORE the exchange, so a
-  // read-only audit grant can never reach the branch that attaches a connection
+  // minted by the anonymous audit flow is refused BEFORE the exchange, so a
+  // short-lived audit grant can never reach the branch that attaches a connection
   // or mints an account. The audit callback refuses the other two symmetrically.
   // Neither cookie can carry the other's state today, since the two flows use
   // different cookie names; this refuses on the payload as well, so the guard
