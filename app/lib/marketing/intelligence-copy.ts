@@ -19,7 +19,7 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 //   not do (RULES.md 1.2). Each is named beside its string below. The ones
 //   that recur:
 //   * The score. Recova's is three bands (engagement health, recovery history,
-//     customer value). Foxhound's moves from a baseline with five signals
+//     customer value). Foxhound's moves from a baseline with six signals
 //     (risk.ts), and customer value is not one of them.
 //   * Recommended actions. The nightly scoring batch writes one per customer
 //     to customer_context.recommended_action (ai-run.server.ts) from Recova's
@@ -52,7 +52,7 @@ const signalCount = countWord(labels.length);
 function series(words: string[]): string {
   return `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;
 }
-/** "payment timing, billing changes, refunds and disputes, recovery engagement, and tenure". */
+/** "payment timing, billing changes, refunds and disputes, recovery engagement, tenure, and card on file". */
 const signalList = series(labels);
 
 /** Each signal as the score FAQ explains it, built on the engine's own label.
@@ -60,10 +60,11 @@ const signalList = series(labels);
  *  words are written here. */
 const SIGNAL_EXPLAINED: Record<HealthSignal, (label: string) => string> = {
   payment_latency: (l) => `${l} (payments drifting later or earlier against their due date)`,
-  billing_volatility: (l) => `${l} (plan, interval, and seat changes on record)`,
+  billing_volatility: (l) => `${l} (plan, interval, and seat changes on record, and a scheduled cancellation, paused billing, or downgrade as Stripe reports it)`,
   refunds_disputes: (l) => `${l} on record`,
   recovery_engagement: (l) => `${l} (whether the customer engaged with recovery emails)`,
   tenure: (l) => l,
+  payment_method: (l) => `${l} (a prepaid card on the latest failed payment)`,
 };
 const signalsExplained = series(
   (Object.keys(HEALTH_SIGNAL_LABELS) as HealthSignal[]).map((k) => SIGNAL_EXPLAINED[k](HEALTH_SIGNAL_LABELS[k])),

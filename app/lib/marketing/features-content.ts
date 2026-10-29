@@ -307,7 +307,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Customer health scoring",
           description:
-            "0-100 score per customer from payment timing, billing changes, refunds and disputes, engagement with recovery emails, and tenure.",
+            "0-100 score per customer from payment timing, billing changes, refunds and disputes, engagement with recovery emails, tenure, and a prepaid card on file.",
           product: "Intelligence",
         },
         {

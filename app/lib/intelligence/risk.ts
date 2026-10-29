@@ -15,12 +15,15 @@
 // DIRECTION (upgrade vs downgrade, annual->monthly vs monthly->annual).
 // Scoring change COUNT as general volatility, rather than guessing a
 // direction the data does not carry, is the same non-fabrication discipline
-// PRICING.md holds the AI narrative to; extending signals.ts to capture
-// direction is outside this slice's boundary (READ the deterministic
-// signals, never change how they're derived).
+// PRICING.md holds the AI narrative to. The one direction the score does
+// read is the one Stripe states outright: a scheduled cancellation, a paused
+// collection or a lower monthly amount, recorded as it happens from the
+// customer.subscription.updated webhook (subscription-change.ts).
 
 import { DAY_MS } from "~/lib/constants";
+import { formatDateShort } from "~/lib/date-format";
 import type { EngagementSignals, RecoverySignals } from "./signals";
+import type { SubscriptionChangeState } from "./subscription-change";
 
 export interface HealthFactor {
   /** Stable machine key for the signal that moved the score. */
@@ -47,6 +50,12 @@ export interface HealthScoreInput {
   disputeCount: number | null;
   recoverySignals: RecoverySignals | null;
   engagementSignals: EngagementSignals | null;
+  /** Pending cancellation, pause or recent downgrade from the recorded
+   *  subscription changes; absent or null when there is none. */
+  subscriptionChanges?: SubscriptionChangeState | null;
+  /** Stripe's card funding (credit, debit, prepaid, unknown) on the
+   *  customer's latest failed payment; absent or null when unknown. */
+  latestFailedCardFunding?: string | null;
 }
 
 /** The score a customer with no signal away from baseline gets. Exported so
@@ -67,6 +76,7 @@ export const HEALTH_SIGNAL_LABELS = {
   refunds_disputes: "refunds and disputes",
   recovery_engagement: "recovery engagement",
   tenure: "tenure",
+  payment_method: "card on file",
 } as const;
 
 export type HealthSignal = keyof typeof HEALTH_SIGNAL_LABELS;
@@ -87,18 +97,62 @@ function scoreLatencyDrift(driftDays: number | null): HealthFactor | null {
   };
 }
 
+// The weights of a change Stripe has stated, each against the baseline of 70:
+// - A scheduled cancellation, -40: Stripe ends the subscription on that date
+//   unless the customer takes it back, so it is churn the customer has already
+//   chosen, the strongest churn evidence the score sees. On its own it takes a
+//   baseline customer to 30, inside the high-risk band (CRITICAL_HEALTH_SCORE_MAX,
+//   33) the alerts count, which is how the merchant hears of it the same day.
+// - Paused collection, -20: no invoice is collected while paused, but the
+//   customer is still subscribed and a pause often has a resume date, so it
+//   takes a baseline customer to 50, "watch", not at risk.
+// - A downgrade in the last quarter, -10: contraction the customer chose, the
+//   direction the change count alone cannot see, but the customer stayed.
+// A cancellation outweighs a pause on the same customer; they do not add.
+const CANCELLATION_PENDING_POINTS = -40;
+const PAUSE_PENDING_POINTS = -20;
+const RECENT_DOWNGRADE_POINTS = -10;
+
+function subscriptionChangePart(
+  changes: SubscriptionChangeState | null | undefined,
+): { deltaPoints: number; details: string[] } {
+  const details: string[] = [];
+  let deltaPoints = 0;
+  if (changes?.cancellationPending) {
+    const at = changes.cancellationPending.at;
+    deltaPoints += CANCELLATION_PENDING_POINTS;
+    details.push(at ? `cancellation scheduled for ${formatDateShort(at)}` : "cancellation scheduled");
+  } else if (changes?.pausePending) {
+    const until = changes.pausePending.resumesAt;
+    deltaPoints += PAUSE_PENDING_POINTS;
+    details.push(until ? `payment collection paused until ${formatDateShort(until)}` : "payment collection paused");
+  }
+  if (changes?.recentDowngradeAt) {
+    deltaPoints += RECENT_DOWNGRADE_POINTS;
+    details.push(`downgraded on ${formatDateShort(changes.recentDowngradeAt)}`);
+  }
+  return { deltaPoints, details };
+}
+
 function scoreBillingVolatility(
   planChangeCount: number,
   intervalSwitchCount: number,
   seatChangeCount: number,
+  changes: SubscriptionChangeState | null | undefined,
 ): HealthFactor | null {
   const changeCount = planChangeCount + intervalSwitchCount;
-  const deltaPoints = -clamp(changeCount * 4 + seatChangeCount * 2, 0, 25);
+  const volatility = -clamp(changeCount * 4 + seatChangeCount * 2, 0, 25);
+  const stated = subscriptionChangePart(changes);
+  const deltaPoints = volatility + stated.deltaPoints;
   if (deltaPoints === 0) return null;
+  const details = [...stated.details];
+  if (volatility !== 0) {
+    details.push(`${changeCount} plan/interval change(s) and ${seatChangeCount} seat change(s) on record`);
+  }
   return {
     signal: "billing_volatility" satisfies HealthSignal,
     deltaPoints,
-    detail: `${changeCount} plan/interval change(s) and ${seatChangeCount} seat change(s) on record`,
+    detail: details.join("; "),
   };
 }
 
@@ -138,6 +192,24 @@ function scoreEngagement(
   return null;
 }
 
+// A prepaid card, -5: prepaid balances run out and are often not topped up,
+// so a recurring charge on one fails for insufficient funds more often than on
+// a credit or debit card. Read off the card on the customer's latest failed
+// payment (failed_payments.card_funding, filled at intake), so it only ever
+// applies to a customer whose payment has already failed once, and it is kept
+// small for that reason. Debit and credit carry no weight: nothing here says
+// which of the two fails more for this merchant.
+const PREPAID_CARD_POINTS = -5;
+
+function scorePaymentMethod(latestFailedCardFunding: string | null | undefined): HealthFactor | null {
+  if (latestFailedCardFunding !== "prepaid") return null;
+  return {
+    signal: "payment_method" satisfies HealthSignal,
+    deltaPoints: PREPAID_CARD_POINTS,
+    detail: "latest failed payment was on a prepaid card",
+  };
+}
+
 function scoreTenure(subscriptionAgeDays: number | null): HealthFactor | null {
   if (!subscriptionAgeDays || subscriptionAgeDays < 90) return null;
   const deltaPoints = clamp(Math.floor(subscriptionAgeDays / 90) * 2, 0, 15);
@@ -161,10 +233,12 @@ export function computeHealthScore(input: HealthScoreInput): HealthScoreResult {
       input.planChangeCount ?? 0,
       input.intervalSwitchCount ?? 0,
       input.seatChangeCount ?? 0,
+      input.subscriptionChanges,
     ),
     scoreRefundsDisputes(input.refundCount ?? 0, input.disputeCount ?? 0),
     scoreEngagement(input.recoverySignals, input.engagementSignals, input.nowMs),
     scoreTenure(input.subscriptionAgeDays),
+    scorePaymentMethod(input.latestFailedCardFunding),
   ].filter((f): f is HealthFactor => f !== null);
 
   const score = clamp(

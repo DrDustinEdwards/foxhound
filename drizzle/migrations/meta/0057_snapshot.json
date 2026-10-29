@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "36ab8e8e-0f8f-4197-8e48-386fdcef8e23",
+  "id": "f259ac66-dc2d-4d17-9ccd-492a741667a5",
   "prevId": "87a277d3-9c5a-48c6-8a54-3f7317735c9d",
   "tables": {
     "audit_digest_runs": {
@@ -1847,13 +1847,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "standing_opt_in_at": {
-          "name": "standing_opt_in_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         }
       },
@@ -3764,27 +3757,6 @@
         },
         "dispute_auto_submit": {
           "name": "dispute_auto_submit",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "dispute_auto_submit_by_user_id": {
-          "name": "dispute_auto_submit_by_user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "dispute_auto_submit_by_email": {
-          "name": "dispute_auto_submit_by_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "dispute_auto_submit_at": {
-          "name": "dispute_auto_submit_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -7205,6 +7177,138 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "subscription_changes": {
+      "name": "subscription_changes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_customer_id": {
+          "name": "stripe_customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_subscription_id": {
+          "name": "stripe_subscription_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stripe_event_id": {
+          "name": "stripe_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cancel_at": {
+          "name": "cancel_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resumes_at": {
+          "name": "resumes_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "previous_mrr_cents": {
+          "name": "previous_mrr_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "current_mrr_cents": {
+          "name": "current_mrr_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "subscription_changes_account_customer_idx": {
+          "name": "subscription_changes_account_customer_idx",
+          "columns": [
+            "account_id",
+            "stripe_customer_id"
+          ],
+          "isUnique": false
+        },
+        "subscription_changes_event_kind_uq": {
+          "name": "subscription_changes_event_kind_uq",
+          "columns": [
+            "stripe_event_id",
+            "kind"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "subscription_changes_account_id_accounts_id_fk": {
+          "name": "subscription_changes_account_id_accounts_id_fk",
+          "tableFrom": "subscription_changes",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "admin_api_calls": {
       "name": "admin_api_calls",
       "columns": {
@@ -7341,101 +7445,6 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "admin_impersonations": {
-      "name": "admin_impersonations",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "admin_email": {
-          "name": "admin_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "ended_at": {
-          "name": "ended_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "end_reason": {
-          "name": "end_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "admin_impersonations_token_hash_uq": {
-          "name": "admin_impersonations_token_hash_uq",
-          "columns": [
-            "token_hash"
-          ],
-          "isUnique": true
-        },
-        "admin_impersonations_account_idx": {
-          "name": "admin_impersonations_account_idx",
-          "columns": [
-            "account_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "admin_impersonations_account_id_accounts_id_fk": {
-          "name": "admin_impersonations_account_id_accounts_id_fk",
-          "tableFrom": "admin_impersonations",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

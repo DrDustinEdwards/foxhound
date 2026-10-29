@@ -78,6 +78,7 @@ function emittedSignals(): string[] {
     disputeCount: 1,
     recoverySignals: { failedPaymentCount: 2 } as never,
     engagementSignals: null,
+    latestFailedCardFunding: "prepaid",
   });
   return adverse.factors.map((f) => f.signal).sort();
 }

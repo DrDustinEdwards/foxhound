@@ -28,7 +28,7 @@ import { buildPredictionFields, buildPredictionInsert } from "./predictions";
 import type { CustomerRecommendation } from "./recommend";
 import { buildRecommendationLogInsert, recommendForAccount } from "./recommendations.server";
 import { computeHealthScore, type HealthFactor } from "./risk";
-import type { EngagementSignals, RecoverySignals } from "./signals";
+import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.server";
 import { accountProcessingEligible } from "./sync.server";
 
 // The Intelligence AI half's nightly orchestration: scoring -> predictions ->
@@ -59,24 +59,19 @@ async function scoreAccountCustomers(
   accountId: string,
   nowMs: number,
 ): Promise<ScoredCustomer[]> {
-  const rows = await db
-    .select({
-      id: customerContext.id,
-      stripeCustomerId: customerContext.stripeCustomerId,
-      customerName: customerContext.customerName,
-      mrrContributionCents: customerContext.mrrContributionCents,
-      subscriptionAgeDays: customerContext.subscriptionAgeDays,
-      planChangeCount: customerContext.planChangeCount,
-      seatChangeCount: customerContext.seatChangeCount,
-      intervalSwitchCount: customerContext.intervalSwitchCount,
-      paymentLatencyDriftDays: customerContext.paymentLatencyDriftDays,
-      refundCount: customerContext.refundCount,
-      disputeCount: customerContext.disputeCount,
-      recoverySignals: customerContext.recoverySignals,
-      engagementSignals: customerContext.engagementSignals,
-    })
-    .from(customerContext)
-    .where(eq(customerContext.accountId, accountId));
+  const [rows, extras] = await Promise.all([
+    db
+      .select({
+        id: customerContext.id,
+        stripeCustomerId: customerContext.stripeCustomerId,
+        customerName: customerContext.customerName,
+        mrrContributionCents: customerContext.mrrContributionCents,
+        ...scoreColumns,
+      })
+      .from(customerContext)
+      .where(eq(customerContext.accountId, accountId)),
+    loadScoreExtras(db, accountId, nowMs),
+  ]);
 
   const recommendations = await recommendForAccount(
     db,
@@ -90,18 +85,9 @@ async function scoreAccountCustomers(
   );
 
   return rows.map((row) => {
-    const { score, factors } = computeHealthScore({
-      nowMs,
-      subscriptionAgeDays: row.subscriptionAgeDays,
-      planChangeCount: row.planChangeCount,
-      seatChangeCount: row.seatChangeCount,
-      intervalSwitchCount: row.intervalSwitchCount,
-      paymentLatencyDriftDays: row.paymentLatencyDriftDays,
-      refundCount: row.refundCount,
-      disputeCount: row.disputeCount,
-      recoverySignals: row.recoverySignals as RecoverySignals | null,
-      engagementSignals: row.engagementSignals as EngagementSignals | null,
-    });
+    const { score, factors } = computeHealthScore(
+      healthScoreInput(row, extras.get(row.stripeCustomerId), nowMs),
+    );
     return {
       customerContextId: row.id,
       stripeCustomerId: row.stripeCustomerId,
