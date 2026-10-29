@@ -26,6 +26,7 @@ import {
   findActiveFailedPayment,
   findRecoverableFailedPayment,
   resolveExpiringCard,
+  resolveRecoveredChargeFee,
   resolveRecoveryAttribution,
   resolveRefundedFailedPayment,
   tryWinbackReactivationFromInvoice,
@@ -229,6 +230,11 @@ export async function handleRecover(
   }
   const { attribution, recoveredByStepId, recoveryMethod } =
     await resolveRecoveryAttribution(env, failedPaymentId, receivedAt);
+  // What Stripe took, read BEFORE the batch and outside it, as intake reads its
+  // decline facts: the Durable Object batch makes no Stripe call. The read
+  // never throws, and a failed one records the recovery with the fee columns
+  // null; billing reads only the gross amount.
+  const chargeFee = await resolveRecoveredChargeFee(env, connectionId, intent.invoiceId);
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     idempotencyKey,
@@ -244,6 +250,7 @@ export async function handleRecover(
         recoveredByStepId,
         recoveryMethod,
         idempotencyKey: failedPaymentId,
+        chargeFee,
       }),
   });
   // THE MERCHANT NOTIFICATION, after the money write has committed and

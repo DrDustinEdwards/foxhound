@@ -147,6 +147,15 @@ export const recoveredPayments = sqliteTable(
     attributionRef: text("attribution_ref"),
     attributedAt: ts("attributed_at"),
     disputedAt: ts("disputed_at"),
+    // What Stripe actually took, from the paying charge's balance transaction,
+    // read best effort when the recovery is recorded. Null when the read failed
+    // or has not happened. Display only: billing stays on amount_cents (gross).
+    // net_currency is the balance transaction's (settlement) currency, which
+    // can differ from `currency`.
+    stripeBalanceTransactionId: text("stripe_balance_transaction_id"),
+    stripeFeeCents: integer("stripe_fee_cents"),
+    netAmountCents: integer("net_amount_cents"),
+    netCurrency: text("net_currency"),
   },
   (t) => [
     index("recovered_payments_account_idx").on(t.accountId),

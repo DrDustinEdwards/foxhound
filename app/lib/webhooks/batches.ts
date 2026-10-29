@@ -22,7 +22,7 @@ import type { EvidenceField } from "~/lib/disputes/evidence";
 import type { DisputeContextColumns } from "~/lib/disputes/triage";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
-import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
+import { buildRecoveryBatch, type RecoveredChargeFee } from "~/lib/recovery/record-recovery";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
 import { buildStopRecoveryBatch } from "~/lib/recovery/manual-action-batches.server";
 import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
@@ -236,6 +236,7 @@ export interface RecoverBatchInput {
   recoveredByStepId: string | null;
   recoveryMethod: string;
   idempotencyKey: string;
+  chargeFee?: RecoveredChargeFee | null;
 }
 
 /**
@@ -273,6 +274,7 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
     recoveredByStepId: input.recoveredByStepId,
     recoveryMethod: input.recoveryMethod,
     idempotencyKey: input.idempotencyKey,
+    chargeFee: input.chargeFee,
   });
   return [claim, statusFlip, ...recovery];
 }
