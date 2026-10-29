@@ -60,7 +60,7 @@ export function readAuditStateCookie(request: Request): string | null {
 }
 
 /**
- * What the audit callback learned from Stripe: the read-only token and the
+ * What the audit callback learned from Stripe: the audit's token and the
  * Stripe account that granted it. The two travel together and only together.
  */
 export interface AuditGrant {

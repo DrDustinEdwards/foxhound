@@ -58,13 +58,14 @@ export function buildConnectAuthorizeUrl(
 }
 
 /**
- * The audit flow's authorize URL: READ-ONLY, always, and the only caller that
- * names STRIPE_AUDIT_SCOPE.
+ * The audit flow's authorize URL, and the only caller that names
+ * STRIPE_AUDIT_SCOPE.
  *
- * 362 ruling 1, and the reason it is its own function rather than an options
- * object at the call site: the scope is the whole ruling, so it belongs
- * somewhere a plant can assert it once and have it hold for every caller that
- * ever starts an audit.
+ * Its own function rather than an options object at the call site, so the
+ * audit's scope and redirect are asserted once for every caller that ever
+ * starts an audit. The scope is read_write since 2026-10-29 (Stripe refuses
+ * read_only to platforms; see STRIPE_AUDIT_SCOPE), and the grant is revoked when
+ * the audit's window ends (app/lib/audit/grant-revoke.server.ts).
  */
 export function buildAuditAuthorizeUrl(env: Env, state: string): string {
   return buildConnectAuthorizeUrl(env, state, {

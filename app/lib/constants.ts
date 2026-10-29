@@ -823,25 +823,33 @@ export const STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/au
 /**
  * Connect OAuth scope at MERCHANT ONBOARDING: read_write, legacy parity.
  *
- * THIS IS REQUESTED EXACTLY ONCE IN FOXHOUND, from /connect (362 ruling 1). An
- * audit prospect who converts re-authorizes here; the audit's own flow requests
- * STRIPE_AUDIT_SCOPE below and never this.
+ * Requested from /connect. The anonymous audit's own flow requests
+ * STRIPE_AUDIT_SCOPE below, which is now the same value for Stripe's reasons;
+ * an audit prospect who converts still re-authorizes here.
  */
 export const STRIPE_CONNECT_SCOPE = "read_write";
 /**
- * Connect OAuth scope for the ANONYMOUS AUDIT: read-only, and this is the one
- * place the divergence from legacy lives.
+ * Connect OAuth scope for the ANONYMOUS AUDIT: read_write, because Stripe gives
+ * read_only to nobody else.
  *
- * Legacy's app/api/audit/connect/route.ts:19 requests `read_write` for an audit,
- * so a stranger's Stripe account hands a write-capable token to a flow that
- * never writes. Its own consent screen says "We need read-only access" and lists
- * "Create new charges or move money" under what it can never do, its guide says
- * "It requests read-only access only", and Foxhound's published copy says "The
- * audit only reads." Four sentences either side, all saying read-only, around
- * one parameter that says otherwise. 362 ruling 1: the copy is the intent, so
- * the code is the defect. Class (c) truthfulness fix.
+ * 362 ruling 1 had switched this to `read_only` so the copy "read-only" would be
+ * true (legacy's app/api/audit/connect/route.ts requested `read_write` beside
+ * copy that said read-only). REVERSED 2026-10-29: in production Stripe's
+ * authorize page answered `scope=read_only` with a 400, "Please use the
+ * `read_write` scope, or contact support ... in order to use read-only
+ * connections." Only Extensions can use read_only
+ * (https://docs.stripe.com/connect/oauth-changes-for-standard-platforms), and
+ * new Extensions can no longer be built; Stripe Apps replace them
+ * (https://docs.stripe.com/building-extensions). Foxhound is a Connect
+ * platform, so read_only is unavailable and the free audit was broken.
+ *
+ * So the copy changed instead of the scope: it says Stripe asks for read and
+ * write access, that Foxhound only reads during the audit, and that Foxhound
+ * revokes the grant itself when AUDIT_TOKEN_TTL_SECONDS ends unless a Foxhound
+ * account holds that Stripe account (app/lib/audit/grant-revoke.server.ts).
+ * The callback still checks the granted scope equals this.
  */
-export const STRIPE_AUDIT_SCOPE = "read_only";
+export const STRIPE_AUDIT_SCOPE = "read_write";
 /** CSRF state cookie name for the Connect OAuth flow. */
 export const STRIPE_OAUTH_STATE_COOKIE = "stripe_oauth_state";
 /**
@@ -861,13 +869,16 @@ export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
  * (app/audit/callback/route.ts:51-56): HttpOnly, Secure, SameSite=Lax, five
  * minutes, scoped to /audit.
  *
- * THE COOKIE IS THE WHOLE GRANT, on both sides. Legacy stores the audit token in
- * no table (the name occurs twice in its tree: the callback sets it, the results
- * page reads it) and never deauthorizes, so five minutes is the entire window in
- * which anything can use it. Foxhound stores it in no table either.
+ * THE COOKIE CARRIES THE WHOLE TOKEN. Legacy stores the audit token in no
+ * table (the name occurs twice in its tree: the callback sets it, the results
+ * page reads it) and never deauthorizes. Foxhound stores it in no table either,
+ * and since 2026-10-29 also revokes the Stripe grant itself when this window
+ * ends (app/lib/audit/grant-revoke.server.ts), unless a Foxhound account holds
+ * that Stripe account live.
  */
 export const AUDIT_TOKEN_COOKIE = "audit_access_token";
-/** Audit access-token cookie lifetime: 5 minutes (legacy parity). */
+/** Audit access-token cookie lifetime: 5 minutes (legacy parity). Also the delay
+ *  before Foxhound revokes the audit's Stripe grant. */
 export const AUDIT_TOKEN_TTL_SECONDS = 300;
 /**
  * The audit OAuth pair's IP rate limit: legacy's RATE_LIMIT_AUDIT
