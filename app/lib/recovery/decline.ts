@@ -20,9 +20,12 @@ const NETWORK_CODES = new Set([
   "issuer_not_available",
   "try_again_later",
   "service_unavailable",
-  "card_not_supported",
   "reenter_transaction",
 ]);
+// card_not_supported is not here. Stripe's decline-code table says the card does
+// not support this type of purchase and the customer should use another card,
+// so a retry on the same card cannot work: it falls through to "unknown", the
+// email-only cadence.
 
 const EXPIRED_CODES = new Set([
   "expired_card",
