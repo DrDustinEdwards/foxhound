@@ -1,10 +1,17 @@
 import type Stripe from "stripe";
 
-import { disputeIntakeFields } from "~/lib/disputes/stripe-dispute";
+import {
+  disputeFundsMovements,
+  disputeIntakeFields,
+  disputeLiveFields,
+  type DisputeFundsMovement,
+  type DisputeLiveFields,
+} from "~/lib/disputes/stripe-dispute";
 
 import { type DeclineCategory } from "~/lib/constants";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
+import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
 // verified event to the intent the processor acts on and pulls the refs it needs
@@ -16,7 +23,14 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
 //   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
-//   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
+//   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot),
+//                                 or inquiry_closed for an inquiry closed as warning_closed
+//   charge.dispute.updated     -> dispute_updated (live status, deadline, evidence counts)
+//   charge.dispute.funds_withdrawn / funds_reinstated -> dispute_funds (money Stripe moved)
+//   account.updated            -> account_health (the connected account's own
+//                                 charges, payouts and requirements)
+//   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
+//   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -82,6 +96,14 @@ export type WebhookIntent =
       createdAt: Date;
     }
   | { kind: "dispute_resolved"; stripeDisputeId: string; won: boolean }
+  | { kind: "inquiry_closed"; stripeDisputeId: string }
+  | ({
+      kind: "dispute_updated";
+      /** The event's own `created`, so a late older update never wins. */
+      eventCreatedAt: Date;
+      funds: DisputeFundsMovement[];
+    } & DisputeLiveFields)
+  | { kind: "dispute_funds"; stripeDisputeId: string; funds: DisputeFundsMovement[] }
   | {
       kind: "winback_start";
       subscriptionId: string;
@@ -105,6 +127,50 @@ export type WebhookIntent =
        *  classifier makes no Stripe call. */
       paymentMethodId: string | null;
     }
+  | {
+      /** account.updated for the connected account itself. `observedAt` is the
+       *  event's created time, so a late older event cannot overwrite newer state. */
+      kind: "account_health";
+      health: AccountHealth;
+      observedAt: Date;
+    }
+  | {
+      /** radar.early_fraud_warning.created or .updated. The charge's amount,
+       *  currency and customer are read by the handler, per this file's rule
+       *  that the classifier makes no Stripe call. */
+      kind: "early_fraud_warning";
+      created: boolean;
+      stripeWarningId: string;
+      chargeId: string;
+      paymentIntentId: string | null;
+      fraudType: string;
+      actionable: boolean;
+      createdAt: Date;
+    }
+  | {
+      /** invoice.upcoming or customer.subscription.trial_will_end: a charge is
+       *  coming at `chargeAt`, so the card it will use is checked now. Records
+       *  through the expiring-card table and never sends. */
+      kind: "renewal_card_check";
+      source: "invoice_upcoming" | "trial_will_end";
+      customerId: string;
+      /** From the event when it carries them; otherwise read off the customer. */
+      customerEmail: string | null;
+      customerName: string | null;
+      chargeAt: Date;
+      /** The charge's payment method sources, as card-change.ts resolves them:
+       *  the invoice's own default (invoice.upcoming only), then the
+       *  subscription (its id, or the event's own subscription object). */
+      invoiceDefault: string | null;
+      subscription: string | { default_payment_method: string | null } | null;
+    }
+  | {
+      /** payment_method.automatically_updated: the customer's card was
+       *  refreshed by Stripe's card updater, so an active failed payment is
+       *  retried on it now. */
+      kind: "card_auto_updated";
+      customerId: string;
+    }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -116,16 +182,15 @@ function asId(ref: string | { id?: string } | null | undefined): string | null {
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   switch (event.type) {
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice & {
-        charge?: string | { failure_code?: string } | null;
-      };
+      const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       // $0 invoices are not recoverable revenue; skip (legacy parity).
       if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
-      const declineCode =
-        invoice.last_finalization_error?.decline_code ??
-        (typeof invoice.charge === "object" ? invoice.charge?.failure_code : undefined) ??
-        null;
+      // Only what the event carries, which on the pinned API version is a
+      // finalization failure at most (the invoice has no `charge`). The real
+      // payment decline is read off the latest charge in handleIntake, and
+      // this code is its fallback.
+      const declineCode = invoice.last_finalization_error?.decline_code ?? null;
       return {
         kind: "intake",
         // Stripe sends `next_payment_attempt` as a unix timestamp while it
@@ -185,11 +250,29 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const dispute = event.data.object as Stripe.Dispute;
       if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
       // Only a definitive win/loss resolves our state machine. An inquiry closed
-      // as warning_closed (or any other status) is not a chargeback outcome.
+      // as warning_closed is not a chargeback outcome: it closes the inquiry,
+      // with nothing won, lost or billable. Any other status is ignored.
+      if (dispute.status === "warning_closed") return { kind: "inquiry_closed", stripeDisputeId: dispute.id };
       if (dispute.status !== "won" && dispute.status !== "lost") {
         return { kind: "ignore", reason: "dispute_not_resolved" };
       }
       return { kind: "dispute_resolved", stripeDisputeId: dispute.id, won: dispute.status === "won" };
+    }
+    case "charge.dispute.updated": {
+      const fields = disputeLiveFields(event.data.object as Stripe.Dispute);
+      if (!fields) return { kind: "ignore", reason: "no_dispute_id" };
+      return {
+        kind: "dispute_updated",
+        ...fields,
+        eventCreatedAt: new Date(event.created * 1000),
+        funds: disputeFundsMovements(event.data.object as Stripe.Dispute),
+      };
+    }
+    case "charge.dispute.funds_withdrawn":
+    case "charge.dispute.funds_reinstated": {
+      const dispute = event.data.object as Stripe.Dispute;
+      if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
+      return { kind: "dispute_funds", stripeDisputeId: dispute.id, funds: disputeFundsMovements(dispute) };
     }
     case "customer.subscription.deleted": {
       // Win-back intake (290). Legacy's handleSubscriptionDeleted is the spec.
@@ -270,10 +353,86 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         paymentMethodId: pmId,
       };
     }
+    case "payment_method.automatically_updated": {
+      // Stripe's card updater replaced the card details (a new expiry or
+      // number from the network). Whether the customer has a payment to retry
+      // is the processor's question.
+      const paymentMethod = event.data.object as Stripe.PaymentMethod;
+      const customerId = asId(paymentMethod.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      return { kind: "card_auto_updated", customerId };
+    }
     case "invoice.marked_uncollectible": {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       return { kind: "stripe_gave_up", invoiceId: invoice.id };
+    }
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
+      // Only the connected account's own object, which is what Connect sends
+      // this event for.
+      if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
+      return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
+    }
+    case "radar.early_fraud_warning.created":
+    case "radar.early_fraud_warning.updated": {
+      const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
+      const chargeId = asId(warning.charge);
+      if (!warning.id || !chargeId) return { kind: "ignore", reason: "no_warning_charge" };
+      return {
+        kind: "early_fraud_warning",
+        created: event.type === "radar.early_fraud_warning.created",
+        stripeWarningId: warning.id,
+        chargeId,
+        paymentIntentId: asId(warning.payment_intent),
+        fraudType: warning.fraud_type ?? "unknown",
+        actionable: warning.actionable === true,
+        createdAt: new Date((warning.created ?? 0) * 1000),
+      };
+    }
+    case "invoice.upcoming": {
+      // A renewal Stripe will charge. An upcoming invoice has no id, and one
+      // the customer pays by hand, or one for nothing, charges no card.
+      const invoice = event.data.object as Stripe.Invoice;
+      const customerId = asId(invoice.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      if (invoice.collection_method !== "charge_automatically") {
+        return { kind: "ignore", reason: "not_charged_automatically" };
+      }
+      if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
+      const chargeAtSeconds = invoice.next_payment_attempt ?? invoice.automatically_finalizes_at ?? null;
+      if (!chargeAtSeconds) return { kind: "ignore", reason: "no_charge_date" };
+      return {
+        kind: "renewal_card_check",
+        source: "invoice_upcoming",
+        customerId,
+        customerEmail: invoice.customer_email ?? null,
+        customerName: invoice.customer_name ?? null,
+        chargeAt: new Date(chargeAtSeconds * 1000),
+        invoiceDefault: asId(invoice.default_payment_method),
+        subscription: asId(invoice.parent?.subscription_details?.subscription),
+      };
+    }
+    case "customer.subscription.trial_will_end": {
+      // Sent three days before a trial converts. A subscription set to cancel
+      // at the trial's end, or invoiced by hand, will charge no card.
+      const subscription = event.data.object as Stripe.Subscription;
+      const customerId = asId(subscription.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      if (!subscription.trial_end) return { kind: "ignore", reason: "no_trial_end" };
+      if (subscription.cancel_at_period_end || subscription.collection_method !== "charge_automatically") {
+        return { kind: "ignore", reason: "no_charge_at_trial_end" };
+      }
+      return {
+        kind: "renewal_card_check",
+        source: "trial_will_end",
+        customerId,
+        customerEmail: null,
+        customerName: null,
+        chargeAt: new Date(subscription.trial_end * 1000),
+        invoiceDefault: null,
+        subscription: { default_payment_method: asId(subscription.default_payment_method) },
+      };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };

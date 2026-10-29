@@ -177,6 +177,17 @@ export const stripeConnections = sqliteTable(
     // The merchant's own past emails, a JSON array of up to five strings
     // (app/lib/recovery/voice-samples.ts). NULL when there are none.
     brandVoiceSamples: text("brand_voice_samples"),
+    // The connected Stripe account's own health, from its latest account.updated
+    // event (app/lib/stripe/account-health.ts). All NULL until the first one
+    // arrives, and NULL reads as healthy: Foxhound never guesses a problem it
+    // was not told about. health_updated_at is the EVENT's created time, so an
+    // older event delivered late never overwrites a newer state.
+    chargesEnabled: bool("charges_enabled"),
+    payoutsEnabled: bool("payouts_enabled"),
+    disabledReason: text("disabled_reason"),
+    pastDueCount: integer("past_due_count"),
+    currentDeadline: ts("current_deadline"),
+    healthUpdatedAt: ts("health_updated_at"),
   },
   (t) => [
     index("stripe_connections_account_idx").on(t.accountId),

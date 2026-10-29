@@ -43,6 +43,16 @@ import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
 // executor never inserts, the webhook's insert is the only writer that can ever
 // collide with itself (a same-event redelivery), never with a second writer.
 
+/** What Stripe took from a recovered payment, off the paying charge's balance
+ *  transaction (webhooks/lookups.ts resolveRecoveredChargeFee). `netCurrency`
+ *  is the balance transaction's own currency. Display only, never billed on. */
+export interface RecoveredChargeFee {
+  stripeBalanceTransactionId: string;
+  stripeFeeCents: number;
+  netAmountCents: number;
+  netCurrency: string;
+}
+
 export interface RecordRecoveryInput {
   accountId: string;
   failedPaymentId: string;
@@ -56,6 +66,8 @@ export interface RecordRecoveryInput {
   recoveryMethod: string;
   /** Stable per recovery event (e.g. the Stripe event id) so replays collapse. */
   idempotencyKey: string;
+  /** Read before the batch, best effort; null leaves the fee columns null. */
+  chargeFee?: RecoveredChargeFee | null;
 }
 
 /** The atomic batch for a recovery recording. Extracted so it is unit-testable. */
@@ -82,6 +94,10 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
       // Attributed recoveries stamp attributed_at; baseline stays null (free).
       attributedAt: attributed ? input.recoveredAt : null,
       refundedAt: refundedAtFromMarker,
+      stripeBalanceTransactionId: input.chargeFee?.stripeBalanceTransactionId ?? null,
+      stripeFeeCents: input.chargeFee?.stripeFeeCents ?? null,
+      netAmountCents: input.chargeFee?.netAmountCents ?? null,
+      netCurrency: input.chargeFee?.netCurrency ?? null,
     }),
     db.insert(outcomes).values({
       accountId: input.accountId,

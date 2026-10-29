@@ -59,6 +59,23 @@ export async function listAccountConnections(
     .orderBy(stripeConnections.connectedAt, stripeConnections.id);
 }
 
+/** Each connection's stored Stripe account health (account.updated), by id,
+ *  for the warning on /settings/stripe. Kept apart from listAccountConnections,
+ *  whose shape the MCP tools return. */
+export async function listConnectionHealth(db: Db, accountId: string) {
+  return db
+    .select({
+      id: stripeConnections.id,
+      chargesEnabled: stripeConnections.chargesEnabled,
+      payoutsEnabled: stripeConnections.payoutsEnabled,
+      disabledReason: stripeConnections.disabledReason,
+      pastDueCount: stripeConnections.pastDueCount,
+      currentDeadline: stripeConnections.currentDeadline,
+    })
+    .from(stripeConnections)
+    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)));
+}
+
 export interface SenderSettingsConnection {
   id: string;
   senderName: string | null;

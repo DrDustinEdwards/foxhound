@@ -13,8 +13,10 @@ import {
   billingLineItems,
   customerContext,
   disputeApprovals,
+  disputeBalanceTransactions,
   disputeEvidence,
   disputes,
+  earlyFraudWarnings,
   expiringCardAlerts,
   failedPayments,
   getDb,
@@ -42,7 +44,7 @@ import {
   type DemoBusiness,
 } from "./constants";
 import { buildBoltBase, buildTeamflowBase, type DemoCustomer } from "./customer-base";
-import { BOLT_DISPUTE_SPECS, buildDisputesSeed, TEAMFLOW_DISPUTE_SPECS, type DisputeSpec } from "./disputes-seed";
+import { BOLT_DISPUTE_SPECS, buildDisputesSeed, buildEarlyFraudWarningsSeed, TEAMFLOW_DISPUTE_SPECS, type DisputeSpec } from "./disputes-seed";
 import {
   boltDisputeOnlyPlan,
   buildIntelligenceSeed,
@@ -127,7 +129,9 @@ async function wipeDemoAccount(db: Db, acct: string): Promise<void> {
     db.delete(billingInvoices).where(eq(billingInvoices.accountId, acct)),
     db.delete(disputeApprovals).where(eq(disputeApprovals.accountId, acct)),
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, acct)),
+    db.delete(disputeBalanceTransactions).where(eq(disputeBalanceTransactions.accountId, acct)),
     db.delete(disputes).where(eq(disputes.accountId, acct)),
+    db.delete(earlyFraudWarnings).where(eq(earlyFraudWarnings.accountId, acct)),
     db.delete(healthScoreHistory).where(eq(healthScoreHistory.accountId, acct)),
     db.delete(predictions).where(eq(predictions.accountId, acct)),
     db.delete(recoveredPayments).where(eq(recoveredPayments.accountId, acct)),
@@ -308,6 +312,16 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
   await runBatched(
     db,
     disputesSeed.disputeApprovals.map((row) => db.insert(disputeApprovals).values(row)),
+  );
+  await runBatched(
+    db,
+    disputesSeed.disputeBalanceTransactions.map((row) => db.insert(disputeBalanceTransactions).values(row)),
+  );
+  // Early fraud warnings: a few open ones so the dashboard's section shows,
+  // and one refunded. Never billable, so nothing below reads them.
+  await runBatched(
+    db,
+    buildEarlyFraudWarningsSeed(accountId, now).map((row) => db.insert(earlyFraudWarnings).values(row)),
   );
 
   // 5) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.

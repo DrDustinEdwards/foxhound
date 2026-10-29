@@ -30,6 +30,12 @@ export const failedPayments = sqliteTable(
     cardBrand: text("card_brand"),
     cardCountry: text("card_country"),
     cardFunding: text("card_funding"),
+    /** The card network's advice and raw decline code from the declined
+     *  charge's outcome (migration 0049). The advice can override the decline
+     *  category (recovery/decline.ts applyNetworkAdvice), and a stored
+     *  "do_not_try_again" stops every silent retry (engine/retry-step.ts). */
+    networkAdviceCode: text("network_advice_code"),
+    networkDeclineCode: text("network_decline_code"),
     customerLtvCents: integer("customer_ltv_cents"),
     stripeProductId: text("stripe_product_id"),
     stripePriceId: text("stripe_price_id"),
@@ -141,6 +147,15 @@ export const recoveredPayments = sqliteTable(
     attributionRef: text("attribution_ref"),
     attributedAt: ts("attributed_at"),
     disputedAt: ts("disputed_at"),
+    // What Stripe actually took, from the paying charge's balance transaction,
+    // read best effort when the recovery is recorded. Null when the read failed
+    // or has not happened. Display only: billing stays on amount_cents (gross).
+    // net_currency is the balance transaction's (settlement) currency, which
+    // can differ from `currency`.
+    stripeBalanceTransactionId: text("stripe_balance_transaction_id"),
+    stripeFeeCents: integer("stripe_fee_cents"),
+    netAmountCents: integer("net_amount_cents"),
+    netCurrency: text("net_currency"),
   },
   (t) => [
     index("recovered_payments_account_idx").on(t.accountId),
@@ -151,6 +166,8 @@ export const recoveredPayments = sqliteTable(
     ),
   ],
 );
+
+export type ExpiringCardAlertReason = "card_expiring" | "no_payment_method";
 
 export const expiringCardAlerts = sqliteTable(
   "expiring_card_alerts",
@@ -168,6 +185,14 @@ export const expiringCardAlerts = sqliteTable(
     accountId: text("account_id").references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
+    // WHY THE ROW EXISTS (migration 0050). 'card_expiring' is every row the
+    // nightly scan and customer.updated write. 'no_payment_method' is a
+    // trialing customer with nothing to charge at conversion, recorded off
+    // customer.subscription.trial_will_end; its card columns are NULL and its
+    // expires_month/expires_year carry the TRIAL END month, which is when the
+    // missing card will be needed, so the unique tuple below dedupes it per
+    // trial-end month exactly as it dedupes a card per expiry month.
+    reason: text("reason").$type<ExpiringCardAlertReason>().notNull().default("card_expiring"),
   },
   (t) => [
     index("expiring_card_alerts_account_idx").on(t.accountId),
