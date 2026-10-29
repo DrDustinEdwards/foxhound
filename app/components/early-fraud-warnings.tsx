@@ -7,6 +7,8 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/confirm-dialog.css";
 
+import { toDate } from "@drdustinedwards/site-helpers/xml";
+
 import { formatDateShort } from "~/lib/date-format";
 import {
   EARLY_FRAUD_WARNINGS_ANCHOR,
@@ -41,10 +43,6 @@ export interface WarningView {
 const DEMO_REASON_ID = "efw-demo-reason";
 
 export type WarningActionResult = { ok: boolean; message: string };
-
-function toDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
-}
 
 function refundBody(w: WarningView): string[] {
   return [
