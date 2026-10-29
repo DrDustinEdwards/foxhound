@@ -1,5 +1,6 @@
 import { Check, Link2 } from "lucide-react";
-import { useState } from "react";
+
+import { CopyLinkButton } from "~/components/copy-link-button";
 
 // Ported from legacy components/blog/ShareBar.tsx (resolved from its call site
 // at PostDetailBody.tsx:126): a "Share" label plus X, LinkedIn, and Copy link
@@ -15,14 +16,6 @@ import { useState } from "react";
 // legacy never used an icon set for them, so no icon-set dependency was ever
 // required and the marks port directly (ruling 73d).
 export function ShareRow({ url, title }: { url: string; title: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copyLink() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
   const tweetHref = `https://x.com/intent/tweet?${new URLSearchParams({ text: title, url }).toString()}`;
   const linkedinHref = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url }).toString()}`;
 
@@ -53,19 +46,19 @@ export function ShareRow({ url, title }: { url: string; title: string }) {
         </svg>
         LinkedIn
       </a>
-      <button
-        type="button"
-        onClick={copyLink}
+      <CopyLinkButton
+        url={url}
+        resetMs={2000}
         aria-label="Copy link"
         className="inline-flex cursor-pointer items-center gap-1.5 font-mono text-label text-text-tertiary transition-colors hover:text-text"
-      >
-        {copied ? (
-          <Check size={13} strokeWidth={1.5} aria-hidden className="text-success-text" />
-        ) : (
-          <Link2 size={13} strokeWidth={1.5} aria-hidden />
-        )}
-        {copied ? "Copied" : "Copy link"}
-      </button>
+        icon={(copied) =>
+          copied ? (
+            <Check size={13} strokeWidth={1.5} aria-hidden className="text-success-text" />
+          ) : (
+            <Link2 size={13} strokeWidth={1.5} aria-hidden />
+          )
+        }
+      />
     </div>
   );
 }

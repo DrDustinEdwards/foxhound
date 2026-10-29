@@ -206,6 +206,11 @@ export default [
       // adapter (app/lib/carrel/adapter.server.ts); /blog still reads them.
       route("staged", "./routes/admin/staged.tsx"),
       route("mcps", "./routes/admin/mcps.tsx"),
+      // "View as merchant" (Recova's Impersonate, read-only): POST starts a
+      // 30-minute view and lands in the merchant's app; Stop, linked from the
+      // app's banner, ends it. Both behind Access like every /admin route.
+      route("view-as", "./routes/admin/view-as.ts"),
+      route("view-as/stop", "./routes/admin/view-as-stop.ts"),
     ]),
   ]),
 

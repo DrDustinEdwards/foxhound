@@ -510,8 +510,8 @@ export const DOC_GUIDES: DocGuide[] = [
         body: [
           "Review the staged evidence on the dispute's page, edit it and save, then click Approve and submit. The button shows the fee Foxhound would charge if the dispute is won. Foxhound records who approved it and submits the evidence you saved to Stripe through the API.",
           { kind: "h3", text: "Auto-submit" },
-          "There is no auto-submit toggle. There never has been.",
-          { kind: "note", body: "Foxhound has no automatic-submission setting and will not have one: the approval gate is schema-enforced, so a submission with nobody's name on it cannot be built, let alone configured." },
+          "If auto-submit is on in Dispute settings, Foxhound submits the staged evidence automatically 24 hours before the deadline for any dispute nobody has submitted. No manual action needed. You can still review, edit and submit the evidence yourself at any point before auto-submit fires, and Foxhound emails you when it has submitted.",
+          { kind: "note", body: "Every submission still carries a person's approval. Turning auto-submit on is that approval: Foxhound records who turned it on and when, and each automatic submission names them." },
           { kind: "h3", text: "Deadlines" },
           `Each dispute shows the days left to respond. The count is shown in red when ${DEADLINE_URGENT_DAYS} days or fewer remain, and in the caution color when ${DEADLINE_SOON_DAYS} days or fewer remain. Once the deadline has passed the dispute says so. Foxhound emails a reminder 3 days and 1 day before the deadline while nobody has submitted the dispute.`,
         ],
@@ -530,7 +530,8 @@ export const DOC_GUIDES: DocGuide[] = [
           "A plain-English description of what you sell. Foxhound uses it as the product description in every dispute's evidence. It helps most with unrecognized and subscription_canceled disputes.",
           { kind: "h3", text: "Ships physical goods" },
           "When this is on, the dispute page adds shipping fields to the evidence form, and triage weighs a not-received dispute without proof of delivery as one to accept. Leave it off for software and services.",
-          "There is no auto-submit setting and there will not be one (Part 4).",
+          { kind: "h3", text: "Auto-submit" },
+          "Submits the staged evidence automatically 24 hours before the deadline for every dispute nobody has submitted (Part 4). Off by default.",
         ],
       },
       {

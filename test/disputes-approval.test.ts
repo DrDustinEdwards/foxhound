@@ -65,6 +65,7 @@ describe("buildPendingApprovalBatch (Phase A: durable record BEFORE Stripe)", ()
       approvedByEmail: "owner@example.com",
       evidenceVersionHash: "abc123",
       approvedAt: now,
+      standingOptInAt: null,
     });
     // Just the approval insert: the state is NOT advanced pre-Stripe, so a
     // Stripe failure leaves a retriable dispute, never a false `submitted`.

@@ -37,17 +37,20 @@ const ACTIONS: Record<string, string> = {
   user_self_deleted_account: "Deleted their own account",
   user_self_deleted_account_deauthorize_failed: "Could not revoke a deleted account's Stripe connection",
   "email.test_send": "Sent a test email",
+  // Recova's codes, written again by Foxhound's read-only "View as merchant"
+  // (app/lib/admin/impersonation.server.ts); Recova's own rows read the same.
+  impersonation_start: "Started viewing as a merchant",
+  impersonation_stop: "Stopped viewing as a merchant",
 };
 
 // Recova's own codes (app/admin/platform/audit-log/page.tsx, blob 5003157c,
 // ACTION_LABELS). admin_audit_log is carried from Recova
-// (docs/schema/legacy-map.md), so its rows appear here; Foxhound writes none.
+// (docs/schema/legacy-map.md), so its rows appear here; Foxhound writes none
+// of these (its impersonation codes are in ACTIONS above).
 const CARRIED: Record<string, string> = {
   trigger_cron: "Triggered a cron",
   view_user_list: "Viewed the user list",
   view_cron_health: "Viewed cron health",
-  impersonation_start: "Started impersonating a user",
-  impersonation_stop: "Stopped impersonating a user",
   billing_exempt_toggle: "Toggled a merchant's billing exemption",
   processing_paused_toggle: "Toggled a merchant's processing pause",
 };
@@ -210,6 +213,8 @@ export function auditDetail(entry: AuditEntryLike): string | null {
       const description = str(m.description);
       return description ? `${amount}: ${description}` : amount;
     }
+    case "impersonation_stop":
+      return m.reason === "expired" ? "Ended on its own after 30 minutes" : null;
     case "blog.set-links":
       return Array.isArray(m.targetIds) ? plural(m.targetIds.length, "related link", "related links") : null;
     case "email.test_send": {

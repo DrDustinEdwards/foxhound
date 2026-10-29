@@ -94,7 +94,8 @@ export const PRICING_CARDS: PricingCard[] = [
       "Evidence drafted from transaction history",
       "Recovery email history included",
       "Draft, review, approve, submit, every time",
-      "No auto-submit toggle, there never has been one",
+      // Recova's "Auto-submit before deadline", off until the merchant turns it on.
+      "Auto-submit before deadline, off by default",
       `${pct(DISPUTE_FEE_BPS)} only when Foxhound wins, capped at ${usd(DISPUTE_FEE_CAP_CENTS)}`,
     ],
   },

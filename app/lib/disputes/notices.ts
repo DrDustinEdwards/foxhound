@@ -11,16 +11,17 @@ import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 //   lib/dispute-handlers.ts                   blob e2bb8de8, 25,069 bytes
 //   app/api/cron/process-disputes/route.ts    blob 1cbd5bd0, 21,298 bytes
 //
-// Four notices: a new dispute, a deadline reminder, a win and a loss. Recova's
-// fifth, "Dispute response submitted", has no trigger here because Foxhound
-// never auto-submits (RULES.md 5.6), so it is not built.
+// Five notices: a new dispute, a deadline reminder, a win, a loss, and
+// "Dispute response submitted", which the auto-submit job sends after it
+// submits on the merchant's standing opt-in (Recova's
+// sendDisputeAutoSubmittedEmail).
 //
 // WHAT IS NOT RECOVA'S, and why:
 // - The triage line ("Recommendation: FIGHT (80/100) ...") is Recova's, over the
 //   triage intake writes (app/lib/disputes/triage.ts). A dispute with no triage
 //   stored (one recorded before triage was ported) leaves the line out.
-// - Only Recova's auto-submit-OFF sentences are used, because auto-submit is
-//   never on (RULES.md 5.6; the build plan's E16 and E17 entries say so).
+// - The created and reminder notices carry Recova's auto-submit sentence for
+//   the account's setting, on or off, as Recova's autoSubmit flag chose it.
 // - The won notice's fee sentence states the fee the resolution writer
 //   snapshotted (resolved_fee_cents, which carries the $500 cap) in Recova's
 //   words, "(20% of the saved amount)", the percentage read from the constants.
@@ -41,6 +42,7 @@ import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 export const DISPUTE_CREATED_TEMPLATE = "merchant_dispute_created";
 export const DISPUTE_REMINDER_TEMPLATE = "merchant_dispute_reminder";
 export const DISPUTE_OUTCOME_TEMPLATE = "merchant_dispute_outcome";
+export const DISPUTE_AUTO_SUBMITTED_TEMPLATE = "merchant_dispute_auto_submitted";
 
 /** The platform's From name, as on the recovery notification. Recova sent
  *  these from its own disputes address under the platform name. */
@@ -134,6 +136,8 @@ export interface CreatedNoticeInput {
   evidenceDeadline: Date | null;
   disputeUrl: string;
   triage?: { recommendation: string; confidence: number | null; reasoning: string | null } | null;
+  /** The account's auto-submit setting (accounts.dispute_auto_submit). */
+  autoSubmit: boolean;
 }
 
 /** Recova's triage sentence, or null when the dispute has none stored. */
@@ -143,7 +147,7 @@ function triageLine(triage: CreatedNoticeInput["triage"]): string | null {
   return `Recommendation: ${triage.recommendation.toUpperCase()}${score}. ${triage.reasoning ?? ""}`.trim();
 }
 
-/** Recova's sendDisputeCreatedEmail, auto-submit off. */
+/** Recova's sendDisputeCreatedEmail. */
 export function createdNotice(input: CreatedNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const deadlineLine = input.evidenceDeadline
@@ -157,7 +161,9 @@ export function createdNotice(input: CreatedNoticeInput): NoticeMail {
         `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
         deadlineLine,
         ...(triageLine(input.triage) ? [triageLine(input.triage) as string] : []),
-        "Auto-submit is off. We will remind you 3 days before the deadline.",
+        input.autoSubmit
+          ? "Auto-submit is on. We will submit the response 24 hours before the deadline unless you change it."
+          : "Auto-submit is off. We will remind you 3 days before the deadline.",
       ],
       action: { label: "Review dispute", url: input.disputeUrl },
     },
@@ -174,10 +180,14 @@ export interface ReminderNoticeInput {
   /** A dispute_approvals row stands while the dispute is still unsubmitted:
    *  the submission was refused, is in flight, or was never confirmed. */
   approved: boolean;
+  /** The account's auto-submit setting (accounts.dispute_auto_submit). */
+  autoSubmit: boolean;
 }
 
-/** Recova's line, for a dispute nobody has approved yet. */
+/** Recova's lines, for a dispute nobody has approved yet, by auto-submit. */
 const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit, or choose to accept.";
+const REMINDER_AUTO_LINE =
+  "Auto-submit is on. We will submit at the 24-hour mark using the staged evidence unless you cancel or override it.";
 
 /** The line for an approved dispute Stripe has not confirmed as submitted
  *  (job_2663d92094ab). Accept is refused while an approval stands (PR 149
@@ -188,7 +198,7 @@ const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit,
 const REMINDER_APPROVED_LINE =
   "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
-/** Recova's sendDisputeDeadlineReminderEmail, auto-submit off. */
+/** Recova's sendDisputeDeadlineReminderEmail. */
 export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const plural = input.daysLeft === 1 ? "day" : "days";
@@ -199,9 +209,38 @@ export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
       body: [
         `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
         "Current status: needs response.",
-        input.approved ? REMINDER_APPROVED_LINE : REMINDER_ACTION_LINE,
+        input.approved ? REMINDER_APPROVED_LINE : input.autoSubmit ? REMINDER_AUTO_LINE : REMINDER_ACTION_LINE,
       ],
       action: { label: "Review dispute", url: input.disputeUrl },
+    },
+  };
+}
+
+export interface AutoSubmittedNoticeInput {
+  amountCents: number;
+  currency: string;
+  customerLabel: string;
+  reason: string;
+  disputeUrl: string;
+}
+
+/** Recova's sendDisputeAutoSubmittedEmail, sent after the auto-submit job's
+ *  submission is confirmed. */
+export function autoSubmittedNotice(input: AutoSubmittedNoticeInput): NoticeMail {
+  const amount = formatMoney(input.amountCents, input.currency);
+  return {
+    subject: `Dispute response submitted: ${amount}`,
+    notice: {
+      title: "Dispute response submitted.",
+      body: [
+        `We submitted evidence to Stripe for the ${amount} dispute from ${input.customerLabel} (reason: ${titleCaseReason(input.reason)}).`,
+        "What we included: transaction context, card verification (AVS, CVV, 3DS, Radar), prior charge history, subscription tenure where applicable, and recovery email engagement.",
+        // Recova's sentence went on "unless you want to add more evidence", but
+        // Stripe takes no more evidence once a response is submitted, and the
+        // dispute page locks it, so that clause is left out (RULES.md 1.2).
+        "The cardholder bank now has 60 to 75 days to decide. No action needed from you.",
+      ],
+      action: { label: "View submission", url: input.disputeUrl },
     },
   };
 }

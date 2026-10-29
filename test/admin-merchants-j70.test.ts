@@ -32,7 +32,8 @@ import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 // its owner's email, status, Stripe connection, recovery rate, amount
 // recovered, last webhook and join date, and inline actions: the Stripe
 // dashboard link, billing exempt, pause, and (for Recova's Disconnect) cancel
-// through cancelMerchant. Impersonate stays out (ruling 125). Every write goes
+// through cancelMerchant. Impersonate is "View as merchant", its own route
+// (test/admin-view-as.test.ts), never an intent here. Every write goes
 // through Foxhound's existing writers.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown, deauthorized: [] as string[] }));

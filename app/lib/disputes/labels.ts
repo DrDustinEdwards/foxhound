@@ -42,6 +42,11 @@ export function isInquiryStatus(status: string | null | undefined): boolean {
  *  Stripe, not Foxhound, sent the evidence (the timeline reads it the same way). */
 export const SUBMITTED_EXTERNALLY = "merchant_or_stripe";
 
+/** The stored submitted_by of a dispute the auto-submit job sent on the
+ *  merchant's standing opt-in (Recova's `recova_auto`). A manual submission
+ *  stores the approver's email. Both are Foxhound's submissions. */
+export const SUBMITTED_AUTOMATICALLY = "foxhound_auto";
+
 export interface DisputeListStatusInput {
   state: string;
   submittedBy: string | null;

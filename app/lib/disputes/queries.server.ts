@@ -19,6 +19,7 @@ import {
   buildSubmissionConfirmationBatch,
 } from "~/lib/disputes/approval.server";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
+import { SUBMITTED_AUTOMATICALLY } from "~/lib/disputes/labels";
 import { readEvidenceFilesForSubmission } from "~/lib/disputes/evidence-files.server";
 import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/disputes/submission";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
@@ -247,6 +248,11 @@ export interface ApproveAndSubmitDisputeInput {
   approvedByUserId: string | null;
   approvedByEmail: string;
   approvedAt: Date;
+  /** Set when the auto-submit job approves on the merchant's standing opt-in:
+   *  when approvedBy* turned auto-submit on. Null for the merchant's own
+   *  Approve and submit. It is stored on the approval row, and the submission
+   *  is marked SUBMITTED_AUTOMATICALLY instead of with the approver's email. */
+  standingOptInAt: Date | null;
 }
 
 /**
@@ -277,6 +283,7 @@ export async function approveAndSubmitDispute(
             approvedByEmail: input.approvedByEmail,
             evidenceVersionHash,
             approvedAt: input.approvedAt,
+            standingOptInAt: input.standingOptInAt,
           }),
         );
         return "created";
@@ -304,7 +311,7 @@ export async function approveAndSubmitDispute(
         buildSubmissionConfirmationBatch(db, {
           disputeId: input.disputeId,
           accountId: input.accountId,
-          submittedBy: input.approvedByEmail,
+          submittedBy: input.standingOptInAt ? SUBMITTED_AUTOMATICALLY : input.approvedByEmail,
           submittedAt: input.approvedAt,
         }),
       );
@@ -370,17 +377,18 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
   return found;
 }
 
-/** S32's two dispute settings (/settings/disputes) as their readers need them.
+/** S32's dispute settings (/settings/disputes) as their readers need them.
  *  NULL reads as off and empty, as Recova's `?? false` and `?? ''`. */
 export async function readDisputeSettings(
   db: Db,
   accountId: string,
-): Promise<{ enabled: boolean; productDescription: string; shipsPhysical: boolean }> {
+): Promise<{ enabled: boolean; productDescription: string; shipsPhysical: boolean; autoSubmit: boolean }> {
   const [row] = await db
     .select({
       enabled: accounts.disputesEnabled,
       productDescription: accounts.disputeProductDescription,
       shipsPhysical: accounts.disputeShipsPhysical,
+      autoSubmit: accounts.disputeAutoSubmit,
     })
     .from(accounts)
     .where(eq(accounts.id, accountId))
@@ -389,6 +397,7 @@ export async function readDisputeSettings(
     enabled: row?.enabled ?? true,
     productDescription: row?.productDescription ?? "",
     shipsPhysical: row?.shipsPhysical ?? false,
+    autoSubmit: row?.autoSubmit ?? false,
   };
 }
 

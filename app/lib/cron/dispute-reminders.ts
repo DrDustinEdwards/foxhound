@@ -10,8 +10,9 @@ import { HOUR_MS } from "~/lib/constants";
 
 // THE DISPUTE DEADLINE REMINDER (J06, job_4f4c9c2f5383). Recova's spec is
 // app/api/cron/process-disputes/route.ts (blob 1cbd5bd0, 21,298 bytes), "Thing
-// 1", read whole. Its "Thing 2" (auto-submit) is deliberately not built
-// (RULES.md 5.6), and its "Thing 3" (a fee-row safety net) has no Foxhound
+// 1", read whole. Its "Thing 2" (the opt-in auto-submit) is
+// app/lib/cron/dispute-auto-submit.ts, on the same tick, and its "Thing 3" (a
+// fee-row safety net) has no Foxhound
 // counterpart to back up, because the resolution batch snapshots the fee in
 // the same write that resolves the dispute.
 //
@@ -90,6 +91,9 @@ async function dueInBand(env: Env, now: Date, band: (typeof REMINDER_BANDS)[numb
       accountId: disputes.accountId,
       stripeDisputeId: disputes.stripeDisputeId,
       evidenceDeadline: disputes.evidenceDeadline,
+      // The reminder's own words say whether auto-submit is on; the outcome
+      // records the setting, as Recova's event_data.auto_submit did.
+      autoSubmit: accounts.disputeAutoSubmit,
     })
     .from(disputes)
     .innerJoin(accounts, eq(accounts.id, disputes.accountId))
@@ -151,7 +155,13 @@ async function remindOne(
   now: Date,
   cronRunId: string | null,
   bucket: ReminderBucket,
-  dispute: { id: string; accountId: string; stripeDisputeId: string; evidenceDeadline: Date | null },
+  dispute: {
+    id: string;
+    accountId: string;
+    stripeDisputeId: string;
+    evidenceDeadline: Date | null;
+    autoSubmit: boolean | null;
+  },
   result: DisputeReminderRun,
 ): Promise<void> {
   const hoursLeft = ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
@@ -180,7 +190,7 @@ async function remindOne(
     eventData: {
       dispute_id: dispute.stripeDisputeId,
       hours_left: Math.round(hoursLeft),
-      auto_submit: false,
+      auto_submit: dispute.autoSubmit ?? false,
     },
     outcome: "sent",
     outcomeAt: now,

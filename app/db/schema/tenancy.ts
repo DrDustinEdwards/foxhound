@@ -84,7 +84,17 @@ export const accounts = sqliteTable("accounts", {
   platformStripeCustomerId: text("platform_stripe_customer_id"),
   disputeProductDescription: text("dispute_product_description"),
   disputeShipsPhysical: bool("dispute_ships_physical"),
+  // Auto-submit disputes (Recova's toggle on /settings/disputes; migration
+  // 0057). NULL reads as off, as Recova's `?? false`. The disputes cron submits
+  // an unsubmitted dispute 24 hours before its deadline only while this is on,
+  // and writes the dispute's approval from the standing opt-in below.
   disputeAutoSubmit: bool("dispute_auto_submit"),
+  // Who turned auto-submit on, and when: the merchant's standing approval that
+  // an automatic submission's dispute_approvals row records. Written with the
+  // toggle (applyDisputeSettings), cleared when it is turned off.
+  disputeAutoSubmitByUserId: text("dispute_auto_submit_by_user_id"),
+  disputeAutoSubmitByEmail: text("dispute_auto_submit_by_email"),
+  disputeAutoSubmitAt: ts("dispute_auto_submit_at"),
   // The Disputes on/off switch on /settings/disputes (Recova's DisputesToggle
   // over account_products). On by default, as Recova activated Disputes on
   // Stripe connect; while off, dispute intake (webhook and manual import)

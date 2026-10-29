@@ -1,7 +1,9 @@
+import "capsomer/button.css";
 import { useState } from "react";
 import { AdminTime } from "~/components/admin-time";
 import { data, Form, useNavigation } from "react-router";
 
+import { ViewAsForm } from "~/components/admin-merchants-parts";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
@@ -324,6 +326,8 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
             <input type="hidden" name="nextPaused" value={String(!account.processingPaused)} />
             <ActionButton>{account.processingPaused ? "Resume processing" : "Pause processing"}</ActionButton>
           </Form>
+
+          <ViewAsForm accountId={account.id} who={account.name ?? account.id} />
 
           {!account.cancelledAt ? <CancelForm accountId={account.id} /> : null}
         </div>

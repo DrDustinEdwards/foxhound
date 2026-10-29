@@ -24,6 +24,9 @@ export interface PendingApprovalInput {
   approvedByEmail: string;
   evidenceVersionHash: string;
   approvedAt: Date;
+  /** When the approver turned auto-submit on, for an approval the auto-submit
+   *  job writes from that standing opt-in; null for the merchant's own click. */
+  standingOptInAt: Date | null;
 }
 
 /**
@@ -45,6 +48,7 @@ export function buildPendingApprovalBatch(db: Db, input: PendingApprovalInput): 
       approvedByEmail: input.approvedByEmail,
       evidenceVersionHash: input.evidenceVersionHash,
       approvedAt: input.approvedAt,
+      standingOptInAt: input.standingOptInAt,
     }),
   ];
 }

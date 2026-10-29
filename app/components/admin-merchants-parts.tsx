@@ -372,6 +372,7 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
               <span className="cap-sr-only"> processing for {who}</span>
             </button>
           </fetcher.Form>
+          <ViewAsForm accountId={m.id} who={who} />
           {m.cancelledAt ? null : (
             <Link to={merchantCancelHref(m.id, view)} className="cap-btn" data-size="sm" data-variant="danger">
               Cancel merchant<span className="cap-sr-only"> {who}</span>
@@ -380,6 +381,20 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
         </div>
       </td>
     </tr>
+  );
+}
+
+/** Recova's row action "Impersonate", as Foxhound's read-only "View as
+ *  merchant" (app/lib/admin/impersonation.server.ts). A full document post,
+ *  because it leaves /admin for the merchant's app. */
+export function ViewAsForm({ accountId, who }: { accountId: string; who: string }) {
+  return (
+    <Form method="post" action="/admin/view-as" reloadDocument>
+      <input type="hidden" name="accountId" value={accountId} />
+      <button type="submit" className="cap-btn" data-size="sm">
+        View as merchant<span className="cap-sr-only"> {who}, read-only</span>
+      </button>
+    </Form>
   );
 }
 

@@ -230,6 +230,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
           approvedByUserId: auth.userId,
           approvedByEmail: auth.email,
           approvedAt: new Date(),
+          standingOptInAt: null,
         },
         detail.evidence,
       );
