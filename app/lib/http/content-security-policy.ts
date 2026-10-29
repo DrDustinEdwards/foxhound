@@ -55,7 +55,10 @@
 //  - frame-src is written here, not through the builder's `sources.frame`,
 //    because the builder always adds 'self' to frame-src and the pre-J22 policy
 //    framed Turnstile ONLY. RULES.md 4.1: a new default never loosens what
-//    Foxhound already had.
+//    Foxhound already had. Since site-runtime 0.26.0 the builder refuses
+//    frame-src in `extraDirectives`, so the directive is appended to the
+//    builder's output once, at module load; the builder writes no frame-src of
+//    its own while `sources.frame` is empty, so there is still exactly one.
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
 import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
@@ -88,11 +91,11 @@ const POLICY = buildContentSecurityPolicy({
   styleHashes: INLINE_STYLE_HASHES,
   styleAttributesInline: true,
   cloudflareWebAnalytics: true,
-  extraDirectives: [`frame-src ${TURNSTILE}`],
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
 });
-const POLICY_PARTS = POLICY.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
+const POLICY_VALUE = `${POLICY.value}; frame-src ${TURNSTILE}`;
+const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */
 function contentSecurityPolicy(nonce: string) {
