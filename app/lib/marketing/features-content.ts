@@ -239,8 +239,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Intelligence",
         },
         {
-          name: `${Monthly} MRR snapshots`,
-          description: `Pulls subscription data from Stripe and computes MRR, NRR, GRR, and the movement waterfall. Updated ${monthly}, on ${billingWhen}.`,
+          name: `${capitalize(daily)} MRR snapshots`,
+          description: `Pulls subscription data from Stripe and computes MRR, NRR, GRR, and the movement waterfall. Updated ${nightly}, and once right after Stripe connects.`,
           product: "Intelligence",
         },
         {

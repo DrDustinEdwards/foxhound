@@ -38,7 +38,7 @@ describe("demo seeder -> real loaders render populated data", () => {
     expect(stats.recoveredCount).toBeGreaterThan(0);
     expect(stats.revenueRecovered.length).toBeGreaterThan(0);
 
-    const mrr = await getMrrAnalytics(db, DEMO_ACCOUNT_ID);
+    const mrr = await getMrrAnalytics(db, DEMO_ACCOUNT_ID, now.getTime());
     expect(mrr.latest).not.toBeNull();
     expect(mrr.trend).toHaveLength(12);
     // Believable Teamflow-scale portfolio (200 customers).

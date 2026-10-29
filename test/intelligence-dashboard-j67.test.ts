@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  firstSnapshotSentence,
   narrativeErrorMessage,
-  nextScheduledRun,
+  dayOverDayCents,
+  newMrrMonthToDateCents,
+  signedMoney,
+  weeklyMovements,
   planBreakdownRows,
 } from "~/lib/intelligence/dashboard";
+import { rollUpByMonth } from "~/lib/intelligence/mrr";
 
 // J67, row S16: the Intelligence dashboard toward Recova's real page,
 // app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and its seven
@@ -53,16 +56,29 @@ describe("S16 charts: Enarratio, with Recova's legends and a text equivalent, no
   });
 });
 
-describe("S16 empty state: Recova's syncing card, with Foxhound's real schedule", () => {
+describe("S16 daily series: Recova's stat cards and weekly movement", () => {
+  const day = (d: number, total: number, newMrr = 0, churn = 0) => ({
+    at: new Date(Date.UTC(2026, 9, d, 3)),
+    totalMrrCents: total,
+    newMrrCents: newMrr,
+    expansionMrrCents: 0,
+    reactivationMrrCents: 0,
+    contractionMrrCents: 0,
+    churnMrrCents: churn,
+  });
 
-  it("derives the next run from the cron schedule, not a typed date", () => {
-    expect(nextScheduledRun("0 4 1 * *", Date.UTC(2026, 9, 15)).toISOString()).toBe("2026-11-01T04:00:00.000Z");
-    expect(nextScheduledRun("0 4 1 * *", Date.UTC(2026, 9, 1, 3, 59)).toISOString()).toBe("2026-10-01T04:00:00.000Z");
-    expect(nextScheduledRun("0 4 1 * *", Date.UTC(2026, 11, 1, 4, 1)).toISOString()).toBe("2027-01-01T04:00:00.000Z");
-    expect(firstSnapshotSentence(Date.UTC(2026, 9, 15))).toBe(
-      "The first snapshot runs on November 1 at 04:00 UTC. Check back after it runs.",
-    );
-    expect(() => nextScheduledRun("*/5 * * * *", 0)).toThrow();
+  it("reads day-over-day with its sign, month-to-date new MRR, and sums movement by Monday week", () => {
+    // Oct 2026: the 25th is a Sunday, the 26th a Monday.
+    const points = [day(24, 10_000, 500), day(25, 10_400, 400), day(26, 10_100, 0, 300)];
+    expect(dayOverDayCents(points)).toBe(-300);
+    expect(dayOverDayCents(points.slice(0, 1))).toBeNull();
+    expect(signedMoney(-300, "usd")).toBe("-$3");
+    expect(newMrrMonthToDateCents([day(1, 0, 100), ...points], Date.UTC(2026, 9, 28))).toBe(1000);
+    const weeks = weeklyMovements(points);
+    expect(weeks.map((w) => [w.at.toISOString().slice(0, 10), w.newMrrCents, w.churnMrrCents])).toEqual([
+      ["2026-10-19", 900, 0],
+      ["2026-10-26", 0, 300],
+    ]);
   });
 });
 
@@ -80,5 +96,40 @@ describe("S16 monthly summary: Recova's pager and Generate/Regenerate button", (
     expect(narrativeErrorMessage("ai_not_configured")).toMatch(/AI analyst is not set up/);
     expect(narrativeErrorMessage("ai_no_credit")).toMatch(/out of credit/);
     expect(narrativeErrorMessage(undefined)).toBe("Could not generate the report. Try again or contact support.");
+  });
+});
+
+describe("console MRR by month: daily snapshots rolled up", () => {
+  const row = (month: number, d: number, total: number, churn: number, volBps: number | null) => ({
+    snapshotDate: new Date(Date.UTC(2026, month, d)),
+    totalMrrCents: total,
+    newMrrCents: 0,
+    expansionMrrCents: 0,
+    contractionMrrCents: 0,
+    churnMrrCents: churn,
+    reactivationMrrCents: 0,
+    newCustomersCount: 0,
+    churnedCustomersCount: churn > 0 ? 1 : 0,
+    voluntaryChurnRateBps: volBps,
+    involuntaryChurnRateBps: volBps === null ? null : 0,
+    netRevenueRetentionBps: null,
+    grossRevenueRetentionBps: null,
+  });
+
+  it("sums a month's movement and measures its rates against the month's starting MRR", () => {
+    const months = rollUpByMonth([
+      row(8, 30, 10_000, 0, null),
+      // October: 100 churned off 10,000, then 99 off 9,900, each 1% of its day.
+      row(9, 1, 9_900, 100, 100),
+      row(9, 2, 9_801, 99, 100),
+    ]);
+    expect(months).toHaveLength(2);
+    expect(months[0].voluntaryChurnRateBps).toBeNull();
+    const october = months[1];
+    expect(october.totalMrrCents).toBe(9_801);
+    expect(october.churnMrrCents).toBe(199);
+    expect(october.churnedCustomersCount).toBe(2);
+    expect(october.voluntaryChurnRateBps).toBe(199);
+    expect(october.netRevenueRetentionBps).toBe(9_801);
   });
 });

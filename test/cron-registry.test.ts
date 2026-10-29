@@ -56,17 +56,20 @@ describe("cron registry", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
   });
 
-  it("dispatches billing and intelligence sync on the monthly schedule, intelligence AI + retention on the daily one", () => {
+  it("dispatches billing on the monthly schedule, intelligence sync, AI + retention on the daily one", () => {
     // THE AUDIT DIGEST LEFT THIS LIST IN PHASE (g), and this assertion catching
     // it is the guard working. 362 ruling 3 merged its send into the monthly
     // audit and moved the merged job to legacy's own 09:00 hour, so the 04:00
     // slot is back to the two jobs that were there before 316.
     const monthly = jobsForSchedule(CRON_SCHEDULE_MONTHLY);
-    expect(monthly.map((j) => j.name)).toEqual(["billing-monthly", "intelligence-sync"]);
+    expect(monthly.map((j) => j.name)).toEqual(["billing-monthly"]);
     expect(monthly.map((j) => j.name)).not.toContain("audit-digest");
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
-    expect(daily.map((j) => j.name)).toContain("intelligence-ai");
+    // The sync writes today's snapshot before the AI run reads it.
+    const names = daily.map((j) => j.name);
+    expect(names.indexOf("intelligence-sync")).toBeGreaterThan(-1);
+    expect(names.indexOf("intelligence-sync")).toBeLessThan(names.indexOf("intelligence-ai"));
     expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(8);
   });
 

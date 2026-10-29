@@ -24,9 +24,9 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 //   * Recommended actions. Nothing in Foxhound writes one: recommended_action
 //     exists only in the demo seed (app/lib/recovery/digest-email.ts records
 //     the same finding).
-//   * Cadence. MRR snapshots are monthly (intelligence-sync on
-//     CRON_SCHEDULE_MONTHLY); scores are nightly (intelligence-ai on
-//     CRON_SCHEDULE_DAILY). Recova's MRR was daily and its movements weekly.
+//   * Cadence. MRR snapshots are daily (intelligence-sync on
+//     CRON_SCHEDULE_DAILY, plus one when Stripe connects) and scores nightly
+//     (intelligence-ai, the same run), as Recova's were.
 //   * Recovery timing and triage on disputes. Intelligence changes no
 //     failed-payment retry or email (RECOVERY_SCHEDULES is keyed on decline
 //     category alone) and computes no dispute triage (APPROVED-DIFFERENCES,
@@ -71,12 +71,12 @@ export const INTELLIGENCE_META_DESCRIPTION = "Customer health scoring, churn pre
 export const INTELLIGENCE_HERO = {
   headline: "Know which customers are about to churn.\nBefore they do.",
   // Truthfulness: Recova reads "derived from engagement signals, recovery
-  // history, and customer value. Seven recommended actions. Daily MRR
-  // tracking". The signals are risk.ts's, no recommended action is written,
-  // and MRR is snapshotted monthly.
+  // history, and customer value. Seven recommended actions." The signals are
+  // risk.ts's and no recommended action is written. "Daily MRR tracking" is
+  // Recova's words.
   // Recova's "$199/mo flat" closed a sentence about MRR tracking; the price is
   // free now and the pricing line under the sub says so.
-  sub: `0-100 health scores per customer, derived from ${signalList}. Monthly MRR tracking with NRR and churn rate trends.`,
+  sub: `0-100 health scores per customer, derived from ${signalList}. Daily MRR tracking with NRR and churn rate trends.`,
   pricing: "Free · No subscription · Account-wide",
 };
 
@@ -101,10 +101,10 @@ export const INTELLIGENCE_STEPS = [
     body: "Customers are sorted by health score, lowest first, and the churn page ranks the high-risk band by MRR, so your highest-value customers showing risk are at the top. A recommended action per customer is not built yet.",
   },
   {
-    // Truthfulness: Recova reads "MRR data updates daily" and "tracked week by
-    // week". intelligence-sync runs monthly.
-    title: "MRR data updates monthly",
-    body: "New, expansion, reactivation, contraction, and churn MRR tracked month by month. NRR and GRR computed from Stripe subscription data. No manual data entry.",
+    // Recova's words: intelligence-sync runs daily, and the dashboard sums
+    // movement by week.
+    title: "MRR data updates daily",
+    body: "New, expansion, reactivation, contraction, and churn MRR tracked week by week. NRR and GRR computed from Stripe subscription data. No manual data entry.",
   },
 ];
 
@@ -115,16 +115,14 @@ export const INTELLIGENCE_SECTION_LABEL = "What you see after connecting";
 export function intelligenceBlocks(activeCustomers: string) {
   return {
     dashboard: {
-      // Truthfulness: Recova reads "Daily from Stripe".
-      eyebrow: "Monthly from Stripe",
+      eyebrow: "Daily from Stripe",
       title: "MRR trends, plan breakdown, monthly narrative.",
       // Truthfulness: Recova's narrative is "delivered in the weekly digest"
-      // and its "Day-over-day MRR delta shown on every load". Foxhound's
-      // narrative is on the dashboard, and the dashboard says the day-over-day
-      // change is not computed (app/routes/app/intelligence/index.tsx).
+      // and Foxhound's is on the dashboard. "Day-over-day MRR delta shown on
+      // every load" is Recova's words (app/routes/app/intelligence/index.tsx).
       // Recova names its demo's plans ("Starter, Growth, and Scale"); a
       // merchant's plans are their own, so no plan is named.
-      body: `MRR tracked across ${activeCustomers} active customers. Per-plan breakdown with bar proportions. Monthly AI narrative summarizing what happened and what to watch, on the dashboard. A day-over-day MRR change is not computed, because MRR is snapshotted monthly.`,
+      body: `MRR tracked across ${activeCustomers} active customers. Per-plan breakdown with bar proportions. Monthly AI narrative summarizing what happened and what to watch, on the dashboard. Day-over-day MRR delta shown on every load.`,
     },
     score: {
       eyebrow: "0-100 per customer",
@@ -153,12 +151,11 @@ export const INTELLIGENCE_PRICING = {
     // left out: nothing writes a recommendation, and a ticked line would claim it.
     // Truthfulness: Recova reads "per at-risk customer".
     `Nightly AI analyst plain-English assessment for the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers`,
-    // Recova's "Daily MRR snapshots with NRR, GRR, and movement waterfall" and
-    // "Per-plan breakdown from Stripe subscription data": the NRR chart and MRR
-    // by plan are on the Intelligence dashboard
-    // (app/routes/app/intelligence/index.tsx). GRR is computed but drawn
-    // nowhere, so it is not ticked.
-    "Monthly NRR trend and per-plan MRR breakdown on the Intelligence dashboard",
+    // Truthfulness: Recova reads "Daily MRR snapshots with NRR, GRR, and
+    // movement waterfall". GRR is computed but drawn nowhere, so it is not
+    // ticked.
+    "Daily MRR snapshots with NRR and movement waterfall",
+    "Per-plan breakdown from Stripe subscription data",
     "Churn risk page with MRR by health band",
     // Recova's "Customer timeline: recovery, dispute, and Intelligence events
     // in one view" is left out: the customer page has no timeline (customer.tsx).

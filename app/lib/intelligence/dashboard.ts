@@ -1,4 +1,4 @@
-import { CRON_SCHEDULE_MONTHLY } from "~/lib/constants";
+import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import { formatDateMonthDay } from "~/lib/date-format";
 import { formatMoneyShort } from "~/lib/money-format";
 
@@ -32,31 +32,92 @@ export function monthLabel(yyyymm: string): string {
 // ---- The empty state's schedule sentence ----
 
 /**
- * The next time a monthly cron of the shape "M H D * *" fires at or after
- * `nowMs`. Anything else throws, so a schedule change cannot leave the empty
- * state quietly naming the wrong day.
+ * Recova's "The first snapshot runs tonight at 2:15am UTC. Check back
+ * tomorrow.", with Foxhound's time: intelligence-sync runs daily on
+ * CRON_SCHEDULE_DAILY, and the time is read from that schedule, so a change
+ * to it cannot leave the sentence naming the wrong hour.
  */
-export function nextScheduledRun(schedule: string, nowMs: number): Date {
-  const match = /^(\d+) (\d+) (\d+) \* \*$/.exec(schedule);
-  if (!match) throw new Error(`not a monthly schedule: ${schedule}`);
-  const [minute, hour, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const now = new Date(nowMs);
-  const thisMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day, hour, minute);
-  if (thisMonth >= nowMs) return new Date(thisMonth);
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, day, hour, minute));
+export function firstSnapshotSentence(): string {
+  const match = /^(\d+) (\d+) \* \* \*$/.exec(CRON_SCHEDULE_DAILY);
+  if (!match) throw new Error(`not a daily schedule: ${CRON_SCHEDULE_DAILY}`);
+  const time = `${match[2].padStart(2, "0")}:${match[1].padStart(2, "0")}`;
+  return `The first snapshot runs tonight at ${time} UTC. Check back tomorrow.`;
+}
+
+// ---- The daily series (Recova's MRRStatCards, NRRChart, MRRMovementChart) ----
+
+/** Every `stride`th item plus the last: Recova's every-7th-row sampling on its
+ *  NRR and churn charts, keeping the newest day. */
+export function sampleEveryNth<T>(items: readonly T[], stride = 7): T[] {
+  return items.filter((_, i) => i % stride === 0 || i === items.length - 1);
+}
+
+interface DailyPoint {
+  at: Date;
+  totalMrrCents: number;
+  newMrrCents: number;
+}
+
+/** Recova's "Day-over-day": the latest snapshot's MRR less the one before it.
+ *  null with fewer than two snapshots. */
+export function dayOverDayCents(points: readonly DailyPoint[]): number | null {
+  const last = points[points.length - 1];
+  const prior = points[points.length - 2];
+  return last && prior ? last.totalMrrCents - prior.totalMrrCents : null;
+}
+
+/** Recova's "New MRR (MTD)": new MRR summed over this UTC month's snapshots. */
+export function newMrrMonthToDateCents(points: readonly DailyPoint[], nowMs: number): number {
+  const month = monthKeyOf(new Date(nowMs));
+  return points.filter((p) => monthKeyOf(p.at) === month).reduce((sum, p) => sum + p.newMrrCents, 0);
+}
+
+/** "+$120" or "-$45": Recova printed only a plus, and a fall read as a rise. */
+export function signedMoney(cents: number, currency: string): string {
+  return `${cents < 0 ? "-" : "+"}${formatMoneyShort(Math.abs(cents), currency)}`;
+}
+
+export interface MovementWeek {
+  /** Monday 00:00 UTC of the week. */
+  at: Date;
+  newMrrCents: number;
+  expansionMrrCents: number;
+  reactivationMrrCents: number;
+  contractionMrrCents: number;
+  churnMrrCents: number;
+}
+
+/** Monday 00:00 UTC of the week holding `at` (Enarratio's week bucket). */
+function weekStart(at: Date): number {
+  const day = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+  return day - ((at.getUTCDay() + 6) % 7) * 86_400_000;
 }
 
 /**
- * Recova's "The first snapshot runs tonight at 2:15am UTC. Check back
- * tomorrow." was true of Recova's daily job. Foxhound's intelligence-sync runs
- * on CRON_SCHEDULE_MONTHLY, so the sentence names that run, computed from the
- * schedule itself.
+ * Each week's MRR movement, summed from its daily snapshots. Recova drew every
+ * 7th day's movement and captioned it "by week", which dropped six days in
+ * seven; the sum is what the caption says.
  */
-export function firstSnapshotSentence(nowMs: number): string {
-  const at = nextScheduledRun(CRON_SCHEDULE_MONTHLY, nowMs);
-  const day = at.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
-  const time = `${String(at.getUTCHours()).padStart(2, "0")}:${String(at.getUTCMinutes()).padStart(2, "0")}`;
-  return `The first snapshot runs on ${day} at ${time} UTC. Check back after it runs.`;
+export function weeklyMovements(points: readonly MovementWeek[]): MovementWeek[] {
+  const weeks = new Map<number, MovementWeek>();
+  for (const p of points) {
+    const key = weekStart(p.at);
+    const w = weeks.get(key) ?? {
+      at: new Date(key),
+      newMrrCents: 0,
+      expansionMrrCents: 0,
+      reactivationMrrCents: 0,
+      contractionMrrCents: 0,
+      churnMrrCents: 0,
+    };
+    w.newMrrCents += p.newMrrCents;
+    w.expansionMrrCents += p.expansionMrrCents;
+    w.reactivationMrrCents += p.reactivationMrrCents;
+    w.contractionMrrCents += p.contractionMrrCents;
+    w.churnMrrCents += p.churnMrrCents;
+    weeks.set(key, w);
+  }
+  return [...weeks.values()].sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
 // ---- MRR by plan (Recova's PlanBreakdown.tsx) ----
@@ -150,7 +211,7 @@ export function mrrTrendAlt(points: readonly MrrPointLike[], currency: string): 
     return `MRR on ${formatDateMonthDay(last.at)}: ${formatMoneyShort(last.totalMrrCents, currency)}.`;
   }
   return (
-    `MRR across ${points.length} monthly snapshots, from ${formatMoneyShort(first.totalMrrCents, currency)} ` +
+    `MRR across ${points.length} daily snapshots, from ${formatMoneyShort(first.totalMrrCents, currency)} ` +
     `on ${formatDateMonthDay(first.at)} to ${formatMoneyShort(last.totalMrrCents, currency)} on ${formatDateMonthDay(last.at)}.`
   );
 }
@@ -166,7 +227,7 @@ export function nrrAlt(points: readonly { at: Date; nrrPct: number | null }[]): 
   if (!last) return "Net revenue retention: no figure yet.";
   const values = present.map((p) => p.nrrPct);
   return (
-    `Net revenue retention by month, latest ${formatPct(last.nrrPct)} on ${formatDateMonthDay(last.at)}, ` +
+    `Net revenue retention by week, latest ${formatPct(last.nrrPct)} on ${formatDateMonthDay(last.at)}, ` +
     `ranging from ${formatPct(Math.min(...values))} to ${formatPct(Math.max(...values))}. 100% is the line.`
   );
 }
@@ -186,7 +247,7 @@ export function movementAlt(
   if (!last) return "MRR movement: no snapshots yet.";
   const m = (c: number) => formatMoneyShort(c, currency);
   return (
-    `MRR movement by month. Latest, ${formatDateMonthDay(last.at)}: new ${m(last.newMrrCents)}, ` +
+    `MRR movement by week. Week of ${formatDateMonthDay(last.at)}: new ${m(last.newMrrCents)}, ` +
     `expansion ${m(last.expansionMrrCents)}, reactivation ${m(last.reactivationMrrCents)}, ` +
     `contraction ${m(last.contractionMrrCents)}, churn ${m(last.churnMrrCents)}.`
   );

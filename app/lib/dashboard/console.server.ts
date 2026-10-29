@@ -110,7 +110,7 @@ export interface AttentionRow {
 export interface ConsoleView {
   hero: ConsoleHero;
   tiles: ConsoleTiles;
-  /** Whether the monthly sync will write this account an MRR snapshot, so the
+  /** Whether the daily sync will write this account an MRR snapshot, so the
    *  empty MRR state promises one only when it will come. */
   mrrSync: MrrSyncState;
   attention: AttentionRow[];
@@ -382,7 +382,7 @@ export async function getConsoleView(
 
   const audit = lastAudit[0] ?? null;
 
-  // The same three conditions the monthly sync applies before it writes a
+  // The same three conditions the daily sync applies before it writes a
   // snapshot (sync.server.ts: accountProcessingEligible, then a connection).
   const account = accountRow[0] ?? null;
   const mrrSync: MrrSyncState = account?.cancelledAt

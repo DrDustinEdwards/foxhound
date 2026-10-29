@@ -89,15 +89,12 @@ const billingMonthly: CronHandler = async (env, ctx) => {
 };
 
 /** The Intelligence deterministic sync (customer_context signals +
- *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs monthly,
- *  alongside billing: MRR movements are a monthly measure (new/expansion/
- *  contraction/churn/reactivation are computed against the PRIOR run's
- *  customer_context state), and the dashboard already labels snapshots by
- *  month and captions the movements chart "latest month" (dashboard.tsx). A
- *  daily cadence would silently mismatch both: "latest 12" would cover under
- *  two weeks instead of a year, and "latest month" would show one day's
- *  movement. CRON_SCHEDULE_MONTHLY is already registered in wrangler.jsonc
- *  (billing-monthly uses it), so this needs no deploy-config change either. */
+ *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs daily,
+ *  as Recova's compute-intelligence-mrr did: each row's movements are measured
+ *  against the PRIOR run's customer_context state, so one row is one day's
+ *  movement, and the dashboard reads 90 days of them (trends.server.ts) while
+ *  the console rolls them up by month (getMrrAnalytics). It runs before
+ *  intelligence-ai in CRON_JOBS so the narrative reads today's row. */
 const intelligenceSync: CronHandler = async (env) => {
   const results = await runIntelligenceSyncForAllAccounts(env, Date.now());
   const customersProcessed = results.reduce((sum, r) => sum + r.customersProcessed, 0);
@@ -298,7 +295,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
   { name: "dispute-fee-pricing", schedule: CRON_SCHEDULE_DAILY, handler: disputeFeePricing },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
-  { name: "intelligence-sync", schedule: CRON_SCHEDULE_MONTHLY, handler: intelligenceSync },
+  { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },

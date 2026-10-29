@@ -21,9 +21,8 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 // rows.
 //
 // Where Foxhound's dashboard differs from Recova's, the preview follows the
-// dashboard (app/routes/app/intelligence/index.tsx): Day-over-day and New MRR
-// (MTD) say they are not computed, because MRR is snapshotted monthly; and MRR
-// by plan shows no customer count, because the snapshot keeps none.
+// dashboard (app/routes/app/intelligence/index.tsx): MRR by plan shows no
+// customer count, because the snapshot keeps none.
 //
 // Left out: the customer table's Action column. Recova's reads a recommended
 // action, and nothing in Foxhound writes one (digest-email.ts records the same
@@ -57,15 +56,6 @@ function StatCard({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function NotComputed({ note }: { note: string }) {
-  return (
-    <>
-      <p className="m-0 text-label font-medium text-text">Not computed</p>
-      <p className="m-0 text-micro text-text-tertiary">{note}</p>
-    </>
-  );
-}
-
 /** Block 1: Recova's dashboard preview, four cards, MRR by plan, the narrative. */
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
@@ -80,13 +70,23 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
           <p className="m-0 font-mono text-title font-bold tabular-nums text-accent-text">{dashboard.mrr}</p>
         </StatCard>
         <StatCard label="Day-over-day">
-          <NotComputed note="MRR is snapshotted monthly, not daily." />
+          <p
+            className={`m-0 font-mono text-title font-bold tabular-nums ${
+              dashboard.dayOverDaySign > 0
+                ? "text-success-text"
+                : dashboard.dayOverDaySign < 0
+                  ? "text-error-text"
+                  : "text-text-tertiary"
+            }`}
+          >
+            {dashboard.dayOverDay}
+          </p>
         </StatCard>
         <StatCard label="Active customers">
           <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{dashboard.activeCustomers}</p>
         </StatCard>
         <StatCard label="New MRR (MTD)">
-          <NotComputed note="MRR is snapshotted monthly, not month to date." />
+          <p className="m-0 font-mono text-title font-bold tabular-nums text-success-text">{dashboard.newMrrMtd}</p>
         </StatCard>
       </ul>
       {dashboard.plans.length > 0 ? (

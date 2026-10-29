@@ -18,11 +18,13 @@ import { DAY_MS } from "~/lib/constants";
 // same customer roster, recovery rows, and dispute rows the other seed modules
 // produced (never a second, independent narrative). mrr_snapshots reuses the
 // REAL movement math (app/lib/intelligence/mrr.ts computeMrrMovements /
-// buildMrrSnapshotFields) walked across 12 monthly points, driven by each
+// buildMrrSnapshotFields) walked across a year of points (daily for the last 90 days), driven by each
 // customer's actual signup/churn date, so movements are derived, not invented.
 // Pure: returns plain insert rows, no DB access.
 
 const MONTH_COUNT = 12;
+/** Days of daily snapshots, the dashboard's window. */
+const DAILY_SNAPSHOT_DAYS = 90;
 
 type CustomerContextInsert = typeof customerContext.$inferInsert;
 type HealthScoreHistoryInsert = typeof healthScoreHistory.$inferInsert;
@@ -258,12 +260,28 @@ function buildMrrRoster(customers: DemoCustomer[], disputeOnly: { id: string; pl
   return [...fromBase, ...fromDisputes];
 }
 
-function buildMonthlySnapshots(accountId: string, roster: MrrRosterEntry[], now: Date): MrrSnapshotInsert[] {
+/** The demo's snapshot dates, oldest first: one a month for the year before
+ *  the last DAILY_SNAPSHOT_DAYS, then one a day, as intelligence-sync writes
+ *  them, so the dashboard's 90 days and the console's twelve months both
+ *  have rows. */
+function snapshotDates(now: Date): Date[] {
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const dailyFrom = today - (DAILY_SNAPSHOT_DAYS - 1) * DAY_MS;
+  const dates: Date[] = [];
+  for (let m = MONTH_COUNT - 1; m >= 1; m--) {
+    const d = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - m, now.getUTCDate());
+    if (d < dailyFrom) dates.push(new Date(d));
+  }
+  for (let t = dailyFrom; t <= today; t += DAY_MS) dates.push(new Date(t));
+  return dates;
+}
+
+function buildSnapshots(accountId: string, roster: MrrRosterEntry[], now: Date): MrrSnapshotInsert[] {
   const rows: MrrSnapshotInsert[] = [];
   let priorByCustomer: Map<string, number> | null = null;
 
-  for (let m = MONTH_COUNT - 1; m >= 0; m--) {
-    const snapshotDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - m, now.getUTCDate()));
+  const dates = snapshotDates(now);
+  for (const [m, snapshotDate] of dates.entries()) {
     const current: CustomerMrrPoint[] = roster.map((r) => {
       const joined = r.joinedAt.getTime() <= snapshotDate.getTime();
       const churnedByNow = r.churnedAt !== null && r.churnedAt.getTime() <= snapshotDate.getTime();
@@ -278,7 +296,7 @@ function buildMonthlySnapshots(accountId: string, roster: MrrRosterEntry[], now:
 
     const fields = buildMrrSnapshotFields(priorByCustomer, current);
     rows.push({
-      id: `dmrr_${m}`,
+      id: `dmrr_${dates.length - 1 - m}`,
       accountId,
       snapshotDate,
       totalMrrCents: fields.totalMrrCents,
@@ -507,7 +525,7 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
   }
 
   const roster = buildMrrRoster(customers, disputeOnlyRoster);
-  const mrrSnapshotRows = buildMonthlySnapshots(accountId, roster, now);
+  const mrrSnapshotRows = buildSnapshots(accountId, roster, now);
   const { alerts: alertRows, history: alertHistoryRows } = buildAlerts(accountId, now);
 
   return {

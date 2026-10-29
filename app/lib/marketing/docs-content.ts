@@ -595,8 +595,8 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "MRR trends",
         body: [
-          "The Intelligence dashboard charts total MRR and MRR by plan, net revenue retention over the last 12 months, where above 100% means expansion outran churn, and the MRR movement behind it by month: new, expansion, reactivation, contraction and churn.",
-          "A month whose total barely moves can still be hiding a lot of both, which is what the movement chart is for. Customer data is synced from Stripe monthly, so each bar is a month.",
+          "The Intelligence dashboard charts total MRR and MRR by plan, net revenue retention over the last 90 days, where above 100% means expansion outran churn, and the MRR movement behind it by week: new, expansion, reactivation, contraction and churn.",
+          "A week whose total barely moves can still be hiding a lot of both, which is what the movement chart is for. Customer data is synced from Stripe every day, and once right after you connect, so each bar is a week of those days.",
         ],
       },
       {

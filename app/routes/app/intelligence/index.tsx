@@ -16,12 +16,17 @@ import { authContext } from "~/lib/auth/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 import {
   GENERATE_REPORT_ERROR_STATUS,
+  dayOverDayCents,
   firstSnapshotSentence,
   monthKeyOf,
   monthLabel,
   narrativeErrorMessage,
+  newMrrMonthToDateCents,
   planBreakdownRows,
+  sampleEveryNth,
   shiftMonth,
+  signedMoney,
+  weeklyMovements,
   type GenerateReportError,
 } from "~/lib/intelligence/dashboard";
 import {
@@ -56,9 +61,10 @@ import type { Route } from "./+types/index";
 // the J67 pull request.
 //
 // Foxhound's engine, never Recova's (78/79): snapshots come from
-// intelligence-sync, which runs MONTHLY, so the series is twelve months where
-// Recova's was ninety days of daily rows, and the two stats that need a daily
-// or month-to-date snapshot say they are not computed (RULES.md 2.1). The
+// intelligence-sync, which runs daily as Recova's job did, so the series is
+// Recova's ninety days of daily rows (trends.server.ts). The movement chart
+// sums each week, where Recova drew every 7th day under a "by week" caption
+// (a truthfulness fix, dashboard.ts weeklyMovements). The
 // narrative is Foxhound's (narrative.ts), generated through
 // report-generate.server.ts, and it says so when it cannot run.
 //
@@ -146,7 +152,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
         <div className="cap-panel">
           <div className="cap-panel-body text-center">
             <p className="m-0 text-body font-medium text-text">Syncing your MRR data</p>
-            <p className="m-0 text-label text-text-tertiary">{firstSnapshotSentence(nowMs)}</p>
+            <p className="m-0 text-label text-text-tertiary">{firstSnapshotSentence()}</p>
             <p className="m-0 text-label text-text-tertiary">
               While you wait, walk through your recovery sequences or review any open disputes.
             </p>
@@ -154,7 +160,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
         </div>
       ) : (
         <div className="flex flex-col gap-5">
-          <StatCards latest={latest} />
+          <StatCards series={mrrSeries} latest={latest} nowMs={nowMs} />
           <MrrTrend series={mrrSeries} currency={latest.currency} />
           <NrrCard series={mrrSeries} />
           <MovementCard series={mrrSeries} currency={latest.currency} />
@@ -215,68 +221,67 @@ type Latest = Series[number];
 
 /**
  * Recova's MRRStatCards: MRR, Day-over-day, Active customers, New MRR (MTD),
- * two across on a phone and four from md. MRR and Active customers are the
- * latest snapshot's, formatted as Recova formats them. Day-over-day and New
- * MRR (MTD) are numbers Foxhound's engine does not compute: intelligence-sync
- * snapshots once a month (CRON_SCHEDULE_MONTHLY), so there is no daily change
- * and no month-to-date new MRR, and each card says so rather than showing the
- * month's figure under a day's label (RULES.md 2.1). A figure that leads
- * nowhere is plain text in a panel, not a Capsomer stat tile (which is always
- * a link or a button), the same choice as the churn page's band cards.
+ * two across on a phone and four from md, in Recova's colors. Day-over-day is
+ * the latest snapshot less the one before, green up and red down, "--" when
+ * flat or with one snapshot, as Recova drew it; its fall carries a minus, where
+ * Recova printed the bare amount (truthfulness). A figure that leads nowhere
+ * is plain text in a panel, not a Capsomer stat tile (which is always a link
+ * or a button), the same choice as the churn page's band cards.
  */
-function StatCards({ latest }: { latest: Latest }) {
+function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; nowMs: number }) {
+  const delta = dayOverDayCents(series);
+  const deltaClass = !delta ? "text-text-tertiary" : delta > 0 ? "text-success-text" : "text-error-text";
+  const figure = "m-0 font-mono text-title font-bold tabular-nums";
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       <Panel title="MRR" size="sm">
-        <p className="m-0 font-mono text-title font-bold tabular-nums text-brand-text">
-          {formatMoneyShort(latest.totalMrrCents, latest.currency)}
-        </p>
+        <p className={`${figure} text-brand-text`}>{formatMoneyShort(latest.totalMrrCents, latest.currency)}</p>
       </Panel>
       <Panel title="Day-over-day" size="sm">
-        <p className="m-0 text-label font-medium text-text">Not computed</p>
-        <p className="m-0 text-micro text-text-tertiary">MRR is snapshotted monthly, not daily.</p>
+        <p className={`${figure} ${deltaClass}`}>{delta ? signedMoney(delta, latest.currency) : "--"}</p>
       </Panel>
       <Panel title="Active customers" size="sm">
-        <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
-          {latest.activeCustomersCount.toLocaleString("en-US")}
-        </p>
+        <p className={`${figure} text-text`}>{latest.activeCustomersCount.toLocaleString("en-US")}</p>
       </Panel>
       <Panel title="New MRR (MTD)" size="sm">
-        <p className="m-0 text-label font-medium text-text">Not computed</p>
-        <p className="m-0 text-micro text-text-tertiary">MRR is snapshotted monthly, not month to date.</p>
+        <p className={`${figure} text-success-text`}>
+          {formatMoneyShort(newMrrMonthToDateCents(series, nowMs), latest.currency)}
+        </p>
       </Panel>
     </div>
   );
 }
 
-/** Recova's MRRTrendChart: total MRR over the window. Twelve months, because
- *  the snapshot is monthly; Recova's "(90 days)" would be three points. */
+/** Recova's MRRTrendChart: total MRR, every daily snapshot of the 90 days. */
 function MrrTrend({ series, currency }: { series: Series; currency: string }) {
   const draw = useCallback((w: number) => drawMrrTrend(series, currency, w), [series, currency]);
   return (
-    <Panel title="MRR trend (12 months)">
+    <Panel title="MRR trend (90 days)">
       <EnarratioFigure draw={draw} />
     </Panel>
   );
 }
 
-/** Recova's NRRChart, withheld (as Recova withholds it) until some snapshot
- *  carries a positive retention figure. Single series, so no legend. */
+/** Recova's NRRChart: every 7th daily snapshot, withheld (as Recova withholds
+ *  it) until some snapshot carries a positive retention figure. Single
+ *  series, so no legend. */
 function NrrCard({ series }: { series: Series }) {
-  const draw = useCallback((w: number) => drawNrr(series, w), [series]);
+  const sampled = useMemo(() => sampleEveryNth(series), [series]);
+  const draw = useCallback((w: number) => drawNrr(sampled, w), [sampled]);
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
   return (
-    <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn, last 12 months">
+    <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn (90 days)">
       <EnarratioFigure draw={draw} />
     </Panel>
   );
 }
 
 /** Recova's MRRMovementChart: its five series, its stacking and its gate on any
- *  non-zero movement. "By week" is "by month": Foxhound's buckets are months. */
+ *  non-zero movement, one bar per week of summed daily movement. */
 function MovementCard({ series, currency }: { series: Series; currency: string }) {
-  const draw = useCallback((w: number) => drawMovement(series, currency, w), [series, currency]);
-  const moved = series.some(
+  const weeks = useMemo(() => weeklyMovements(series), [series]);
+  const draw = useCallback((w: number) => drawMovement(weeks, currency, w), [weeks, currency]);
+  const moved = weeks.some(
     (p) =>
       Math.round(toMajorUnits(p.newMrrCents, currency)) !== 0 ||
       Math.round(toMajorUnits(p.expansionMrrCents, currency)) !== 0 ||
@@ -286,7 +291,7 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
   );
   if (!moved) return null;
   return (
-    <Panel title="MRR movement" description="New, expansion, contraction, and churn by month">
+    <Panel title="MRR movement" description="New, expansion, contraction, and churn by week">
       <EnarratioFigure draw={draw} />
     </Panel>
   );
