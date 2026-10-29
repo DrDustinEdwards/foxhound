@@ -206,6 +206,30 @@ export async function applyDisputeSettings(
   return { ok: true, fields, state };
 }
 
+/**
+ * The Disputes on/off switch (Recova's DisputesToggle, which posted to
+ * /api/disputes/{enable,disable} over account_products). One column; the
+ * description and ships-physical are left exactly as stored, as Recova's hidden
+ * inputs kept them while the section was collapsed.
+ */
+export async function applyDisputesEnabled(
+  db: Db,
+  accountId: string,
+  input: { enabled: unknown },
+  trace?: WriteTrace,
+): Promise<ApplyResult<{ enabled: boolean }>> {
+  const state = { enabled: asBoolean(input.enabled) };
+  const fields = ["disputes_enabled"];
+  await commit(
+    db,
+    accountId,
+    fields,
+    db.update(accounts).set({ disputesEnabled: state.enabled }).where(eq(accounts.id, accountId)),
+    trace,
+  );
+  return { ok: true, fields, state };
+}
+
 export interface NotificationSettingsState {
   notificationEmail: string | null;
   slackWebhookUrl: string | null;

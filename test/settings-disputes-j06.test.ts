@@ -14,16 +14,28 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // evidence) and ships physical goods (the dispute page's shipping inputs).
 // Auto-submit is never built (RULES.md 5.6).
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, moneyWrites: [] as unknown[] }));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
 }));
 
+// Dispute intake's money write, recorded rather than sent to the Durable Object.
+vi.mock("~/lib/money/execute", () => ({
+  executeMoneyWrite: async (_env: unknown, write: { build: (db: unknown) => unknown[] }) => {
+    harness.moneyWrites.push(write.build(harness.db));
+    return { applied: true };
+  },
+}));
+
 const route = await import("~/routes/app/settings/disputes");
-const { applyDisputeSettings, DISPUTE_PRODUCT_DESCRIPTION_ERROR } = await import("~/lib/settings/apply.server");
+const { applyDisputeSettings, applyDisputesEnabled, DISPUTE_PRODUCT_DESCRIPTION_ERROR } = await import(
+  "~/lib/settings/apply.server"
+);
 const { readDisputeSettings, readDisputeProductDescription } = await import("~/lib/disputes/queries.server");
+const { handleStampDispute } = await import("~/lib/webhooks/dispute-handlers");
+const { importDisputeFromStripe } = await import("~/lib/disputes/manual-import.server");
 const { splitEvidence } = await import("~/lib/disputes/detail");
 
 const SOURCE = readFileSync(new URL("../app/routes/app/settings/disputes.tsx", import.meta.url), "utf8");
@@ -35,6 +47,7 @@ let db: ReturnType<typeof createInMemoryDb>["db"];
 beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
+  harness.moneyWrites = [];
   sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('a1', 'Acme', 1000)").run();
   sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('a2', 'Other', 1000)").run();
 });
@@ -52,7 +65,11 @@ const Page = route.default as unknown as (props: {
   actionData?: Record<string, unknown>;
 }) => ReactElement;
 
-function render(loaderData: { productDescription: string; shipsPhysical: boolean }, actionData?: Record<string, unknown>) {
+function render(
+  settings: { enabled?: boolean; productDescription: string; shipsPhysical: boolean },
+  actionData?: Record<string, unknown>,
+) {
+  const loaderData = { enabled: true, ...settings };
   const Stub = createRoutesStub([
     { path: "/settings/disputes", Component: () => createElement(Page, { loaderData, actionData }) },
   ]);
@@ -79,7 +96,7 @@ describe("S32 THE WRITER: two columns, pinned to the account", () => {
 
 describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''", () => {
   it("an account that never saved reads as blank and off", async () => {
-    expect(await readDisputeSettings(db, "a1")).toEqual({ productDescription: "", shipsPhysical: false });
+    expect(await readDisputeSettings(db, "a1")).toEqual({ enabled: true, productDescription: "", shipsPhysical: false });
     expect(await readDisputeProductDescription(db, "a1")).toBeNull();
   });
 
@@ -94,6 +111,36 @@ describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''
     expect(editing.shipping).toEqual({ shipping_tracking_number: "1Z999", shipping_carrier: "UPS", shipping_date: "" });
     // Once locked (submitted, or the account does not ship), they are rows.
     expect(splitEvidence(rows, false, false).structured).toHaveLength(3);
+  });
+});
+
+describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () => {
+  it("off: the page shows the off line, the webhook commits only its claim, the import writes nothing", async () => {
+    await applyDisputesEnabled(db, "a1", { enabled: false });
+    expect(await readDisputeSettings(db, "a1")).toMatchObject({ enabled: false });
+    expect((await readDisputeSettings(db, "a2")).enabled).toBe(true);
+
+    const html = render({ enabled: false, productDescription: "", shipsPhysical: false });
+    expect(html).toContain("Enable Disputes above to configure product description and shipping settings.");
+    expect(html).not.toContain("Save changes");
+
+    const claim = {
+      stripeEventId: "evt_1",
+      eventType: "charge.dispute.created",
+      accountId: "a1",
+      receivedAt: new Date(1000),
+      payload: {},
+    };
+    const outcome = await handleStampDispute(
+      { env: {} as Env, accountId: "a1", connectionId: "c1", claim, idempotencyKey: "evt_1" } as never,
+      { kind: "stamp_dispute", stripeDisputeId: "dp_1", chargeId: "ch_1" } as never,
+    );
+    expect(outcome).toEqual({ status: "ignored", reason: "disputes_disabled" });
+    expect(harness.moneyWrites).toEqual([[expect.anything()]]); // the claim, and no dispute row
+
+    expect(await importDisputeFromStripe({} as Env, "a1", "dp_1", new Date())).toEqual({
+      status: "disputes_disabled",
+    });
   });
 });
 

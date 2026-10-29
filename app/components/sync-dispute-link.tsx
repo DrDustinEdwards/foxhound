@@ -56,6 +56,7 @@ export const SYNC_RESULT_MESSAGES: Record<string, SyncDisputeResult> = {
   // first; both mean the dispute is on the books exactly once.
   already_imported: { ok: true, message: "That dispute is already imported." },
   invalid_id: { ok: false, message: 'Stripe dispute IDs start with "dp_".' },
+  disputes_disabled: { ok: false, message: "Turn on Disputes in Settings before importing a dispute." },
   not_connected: { ok: false, message: "Connect Stripe before importing a dispute." },
   not_found: { ok: false, message: "No dispute with that ID on your Stripe account." },
 };
