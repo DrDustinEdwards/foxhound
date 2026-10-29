@@ -77,6 +77,18 @@ export function isRetryable(category: DeclineCategory): boolean {
 }
 
 /**
+ * True for a decline Stripe will not retry on the same card: Stripe keeps a
+ * next_payment_attempt on the invoice but runs it only once a new payment
+ * method is attached (docs.stripe.com/billing/revenue-recovery/smart-retries).
+ * Waiting for Stripe to give up would hold the customer's first email for the
+ * whole retry window, so these start their email-led sequence on the first
+ * failure (webhooks/recovery-handlers.ts handleIntake).
+ */
+export function isHardDecline(category: DeclineCategory): boolean {
+  return category === "expired" || category === "revoked" || category === "fraud";
+}
+
+/**
  * The most specific decline code among several readings of one failure, in the
  * caller's order of trust. Stripe's charge carries the generic "card_declined"
  * as its failure_code while the issuer's real reason sits in decline_code, so a

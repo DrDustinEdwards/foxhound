@@ -46,6 +46,8 @@ const harness = vi.hoisted(() => ({
    *  this the mock would be more permissive than production and the
    *  payment-scoped key below would prove nothing. */
   seen: new Set<string>(),
+  /** The invoice's status as Stripe reports it now (invoices.retrieve). */
+  invoiceStatus: "open",
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -74,7 +76,10 @@ vi.mock("~/lib/money/execute", () => ({
 
 vi.mock("~/lib/stripe/encryption", () => ({ decryptToken: async () => "sk_test_connected" }));
 vi.mock("~/lib/stripe/client", () => ({
-  getConnectedStripe: () => ({ invoicePayments: { list: async () => ({ data: [] }) } }),
+  getConnectedStripe: () => ({
+    invoicePayments: { list: async () => ({ data: [] }) },
+    invoices: { retrieve: async () => ({ status: harness.invoiceStatus }) },
+  }),
   getStripe: () => {
     throw new Error("platform stripe must not be used here");
   },
@@ -104,6 +109,7 @@ function paymentFailed(
         currency: "usd",
         customer: CUSTOMER,
         customer_email: "payer@example.com",
+        collection_method: "charge_automatically",
         next_payment_attempt: nextPaymentAttempt,
         last_finalization_error: { decline_code: opts.declineCode ?? "insufficient_funds" },
       },
@@ -148,6 +154,7 @@ async function seed() {
     accountId: ACCOUNT_ID,
     stripeUserId: "acct_connected_1",
     isPrimary: true,
+    stripeAccessToken: "cipher",
     connectedAt: FIRST_FAILURE,
     createdAt: FIRST_FAILURE,
   });
@@ -166,6 +173,7 @@ beforeEach(() => {
   harness.db = null;
   harness.keys = [];
   harness.seen = new Set<string>();
+  harness.invoiceStatus = "open";
 });
 
 describe("ARM ONE: Stripe is still retrying", () => {
@@ -276,20 +284,20 @@ describe("ARM TWO: Stripe has given up", () => {
   });
 });
 
-describe("hard declines never wait, because Stripe never retries them", () => {
-  // Stripe does not retry an expired card, a fraud block or a revoked card, so
-  // those invoices carry a null next_payment_attempt on the FIRST failure and
-  // run through the same single gate. No decline-category branch exists in the
-  // code, and these prove the behavior falls out of Stripe's own field.
+describe("hard declines never wait, because Stripe will not retry the same card", () => {
+  // Stripe keeps a next_payment_attempt on an expired, fraud or revoked
+  // decline but runs it only after a new payment method is attached
+  // (docs.stripe.com/billing/revenue-recovery/smart-retries). Waiting for it
+  // to go null would hold the first email for the whole retry window.
   it.each([
     ["expired_card", "expired"],
     ["fraudulent", "fraud"],
-  ])("%s starts on the first event", async (declineCode) => {
+  ])("%s starts on the first event while Stripe still has an attempt scheduled", async (declineCode) => {
     const db = await seed();
 
     const outcome = await processConnectedWebhook(
       {} as Env,
-      paymentFailed("evt_hard", null, { declineCode }),
+      paymentFailed("evt_hard", 1_756_000_000, { declineCode }),
       FIRST_FAILURE,
     );
     expect(outcome).toEqual({ status: "applied" });
@@ -300,6 +308,38 @@ describe("hard declines never wait, because Stripe never retries them", () => {
   });
 });
 
+
+describe("a closed invoice opens and keeps no dunning", () => {
+  it("a late payment_failed for an invoice Stripe now reports paid is claimed and nothing more", async () => {
+    const db = await seed();
+    harness.invoiceStatus = "paid";
+
+    const outcome = await processConnectedWebhook({} as Env, paymentFailed("evt_late", null), FIRST_FAILURE);
+    expect(outcome).toEqual({ status: "ignored", reason: "invoice_closed" });
+    expect(await payments(db)).toHaveLength(0);
+  });
+
+  it("invoice.voided stops a running sequence", async () => {
+    const db = await seed();
+    await processConnectedWebhook({} as Env, paymentFailed("evt_final", null), FIRST_FAILURE);
+    expect((await steps(db)).length).toBeGreaterThan(0);
+
+    const outcome = await processConnectedWebhook(
+      {} as Env,
+      {
+        id: "evt_void",
+        type: "invoice.voided",
+        account: "acct_connected_1",
+        data: { object: { id: INVOICE } },
+      } as unknown as Stripe.Event,
+      STRIPE_GAVE_UP_AT,
+    );
+    expect(outcome).toEqual({ status: "applied" });
+    const [payment] = await payments(db);
+    expect(payment.status).toBe("cancelled");
+    expect((await steps(db)).every((s) => s.result === "cancelled")).toBe(true);
+  });
+});
 
 describe("the promotion is keyed on the PAYMENT, which is what stops a double cadence", () => {
   it("both give-up routes derive the same payment-scoped key", async () => {

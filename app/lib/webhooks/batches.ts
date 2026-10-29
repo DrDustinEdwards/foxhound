@@ -96,12 +96,12 @@ export interface IntakeBatchInput {
    *  history to say the payment failed on the day Stripe gave up. */
   detectedAt: Date;
   /**
-   * Whether Stripe has stopped retrying (ruling 377(1)). False parks the row in
-   * `stripe_retrying` with NO steps planned; true is the old behavior, a live
-   * sequence from the first event, which is what a hard decline gets because
-   * Stripe never retries one.
+   * Whether the sequence starts now: Stripe has stopped retrying (ruling
+   * 377(1)), or the decline is hard and Stripe will not retry it on this card
+   * (decline.ts isHardDecline). False parks the row in `stripe_retrying` with
+   * NO steps planned; true is a live sequence from the first event.
    */
-  stripeGaveUp: boolean;
+  startSequence: boolean;
   /** Absent or null when the charge could not be read; the columns stay null. */
   chargeFacts?: ChargeFacts | null;
 }
@@ -132,7 +132,7 @@ export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBat
     currency: input.currency,
     declineCode: input.declineCode,
     declineCategory: input.declineCategory,
-    status: input.stripeGaveUp
+    status: input.startSequence
       ? FAILED_PAYMENT_STATUS_ACTIVE
       : FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
     detectedAt: input.detectedAt,
@@ -141,7 +141,7 @@ export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBat
     processorCustomerId: input.customerId,
     ...input.chargeFacts,
   });
-  if (!input.stripeGaveUp) return [claim, fpInsert];
+  if (!input.startSequence) return [claim, fpInsert];
 
   const stepInserts = buildRecoveryStepInserts(
     db,
@@ -223,6 +223,47 @@ export function buildSequenceStartBatch(db: Db, input: SequenceStartBatchInput):
     }),
   );
   return [claim, flip, ...stepInserts];
+}
+
+export interface DeclineRefreshInput {
+  accountId: string;
+  failedPaymentId: string;
+  declineCode: string | null;
+  declineCategory: DeclineCategory;
+  networkAdviceCode: string | null;
+  networkDeclineCode: string | null;
+}
+
+/**
+ * A Foxhound retry was declined: store what that decline said, so the steps
+ * still to run read the newest category and network advice (the tick loads
+ * both from the row). A hard, fraud, expired or do_not_try_again reading is
+ * what stops the later retries (engine/retry-step.ts). The decline code is
+ * written only when the error carried one, as the sequence-start flip does.
+ *
+ * Only on a row still `active`: a payment recovered or stopped meanwhile keeps
+ * its record, and nothing else rides this batch for a zero-row match to leak
+ * into. Its own batch, not the step patch's: failed_payments is a money table
+ * and goes through the money Durable Object.
+ */
+export function buildDeclineRefreshBatch(db: Db, input: DeclineRefreshInput): MoneyWriteBatch {
+  return [
+    db
+      .update(failedPayments)
+      .set({
+        declineCategory: input.declineCategory,
+        ...(input.declineCode ? { declineCode: input.declineCode } : {}),
+        networkAdviceCode: input.networkAdviceCode,
+        networkDeclineCode: input.networkDeclineCode,
+      })
+      .where(
+        and(
+          eq(failedPayments.id, input.failedPaymentId),
+          eq(failedPayments.accountId, input.accountId),
+          eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
+        ),
+      ),
+  ];
 }
 
 export interface RecoverBatchInput {
@@ -532,6 +573,7 @@ export function buildClaimOnlyBatch(db: Db, claim: WebhookClaimInput): MoneyWrit
  * The builder is reused UNCHANGED. It takes (accountId, failedPaymentId, now)
  * and asserts nothing about who is stopping the recovery, so a system-caused
  * stop needs no redesign, which is what 291 asked this session to determine.
+ * invoice.voided's stop rides this batch too (recovery-handlers.ts).
  */
 export interface InvoluntaryStopInput {
   claim: WebhookClaimInput;

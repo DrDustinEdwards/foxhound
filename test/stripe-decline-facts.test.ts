@@ -95,6 +95,7 @@ function paymentFailed(eventId: string): Stripe.Event {
         currency: "usd",
         customer: CUSTOMER,
         customer_email: "payer@example.com",
+        collection_method: "charge_automatically",
         next_payment_attempt: null,
       },
     },

@@ -17,6 +17,7 @@ import {
   handleRecover,
   handleStampRefund,
   handleStripeGaveUp,
+  handleInvoiceVoided,
 } from "./recovery-handlers";
 import { handleRenewalCardCheck } from "./renewal-check";
 import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers";
@@ -95,6 +96,7 @@ export async function processConnectedWebhook(
 
     if (intent.kind === "intake") return await handleIntake(ctx, intent);
     if (intent.kind === "stripe_gave_up") return await handleStripeGaveUp(ctx, intent);
+    if (intent.kind === "invoice_voided") return await handleInvoiceVoided(ctx, intent);
     if (intent.kind === "winback_reactivate") return await handleWinbackReactivate(ctx, intent);
     if (intent.kind === "recover") return await handleRecover(ctx, intent);
     if (intent.kind === "record_expiring_card") return await handleRecordExpiringCard(ctx, intent);
