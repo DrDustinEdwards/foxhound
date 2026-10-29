@@ -65,6 +65,15 @@ describe("getEnvSanity", () => {
     expect(JSON.stringify(rows)).not.toContain("ops@example.com");
   });
 
+  it("fails the Stripe key row when it is not a live key, without quoting it", () => {
+    const problem = (key: string) =>
+      getEnvSanity({ STRIPE_SECRET_KEY: key } as unknown as Env).find((r) => r.name === "STRIPE_SECRET_KEY")?.problem;
+    expect(problem("sk_test_abc123")).toBe("Not a live key");
+    expect(problem("sk_live_abc123")).toBeNull();
+    expect(problem("rk_live_abc123")).toBeNull();
+    expect(JSON.stringify(getEnvSanity({ STRIPE_SECRET_KEY: "sk_test_abc123" } as unknown as Env))).not.toContain("abc123");
+  });
+
   it("covers every DB/DO binding this Worker declares", () => {
     // APP_KV LEFT THIS LIST AND THIS TEST'S NAME AT 310, the SECOND anchor the
     // binding's removal touched and the one an isolated test run missed. It was

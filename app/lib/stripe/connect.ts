@@ -58,13 +58,14 @@ export function buildConnectAuthorizeUrl(
 }
 
 /**
- * The audit flow's authorize URL: READ-ONLY, always, and the only caller that
- * names STRIPE_AUDIT_SCOPE.
+ * The audit flow's authorize URL, and the only caller that names
+ * STRIPE_AUDIT_SCOPE.
  *
- * 362 ruling 1, and the reason it is its own function rather than an options
- * object at the call site: the scope is the whole ruling, so it belongs
- * somewhere a plant can assert it once and have it hold for every caller that
- * ever starts an audit.
+ * Its own function rather than an options object at the call site, so the
+ * audit's scope and redirect are asserted once for every caller that ever
+ * starts an audit. The scope is read_write since 2026-10-29 (Stripe refuses
+ * read_only to platforms; see STRIPE_AUDIT_SCOPE), and the grant is revoked when
+ * the audit's window ends (app/lib/audit/grant-revoke.server.ts).
  */
 export function buildAuditAuthorizeUrl(env: Env, state: string): string {
   return buildConnectAuthorizeUrl(env, state, {
@@ -81,7 +82,15 @@ export interface StripeOAuthResult {
   scope: string | null;
 }
 
-/** Exchange an authorization code for connected-account credentials. */
+/**
+ * Exchange an authorization code for connected-account credentials.
+ *
+ * A TEST-MODE TOKEN IS REFUSED. Foxhound runs on a live key only and claims and
+ * ignores every test-mode webhook, so a connection made with a test key (a
+ * misconfigured STRIPE_SECRET_KEY) would look connected and never recover a
+ * payment. Strictly true: a response without the field is refused too. The
+ * message names the cause and carries no token, so the callback can log it.
+ */
 export async function exchangeConnectCode(
   env: Env,
   code: string,
@@ -93,12 +102,21 @@ export async function exchangeConnectCode(
   if (!token.stripe_user_id || !token.access_token) {
     throw new Error("Stripe OAuth token response missing stripe_user_id/access_token");
   }
+  if (token.livemode !== true) {
+    throw new Error("Stripe OAuth returned a test-mode token; check STRIPE_SECRET_KEY is a live key");
+  }
   return {
     stripeUserId: token.stripe_user_id,
     accessToken: token.access_token,
     publishableKey: token.stripe_publishable_key ?? null,
     scope: token.scope ?? null,
   };
+}
+
+/** True when a merchant connection's granted scope is the one onboarding asks
+ *  for. Here so the write scope is named in this module and nowhere else. */
+export function isMerchantConnectScope(scope: string | null): boolean {
+  return scope === STRIPE_CONNECT_SCOPE;
 }
 
 /** Best-effort display name for the connected account. Null on any failure. */

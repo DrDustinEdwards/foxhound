@@ -1,9 +1,10 @@
 // The Stripe Connect OAuth `state` payload, and the one place that decides
 // whether a callback's state is trustworthy.
 //
-// ONE SHAPE FOR ALL THREE FLOWS: `{nonce, action}` where action is "connect",
-// "add_account" (ruling 329 phase (d)) or "audit" (phase (f), 362 ruling 1).
-// The third arrived with the anonymous read-only pair and cost this module one
+// ONE SHAPE FOR ALL THREE FLOWS: `{nonce, action}`, plus `uid` on the two
+// merchant flows, where action is "connect", "add_account" (ruling 329 phase
+// (d)) or "audit" (phase (f), 362 ruling 1).
+// The third arrived with the anonymous audit pair and cost this module one
 // constant and one array entry, which is what "reuse the minted state shape with
 // a new action" was supposed to cost. Legacy carries the same idea and the
 // same marker spelling in app/api/stripe/connect-additional/route.ts (blob
@@ -47,7 +48,7 @@ export const CONNECT_ACTION = "connect";
  * question and get a name back. That is the point of adding a third action
  * rather than writing a parallel state module: the audit callback refuses
  * anything that is not "audit", and /connect/callback refuses "audit", so a
- * read-only audit grant can never be walked into the branch that attaches a
+ * short-lived audit grant can never be walked into the branch that attaches a
  * connection or mints an account. With a bare uuid neither callback could tell.
  */
 export const AUDIT_ACTION = "audit";
@@ -58,6 +59,9 @@ export type ConnectAction = (typeof CONNECT_ACTIONS)[number];
 export interface ConnectState {
   nonce: string;
   action: ConnectAction;
+  /** The signed-in user who started a merchant flow; null for the anonymous
+   *  audit, which has no user. */
+  userId: string | null;
 }
 
 function isConnectAction(value: unknown): value is ConnectAction {
@@ -71,9 +75,16 @@ function isConnectAction(value: unknown): value is ConnectAction {
  * the state cookie. Serialized in one expression with an explicit key order, so
  * the two copies are produced identically and cannot drift into a mismatch that
  * would read as an attack.
+ *
+ * THE MERCHANT FLOWS CARRY THE USER WHO STARTED THEM, and the callback refuses a
+ * state whose user is not the one signed in when it lands. The cookie alone
+ * binds the flow to a browser, not to a person: a browser that changes hands
+ * (sign out, sign in as someone else) within the cookie's 600 seconds would
+ * otherwise finish the first person's grant on the second person's account.
  */
-export function buildConnectState(action: ConnectAction, nonce: string = crypto.randomUUID()): string {
-  return JSON.stringify({ nonce, action });
+export function buildConnectState(action: ConnectAction, userId: string | null = null): string {
+  const nonce = crypto.randomUUID();
+  return JSON.stringify(userId === null ? { nonce, action } : { nonce, action, uid: userId });
 }
 
 /**
@@ -93,19 +104,21 @@ export function parseConnectState(raw: string): ConnectState | null {
     return null;
   }
   if (!parsed || typeof parsed !== "object") return null;
-  const { nonce, action } = parsed as { nonce?: unknown; action?: unknown };
+  const { nonce, action, uid } = parsed as { nonce?: unknown; action?: unknown; uid?: unknown };
   if (typeof nonce !== "string" || nonce.length === 0) return null;
   if (!isConnectAction(action)) return null;
-  return { nonce, action };
+  if (uid !== undefined && (typeof uid !== "string" || uid.length === 0)) return null;
+  return { nonce, action, userId: uid ?? null };
 }
 
 /**
  * The callback's whole trust decision, in one function so it cannot be done
  * differently in two places.
  *
- * Returns the action ONLY when: both sides are present, they are byte-identical
+ * Returns the state ONLY when: both sides are present, they are byte-identical
  * (so this state was minted by us, in this browser, within the cookie's TTL),
- * and the payload parses to a known action. Anything else is null, and the
+ * and the payload parses to a known action. The merchant callback then holds
+ * its `userId` to the signed-in user, once it has a session to compare with. Anything else is null, and the
  * caller refuses BEFORE exchanging the code or touching the database.
  *
  * The byte-identity check runs FIRST and on the raw strings, before either side
@@ -120,8 +133,8 @@ export function parseConnectState(raw: string): ConnectState | null {
 export function verifyConnectState(
   stateParam: string | null,
   cookieState: string | null,
-): ConnectAction | null {
+): ConnectState | null {
   if (!stateParam || !cookieState) return null;
   if (stateParam !== cookieState) return null;
-  return parseConnectState(stateParam)?.action ?? null;
+  return parseConnectState(stateParam);
 }

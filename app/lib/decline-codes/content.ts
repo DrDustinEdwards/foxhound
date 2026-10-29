@@ -439,9 +439,9 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
     meaning:
       "`card_not_supported` is Stripe's decline code for a card that doesn't support the type of purchase being attempted. In practice this shows up on some prepaid cards, certain international card products, or card types that aren't set up to handle recurring or subscription billing at all. The card itself may work fine for other kinds of purchases, it just isn't built for this particular transaction type.",
     whyItHappens:
-      "This one is worth calling out because it behaves a little differently from the purely technical declines above. Recurring billing is a specific transaction type, and not every card product is provisioned to support it. Some prepaid cards are issued only for one-time point-of-sale purchases and reject recurring authorization attempts by design. Certain cards issued outside the merchant's primary market carry network restrictions that block subscription-style charges even though the card works for standard purchases. And some card products, regardless of country, are simply configured by the issuing bank to not permit recurring charges. Foxhound's classifier still routes this code into the network bucket, since it is not a fraud signal and not a closed-account signal, but it's useful to recognize that the underlying cause here is closer to a card capability limitation than a bank outage.",
+      "This one is worth calling out because it behaves a little differently from the purely technical declines above. Recurring billing is a specific transaction type, and not every card product is provisioned to support it. Some prepaid cards are issued only for one-time point-of-sale purchases and reject recurring authorization attempts by design. Certain cards issued outside the merchant's primary market carry network restrictions that block subscription-style charges even though the card works for standard purchases. And some card products, regardless of country, are simply configured by the issuing bank to not permit recurring charges. It is not a fraud signal and not a closed-account signal, but the underlying cause is a card capability limitation rather than a bank outage, so Foxhound does not file it with the technical network declines.",
     howToFix:
-      "It's classified as retryable, and an immediate retry can occasionally succeed if the original attempt hit a temporary network-level restriction rather than a hard capability limit. That said, if the same card keeps producing this decline across multiple retries, it's a signal that the card product itself doesn't support recurring charges, and no amount of retrying will change that. At that point, switching payment methods is the real fix.\n\nGive it the standard early retry window, a few hours out, then a second attempt around a day later. If both retries fail with the same code, treat that as a strong signal to move to customer outreach rather than continuing to retry indefinitely. The ask to the customer should be specific: this card doesn't support recurring charges, please add a different card, rather than a generic \"your payment failed\" message that doesn't explain what's actually needed.",
+      "Stripe's guidance for this code is that the customer should use a different card. Retrying the same card asks the same card product to do something it isn't set up to do, so switching payment methods is the real fix.\n\nFoxhound sends no silent retry for this code and goes straight to customer outreach. The ask to the customer should be specific: this card doesn't support recurring charges, please add a different card, rather than a generic \"your payment failed\" message that doesn't explain what's actually needed.",
     faqs: [
       {
         question: "Why would a working credit card get declined with `card_not_supported`?",
@@ -459,14 +459,14 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Sometimes, if the block was a temporary network-level restriction. But if the card product structurally doesn't support recurring billing, retries will keep failing and a different payment method is needed.",
       },
       {
-        question: "How should the customer email differ for `card_not_supported` versus other network declines?",
+        question: "How should the customer email differ for `card_not_supported` versus a technical network decline?",
         answer:
           "It should be specific: explain that the card doesn't support recurring charges and ask for an alternative payment method, rather than a generic payment failure notice.",
       },
       {
         question: "Does Foxhound retry `card_not_supported` the same way it retries a technical decline like `processing_error`?",
         answer:
-          "Yes, both sit in the network bucket and get the same automated background retry treatment before any customer email goes out.",
+          "No. A technical decline gets a background retry before any customer email, but `card_not_supported` gets no silent retry: retrying the same card rarely helps, so Foxhound starts with the email asking the customer for a different card.",
       },
     ],
   },

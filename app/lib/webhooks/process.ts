@@ -7,7 +7,7 @@ import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import { classifyStripeEvent } from "./events";
 import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
-import { handleAccountHealth } from "./account-handlers";
+import { handleAccountHealth, handleConnectionDeauthorized } from "./account-handlers";
 import { handleDisputeFunds, handleDisputeUpdated, handleInquiryClosed } from "./dispute-lifecycle";
 import { handleEarlyFraudWarning } from "./fraud-warning-handlers";
 import {
@@ -17,6 +17,7 @@ import {
   handleRecover,
   handleStampRefund,
   handleStripeGaveUp,
+  handleInvoiceVoided,
 } from "./recovery-handlers";
 import { handleRenewalCardCheck } from "./renewal-check";
 import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers";
@@ -83,16 +84,19 @@ export async function processConnectedWebhook(
 
   try {
     if (intent.kind === "ignore") {
+      // An ignored event (test mode, an unhandled type) keeps its claim but not
+      // its payload, so no customer address or email is held for nothing.
       const { applied } = await executeMoneyWrite(env, {
         accountId,
         idempotencyKey,
-        build: (db) => buildClaimOnlyBatch(db, claim),
+        build: (db) => buildClaimOnlyBatch(db, { ...claim, payload: {} }),
       });
       return applied ? { status: "ignored", reason: intent.reason } : { status: "duplicate" };
     }
 
     if (intent.kind === "intake") return await handleIntake(ctx, intent);
     if (intent.kind === "stripe_gave_up") return await handleStripeGaveUp(ctx, intent);
+    if (intent.kind === "invoice_voided") return await handleInvoiceVoided(ctx, intent);
     if (intent.kind === "winback_reactivate") return await handleWinbackReactivate(ctx, intent);
     if (intent.kind === "recover") return await handleRecover(ctx, intent);
     if (intent.kind === "record_expiring_card") return await handleRecordExpiringCard(ctx, intent);
@@ -105,6 +109,7 @@ export async function processConnectedWebhook(
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
     if (intent.kind === "record_subscription_change") return await handleRecordSubscriptionChange(ctx, intent);
     if (intent.kind === "account_health") return await handleAccountHealth(ctx, intent);
+    if (intent.kind === "connection_deauthorized") return await handleConnectionDeauthorized(ctx);
     if (intent.kind === "early_fraud_warning") return await handleEarlyFraudWarning(ctx, intent);
     if (intent.kind === "card_auto_updated") return await handleCardAutoUpdated(ctx, intent);
     return await handleStampRefund(ctx, intent);
@@ -126,7 +131,8 @@ async function claimUnknownAccount(env: Env, event: Stripe.Event, receivedAt: Da
       accountId: null,
       processed: true,
       processingStartedAt: receivedAt,
-      payload: event,
+      // Not our merchant: keep the claim, never the payload.
+      payload: {},
     });
   } catch (err) {
     // Unique-index violation = already claimed; idempotent no-op. Anything else

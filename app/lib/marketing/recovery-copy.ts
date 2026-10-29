@@ -4,6 +4,7 @@ import {
   RECOVERY_MATURITY_DAYS,
   type DeclineCategory,
 } from "~/lib/constants";
+import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 
 import {
@@ -161,5 +162,5 @@ export const RECOVERY_FAQS = [
 export const RECOVERY_BOTTOM_CTA = {
   title: "See what is currently unrecovered.",
   sub: "The free audit shows your failed invoices and estimates what recovery sequences would return.",
-  note: "No account required · Read-only Stripe access · Takes 30 seconds",
+  note: `No account required · ${AUDIT_ACCESS_CHIP} · Takes 30 seconds`,
 };

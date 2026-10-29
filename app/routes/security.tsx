@@ -10,6 +10,7 @@ import {
   STRIPE_AUDIT_SCOPE,
   STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
+import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -135,10 +136,12 @@ export default function SecurityPage() {
             access depending on what you are doing.
           </P>
           <P>
-            <strong className="text-text">The free audit requests {STRIPE_AUDIT_SCOPE} scope.</strong>{" "}
-            It reads invoices, subscriptions, disputes and customer records to produce the report,
-            and it cannot write anything at all. If you only ever run an audit, Foxhound never has
-            permission to change your Stripe account.
+            <strong className="text-text">The free audit requests {STRIPE_AUDIT_SCOPE} scope too.</strong>{" "}
+            Stripe no longer offers read-only access to platforms like Foxhound, so Stripe asks you
+            for full (read and write) access. During the audit Foxhound only reads invoices,
+            subscriptions, disputes and customer records to produce the report, and writes nothing.
+            After {AUDIT_GRANT_MINUTES} minutes Foxhound disconnects itself from your Stripe account,
+            unless you connect a Foxhound account.
           </P>
           <P>
             <strong className="text-text">Merchant onboarding requests {STRIPE_CONNECT_SCOPE} scope</strong>, because

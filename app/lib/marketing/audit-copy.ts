@@ -1,10 +1,14 @@
 import { AUDIT_SUMMARY_STRUCTURE } from "~/lib/audit/summary";
 import {
   AUDIT_LOOKBACK_DAYS,
-  AUDIT_TOKEN_TTL_SECONDS,
   CRON_SCHEDULE_MONTHLY_AUDIT,
-  STRIPE_AUDIT_SCOPE,
 } from "~/lib/constants";
+import {
+  AUDIT_ACCESS_ASK,
+  AUDIT_ACCESS_PROMISE,
+  AUDIT_GRANT_MINUTES,
+  AUDIT_SCOPE_WORDS,
+} from "~/lib/marketing/audit-access";
 import { countWord } from "~/lib/marketing/decline-categories";
 
 // The /product/audit copy (J55). Recova's spec is
@@ -14,9 +18,9 @@ import { countWord } from "~/lib/marketing/decline-categories";
 //
 // - Branding: Recova becomes Foxhound (RULES.md 1.2).
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
-//   2.1): the lookback from AUDIT_LOOKBACK_DAYS, the scope from
-//   STRIPE_AUDIT_SCOPE, the auto-run day from CRON_SCHEDULE_MONTHLY_AUDIT, the
-//   anonymous window from AUDIT_TOKEN_TTL_SECONDS, and the summary's sentences
+//   2.1): the lookback from AUDIT_LOOKBACK_DAYS, the scope and the anonymous
+//   window from audit-access.ts (STRIPE_AUDIT_SCOPE, AUDIT_TOKEN_TTL_SECONDS),
+//   the auto-run day from CRON_SCHEDULE_MONTHLY_AUDIT, and the summary's sentences
 //   from the prompt's own plan (AUDIT_SUMMARY_STRUCTURE).
 // - Truthfulness fixes where Recova's words describe something the audit does
 //   not do (RULES.md 1.2). Each is named beside its string below. The ones that
@@ -37,19 +41,17 @@ import { countWord } from "~/lib/marketing/decline-categories";
 //   * An anonymous run is not saved. Its results live on a five-minute cookie
 //     (AUDIT_TOKEN_COOKIE) and no row is written (app/routes/audit/results.tsx).
 //     Recova said 30 days at the URL; its own run was the same cookie. The
-//     page says "session", not "connection": the five minutes are the cookie's,
-//     and the OAuth grant itself is not revoked (FAQ 2 says how to disconnect).
-//
-// The read-only claims are Recova's own words and they are TRUE here: the
-// audit requests STRIPE_AUDIT_SCOPE, which the callback checks before a run
-// (app/routes/audit/callback.ts). The page that preceded this one said the
-// audit's connection "carries read and write scope", which was false.
+//     page says "session": the five minutes are the cookie's, and Foxhound
+//     revokes the OAuth grant when they end unless a Foxhound account holds
+//     that Stripe account (app/lib/audit/grant-revoke.server.ts).
+//   * No "Read-only". Recova said "Read-only" while requesting read_write. 362
+//     ruling 1 made the scope read_only to match; on 2026-10-29 Stripe refused
+//     read_only in production (only Extensions may use it), so the scope is
+//     read_write again and the copy says what is true: Stripe asks for read and
+//     write access, Foxhound only reads, and Foxhound disconnects itself after
+//     the window (audit-access.ts).
 //
 // Every one of these is listed in the J55 PR notes for the seat to read.
-
-/** "read_only" as a reader says it: "Read-only". */
-const scopeWords = STRIPE_AUDIT_SCOPE.replace(/_/g, "-");
-const Scope = scopeWords.charAt(0).toUpperCase() + scopeWords.slice(1);
 
 /** The day of the month the monthly audit fires, as "1st". */
 function ordinal(n: number): string {
@@ -61,7 +63,6 @@ function ordinal(n: number): string {
 const AUDIT_AUTO_RUN_DAY = Number(CRON_SCHEDULE_MONTHLY_AUDIT.trim().split(/\s+/)[2]);
 const autoRunDay = ordinal(AUDIT_AUTO_RUN_DAY);
 
-const tokenMinutes = Math.round(AUDIT_TOKEN_TTL_SECONDS / 60);
 const summarySentences = countWord(AUDIT_SUMMARY_STRUCTURE.length).toLowerCase();
 /** "the biggest revenue leak with its dollar amount, what Foxhound fixes
  *  automatically today, and one forward-looking risk or opportunity". */
@@ -78,14 +79,14 @@ export const AUDIT_META_DESCRIPTION =
 
 export const AUDIT_HERO = {
   headline: "See what your Stripe account is leaking. Free.",
-  sub: `A full diagnostic across failed invoices, expiring cards, open disputes, and business health. AI summary. No signup, no credit card, ${scopeWords} Stripe access.`,
-  pricing: `Always free · No account required · ${Scope} Stripe access`,
+  sub: `A full diagnostic across failed invoices, expiring cards, open disputes, and business health. AI summary. No signup, no credit card. Foxhound only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
+  pricing: `Always free · No account required · Disconnects after ${AUDIT_GRANT_MINUTES} minutes`,
 };
 
 export const AUDIT_STEPS = [
   {
     title: "Connect Stripe",
-    body: `${Scope} OAuth connection. Foxhound never touches your billing configuration. Takes 30 seconds.`,
+    body: `Stripe OAuth connection. Stripe asks for ${AUDIT_SCOPE_WORDS} access, because it no longer offers read-only to platforms. Foxhound only reads and never touches your billing configuration. It disconnects itself after ${AUDIT_GRANT_MINUTES} minutes. Takes 30 seconds.`,
   },
   {
     title: "Foxhound runs the diagnostic",
@@ -144,7 +145,7 @@ export const AUDIT_BLOCKS = {
     // at the URL for 30 days." and "every audit run saves permanently". An
     // anonymous run is not saved, and a signed-in run is saved only when the
     // audited Stripe account is connected to the account (RULES.md 4.14).
-    body: `Without an account, results are not saved: they show while the ${tokenMinutes}-minute ${scopeWords} session lasts. With a Foxhound account, every audit of your connected Stripe account saves permanently at /audit/dashboard. Enable monthly auto-run and Foxhound re-runs the diagnostic on the ${autoRunDay} of each month and emails you results.`,
+    body: `Without an account, results are not saved: they show while the ${AUDIT_GRANT_MINUTES}-minute session lasts. With a Foxhound account, every audit of your connected Stripe account saves permanently at /audit/dashboard. Enable monthly auto-run and Foxhound re-runs the diagnostic on the ${autoRunDay} of each month and emails you results.`,
   },
 };
 
@@ -158,7 +159,7 @@ export const AUDIT_PRICING = {
     "No account required, results are not saved without one",
     "Persistent history with a Foxhound account",
     "Monthly auto-run with email delivery (toggle on in Settings)",
-    `${Scope} Stripe access, your billing configuration is never touched`,
+    `Reads only and disconnects after ${AUDIT_GRANT_MINUTES} minutes, your billing configuration is never touched`,
   ],
 };
 
@@ -169,7 +170,7 @@ export const AUDIT_FAQS = [
   },
   {
     q: "What Stripe access does the audit request?",
-    a: `${Scope} OAuth scope. The audit reads your invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, or any other Stripe settings. Disconnect from your Stripe dashboard at any time.`,
+    a: `${AUDIT_ACCESS_ASK} The audit reads your invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, or any other Stripe settings. ${AUDIT_ACCESS_PROMISE} You can also disconnect from your Stripe dashboard at any time.`,
   },
   {
     q: "How accurate is the recovery estimate?",
@@ -181,8 +182,8 @@ export const AUDIT_FAQS = [
 
 export const AUDIT_BOTTOM_CTA = {
   title: "Your Stripe account is telling you something.",
-  sub: `The audit shows you what. Free, ${scopeWords}, 30 seconds.`,
-  note: `No account required · ${Scope} access · Results in 30 seconds`,
+  sub: "The audit shows you what. Free, reads only, 30 seconds.",
+  note: "No account required · Reads only · Results in 30 seconds",
 };
 
 /** The Plain English preview: an example summary in the prompt's plan, with

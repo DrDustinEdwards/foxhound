@@ -14,7 +14,6 @@
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
 import {
   AUDIT_LOOKBACK_DAYS,
-  AUDIT_TOKEN_TTL_SECONDS,
   BULK_ACTION_CONFIRM_THRESHOLD,
   BULK_ACTION_MAX_PER_SUBMISSION,
   CAU_EVENT_RETENTION_DAYS,
@@ -33,6 +32,7 @@ import { EVIDENCE_FILES_LIMITS_LINE } from "~/lib/disputes/evidence-files";
 import { DEADLINE_SOON_DAYS, DEADLINE_URGENT_DAYS } from "~/lib/disputes/labels";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { AUDIT_ACCESS_ASK, AUDIT_ACCESS_PROMISE, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 
 // THE BLOCK VOCABULARY, Recova's own.
@@ -175,8 +175,8 @@ export const DOC_GUIDES: DocGuide[] = [
           ] },
           { kind: "note", body: "Foxhound only accepts a URL on Slack's own webhook host, so a pasted address that points somewhere else is refused rather than quietly fetched. A delivery that fails is reported back to you rather than swallowed." },
           { kind: "h3", text: "Free lost-revenue audit" },
-          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, ` needs no Foxhound account. It connects to Stripe read-only, reads the last ${AUDIT_LOOKBACK_DAYS} days, and shows what is failing, what is about to, and where your disputes and recurring revenue stand. It writes nothing back to Stripe.` ] },
-          "The audit's connection is separate from your Foxhound Stripe connection and is read-only. Share the link with colleagues, or use it to see what Foxhound would work on before you connect.",
+          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, ` needs no Foxhound account. It connects to Stripe, reads the last ${AUDIT_LOOKBACK_DAYS} days, and shows what is failing, what is about to, and where your disputes and recurring revenue stand. It writes nothing back to Stripe.` ] },
+          `The audit's connection is separate from your Foxhound Stripe connection. ${AUDIT_ACCESS_ASK} ${AUDIT_ACCESS_PROMISE} Share the link with colleagues, or use it to see what Foxhound would work on before you connect.`,
         ],
       },
       {
@@ -260,11 +260,11 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "How the Audit works",
         body: [
-          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, ` connects to your Stripe account with read-only OAuth and reads the last ${AUDIT_LOOKBACK_DAYS} days, or the lookback you set under Settings and Audit when you are signed in. It reads four scopes and puts a short written summary at the top.` ] },
+          { kind: "p", body: [ "The audit at ", { link: "/audit", to: "/audit" }, ` connects to your Stripe account with OAuth and reads the last ${AUDIT_LOOKBACK_DAYS} days, or the lookback you set under Settings and Audit when you are signed in. It reads four scopes and puts a short written summary at the top.` ] },
           "Foxhound runs the full audit on demand: connect Stripe from the audit page and the run happens while you wait. The audit only reads. It writes nothing back to Stripe.",
           "No Foxhound account is required. Share the audit link with colleagues: they can run it against their own Stripe account without signing up.",
           { kind: "widget", name: "audit-scopes" },
-          { kind: "note", body: "The audit uses a connection of its own, separate from the one a Foxhound account uses, and asks Stripe for read-only access. A grant that comes back wider than that is refused rather than used. Your billing configuration, your subscriptions and your payment methods are never touched." },
+          { kind: "note", body: `The audit uses a connection of its own, separate from the one a Foxhound account uses. ${AUDIT_ACCESS_ASK} ${AUDIT_ACCESS_PROMISE} Your billing configuration, your subscriptions and your payment methods are never touched.` },
         ],
       },
       {
@@ -293,7 +293,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Saving results",
         body: [
           { kind: "p", body: [ "Sign in to Foxhound before you run the audit and the run is saved to ", { link: "Audit history", to: "/audit/dashboard" }, ", each run on its own page, so you can follow your numbers over time. It is saved only when the Stripe account you audited is the one connected to the Foxhound account you are in: audit somebody else's account and you still see the results, and they are not filed into your history." ] },
-          `Without an account nothing is stored. The results page reads your Stripe account for as long as the ${AUDIT_TOKEN_TTL_SECONDS / 60}-minute authorization lasts, and after that you run the audit again.`,
+          `Without an account nothing is stored. The results page reads your Stripe account for as long as the ${AUDIT_GRANT_MINUTES}-minute audit session lasts. Then Foxhound disconnects itself, unless you have connected a Foxhound account, and you run the audit again to see new numbers.`,
         ],
       },
       {

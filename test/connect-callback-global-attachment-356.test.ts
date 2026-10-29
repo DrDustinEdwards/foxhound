@@ -47,6 +47,7 @@ vi.mock("~/lib/stripe/connect", () => ({
     return "Connected Co";
   },
   buildConnectAuthorizeUrl: () => "https://connect.stripe.com/oauth/authorize",
+  isMerchantConnectScope: (scope: string | null) => scope === "read_write",
 }));
 
 vi.mock("~/lib/stripe/encryption", () => ({
@@ -181,7 +182,7 @@ const fakeContext = {
 } as unknown as Parameters<typeof loader>[0]["context"];
 
 async function callback(action: string): Promise<Response> {
-  const minted = buildConnectState(action as never);
+  const minted = buildConnectState(action as never, (harness.session as { user: { id: string } } | null)?.user.id ?? null);
   const url = new URL("https://foxhoundapp.test/connect/callback");
   url.searchParams.set("code", "ac_123");
   url.searchParams.set("state", minted);

@@ -2,6 +2,7 @@
 // connection resolution, failed-payment and win-back finds, and the Stripe
 // reads that map a payment intent back to our rows. None of them writes money.
 
+import type Stripe from "stripe";
 import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import {
   customerContext,
@@ -553,28 +554,55 @@ export interface DeclineFacts {
   cardCountry: string | null;
 }
 
+/** What intake reads from Stripe about a failure: the declined charge's facts
+ *  and the invoice's status now. Either is null when it could not be read. */
+export interface FailureFacts {
+  decline: DeclineFacts | null;
+  /** The invoice's current status ("open", "paid", "void" and so on). A late
+   *  or redelivered payment_failed can arrive after the invoice was paid or
+   *  voided, and the event carries the invoice as it was then. */
+  invoiceStatus: string | null;
+}
+
 /**
- * The decline facts of an invoice's latest charge, for intake. The invoice
- * event cannot give them: on the pinned API version it has no `charge`, and
- * last_finalization_error covers finalization only, so a real payment failure
- * used to arrive with no decline code and be classified "unknown".
+ * The decline facts of an invoice's latest charge, and the invoice's current
+ * status, for intake. The invoice event cannot give the decline: on the pinned
+ * API version it has no `charge`, and last_finalization_error covers
+ * finalization only, so a real payment failure used to arrive with no decline
+ * code and be classified "unknown".
  *
  * The decline code is the payment intent's last_payment_error.decline_code,
  * then the issuer's reason on the charge outcome, then the charge's
  * failure_code, the generic "card_declined" yielding to any specific code.
  *
- * BEST EFFORT. Returns null on any failure (no token, a decrypt failure, any
- * Stripe error) and logs it: intake must never be blocked by a read, and the
- * caller falls back to what the event carried.
+ * BEST EFFORT. Each half is null on any failure (no token, a decrypt failure,
+ * any Stripe error) and logs it: intake must never be blocked by a read, and
+ * the caller falls back to what the event carried.
  */
-export async function resolveDeclineFacts(
+export async function resolveFailureFacts(
   env: Env,
   connectionId: string,
   invoiceId: string,
-): Promise<DeclineFacts | null> {
+): Promise<FailureFacts> {
+  let stripe: Stripe | null;
   try {
-    const stripe = await connectedStripeFor(env, connectionId);
-    if (!stripe) return null;
+    stripe = await connectedStripeFor(env, connectionId);
+  } catch (err) {
+    console.error("intake connection read failed:", err instanceof Error ? err.message : "unknown error");
+    return { decline: null, invoiceStatus: null };
+  }
+  if (!stripe) return { decline: null, invoiceStatus: null };
+  let invoiceStatus: string | null = null;
+  try {
+    invoiceStatus = (await stripe.invoices.retrieve(invoiceId)).status ?? null;
+  } catch (err) {
+    console.error("intake invoice read failed:", err instanceof Error ? err.message : "unknown error");
+  }
+  return { decline: await readDeclineFacts(stripe, invoiceId), invoiceStatus };
+}
+
+async function readDeclineFacts(stripe: Stripe, invoiceId: string): Promise<DeclineFacts | null> {
+  try {
     const latest = await latestInvoiceCharge(stripe, invoiceId);
     if (!latest) return null;
     const { paymentIntent, charge } = latest;
@@ -603,7 +631,7 @@ export async function resolveDeclineFacts(
  * invoice payments list and one payment intent read, the charge's balance
  * transaction expanded in the same call.
  *
- * BEST EFFORT, like resolveDeclineFacts. Null on any failure, and on a charge
+ * BEST EFFORT, like resolveFailureFacts. Null on any failure, and on a charge
  * whose balance transaction Stripe has not created yet: the recovery and its
  * billing never wait on this read, and the columns stay null for a later
  * backfill. The payout is not read: a balance transaction does not name its

@@ -20,9 +20,12 @@ const NETWORK_CODES = new Set([
   "issuer_not_available",
   "try_again_later",
   "service_unavailable",
-  "card_not_supported",
   "reenter_transaction",
 ]);
+// card_not_supported is not here. Stripe's decline-code table says the card does
+// not support this type of purchase and the customer should use another card,
+// so a retry on the same card cannot work: it falls through to "unknown", the
+// email-only cadence.
 
 const EXPIRED_CODES = new Set([
   "expired_card",
@@ -71,6 +74,18 @@ export function classifyDecline(code: string | null | undefined): DeclineCategor
 /** True for a category whose declines can be silently retried (soft/network). */
 export function isRetryable(category: DeclineCategory): boolean {
   return category === "soft" || category === "network";
+}
+
+/**
+ * True for a decline Stripe will not retry on the same card: Stripe keeps a
+ * next_payment_attempt on the invoice but runs it only once a new payment
+ * method is attached (docs.stripe.com/billing/revenue-recovery/smart-retries).
+ * Waiting for Stripe to give up would hold the customer's first email for the
+ * whole retry window, so these start their email-led sequence on the first
+ * failure (webhooks/recovery-handlers.ts handleIntake).
+ */
+export function isHardDecline(category: DeclineCategory): boolean {
+  return category === "expired" || category === "revoked" || category === "fraud";
 }
 
 /**

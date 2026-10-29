@@ -22,16 +22,18 @@ import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 // read whole. One 480px card, 48px inside at every width, holding the h1
 // "Connect your Stripe account", the line under it, a box with WHAT WE CAN DO
 // and WHAT WE CAN NEVER DO, the full-width "Connect Stripe and see my numbers
-// →" button and "Read-only · Secure · Free · See a demo first". Its parts are
+// →" button and "Reads only · Secure · Free · See a demo first". Its parts are
 // Capsomer's (Q12), amber, on the five text sizes (RULES.md 5.2).
 //
 // The OAuth pair (Recova's app/api/audit/connect/route.ts, blob dedddf99, and
 // app/audit/callback/route.ts, blob 0cf90598) is driven through the REAL
-// action and loader. The scope is read_only (RULES.md 2.2), the state is a
+// action and loader. The scope is read_write (Stripe gives read_only only to
+// Extensions, 2026-10-29) and the grant's revoke is queued, the state is a
 // minted pair matched against an HttpOnly cookie (RULES.md 4.6), and no
 // refusal names who holds an account (RULES.md 4.14).
 
 const exchange = vi.hoisted(() => ({ impl: null as unknown, calls: 0 }));
+const sent: Array<{ body: unknown; options: unknown }> = [];
 vi.mock("~/lib/stripe/connect", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/lib/stripe/connect")>();
   return {
@@ -57,6 +59,11 @@ function envWith(allowed = true): Env {
     BETTER_AUTH_URL: ORIGIN,
     // PR #127 seals the audit grant cookie with this key.
     ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
+    AUDIT_QUEUE: {
+      send: async (body: unknown, options: unknown) => {
+        sent.push({ body, options });
+      },
+    },
     RATE_LIMITER: {
       idFromName: () => "id",
       get: () => ({ hit: async () => ({ ok: allowed, retryAfterSeconds: 60 }) }),
@@ -126,7 +133,7 @@ describe("J42 U1: the start is a POST, and a GET mints nothing", () => {
     expect(out).toEqual({ lookbackDays: AUDIT_LOOKBACK_DAYS, stripeEnabled: true, error: null });
   });
 
-  it("the POST asks Stripe for read_only, with a fresh state each time, in an HttpOnly cookie", async () => {
+  it("the POST asks Stripe for read_write, with a fresh state each time, in an HttpOnly cookie", async () => {
     const start = async () =>
       (await connectRoute.action({
         request: new Request(`${ORIGIN}/audit/connect`, { method: "POST" }),
@@ -137,7 +144,7 @@ describe("J42 U1: the start is a POST, and a GET mints nothing", () => {
     const sa = new URL(a.headers.get("Location")!).searchParams;
     const sb = new URL(b.headers.get("Location")!).searchParams;
     expect(sa.get("scope")).toBe(STRIPE_AUDIT_SCOPE);
-    expect(sa.get("scope")).toBe("read_only");
+    expect(sa.get("scope")).toBe("read_write");
     expect(sa.get("state")).not.toBe(sb.get("state"));
     const cookie = setCookies(a).find((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=`))!;
     expect(cookie).toMatch(/HttpOnly/);
@@ -164,6 +171,7 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
       scope: STRIPE_AUDIT_SCOPE,
     });
     errorSpy.mockClear();
+    sent.length = 0;
   });
   afterEach(() => errorSpy.mockClear());
 
@@ -238,5 +246,10 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(grant).toEqual({ accessToken: TOKEN, stripeAccountId: STRIPE_ACCOUNT });
     expect(cookies.some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`))).toBe(true);
     for (const args of errorSpy.mock.calls) expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
+    // The grant's revoke is queued for when the window ends, carrying the
+    // account id and never the token.
+    expect(sent).toEqual([
+      { body: { kind: "audit-grant-revoke", stripeAccountId: STRIPE_ACCOUNT }, options: { delaySeconds: 300 } },
+    ]);
   });
 });

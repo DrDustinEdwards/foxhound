@@ -207,6 +207,8 @@
     // once; retry_delay spreads the four deliveries over minutes, so a short
     // Stripe or model outage cannot use every attempt. No dead-letter queue: the audit_digest_runs row keeps the error and
     // the last attempt raises the monthly-audit failure alert.
+    // The anonymous audit's delayed Stripe grant revoke rides this same queue,
+    // sent with delaySeconds by /audit/callback (app/lib/audit/grant-revoke.server.ts).
     "producers": [
       {
         "queue": "foxhound-audit",

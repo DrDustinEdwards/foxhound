@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -96,7 +97,7 @@ No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url
 
 ## Technical architecture
 
-- Stripe Connect: two scopes. The free audit requests read-only and can write nothing at all. Merchant onboarding requests read and write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
+- Stripe Connect: read and write, for the free audit and for merchant onboarding, because Stripe no longer offers read-only access to platforms. The free audit only reads and writes nothing, and Foxhound disconnects itself from the audited Stripe account after ${AUDIT_GRANT_MINUTES} minutes unless that account is connected to a Foxhound account. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. It never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.
 - Deployment: Cloudflare Workers, React Router in framework mode
 - Database: Cloudflare D1
 - Email delivery: Cloudflare Email Service, sent from the merchant's own domain

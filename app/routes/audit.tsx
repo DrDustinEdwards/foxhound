@@ -19,6 +19,7 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
+import { AUDIT_ACCESS_CHIP, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib/estimator/estimate.server";
 import { formatMoney } from "~/lib/money-format";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
@@ -245,10 +246,11 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       </div>
 
       {/* Recova's covers card: its heading, the four dot lines, "See my
-          numbers" full width, and the note under it. The note is TRUE here,
-          which it was not in Recova: Foxhound's audit asks Stripe for
-          read_only (STRIPE_AUDIT_SCOPE), where Recova asked read_write beside
-          the same sentence. */}
+          numbers" full width, and the note under it. Recova's note said
+          "Read-only Stripe access" while asking for read_write. Stripe gives
+          read_only only to Extensions (2026-10-29), so the audit asks for
+          read_write too, and the note says what is true: Foxhound only reads
+          and disconnects itself when the window ends (audit-access.ts). */}
       <div className="mb-6 grid">
         {/* Recova's covers card: p-6, p-10 from md, 16px corners. */}
         <section className="cap-panel rounded-2xl [--gap:1.5rem] [--pad-card:1.5rem] md:[--gap:2.5rem] md:[--pad-card:2.5rem]">
@@ -281,7 +283,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 </Link>
               </div>
               <p className="m-0 mt-2 text-label text-text-subtle">
-                Read-only Stripe access. 30 seconds. No account required.
+                {AUDIT_ACCESS_CHIP}. 30 seconds. No account required.
               </p>
             </div>
           </div>
@@ -331,9 +333,10 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
             <div>
               <p className="m-0 mb-2 text-body font-medium text-text">Want your real numbers instead of an estimate?</p>
               <p className="m-0 mb-5 text-label leading-relaxed text-text-secondary">
-                Connect Stripe read-only and Foxhound runs the full audit on the spot: what failed and
-                why, what is expiring, where your disputes stand, and your recurring revenue. No account
-                needed, and nothing is written back to Stripe.
+                Connect Stripe and Foxhound runs the full audit on the spot: what failed and why, what
+                is expiring, where your disputes stand, and your recurring revenue. No account needed.
+                Foxhound only reads, writes nothing back to Stripe, and disconnects itself after{" "}
+                {AUDIT_GRANT_MINUTES} minutes.
               </p>
               <Link to="/audit/connect" className="cap-btn" data-variant="primary">
                 Run the free audit

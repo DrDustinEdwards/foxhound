@@ -40,7 +40,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     throw redirect("/connect?error=stripe_not_configured");
   }
 
-  const state = buildConnectState(ADD_ACCOUNT_ACTION);
+  const state = buildConnectState(ADD_ACCOUNT_ACTION, session.user.id);
   return redirect(buildConnectAuthorizeUrl(env, state), {
     headers: { "Set-Cookie": setStateCookie(state) },
   });

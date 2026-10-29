@@ -1,5 +1,6 @@
 import { redirect } from "react-router";
 
+import { revokeAuditGrant, scheduleAuditGrantRevoke } from "~/lib/audit/grant-revoke.server";
 import { RATE_LIMIT_AUDIT, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
@@ -15,34 +16,34 @@ import type { Route } from "./+types/callback";
 
 // Legacy's `app/audit/callback/route.ts` (blob `0cf90598`, 2,517 bytes), phase (f).
 //
-// WHAT THIS ROUTE WRITES: ONE COOKIE. No account row, no membership, no
-// `stripe_connections` row, no billing surface, nothing in D1 at all. Legacy is
-// the same: its callback touches no table, and the whole anonymous grant lives
-// in a five-minute HttpOnly cookie scoped to /audit. That is why an anonymous
-// audit of a Stripe account ALREADY CONNECTED to some Foxhound account raises no
-// conflict with `stripe_connections_live_stripe_account_uq` (356, DEFECT 4): the
+// WHAT THIS ROUTE WRITES: ONE COOKIE AND ONE DELAYED QUEUE MESSAGE. No account
+// row, no membership, no `stripe_connections` row, no billing surface, nothing
+// in D1 at all. Legacy is the same on D1: its callback touches no table, and the
+// whole anonymous grant lives in a five-minute HttpOnly cookie scoped to
+// /audit. That is why an anonymous audit of a Stripe account ALREADY CONNECTED
+// to some Foxhound account raises no conflict with `stripe_connections_live_stripe_account_uq` (356, DEFECT 4): the
 // global unique index is never engaged, because this path inserts no connection.
 //
 // THE STATE MUST SAY "audit". `verifyConnectState` returns the action, and
 // anything other than AUDIT_ACTION is refused here, exactly as
-// `/connect/callback` refuses AUDIT_ACTION on its side. A read-only audit grant
-// and a read-write onboarding grant can therefore never be spent on each other's
-// branch, which is what the third action in the shared state shape bought.
+// `/connect/callback` refuses AUDIT_ACTION on its side. An anonymous audit grant
+// and an onboarding grant can therefore never be spent on each other's branch,
+// which is what the third action in the shared state shape bought.
 //
-// THE GRANTED SCOPE IS CHECKED, NOT ASSUMED. 362 ruling 1 is about what the
-// audit HOLDS, and the request parameter is only half of that: the token
-// response carries the scope Stripe actually granted. If it comes back as
-// anything but read-only the flow refuses rather than proceeding on a
-// write-capable token for a stranger's account. Legacy neither requests
-// read-only nor inspects what it got. FAIL CLOSED, portfolio canon, and the one
-// arm of this route whose live Stripe behavior is unverified: production Connect
-// is not configured yet (core.md launch blocker 4), so this has been exercised
-// against a fake client only.
+// THE GRANTED SCOPE IS CHECKED, NOT ASSUMED: the token response carries the
+// scope Stripe actually granted, and anything but STRIPE_AUDIT_SCOPE is refused.
+// 362 ruling 1 made that scope read_only; on 2026-10-29 Stripe's live authorize
+// page refused read_only with a 400 ("Please use the `read_write` scope"),
+// because only Extensions may use it, so the scope is read_write again and the
+// check now expects read_write (see STRIPE_AUDIT_SCOPE in constants.ts).
 //
-// NO DEAUTHORIZE AFTER THE RUN, matching legacy, which never revokes anything:
-// `deauthorize` appears nowhere in its tree. The cookie's expiry is the entire
-// lifetime of the grant as far as anything Foxhound controls is concerned, since
-// the token is stored in no table on either side.
+// FOXHOUND REVOKES THE GRANT ITSELF, where legacy never revoked anything. Right
+// after the exchange, before any check that could bounce, a revoke is queued
+// for when the cookie's window (AUDIT_TOKEN_TTL_SECONDS) ends; at delivery it is
+// skipped if any Foxhound account holds that Stripe account live
+// (app/lib/audit/grant-revoke.server.ts). If the queue send fails the grant is
+// revoked now, with the same live-connection check, and the run is refused,
+// because a grant nobody will revoke is the one outcome this must not allow.
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -71,16 +72,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   // The whole trust decision before the code is exchanged: byte-identical to the
   // HttpOnly cookie, parses to a known action, and that action is this flow's.
-  const action = verifyConnectState(url.searchParams.get("state"), readAuditStateCookie(request));
+  const action = verifyConnectState(url.searchParams.get("state"), readAuditStateCookie(request))?.action;
   if (action !== AUDIT_ACTION) return bounce("invalid_state");
 
   try {
     const oauth = await exchangeConnectCode(env, code);
 
+    try {
+      await scheduleAuditGrantRevoke(env, oauth.stripeUserId);
+    } catch {
+      console.error("audit grant revoke could not be queued; revoking now and refusing the run");
+      const outcome = await revokeAuditGrant(env, oauth.stripeUserId).catch(() => "failed");
+      console.error(`audit grant revoke: ${outcome}`);
+      return bounce("failed");
+    }
+
     if (oauth.scope !== STRIPE_AUDIT_SCOPE) {
       // Do not log the scope value with the account id; the refusal itself is
       // the signal worth having, and it is the loud kind on purpose.
-      console.error("audit OAuth returned a scope that is not read-only; refusing the run");
+      console.error("audit OAuth returned a scope other than STRIPE_AUDIT_SCOPE; refusing the run");
       return bounce("scope_refused");
     }
 

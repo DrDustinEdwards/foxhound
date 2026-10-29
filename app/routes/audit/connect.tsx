@@ -14,6 +14,7 @@ import "~/site-header.css";
 import { AUDIT_LOOKBACK_DAYS, RATE_LIMIT_AUDIT } from "~/lib/constants";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { AUDIT_ACCESS_ASK, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { AUDIT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
 import { buildAuditAuthorizeUrl } from "~/lib/stripe/connect";
 import { setAuditStateCookie } from "~/lib/stripe/state-cookie";
@@ -29,13 +30,17 @@ import type { Route } from "./+types/connect";
 // framework artifact, not a decision, and merging it changes nothing a visitor
 // can see.
 //
-// THE SCOPE IS THE WHOLE PHASE. Legacy requests `read_write` here for an audit
-// that never writes, on a page that tells the visitor "We need read-only access"
-// and lists "Create new charges or move money" under what it can never do.
-// Under 362 ruling 1 Foxhound requests `read_only`, which makes all three of
-// legacy's "can never" lines true for the first time and makes the published
-// sentence "The audit only reads." provable rather than aspirational. Every line
-// of legacy's consent copy is ported verbatim; only the request changed.
+// THE SCOPE, AND WHAT THE PAGE SAYS ABOUT IT. Legacy requests `read_write` here
+// for an audit that never writes, on a page that tells the visitor "We need
+// read-only access" and lists "Create new charges or move money" under what it
+// can never do. 362 ruling 1 switched the request to `read_only` to make that
+// copy true; on 2026-10-29 Stripe refused read_only in production (only
+// Extensions may use it, see STRIPE_AUDIT_SCOPE), so the request is read_write
+// again and the copy changed instead: it says Stripe asks for read and write
+// access, that Foxhound only reads, and that Foxhound disconnects itself when
+// the window ends (audit-access.ts). "What we can never do" became "What we
+// never do", because with a read_write grant those lines are what Foxhound
+// does not do, not what it cannot.
 //
 // LEGACY'S PROGRESS TICKER KEEPS ONLY ITS TRUE STEP (J42). Its button fakes a
 // four-step sequence ("Connecting to Stripe...", "Reading invoices...",
@@ -81,7 +86,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   cancelled: "Stripe connection was canceled. Nothing was read.",
   invalid_state: "That audit link expired. Please start again.",
   scope_refused:
-    "Stripe did not grant read-only access, so the run was refused. Nothing was read.",
+    "Stripe did not grant the access the audit asked for, so the run was refused. Nothing was read.",
   failed: "Could not complete the Stripe connection. Please try again.",
   session_expired: "That audit session expired. Connect again to see current numbers.",
 };
@@ -214,8 +219,9 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
     <AuditConnectFrame>
       <h1 className="mb-2 text-center text-title font-semibold text-text">Connect your Stripe account</h1>
       <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">
-        We need read-only access to scan your failed payments from the last {loaderData.lookbackDays}{" "}
-        days. We never store your data permanently.
+        {AUDIT_ACCESS_ASK} We only read, to scan your failed payments from the last{" "}
+        {loaderData.lookbackDays} days. We disconnect ourselves after {AUDIT_GRANT_MINUTES} minutes
+        unless you connect a Foxhound account. We never store your data permanently.
       </p>
 
       {message ? (
@@ -228,7 +234,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
         <AccessList id="audit-connect-can" heading="What we can do" items={CAN_DO} allowed />
         <AccessList
           id="audit-connect-cannot"
-          heading="What we can never do"
+          heading="What we never do"
           items={CAN_NEVER_DO}
           allowed={false}
         />
@@ -261,7 +267,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
       )}
 
       <p className="mt-4 text-center text-micro text-text-subtle">
-        {"Read-only · Secure · Free · "}
+        {"Reads only · Secure · Free · "}
         <Link
           to="/demos/recovery"
           className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"

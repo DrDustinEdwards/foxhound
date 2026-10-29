@@ -94,6 +94,7 @@ describe("the expired day 21 retry charges only a changed card", () => {
       },
       persistPatch: async (_env, _id, patch) => {
         patches.push(patch.result as string);
+        return true;
       },
       reconcileRecovery: async () => true,
     });

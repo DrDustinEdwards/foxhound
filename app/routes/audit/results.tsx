@@ -21,6 +21,7 @@ import { getSession, resolveActiveMembership } from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
+import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import { findLiveAttachment } from "~/lib/stripe/connections.server";
 import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
@@ -181,8 +182,8 @@ function WhatsNext({
   }
 
   // Recova's unauthenticated branch, its copy and its order. The target is
-  // /signup, Recova's own, and the only anonymous entrance to the read-write
-  // onboarding grant (362 ruling 1). The fee is Foxhound's constant.
+  // /signup, Recova's own, and the only anonymous entrance to the onboarding
+  // grant that stays. The fee is Foxhound's constant.
   return (
     <Panel title="What's next">
       <div className="text-center">
@@ -201,7 +202,8 @@ function WhatsNext({
           what we recover. Nothing until then.
         </p>
         <p className="m-0 mt-1 text-micro text-text-subtle">
-          These results are from a read-only session. Create an account to save them.
+          These results are from a {AUDIT_GRANT_MINUTES}-minute session. Create an account to save
+          them.
         </p>
       </div>
     </Panel>

@@ -25,6 +25,7 @@ import {
   DECLINE_CATEGORY_COUNT_WORD_LOWER,
   DECLINE_CATEGORY_PHRASE,
 } from "~/lib/marketing/decline-categories";
+import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 
@@ -659,12 +660,12 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
       label: "Integration",
       title: "Integration",
       intro:
-        "How Foxhound connects to your existing stack. The free audit is read-only. Never changes your prices, products, or plans.",
+        "How Foxhound connects to your existing stack. The free audit only reads. Never changes your prices, products, or plans.",
       features: [
         {
           name: "Stripe Connect OAuth",
           description:
-            "OAuth connection to your Stripe account, read and write, asked for once at /connect. The free audit connects read-only.",
+            `OAuth connection to your Stripe account, read and write, asked for once at /connect. The free audit asks for the same access, because Stripe no longer offers read-only to platforms. It only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
           product: "Platform",
         },
         {
@@ -742,7 +743,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Narrow Stripe scope",
           description:
-            "Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, or plans. The free audit is read-only.",
+            `Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, or plans. The free audit only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
           product: "Platform",
         },
         {

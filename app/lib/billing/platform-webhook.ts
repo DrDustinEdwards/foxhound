@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
@@ -35,10 +35,33 @@ function platformBillingStatus(eventType: string): string | null {
   return PLATFORM_STATUS[eventType] ?? null;
 }
 
+// Stripe does not deliver events in order, and the missed-event sweep replays
+// old ones, so a status only moves FORWARD. paid and void are final: a late
+// invoice.finalized or invoice.payment_failed must never move a paid fee
+// invoice back to owing. uncollectible (and the charge retry's local gave_up)
+// can still be paid or voided. A status missing from this table is not blocked.
+const STATUS_RANK: Record<string, number> = {
+  draft: 0,
+  finalized: 1,
+  payment_failed: 2,
+  uncollectible: 3,
+  gave_up: 3,
+  paid: 4,
+  void: 4,
+};
+
+/** The known statuses an event moving to `status` must not overwrite: its own rank and above. Pure. */
+function statusesAtOrAbove(status: string): string[] {
+  const rank = STATUS_RANK[status] ?? 0;
+  return Object.keys(STATUS_RANK).filter((s) => (STATUS_RANK[s] ?? 0) >= rank);
+}
+
 /** The billing_invoices row a platform event applies to, plus what to write. */
 interface PlatformBillingTarget {
   accountId: string;
   billingInvoiceId: string;
+  /** The row's status when resolved, so a stale event is claimed without applying. */
+  currentStatus: string;
   status: string;
   stripeInvoiceId: string | null;
   hostedInvoiceUrl: string | null;
@@ -64,16 +87,17 @@ async function resolvePlatformBillingTarget(
 
   const db = getDb(env);
   const rows = await db
-    .select({ accountId: billingInvoices.accountId })
+    .select({ accountId: billingInvoices.accountId, status: billingInvoices.status })
     .from(billingInvoices)
     .where(eq(billingInvoices.id, billingInvoiceId))
     .limit(1);
-  const accountId = rows[0]?.accountId;
-  if (!accountId) return null;
+  const row = rows[0];
+  if (!row) return null;
 
   return {
-    accountId,
+    accountId: row.accountId,
     billingInvoiceId,
+    currentStatus: row.status,
     status,
     stripeInvoiceId: invoice.id ?? null,
     hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
@@ -85,22 +109,32 @@ async function resolvePlatformBillingTarget(
  * per-account money-write DO. The webhook_events unique index on stripe_event_id
  * is the exactly-once key: a replay fails the claim insert and rolls the whole
  * batch back, so the status is never applied twice.
+ *
+ * The rank guard is in the UPDATE's own WHERE, so a status that moved on
+ * between the resolve read and this commit is left alone, not moved back.
+ * finalizedAt is stamped by invoice.finalized only, never by a later event.
  */
 function buildPlatformBillingBatch(
   db: Db,
   input: { claim: WebhookClaimInput; target: PlatformBillingTarget; now: Date },
 ): MoneyWriteBatch {
+  const { target } = input;
   return [
     buildWebhookClaim(db, input.claim),
     db
       .update(billingInvoices)
       .set({
-        status: input.target.status,
-        stripeInvoiceId: input.target.stripeInvoiceId,
-        stripeInvoiceUrl: input.target.hostedInvoiceUrl,
-        finalizedAt: input.now,
+        status: target.status,
+        stripeInvoiceId: target.stripeInvoiceId,
+        stripeInvoiceUrl: target.hostedInvoiceUrl,
+        ...(target.status === "finalized" ? { finalizedAt: input.now } : {}),
       })
-      .where(eq(billingInvoices.id, input.target.billingInvoiceId)),
+      .where(
+        and(
+          eq(billingInvoices.id, target.billingInvoiceId),
+          notInArray(billingInvoices.status, statusesAtOrAbove(target.status)),
+        ),
+      ),
   ];
 }
 
@@ -126,23 +160,30 @@ export async function processPlatformWebhook(
       return claimed ? { status: "ignored", reason: "no_billing_invoice" } : { status: "duplicate" };
     }
 
+    const claim: WebhookClaimInput = {
+      stripeEventId: event.id,
+      eventType: event.type,
+      // The merchant this fee invoice belongs to. The old separate claim
+      // wrote null here because it ran before the row was resolved.
+      accountId: target.accountId,
+      receivedAt,
+      payload: event,
+    };
+    const idempotencyKey = `platform-webhook:${event.id}`;
+    if (statusesAtOrAbove(target.status).includes(target.currentStatus)) {
+      // Late or out of order: claim it so a replay short-circuits, apply nothing.
+      const { applied } = await executeMoneyWrite(env, {
+        accountId: target.accountId,
+        idempotencyKey,
+        build: (db) => [buildWebhookClaim(db, { ...claim, payload: {} })],
+      });
+      return applied ? { status: "ignored", reason: "status_not_forward" } : { status: "duplicate" };
+    }
+
     const { applied } = await executeMoneyWrite(env, {
       accountId: target.accountId,
-      idempotencyKey: `platform-webhook:${event.id}`,
-      build: (db) =>
-        buildPlatformBillingBatch(db, {
-          claim: {
-            stripeEventId: event.id,
-            eventType: event.type,
-            // The merchant this fee invoice belongs to. The old separate claim
-            // wrote null here because it ran before the row was resolved.
-            accountId: target.accountId,
-            receivedAt,
-            payload: event,
-          },
-          target,
-          now: receivedAt,
-        }),
+      idempotencyKey,
+      build: (db) => buildPlatformBillingBatch(db, { claim, target, now: receivedAt }),
     });
     return applied ? { status: "applied" } : { status: "duplicate" };
   } catch (err) {
@@ -166,7 +207,9 @@ async function claimUnroutableEvent(
       accountId: null,
       processed: true,
       processingStartedAt: receivedAt,
-      payload: event,
+      // Nothing was applied, so the payload (customer name, email, address) is
+      // not kept; the id and type are the claim.
+      payload: {},
     });
     return true;
   } catch (err) {

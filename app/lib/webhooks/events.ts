@@ -22,6 +22,8 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 // Events we act on (legacy parity, trimmed to the money-critical set for 4c):
 //   invoice.payment_failed     -> intake (create failed_payment + recovery steps)
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
+//   invoice.marked_uncollectible -> stripe_gave_up (starts a parked sequence)
+//   invoice.voided             -> invoice_voided (stops recovery: nothing to collect)
 //   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot),
@@ -30,6 +32,8 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 //   charge.dispute.funds_withdrawn / funds_reinstated -> dispute_funds (money Stripe moved)
 //   account.updated            -> account_health (the connected account's own
 //                                 charges, payouts and requirements)
+//   account.application.deauthorized -> connection_deauthorized (the merchant
+//                                 revoked Foxhound's grant at Stripe)
 //   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
 //   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
 //   payment_method.card_automatically_updated (its pre-2020 name) -> card_auto_updated
@@ -52,11 +56,13 @@ export type WebhookIntent =
        * gate: while Stripe has another attempt scheduled the payment is
        * Stripe's, and Foxhound plans nothing.
        *
-       * It needs no special case for hard declines. Stripe does not retry an
-       * expired card, a fraud block or a revoked card, so those invoices carry
-       * a null next_payment_attempt on the FIRST failure and start immediately
-       * through this same field. Only soft and network declines wait, which is
-       * exactly the set Stripe actually retries.
+       * Hard declines (expired, fraud, revoked) are the exception, decided in
+       * handleIntake once the charge's real decline code is read: Stripe keeps
+       * a next_payment_attempt on those invoices but runs it only after a new
+       * payment method is attached (docs.stripe.com/billing/revenue-recovery/
+       * smart-retries), so their email-led sequence starts on the first
+       * failure. Foxhound's own retries still wait for Stripe to stop
+       * (engine/retry-step.ts reads next_payment_attempt before charging).
        */
       stripeGaveUp: boolean;
     }
@@ -65,6 +71,12 @@ export type WebhookIntent =
        *  it is unambiguously finished with it. Promotes a stripe_retrying row
        *  the same way a final payment_failed does (377(1)). */
       kind: "stripe_gave_up";
+      invoiceId: string;
+    }
+  | {
+      /** invoice.voided: the invoice is canceled and can never be paid, so a
+       *  live recovery for it stops. */
+      kind: "invoice_voided";
       invoiceId: string;
     }
   | {
@@ -184,6 +196,12 @@ export type WebhookIntent =
       kind: "card_auto_updated";
       customerId: string;
     }
+  | {
+      /** account.application.deauthorized: the merchant revoked the grant from
+       *  their Stripe dashboard, so the live connection is marked disconnected.
+       *  The grant is already gone at Stripe; nothing calls deauthorize again. */
+      kind: "connection_deauthorized";
+    }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -213,6 +231,11 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
+      // An invoice the customer pays by hand (send_invoice) has no card to
+      // retry and no Smart Retries; its "failure" is not a decline.
+      if (invoice.collection_method !== "charge_automatically") {
+        return { kind: "ignore", reason: "not_charged_automatically" };
+      }
       // $0 invoices are not recoverable revenue; skip (legacy parity).
       if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
       // Only what the event carries, which on the pinned API version is a
@@ -411,6 +434,11 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       return { kind: "stripe_gave_up", invoiceId: invoice.id };
     }
+    case "invoice.voided": {
+      const invoice = event.data.object as Stripe.Invoice;
+      if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
+      return { kind: "invoice_voided", invoiceId: invoice.id };
+    }
     case "account.updated": {
       const account = event.data.object as Stripe.Account;
       // Only the connected account's own object, which is what Connect sends
@@ -418,6 +446,8 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
       return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
     }
+    case "account.application.deauthorized":
+      return { kind: "connection_deauthorized" };
     case "radar.early_fraud_warning.created":
     case "radar.early_fraud_warning.updated": {
       const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;

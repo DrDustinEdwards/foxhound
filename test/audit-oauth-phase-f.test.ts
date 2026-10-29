@@ -1,5 +1,4 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { AUDIT_FAQS, AUDIT_HERO, AUDIT_STEPS } from "~/lib/marketing/audit-copy";
 import { fileURLToPath } from "node:url";
 
 import type Database from "better-sqlite3";
@@ -18,19 +17,18 @@ import {
   AUDIT_TOKEN_TTL_SECONDS,
   RATE_LIMIT_AUDIT,
   STRIPE_AUDIT_SCOPE,
-  STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 71, PHASE (f): the anonymous read-only OAuth pair, and the door it
+// SESSION 71, PHASE (f): the anonymous audit's OAuth pair, and the door it
 // opens onto the two surfaces phase (e) built.
 //
-// THE ASSERTION THIS FILE EXISTS FOR is one query parameter. 362 ruling 1 made
-// the scope a ruling rather than a detail: legacy requests `read_write` for an
-// audit that never writes, while four sentences either side of that request say
-// read-only, so the copy is the intent and the code is the defect. PLANT 1 pins
-// the parameter against the published sentence, in both directions.
+// PLANT 1 pins the scope the audit asks for. 362 ruling 1 made it read_only;
+// on 2026-10-29 Stripe refused read_only in production (only Extensions may use
+// it), so it is read_write again and Foxhound revokes the grant when the window
+// ends (test/audit-grant-revoke.test.ts). The plant that pinned the old
+// "Read-only" copy against the scope went with it.
 //
 // PLANTS DRIVE THE REAL LOADERS AND ACTIONS (352), against a real in-memory
 // SQLite with the committed migrations applied, with two accounts and two Stripe
@@ -101,6 +99,8 @@ const ENV = {
   BETTER_AUTH_URL: ORIGIN,
   // The key the audit grant cookie is sealed under. Fake, test-only.
   ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
+  // The callback queues the grant's revoke here; nothing consumes it in this file.
+  AUDIT_QUEUE: { send: async () => {} },
   // Deliberately no ANTHROPIC_API_KEY: the summary takes its fallback arm, which
   // makes every run in this file deterministic and proves the audit still
   // completes with the key core.md lists as a launch blocker still unfunded.
@@ -241,48 +241,15 @@ async function mintGrant(stripeUserId: string = STRIPE_A): Promise<string> {
 
 // ---------------------------------------------------------------------------
 
-describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () => {
-  it("the audit's authorize URL requests read_only, and NOT the onboarding scope", () => {
+describe("PLANT 1: THE SCOPE PARAMETER", () => {
+  it("the audit's authorize URL requests read_write, the one scope Stripe gives a platform", () => {
     const url = new URL(buildAuditAuthorizeUrl(ENV, buildConnectState(AUDIT_ACTION)));
-    expect(url.searchParams.get("scope")).toBe("read_only");
-    expect(url.searchParams.get("scope")).not.toBe(STRIPE_CONNECT_SCOPE);
-    expect(url.searchParams.get("scope")).not.toBe("read_write");
-    // Legacy's exact line for the record: `&scope=read_write`, at
-    // app/api/audit/connect/route.ts:19.
-    expect(url.toString()).not.toContain("scope=read_write");
+    expect(url.searchParams.get("scope")).toBe(STRIPE_AUDIT_SCOPE);
+    expect(STRIPE_AUDIT_SCOPE).toBe("read_write");
     expect(url.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/audit/callback`);
   });
 
-  it("THE PUBLISHED SENTENCE IS PINNED AGAINST THE REQUEST, in both directions", () => {
-    // "The audit only reads." is on four Foxhound surfaces. Each is asserted
-    // present AND the scope constant it describes is asserted read-only, so the
-    // sentence and the parameter cannot drift apart in either direction: a scope
-    // flipped back to read_write with the copy left standing fails here, and so
-    // does the copy being quietly deleted to match a wider scope.
-    expect(STRIPE_AUDIT_SCOPE).toBe("read_only");
-    const carriers = [
-      "app/routes/audit.tsx",
-      "app/lib/marketing/docs-content.ts",
-    ];
-    for (const path of carriers) {
-      expect(read(path), `${path} lost the published sentence`).toContain(
-        "The audit only reads",
-      );
-    }
-    // The /product/audit spoke carries Recova's own words for the same fact
-    // (J55), built from the constant, so a scope flipped to read_write would
-    // print "Read-write" and fail here.
-    expect(AUDIT_STEPS[0].body).toContain("Read-only OAuth connection.");
-    expect(AUDIT_FAQS[1].a.startsWith("Read-only OAuth scope.")).toBe(true);
-    expect(AUDIT_HERO.pricing).toContain("Read-only Stripe access");
-    // And the consent screen's own three "can never" lines, which legacy printed
-    // beside a read_write request. Under read-only all three are true.
-    const consent = read("app/routes/audit/connect.tsx");
-    expect(consent).toContain("Create new charges or move money");
-    expect(consent).toContain("We need read-only access");
-  });
-
-  it("read_write is requested from EXACTLY ONE place, and it is merchant onboarding", () => {
+  it("authorize URLs are built in ONE module, and prose pages only name the scopes", () => {
     // DERIVED, so a second write-scope caller added later cannot arrive quietly.
     // Sweeps every module for a use of the onboarding scope constant and for the
     // raw literal, and requires the one legitimate site.
@@ -313,8 +280,8 @@ describe("PLANT 1: THE SCOPE PARAMETER, which is the whole of 362 ruling 1", () 
     ]);
     expect(code(read("app/routes/security.tsx"))).not.toContain("buildConnectAuthorizeUrl");
     expect(code(read("app/routes/security.tsx"))).not.toContain("buildAuditAuthorizeUrl");
-    // The audit's builder is the only caller of the read-only constant, so the
-    // ruling has one enforcement point rather than one per route.
+    // The audit's builder is the only caller of the audit's scope constant, so
+    // the audit's scope has one enforcement point rather than one per route.
     expect(code(read("app/lib/stripe/connect.ts"))).toContain("STRIPE_AUDIT_SCOPE");
     expect(code(read("app/routes/audit/connect.tsx"))).toContain("buildAuditAuthorizeUrl");
   });
@@ -361,7 +328,7 @@ describe("PLANT 3: the callback, and what it refuses", () => {
   });
 
   it("AND /connect/callback REFUSES THE AUDIT'S, which is the other half", async () => {
-    // The symmetry is the point: a read-only audit grant must not reach the
+    // The symmetry is the point: an anonymous audit grant must not reach the
     // branch that attaches a connection or mints an account, and a read-write
     // onboarding grant must not be spent on an anonymous audit.
     const state = buildConnectState(AUDIT_ACTION);

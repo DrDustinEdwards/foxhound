@@ -41,6 +41,11 @@ export interface RetryAttempt {
   error?: unknown;
   /** Set when the call threw so we classify the error rather than the status. */
   threw?: boolean;
+  /** Not charged: the invoice read just before the charge was not payable
+   *  (paid, void, draft). Its status. */
+  invoiceClosedStatus?: string;
+  /** Not charged: Stripe still has its own attempt scheduled on the invoice. */
+  stripeRetrying?: boolean;
 }
 
 export interface RetryStepDecision {

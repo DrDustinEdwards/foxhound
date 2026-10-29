@@ -1,8 +1,11 @@
-// The connected account's own intent of the connected-account webhook:
-// account.updated, the Stripe account's health. Dispatched from process.ts.
+// The connected account's own intents of the connected-account webhook:
+// account.updated, the Stripe account's health, and
+// account.application.deauthorized, the grant revoked. Dispatched from
+// process.ts.
 
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { getDb, stripeConnections } from "~/db";
+import { disconnectConnectionLocal } from "~/lib/admin/merchant-cancel.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { newHealthProblems, type AccountHealth } from "~/lib/stripe/account-health";
 import { sendAccountHealthNotice } from "~/lib/stripe/account-health.server";
@@ -77,4 +80,30 @@ export async function handleAccountHealth(
     });
   }
   return { status: "applied" };
+}
+
+/**
+ * The merchant revoked Foxhound's grant from their Stripe dashboard. The live
+ * connection this event resolved to is stamped disconnected through Settings'
+ * own local disconnect, so disconnected_at keeps its one writer, and Stripe is
+ * not called: the grant is already gone there.
+ *
+ * THE DISCONNECT COMMITS BEFORE THE CLAIM, because the two cannot share a batch
+ * (the disconnect is a plain batch by ruling 333, the claim rides the
+ * money-write Durable Object). In this order a failed claim 500s, Stripe
+ * redelivers, and the redelivery finds no live connection and is claimed as an
+ * unknown account. The other order would claim first and lose the disconnect
+ * for good if it then failed. An event for a Stripe account Foxhound does not
+ * hold live, an audit grant included, never reaches here: process.ts claims
+ * and ignores it as unknown.
+ */
+export async function handleConnectionDeauthorized(ctx: WebhookContext): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
+  await disconnectConnectionLocal(getDb(env), connectionId, receivedAt);
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) => buildClaimOnlyBatch(db, claim),
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
 }
