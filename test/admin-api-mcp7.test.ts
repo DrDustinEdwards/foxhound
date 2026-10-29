@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts, accountSubscriptions, adminAuditLog, apiKeys, cronConfig, stripeConnections } from "~/db/schema";
+import { accounts, adminAuditLog, apiKeys, cronConfig, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
@@ -270,29 +270,20 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     expect(again.ok).toBe(false);
   });
 
-  it("billing exemption and an Intelligence grant are staged, then applied on confirm", async () => {
+  it("a billing exemption is staged, then applied on confirm", async () => {
     const { db, keys } = await seed();
     const exempt = await api("/staged", {
       ...asAdmin(keys.admin),
       method: "POST",
       body: { kind: "billing_exempt", account_id: MERCHANT, exempt: true },
     });
-    const grant = await api("/staged", {
-      ...asAdmin(keys.admin),
-      method: "POST",
-      body: { kind: "intelligence_grant", account_id: MERCHANT },
-    });
-    expect([exempt.status, grant.status]).toEqual([200, 200]);
+    expect(exempt.status).toBe(200);
     let [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.billingExempt).toBe(false);
-    expect(await db.select().from(accountSubscriptions)).toEqual([]);
-    for (const staged of [exempt, grant]) {
-      const id = (staged.json.data as { staged: { id: string } }).staged.id;
-      expect((await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(true);
-    }
+    const id = (exempt.json.data as { staged: { id: string } }).staged.id;
+    expect((await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(true);
     [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.billingExempt).toBe(true);
-    expect((await db.select().from(accountSubscriptions)).map((s) => s.adminGranted)).toEqual([true]);
   });
 
   it("a staged cron enable needs the same typed phrase /admin/crons asks for", async () => {

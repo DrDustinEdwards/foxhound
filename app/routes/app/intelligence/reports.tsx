@@ -1,8 +1,7 @@
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { getReportsArchive, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { getReportsArchive } from "~/lib/intelligence/views.server";
 
 import type { Route } from "./+types/reports";
 
@@ -16,11 +15,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
-  const reports = await getReportsArchive(db, accountId);
-  return { entitled: true as const, reports };
+  return { reports: await getReportsArchive(db, accountId) };
 }
 
 function monthLabel(date: Date): string {
@@ -28,15 +23,6 @@ function monthLabel(date: Date): string {
 }
 
 export default function IntelligenceReportsPage({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="text-title font-medium text-text">Reports</h1>
-        <IntelligenceUpsell />
-      </div>
-    );
-  }
-
   const { reports } = loaderData;
 
   return (

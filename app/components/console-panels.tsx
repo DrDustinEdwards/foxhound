@@ -9,7 +9,6 @@ import "capsomer/row-list.css";
 import "capsomer/stat-tile.css";
 import "capsomer/status.css";
 
-import { INTELLIGENCE_PRICE_CENTS } from "~/lib/constants";
 import { atRiskSubtext, formatCurrencyTotalsShort, lastRunPhrase, protectedSubtext } from "~/lib/dashboard/console";
 import { recoveryRateBand, recoveryRateClassNameOrNull } from "~/lib/dashboard/recovery-rate";
 import { formatMoneyShort } from "~/lib/money-format";
@@ -133,27 +132,17 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
       </li>
 
       <li className="grid">
-        {tiles.intelligenceEntitled ? (
-          <StatTile
-            label="Intelligence"
-            figure={formatCurrencyTotalsShort(tiles.highRiskMrr)}
-            unit="MRR at risk"
-            // Recova's figure for MRR at risk is amber while any is at risk and
-            // green when none is: Capsomer's warn tone, then ok.
-            tone={highRisk ? "warn" : "ok"}
-            detail={tiles.highRiskCustomerCount > 0 ? `${tiles.highRiskCustomerCount} high-risk` : "All healthy"}
-            href="/intelligence/dashboard"
-            renderLink={routerLink}
-          />
-        ) : (
-          <StatTile
-            label="Intelligence"
-            figure="Subscribe"
-            detail={`${formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo`}
-            href="/billing"
-            renderLink={routerLink}
-          />
-        )}
+        <StatTile
+          label="Intelligence"
+          figure={formatCurrencyTotalsShort(tiles.highRiskMrr)}
+          unit="MRR at risk"
+          // Recova's figure for MRR at risk is amber while any is at risk and
+          // green when none is: Capsomer's warn tone, then ok.
+          tone={highRisk ? "warn" : "ok"}
+          detail={tiles.highRiskCustomerCount > 0 ? `${tiles.highRiskCustomerCount} high-risk` : "All healthy"}
+          href="/intelligence/dashboard"
+          renderLink={routerLink}
+        />
       </li>
 
       {/* Always available, as in Recova. /audit/dashboard is the signed-in list

@@ -23,7 +23,6 @@ import {
   reactivateWinbackSequence,
   WINBACK_REACTIVATABLE_STATUSES,
 } from "~/lib/recovery/winback-reactivation.server";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -160,7 +159,8 @@ export async function listActiveFailedPaymentIds(
  * Legacy's Intelligence win-back gate, resolved to a step-1 offset in hours.
  * Returns undefined when the gate does not apply, which leaves the schedule's
  * own default in place. Fails OPEN on any error, exactly as legacy does with its
- * try/catch around the same two lookups (entitlement, then customer context).
+ * try/catch around the same lookup (customer context; legacy's entitlement check
+ * went with Intelligence's price, Dustin 2026-10-29).
  */
 export async function resolveWinbackStep1Offset(
   env: Env,
@@ -169,8 +169,6 @@ export async function resolveWinbackStep1Offset(
 ): Promise<number | undefined> {
   try {
     const db = getDb(env);
-    // Intelligence not active on this account: legacy leaves the default.
-    if (!(await isIntelligenceEntitled(db, accountId))) return undefined;
     const [ctx] = await db
       .select({ healthFactors: customerContext.healthFactors })
       .from(customerContext)

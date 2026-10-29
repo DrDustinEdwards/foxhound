@@ -53,10 +53,9 @@ import type { Route } from "./+types/features";
 // IT UN-GATES NOTHING ELSE, and ruling 176's claim that it does is disproven in
 // legacy's own source: `components/SiteNav.tsx:110-119` gates the product
 // switcher (S2's disputes state, S6's Intelligence entry) on `account_products`
-// with status active or trialing, not on these booleans. Foxhound's equivalent
-// gate is `isIntelligenceEntitled` over `account_subscriptions`
-// (nav/context.server.ts:56, ruling 292's rewire), also a different table.
-// Nothing on this page can move either, and nothing here tries.
+// with status active or trialing, not on these booleans. Foxhound has no such
+// gate: every product shows for every account (Intelligence is free, Dustin
+// 2026-10-29). Nothing on this page un-gates anything, and nothing here tries.
 
 export function meta() {
   return [{ title: "Feature settings - Foxhound" }];

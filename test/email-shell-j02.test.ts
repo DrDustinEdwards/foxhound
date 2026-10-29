@@ -328,7 +328,6 @@ describe("merchant notices carry both parts and never the footer, except the dig
         currency: "usd",
         senderName: "Acme",
         disputesActive: false,
-        intelligenceActive: false,
         highRiskCustomers: [],
         now,
         baseUrl: BASE,

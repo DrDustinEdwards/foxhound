@@ -68,7 +68,7 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
       <MarketingPageHeader
         eyebrow="Pricing"
         title="Pricing"
-        subtext="Two outcome-based products and one flat subscription with a free tier. Audit is always free."
+        subtext="Two outcome-based products. Intelligence and Audit are always free."
       />
 
       {/* Legacy's pricing card grid is max-w-[1200px], NOT the 1100px the home

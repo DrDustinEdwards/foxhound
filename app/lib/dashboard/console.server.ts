@@ -10,7 +10,6 @@ import {
 } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { byCurrencyCode } from "~/lib/money-format";
 import { groupSumByCurrency, type CurrencyAmount } from "./stats.server";
 import {
@@ -52,8 +51,8 @@ import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 //    Foxhound but nothing writes it (only an admin display list reads it), so
 //    porting the gate would render every tile permanently "inactive". Each tile
 //    is gated on the precondition that is actually real here instead: a Stripe
-//    connection for Recovery, an Intelligence entitlement for Intelligence,
-//    nothing for Disputes (intake is webhook-driven, there is no toggle) and
+//    connection for Recovery, nothing for Intelligence (free, Dustin
+//    2026-10-29), nothing for Disputes (intake is webhook-driven, there is no toggle) and
 //    nothing for Audit (legacy had no inactive state there either).
 
 // Money is a CurrencyAmount[] everywhere on this view, one entry per currency,
@@ -73,7 +72,6 @@ export interface ConsoleHero {
 
 export interface ConsoleTiles {
   stripeConnected: boolean;
-  intelligenceEntitled: boolean;
   recoveredThisMonth: CurrencyAmount[];
   recoveryRatePct: number | null;
   openDisputeCount: number;
@@ -170,7 +168,6 @@ export async function getConsoleView(
     expiringCards,
     lastAudit,
     connection,
-    intelligenceEntitled,
     accountRow,
   ] = await Promise.all([
     db
@@ -255,7 +252,6 @@ export async function getConsoleView(
       .orderBy(sql`${auditRuns.runAt} desc`)
       .limit(1),
     getConnectionSummary(db, accountId),
-    isIntelligenceEntitled(db, accountId),
     db
       .select({ processingPaused: accounts.processingPaused, cancelledAt: accounts.cancelledAt })
       .from(accounts)
@@ -270,11 +266,9 @@ export async function getConsoleView(
     monthRecovered.map((r) => ({ currency: r.currency, amountCents: r.cents })),
   );
   const atRisk = groupSumByCurrency(activeFailed);
-  // Recova reads high-risk customers only when Intelligence is active, and
-  // every row links to /intelligence/customers/:id, which only an entitled
-  // account can open. A customer with no MRR currency recorded has no figure to
-  // add, so it is counted but not summed.
-  const highRisk = intelligenceEntitled ? highRiskCustomers : [];
+  // A customer with no MRR currency recorded has no figure to add, so it is
+  // counted but not summed.
+  const highRisk = highRiskCustomers;
   const highRiskMrr = groupSumByCurrency(
     highRisk.flatMap((c) =>
       c.currency && c.mrrContributionCents ? [{ currency: c.currency, amountCents: c.mrrContributionCents }] : [],
@@ -380,7 +374,7 @@ export async function getConsoleView(
       emphasis: expiryPhrase(c.expiresAt, nowMs),
       mrrCents: null,
       mrrCurrency: null,
-      href: intelligenceEntitled && c.stripeCustomerId ? `/intelligence/customers/${c.stripeCustomerId}` : null,
+      href: c.stripeCustomerId ? `/intelligence/customers/${c.stripeCustomerId}` : null,
       ariaLabel: `View expiring card customer ${label}`,
       product: "Recovery",
     });
@@ -410,7 +404,6 @@ export async function getConsoleView(
     },
     tiles: {
       stripeConnected: connection !== null,
-      intelligenceEntitled,
       recoveredThisMonth: protectedThisMonth,
       recoveryRatePct,
       openDisputeCount,

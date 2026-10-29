@@ -18,7 +18,6 @@ import "capsomer/table.css";
 // page whole under any layout, as /disputes does.
 import "~/site-header.css";
 
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -30,7 +29,6 @@ import {
   planTierPill,
 } from "~/lib/intelligence/customer-directory";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { listCustomerDirectory, listCustomerTiers, type CustomerDirectorySort } from "~/lib/intelligence/directory.server";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney } from "~/lib/money-format";
@@ -78,9 +76,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
   const params = new URL(request.url).searchParams;
   const search = params.get("q")?.trim() || null;
   const tier = params.get("tier") || null;
@@ -95,7 +90,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   ]);
 
   return {
-    entitled: true as const,
     // Only what the page shows reaches the browser: no email, and the two
     // signals as booleans rather than their JSON (recovery ids, dispute
     // counts). The shared query keeps both for its other caller (the MCP
@@ -145,15 +139,6 @@ function isFiltered(filters: Filters): boolean {
 }
 
 export default function IntelligenceCustomersPage({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-title font-medium text-text">Customers</h1>
-        <IntelligenceUpsell />
-      </div>
-    );
-  }
-
   const { result, tiers, filters, accountName, nowMs } = loaderData;
   const now = new Date(nowMs);
   const filtered = isFiltered(filters);

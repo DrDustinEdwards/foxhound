@@ -28,7 +28,6 @@ import {
   winBackSequences,
   winBackSteps,
 } from "~/db";
-import { grantIntelligence } from "~/lib/admin/merchants.server";
 import { recommendForAccount } from "~/lib/intelligence/recommendations.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
@@ -183,11 +182,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     senderName: DEMO_ACCOUNT_NAME,
   });
 
-  // 2) Intelligence entitlement, via the real admin grant path (pure DB row,
-  //    admin_granted, never Stripe), so the paid /intelligence surfaces render.
-  await grantIntelligence(db, DEMO_ACCOUNT_ID, now);
-
-  // 3) Customer portfolio (200 Teamflow + 7 net-new dispute customers) + health
+  // 2) Customer portfolio (200 Teamflow + 7 net-new dispute customers) + health
   //    history + predictions for the at-risk subset.
   await runBatched(
     db,
@@ -213,7 +208,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     );
   await runBatched(db, predictionStmts);
 
-  // 4) Recovery: failed payments + steps + recovered payments + win-back +
+  // 3) Recovery: failed payments + steps + recovered payments + win-back +
   //    expiring-card alerts (the day-walk simulator, app/lib/demo/recovery-seed.ts).
   await runBatched(
     db,
@@ -259,7 +254,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     ),
   );
 
-  // 5) Disputes: the 8-dispute Teamflow set, with evidence + approvals for the
+  // 4) Disputes: the 8-dispute Teamflow set, with evidence + approvals for the
   //    Foxhound-submitted ones (app/lib/demo/disputes-seed.ts).
   await runBatched(
     db,
@@ -274,7 +269,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     disputesSeed.disputeApprovals.map((row) => db.insert(disputeApprovals).values(row)),
   );
 
-  // 6) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.
+  // 5) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.
   await runBatched(
     db,
     intelligence.mrrSnapshots.map((row) => db.insert(mrrSnapshots).values(row)),
@@ -282,10 +277,10 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   await runBatched(db, intelligence.alerts.map((row) => db.insert(alerts).values(row)));
   await runBatched(db, intelligence.alertHistory.map((row) => db.insert(alertHistory).values(row)));
 
-  // 7) Intelligence report narrative (pre-written, NEVER an AI call).
+  // 6) Intelligence report narrative (pre-written, NEVER an AI call).
   await db.insert(intelligenceReports).values(narrative);
 
-  // 8) Billing ledger: one finalized invoice covering the billable subset of
+  // 7) Billing ledger: one finalized invoice covering the billable subset of
   //    this run's own recoveries + disputes. isBillableRecoveryRow/
   //    isBillableDisputeRow (app/lib/billing/billable-predicates.ts) are the
   //    exact row-level rules app/db/billable.ts's live query encodes, factored

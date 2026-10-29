@@ -6,9 +6,8 @@ import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import { getMerchantDetail, grantIntelligence, revokeIntelligence, setBillingExempt, setProcessingPaused } from "~/lib/admin/merchants.server";
+import { getMerchantDetail, setBillingExempt, setProcessingPaused } from "~/lib/admin/merchants.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
-import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
@@ -79,26 +78,6 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       actorEmail: auth.email,
       action: nextPaused ? "merchant.processing.pause" : "merchant.processing.resume",
       metadata: { accountId },
-    });
-    return data<ActionResult>({ ok: true });
-  }
-
-  if (intent === "grant-intelligence") {
-    const result = await grantIntelligence(db, accountId, new Date());
-    await logAdminAction(db, {
-      actorEmail: auth.email,
-      action: "merchant.intelligence.grant",
-      metadata: { accountId, granted: result.granted },
-    });
-    return data<ActionResult>({ ok: true });
-  }
-
-  if (intent === "revoke-intelligence") {
-    const result = await revokeIntelligence(db, accountId, new Date());
-    await logAdminAction(db, {
-      actorEmail: auth.email,
-      action: "merchant.intelligence.revoke",
-      metadata: { accountId, revoked: result.revoked },
     });
     return data<ActionResult>({ ok: true });
   }
@@ -295,12 +274,6 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
   const { account, connections, subscriptions, recoveryActivity, disputeActivity, recentInvoices, adjustmentToken } =
     loaderData;
 
-  // The paid Intelligence tier is entitled iff an active intelligence subscription
-  // row exists (mirrors isIntelligenceEntitled). Drives the grant/revoke toggle.
-  const intelligenceActive = subscriptions.some(
-    (s) => s.product === INTELLIGENCE_PRODUCT && s.status === SUBSCRIPTION_STATUS_ACTIVE,
-  );
-
   return (
     <div>
 
@@ -350,17 +323,6 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
             <input type="hidden" name="intent" value="toggle-processing-paused" />
             <input type="hidden" name="nextPaused" value={String(!account.processingPaused)} />
             <ActionButton>{account.processingPaused ? "Resume processing" : "Pause processing"}</ActionButton>
-          </Form>
-
-          <Form method="post">
-            <input
-              type="hidden"
-              name="intent"
-              value={intelligenceActive ? "revoke-intelligence" : "grant-intelligence"}
-            />
-            <ActionButton>
-              {intelligenceActive ? "Revoke Intelligence" : "Grant Intelligence (comp)"}
-            </ActionButton>
           </Form>
 
           {!account.cancelledAt ? <CancelForm accountId={account.id} /> : null}

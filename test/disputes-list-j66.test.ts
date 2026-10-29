@@ -217,18 +217,11 @@ describe("the loader", () => {
     expect((await load()).withEvidence).toEqual(["drafted"]);
   });
 
-  it("reads health scores only when Intelligence is on", async () => {
+  it("reads each disputing customer's health score", async () => {
     dispute("a", NOW - DAY, NOW + DAY);
     sqlite
       .prepare(
         "INSERT INTO customer_context (id, account_id, stripe_customer_id, health_score, created_at, updated_at) VALUES ('cc1', ?, 'cus_a', 77, 1, 1)",
-      )
-      .run(ACCOUNT);
-    expect((await load()).health).toBeNull();
-
-    sqlite
-      .prepare(
-        "INSERT INTO account_subscriptions (id, account_id, product, status, created_at) VALUES ('sub1', ?, 'intelligence', 'active', 1)",
       )
       .run(ACCOUNT);
     expect((await load()).health).toEqual({ cus_a: 77 });

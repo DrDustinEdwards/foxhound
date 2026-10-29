@@ -1,7 +1,6 @@
 import {
   DISPUTE_FEE_BPS,
   DISPUTE_FEE_CAP_CENTS,
-  INTELLIGENCE_PRICE_CENTS,
   RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
@@ -12,7 +11,6 @@ import {
   RECOVERY_SEQUENCE_DAYS,
   countWord,
 } from "~/lib/marketing/decline-categories";
-import { INTELLIGENCE_FREE_TIER_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { STAT_SOURCES, STRIPE_RECOVERY_RATE_PERCENT, STRIPE_UNRECOVERED_RATE_PERCENT } from "~/lib/marketing/statistics";
 import { formatMoneyShort } from "~/lib/money-format";
 
@@ -40,7 +38,6 @@ const usd = (cents: number) => formatMoneyShort(cents, "usd");
 export const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
 const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
 const DISPUTE_CAP = usd(DISPUTE_FEE_CAP_CENTS);
-const INTELLIGENCE_PRICE = `${usd(INTELLIGENCE_PRICE_CENTS)}/mo`;
 export const MATURITY_DAYS = RECOVERY_MATURITY_DAYS;
 export const SEQUENCE_DAYS = RECOVERY_SEQUENCE_DAYS;
 const STRIPE_RATE = `${STRIPE_RECOVERY_RATE_PERCENT}%`;
@@ -147,7 +144,7 @@ export interface HomeProductCard {
  *  Recova's with the engine's counts: it schedules more categories than
  *  sequences, so it says both rather than "handled differently". Disputes is
  *  the sanctioned review-and-sign wording (divergence 16). Intelligence keeps
- *  Recova's three features and states the free tier in /pricing's words. */
+ *  Recova's three features and is free (Dustin, 2026-10-29), in /pricing's words. */
 export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
   audit: {
     description: "Full Stripe diagnostic. See what is leaking before you commit.",
@@ -162,8 +159,8 @@ export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
     price: `${DISPUTE_FEE} of won disputes, capped at ${DISPUTE_CAP}`,
   },
   intelligence: {
-    description: `Customer health scoring, churn prediction, and MRR trend analysis. ${INTELLIGENCE_FREE_TIER_SENTENCE}`,
-    price: INTELLIGENCE_PRICE,
+    description: "Customer health scoring, churn prediction, and MRR trend analysis.",
+    price: "Free",
   },
 };
 
@@ -192,7 +189,7 @@ export const FAQS: HomeFaq[] = [
   },
   {
     question: "How does billing work exactly?",
-    answer: `Recovery is ${RECOVERY_FEE} of the prior month's matured recoveries, meaning recoveries you've held for ${MATURITY_DAYS} or more days, billed in each monthly run. Disputes are ${DISPUTE_FEE} of wins only, capped at ${DISPUTE_CAP} per dispute. Intelligence's predictive layer is ${usd(INTELLIGENCE_PRICE_CENTS)} per month flat. Audit is always free. You owe nothing for sequences that do not recover.`,
+    answer: `Recovery is ${RECOVERY_FEE} of the prior month's matured recoveries, meaning recoveries you've held for ${MATURITY_DAYS} or more days, billed in each monthly run. Disputes are ${DISPUTE_FEE} of wins only, capped at ${DISPUTE_CAP} per dispute. Intelligence and Audit are always free. You owe nothing for sequences that do not recover.`,
   },
   {
     question: "Can I see what the emails look like before they send?",
@@ -214,9 +211,9 @@ export const BILLING_FAQ_PARTS: (string | { to: string; label: string })[] = [
   { to: "/product/disputes", label: "Disputes" },
   ` are ${DISPUTE_FEE} of wins only, capped at ${DISPUTE_CAP} per dispute. `,
   { to: "/product/intelligence", label: "Intelligence" },
-  `'s predictive layer is ${usd(INTELLIGENCE_PRICE_CENTS)} per month flat. `,
+  " and ",
   { to: "/product/audit", label: "Audit" },
-  " is always free. You owe nothing for sequences that do not recover.",
+  " are always free. You owe nothing for sequences that do not recover.",
 ];
 
 /** Recova's security chips. Chip 1 is the sanctioned replacement of "Read-only

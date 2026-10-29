@@ -32,7 +32,6 @@ import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
 import { getCustomerHealthScores, getDisputesWithEvidence, listDisputes } from "~/lib/disputes/queries.server";
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import type { Tone } from "~/lib/recovery/labels";
 import { formatAmounts, formatMoney } from "~/lib/money-format";
 
@@ -68,9 +67,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   // Newest first, as Recova orders the list (created_at descending).
   const nowMs = Date.now();
-  const [disputes, intelligenceOn, feesOwed] = await Promise.all([
+  const [disputes, feesOwed] = await Promise.all([
     listDisputes(db, accountId),
-    isIntelligenceEntitled(db, accountId),
     getDisputeFeesOwed(db, accountId, nowMs),
   ]);
 
@@ -93,16 +91,13 @@ export async function loader({ context }: Route.LoaderArgs) {
     winRatePct: parts.winRatePct,
   };
 
-  // Recova shows each customer's Intelligence health score beside the name, and
-  // only when Intelligence is on. Null means "Intelligence is off", so the
-  // page renders no score at all; an empty record means "on, nothing scored".
-  const health = intelligenceOn
-    ? await getCustomerHealthScores(
-        db,
-        accountId,
-        disputes.map((d) => d.stripeCustomerId).filter((id): id is string => id !== null),
-      )
-    : null;
+  // Recova shows each customer's Intelligence health score beside the name
+  // when Intelligence is on, which it now always is (free, Dustin 2026-10-29).
+  const health = await getCustomerHealthScores(
+    db,
+    accountId,
+    disputes.map((d) => d.stripeCustomerId).filter((id): id is string => id !== null),
+  );
 
   // "Evidence ready" is said only of a dispute whose draft holds evidence, so
   // only the states that label depends on are looked up.
@@ -215,7 +210,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                       hasEvidence: hasEvidence.has(d.id),
                     });
                     const name = d.customerName || "Unknown";
-                    const score = health && d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
+                    const score = d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
                     return (
                       <tr key={d.id} data-dispute={d.id}>
                         <td>

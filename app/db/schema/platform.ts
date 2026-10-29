@@ -201,7 +201,7 @@ export const stagedChanges = sqliteTable(
   "staged_changes",
   {
     id: id(),
-    /** resume_account | release_brake | cron_enable | billing_exempt | intelligence_grant */
+    /** resume_account | release_brake | cron_enable | billing_exempt */
     kind: text("kind").notNull(),
     targetAccountId: text("target_account_id").references(() => accounts.id),
     targetCronName: text("target_cron_name"),

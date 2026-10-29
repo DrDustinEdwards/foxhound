@@ -53,10 +53,9 @@ export const PRODUCTS: Record<ProductKey, ProductDef> = {
   intelligence: {
     key: "intelligence",
     name: "Intelligence",
-    description:
-      "Free MRR, movements, churn, and cohorts for every Recovery merchant. Predictive risk scoring is the paid layer on top.",
-    price: "$199/mo",
-    priceLabel: "for predictive risk scoring, MRR analytics are free",
+    description: "MRR analytics, churn prediction, customer health scoring, and a nightly AI analyst.",
+    price: "Free",
+    priceLabel: "for every account",
     href: "/product/intelligence",
   },
 };

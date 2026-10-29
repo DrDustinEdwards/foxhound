@@ -254,7 +254,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // the full list). With Intelligence that is the four products and Settings;
   // Billing is in the avatar menu and the sheet.
   const tabLinks: Array<ProductNavLink & { product?: ProductKey }> = [
-    ...PRODUCT_ORDER.filter((key) => key !== "intelligence" || nav.intelligenceEntitled).map((key) => ({
+    ...PRODUCT_ORDER.map((key) => ({
       label: PRODUCT_MANIFEST[key].label,
       to: PRODUCT_MANIFEST[key].href,
       product: key,
@@ -288,7 +288,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     groups: [
       {
         label: "Products",
-        links: PRODUCT_ORDER.filter((key) => key !== "intelligence" || nav.intelligenceEntitled).map((key) => ({
+        links: PRODUCT_ORDER.map((key) => ({
           id: key,
           label: PRODUCT_MANIFEST[key].label,
           href: PRODUCT_MANIFEST[key].href,
@@ -392,7 +392,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 // route's own loader or action, after appShellMiddleware has already
 // succeeded and this layout has already rendered - a case root.tsx's bare
 // boundary would otherwise render for, discarding the account name/nav/
-// entitlement context this layout already resolved. Renders a minimal,
+// context this layout already resolved. Renders a minimal,
 // self-contained header (no loaderData dependency) since a child-route
 // error still leaves this layout's OWN loader's success ambiguous depending
 // on where in the tree the error surfaced. Same message-selection logic as

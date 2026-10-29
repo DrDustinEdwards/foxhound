@@ -2,12 +2,9 @@
 // test/nav-manifest.test.ts asserts every href/to exists in the real route
 // tree (app/routes.ts), so nav and routes cannot silently drift.
 //
-// Recovery and Disputes are outcome-priced (PRICING.md) with no
-// account_products gate on their routes, so both are always available to any
-// account with a membership. Intelligence is the one flat-subscription
-// product; it is gated at render time by isIntelligenceEntitled
-// (app/lib/intelligence/views.server.ts), resolved once per app-shell
-// request, not per nav render.
+// Recovery and Disputes are outcome-priced (PRICING.md) and Intelligence is
+// free (Dustin, 2026-10-29), with no account_products gate on any route, so
+// every product is always available to any account with a membership.
 //
 // One intentional deviation from the legacy shape (task: "map to Foxhound's
 // REAL routes ... not the legacy paths"): Recovery's legacy "Alerts" link had
@@ -158,9 +155,6 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
 export interface MarketingPillItem {
   label: string;
   to: string;
-  /** Intelligence only: hidden unless the viewer's account is entitled,
-   *  same gate the app-shell ProductSwitcher applies. */
-  requiresIntelligenceEntitlement?: boolean;
 }
 
 export const MARKETING_PILL_ITEMS: MarketingPillItem[] = [
@@ -168,7 +162,7 @@ export const MARKETING_PILL_ITEMS: MarketingPillItem[] = [
   { label: "Audit", to: "/audit" },
   { label: "Recovery", to: PRODUCT_MANIFEST.recovery.href },
   { label: "Disputes", to: PRODUCT_MANIFEST.disputes.href },
-  { label: "Intelligence", to: PRODUCT_MANIFEST.intelligence.href, requiresIntelligenceEntitlement: true },
+  { label: "Intelligence", to: PRODUCT_MANIFEST.intelligence.href },
 ];
 
 export function isProductKey(value: string | null | undefined): value is ProductKey {

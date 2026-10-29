@@ -23,7 +23,6 @@ import {
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
-  INTELLIGENCE_PRICE_CENTS,
   INTELLIGENCE_REPORT_HOURLY_LIMIT,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
   RECOVERY_FEE_BPS,
@@ -238,7 +237,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Roles" },
           "Each person on an account is its Owner or a Member. The owner invites and removes members and cannot be removed. Otherwise settings, billing and the Stripe connections are open to every member. Only the owner can cancel the account.",
           { kind: "h3", text: "Billing and subscription" },
-          `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE}. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE} of wins only, capped at ${dollars(DISPUTE_FEE_CAP_CENTS)} per dispute. Intelligence's predictive layer is a flat ${dollars(INTELLIGENCE_PRICE_CENTS)} per month. The audit is always free.`,
+          `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE}. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE} of wins only, capped at ${dollars(DISPUTE_FEE_CAP_CENTS)} per dispute. Intelligence and the audit are always free.`,
           "A payment method goes on file once, under Billing. Invoices and the full evidence ledger are visible there at any time.",
           { kind: "h3", text: "Cancellation" },
           "Cancel account under Danger zone in Settings and My account stops the work. Only the account's owner sees it. Every Stripe connection on the account is disconnected, no further sequence runs, and the recoveries Foxhound already attributed still invoice. Your billing history and the evidence behind it are left intact.",
@@ -528,7 +527,7 @@ export const DOC_GUIDES: DocGuide[] = [
     datePublished: DOCS_FIRST_PUBLISHED,
     title: "Intelligence",
     description:
-      "Customer health scores, churn risk and MRR trends, on the paid layer.",
+      "Customer health scores, churn risk and MRR trends, free on every account.",
     heading: "Intelligence",
     lead: "Customer health scoring, churn prediction, MRR trend analysis, and AI-generated insights.",
     sections: [
@@ -538,7 +537,7 @@ export const DOC_GUIDES: DocGuide[] = [
           "Each night Intelligence scores the customers it has synced from your Stripe account. Every customer gets a health score from 0 to 100, and the score puts them in one of three bands.",
           { kind: "widget", name: "health-bands" },
           "The score is a way of sorting. What it is for is finding the customers worth your attention before they leave.",
-          { kind: "note", body: `Intelligence is the paid layer, at ${dollars(INTELLIGENCE_PRICE_CENTS)} per month, and its pages open only on an account that has it. There is no self-serve checkout for it yet, so it is turned on for an account rather than bought from a page.` },
+          { kind: "note", body: "Intelligence is free and on for every account. There is nothing to subscribe to or turn on." },
         ],
       },
       {

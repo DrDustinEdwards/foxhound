@@ -36,7 +36,6 @@ export const NAV_LINKS = [
 export function Header({
   isAuthenticated,
   theme,
-  intelligenceEntitled = false,
   isAdmin = false,
   accountLabel = "",
   hasAccount = false,
@@ -54,7 +53,6 @@ export function Header({
   // marketing layout (card-update.tsx, unsubscribe.tsx) always render
   // Header with isAuthenticated=false and have no session context to
   // resolve these from.
-  intelligenceEntitled?: boolean;
   isAdmin?: boolean;
   /** The business you are acting as, the label over its rows in the avatar
    *  menu. */
@@ -89,7 +87,7 @@ export function Header({
   const business = isAuthenticated && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
   // The product switcher, legacy's pill: marketing pages track no active
   // product, so it reads "Home", and it lists legacy's Console, Audit,
-  // Recovery, Disputes, Intelligence (gated as in the app).
+  // Recovery, Disputes, Intelligence.
   const products: HeaderSwitcher = {
     id: "products",
     label: "Home",
@@ -98,9 +96,7 @@ export function Header({
     groups: [
       {
         label: "Products",
-        links: MARKETING_PILL_ITEMS.filter((i) => !i.requiresIntelligenceEntitlement || intelligenceEntitled).map(
-          (i) => ({ id: i.to, label: i.label, href: i.to }),
-        ),
+        links: MARKETING_PILL_ITEMS.map((i) => ({ id: i.to, label: i.label, href: i.to })),
       },
     ],
   };

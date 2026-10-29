@@ -54,7 +54,7 @@ const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
   name: "Foxhound Admin",
   scopes: { read: SCOPE_READ, write: SCOPE_WRITE },
   about: `<p>It can read Foxhound. With changes allowed, it can also pause merchants, stage changes and send test emails to your own inbox.</p>
-<p>It can never refund, adjust, cancel or disconnect anything. Resuming, releasing the brake, enabling a cron, billing exemption and plan grants are only staged, for you to confirm in /admin/staged.</p>`,
+<p>It can never refund, adjust, cancel or disconnect anything. Resuming, releasing the brake, enabling a cron and billing exemption are only staged, for you to confirm in /admin/staged.</p>`,
   admit: (env, user) => isFoxhoundAdmin(env, user.email.toLowerCase()),
 });
 

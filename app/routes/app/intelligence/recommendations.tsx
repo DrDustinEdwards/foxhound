@@ -14,7 +14,6 @@ import "capsomer/table.css";
 // page whole under any layout, as /intelligence/customers does.
 import "~/site-header.css";
 
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -25,7 +24,6 @@ import {
   RECOMMENDATIONS_PAGE_SIZE,
   type RecommendationRow,
 } from "~/lib/intelligence/recommendations.server";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/recommendations";
@@ -94,15 +92,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
   const pageParam = Number(new URL(request.url).searchParams.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
   const { rows, totalCount } = await listActionableRecommendations(db, accountId, page);
   const totalPages = Math.max(1, Math.ceil(totalCount / RECOMMENDATIONS_PAGE_SIZE));
 
-  return { entitled: true as const, rows, totalCount, page, totalPages };
+  return { rows, totalCount, page, totalPages };
 }
 
 function pageHref(page: number): string {
@@ -110,15 +105,6 @@ function pageHref(page: number): string {
 }
 
 export default function IntelligenceRecommendationsPage({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-title font-medium text-text">Recommendations</h1>
-        <IntelligenceUpsell />
-      </div>
-    );
-  }
-
   const { rows, totalCount, page, totalPages } = loaderData;
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns

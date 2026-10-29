@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  accountSubscriptions,
   accounts,
   auditRuns,
   customerContext,
@@ -9,7 +8,6 @@ import {
   recoveredPayments,
   stripeConnections,
 } from "~/db";
-import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import { formatCurrencyTotalsShort, mrrMovementAlt } from "~/lib/dashboard/console";
 import { getConsoleView } from "~/lib/dashboard/console.server";
 
@@ -31,7 +29,6 @@ async function seed(opts: {
   recovered?: { cents: number; currency: string }[];
   active?: { cents: number; currency: string }[];
   atRisk?: { mrr: number; currency: string }[];
-  entitled?: boolean;
   audit?: { currency: string } | null;
 }) {
   const { db } = createInMemoryDb();
@@ -45,15 +42,6 @@ async function seed(opts: {
     createdAt: now,
     isPrimary: true,
   });
-  if (opts.entitled) {
-    await db.insert(accountSubscriptions).values({
-      id: "sub_1",
-      accountId: ACCOUNT_ID,
-      product: INTELLIGENCE_PRODUCT,
-      status: SUBSCRIPTION_STATUS_ACTIVE,
-      createdAt: now,
-    });
-  }
   let n = 0;
   const fp = async (amountCents: number, currency: string, status: string) => {
     n++;
@@ -122,7 +110,7 @@ async function seed(opts: {
 describe("console read model: money per currency (RULES.md 3.20)", () => {
 
   it("formats an attention row's MRR in that customer's own currency", async () => {
-    const db = await seed({ entitled: true, atRisk: [{ mrr: 9_000, currency: "eur" }] });
+    const db = await seed({ atRisk: [{ mrr: 9_000, currency: "eur" }] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     const row = view.attention.find((r) => r.key.startsWith("at-risk-"));
     expect(row?.mrrCurrency).toBe("eur");
@@ -141,7 +129,6 @@ describe("console read model: the Intelligence tile and rows", () => {
   // rows it shows in the feed, so the tile stopped counting at three.
   it("counts every high-risk customer, not only the three the feed shows", async () => {
     const db = await seed({
-      entitled: true,
       atRisk: Array.from({ length: 5 }, () => ({ mrr: 1_000, currency: "usd" })),
     });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
@@ -150,14 +137,6 @@ describe("console read model: the Intelligence tile and rows", () => {
     expect(view.attention.filter((r) => r.key.startsWith("at-risk-"))).toHaveLength(3);
   });
 
-  // Recova reads these only when Intelligence is active, and every row links
-  // to /intelligence/customers/:id, a page only an entitled account can open.
-  it("shows no Intelligence rows to an account without Intelligence", async () => {
-    const db = await seed({ entitled: false, atRisk: [{ mrr: 9_000, currency: "usd" }] });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.attention.filter((r) => r.key.startsWith("at-risk-"))).toEqual([]);
-    expect(view.tiles.highRiskCustomerCount).toBe(0);
-  });
 });
 
 describe("console formatting helpers", () => {

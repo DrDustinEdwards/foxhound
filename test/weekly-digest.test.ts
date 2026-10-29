@@ -18,7 +18,6 @@ const harness = vi.hoisted(() => ({
   db: null as unknown,
   jobs: [] as Record<string, unknown>[],
   outcome: { status: "sent" } as { status: string },
-  intelligenceEntitled: false,
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -31,10 +30,6 @@ vi.mock("~/lib/email/dispatch", () => ({
     harness.jobs.push(job);
     return harness.outcome;
   },
-}));
-
-vi.mock("~/lib/intelligence/views.server", () => ({
-  isIntelligenceEntitled: async () => harness.intelligenceEntitled,
 }));
 
 const {
@@ -72,7 +67,6 @@ beforeEach(() => {
   harness.db = db;
   harness.jobs = [];
   harness.outcome = { status: "sent" };
-  harness.intelligenceEntitled = false;
   seedAccount(ACCOUNT, 1);
 });
 
@@ -151,7 +145,6 @@ describe("PLANT 1: the pure copy is legacy's", () => {
       currency: "usd",
       senderName: null,
       disputesActive: true,
-      intelligenceActive: false,
       highRiskCustomers: [],
       now: NOW,
       baseUrl: "https://u.test",
@@ -217,7 +210,7 @@ describe("PLANT 4: one digest per account per week", () => {
     expect(job.template).toBe("weekly_digest");
     // The DIGEST audience (E23): Recova's unsubscribe and postal address.
     expect(job.audience).toBe("digest");
-    expect(job.subject).toBe("Your weekly recovery report: November 2");
+    expect(job.subject).toBe("Your weekly platform report: November 2");
     expect(String(job.unsubscribeToken)).not.toBe("");
     expect(job.physicalAddress).toBe("1 Test Way");
     // Two failed rows (f1 and seedRecovered's), one recovered: 50%.

@@ -1,11 +1,9 @@
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
-import { Pill } from "capsomer/react/status";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
-import "capsomer/status.css";
 import "./recovery/dashboard.css";
 
 import { ConsoleAttentionFeed, ConsoleHeroRow, ConsoleTileRow } from "~/components/console-panels";
@@ -135,12 +133,9 @@ export default function Console({ loaderData }: Route.ComponentProps) {
       </section>
 
       <section className="mt-10" aria-labelledby="mrr-analytics">
-        <div className="flex items-center justify-between gap-3">
-          <h2 id="mrr-analytics" className="m-0 text-title font-medium text-text">
-            MRR analytics
-          </h2>
-          <Pill variant="outline">Free</Pill>
-        </div>
+        <h2 id="mrr-analytics" className="m-0 text-title font-medium text-text">
+          MRR analytics
+        </h2>
 
         {latest ? (
           <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">

@@ -94,7 +94,6 @@ export type GenerateReportError =
   | "ai_not_configured"
   | "ai_no_credit"
   | "generation_failed"
-  | "not_entitled"
   | "invalid_intent"
   | "demo_read_only"
   | "limiter_unavailable"
@@ -120,7 +119,6 @@ export const GENERATE_REPORT_ERROR_STATUS: Record<GenerateReportError, number> =
   invalid_month: 400,
   not_current_month: 400,
   demo_read_only: 403,
-  not_entitled: 403,
   rate_limited: 429,
   ai_not_configured: 503,
   ai_no_credit: 503,
