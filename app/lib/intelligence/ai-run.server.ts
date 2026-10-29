@@ -9,19 +9,15 @@ import {
   intelligenceReports,
   type Db,
 } from "~/db";
-import { buildAiCallRow } from "~/lib/ai/cost";
 import {
-  HEALTH_SCORE_AT_RISK_THRESHOLD,
-  INTELLIGENCE_NARRATIVE_TOP_N,
-  MODEL_INTELLIGENCE_NARRATIVE,
   PREDICTION_HORIZON_DAYS,
 } from "~/lib/constants";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 
 import {
-  generateIntelligenceNarrative,
-  type AtRiskCustomerFact,
-  type NarrativeFacts,
+  narrativeFactsFor,
+  writeIntelligenceNarrative,
+  type NarrativeCustomer,
   type NarrativeResult,
 } from "./narrative";
 import { buildPredictionFields, buildPredictionInsert } from "./predictions";
@@ -31,17 +27,13 @@ import { computeHealthScore, type HealthFactor } from "./risk";
 import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.server";
 import { accountProcessingEligible } from "./sync.server";
 
-// The Intelligence AI half's nightly orchestration: scoring -> predictions ->
-// narrative, for one account, then for every processing-eligible
-// account (TASK-foxhound-intelligence-ai.md deliverable 5). Consumes the
-// deterministic signals customer_context/mrr_snapshots already carry
-// (app/lib/intelligence/{signals,mrr,sync.server}.ts); never recomputes them.
-//
-// Score/predict/alert are deterministic and always commit. The narrative (the
-// one paid AI call) is wrapped separately and fails safe: a missing/unfunded
-// ANTHROPIC_API_KEY, or any model-call error, is caught here and reported as
-// a skipped narrative, never as a failed run (the deterministic rows above
-// already landed by then).
+// The Intelligence nightly orchestration: scoring -> predictions -> narrative,
+// for one account, then for every processing-eligible account
+// (TASK-foxhound-intelligence-ai.md deliverable 5; the file keeps its name).
+// Consumes the deterministic signals customer_context/mrr_snapshots already
+// carry (app/lib/intelligence/{signals,mrr,sync.server}.ts); never recomputes
+// them. Nothing here calls a model: the narrative is a template
+// (narrative.ts), because Intelligence is free.
 
 interface ScoredCustomer {
   customerContextId: string;
@@ -164,8 +156,8 @@ function buildScoringBatch(
 export interface AccountAiRunResult {
   accountId: string;
   customersScored: number;
-  narrativeGenerated: boolean;
-  narrativeSkippedReason: string | null;
+  /** Why the account's run failed, or null. */
+  error: string | null;
 }
 
 export async function runIntelligenceAiForAccount(
@@ -177,11 +169,10 @@ export async function runIntelligenceAiForAccount(
   const now = new Date(nowMs);
 
   const [account, scored] = await Promise.all([
-    db.select({ name: accounts.name, currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
+    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
     scoreAccountCustomers(db, accountId, nowMs),
   ]);
   const currency = account[0]?.currency ?? "usd";
-  const accountName = account[0]?.name ?? "the business";
 
   if (scored.length > 0) {
     const batch = buildScoringBatch(db, accountId, scored, now, currency);
@@ -192,88 +183,21 @@ export async function runIntelligenceAiForAccount(
   // run, and so does Foxhound (alert-run.server.ts, on the recovery tick).
   const mrr = await getMrrAnalytics(db, accountId, nowMs);
 
-  let narrativeGenerated = false;
-  let narrativeSkippedReason: string | null = null;
-  try {
-    const result = await generateIntelligenceNarrative(
-      env,
-      narrativeFactsFor({ accountName, currency, mrrLatest: mrr.latest, scored }),
-    );
-    await writeNarrativeReport(db, { accountId, now, result, scored });
-    narrativeGenerated = result.usage !== null;
-  } catch (err) {
-    narrativeSkippedReason = err instanceof Error ? err.message : "narrative generation failed";
-  }
+  const result = writeIntelligenceNarrative(
+    narrativeFactsFor({ currency, mrrLatest: mrr.latest, scored }),
+  );
+  await writeNarrativeReport(db, { accountId, now, result, scored });
 
   return {
     accountId,
     customersScored: scored.length,
-    narrativeGenerated,
-    narrativeSkippedReason,
-  };
-}
-
-/** The ai_calls source the narrative logs under, nightly or on request. */
-const NARRATIVE_AI_SOURCE = "intelligence_narrative";
-
-/** A scored customer as the narrative needs it: from tonight's scoring run,
- *  or from the scores customer_context holds when a merchant asks for a
- *  report during the day (report-generate.server.ts). */
-export interface NarrativeCustomer {
-  customerContextId: string;
-  stripeCustomerId: string;
-  customerName: string | null;
-  mrrContributionCents: number;
-  score: number;
-  factors: readonly { detail: string }[];
-}
-
-/** The narrative's facts: the latest MRR snapshot's movements and the at-risk
- *  customers, lowest score first, capped at INTELLIGENCE_NARRATIVE_TOP_N. One
- *  computation for both the nightly run and the dashboard's button. */
-export function narrativeFactsFor(input: {
-  accountName: string;
-  currency: string;
-  mrrLatest: {
-    totalMrrCents: number;
-    newMrrCents: number;
-    expansionMrrCents: number;
-    contractionMrrCents: number;
-    churnMrrCents: number;
-    reactivationMrrCents: number;
-  } | null;
-  scored: readonly NarrativeCustomer[];
-}): NarrativeFacts {
-  const { accountName, currency, mrrLatest, scored } = input;
-  const atRisk = scored
-    .filter((c) => c.score < HEALTH_SCORE_AT_RISK_THRESHOLD)
-    .sort((a, b) => a.score - b.score);
-  const topAtRiskCustomers: AtRiskCustomerFact[] = atRisk.slice(0, INTELLIGENCE_NARRATIVE_TOP_N).map((c) => ({
-    stripeCustomerId: c.stripeCustomerId,
-    customerName: c.customerName,
-    healthScore: c.score,
-    mrrContributionCents: c.mrrContributionCents,
-    currency,
-    factorDetails: c.factors.map((f) => f.detail),
-  }));
-  return {
-    accountName,
-    currency,
-    totalMrrCents: mrrLatest?.totalMrrCents ?? 0,
-    newMrrCents: mrrLatest?.newMrrCents ?? 0,
-    expansionMrrCents: mrrLatest?.expansionMrrCents ?? 0,
-    contractionMrrCents: mrrLatest?.contractionMrrCents ?? 0,
-    churnMrrCents: mrrLatest?.churnMrrCents ?? 0,
-    reactivationMrrCents: mrrLatest?.reactivationMrrCents ?? 0,
-    mrrAtRiskCents: atRisk.reduce((sum, c) => sum + c.mrrContributionCents, 0),
-    atRiskCustomerCount: atRisk.length,
-    topAtRiskCustomers,
+    error: null,
   };
 }
 
 /** The one writer of intelligence_reports: this month's report (upserted, so
- *  a regenerate replaces it), each assessment on its own customer, and the AI
- *  call's cost row, in one batch. */
+ *  a regenerate replaces it) and each assessment on its own customer, in one
+ *  batch. */
 export async function writeNarrativeReport(
   db: Db,
   input: { accountId: string; now: Date; result: NarrativeResult; scored: readonly NarrativeCustomer[] },
@@ -298,23 +222,10 @@ export async function writeNarrativeReport(
         .where(eq(customerContext.id, customerContextId)),
     );
   }
-  if (result.usage) {
-    narrativeBatch.push(
-      buildAiCallRow(db, {
-        accountId,
-        source: NARRATIVE_AI_SOURCE,
-        model: MODEL_INTELLIGENCE_NARRATIVE,
-        promptTokens: result.usage.promptTokens,
-        completionTokens: result.usage.completionTokens,
-        relatedId: null,
-        createdAt: now,
-      }),
-    );
-  }
   await db.batch([narrativeBatch[0], ...narrativeBatch.slice(1)]);
 }
 
-/** The full nightly AI run: every processing-eligible account. Mirrors
+/** The full nightly run: every processing-eligible account. Mirrors
  *  runIntelligenceSyncForAllAccounts's per-account try/catch-continue (one
  *  account's failure never aborts the rest). */
 export async function runIntelligenceAiForAllAccounts(
@@ -332,10 +243,9 @@ export async function runIntelligenceAiForAllAccounts(
       results.push({
         accountId: id,
         customersScored: 0,
-        narrativeGenerated: false,
-        narrativeSkippedReason: err instanceof Error ? err.message : "run failed",
+        error: err instanceof Error ? err.message : "run failed",
       });
-      console.error(`intelligence AI run failed for account ${id}:`, err instanceof Error ? err.message : err);
+      console.error(`intelligence run failed for account ${id}:`, err instanceof Error ? err.message : err);
     }
   }
   return results;

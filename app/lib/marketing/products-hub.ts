@@ -48,7 +48,7 @@ export const HUB_COPY: Record<ProductKey, HubCardCopy> = {
     price: `${pct(DISPUTE_FEE_BPS)} on wins, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`,
   },
   intelligence: {
-    description: "MRR analytics, churn prediction, customer health scoring, AI narrative",
+    description: "MRR analytics, churn prediction, customer health scoring, monthly narrative",
     price: "Free",
   },
 };

@@ -550,7 +550,7 @@ export const DOC_GUIDES: DocGuide[] = [
     description:
       "Customer health scores, churn risk and MRR trends, free on every account.",
     heading: "Intelligence",
-    lead: "Customer health scoring, churn prediction, MRR trend analysis, and AI-generated insights.",
+    lead: "Customer health scoring, churn prediction, MRR trend analysis, and a monthly narrative.",
     sections: [
       {
         heading: "How Intelligence works",
@@ -616,12 +616,11 @@ export const DOC_GUIDES: DocGuide[] = [
         ],
       },
       {
-        heading: "AI analyst",
+        heading: "Monthly narrative",
         body: [
-          "Each night, after scoring, the AI analyst writes a short narrative for the account: the MRR at risk and the at-risk customers that matter most. It works only from the scores and signals Foxhound computed, which it puts into words and never invents.",
+          "Each night, after scoring, Foxhound writes a short narrative for the account: total MRR, how it moved, the MRR at risk, and a line on each of the at-risk customers that matter most. It is written from a template using only the scores and signals Foxhound computed, so it never states anything they do not.",
           "The current month's narrative is on the Intelligence dashboard and is rewritten each night, and every month keeps its own under Reports.",
-          `You can also generate this month's report from the dashboard yourself, up to ${INTELLIGENCE_REPORT_HOURLY_LIMIT} times an hour. When the AI model cannot run, the dashboard says so and no report is written.`,
-          { kind: "tip", body: "When the AI model is not available, no narrative is written that night. The scores, the bands and the alerts still update." },
+          `You can also generate this month's report from the dashboard yourself, up to ${INTELLIGENCE_REPORT_HOURLY_LIMIT} times an hour.`,
         ],
       },
       {

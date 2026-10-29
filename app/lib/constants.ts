@@ -291,8 +291,6 @@ export type BillingLineItemType = (typeof BILLING_LINE_ITEM_TYPES)[number];
 // cover each id here (closes legacy R-49 drift); Phase 4b uses generation only.
 /** Recovery / dunning copy generation. */
 export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
-/** Intelligence nightly AI analyst narrative + per-customer assessments. */
-export const MODEL_INTELLIGENCE_NARRATIVE = "claude-sonnet-5";
 /** Unauthenticated home-page email sample generator: copy generation, not
  *  money-path reasoning, so the cheap model is correct here too. */
 export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
@@ -784,7 +782,7 @@ export const HEALTH_SCORE_AT_RISK_THRESHOLD = 40;
 /** How far out a logged prediction claims to look. Grading (filling
  *  realizedOutcome once this elapses) is a later backtest pass. */
 export const PREDICTION_HORIZON_DAYS = 30;
-/** Max at-risk customers named individually in the nightly AI narrative. */
+/** Max at-risk customers named individually in the nightly narrative. */
 export const INTELLIGENCE_NARRATIVE_TOP_N = 10;
 /** Reports a merchant may generate per account per hour from the Intelligence
  *  dashboard, Recova's limit (app/api/intelligence/generate-report/route.ts,

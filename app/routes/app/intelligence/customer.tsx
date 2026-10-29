@@ -43,7 +43,7 @@ import type { Route } from "./+types/customer";
 // (1614dfaf) and lib/intelligence/customer-context-ssr.ts (a499c285), each
 // read whole. In Recova's order and 1080px width: the breadcrumb, the back
 // link and the recovery payments link, the header card, the three signal
-// cards, the health score with its chart, the AI assessment when there is
+// cards, the health score with its chart, the assessment when there is
 // one, and the footer.
 //
 // Built from Capsomer 0.9.0's parts (Q10), the chart by Enarratio (Q1), amber
@@ -195,8 +195,8 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
         <HealthScoreCard score={customer.healthScore} history={customer.history} />
 
         {/* Recova leaves this card out entirely when there is no assessment.
-            Foxhound's analyst writes one for the at-risk customers it names
-            in the month's narrative (ai-run.server.ts writeNarrativeReport),
+            Foxhound writes one for the at-risk customers it names in the
+            month's narrative (ai-run.server.ts writeNarrativeReport),
             so the heading is true of every customer that has one. */}
         {customer.aiAssessment ? (
           <Panel title="Why this customer needs attention">

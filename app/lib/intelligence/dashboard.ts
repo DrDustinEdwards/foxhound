@@ -152,25 +152,16 @@ export type GenerateReportError =
   | "invalid_month"
   | "not_current_month"
   | "rate_limited"
-  | "ai_not_configured"
-  | "ai_no_credit"
-  | "generation_failed"
   | "invalid_intent"
   | "demo_read_only"
-  | "limiter_unavailable"
   | "server_error";
 
 const ERROR_MESSAGES: Partial<Record<GenerateReportError, string>> = {
   // Recova's words.
   rate_limited: "You hit the hourly generation limit. Try again later.",
   invalid_month: "Invalid month.",
-  generation_failed: "Generation failed. Please try again.",
   // Recova's server-500 sentence.
   server_error: "Could not generate the report. Try again or contact support.",
-  limiter_unavailable: "Reports cannot be generated right now. Try again shortly.",
-  // Foxhound's: the narrative needs Anthropic credit, and its absence is said.
-  ai_not_configured: "Reports cannot be generated right now: the AI analyst is not set up.",
-  ai_no_credit: "Reports cannot be generated right now: the AI analyst is out of credit.",
   not_current_month: "Only this month's report can be generated.",
 };
 
@@ -181,10 +172,6 @@ export const GENERATE_REPORT_ERROR_STATUS: Record<GenerateReportError, number> =
   not_current_month: 400,
   demo_read_only: 403,
   rate_limited: 429,
-  ai_not_configured: 503,
-  ai_no_credit: 503,
-  generation_failed: 502,
-  limiter_unavailable: 503,
   server_error: 500,
 };
 

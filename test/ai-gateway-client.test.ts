@@ -41,7 +41,6 @@ function filesContaining(needle: string): string[] {
 const CALL_SITES = [
   "app/lib/recovery/email-generation.ts",
   "app/lib/disputes/evidence.ts",
-  "app/lib/intelligence/narrative.ts",
   "app/lib/marketing/home-email-sample.server.ts",
   // Session 58's win-back generator. THE GUARD CAUGHT THIS ITSELF: the derived
   // list went from four to five the moment the new file was committed, which is

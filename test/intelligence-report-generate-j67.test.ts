@@ -20,18 +20,18 @@ import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 // regenerates (Recova returned the cached report unchanged under a button that
 // said "Regenerate", which was not true).
 //
-// The narrative needs Anthropic credit (launch blocker 2). A missing key and an
-// unfunded key each come back as their own named error for the page to show,
-// never as a silent nothing.
+// Intelligence is free, so the report is a template (narrative.ts) and the
+// button never calls a model: the client factory throws here if it is reached.
 
 const createMock = vi.fn();
 vi.mock("~/lib/ai/client", () => ({
-  createAnthropicClient: () => ({ messages: { create: createMock } }),
+  createAnthropicClient: () => {
+    createMock();
+    throw new Error("Intelligence must not call a model");
+  },
 }));
 
-const { generateMonthlyReport, classifyNarrativeError } = await import(
-  "~/lib/intelligence/report-generate.server"
-);
+const { generateMonthlyReport } = await import("~/lib/intelligence/report-generate.server");
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
 
@@ -42,7 +42,7 @@ const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
 let clock = NOW;
 const fakeRateLimiter = () => makeRateLimiterNamespace(() => clock);
 let limiter = fakeRateLimiter();
-let ENV = { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: limiter } as unknown as Env;
+let ENV = { RATE_LIMITER: limiter } as unknown as Env;
 
 async function seed() {
   const { db } = createInMemoryDb();
@@ -81,26 +81,11 @@ async function seed() {
   return db;
 }
 
-function modelReply(narrative: string) {
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify({
-          narrative,
-          customerAssessments: [{ stripeCustomerId: "cus_low", assessment: "Two refunds pulled it down." }],
-        }),
-      },
-    ],
-    usage: { input_tokens: 100, output_tokens: 50 },
-  };
-}
-
 beforeEach(() => {
   createMock.mockReset();
   clock = NOW;
   limiter = fakeRateLimiter();
-  ENV = { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: limiter } as unknown as Env;
+  ENV = { RATE_LIMITER: limiter } as unknown as Env;
 });
 
 describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
@@ -120,44 +105,37 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it("writes this month's report through the engine and returns it", async () => {
+  it("writes this month's report from the engine's facts, with no model call", async () => {
     const db = await seed();
-    createMock.mockResolvedValue(modelReply("MRR held at $5,000.00."));
     const result = await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
-    expect(result).toEqual({ ok: true, month: "2026-10", narrative: "MRR held at $5,000.00." });
-
-    // The prompt carries the engine's own facts: the snapshot's MRR and the
-    // stored at-risk customer with its stored factor.
-    const prompt = JSON.stringify(createMock.mock.calls[0]![0]);
-    expect(prompt).toContain("Total MRR: $5,000.00");
-    expect(prompt).toContain("Low Co");
-    expect(prompt).toContain("2 refunds on record");
+    const narrative =
+      "Total MRR is $5,000.00. Since the day before: $200.00 new, $50.00 expansion, $10.00 contraction, " +
+      "$30.00 churned, a net gain of $210.00. $99.00 of MRR is at risk across 1 customer. " +
+      "The lowest health score is Low Co at 20/100.";
+    expect(result).toEqual({ ok: true, month: "2026-10", narrative });
 
     const reports = await db.select().from(intelligenceReports).where(eq(intelligenceReports.accountId, "acc_1"));
     expect(reports).toHaveLength(1);
     expect(reports[0]!.reportMonth.toISOString()).toBe("2026-10-01T00:00:00.000Z");
-    expect(reports[0]!.narrative).toBe("MRR held at $5,000.00.");
-    const calls = await db.select().from(aiCalls).where(eq(aiCalls.accountId, "acc_1"));
-    expect(calls.map((c) => c.source)).toEqual(["intelligence_narrative"]);
+    expect(reports[0]!.narrative).toBe(narrative);
     const [cc] = await db.select().from(customerContext).where(eq(customerContext.id, "cc_1"));
-    expect(cc!.aiAssessment).toBe("Two refunds pulled it down.");
+    expect(cc!.aiAssessment).toBe("Health score 20/100 on $99.00 of MRR. 2 refunds on record.");
+    expect(await db.select().from(aiCalls)).toHaveLength(0);
+    expect(createMock).not.toHaveBeenCalled();
   });
 
   it("allows Recova's five generations an hour per account and refuses the sixth", async () => {
     const db = await seed();
     expect(INTELLIGENCE_REPORT_HOURLY_LIMIT).toBe(5);
-    createMock.mockResolvedValue(modelReply("Fine."));
     for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
       expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
     }
     expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "rate_limited" });
-    expect(createMock).toHaveBeenCalledTimes(INTELLIGENCE_REPORT_HOURLY_LIMIT);
     expect(limiter.names.every((k) => k === "intelligence-report:acc_1")).toBe(true);
   });
 
   it("starts a fresh hour once the hour has passed", async () => {
     const db = await seed();
-    createMock.mockResolvedValue(modelReply("Fine."));
     for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
     clock = NOW + 60 * 60 * 1000;
     expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
@@ -166,47 +144,7 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
   it("keeps each account's hour to itself", async () => {
     const db = await seed();
     await db.insert(accounts).values({ id: "acc_2", name: "Beta", currency: "usd", createdAt: new Date(NOW) });
-    createMock.mockResolvedValue(modelReply("Fine."));
     for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
     expect(await generateMonthlyReport(ENV, db, "acc_2", "2026-10", NOW)).toMatchObject({ ok: true });
-  });
-
-  // A paid call is never made unmetered: if the limiter itself errors, the
-  // button refuses with its own sentence rather than calling the model.
-  it("fails closed when the limiter errors: no model call, and its own error", async () => {
-    const db = await seed();
-    const cause = new Error("Durable Object reset");
-    const broken = { idFromName: (n: string) => n, get: () => ({ hit: () => Promise.reject(cause) }) };
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const result = await generateMonthlyReport(
-      { ANTHROPIC_API_KEY: "sk-test", RATE_LIMITER: broken } as unknown as Env,
-      db,
-      "acc_1",
-      "2026-10",
-      NOW,
-    );
-    expect(result).toEqual({ ok: false, error: "limiter_unavailable" });
-    expect(createMock).not.toHaveBeenCalled();
-    expect(log.mock.calls.some((call) => String(call[0]).includes(cause.message))).toBe(true);
-    expect(await db.select().from(intelligenceReports)).toHaveLength(0);
-    log.mockRestore();
-  });
-
-  it("fails visibly with no AI key, and writes nothing", async () => {
-    const db = await seed();
-    const result = await generateMonthlyReport({ RATE_LIMITER: limiter } as unknown as Env, db, "acc_1", "2026-10", NOW);
-    expect(result).toEqual({ ok: false, error: "ai_not_configured" });
-    expect(await db.select().from(intelligenceReports)).toHaveLength(0);
-  });
-});
-
-describe("classifyNarrativeError", () => {
-  it("tells a missing key, an unfunded key and anything else apart", () => {
-    expect(classifyNarrativeError(new Error("ANTHROPIC_API_KEY is not set"))).toBe("ai_not_configured");
-    expect(
-      classifyNarrativeError(Object.assign(new Error("Your credit balance is too low"), { status: 400 })),
-    ).toBe("ai_no_credit");
-    expect(classifyNarrativeError(Object.assign(new Error("bad request"), { status: 400 }))).toBe("generation_failed");
-    expect(classifyNarrativeError("boom")).toBe("generation_failed");
   });
 });

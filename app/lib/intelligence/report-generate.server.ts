@@ -3,15 +3,11 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { accounts, customerContext, type Db } from "~/db";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 import { HOUR_MS, INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
-import { isWithinRateLimit, RateLimiterUnavailableError } from "~/lib/http/rate-limit";
+import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
-import {
-  narrativeFactsFor,
-  writeNarrativeReport,
-  type NarrativeCustomer,
-} from "./ai-run.server";
+import { writeNarrativeReport } from "./ai-run.server";
 import { monthKeyOf, type GenerateReportError } from "./dashboard";
-import { generateIntelligenceNarrative } from "./narrative";
+import { narrativeFactsFor, writeIntelligenceNarrative, type NarrativeCustomer } from "./narrative";
 import type { HealthFactor } from "./risk";
 
 // The Intelligence dashboard's "Generate report" / "Regenerate report" button
@@ -31,15 +27,8 @@ import type { HealthFactor } from "./risk";
 //   * Regenerate regenerates. Recova returned an existing report unchanged
 //     under a button labeled "Regenerate".
 //   * The limit is the RATE_LIMITER Durable Object (app/lib/http/rate-limit.ts),
-//     keyed per account and checked before the model call. The object
-//     serializes every check for one key, so parallel clicks cannot all pass,
-//     a call that was billed but whose reply would not parse still counts, and
-//     the nightly run's own narrative does not use up the merchant's five.
-//     Unlike the limiter's other callers it fails closed: every generation is
-//     a paid model call, so if the object errors the button refuses with
-//     limiter_unavailable (logged whole) and no model call is made.
-//   * A missing key and an unfunded key are their own errors (launch blocker
-//     2), so the page says why nothing was written instead of failing quietly.
+//     keyed per account. It fails open like the limiter's other callers: the
+//     report is a template (narrative.ts) and costs nothing to write.
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const RATE_LIMIT_BUCKET = "intelligence-report";
@@ -47,17 +36,6 @@ const RATE_LIMIT_BUCKET = "intelligence-report";
 export type GenerateReportResult =
   | { ok: true; month: string; narrative: string }
   | { ok: false; error: GenerateReportError };
-
-/** Which of the page's errors a failed narrative call is. */
-export function classifyNarrativeError(err: unknown): "ai_not_configured" | "ai_no_credit" | "generation_failed" {
-  if (!(err instanceof Error)) return "generation_failed";
-  if (err.message.includes("ANTHROPIC_API_KEY is not set")) return "ai_not_configured";
-  const status = (err as { status?: unknown }).status;
-  // Anthropic answers an unfunded account with a 400 whose message names the
-  // credit balance.
-  if ((status === 400 || status === 402) && /credit balance/i.test(err.message)) return "ai_no_credit";
-  return "generation_failed";
-}
 
 export async function generateMonthlyReport(
   env: Env,
@@ -70,20 +48,12 @@ export async function generateMonthlyReport(
   const now = new Date(nowMs);
   if (month !== monthKeyOf(now)) return { ok: false, error: "not_current_month" };
 
-  let withinLimit: boolean;
-  try {
-    withinLimit = await isWithinRateLimit(env, RATE_LIMIT_BUCKET, accountId, INTELLIGENCE_REPORT_HOURLY_LIMIT, HOUR_MS, {
-      failClosed: true,
-    });
-  } catch (err) {
-    // site-runtime has already logged the failure (bucket and message).
-    if (err instanceof RateLimiterUnavailableError) return { ok: false, error: "limiter_unavailable" };
-    throw err;
+  if (!(await isWithinRateLimit(env, RATE_LIMIT_BUCKET, accountId, INTELLIGENCE_REPORT_HOURLY_LIMIT, HOUR_MS))) {
+    return { ok: false, error: "rate_limited" };
   }
-  if (!withinLimit) return { ok: false, error: "rate_limited" };
 
   const [account, rows, mrr] = await Promise.all([
-    db.select({ name: accounts.name, currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
+    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
     db
       .select({
         id: customerContext.id,
@@ -107,23 +77,12 @@ export async function generateMonthlyReport(
     factors: (r.healthFactors as HealthFactor[] | null) ?? [],
   }));
   const facts = narrativeFactsFor({
-    accountName: account[0]?.name ?? "the business",
     currency: account[0]?.currency ?? "usd",
     mrrLatest: mrr.latest,
     scored,
   });
 
-  let result;
-  try {
-    result = await generateIntelligenceNarrative(env, facts);
-  } catch (err) {
-    const error = classifyNarrativeError(err);
-    // The merchant sees the sentence; the operator sees the whole error (stack,
-    // the SDK's status and request id) in the log.
-    console.error(`intelligence report generation failed for account ${accountId} (${error}):`, err);
-    return { ok: false, error };
-  }
-
+  const result = writeIntelligenceNarrative(facts);
   await writeNarrativeReport(db, { accountId, now, result, scored });
   return { ok: true, month, narrative: result.narrative };
 }

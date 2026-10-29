@@ -333,8 +333,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Audit",
         },
         {
-          name: `AI ${nightly} analyst`,
-          description: `Claude writes a plain-English narrative of the account's at-risk customers ${nightly}, from their real scores. It phrases the numbers, never invents one.`,
+          name: `${Nightly} narrative`,
+          description: `A plain-English narrative of the account's MRR and at-risk customers, written ${nightly} from their real scores. A template, not AI, so it states only the numbers.`,
           product: "Intelligence",
         },
         {
@@ -499,7 +499,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Intelligence dashboard",
-          description: `MRR, NRR trend, MRR movement chart, health score distribution, and the ${nightly} AI narrative.`,
+          description: `MRR, NRR trend, MRR movement chart, health score distribution, and the ${nightly} narrative.`,
           product: "Intelligence",
         },
         {
@@ -713,7 +713,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Anthropic API",
           description:
-            `Claude Sonnet writes recovery emails, dispute evidence, and the ${nightly} narrative. Claude Haiku writes audit summaries.`,
+            "Claude Sonnet writes recovery emails and dispute evidence. Claude Haiku writes audit summaries.",
           product: "Platform",
         },
         {
