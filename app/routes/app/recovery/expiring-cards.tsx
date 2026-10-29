@@ -15,7 +15,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const alerts = await listExpiringCardAlerts(db, auth.membership.accountId);
+  const alerts = await listExpiringCardAlerts(db, auth.membership.accountId, { includeNoPaymentMethod: true });
   return { alerts, nowMs: Date.now() };
 }
 
@@ -51,8 +51,12 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
             </thead>
             <tbody>
               {alerts.map((alert) => {
+                // A trial with nothing to charge: its month and year are the
+                // trial end, so the row says so rather than naming a card.
+                const noPaymentMethod = alert.reason === "no_payment_method";
                 const expired = isCardExpired(alert.expiresYear, alert.expiresMonth, now);
                 const expiringSoon = isCardExpiringSoon(alert.expiresYear, alert.expiresMonth, now);
+                const month = `${String(alert.expiresMonth).padStart(2, "0")}/${alert.expiresYear}`;
                 return (
                   <tr key={alert.id} className="border-b border-border-sub last:border-0">
                     <td className="px-4 py-3">
@@ -60,15 +64,21 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                       <p className="text-micro text-text-subtle">{alert.customerEmail}</p>
                     </td>
                     <td className="px-4 py-3 text-text-tertiary">
-                      {alert.cardBrand ?? "Card"} {alert.cardLast4 ? `•••• ${alert.cardLast4}` : ""}
+                      {noPaymentMethod
+                        ? "No payment method"
+                        : `${alert.cardBrand ?? "Card"} ${alert.cardLast4 ? `•••• ${alert.cardLast4}` : ""}`}
                     </td>
                     <td className="px-4 py-3 font-mono text-text">
-                      {String(alert.expiresMonth).padStart(2, "0")}/{alert.expiresYear}
+                      {noPaymentMethod ? `Trial ends ${month}` : month}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={expired ? "failure" : expiringSoon ? "neutral" : "neutral"}>
-                        {expired ? "Expired" : expiringSoon ? "Expiring soon" : "Valid"}
-                      </Badge>
+                      {noPaymentMethod ? (
+                        <Badge tone="neutral">{expired ? "Trial ended" : "Trial ending"}</Badge>
+                      ) : (
+                        <Badge tone={expired ? "failure" : expiringSoon ? "neutral" : "neutral"}>
+                          {expired ? "Expired" : expiringSoon ? "Expiring soon" : "Valid"}
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-text-tertiary">
                       {alert.alertSentAt ? `Sent ${alert.alertSentAt.toLocaleDateString()}` : "Not sent yet"}

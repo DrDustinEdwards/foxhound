@@ -82,8 +82,39 @@ async function declinedCard(
   };
 }
 
-/** The payment method invoices.pay will use: the invoice's own default, else
- *  the subscription's, else the customer's, else the declined one (which the
+/** Where the charge's payment method can come from, each level as an id to
+ *  retrieve or as the object a caller already holds. */
+export interface ChargeMethodSources {
+  invoiceDefault: string | null;
+  subscription: string | Pick<Stripe.Subscription, "default_payment_method"> | null;
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null;
+}
+
+/** The payment method Stripe will charge: the invoice's own default, else the
+ *  subscription's, else the customer's. A level is read from Stripe only when
+ *  every earlier one is empty. Null when none of them has one. */
+export async function chargePaymentMethodId(stripe: Stripe, sources: ChargeMethodSources): Promise<string | null> {
+  if (sources.invoiceDefault) return sources.invoiceDefault;
+  if (sources.subscription) {
+    const subscription =
+      typeof sources.subscription === "string"
+        ? await stripe.subscriptions.retrieve(sources.subscription)
+        : sources.subscription;
+    const fromSubscription = idOf(subscription.default_payment_method);
+    if (fromSubscription) return fromSubscription;
+  }
+  if (sources.customer) {
+    const customer =
+      typeof sources.customer === "string" ? await stripe.customers.retrieve(sources.customer) : sources.customer;
+    if (!customer.deleted) {
+      const fromCustomer = idOf(customer.invoice_settings?.default_payment_method);
+      if (fromCustomer) return fromCustomer;
+    }
+  }
+  return null;
+}
+
+/** The payment method invoices.pay will use, else the declined one (which the
  *  card updater may have changed in place). */
 async function currentPaymentMethodId(
   stripe: Stripe,
@@ -91,23 +122,12 @@ async function currentPaymentMethodId(
   declinedPaymentMethodId: string | null,
 ): Promise<string | null> {
   const invoice = await stripe.invoices.retrieve(invoiceId);
-  const own = idOf(invoice.default_payment_method);
-  if (own) return own;
-  const subscriptionId = idOf(invoice.parent?.subscription_details?.subscription);
-  if (subscriptionId) {
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const fromSubscription = idOf(subscription.default_payment_method);
-    if (fromSubscription) return fromSubscription;
-  }
-  const customerId = idOf(invoice.customer);
-  if (customerId) {
-    const customer = await stripe.customers.retrieve(customerId);
-    if (!customer.deleted) {
-      const fromCustomer = idOf(customer.invoice_settings?.default_payment_method);
-      if (fromCustomer) return fromCustomer;
-    }
-  }
-  return declinedPaymentMethodId;
+  const resolved = await chargePaymentMethodId(stripe, {
+    invoiceDefault: idOf(invoice.default_payment_method),
+    subscription: idOf(invoice.parent?.subscription_details?.subscription),
+    customer: idOf(invoice.customer),
+  });
+  return resolved ?? declinedPaymentMethodId;
 }
 
 /** Compare the declined card with the one the retry would charge. Read-only. */

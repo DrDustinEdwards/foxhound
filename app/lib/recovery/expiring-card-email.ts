@@ -1,5 +1,7 @@
 import type { Block } from "capsomer/email";
 
+import type { ExpiringCardAlertReason } from "~/db/schema";
+
 // The expiring-card alert's customer-facing copy, ported from legacy's
 // `buildExpiringCardEmail` in app/api/cron/expiring-cards/route.ts (blob
 // `717f6bbe`). Pure: no env, no database, no clock.
@@ -90,4 +92,68 @@ export function buildExpiringCardEmail(input: ExpiringCardCopyInput): Block[] {
     { type: "paragraph", text: "Thanks," },
     { type: "paragraph", text: senderName },
   ];
+}
+
+// THE NO-PAYMENT-METHOD VARIANT, for a 'no_payment_method' row: a trialing
+// customer with nothing set up to pay when the trial converts. The card copy
+// above would be untrue for it (there is no card, and nothing is expiring), so
+// this is the same letter with only the facts changed. The row's month and
+// year are the trial end, which is all the copy says about the date.
+//
+// "Set up to pay for your subscription", not "on file": the check reads the
+// defaults Stripe charges, so a customer may have a saved card that is simply
+// not the default, and the copy says only what was checked.
+
+export interface NoPaymentMethodCopyInput {
+  customerName: string | null;
+  trialEndsMonth: number;
+  trialEndsYear: number;
+  senderName: string | null;
+  updateUrl: string;
+}
+
+export function noPaymentMethodSubject(): string {
+  return "Action required: Add a payment method before your trial ends";
+}
+
+export function buildNoPaymentMethodEmail(input: NoPaymentMethodCopyInput): Block[] {
+  const customerName = input.customerName || EXPIRING_CARD_FALLBACKS.customerName;
+  const senderName = input.senderName || EXPIRING_CARD_FALLBACKS.senderName;
+  const month = String(input.trialEndsMonth).padStart(2, "0");
+  const year = String(input.trialEndsYear);
+
+  return [
+    { type: "paragraph", text: `Hi ${customerName},` },
+    {
+      type: "paragraph",
+      text: `We wanted to give you a heads up that there is no payment method set up to pay for your subscription, and your trial ends on ${month}/${year}.`,
+    },
+    {
+      type: "paragraph",
+      text: "To avoid any interruption to your service, please add a payment method before your trial ends.",
+    },
+    { type: "button", label: "Add Payment Method", url: input.updateUrl },
+    { type: "paragraph", text: "If you've already added a payment method, you can ignore this message." },
+    { type: "paragraph", text: "Thanks," },
+    { type: "paragraph", text: senderName },
+  ];
+}
+
+/** The subject and blocks for one alert row, by its reason. */
+export function expiringCardAlertContent(
+  input: ExpiringCardCopyInput & { reason: ExpiringCardAlertReason },
+): { subject: string; blocks: Block[] } {
+  if (input.reason === "no_payment_method") {
+    return {
+      subject: noPaymentMethodSubject(),
+      blocks: buildNoPaymentMethodEmail({
+        customerName: input.customerName,
+        trialEndsMonth: input.expiresMonth,
+        trialEndsYear: input.expiresYear,
+        senderName: input.senderName,
+        updateUrl: input.updateUrl,
+      }),
+    };
+  }
+  return { subject: expiringCardSubject(input), blocks: buildExpiringCardEmail(input) };
 }

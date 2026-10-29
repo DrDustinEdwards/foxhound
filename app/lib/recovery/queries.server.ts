@@ -528,15 +528,20 @@ export async function listWinbackSequences(db: Db, accountId: string): Promise<W
   return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
-/** Expiring-card alerts for the account, soonest expiry first. */
+/** Expiring-card alerts for the account, soonest expiry first. Cards only
+ *  unless `includeNoPaymentMethod`: every caller but the expiring-cards page
+ *  reads the month and year as a card expiry, which a 'no_payment_method' row
+ *  (a trial end) is not. */
 export async function listExpiringCardAlerts(
   db: Db,
   accountId: string,
+  options: { includeNoPaymentMethod?: boolean } = {},
 ): Promise<ExpiringCardAlertRow[]> {
+  const active = byAccountActive(expiringCardAlerts.accountId, expiringCardAlerts.deletedAt, accountId);
   const rows = await db
     .select()
     .from(expiringCardAlerts)
-    .where(byAccountActive(expiringCardAlerts.accountId, expiringCardAlerts.deletedAt, accountId));
+    .where(options.includeNoPaymentMethod ? active : and(active, eq(expiringCardAlerts.reason, "card_expiring")));
   return [...rows].sort(
     (a, b) => a.expiresYear * 12 + a.expiresMonth - (b.expiresYear * 12 + b.expiresMonth),
   );
