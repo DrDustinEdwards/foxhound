@@ -7,6 +7,7 @@ import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import { classifyStripeEvent } from "./events";
 import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
+import { handleAccountHealth } from "./account-handlers";
 import {
   handleIntake,
   handleRecordExpiringCard,
@@ -86,6 +87,7 @@ export async function processConnectedWebhook(
     if (intent.kind === "stamp_dispute") return await handleStampDispute(ctx, intent);
     if (intent.kind === "dispute_resolved") return await handleDisputeResolved(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
+    if (intent.kind === "account_health") return await handleAccountHealth(ctx, intent);
     return await handleStampRefund(ctx, intent);
   } catch (err) {
     // Money path: surface so the endpoint 500s and Stripe retries (the batch is

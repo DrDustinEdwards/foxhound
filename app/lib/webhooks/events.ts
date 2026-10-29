@@ -5,6 +5,7 @@ import { disputeIntakeFields } from "~/lib/disputes/stripe-dispute";
 import { type DeclineCategory } from "~/lib/constants";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
+import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
 // verified event to the intent the processor acts on and pulls the refs it needs
@@ -17,6 +18,8 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
+//   account.updated            -> account_health (the connected account's own
+//                                 charges, payouts and requirements)
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -104,6 +107,13 @@ export type WebhookIntent =
       /** Otherwise the payment method to retrieve, per this file's rule that the
        *  classifier makes no Stripe call. */
       paymentMethodId: string | null;
+    }
+  | {
+      /** account.updated for the connected account itself. `observedAt` is the
+       *  event's created time, so a late older event cannot overwrite newer state. */
+      kind: "account_health";
+      health: AccountHealth;
+      observedAt: Date;
     }
   | { kind: "ignore"; reason: string };
 
@@ -274,6 +284,13 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       return { kind: "stripe_gave_up", invoiceId: invoice.id };
+    }
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
+      // Only the connected account's own object, which is what Connect sends
+      // this event for.
+      if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
+      return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
     }
     default:
       return { kind: "ignore", reason: "unhandled_type" };

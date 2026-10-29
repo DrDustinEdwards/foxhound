@@ -206,6 +206,9 @@ export interface DueStepRow {
   replyToEmail?: string | null;
   /** failed_payments.stripe_customer_id, for the lost-dispute retry check. */
   stripeCustomerId?: string | null;
+  /** The payment's connection's stored charges_enabled (account.updated).
+   *  False holds a retry step; NULL (never told) does not. */
+  chargesEnabled?: boolean | null;
 }
 
 // The sample emails are the account's, saved on its primary connection by
@@ -254,6 +257,7 @@ function selectStepRows(db: Db) {
       brandVoiceSamples: primarySamples,
       replyToEmail: stripeConnections.replyToEmail,
       stripeCustomerId: failedPayments.stripeCustomerId,
+      chargesEnabled: stripeConnections.chargesEnabled,
     })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
