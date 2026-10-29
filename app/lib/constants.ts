@@ -564,7 +564,9 @@ export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billi
 // Monday 08:00 UTC, legacy's weekly-digest cadence verbatim (session 55). The
 // FIRST new cron expression this repo has needed: every other job reuses the
 // tick, daily or monthly schedules.
-export const CRON_SCHEDULE_WEEKLY = "0 8 * * 1";
+// MON, not 1: Cloudflare numbers weekdays 1 = Sunday to 7 = Saturday, so the
+// "0 8 * * 1" ported from Recova's Vercel cron (where 1 = Monday) ran on Sundays.
+export const CRON_SCHEDULE_WEEKLY = "0 8 * * MON";
 /**
  * The merged monthly audit: 09:00 UTC on the 1st, which is LEGACY'S HOUR.
  *

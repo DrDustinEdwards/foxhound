@@ -34,6 +34,15 @@ function ordinal(n: number): string {
   }
 }
 
+/** The 0-based (Sunday first) weekday of a cron day-of-week field, as
+ *  Cloudflare reads it: SUN..SAT, or 1 = Sunday to 7 = Saturday. */
+export function cronWeekdayIndex(field: string): number | null {
+  const named = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].indexOf(field.toUpperCase());
+  if (named !== -1) return named;
+  if (!isInt(field, 1, 7)) return null;
+  return Number(field) - 1;
+}
+
 function isInt(field: string, min: number, max: number): boolean {
   if (!/^\d+$/.test(field)) return false;
   const n = Number(field);
@@ -48,7 +57,9 @@ function isInt(field: string, min: number, max: number): boolean {
  *
  *   "*\/5 * * * *"  -> "Every 5 minutes"
  *   "0 3 * * *"    -> "Daily at 03:00 UTC"
- *   "0 8 * * 1"    -> "Mondays at 08:00 UTC"
+ *   "0 8 * * MON"  -> "Mondays at 08:00 UTC"
+ *
+ * A numeric weekday is read as Cloudflare numbers it, 1 = Sunday to 7 = Saturday.
  *   "0 4 1 * *"    -> "Monthly on the 1st at 04:00 UTC"
  */
 export function describeCronSchedule(expression: string): string | null {
@@ -70,7 +81,8 @@ export function describeCronSchedule(expression: string): string | null {
   const at = `${hour.padStart(2, "0")}:${minute.padStart(2, "0")} UTC`;
 
   if (dayOfMonth === "*" && dayOfWeek === "*") return `Daily at ${at}`;
-  if (dayOfMonth === "*" && isInt(dayOfWeek, 0, 7)) return `${WEEKDAYS[Number(dayOfWeek) % 7]}s at ${at}`;
+  const weekday = cronWeekdayIndex(dayOfWeek);
+  if (dayOfMonth === "*" && weekday !== null) return `${WEEKDAYS[weekday]}s at ${at}`;
   if (isInt(dayOfMonth, 1, 31) && dayOfWeek === "*") return `Monthly on the ${ordinal(Number(dayOfMonth))} at ${at}`;
   return null;
 }
