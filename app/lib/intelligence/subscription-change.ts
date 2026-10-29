@@ -10,6 +10,7 @@
 // columns the sync owns, so the two cannot fight: the sync rewrites
 // customer_context every day, and the score reads both.
 
+import { toDate } from "@drdustinedwards/site-helpers/xml";
 import { DAY_MS } from "~/lib/constants";
 
 import { monthlyEquivalentCents, type BillingInterval } from "./signals";
@@ -57,7 +58,7 @@ function itemsMrrCents(items: ItemLike[]): number {
   );
 }
 
-const toDate = (unixSeconds: number | null | undefined) => (unixSeconds ? new Date(unixSeconds * 1000) : null);
+const fromUnixSeconds = (unixSeconds: number | null | undefined) => (unixSeconds ? toDate(unixSeconds * 1000) : null);
 
 function scheduled(cancelAtPeriodEnd: boolean | null | undefined, cancelAt: number | null | undefined): boolean {
   return cancelAtPeriodEnd === true || (cancelAt ?? null) !== null;
@@ -67,9 +68,9 @@ function scheduled(cancelAtPeriodEnd: boolean | null | undefined, cancelAt: numb
  *  cancel_at_period_end the latest item period end (on the pinned API version
  *  the period lives on the item). Null when neither is on the event. */
 function cancelDate(sub: SubscriptionLike): Date | null {
-  if (sub.cancel_at) return toDate(sub.cancel_at);
+  if (sub.cancel_at) return fromUnixSeconds(sub.cancel_at);
   const ends = (sub.items?.data ?? []).map((i) => i.current_period_end ?? 0).filter((n) => n > 0);
-  return ends.length > 0 ? toDate(Math.max(...ends)) : null;
+  return ends.length > 0 ? fromUnixSeconds(Math.max(...ends)) : null;
 }
 
 /**
@@ -102,7 +103,7 @@ export function detectSubscriptionChanges(
   if ("pause_collection" in prev) {
     const now = (sub.pause_collection ?? null) !== null;
     const was = (prev.pause_collection ?? null) !== null;
-    if (now) changes.push({ ...blank, kind: "paused", resumesAt: toDate(sub.pause_collection?.resumes_at) });
+    if (now) changes.push({ ...blank, kind: "paused", resumesAt: fromUnixSeconds(sub.pause_collection?.resumes_at) });
     else if (was) changes.push({ ...blank, kind: "resumed" });
   }
 
