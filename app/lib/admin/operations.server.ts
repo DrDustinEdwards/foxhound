@@ -161,10 +161,24 @@ export interface EnvSanityRow {
   name: string;
   kind: EnvSanityKind;
   set: boolean;
+  /** Set but wrong, in words that never quote the value. */
+  problem: string | null;
+}
+
+/**
+ * STRIPE_SECRET_KEY must be a live key: Foxhound runs one production Worker,
+ * claims and ignores every test-mode webhook and refuses a test-mode Connect
+ * token, so a test key here connects nobody and recovers nothing. Only the
+ * key's mode prefix is read, never the rest of it.
+ */
+function stripeKeyProblem(key: unknown): string | null {
+  if (typeof key !== "string" || !key) return null;
+  return key.startsWith("sk_live_") || key.startsWith("rk_live_") ? null : "Not a live key";
 }
 
 /** Every configured-or-configurable binding/var/secret this Worker uses, by
- *  NAME ONLY - values are never read or rendered here (ARCHITECTURE.md #5).
+ *  NAME ONLY - values are never rendered here (ARCHITECTURE.md #5), and the one
+ *  value read at all is the Stripe key's mode prefix (stripeKeyProblem).
  *  Static list mirrors wrangler.jsonc + env.d.ts; kept in sync by hand since
  *  there is no runtime introspection of "what secrets exist" on Workers. */
 export function getEnvSanity(env: Env): EnvSanityRow[] {
@@ -217,10 +231,12 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["SENTRY_ORG", "secret"],
     ["EMAIL", "binding"],
   ];
+  const values = env as unknown as Record<string, unknown>;
   return rows.map(([name, kind]) => ({
     name,
     kind,
-    set: Boolean((env as unknown as Record<string, unknown>)[name]),
+    set: Boolean(values[name]),
+    problem: name === "STRIPE_SECRET_KEY" ? stripeKeyProblem(values[name]) : null,
   }));
 }
 

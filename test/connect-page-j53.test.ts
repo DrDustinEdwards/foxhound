@@ -51,6 +51,7 @@ const CONNECT: LoaderData = {
   accountName: "Acme Supply Co.",
   userName: "Dana",
   hasConnection: false,
+  isOwner: true,
   stripeEnabled: true,
   error: null,
 };

@@ -265,7 +265,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         title="Settings"
         headingId={SETTINGS_HEADING_ID}
         src={spinner}
-        description="Whether each binding, variable and secret the Worker uses is set. Names only: values are never read or shown here."
+        description="Whether each binding, variable and secret the Worker uses is set, and whether the Stripe key is a live one. Names only: values are never shown here."
         flush
       >
         <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={SETTINGS_HEADING_ID} tabIndex={0}>
@@ -286,7 +286,11 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                   </th>
                   <td className="text-text-secondary">{settingKindWord(row.kind)}</td>
                   <td>
-                    <Status tone={row.set ? "ok" : "nodata"}>{row.set ? "Set" : "Not set"}</Status>
+                    {row.problem ? (
+                      <Status tone="crit">{row.problem}</Status>
+                    ) : (
+                      <Status tone={row.set ? "ok" : "nodata"}>{row.set ? "Set" : "Not set"}</Status>
+                    )}
                   </td>
                 </tr>
               ))}

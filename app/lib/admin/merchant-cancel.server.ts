@@ -116,6 +116,16 @@ function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date)
   ];
 }
 
+/**
+ * The local half of disconnectConnection alone, for a grant Stripe has already
+ * revoked (account.application.deauthorized): the merchant cut Foxhound off from
+ * their Stripe dashboard, so there is nothing left to revoke and no retry to
+ * queue. The same batch, so stripe_connections.disconnected_at keeps one writer.
+ */
+export async function disconnectConnectionLocal(db: Db, connectionId: string, now: Date): Promise<void> {
+  await db.batch(buildDisconnectConnectionBatch(db, connectionId, now));
+}
+
 export interface DisconnectConnectionResult {
   disconnectedAt: Date;
   /** Set when the OAuth revoke failed. The local disconnect still stands: the
@@ -134,10 +144,9 @@ export async function disconnectConnection(
   deps: Partial<DisconnectConnectionDeps> = {},
 ): Promise<DisconnectConnectionResult> {
   const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
-  const db = getDb(env);
   const now = new Date();
 
-  await db.batch(buildDisconnectConnectionBatch(db, connection.id, now));
+  await disconnectConnectionLocal(getDb(env), connection.id, now);
 
   const [failure] = await revokeDisconnectedGrants(env, [connection], now, deauthorize);
   return failure ? { disconnectedAt: now, deauthorizeError: failure.error } : { disconnectedAt: now };

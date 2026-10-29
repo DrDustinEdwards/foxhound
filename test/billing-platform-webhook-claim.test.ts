@@ -71,10 +71,10 @@ const { action } = await import("~/routes/webhooks/stripe-platform");
 const { cloudflareContext } = await import("~/lib/cloudflare-context");
 const schema = await import("~/db/schema");
 
-function invoicePaidEvent(eventId: string, billingInvoiceId: string | null): Stripe.Event {
+function invoicePaidEvent(eventId: string, billingInvoiceId: string | null, type = "invoice.paid"): Stripe.Event {
   return {
     id: eventId,
-    type: "invoice.paid",
+    type,
     data: {
       object: {
         id: "in_platform_1",
@@ -165,6 +165,25 @@ describe("platform webhook: a dispatch failure must not claim the event", () => 
     expect(third.status).toBe(200);
     expect(await third.json()).toEqual({ received: true, outcome: "duplicate" });
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(1);
+  });
+});
+
+describe("platform webhook: out-of-order delivery", () => {
+  it("a late invoice.finalized never moves a paid invoice back, and paid does not stamp finalizedAt", async () => {
+    const db = await seed();
+    harness.event = invoicePaidEvent("evt_paid", BILLING_INVOICE_ID);
+    expect(await (await post()).json()).toEqual({ received: true, outcome: "applied" });
+
+    harness.event = invoicePaidEvent("evt_late_finalized", BILLING_INVOICE_ID, "invoice.finalized");
+    const late = await post();
+    expect(late.status).toBe(200);
+    expect(await late.json()).toEqual({ received: true, outcome: "ignored" });
+
+    const [invoice] = await db.select().from(schema.billingInvoices);
+    expect(invoice.status).toBe("paid");
+    expect(invoice.finalizedAt).toBeNull();
+    // Claimed, so a redelivery short-circuits.
+    expect(await db.select().from(schema.webhookEvents)).toHaveLength(2);
   });
 });
 

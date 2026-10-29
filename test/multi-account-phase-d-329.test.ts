@@ -34,6 +34,7 @@ vi.mock("~/lib/stripe/connect", () => ({
   exchangeConnectCode: async () => harness.oauth,
   fetchConnectedAccountName: async () => "Connected Co",
   buildConnectAuthorizeUrl: () => "https://connect.stripe.com/oauth/authorize",
+  isMerchantConnectScope: (scope: string | null) => scope === "read_write",
 }));
 
 vi.mock("~/lib/stripe/encryption", () => ({
@@ -149,7 +150,8 @@ async function callback(opts: {
   cookie?: string | null;
   code?: string | null;
 }): Promise<Response> {
-  const minted = opts.action ? buildConnectState(opts.action as never) : null;
+  const userId = (harness.session as { user: { id: string } } | null)?.user.id ?? null;
+  const minted = opts.action ? buildConnectState(opts.action as never, userId) : null;
   const stateParam = opts.stateParam ?? minted;
   const cookie = opts.cookie === undefined ? minted : opts.cookie;
   const url = new URL("https://foxhoundapp.test/connect/callback");
@@ -235,6 +237,37 @@ describe("PLANT 5: an unminted or unknown state is refused before any write", ()
     seedSwitchedToB();
     const res = await callback({ action: ADD_ACCOUNT_ACTION, code: null });
     expect(res.headers.get("location")).toBe("/connect?error=no_code");
+    expect(harness.writes).toHaveLength(0);
+  });
+});
+
+describe("PLANT 6: only the owner who started the flow may finish it", () => {
+  it("refuses a member of the active account, writing nothing", async () => {
+    seedAccount("acct_a", "Acme");
+    sqlite
+      .prepare(
+        "INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m1', 'acct_a', ?, 'member', 'active', 1000)",
+      )
+      .run(USER);
+    seedSession("sess_1", "acct_a");
+    const res = await callback({ action: CONNECT_ACTION });
+    expect(res.headers.get("location")).toBe("/connect?error=owner_required");
+    expect(connections()).toHaveLength(0);
+  });
+
+  it("refuses a state minted for a different user in the same browser", async () => {
+    seedSwitchedToB();
+    const theirs = buildConnectState(CONNECT_ACTION, OTHER);
+    const res = await callback({ stateParam: theirs, cookie: theirs });
+    expect(res.headers.get("location")).toBe("/connect?error=invalid_state");
+    expect(harness.writes).toHaveLength(0);
+  });
+
+  it("refuses a grant without the write scope", async () => {
+    seedSwitchedToB();
+    harness.oauth = { ...(harness.oauth as object), scope: "read_only" };
+    const res = await callback({ action: CONNECT_ACTION });
+    expect(res.headers.get("location")).toBe("/connect?error=scope_refused");
     expect(harness.writes).toHaveLength(0);
   });
 });

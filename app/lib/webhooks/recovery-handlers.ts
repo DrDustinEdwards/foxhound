@@ -1,14 +1,18 @@
 // Recovery-side intents of the connected-account webhook: intake, Stripe giving
 // up, recovery, expiring cards and refund stamping. Dispatched from process.ts.
 
-import { FAILED_PAYMENT_STATUS_STRIPE_RETRYING, type DeclineCategory } from "~/lib/constants";
+import {
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
+  type DeclineCategory,
+} from "~/lib/constants";
 import {
   issueCreditNoteForEvidence,
   REFUND_CREDIT_DESCRIPTION,
   refundedRecoveryIdsFor,
 } from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { applyNetworkAdvice, classifyDecline, pickDeclineCode } from "~/lib/recovery/decline";
+import { applyNetworkAdvice, classifyDecline, isHardDecline, pickDeclineCode } from "~/lib/recovery/decline";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
 import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
 import { retryOnUpdatedCard } from "~/lib/cron/recovery-tick";
@@ -16,6 +20,7 @@ import { retryOnUpdatedCard } from "~/lib/cron/recovery-tick";
 import {
   buildClaimOnlyBatch,
   buildIntakeBatch,
+  buildInvoluntaryStopBatch,
   buildRecoverBatch,
   buildRefundStampBatch,
   buildSequenceStartBatch,
@@ -31,7 +36,7 @@ import {
   resolveRefundedFailedPayment,
   tryWinbackReactivationFromInvoice,
   type DeclineFacts,
-  resolveDeclineFacts,
+  resolveFailureFacts,
 } from "./lookups";
 
 /**
@@ -64,6 +69,20 @@ function bestDecline(
   };
 }
 
+/** Paid or void: Stripe has nothing left to collect on the invoice. */
+function invoiceClosed(status: string | null): boolean {
+  return status === "paid" || status === "void";
+}
+
+async function claimOnly(ctx: WebhookContext, reason: string): Promise<WebhookOutcome> {
+  const { applied } = await executeMoneyWrite(ctx.env, {
+    accountId: ctx.accountId,
+    idempotencyKey: ctx.idempotencyKey,
+    build: (db) => buildClaimOnlyBatch(db, ctx.claim),
+  });
+  return applied ? { status: "ignored", reason } : { status: "duplicate" };
+}
+
 export async function handleIntake(
   ctx: WebhookContext,
   intent: IntentOf<"intake">,
@@ -73,60 +92,46 @@ export async function handleIntake(
   // attempt. The FIRST creates the row; a later one either promotes it out
   // of stripe_retrying or is a no-op claim (377(1)).
   const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
+  if (existing && existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
+    return claimOnly(ctx, "duplicate_attempt");
+  }
+  // The charge is read first, so the cadence is planned from the best
+  // category known, and the invoice with it: a late or redelivered
+  // payment_failed for an invoice since paid or voided opens no dunning.
+  const facts = await resolveFailureFacts(env, connectionId, intent.invoiceId);
+  if (invoiceClosed(facts.invoiceStatus)) return claimOnly(ctx, "invoice_closed");
+  const decline = bestDecline(intent.declineCode, facts.decline, existing ?? undefined);
+  // A hard decline starts its email-led sequence now even while Stripe keeps
+  // a next attempt scheduled, because Stripe runs that attempt only after a
+  // new payment method (decline.ts isHardDecline). The sequence's own retry
+  // still waits for Stripe to stop (engine/retry-step.ts).
+  const startSequence = intent.stripeGaveUp || isHardDecline(decline.declineCategory);
   if (existing) {
-    if (
-      existing.status === FAILED_PAYMENT_STATUS_STRIPE_RETRYING &&
-      intent.stripeGaveUp
-    ) {
-      // Stripe has stopped retrying. The sequence starts NOW, anchored on
-      // this moment rather than on the original failure, which is what
-      // makes "Foxhound starts when Stripe stops" true. The final attempt's
-      // charge is read first, so the cadence is planned from the best
-      // category known.
-      const decline = bestDecline(
-        intent.declineCode,
-        await resolveDeclineFacts(env, connectionId, intent.invoiceId),
-        existing,
-      );
-      const { applied } = await executeMoneyWrite(env, {
-        accountId,
-        // KEYED ON THE PAYMENT, NOT THE EVENT. Two different give-up events
-        // for one invoice (a final payment_failed and a marked_uncollectible)
-        // can both pass the status read above, because that read happens
-        // outside the Durable Object. Keyed on the event they would both
-        // commit and the payment would get two cadences; keyed on the
-        // payment the DO's seen-set makes the second a no-op.
-        idempotencyKey: `sequence-start:${existing.id}`,
-        build: (db) =>
-          buildSequenceStartBatch(db, {
-            claim,
-            failedPaymentId: existing.id,
-            accountId,
-            ...decline,
-            startedAt: receivedAt,
-          }),
-      });
-      return applied ? { status: "applied" } : { status: "duplicate" };
-    }
+    if (!startSequence) return claimOnly(ctx, "stripe_still_retrying");
+    // Stripe has stopped retrying, or never will on this card. The sequence
+    // starts NOW, anchored on this moment rather than on the original
+    // failure, which is what makes "Foxhound starts when Stripe stops" true.
     const { applied } = await executeMoneyWrite(env, {
       accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
+      // KEYED ON THE PAYMENT, NOT THE EVENT. Two different give-up events
+      // for one invoice (a final payment_failed and a marked_uncollectible)
+      // can both pass the status read above, because that read happens
+      // outside the Durable Object. Keyed on the event they would both
+      // commit and the payment would get two cadences; keyed on the
+      // payment the DO's seen-set makes the second a no-op.
+      idempotencyKey: `sequence-start:${existing.id}`,
+      build: (db) =>
+        buildSequenceStartBatch(db, {
+          claim,
+          failedPaymentId: existing.id,
+          accountId,
+          ...decline,
+          startedAt: receivedAt,
+        }),
     });
-    return applied
-      ? {
-          status: "ignored",
-          reason: existing.status === FAILED_PAYMENT_STATUS_STRIPE_RETRYING
-            ? "stripe_still_retrying"
-            : "duplicate_attempt",
-        }
-      : { status: "duplicate" };
+    return applied ? { status: "applied" } : { status: "duplicate" };
   }
   const failedPaymentId = crypto.randomUUID();
-  const decline = bestDecline(
-    intent.declineCode,
-    await resolveDeclineFacts(env, connectionId, intent.invoiceId),
-  );
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     idempotencyKey,
@@ -145,7 +150,7 @@ export async function handleIntake(
         currency: intent.currency,
         ...decline,
         detectedAt: receivedAt,
-        stripeGaveUp: intent.stripeGaveUp,
+        startSequence,
       }),
   });
   return applied ? { status: "applied" } : { status: "duplicate" };
@@ -155,6 +160,14 @@ export async function handleIntake(
 // the other way it can be finished with a payment (377(1)). Same promotion,
 // same conditional flip, so an uncollectible arriving after a final
 // payment_failed plans no second sequence.
+//
+// It deliberately does NOT stop a sequence already running. "Mark the invoice
+// as uncollectible" is one of Stripe's settings for when all retries fail, so
+// for those merchants this event IS Stripe giving up and arrives just after
+// the final payment_failed that started the sequence: stopping here would end
+// every recovery they have. An uncollectible invoice can still be paid
+// (invoices.pay accepts it), which is what the sequence is for. A void
+// invoice cannot, and handleInvoiceVoided stops it.
 export async function handleStripeGaveUp(
   ctx: WebhookContext,
   intent: IntentOf<"stripe_gave_up">,
@@ -173,7 +186,7 @@ export async function handleStripeGaveUp(
   }
   const decline = bestDecline(
     null,
-    await resolveDeclineFacts(env, connectionId, intent.invoiceId),
+    (await resolveFailureFacts(env, connectionId, intent.invoiceId)).decline,
     existing,
   );
   const { applied } = await executeMoneyWrite(env, {
@@ -188,6 +201,33 @@ export async function handleStripeGaveUp(
         accountId,
         ...decline,
         startedAt: receivedAt,
+      }),
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
+// invoice.voided: the invoice can never be paid now, so a live recovery for it
+// stops through the ratified stop transition (buildStopRecoveryBatch, via the
+// involuntary-stop batch that carries the claim). The stop claims only an
+// 'active' row; one still parked in stripe_retrying has no steps to run.
+export async function handleInvoiceVoided(
+  ctx: WebhookContext,
+  intent: IntentOf<"invoice_voided">,
+): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
+  const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
+  if (!existing || existing.status !== FAILED_PAYMENT_STATUS_ACTIVE) {
+    return claimOnly(ctx, existing ? "sequence_not_started" : "no_failed_payment");
+  }
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey,
+    build: (db) =>
+      buildInvoluntaryStopBatch(db, {
+        claim,
+        accountId,
+        failedPaymentIds: [existing.id],
+        now: receivedAt,
       }),
   });
   return applied ? { status: "applied" } : { status: "duplicate" };
