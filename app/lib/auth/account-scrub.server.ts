@@ -20,6 +20,7 @@ import {
   customerContext,
   customerNotes,
   disputeApprovals,
+  disputeBalanceTransactions,
   disputeEvidence,
   disputes,
   emailDeadLetters,
@@ -239,6 +240,9 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     // by Foxhound, approved: app/db/billable.ts's predicate without the run
     // date), is kept with its approval. Drafts, open and lost disputes are not.
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, accountId)),
+    // Stripe's own balance transactions for the disputes: Stripe's ledger,
+    // not evidence of a Foxhound fee (the kept dispute row is).
+    db.delete(disputeBalanceTransactions).where(eq(disputeBalanceTransactions.accountId, accountId)),
     db.delete(disputeApprovals).where(
       and(
         eq(disputeApprovals.accountId, accountId),

@@ -13,6 +13,7 @@ import {
   billingLineItems,
   customerContext,
   disputeApprovals,
+  disputeBalanceTransactions,
   disputeEvidence,
   disputes,
   expiringCardAlerts,
@@ -94,6 +95,7 @@ async function wipeDemoAccount(db: Db): Promise<void> {
     db.delete(billingInvoices).where(eq(billingInvoices.accountId, acct)),
     db.delete(disputeApprovals).where(eq(disputeApprovals.accountId, acct)),
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, acct)),
+    db.delete(disputeBalanceTransactions).where(eq(disputeBalanceTransactions.accountId, acct)),
     db.delete(disputes).where(eq(disputes.accountId, acct)),
     db.delete(healthScoreHistory).where(eq(healthScoreHistory.accountId, acct)),
     db.delete(predictions).where(eq(predictions.accountId, acct)),
@@ -267,6 +269,10 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   await runBatched(
     db,
     disputesSeed.disputeApprovals.map((row) => db.insert(disputeApprovals).values(row)),
+  );
+  await runBatched(
+    db,
+    disputesSeed.disputeBalanceTransactions.map((row) => db.insert(disputeBalanceTransactions).values(row)),
   );
 
   // 5) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.

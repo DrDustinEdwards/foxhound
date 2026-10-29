@@ -51,6 +51,7 @@ export function deadlineRemaining(days: number | null): string {
 export function outcomeWord(state: string): string | null {
   if (state === "resolved_won") return "Won";
   if (state === "resolved_lost") return "Lost";
+  if (state === "inquiry_closed") return "Inquiry closed";
   return null;
 }
 

@@ -7,6 +7,7 @@ import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import { classifyStripeEvent } from "./events";
 import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
+import { handleDisputeFunds, handleDisputeUpdated, handleInquiryClosed } from "./dispute-lifecycle";
 import {
   handleIntake,
   handleRecordExpiringCard,
@@ -85,6 +86,9 @@ export async function processConnectedWebhook(
     if (intent.kind === "record_expiring_card") return await handleRecordExpiringCard(ctx, intent);
     if (intent.kind === "stamp_dispute") return await handleStampDispute(ctx, intent);
     if (intent.kind === "dispute_resolved") return await handleDisputeResolved(ctx, intent);
+    if (intent.kind === "dispute_updated") return await handleDisputeUpdated(ctx, intent);
+    if (intent.kind === "dispute_funds") return await handleDisputeFunds(ctx, intent);
+    if (intent.kind === "inquiry_closed") return await handleInquiryClosed(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
     return await handleStampRefund(ctx, intent);
   } catch (err) {
