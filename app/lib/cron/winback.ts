@@ -317,7 +317,7 @@ export async function resolveWinbackCopy(
       voiceSamples: readVoiceSamples(step.brandVoiceSamples),
       senderName: step.senderName || WINBACK_FALLBACKS.senderName,
       resubscribeUrl,
-    });
+    }, { source: "winback_email", accountId: step.accountId, relatedId: step.stepId });
     if (!passesQualityGate(generated)) return template();
     if (!linksTo(generated.bodyHtml, resubscribeUrl)) return template();
 

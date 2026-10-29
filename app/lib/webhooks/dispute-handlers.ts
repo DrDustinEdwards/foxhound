@@ -87,7 +87,11 @@ export async function handleStampDispute(
     amountCents: intent.amountCents,
     reason: intent.reason,
   });
-  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts));
+  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts, {
+    source: "dispute_evidence",
+    accountId,
+    relatedId: intent.stripeDisputeId,
+  }));
   const disputeId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {
     accountId,

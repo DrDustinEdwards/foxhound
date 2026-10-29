@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const METER = { source: "test", accountId: null };
+
 // JOB J01: no recovery or win-back email says WHEN the customer is reading it.
 //
 // Legacy Recova guards this in four layers (lib/email-generation.ts blob
@@ -149,12 +151,12 @@ describe("LAYER 4: hardStripTimingWords", () => {
 const SEAMS = [
   {
     name: "dunning (generateDunningEmail)",
-    run: () => generateDunningEmail(env, DUNNING_INPUT),
+    run: () => generateDunningEmail(env, DUNNING_INPUT, METER),
     firstUser: () => buildPrompts(DUNNING_INPUT).user,
   },
   {
     name: "win-back (generateWinbackEmail)",
-    run: () => generateWinbackEmail(env, WINBACK_INPUT),
+    run: () => generateWinbackEmail(env, WINBACK_INPUT, METER),
     firstUser: () => buildWinbackPrompt(WINBACK_INPUT),
   },
 ] as const;

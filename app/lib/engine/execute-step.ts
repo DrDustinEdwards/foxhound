@@ -321,7 +321,11 @@ export function buildGenerateEmailInput(
 }
 
 function defaultGenerate(env: Env, updateUrl: string, ctx: EmailStepContext): Promise<EmailCopy> {
-  return generateDunningEmail(env, buildGenerateEmailInput(updateUrl, ctx));
+  return generateDunningEmail(env, buildGenerateEmailInput(updateUrl, ctx), {
+    source: "recovery_email",
+    accountId: ctx.accountId,
+    relatedId: ctx.failedPaymentId,
+  });
 }
 
 export interface EmailStepResult {

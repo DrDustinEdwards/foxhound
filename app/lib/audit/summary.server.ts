@@ -35,7 +35,8 @@ export async function generateAuditSummary(
   }
 
   try {
-    const client = createAnthropicClient(env);
+    // The audit can run before any Foxhound account exists, so its cost row has none.
+    const client = createAnthropicClient(env, { source: "audit_summary", accountId: null });
     const prompt = `${buildAuditSummaryPrompt(result)}\n\n${PLAIN_WRITING_PROMPT}`;
     const call = async (instruction = ""): Promise<string> => {
       const response = await client.messages.create({

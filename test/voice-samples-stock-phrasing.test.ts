@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const METER = { source: "test", accountId: null };
+
 // The merchant's own past emails and the family's stock-phrasing check, an
 // approved difference from Recova (parity/APPROVED-DIFFERENCES.md, 2026-10-24).
 // The check itself is site-runtime ./prose's and is tested there; these hold
@@ -139,13 +141,13 @@ describe("what a draft was never given", () => {
       `<p>The spring sale ends Friday so grab twenty percent off now. <a href="${UPDATE_URL}">Update it</a>.</p>`,
     ]) {
       harness.replies.push({ subject: CLEAN.subject, bodyHtml: body });
-      await expect(generateDunningEmail(env, withSamples)).rejects.toThrow(/not given/);
+      await expect(generateDunningEmail(env, withSamples, METER)).rejects.toThrow(/not given/);
     }
   });
 
   it("CLEAN TWIN: the same samples, a draft in its own words with only its own link", async () => {
     harness.replies.push(CLEAN);
-    expect(await generateDunningEmail(env, withSamples)).toEqual(CLEAN);
+    expect(await generateDunningEmail(env, withSamples, METER)).toEqual(CLEAN);
   });
 });
 
@@ -155,7 +157,7 @@ describe("stock phrasing", () => {
 
   it("PLANT: a draft with stock phrasing is retried once, naming what it used, and the cleaner retry is kept", async () => {
     harness.replies.push(STOCK, CLEAN);
-    const copy = await generateDunningEmail(env, dunning);
+    const copy = await generateDunningEmail(env, dunning, METER);
     expect(harness.calls).toHaveLength(2);
     expect(harness.calls[1].messages[0].content).toContain('"No hard feelings"');
     expect(copy).toEqual(CLEAN);
@@ -163,7 +165,7 @@ describe("stock phrasing", () => {
 
   it("PLANT: when the retry is no better, the first draft is sent, not the template", async () => {
     harness.replies.push(STOCK, STOCK);
-    const copy = await generateWinbackEmail(env, winback);
+    const copy = await generateWinbackEmail(env, winback, METER);
     expect(harness.calls).toHaveLength(2);
     expect(copy).toEqual(STOCK);
     expect(passesQualityGate(copy)).toBe(true);
@@ -174,7 +176,7 @@ describe("stock phrasing", () => {
       { subject: "Your Acme card failed today", bodyHtml: CLEAN.bodyHtml },
       { subject: "Your Acme card failed", bodyHtml: STOCK.bodyHtml },
     );
-    const copy = await generateDunningEmail(env, dunning);
+    const copy = await generateDunningEmail(env, dunning, METER);
     expect(harness.calls).toHaveLength(2);
     expect(copy).toEqual({ subject: "Your Acme card failed now", bodyHtml: CLEAN.bodyHtml });
   });
@@ -184,14 +186,14 @@ describe("stock phrasing", () => {
     const copy = await generateDunningEmail(env, {
       ...dunning,
       merchant: { merchantName: "Acme", voiceSamples: ["Hi all, no hard feelings if you skip a month, we genuinely mean it. Cheers, Jo"] },
-    });
+    }, METER);
     expect(harness.calls).toHaveLength(1);
     expect(copy).toEqual(STOCK);
   });
 
   it("CLEAN TWIN: a plainly written draft passes with no retry", async () => {
     harness.replies.push(CLEAN);
-    const copy = await generateDunningEmail(env, dunning);
+    const copy = await generateDunningEmail(env, dunning, METER);
     expect(harness.calls).toHaveLength(1);
     expect(findBrandVoiceViolations(copy)).toEqual([]);
   });
@@ -201,7 +203,7 @@ describe("stock phrasing", () => {
       { uncategorizedText: "The customer genuinely had access to the plan, and that's completely fine by us." },
       { uncategorizedText: "The customer used the plan from 3 March." },
     );
-    const fields = await draftDisputeEvidence(env, { productName: "Pro", serviceDate: null, communications: [] });
+    const fields = await draftDisputeEvidence(env, { productName: "Pro", serviceDate: null, communications: [] }, METER);
     expect(harness.calls).toHaveLength(2);
     expect(fields.find((f) => f.fieldName === "uncategorized_text")?.fieldValue).toBe("The customer used the plan from 3 March.");
   });
