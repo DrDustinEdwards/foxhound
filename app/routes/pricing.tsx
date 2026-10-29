@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { PRICING_CARDS, PRICING_FAQS, PRICING_META_DESCRIPTION } from "~/lib/marketing/pricing-copy";
 import { PRODUCTS } from "~/lib/marketing/products";
 import { faqPageJsonLd, siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
@@ -194,8 +195,8 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
           <div className="mt-5 font-mono text-caption text-text-subtle">
-            Estimator: no account, no Stripe connection &middot; Full audit: read-only Stripe
-            connection, no account, 30 seconds
+            Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
+            that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
           </div>
         </div>
       </section>

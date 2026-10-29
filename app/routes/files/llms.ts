@@ -2,6 +2,7 @@ import { llmsDocument } from "@drdustinedwards/site-helpers/llms";
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -129,7 +130,7 @@ export async function loader({ context }: Route.LoaderArgs) {
         heading: "Technical",
         body: [
           [
-            "- Built on Stripe Connect. The free audit requests a read-only OAuth scope; merchant onboarding requests read and write, and the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, approved dispute evidence, and disputes the merchant chooses to accept",
+            `- Built on Stripe Connect. The free audit and merchant onboarding both request read and write, because Stripe no longer offers read-only to platforms. The audit only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes. On a connected account the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, approved dispute evidence, and disputes the merchant chooses to accept`,
             "- Hosted on Cloudflare Workers, database on Cloudflare D1",
             "- No card data stored; all payment processing goes through Stripe",
             "- Disconnect any time from the Stripe dashboard",
