@@ -9,8 +9,8 @@
       "Unused exports": 2
     },
     "jscpd": {
-      "clones": 135,
-      "percentage": 1.4
+      "clones": 136,
+      "percentage": 1.42
     }
   }
 }
