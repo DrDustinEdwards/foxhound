@@ -202,7 +202,7 @@ export async function collectDigestNumbers(
   db: Db,
   accountId: string,
   windowStart: Date,
-): Promise<DigestNumbers & { highRisk: { name: string; mrrCents: number | null }[] }> {
+): Promise<DigestNumbers & { highRisk: { name: string; mrrCents: number | null }[]; personalOutreachCount: number }> {
   const [failedRows, recoveredRows, activeRows, emailRows, winBackRows, expiringRows, disputeRows] =
     await Promise.all([
       db
@@ -276,7 +276,8 @@ export async function collectDigestNumbers(
         ),
     ]);
 
-  const highRisk = await db
+  const [highRisk, outreachRows] = await Promise.all([
+    db
     .select({
       name: customerContext.customerName,
       mrrCents: customerContext.mrrContributionCents,
@@ -290,7 +291,13 @@ export async function collectDigestNumbers(
       ),
     )
     .orderBy(desc(customerContext.mrrContributionCents))
-    .limit(DIGEST_HIGH_RISK_LIMIT);
+    .limit(DIGEST_HIGH_RISK_LIMIT),
+    // Recova's count of customers flagged for personal outreach.
+    db
+      .select({ n: count() })
+      .from(customerContext)
+      .where(and(eq(customerContext.accountId, accountId), eq(customerContext.recommendedAction, "personal_outreach"))),
+  ]);
 
   return {
     totalFailed: failedRows.length,
@@ -306,6 +313,7 @@ export async function collectDigestNumbers(
     currency: resolveDigestCurrency(recoveredRows, failedRows),
     // Legacy's `(unnamed)` for a customer_context row with no name.
     highRisk: highRisk.map((c) => ({ name: c.name ?? "(unnamed)", mrrCents: c.mrrCents })),
+    personalOutreachCount: outreachRows[0]?.n ?? 0,
   };
 }
 
@@ -350,6 +358,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
             senderName: account.senderName,
             disputesActive,
             highRiskCustomers: numbers.highRisk,
+            personalOutreachCount: numbers.personalOutreachCount,
             now,
             baseUrl,
           }),

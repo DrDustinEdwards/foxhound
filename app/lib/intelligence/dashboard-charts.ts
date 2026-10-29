@@ -110,21 +110,21 @@ const MOVEMENT_COLORS: Record<(typeof MOVEMENT_SERIES)[number], string> = {
  *  (MRRMovementChart.tsx:32-38); here whole units of the account currency. */
 function movementRows(points: readonly MovementPoint[], currency: string) {
   return points.flatMap((p) => [
-    { Month: p.at, series: "New", amount: whole(p.newMrrCents, currency) },
-    { Month: p.at, series: "Expansion", amount: whole(p.expansionMrrCents, currency) },
-    { Month: p.at, series: "Reactivation", amount: whole(p.reactivationMrrCents, currency) },
-    { Month: p.at, series: "Contraction", amount: -whole(p.contractionMrrCents, currency) },
-    { Month: p.at, series: "Churn", amount: -whole(p.churnMrrCents, currency) },
+    { Week: p.at, series: "New", amount: whole(p.newMrrCents, currency) },
+    { Week: p.at, series: "Expansion", amount: whole(p.expansionMrrCents, currency) },
+    { Week: p.at, series: "Reactivation", amount: whole(p.reactivationMrrCents, currency) },
+    { Week: p.at, series: "Contraction", amount: -whole(p.contractionMrrCents, currency) },
+    { Week: p.at, series: "Churn", amount: -whole(p.churnMrrCents, currency) },
   ]);
 }
 
 export function drawMovement(points: readonly MovementPoint[], currency: string, width: number): string {
   return barChart({
     data: movementRows(points, currency),
-    x: "Month",
-    // One bar per monthly snapshot, named by its date as Recova names its bars.
+    x: "Week",
+    // One bar per week (weeklyMovements), named by its Monday.
     xType: "time",
-    interval: "month",
+    interval: "week",
     formatX: (start) => formatDateMonthDay(start),
     y: "amount",
     series: "series",

@@ -22,9 +22,9 @@ import { parsePostSource, serializePostSource, SourceError, type PostSource } fr
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
 // The Carrel site adapter over Foxhound's blog (job_cbe1b96107fc). Posts live in
-// D1 (blog_posts, blog_post_versions) and are edited from /admin/blog, so the
-// adapter writes through the same admin-queries the editor uses; there is no
-// second write path.
+// D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
+// Foxhound's own /admin/blog editor (RULES.md 7.4); the adapter writes through
+// admin-queries, the one write path.
 //
 // Version = the post's updated_at in epoch milliseconds, as a string. A historical
 // revision is "rev-<blog_post_versions.id>"; the table keeps the PRE-edit state of
@@ -149,7 +149,7 @@ export function carrelAdapter(db: Db, hooks: CarrelAdapterHooks = {}): SiteAdapt
     const current = await mustMatch(id, expectedVersion);
     const post = parse(source);
     if (post.slug !== null && post.slug !== current.slug) {
-      throw new RefusedError("A post's slug cannot be changed through Carrel; change it in /admin/blog.");
+      throw new RefusedError("A post's slug cannot be changed through Carrel.");
     }
     await updatePostWithVersion(db, id, `carrel:${changeId}`, {
       title: post.title,

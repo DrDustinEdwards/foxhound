@@ -4,6 +4,7 @@
 import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { customerContext, healthScoreHistory, mrrSnapshots, type Db } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import { sampleEveryNth } from "./dashboard";
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { healthBandCondition } from "./directory.server";
 
@@ -18,14 +19,11 @@ import { healthBandCondition } from "./directory.server";
 // them. Both read the same mrr_snapshots rows legacy's dashboard selects at
 // app/(app)/intelligence/dashboard/page.tsx.
 
-/** Legacy's dashboard windows these charts at 90 days and samples every 7th
- *  row, because its snapshot job is daily. Foxhound's `intelligence-sync` is
- *  MONTHLY (app/lib/cron/registry.ts), so ninety days is three points and the
- *  weekly sampling has nothing to thin. Same window the churn chart already
- *  ships under 78/79, and the card copy says twelve months rather than
- *  repeating legacy's sentence about data we do not have. */
-const MRR_CHART_MONTHS = 12;
-
+/** Legacy's dashboard reads the last 90 days of its DAILY snapshots, and so
+ *  does this: `intelligence-sync` runs daily (app/lib/cron/registry.ts). The
+ *  series is every row; the NRR card samples it and the movement card sums it
+ *  by week (dashboard.ts). */
+const MRR_CHART_DAYS = 90;
 export interface MrrSnapshotPoint {
   at: Date;
   /** The snapshot's MRR and active customers (Recova's MRRStatCards and
@@ -55,7 +53,7 @@ export async function getMrrSnapshotSeries(
   nowMs: number,
 ): Promise<MrrSnapshotPoint[]> {
   const cutoff = new Date(nowMs);
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - MRR_CHART_MONTHS);
+  cutoff.setUTCDate(cutoff.getUTCDate() - MRR_CHART_DAYS);
 
   const rows = await db
     .select({
@@ -115,8 +113,7 @@ export interface HealthDistributionDay {
  * The window is legacy's 90 days and it is TRUE of Foxhound's own data here:
  * `intelligence-ai` is a DAILY cron (app/lib/cron/registry.ts), the same cadence
  * legacy's scorer runs at, so ninety days of history means ninety rows to bucket
- * rather than the monthly cadence that forced the churn chart's twelve-month
- * window under 78/79.
+ * as the MRR snapshots now are too.
  *
  * The BANDS are Foxhound's, which is the 78/79 truth-over-treatment split the
  * S19 row already settled: legacy hardcodes 0-33 / 34-66 / 67-100 inside this
@@ -158,19 +155,14 @@ export async function getHealthDistribution(
   }
 
   const days = Array.from(byDay.values()).sort((a, b) => a.date.localeCompare(b.date));
-  return days.filter(
-    (_, i) => i % HEALTH_DISTRIBUTION_SAMPLE_STRIDE === 0 || i === days.length - 1,
-  );
+  return sampleEveryNth(days, HEALTH_DISTRIBUTION_SAMPLE_STRIDE);
 }
 
 const CHURN_TOP_HIGH_RISK_LIMIT = 20;
 
-// How far back the churn-rate chart looks. Legacy used 90 days and then kept
-// every 7th row, because its snapshots were DAILY. Foxhound's MRR snapshot cron
-// is monthly, so a 90-day window would plot three points and index-based
-// downsampling would be meaningless. Twelve months of monthly snapshots is the
-// same intent (the recent trend) at this cadence, and needs no downsampling.
-const CHURN_CHART_MONTHS = 12;
+// The churn-rate chart is legacy's: the last 90 days of daily snapshots,
+// every 7th row kept.
+const CHURN_CHART_DAYS = 90;
 
 interface ChurnBand {
   band: HealthScoreBand;
@@ -238,9 +230,8 @@ async function getChurnBands(db: Db, accountId: string): Promise<ChurnBand[]> {
  * could read "at risk" in one place and "medium" here.
  */
 export async function getChurnView(db: Db, accountId: string, nowMs: number): Promise<ChurnView> {
-  const cutoff = new Date(nowMs);
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - CHURN_CHART_MONTHS);
-  const chartCutoff = cutoff;
+  const chartCutoff = new Date(nowMs);
+  chartCutoff.setUTCDate(chartCutoff.getUTCDate() - CHURN_CHART_DAYS);
 
   const [bands, topHighRisk, snapshots] = await Promise.all([
     getChurnBands(db, accountId),
@@ -288,7 +279,7 @@ export async function getChurnView(db: Db, accountId: string, nowMs: number): Pr
     // bps -> percent. A null rate is preserved as null, not coerced to 0: an
     // account's first sync has no prior state to diff against, and "no rate
     // yet" is not "0% churn".
-    ratePoints: snapshots.map((s) => ({
+    ratePoints: sampleEveryNth(snapshots).map((s) => ({
       at: s.snapshotDate,
       voluntaryPct: s.voluntaryChurnRateBps === null ? null : s.voluntaryChurnRateBps / 100,
       involuntaryPct: s.involuntaryChurnRateBps === null ? null : s.involuntaryChurnRateBps / 100,

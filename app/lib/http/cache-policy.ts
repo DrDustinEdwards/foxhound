@@ -36,7 +36,7 @@ export type CacheClass = "marketing" | "docs" | "blog" | "files" | "private";
  * stale edge copy can outlive a rollback.
  *
  * BLOG IS DELIBERATELY SHORTER. It is the only public class whose content can
- * change WITHOUT a deploy: posts are edited from /admin/blog into D1, so there
+ * change WITHOUT a deploy: posts are edited in Carrel and written into D1, so there
  * is no version bump to clear the cache, and a long TTL would leave a published
  * edit invisible.
  */

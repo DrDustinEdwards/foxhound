@@ -137,6 +137,7 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
       { name: "Acme Co", mrrCents: 19900 },
       { name: "(unnamed)", mrrCents: null },
     ],
+    personalOutreachCount: 2,
     now: NOW,
     baseUrl: BASE,
     ...over,
@@ -157,6 +158,7 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
         openDisputeCents: 0,
         disputesActive: false,
         highRiskCustomers: [],
+        personalOutreachCount: 0,
       }),
     );
     const words = JSON.stringify(blocks);
@@ -167,9 +169,12 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
     expect(blocks.at(-1)).toEqual({ type: "button", label: "View Dashboard", url: `${BASE}/recovery/dashboard` });
   });
 
-  it("the Intelligence section waits for an at-risk customer, as Recova's does", () => {
-    const { blocks } = digestEmail.digestContent(fullInput({ highRiskCustomers: [] }));
-    expect(JSON.stringify(blocks)).not.toContain("Intelligence");
+  it("the Intelligence section waits for an at-risk customer or an outreach flag, as Recova's does", () => {
+    const none = digestEmail.digestContent(fullInput({ highRiskCustomers: [], personalOutreachCount: 0 }));
+    expect(JSON.stringify(none.blocks)).not.toContain("Intelligence");
+    const flagged = JSON.stringify(digestEmail.digestContent(fullInput({ highRiskCustomers: [] })).blocks);
+    expect(flagged).toContain("2 customers flagged for personal outreach.");
+    expect(flagged).not.toContain("Top at-risk customers");
   });
 });
 

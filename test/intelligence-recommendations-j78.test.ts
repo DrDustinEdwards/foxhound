@@ -19,6 +19,9 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { runIntelligenceAiForAccount } = await import("~/lib/intelligence/ai-run.server");
 const route = await import("~/routes/app/intelligence/recommendations");
+const { recommendOneCustomer, personalOutreachCustomerIds } = await import(
+  "~/lib/intelligence/recommendations.server"
+);
 
 const ACCOUNT = "acct_rec";
 const NOW = Date.parse("2026-10-25T03:00:00.000Z");
@@ -128,5 +131,21 @@ describe("recommendations, from the nightly batch to the page", () => {
       ["cus_big", "personal_outreach", "Scale plan"],
       ["cus_mid", "continue_automated_priority", "Growth plan"],
     ]);
+  });
+
+  // Recova's banner, chip and payments mark read the same recommendation: the
+  // banner works it out for one customer when a page loads (score-ssr), and the
+  // payments list marks the customers the batch flagged.
+  it("one customer's recommendation matches the batch, and the outreach lookup finds it", async () => {
+    await runIntelligenceAiForAccount(env, ACCOUNT, NOW);
+    const db = harness.db as Parameters<typeof recommendOneCustomer>[0];
+
+    const one = await recommendOneCustomer(db, ACCOUNT, "cus_big", NOW);
+    expect(one?.result.recommendation.action).toBe("personal_outreach");
+    expect(one?.result.engagement.evidence.emailsSent30d).toBe(3);
+    expect(await recommendOneCustomer(db, ACCOUNT, "cus_unknown", NOW)).toBeNull();
+    expect(await recommendOneCustomer(db, ACCOUNT, null, NOW)).toBeNull();
+
+    expect(await personalOutreachCustomerIds(db, ACCOUNT, ["cus_big", "cus_mid", "cus_small"])).toEqual(["cus_big"]);
   });
 });

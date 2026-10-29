@@ -21,6 +21,7 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
+import { DEMO_BUSINESSES } from "~/lib/demo/constants";
 import {
   capitalizeTier,
   formatRelativeLastSeen,
@@ -32,6 +33,7 @@ import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { listCustomerDirectory, listCustomerTiers, type CustomerDirectorySort } from "~/lib/intelligence/directory.server";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney } from "~/lib/money-format";
+import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";
 
@@ -52,8 +54,8 @@ import type { Route } from "./+types/customers";
 //
 // One Foxhound addition, approved: the filter bar ("The customers page has a
 // filter bar. "confirm", 2026-08-28", APPROVED-DIFFERENCES). The
-// recommended-action chip after the name waits for its producer (J78, row
-// S20).
+// recommended-action chip after the name is Recova's chipLabelFor over the
+// action the nightly scoring stores (J78).
 
 export function meta() {
   return [{ title: "Customers - Foxhound" }];
@@ -106,6 +108,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
         lastSeenAt: c.lastSeenAt,
         hasActiveRecovery: hasActiveRecoverySignal(c.recoverySignals),
         hasDisputeHistory: hasDisputeHistorySignal(c.disputeSignals),
+        chip: chipLabelFor(c.recommendedAction),
       })),
     },
     tiers,
@@ -113,6 +116,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     // Already resolved on every authenticated request, so the H1 costs no
     // extra query (app/lib/auth/account.ts Membership).
     accountName: auth.membership.accountName,
+    // In the demo, the other demo business, for Recova's footer pointing at
+    // the switcher (app/intelligence/demo/customers/page.tsx, blob `d0784bc8`).
+    otherDemoName: auth.isDemo
+      ? (DEMO_BUSINESSES.find((b) => b.accountId !== accountId)?.name ?? null)
+      : null,
     nowMs: Date.now(),
   };
 }
@@ -139,7 +147,7 @@ function isFiltered(filters: Filters): boolean {
 }
 
 export default function IntelligenceCustomersPage({ loaderData }: Route.ComponentProps) {
-  const { result, tiers, filters, accountName, nowMs } = loaderData;
+  const { result, tiers, filters, accountName, otherDemoName, nowMs } = loaderData;
   const now = new Date(nowMs);
   const filtered = isFiltered(filters);
   // Recova's empty card stands in for the table only when the account has no
@@ -233,6 +241,10 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               >
                                 {c.customerName ?? "(unnamed)"}
                               </Link>
+                              {/* Recova's recommended-action chip after the name. */}
+                              {c.chip ? (
+                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">{c.chip}</span>
+                              ) : null}
                               {/* Recova's second line under the name: the Stripe
                                   id, micro and mono. */}
                               <span className="block font-mono text-micro text-text-subtle">{c.stripeCustomerId}</span>
@@ -303,6 +315,12 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       )}
 
       {result.totalPages > 1 ? <Pager filters={filters} page={result.page} totalPages={result.totalPages} /> : null}
+
+      {otherDemoName ? (
+        <p className="mt-8 mb-0 text-center text-caption text-text-subtle">
+          Switch accounts in the top nav to see {otherDemoName} customers.
+        </p>
+      ) : null}
     </div>
   );
 }

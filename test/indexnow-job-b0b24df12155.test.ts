@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
 import { serializePostSource } from "~/lib/carrel/source";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -23,8 +21,6 @@ const { INDEXNOW_KEY } = await import("~/lib/seo/indexnow-key");
 const indexNow = await import("~/lib/seo/indexnow.server");
 const keyRoute = await import("~/routes/files/indexnow-key");
 const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
-const adminDetail = await import("~/routes/admin/blog/detail");
-const { createPost } = await import("~/lib/blog/admin-queries.server");
 
 const ORIGIN = "https://foxhoundapp.com";
 const SITE_KEY = "k".repeat(40);
@@ -157,63 +153,6 @@ describe("(b) a publish submits exactly Foxhound's changed URL", () => {
     await indexNow.submitToIndexNow(["https://recovamrr.com/blog/x", "https://foxhoundapp.com/blog/z"]);
     expect(captured).toHaveLength(1);
     expect(captured[0].body.urlList).toEqual(["https://foxhoundapp.com/blog/z"]);
-  });
-});
-
-const ACTOR = "admin@foxhoundapp.com";
-
-function adminCall(postId: string, fields: Record<string, string>, origin = ORIGIN) {
-  const context = {
-    get(key: unknown) {
-      if (key === cloudflareContext) return { env: envFor(), ctx, nonce: "n" };
-      if (key === adminContext) return { email: ACTOR };
-      throw new Error("unexpected context key");
-    },
-  };
-  const body = new FormData();
-  for (const [k, v] of Object.entries(fields)) body.append(k, v);
-  const request = new Request(`${origin}/admin/blog/${postId}`, { method: "POST", body });
-  return adminDetail.action({ context, request, params: { id: postId } } as never) as unknown as Promise<{
-    data: { ok: boolean };
-  }>;
-}
-
-async function seedPost(db: ReturnType<typeof freshDb>) {
-  return createPost(db, {
-    title: "Dunning that works",
-    slug: "dunning-that-works",
-    excerpt: "",
-    body: "Body.",
-    author: "Foxhound",
-    tags: [],
-    featured: false,
-  });
-}
-
-describe("(b) the /admin/blog editor path", () => {
-  it("save of a draft submits nothing; publish submits the one URL; a save of the live post submits again", async () => {
-    const db = freshDb();
-    const id = await seedPost(db);
-
-    expect((await adminCall(id, { _intent: "save", title: "Dunning that works", body: "Edited." })).data.ok).toBe(true);
-    await settled();
-    expect(captured).toEqual([]);
-
-    expect((await adminCall(id, { _intent: "publish" })).data.ok).toBe(true);
-    await settled();
-    expect(captured).toHaveLength(1);
-    expectFoxhoundSubmission(captured[0], "dunning-that-works");
-
-    captured = [];
-    expect((await adminCall(id, { _intent: "save", title: "Dunning that works", body: "Edited again." })).data.ok).toBe(true);
-    await settled();
-    expect(captured).toHaveLength(1);
-    expectFoxhoundSubmission(captured[0], "dunning-that-works");
-
-    captured = [];
-    expect((await adminCall(id, { _intent: "unpublish" })).data.ok).toBe(true);
-    await settled();
-    expect(captured).toEqual([]);
   });
 });
 
