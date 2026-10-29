@@ -319,7 +319,12 @@ function buildSnapshots(accountId: string, roster: MrrRosterEntry[], now: Date):
       createdAt: snapshotDate,
     });
 
-    priorByCustomer = new Map(current.map((c) => [c.stripeCustomerId, c.mrrCents]));
+    // Only customers who had signed up by this date, as the sync's
+    // customer_context holds only customers Stripe has: one who signs up later
+    // is new MRR then, not a reactivation.
+    priorByCustomer = new Map(
+      current.filter((_, i) => roster[i].joinedAt.getTime() <= snapshotDate.getTime()).map((c) => [c.stripeCustomerId, c.mrrCents]),
+    );
   }
 
   return rows;
