@@ -130,6 +130,10 @@ export interface CustomerHealthDetail {
    *  (signals.ts buildCustomerContextFields). */
   ltvCents: number | null;
   currency: string;
+  /** The nightly sync's earliest planned subscription change or cancellation
+   *  ("change" | "cancel") and its date; both null when none is scheduled. */
+  scheduledChangeKind: string | null;
+  scheduledChangeAt: Date | null;
   healthScore: number | null;
   healthFactors: HealthFactor[];
   healthScoreCalculatedAt: Date | null;
@@ -162,6 +166,8 @@ export async function getCustomerHealthDetail(
       mrrContributionCents: customerContext.mrrContributionCents,
       ltvCents: customerContext.ltvCents,
       currency: accounts.currency,
+      scheduledChangeKind: customerContext.scheduledChangeKind,
+      scheduledChangeAt: customerContext.scheduledChangeAt,
       healthScore: customerContext.healthScore,
       healthFactors: customerContext.healthFactors,
       healthScoreCalculatedAt: customerContext.healthScoreCalculatedAt,
@@ -209,6 +215,8 @@ export async function getCustomerHealthDetail(
     mrrContributionCents: row.mrrContributionCents,
     ltvCents: row.ltvCents,
     currency: row.currency ?? "usd",
+    scheduledChangeKind: row.scheduledChangeKind,
+    scheduledChangeAt: row.scheduledChangeAt,
     healthScore: row.healthScore,
     healthFactors: (row.healthFactors as HealthFactor[] | null) ?? [],
     healthScoreCalculatedAt: row.healthScoreCalculatedAt,
