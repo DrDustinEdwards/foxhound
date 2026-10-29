@@ -124,7 +124,7 @@ export async function fetchDisputeContextWith(
 /** The context for a dispute that arrived on `connectionId`, read with that
  *  connection's token. An absent or undecryptable token yields the empty
  *  context. */
-export async function fetchDisputeContext(
+async function fetchDisputeContext(
   env: Env,
   connectionId: string,
   input: { stripeDisputeId: string; chargeId: string; customerId: string | null },

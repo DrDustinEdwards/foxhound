@@ -137,7 +137,7 @@ export interface CreatedNoticeInput {
 }
 
 /** Recova's triage sentence, or null when the dispute has none stored. */
-export function triageLine(triage: CreatedNoticeInput["triage"]): string | null {
+function triageLine(triage: CreatedNoticeInput["triage"]): string | null {
   if (!triage) return null;
   const score = triage.confidence === null ? "" : ` (${triage.confidence}/100)`;
   return `Recommendation: ${triage.recommendation.toUpperCase()}${score}. ${triage.reasoning ?? ""}`.trim();

@@ -212,7 +212,7 @@ export function humanSmartDisputes(raw: string | null): string {
 }
 
 /** Recova's humanRadarLevel. */
-export function humanRadarLevel(raw: string | null): string {
+function humanRadarLevel(raw: string | null): string {
   if (!raw) return "";
   const map: Record<string, string> = { normal: "Normal", elevated: "Elevated", highest: "Highest" };
   return map[raw] ?? raw;
