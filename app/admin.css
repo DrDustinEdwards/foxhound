@@ -3,7 +3,8 @@
    Capsomer: layers, tokens, both themes, the base rules, the pieces
    AdminShell and its time and tooltip use, and the Overview's parts (panels,
    the attention list and the row list under it, empty states, the spinner), and
-   the Users page's table. The layer order is declared at the top
+   the Users page's table, and the alert the blog editor shows over a scheduled
+   update. The layer order is declared at the top
    of app.css, so Capsomer sits above Tailwind's base and below its utilities.
    Foxhound's family is amber (Dustin's answer 1 of 2026-10-13): its tokens come
    after the themes, so the accents are amber in both. */
@@ -25,6 +26,7 @@
 @import "capsomer/empty.css";
 @import "capsomer/skeleton.css";
 @import "capsomer/table.css";
+@import "capsomer/banner.css";
 
 /* Capsomer's faces, Schibsted Grotesk for the UI and Martian Mono for figures. */
 @import "capsomer/fonts.css";

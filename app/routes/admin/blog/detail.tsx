@@ -1,4 +1,6 @@
+import { liveSaveWarning } from "@dustinedwards/site-api/admin";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import { Alert } from "capsomer/react/banner";
 import { data, Form, useActionData, useNavigation } from "react-router";
 
 import { AdminTime } from "~/components/admin-time";
@@ -37,16 +39,22 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const post = await getPostForAdmin(db, params.id);
   if (!post) throw new Response("Not Found", { status: 404 });
 
-  const [versions, links, allPosts, rendered] = await Promise.all([
+  const [versions, links, allPosts, rendered, waiting] = await Promise.all([
     getPostVersions(db, post.id),
     getPostLinksForAdmin(db, post.id),
     listAllPostsForAdmin(db),
     post.body.trim() ? renderMarkdown(db, post.body) : Promise.resolve({ html: "", toc: [] }),
+    d1ScheduledUpdates(env.DB).get(post.id),
   ]);
 
   const linkCandidates = allPosts.filter((p) => p.id !== post.id && p.published);
+  // An update Carrel scheduled on this live post (site-api v0.10.0) replaces
+  // the whole post at its time, so a save here is warned about first, in
+  // site-api's own words, rather than silently undone later.
+  const scheduledUpdate = post.published && waiting ? { publishAt: waiting.publishAt, changeId: waiting.changeId } : null;
+  const saveWarning = liveSaveWarning({ status: post.published ? "published" : "draft", scheduledUpdate });
 
-  return { post, versions, links, linkCandidates, previewHtml: rendered.html };
+  return { post, versions, links, linkCandidates, previewHtml: rendered.html, scheduledUpdate, saveWarning };
 }
 
 type ActionResult = { intent: string; ok: boolean; error?: string };
@@ -131,7 +139,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 }
 
 export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
-  const { post, versions, links, linkCandidates, previewHtml } = loaderData;
+  const { post, versions, links, linkCandidates, previewHtml, scheduledUpdate, saveWarning } = loaderData;
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
   const selectedLinkIds = new Set(links.map((l) => l.targetId));
@@ -317,10 +325,24 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
             </label>
           </div>
 
+          {scheduledUpdate && saveWarning ? (
+            <Alert
+              id="scheduled-update-warning"
+              tone="warn"
+              title={
+                <>
+                  Update scheduled <AdminTime at={new Date(scheduledUpdate.publishAt)} />
+                </>
+              }
+            >
+              {saveWarning}
+            </Alert>
+          ) : null}
           <div>
             <button
               type="submit"
               disabled={busy}
+              aria-describedby={saveWarning ? "scheduled-update-warning" : undefined}
               className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
             >
               {busy ? "Saving..." : "Save"}

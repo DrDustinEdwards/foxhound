@@ -208,6 +208,30 @@ describe("(b) the /admin/blog editor path", () => {
   });
 });
 
+// Not IndexNow, but the same Carrel-plus-editor harness: an update Carrel
+// scheduled on a live post replaces the whole post at its time, so the editor
+// must say so before a save there is silently undone (site-api v0.10.0).
+describe("the /admin/blog editor and a scheduled update", () => {
+  it("shows the waiting update's time and warns before a save", async () => {
+    const db = freshDb();
+    const id = await seedPost(db);
+    await adminCall(id, { _intent: "publish" });
+    const context = { get: () => ({ env: envFor(), ctx, nonce: "n" }) };
+    const load = () => adminDetail.loader({ context, params: { id } } as never);
+    expect((await load()).saveWarning).toBeNull();
+
+    const sched = await carrel(`/content/${id}/schedule`, {
+      expectedVersion: await carrelVersion(id),
+      changeId: "c9",
+      publishAt: "2030-01-01T15:00:00Z",
+    });
+    expect(sched?.status).toBe(200);
+    const shown = await load();
+    expect(shown.scheduledUpdate?.publishAt).toBe("2030-01-01T15:00:00.000Z");
+    expect(shown.saveWarning).toContain("2030-01-01 15:00 UTC");
+  });
+});
+
 // THE GUARD IS THE REQUEST'S ORIGIN, not the env (review of job_b0b24df12155).
 // Every env here says https://foxhoundapp.com, as wrangler.jsonc does for dev
 // and previews too; only the host the publish arrived on differs.
