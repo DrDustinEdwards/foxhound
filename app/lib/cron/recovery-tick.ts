@@ -302,7 +302,7 @@ async function runGuardedRetry(
  *
  * Every guard the tick applies holds: the tick's enabled flag and the account
  * gate (brake, cancellation, demo), only payments that are 'active' (so never
- * one Stripe is still retrying, and never one recovered or cancelled), and
+ * one Stripe is still retrying, and never one recovered or canceled), and
  * runGuardedRetry's lost-dispute, do-not-try-again and expired-card guards. A
  * step with no connected token is left for the tick, which owns the bounded
  * grace. The executor's step claim and Stripe idempotency key make a race with
