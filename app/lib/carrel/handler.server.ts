@@ -1,8 +1,9 @@
-import { createSiteApi, type RateLimiter } from "@dustinedwards/site-api";
+import { createSiteApi, type RateLimiter, type ScheduleRun, type SiteApi } from "@dustinedwards/site-api";
+import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 
 import { getDb } from "~/db";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import { blogPostUrl, scheduleIndexNow } from "~/lib/seo/indexnow.server";
+import { indexNow } from "~/lib/seo/indexnow.server";
 
 import { carrelAdapter } from "./adapter.server";
 
@@ -28,20 +29,32 @@ function carrelLimiter(env: Env): RateLimiter {
   };
 }
 
+/** One site-api over the blog, for a Carrel request and for the cron alike.
+ *  The IndexNow hook runs after a write that changes a public page and after
+ *  each schedule the cron applies (job_b0b24df12155). */
+function carrelSiteApi(env: Env): SiteApi {
+  return createSiteApi({
+    adapter: carrelAdapter(getDb(env), d1ScheduledUpdates(env.DB)),
+    key: env.CARREL_SITE_KEY,
+    limiter: carrelLimiter(env),
+    hooks: [indexNow],
+  });
+}
+
 /** Null when the request is outside the prefix, so the caller falls through.
- *  `ctx` keeps an IndexNow submission alive after the response is sent. */
+ *  `ctx` keeps the hooks alive after the response is sent. */
 export async function handleCarrelRequest(
   request: Request,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response | null> {
-  const api = createSiteApi({
-    adapter: carrelAdapter(getDb(env), {
-      onLive: (slug) => scheduleIndexNow(request, ctx, [blogPostUrl(slug)]),
-    }),
-    key: env.CARREL_SITE_KEY,
-    limiter: carrelLimiter(env),
-  });
+  const api = carrelSiteApi(env);
   if (!api.matches(request)) return null;
-  return api.handle(request);
+  return api.handle(request, ctx);
+}
+
+/** The blog-schedules cron (app/lib/cron/registry.ts): puts every scheduled
+ *  post and scheduled update whose time has come live. */
+export function runBlogSchedules(env: Env, now = new Date()): Promise<ScheduleRun> {
+  return carrelSiteApi(env).runSchedules({ now });
 }
