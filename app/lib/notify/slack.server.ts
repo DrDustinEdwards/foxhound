@@ -114,11 +114,15 @@ export async function postToSlack(
   webhookUrl: string,
   event: SlackEvent,
 ): Promise<SlackOutcome> {
+  return postSlackBody(webhookUrl, buildSlackPayload(event));
+}
+
+async function postSlackBody(webhookUrl: string, body: { text: string }): Promise<SlackOutcome> {
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildSlackPayload(event)),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       console.error(`slack notification rejected: ${res.status}`);
@@ -145,6 +149,17 @@ export async function postSlackNotification(
   const target = await resolveSlackTarget(env, accountId);
   if (target.status !== "ready") return target;
   return postToSlack(target.webhookUrl, event);
+}
+
+/**
+ * Gate then post one Foxhound-worded line, for a notice legacy never sent (the
+ * Stripe account health notice, app/lib/stripe/account-health.server.ts). The
+ * same gate as the two legacy posts, so NULL is OFF here too.
+ */
+export async function postSlackText(env: Env, accountId: string, text: string): Promise<SlackOutcome> {
+  const target = await resolveSlackTarget(env, accountId);
+  if (target.status !== "ready") return target;
+  return postSlackBody(target.webhookUrl, { text });
 }
 
 /**
