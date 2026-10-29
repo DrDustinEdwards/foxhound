@@ -30,6 +30,8 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 //   charge.dispute.funds_withdrawn / funds_reinstated -> dispute_funds (money Stripe moved)
 //   account.updated            -> account_health (the connected account's own
 //                                 charges, payouts and requirements)
+//   account.application.deauthorized -> connection_deauthorized (the merchant
+//                                 revoked Foxhound's grant at Stripe)
 //   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
 //   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
 //   payment_method.card_automatically_updated (its pre-2020 name) -> card_auto_updated
@@ -183,6 +185,12 @@ export type WebhookIntent =
        *  retried on it now. */
       kind: "card_auto_updated";
       customerId: string;
+    }
+  | {
+      /** account.application.deauthorized: the merchant revoked the grant from
+       *  their Stripe dashboard, so the live connection is marked disconnected.
+       *  The grant is already gone at Stripe; nothing calls deauthorize again. */
+      kind: "connection_deauthorized";
     }
   | { kind: "ignore"; reason: string };
 
@@ -418,6 +426,8 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
       return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
     }
+    case "account.application.deauthorized":
+      return { kind: "connection_deauthorized" };
     case "radar.early_fraud_warning.created":
     case "radar.early_fraud_warning.updated": {
       const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
