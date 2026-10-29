@@ -33,9 +33,13 @@ deleted the old password rows.
 - **Passkey first.** `/login` leads with "Sign in with a passkey" and offers
   saved passkeys in the email field's suggestions (autocomplete `webauthn`).
   The passkey belongs to `BETTER_AUTH_URL`'s host.
-- **Emailed link** for a first sign-in or a lost device: one link that signs in
-  an existing merchant or creates a new one, valid 5 minutes, sent by
-  `sendSignInLinkEmail` on Capsomer's magic-link template. `/login` and
+- **Emailed link and code** for a first sign-in or a lost device: one mail
+  with a link and a six-digit code, each signing in an existing merchant or
+  creating a new one, valid 15 minutes, sent by `sendSignInLinkEmail` on
+  Capsomer's magic-link template. The link signs in whichever browser opens it
+  (often the mail app's); the code is typed on the "link sent" screen, so the
+  tab that asked signs in (`signInWithCode`, posted with `?code`). A wrong code
+  counts, and after three the code is spent while the link still works. `/login` and
   `/signup` send it through Better Auth's handler
   (`app/lib/auth/sign-in-link.server.ts`) so Better Auth's limiter and the
   Turnstile check run. Turnstile is on once `TURNSTILE_SITE_KEY` and

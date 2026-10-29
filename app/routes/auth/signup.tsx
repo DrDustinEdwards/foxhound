@@ -6,15 +6,21 @@ import {
   AuthFootnote,
   AuthHeading,
   AuthLink,
+  SIGN_IN_CODE_QUERY,
   SignInLinkForm,
   SignInLinkSent,
   SocialContinue,
 } from "~/components/auth-card";
-import { checkAuthLimit, limitedData, SIGN_UP_LIMITED } from "~/lib/auth/rate-limit.server";
+import { checkAuthLimit, limitedData, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "~/lib/auth/rate-limit.server";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
-import { requestSignInLink, signInLinkAnswer } from "~/lib/auth/sign-in-link.server";
+import {
+  requestSignInLink,
+  signInCodeAnswer,
+  signInLinkAnswer,
+  signInWithCode,
+} from "~/lib/auth/sign-in-link.server";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -62,15 +68,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   // First, before the form is read: the shared auth bucket, then ruling 24's
-  // five signups an hour (J52).
-  const refusal = await checkAuthLimit(env, request, "signup");
-  if (refusal) return limitedData({ sent: null, error: SIGN_UP_LIMITED }, refusal);
+  // five signups an hour (J52). A typed code (the query says so) sends no mail
+  // and spends only the shared bucket, as a sign-in does.
+  const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
+  const refusal = await checkAuthLimit(env, request, isCode ? "credential" : "signup");
+  if (refusal) {
+    return limitedData({ sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null }, refusal);
+  }
 
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim();
-  if (!email) return data({ sent: null, error: "Enter your email address." }, { status: 400 });
+  if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
 
   const next = safeNextPath(String(form.get("next") ?? ""));
+
+  // The code from the same mail, typed on the "link sent" screen.
+  if (isCode) {
+    const code = String(form.get("code") ?? "").trim();
+    return signInCodeAnswer(env, await signInWithCode(env, request, { email, code }), email, next, SIGN_IN_LIMITED);
+  }
 
   const result = await requestSignInLink(env, request, {
     email,
@@ -95,7 +111,13 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
       />
 
       {actionData?.sent ? (
-        <SignInLinkSent email={actionData.sent} />
+        <SignInLinkSent
+          idPrefix="signup"
+          email={actionData.sent}
+          next={carriedNext}
+          error={actionData.codeError}
+          busy={busy}
+        />
       ) : (
         <>
           <SocialContinue methods={loaderData.methods} next={carriedNext} />

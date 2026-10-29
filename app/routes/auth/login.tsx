@@ -7,6 +7,7 @@ import {
   AuthHeading,
   AuthLink,
   PasskeyContinue,
+  SIGN_IN_CODE_QUERY,
   SignInLinkForm,
   SignInLinkSent,
   SocialContinue,
@@ -20,7 +21,12 @@ import {
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
-import { requestSignInLink, signInLinkAnswer } from "~/lib/auth/sign-in-link.server";
+import {
+  requestSignInLink,
+  signInCodeAnswer,
+  signInLinkAnswer,
+  signInWithCode,
+} from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
@@ -82,12 +88,18 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   // First, before the form is read or mail is sent (J52).
   const refusal = await checkAuthLimit(env, request, "credential");
-  if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED }, refusal);
+  if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim();
-  if (!email) return data({ sent: null, error: "Enter your email address." }, { status: 400 });
+  if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
   const next = safeNextPath(String(form.get("next") ?? ""));
+
+  // The code from the same mail, typed on the "link sent" screen.
+  if (new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY)) {
+    const code = String(form.get("code") ?? "").trim();
+    return signInCodeAnswer(env, await signInWithCode(env, request, { email, code }), email, next, SIGN_IN_LIMITED);
+  }
 
   const result = await requestSignInLink(env, request, {
     email,
@@ -111,7 +123,13 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
       <AuthHeading title="Welcome back" subtitle="Log in to your Foxhound account" />
 
       {actionData?.sent ? (
-        <SignInLinkSent email={actionData.sent} />
+        <SignInLinkSent
+          idPrefix="login"
+          email={actionData.sent}
+          next={carriedNext}
+          error={actionData.codeError}
+          busy={busy}
+        />
       ) : (
         <>
           <PasskeyContinue next={loaderData.next} />
