@@ -1,5 +1,5 @@
 import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
-import { data, redirect, useNavigation } from "react-router";
+import { redirect, useNavigation } from "react-router";
 
 import {
   AuthCard,
@@ -15,12 +15,7 @@ import { checkAuthLimit, limitedData, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "~
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
-import {
-  requestSignInLink,
-  signInCodeAnswer,
-  signInLinkAnswer,
-  signInWithCode,
-} from "~/lib/auth/sign-in-link.server";
+import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -76,25 +71,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return limitedData({ sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null }, refusal);
   }
 
-  const form = await request.formData();
-  const email = String(form.get("email") ?? "").trim();
-  if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
-
-  const next = safeNextPath(String(form.get("next") ?? ""));
-
-  // The code from the same mail, typed on the "link sent" screen.
-  if (isCode) {
-    const code = String(form.get("code") ?? "").trim();
-    return signInCodeAnswer(env, await signInWithCode(env, request, { email, code }), email, next, SIGN_IN_LIMITED);
-  }
-
-  const result = await requestSignInLink(env, request, {
-    email,
-    captchaToken: String(form.get("cf-turnstile-response") ?? ""),
-    next,
-    newUserNext: next,
-  });
-  return signInLinkAnswer(result, email, SIGN_UP_LIMITED);
+  return answerSignInForm(env, request, await request.formData(), { isCode, limited: SIGN_UP_LIMITED });
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {

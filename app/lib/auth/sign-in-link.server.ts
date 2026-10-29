@@ -4,6 +4,7 @@ import { data, redirect } from "react-router";
 import { getAuth } from "~/lib/auth";
 
 import { safeNextPath } from "./next-path";
+import { SIGN_IN_LIMITED } from "./rate-limit.server";
 
 // The emailed sign-in link that /login and /signup send (site-runtime
 // ./sign-in's magic link). The page's action calls this after its own
@@ -76,7 +77,7 @@ export async function requestSignInLink(
 
 /** The page's answer to a link request, for /login and /signup: the address
  *  the link went to, or the words its alert shows. */
-export function signInLinkAnswer(result: SignInLinkResult, email: string, limited: string) {
+function signInLinkAnswer(result: SignInLinkResult, email: string, limited: string) {
   switch (result) {
     case "sent":
       return data({ sent: email as string | null, error: null as string | null, codeError: null as string | null });
@@ -151,9 +152,38 @@ const CODE_ANSWERS = {
 /** The page's answer to a typed code: on to the passkey offer and `next`, as
  *  the link goes, or the "link sent" screen again with the words its alert
  *  shows. `limited` is the page's own words for its limit. */
-export function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, next: string, limited: string) {
+function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, next: string, limited: string) {
   if (result.status === "signed_in") throw redirect(afterLinkURL(env, next), { headers: result.headers });
   const error = result.status === "limited" ? limited : CODE_ANSWERS[result.status];
   const status = result.status === "limited" ? 429 : result.status === "failed" ? 500 : 400;
   return data({ sent: email as string | null, error: null as string | null, codeError: error }, { status });
+}
+
+/** What /login and /signup do with their form once their limit lets it
+ *  through: a typed code (the form posted with `?code`) signs in, anything
+ *  else asks for a link. `limited` is the page's own words for its limit. */
+export async function answerSignInForm(
+  env: Env,
+  request: Request,
+  form: FormData,
+  page: { isCode: boolean; limited: string },
+) {
+  const email = String(form.get("email") ?? "").trim();
+  if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
+  const next = safeNextPath(String(form.get("next") ?? ""));
+
+  // The code from the same mail, typed on the "link sent" screen.
+  if (page.isCode) {
+    const code = String(form.get("code") ?? "").trim();
+    return signInCodeAnswer(env, await signInWithCode(env, request, { email, code }), email, next, SIGN_IN_LIMITED);
+  }
+
+  const result = await requestSignInLink(env, request, {
+    email,
+    captchaToken: String(form.get("cf-turnstile-response") ?? ""),
+    next,
+    // Someone new lands where a Google signup does.
+    newUserNext: next,
+  });
+  return signInLinkAnswer(result, email, page.limited);
 }

@@ -1,5 +1,5 @@
 import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
-import { data, redirect, useNavigation } from "react-router";
+import { redirect, useNavigation } from "react-router";
 
 import {
   AuthCard,
@@ -21,12 +21,7 @@ import {
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
-import {
-  requestSignInLink,
-  signInCodeAnswer,
-  signInLinkAnswer,
-  signInWithCode,
-} from "~/lib/auth/sign-in-link.server";
+import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
@@ -90,25 +85,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   const refusal = await checkAuthLimit(env, request, "credential");
   if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 
-  const form = await request.formData();
-  const email = String(form.get("email") ?? "").trim();
-  if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
-  const next = safeNextPath(String(form.get("next") ?? ""));
-
-  // The code from the same mail, typed on the "link sent" screen.
-  if (new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY)) {
-    const code = String(form.get("code") ?? "").trim();
-    return signInCodeAnswer(env, await signInWithCode(env, request, { email, code }), email, next, SIGN_IN_LIMITED);
-  }
-
-  const result = await requestSignInLink(env, request, {
-    email,
-    captchaToken: String(form.get("cf-turnstile-response") ?? ""),
-    next,
-    // Someone new through /login lands where a Google signup does.
-    newUserNext: next,
-  });
-  return signInLinkAnswer(result, email, SIGN_IN_LIMITED);
+  const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
+  return answerSignInForm(env, request, await request.formData(), { isCode, limited: SIGN_IN_LIMITED });
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
