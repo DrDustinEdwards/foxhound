@@ -176,7 +176,7 @@ export const expiringCardAlerts = sqliteTable(
     accountId: text("account_id").references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
-    // WHY THE ROW EXISTS (migration 0047). 'card_expiring' is every row the
+    // WHY THE ROW EXISTS (migration 0050). 'card_expiring' is every row the
     // nightly scan and customer.updated write. 'no_payment_method' is a
     // trialing customer with nothing to charge at conversion, recorded off
     // customer.subscription.trial_will_end; its card columns are NULL and its
