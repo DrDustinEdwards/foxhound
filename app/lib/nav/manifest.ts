@@ -85,39 +85,19 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
 // dead row), then Help. Those three hold legacy's exact relative order and
 // positions.
 //
-// Team is a TEMPORARY divergence, RATIFIED by Dustin 2026-07-27: legacy's gear
-// has no Team row because legacy reaches Team through the settings sub-nav
-// (ledger row S25), which ruling 57 defers out of this campaign. PLATFORM_LINKS
-// is currently the ONLY navigation path to /settings/team, so dropping it now
-// would orphan a live page that legacy never had orphaned. It is appended last
-// so legacy's three keep their positions, and it leaves when S25 ships.
+// The rows after those three are every other page the app shell names. The
+// avatar menu shows only Settings and Billing (site-header.tsx); the settings
+// sidebar reaches the rest.
 export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Settings", to: "/settings" },
   { label: "Billing", to: "/billing", requiresAccount: true },
   { label: "Help", to: "/help" },
   { label: "Team", to: "/settings/team" },
-  // Audit settings (S30, built at 315). Legacy lists it in the settings
-  // SIDEBAR under a "Products" group; Foxhound has no sidebar, so it rides the
-  // same mechanism Team does and for the same reason: this is otherwise the
-  // only navigation path to a live page. It leaves with Team when S25 ships
-  // legacy's sub-nav.
   { label: "Audit settings", to: "/settings/audit" },
-  // Audit history (phase (e), session 70). Same mechanism and the same reason
-  // as Audit settings beside it: legacy reaches its own /audit/dashboard from
-  // the settings sidebar Foxhound has no equivalent of, and without this row
-  // the page has no navigation path at all. It leaves with the others when S25
-  // ships legacy's sub-nav.
   { label: "Audit history", to: "/audit/dashboard" },
-  // Email settings (S33). Same mechanism and the same reason as Team and
-  // Audit settings: legacy lists it in a settings SIDEBAR Foxhound does not
-  // have, so PLATFORM_LINKS is otherwise the only navigation path to a live
-  // page. It leaves with the other two when S25 ships legacy sub-nav.
   { label: "Email settings", to: "/settings/email" },
-  // Alerts (S28). Same mechanism and reason as Team, Audit and Email settings.
   { label: "Alerts", to: "/settings/alerts" },
-  // API keys (S29). Same mechanism and reason as the others above.
   { label: "API keys", to: "/settings/api-keys" },
-  // Brand voice (S31). Same mechanism and reason as the others above.
   { label: "Brand voice", to: "/settings/brand-voice" },
   // Notifications (S36). The writer five engines waited on: it sets
   // digest_enabled, the Slack pair, and the two email toggles.
