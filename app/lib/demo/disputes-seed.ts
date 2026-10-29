@@ -426,7 +426,7 @@ export function buildEarlyFraudWarningsSeed(accountId: string, now: Date): Early
     { n: 4, name: "Cobalt Freight", email: "billing@cobalt-freight.demo", cents: 9900, type: "made_with_lost_card", days: 12, refunded: true },
   ];
   return specs.map((s) => ({
-    id: `defw_${s.n}`,
+    id: `${accountId}_efw_${s.n}`,
     accountId,
     stripeWarningId: `dstripe_issfr_${s.n}`,
     stripeChargeId: `dstripe_ch_efw_${s.n}`,

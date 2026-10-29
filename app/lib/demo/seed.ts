@@ -315,7 +315,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
   // and one refunded. Never billable, so nothing below reads them.
   await runBatched(
     db,
-    buildEarlyFraudWarningsSeed(DEMO_ACCOUNT_ID, now).map((row) => db.insert(earlyFraudWarnings).values(row)),
+    buildEarlyFraudWarningsSeed(accountId, now).map((row) => db.insert(earlyFraudWarnings).values(row)),
   );
 
   // 5) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.
