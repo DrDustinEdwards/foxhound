@@ -523,6 +523,7 @@ function approveInput() {
     approvedByUserId: "u",
     approvedByEmail: "owner@alpha.test",
     approvedAt: new Date(NOW),
+    standingOptInAt: null,
   };
 }
 

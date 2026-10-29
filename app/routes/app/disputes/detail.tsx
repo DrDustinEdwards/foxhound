@@ -101,7 +101,9 @@ import {
 //   beside the submit control, closing the dispute at Stripe and resolving it
 //   lost with no fee (app/lib/disputes/accept.server.ts), then back to the list
 //   as Recova's router.push('/disputes/dashboard').
-// - Auto-submit: never built (RULES.md 5.6).
+// - Auto-submit: not on this page. It is the disputes cron's job for accounts
+//   that turned it on (app/lib/cron/dispute-auto-submit.ts), through the same
+//   approveAndSubmitDispute this page's Approve and submit uses.
 // - Recova's sticky action bar: Foxhound's approve-and-submit card stands in
 //   its place ("The dispute page has an approve-and-submit card", approved
 //   2026-08-28).

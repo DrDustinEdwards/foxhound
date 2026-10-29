@@ -151,6 +151,10 @@ export const disputeApprovals = sqliteTable(
     // hash of the evidence version approved (submission requires this row)
     evidenceVersionHash: text("evidence_version_hash").notNull(),
     approvedAt: ts("approved_at").notNull(),
+    // Set only on an approval the auto-submit job wrote: when the approver
+    // (approved_by_*) turned auto-submit on, the standing opt-in this approval
+    // stands on. Null on a merchant's own Approve and submit.
+    standingOptInAt: ts("standing_opt_in_at"),
   },
   (t) => [
     index("dispute_approvals_account_idx").on(t.accountId),

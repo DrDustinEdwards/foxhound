@@ -9,7 +9,7 @@
 // notification by using resolved_at for the ruling.
 
 import { formatMoney } from "~/lib/money-format";
-import { humanizeDisputeReason, isInquiryStatus } from "./labels";
+import { humanizeDisputeReason, isInquiryStatus, SUBMITTED_AUTOMATICALLY, SUBMITTED_EXTERNALLY } from "./labels";
 
 /** One balance transaction Stripe recorded for the dispute
  *  (dispute_balance_transactions), signed as Stripe signs it. */
@@ -47,9 +47,10 @@ export interface DisputeTimelineItem {
 
 /** Who submitted the evidence, in Recova's words (components/disputes/
  *  timeline.ts, blob 04fbe976). Foxhound stores the approver's email for its
- *  own submissions, so anything but the external marker is Foxhound. */
+ *  own manual submissions, so anything but the two markers is Foxhound. */
 function submitterPhrase(submittedBy: string | null): string {
-  if (submittedBy === "merchant_or_stripe") return "externally (merchant or Stripe)";
+  if (submittedBy === SUBMITTED_EXTERNALLY) return "externally (merchant or Stripe)";
+  if (submittedBy === SUBMITTED_AUTOMATICALLY) return "Foxhound (auto-submit)";
   return "Foxhound";
 }
 

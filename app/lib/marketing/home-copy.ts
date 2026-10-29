@@ -125,7 +125,8 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     stripeBody:
       "Stripe emails you when a dispute opens and shows you a deadline. Evidence submission, response writing, and Stripe submission are all manual.",
     // Sanctioned (divergence 5): Recova's "Automated dispute responses" and
-    // "Auto-submitted before the deadline" were false; the merchant signs.
+    // "Auto-submitted before the deadline"; the merchant signs, and auto-submit
+    // is an opt-in that is off by default.
     foxhoundTitle: "Evidence drafted, you review and sign",
     foxhoundBody: `Evidence built from your recovery history, Stripe signals, and transaction data. You review and sign every submission before the deadline. ${DISPUTE_FEE} only when you win, capped at ${DISPUTE_CAP}.`,
     foxhoundHref: "/product/disputes",

@@ -5,11 +5,12 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 // Dispute evidence submission (TASK-foxhound-dispute-intake.md deliverable 2).
-// The ONLY place stripe.disputes.update is called. It is reached exclusively
-// from the merchant's explicit approve action (app/lib/disputes/approval.ts
-// approveAndSubmit + app/routes/app/disputes/detail.tsx), never from a cron or
-// any automatic path: there is no auto-submit, even at the evidence deadline
-// (PRICING.md hard rule).
+// The ONLY place stripe.disputes.update is called. It is reached only through
+// approveAndSubmit (app/lib/disputes/approval.ts), after a dispute_approvals
+// row is written (PRICING.md hard rule: no approval row, no submission): from
+// the merchant's own Approve and submit (app/routes/app/disputes/detail.tsx),
+// or from the auto-submit cron on the merchant's standing opt-in
+// (app/lib/cron/dispute-auto-submit.ts).
 
 // The known Stripe dispute-evidence field names (mirrors
 // Stripe.DisputeUpdateParams.Evidence). An explicit allow-list means a stray

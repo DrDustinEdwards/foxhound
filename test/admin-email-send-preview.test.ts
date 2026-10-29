@@ -105,6 +105,7 @@ const ALL_TYPES = [
   "alert_critical_customers",
   "dispute_created",
   "dispute_reminder",
+  "dispute_auto_submitted",
   "dispute_won",
   "dispute_lost",
   "monthly_audit",

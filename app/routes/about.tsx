@@ -45,8 +45,8 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
             back to the evidence that earned it, a retry that succeeded, an email that was actually
             clicked, a card that was actually updated. Recoveries Stripe&apos;s own tools would have
             gotten anyway are recorded and shown for free. Dispute evidence is drafted automatically, but
-            nothing reaches Stripe without a human reviewing and signing off first, there is no
-            auto-submit toggle to accidentally leave on.
+            nothing reaches Stripe without a person&apos;s approval: they sign off on each dispute, or
+            turn on auto-submit themselves, and it is off by default.
           </p>
           <p>
             The company is US-based and operates under US jurisdiction. Foxhound is built on Stripe

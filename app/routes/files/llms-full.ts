@@ -65,7 +65,7 @@ Pricing: a percentage of Foxhound-attributed recoveries. No flat fee. Nothing bi
 
 ### Disputes (a percentage of won disputes, capped per dispute)
 
-When a Stripe dispute arrives, Foxhound drafts evidence from the merchant's Stripe data and recovery history. A human always reviews and signs before anything is submitted to Stripe; there is no auto-submit toggle, and there never has been one. Charges a percentage of disputes won, capped per dispute, nothing on losses or accepted disputes.
+When a Stripe dispute arrives, Foxhound drafts evidence from the merchant's Stripe data and recovery history. Every submission carries a person's approval: they review and sign each one, or turn on auto-submit (off by default), which submits the staged evidence 24 hours before the deadline when nobody has acted. Charges a percentage of disputes won, capped per dispute, nothing on losses or accepted disputes.
 
 URL: ${url}/product/disputes
 Docs: ${url}/docs/disputes

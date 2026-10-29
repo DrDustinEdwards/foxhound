@@ -13,6 +13,7 @@ import {
   renderCronAlertEmail,
 } from "~/lib/cron/alerts.server";
 import {
+  autoSubmittedNotice,
   createdNotice,
   DISPUTE_NOTICE_FROM_NAME,
   disputeNoticeFooterNote,
@@ -120,8 +121,15 @@ const RECOVERY_STEPS: Record<string, { stepType: string; declineCategory: string
   recovery_revoked: { stepType: "email_revoked", declineCategory: "revoked", label: "revoked authorization" },
 };
 
-/** The four dispute notices, by type (E16, E17, E19, E20). */
-const DISPUTE_TYPES = ["dispute_created", "dispute_reminder", "dispute_won", "dispute_lost"] as const;
+/** The five dispute notices, by type (E16, E17, E19, E20, and the
+ *  auto-submitted notice). */
+const DISPUTE_TYPES = [
+  "dispute_created",
+  "dispute_reminder",
+  "dispute_auto_submitted",
+  "dispute_won",
+  "dispute_lost",
+] as const;
 
 export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   ...Object.entries(RECOVERY_STEPS).map(([type, step]) => ({
@@ -188,6 +196,11 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
     type: "dispute_reminder",
     audience: "merchant",
     description: "The deadline reminder a merchant gets 3 days (and again 1 day) before a dispute's evidence is due.",
+  },
+  {
+    type: "dispute_auto_submitted",
+    audience: "merchant",
+    description: "The notice a merchant with auto-submit on gets when Foxhound submits a dispute's response 24 hours before its deadline.",
   },
   {
     type: "dispute_won",
@@ -625,7 +638,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       return merchantJob(criticalCustomersContent(2, baseUrl, now));
     }
     if ((DISPUTE_TYPES as readonly string[]).includes(type.type)) {
-      // The notices' own content functions (E16, E17, E19, E20) on a sample
+      // The notices' own content functions (E16, E17, E19, E20 and the
+      // auto-submitted notice) on a sample
       // dispute. Every button goes to the disputes list: the sample has no row.
       const listUrl = `${baseUrl}/disputes/dashboard`;
       const dispute = {
@@ -641,18 +655,21 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
               ...dispute,
               evidenceDeadline: new Date(now.getTime() + 10 * 86_400_000),
               triage: { recommendation: "fight", confidence: 78, reasoning: "Delivery was confirmed by the carrier." },
+              autoSubmit: false,
             })
           : type.type === "dispute_reminder"
-            ? reminderNotice({ ...dispute, daysLeft: 3, approved: false })
-            : outcomeNotice({
-                ...dispute,
-                won: type.type === "dispute_won",
-                foxhoundSubmitted: true,
-                feeCents: type.type === "dispute_won" ? 980 : null,
-                feeCurrency: SAMPLE_CURRENCY,
-                invoiceDate: nextDisputeBillingRun(now),
-                listUrl,
-              });
+            ? reminderNotice({ ...dispute, daysLeft: 3, approved: false, autoSubmit: false })
+            : type.type === "dispute_auto_submitted"
+              ? autoSubmittedNotice(dispute)
+              : outcomeNotice({
+                  ...dispute,
+                  won: type.type === "dispute_won",
+                  foxhoundSubmitted: true,
+                  feeCents: type.type === "dispute_won" ? 980 : null,
+                  feeCurrency: SAMPLE_CURRENCY,
+                  invoiceDate: nextDisputeBillingRun(now),
+                  listUrl,
+                });
       return merchantJob({
         fromName: DISPUTE_NOTICE_FROM_NAME,
         ...notice,

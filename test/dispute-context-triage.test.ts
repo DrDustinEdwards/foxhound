@@ -88,6 +88,7 @@ describe("dispute context and triage from Stripe", () => {
       evidenceDeadline: null,
       disputeUrl: "https://example.com/disputes/d1",
       triage,
+      autoSubmit: false,
     });
     expect(mail.notice.body).toContain("Recommendation: FIGHT (85/100). 3 prior successful charges, AVS and CVV both passed.");
   });

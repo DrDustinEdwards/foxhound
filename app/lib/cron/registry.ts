@@ -28,6 +28,7 @@ import {
   DISPUTE_REMINDERS_CRON_NAME,
   runDisputeReminders,
 } from "~/lib/cron/dispute-reminders";
+import { describeDisputeAutoSubmitRun, runDisputeAutoSubmit } from "~/lib/cron/dispute-auto-submit";
 import { describeExpiringCardRun, runExpiringCards } from "~/lib/cron/expiring-cards";
 import {
   describeDisputeFeePricing,
@@ -203,10 +204,17 @@ const winbackSend: CronHandler = async (env) => {
  *  ("0 * * * *"); this rides the five-minute tick instead, as winback-send does,
  *  because a new cron expression needs cron-health's period table too and the
  *  bands are a day wide, so a finer tick only reminds sooner within the band.
- *  The per-band send claim is what stops a second reminder. */
+ *  The per-band send claim is what stops a second reminder. Recova's
+ *  "Thing 2", the opt-in auto-submit 24 hours before the deadline, runs on the
+ *  same tick after the reminders, as it ran after them in process-disputes. */
 const disputeReminders: CronHandler = async (env, ctx) => {
-  const result = await runDisputeReminders(env, new Date(), ctx?.runId ?? null);
-  return { rowsProcessed: result.sent, message: describeDisputeReminderRun(result) };
+  const now = new Date();
+  const result = await runDisputeReminders(env, now, ctx?.runId ?? null);
+  const auto = await runDisputeAutoSubmit(env, now, ctx?.runId ?? null);
+  return {
+    rowsProcessed: result.sent + auto.submitted,
+    message: `${describeDisputeReminderRun(result)}; ${describeDisputeAutoSubmitRun(auto)}`,
+  };
 };
 
 const expiringCards: CronHandler = async (env) => {

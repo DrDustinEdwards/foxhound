@@ -14,7 +14,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // J06 built the triggers, the skips and the once-only claims, and its own tests
 // (dispute-notices-j06, dispute-reminders-j06) hold them; this file holds what
 // each mail SAYS and CARRIES, read from the message the binding is handed.
-// E18 is not built (RULES.md 5.6): its only Recova trigger is auto-submit.
+// E18, the auto-submitted notice, is held by dispute-auto-submit.test.ts.
 
 interface SentMessage {
   from: string;

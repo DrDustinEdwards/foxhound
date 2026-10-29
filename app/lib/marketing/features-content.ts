@@ -229,10 +229,10 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           // Recova's "Hourly dispute processing" (checks deadlines, fires
           // reminders, auto-submits, cleans up). Foxhound's dispute-reminders
-          // job rides the tick; auto-submit is deliberately not built
-          // (RULES.md 5.6), and Recova's clean-up has no counterpart.
+          // job rides the tick and runs auto-submit for accounts that turned it
+          // on; Recova's clean-up has no counterpart.
           name: `Dispute processing every ${tick} minutes`,
-          description: `Checks dispute deadlines and fires reminders, every ${tick} minutes.`,
+          description: `Checks dispute deadlines, fires reminders, and auto-submits evidence when you have turned it on, every ${tick} minutes.`,
           product: "Disputes",
         },
         {
