@@ -1,3 +1,4 @@
+import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -323,11 +324,68 @@ export function SignInLinkForm({
   );
 }
 
-/** What the sign-in link action answered, shown in place of the form. */
-export function SignInLinkSent({ email }: { email: string }) {
+/** The query a code form posts with, so an action knows a typed code from a
+ *  link request before it reads the form (signup spends its hourly bucket only
+ *  on a link). */
+export const SIGN_IN_CODE_QUERY = "code";
+
+/**
+ * What the sign-in link action answered, shown in place of the form, with the
+ * box for the code from the same mail. The link signs in whichever browser
+ * opens it, often the mail app's; the code signs in this tab (Dustin's live
+ * signup, 2026-10-29, where the link opened outside the private window).
+ */
+export function SignInLinkSent({
+  idPrefix,
+  email,
+  next,
+  error,
+  busy,
+}: {
+  idPrefix: string;
+  email: string;
+  next?: string;
+  error: string | null;
+  busy: boolean;
+}) {
+  const errorId = error ? `${idPrefix}-code-error` : undefined;
   return (
-    <Banner tone="ok">
-      We sent a sign-in link to {email}. It works once and expires in 5 minutes.
-    </Banner>
+    <>
+      <Banner tone="ok">
+        We sent a sign-in link and a code to {email}. They work once and expire in {SIGN_IN_EXPIRES_IN_WORDS}.
+      </Banner>
+      <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="mt-6">
+        <input type="hidden" name="email" value={email} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+        <div className="cap-field mb-4">
+          <label className="cap-field-label font-normal text-text-tertiary" htmlFor={`${idPrefix}-code`}>
+            <span className="text-label">Or enter the code from the email</span>
+          </label>
+          <input
+            id={`${idPrefix}-code`}
+            className="cap-input tracking-widest"
+            name="code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+            aria-invalid={errorId ? true : undefined}
+            aria-describedby={errorId}
+          />
+        </div>
+        {error ? (
+          <div id={errorId} className="mb-4">
+            <Alert tone="crit">{error}</Alert>
+          </div>
+        ) : null}
+        <div className="grid">
+          <Button type="submit" size="lg" pending={busy}>
+            {busy ? "Signing in..." : "Sign in with the code"}
+          </Button>
+        </div>
+      </Form>
+    </>
   );
 }

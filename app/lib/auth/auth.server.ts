@@ -9,7 +9,7 @@ import { authOptions } from "./options";
 import { sendSignInLinkEmail } from "./send-auth-email";
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
-// ./sign-in): a passkey first, an emailed link before one exists (Turnstile on
+// ./sign-in): a passkey first, an emailed link and code before one exists (Turnstile on
 // it once its keys are set), Google and Apple, no passwords. Accounts are joined
 // only by a signed-in person. Built from the Cloudflare `env` so it binds the
 // D1-backed Drizzle adapter (binding `DB`) and offers only the providers whose
@@ -28,8 +28,8 @@ async function buildAuth(env: Env) {
   const signIn = await signInOptions(env, {
     siteName: "Foxhound",
     social: true,
-    sendMagicLink: async ({ email, url, token }) => {
-      const sent = await sendSignInLinkEmail(env, { to: email, url, token });
+    sendMagicLink: async ({ email, url, token, code }) => {
+      const sent = await sendSignInLinkEmail(env, { to: email, url, token, code });
       // A refused send is thrown by name so it is not silent (J82). The message
       // carries the reason and the provider's words with the link cut out,
       // never the link. Better Auth answers the form the same way whether or

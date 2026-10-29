@@ -47,16 +47,17 @@ vi.mock("~/db/client", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { requestSignInLink } = await import("~/lib/auth/sign-in-link.server");
+const { requestSignInLink, signInWithCode } = await import("~/lib/auth/sign-in-link.server");
 const { sendSignInLinkEmail } = await import("~/lib/auth/send-auth-email");
 
 const BASE = "https://foxhoundapp.com";
 const TO = "jane@example.com";
 const TOKEN = "EXAMPLE-NOT-A-TOKEN";
 const URL_FIXTURE = `${BASE}/api/auth/magic-link/verify?token=${TOKEN}&callbackURL=%2Fconsole`;
+const CODE = "000000";
 
-function expectedRender(to: string, url: string) {
-  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, expiresIn: "5 minutes" });
+function expectedRender(to: string, url: string, code: string) {
+  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, code, expiresIn: "15 minutes" });
 }
 
 let sqlite: Database.Database;
@@ -105,6 +106,20 @@ function ask(env: Env, email = TO) {
   });
 }
 
+/** The six-digit code the mail's text part carries on its own line. */
+function codeIn(m: SentMessage): string {
+  const found = /\n {4}(\d{6})\n/.exec(m.text ?? "");
+  if (!found) throw new Error("no code in the mail");
+  return found[1];
+}
+
+/** A typed code from `ip` (Better Auth limits a code to three tries a minute
+ *  from one address, beside the code's own three). */
+function typeCode(env: Env, code: string, ip = "203.0.113.1") {
+  const headers = { origin: BASE, "cf-connecting-ip": ip };
+  return signInWithCode(env, new Request(`${BASE}/login?code`, { method: "POST", headers }), { email: TO, code });
+}
+
 function linkTokens(): string[] {
   return (
     sqlite.prepare("SELECT identifier FROM verification WHERE identifier LIKE 'magic-link:%'").all() as {
@@ -131,7 +146,7 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
     expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/login`);
 
-    const want = expectedRender(TO, raw);
+    const want = expectedRender(TO, raw, codeIn(m));
     expect(m.subject).toBe(want.subject);
     expect(m.html).toBe(want.html);
     expect(m.text).toBe(want.text);
@@ -141,7 +156,7 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
 describe("E1: what the sign-in link mail says and carries", () => {
 
   it("comes from Foxhound at the auth sender, with no Reply-To, footer, unsubscribe or tracking", async () => {
-    await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
+    await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
     const m = sent[0];
     expect(m.from).toBe(`Foxhound <${EMAIL_AUTH_SENDER_ADDRESS}>`);
     expect(m.to).toBe(TO);
@@ -162,7 +177,7 @@ describe("E1: what the sign-in link mail says and carries", () => {
 describe("E1: a refused send comes back named, and the link is never logged", () => {
   it("no EMAIL binding: email_binding_missing", async () => {
     const logged = consoleSpies();
-    const outcome = await sendSignInLinkEmail(makeEnv(null), { to: TO, url: URL_FIXTURE, token: TOKEN });
+    const outcome = await sendSignInLinkEmail(makeEnv(null), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
     expect(outcome).toEqual({ status: "failed", reason: "email_binding_missing", error: null });
     expect(logged()).not.toContain("EXAMPLE-NOT-A-TOKEN");
   });
@@ -171,16 +186,17 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
     const logged = consoleSpies();
     const env = makeEnv({
       send: async () => {
-        throw new Error(`rejected message to ${TO} with link ${URL_FIXTURE} and token ${TOKEN}`);
+        throw new Error(`rejected message to ${TO} with link ${URL_FIXTURE}, token ${TOKEN} and code ${CODE}`);
       },
     });
-    const outcome = await sendSignInLinkEmail(env, { to: TO, url: URL_FIXTURE, token: TOKEN });
+    const outcome = await sendSignInLinkEmail(env, { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
     expect(outcome.status).toBe("failed");
     if (outcome.status !== "failed") return;
     expect(outcome.reason).toBe("provider_error");
     expect(outcome.error).toContain("rejected message to");
     expect(outcome.error).not.toContain("EXAMPLE-NOT-A-TOKEN");
     expect(outcome.error).not.toContain(TO);
+    expect(outcome.error).not.toContain(CODE);
     expect(logged()).not.toContain("EXAMPLE-NOT-A-TOKEN");
   });
 
@@ -189,6 +205,7 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
       to: TO,
       url: "http://localhost:5173/api/auth/magic-link/verify?token=EXAMPLE-NOT-A-TOKEN",
       token: TOKEN,
+      code: CODE,
     });
     expect(outcome).toEqual({ status: "failed", reason: "link_refused", error: null });
     expect(sent).toHaveLength(0);
@@ -196,7 +213,7 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
 
   it("an https link whose render throws: render_failed, nothing sent, nothing thrown", async () => {
     harness.renderThrows = true;
-    const outcome = await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN });
+    const outcome = await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
     expect(outcome).toEqual({ status: "failed", reason: "render_failed", error: null });
     expect(sent).toHaveLength(0);
   });
@@ -214,5 +231,54 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
     const out = logged();
     expect(out).toContain("sign-in link email not sent: provider_error");
     expect(out).not.toContain(token);
+  });
+});
+
+describe("the code in the same mail signs in the tab that asked", () => {
+  // Dustin's live signup, 2026-10-29: the link opened in his regular browser,
+  // so the private window that asked never signed in.
+  it("the code signs in and makes the session; it works once", async () => {
+    const env = makeEnv();
+    expect(await ask(env)).toBe("sent");
+    const code = codeIn(sent[0]);
+
+    const result = await typeCode(env, code);
+    expect(result.status).toBe("signed_in");
+    if (result.status !== "signed_in") return;
+    expect(result.headers.get("Set-Cookie")).toContain("better-auth.session_token=");
+    expect(sqlite.prepare("SELECT count(*) AS n FROM session").get()).toEqual({ n: 1 });
+
+    expect((await typeCode(env, code)).status).not.toBe("signed_in");
+  });
+
+  it("a wrong code counts; after three the code is spent, and the link still works", async () => {
+    const env = makeEnv();
+    await ask(env);
+    const code = codeIn(sent[0]);
+    const wrong = code === "111111" ? "222222" : "111111";
+
+    // From three addresses, so the code's own count is what stops the fourth.
+    for (const ip of ["203.0.113.2", "203.0.113.3", "203.0.113.4"]) {
+      expect((await typeCode(env, wrong, ip)).status).toBe("wrong");
+    }
+    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("spent");
+    expect(linkTokens()).toHaveLength(1);
+  });
+
+  it("a new mail's code replaces the last one's", async () => {
+    const env = makeEnv();
+    await ask(env);
+    await ask(env);
+    const [first, second] = sent.map(codeIn);
+    if (first !== second) expect((await typeCode(env, first)).status).toBe("wrong");
+    expect((await typeCode(env, second)).status).toBe("signed_in");
+  });
+
+  it("the code is never logged", async () => {
+    const logged = consoleSpies();
+    const env = makeEnv();
+    await ask(env);
+    await typeCode(env, codeIn(sent[0]));
+    expect(logged()).not.toContain(codeIn(sent[0]));
   });
 });
