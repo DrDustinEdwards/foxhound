@@ -714,7 +714,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   }
 
   if (type.type === "sign_in_link") {
-    return { channel: "rendered", to, rendered: renderSignInLinkEmail(to, `${baseUrl}/login`) };
+    return { channel: "rendered", to, rendered: renderSignInLinkEmail(to, `${baseUrl}/login`, "000000") };
   }
   // The operations mail, built by its own functions and rendered for the
   // caller's inbox instead of the support inbox (SUPPORT_EMAIL).
