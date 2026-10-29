@@ -285,6 +285,10 @@ function simulateOpenClick(seed: string): { openedAt: boolean; clickedAt: boolea
   return { openedAt: opened, clickedAt: clicked };
 }
 
+function demoStripeFeeCents(amountCents: number): number {
+  return Math.round(amountCents * 0.029) + 30;
+}
+
 function buildFailure(
   biz: SeedBusiness,
   customer: DemoCustomer,
@@ -458,6 +462,12 @@ function buildFailure(
       // an attributed recovery with no step credited.
       recoveredByStepId: attribution.kind === "stripe_baseline" ? null : attribution.ref,
       attributedAt: attribution.kind === "stripe_baseline" ? null : outcome.recoveredAt,
+      // Stripe's standard US card fee, 2.9% + 30 cents, as the webhook would
+      // read it off the charge's balance transaction.
+      stripeBalanceTransactionId: `${p}txn_${idSeq}`,
+      stripeFeeCents: demoStripeFeeCents(amountCents),
+      netAmountCents: amountCents - demoStripeFeeCents(amountCents),
+      netCurrency: "usd",
     };
   }
 
