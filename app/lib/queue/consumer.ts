@@ -6,7 +6,8 @@ import type { EmailJob } from "~/lib/email/types";
 // Single queue-consumer entry, dispatched by queue name:
 //   foxhound-email        -> send each job through the one send module (ack/retry)
 //   foxhound-email-events -> bounce/complaint events into the suppression list
-//   foxhound-audit        -> one account's monthly audit per message
+//   foxhound-audit        -> one account's monthly audit per message, or one
+//                            anonymous audit's delayed Stripe grant revoke
 // Each queue's own retry ceiling + dead-letter (wrangler consumer config) handles
 // repeated failures. Wired into the worker entry's `queue` handler.
 export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): Promise<void> {
@@ -40,8 +41,16 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
     // module statically. One message per invocation by consumer config; the loop
     // still treats each message on its own, so one failure never decides another.
     const { processMonthlyAuditMessage } = await import("~/lib/audit/monthly.server");
+    // The same queue carries the anonymous audit's delayed grant revoke
+    // (app/lib/audit/grant-revoke.server.ts), told apart by its `kind`.
+    const { parseAuditGrantRevokeMessage, processAuditGrantRevokeMessage } = await import(
+      "~/lib/audit/grant-revoke.server"
+    );
     for (const message of batch.messages) {
-      const verdict = await processMonthlyAuditMessage(env, message.body, message.attempts, new Date());
+      const revoke = parseAuditGrantRevokeMessage(message.body);
+      const verdict = revoke
+        ? await processAuditGrantRevokeMessage(env, revoke, message.attempts)
+        : await processMonthlyAuditMessage(env, message.body, message.attempts, new Date());
       if (verdict === "retry") message.retry();
       else message.ack();
     }

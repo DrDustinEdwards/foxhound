@@ -4,7 +4,7 @@
 // ONE SHAPE FOR ALL THREE FLOWS: `{nonce, action}`, plus `uid` on the two
 // merchant flows, where action is "connect", "add_account" (ruling 329 phase
 // (d)) or "audit" (phase (f), 362 ruling 1).
-// The third arrived with the anonymous read-only pair and cost this module one
+// The third arrived with the anonymous audit pair and cost this module one
 // constant and one array entry, which is what "reuse the minted state shape with
 // a new action" was supposed to cost. Legacy carries the same idea and the
 // same marker spelling in app/api/stripe/connect-additional/route.ts (blob
@@ -48,7 +48,7 @@ export const CONNECT_ACTION = "connect";
  * question and get a name back. That is the point of adding a third action
  * rather than writing a parallel state module: the audit callback refuses
  * anything that is not "audit", and /connect/callback refuses "audit", so a
- * read-only audit grant can never be walked into the branch that attaches a
+ * short-lived audit grant can never be walked into the branch that attaches a
  * connection or mints an account. With a bare uuid neither callback could tell.
  */
 export const AUDIT_ACTION = "audit";

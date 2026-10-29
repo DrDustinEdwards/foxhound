@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 
 import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
+import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";
 import { STAT_AS_OF, STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
 
 import { Range } from "capsomer/react/field";
@@ -183,11 +184,12 @@ export function RecoveryCalculator() {
           Get your actual numbers free
         </Link>
       </div>
-      {/* Recova's line, word for word. The full audit is a read-only Stripe
-          connection (362 ruling 1, RULES.md 2.2), so "Read-only Stripe access"
-          is true of where this button goes. */}
+      {/* Recova's line, with its third chip made true: Recova said "Read-only
+          Stripe access", but Stripe gives read_only only to Extensions
+          (2026-10-29), so the audit asks for read_write, only reads, and
+          disconnects itself when its window ends (audit-access.ts). */}
       <p className="mt-3 text-center font-mono text-micro text-text-subtle">
-        Free audit &middot; No account required &middot; Read-only Stripe access
+        Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
       </p>
       </div>
       </div>
