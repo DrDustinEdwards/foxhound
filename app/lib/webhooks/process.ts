@@ -7,6 +7,7 @@ import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import { classifyStripeEvent } from "./events";
 import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
+import { handleEarlyFraudWarning } from "./fraud-warning-handlers";
 import {
   handleCardAutoUpdated,
   handleIntake,
@@ -89,6 +90,7 @@ export async function processConnectedWebhook(
     if (intent.kind === "stamp_dispute") return await handleStampDispute(ctx, intent);
     if (intent.kind === "dispute_resolved") return await handleDisputeResolved(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
+    if (intent.kind === "early_fraud_warning") return await handleEarlyFraudWarning(ctx, intent);
     if (intent.kind === "card_auto_updated") return await handleCardAutoUpdated(ctx, intent);
     return await handleStampRefund(ctx, intent);
   } catch (err) {

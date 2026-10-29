@@ -1,5 +1,5 @@
 import { DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import type { disputeApprovals, disputeEvidence, disputes } from "~/db";
+import type { disputeApprovals, disputeEvidence, disputes, earlyFraudWarnings } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
 // Disputes seed (TASK-foxhound-demo-data-engine.md Phase 3): the legacy
@@ -411,4 +411,36 @@ export function buildDisputesSeed(
   }
 
   return { disputes: disputeRows, disputeEvidence: evidenceRows, disputeApprovals: approvalRows };
+}
+
+type EarlyFraudWarningInsert = typeof earlyFraudWarnings.$inferInsert;
+
+/** Four early fraud warnings on Teamflow customers: three still open, one the
+ *  merchant refunded. No stripe connection is referenced, as with the disputes. */
+export function buildEarlyFraudWarningsSeed(accountId: string, now: Date): EarlyFraudWarningInsert[] {
+  const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
+  const specs = [
+    { n: 1, name: "Northwind Labs", email: "ap@northwind-labs.demo", cents: 29900, type: "made_with_stolen_card", days: 1, refunded: false },
+    { n: 2, name: "Lumen Studio", email: "finance@lumen-studio.demo", cents: 14900, type: "unauthorized_use_of_card", days: 3, refunded: false },
+    { n: 3, name: null, email: "j.ortega@mailbox.demo", cents: 4900, type: "card_never_received", days: 6, refunded: false },
+    { n: 4, name: "Cobalt Freight", email: "billing@cobalt-freight.demo", cents: 9900, type: "made_with_lost_card", days: 12, refunded: true },
+  ];
+  return specs.map((s) => ({
+    id: `${accountId}_efw_${s.n}`,
+    accountId,
+    stripeWarningId: `dstripe_issfr_${s.n}`,
+    stripeChargeId: `dstripe_ch_efw_${s.n}`,
+    stripePaymentIntentId: `dstripe_pi_efw_${s.n}`,
+    stripeCustomerId: `cus_teamflow_efw_${s.n}`,
+    customerEmail: s.email,
+    customerName: s.name,
+    fraudType: s.type,
+    actionable: !s.refunded,
+    amountCents: s.cents,
+    currency: "usd",
+    createdAt: ago(s.days),
+    receivedAt: ago(s.days),
+    refundedAt: s.refunded ? ago(s.days - 1) : null,
+    stripeRefundId: s.refunded ? `dstripe_re_efw_${s.n}` : null,
+  }));
 }
