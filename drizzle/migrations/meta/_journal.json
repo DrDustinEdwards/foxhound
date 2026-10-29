@@ -372,6 +372,13 @@
       "when": 1793281445872,
       "tag": "0056_scheduled_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1793282150367,
+      "tag": "0057_subscription_changes",
+      "breakpoints": true
     }
   ]
 }

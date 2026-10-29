@@ -20,6 +20,7 @@ import {
 } from "./recovery-handlers";
 import { handleRenewalCardCheck } from "./renewal-check";
 import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers";
+import { handleRecordSubscriptionChange } from "./intelligence-handlers";
 import { resolveConnection } from "./lookups";
 
 // Connected-account webhook processor. Resolves the account, applies per-invoice
@@ -95,6 +96,7 @@ export async function processConnectedWebhook(
     if (intent.kind === "dispute_funds") return await handleDisputeFunds(ctx, intent);
     if (intent.kind === "inquiry_closed") return await handleInquiryClosed(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
+    if (intent.kind === "record_subscription_change") return await handleRecordSubscriptionChange(ctx, intent);
     if (intent.kind === "account_health") return await handleAccountHealth(ctx, intent);
     if (intent.kind === "early_fraud_warning") return await handleEarlyFraudWarning(ctx, intent);
     if (intent.kind === "card_auto_updated") return await handleCardAutoUpdated(ctx, intent);
