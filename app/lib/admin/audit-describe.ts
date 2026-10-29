@@ -117,7 +117,9 @@ export function auditTarget(entry: AuditEntryLike, lookups: AuditLookups): Audit
   const postId = str(m.postId);
   if (postId) {
     const title = lookups.postTitles.get(postId) ?? str(m.title) ?? str(m.slug) ?? postId;
-    return { label: title, href: `/admin/blog/${encodeURIComponent(postId)}` };
+    // No link: the /admin/blog editor is gone and posts are edited in Carrel
+    // (RULES.md 7.4), so a post entry names its title only.
+    return { label: title };
   }
 
   if (entry.action.startsWith("staged.")) {

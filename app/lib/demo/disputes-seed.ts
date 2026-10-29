@@ -3,7 +3,8 @@ import type { disputeApprovals, disputeEvidence, disputes } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
 // Disputes seed (TASK-foxhound-demo-data-engine.md Phase 3): the legacy
-// 8-dispute Teamflow set, ported near-verbatim, mapped onto Foxhound's dispute
+// 8-dispute Teamflow set and 3-dispute Bolt Analytics set (lib/demo-seeding/
+// seed-disputes.ts seedDisputes / seedBoltDisputes, blob `fd631d18`), ported near-verbatim, mapped onto Foxhound's dispute
 // state machine (draft|pending_review|submitted|resolved_won|resolved_lost)
 // and approval gate. Pure: returns plain insert rows; app/lib/demo/seed.ts
 // turns these into db.insert(...) batches.
@@ -32,7 +33,7 @@ export interface DisputesSeedResult {
   disputeApprovals: DisputeApprovalInsert[];
 }
 
-interface DisputeSpec {
+export interface DisputeSpec {
   id: string;
   stripeCustomerId: string;
   customerName: string;
@@ -57,7 +58,7 @@ interface DisputeSpec {
   resolvedDaysAgo: number | null;
 }
 
-const DISPUTE_SPECS: DisputeSpec[] = [
+export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
   {
     id: "ddisp_1",
     stripeCustomerId: "cus_teamflow_harborline_group",
@@ -238,17 +239,95 @@ const DISPUTE_SPECS: DisputeSpec[] = [
   },
 ];
 
-/** Build the 8-dispute Teamflow set. `memberEmail` is the demo account's
+// Bolt Analytics' three: one won, one lost, one awaiting a response. All three
+// are $99 Pro charges. Legacy's customers here (Lane Owens, Sage Pulse, Drift
+// Logic) are not in the 200-customer Bolt base, so each is a net-new customer.
+export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
+  {
+    id: "ddisp_bolt_1",
+    stripeCustomerId: "cus_bolt_dispute_lane_owens",
+    customerName: "Lane Owens",
+    customerEmail: "lane.owens@apex-stack.demo",
+    amountCents: 9900,
+    reason: "fraudulent",
+    state: "resolved_won",
+    foxhoundSubmitted: true,
+    triageRecommendation: "fight",
+    triageConfidence: 86,
+    triageReasoning: "6 prior successful charges, low Radar risk, and recovery email engagement on earlier failures.",
+    priorChargesCount: 6,
+    priorChargesTotal: 59400,
+    avsResult: "pass",
+    cvvResult: "pass",
+    radarRiskScore: 12,
+    radarRiskLevel: "normal",
+    smartDisputesStatus: "not_eligible",
+    createdDaysAgo: 20,
+    resolvedDaysAgo: 2,
+  },
+  {
+    id: "ddisp_bolt_2",
+    stripeCustomerId: "cus_bolt_dispute_sage_pulse",
+    customerName: "Sage Pulse",
+    customerEmail: "billing@sagepulse.demo",
+    amountCents: 9900,
+    reason: "subscription_canceled",
+    state: "resolved_lost",
+    foxhoundSubmitted: true,
+    triageRecommendation: "fight",
+    triageConfidence: 52,
+    triageReasoning: "Subscription dispute. The evidence is weaker than ideal but worth submitting.",
+    priorChargesCount: 2,
+    priorChargesTotal: 19800,
+    avsResult: "pass",
+    cvvResult: "unavailable",
+    radarRiskScore: 38,
+    radarRiskLevel: "elevated",
+    smartDisputesStatus: "not_eligible",
+    createdDaysAgo: 28,
+    resolvedDaysAgo: 8,
+  },
+  {
+    id: "ddisp_bolt_3",
+    stripeCustomerId: "cus_bolt_dispute_drift_logic",
+    customerName: "Drift Logic",
+    customerEmail: "admin@driftlogic.demo",
+    amountCents: 9900,
+    reason: "product_not_received",
+    state: "pending_review",
+    foxhoundSubmitted: false,
+    triageRecommendation: "fight",
+    triageConfidence: 70,
+    triageReasoning: "Stable subscription customer with engagement history.",
+    priorChargesCount: 4,
+    priorChargesTotal: 39600,
+    avsResult: "pass",
+    cvvResult: "pass",
+    radarRiskScore: 18,
+    radarRiskLevel: "normal",
+    smartDisputesStatus: "not_eligible",
+    createdDaysAgo: 3,
+    resolvedDaysAgo: null,
+  },
+];
+
+/** Build a demo business's dispute set (Teamflow's eight unless `specs` names
+ *  another). `memberEmail` is the demo account's
  *  single member, used as the approver on Foxhound-submitted disputes (the
  *  real flow stamps submitted_by with the approver's email, not a brand name). */
-export function buildDisputesSeed(accountId: string, now: Date, memberEmail: string): DisputesSeedResult {
+export function buildDisputesSeed(
+  accountId: string,
+  now: Date,
+  memberEmail: string,
+  specs: DisputeSpec[] = TEAMFLOW_DISPUTE_SPECS,
+): DisputesSeedResult {
   const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
 
   const disputeRows: DisputeInsert[] = [];
   const evidenceRows: DisputeEvidenceInsert[] = [];
   const approvalRows: DisputeApprovalInsert[] = [];
 
-  for (const spec of DISPUTE_SPECS) {
+  for (const spec of specs) {
     const createdAt = ago(spec.createdDaysAgo);
     const resolvedAt = spec.resolvedDaysAgo !== null ? ago(spec.resolvedDaysAgo) : null;
     const won = spec.state === "resolved_won";

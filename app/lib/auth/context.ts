@@ -28,8 +28,8 @@ export interface AuthContext {
    *  same in the nav's own loader, which also keeps a stripe_connections join
    *  off the path of every authenticated request.
    *
-   *  In the demo branch this is the single demo membership, so a switcher can
-   *  never offer a demo visitor a real account. */
+   *  In the demo branch these are the demo businesses' memberships only, so a
+   *  switcher can never offer a demo visitor a real account. */
   memberships: Membership[];
   /** The account this request acts as, always equal to `membership.accountId`.
    *

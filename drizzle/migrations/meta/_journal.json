@@ -313,7 +313,14 @@
     {
       "idx": 44,
       "version": "6",
-      "when": 1793248269499,
+      "when": 1793248082669,
+      "tag": "0048_disputes_enabled",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1793250366795,
       "tag": "0044_network_advice",
       "breakpoints": true
     }

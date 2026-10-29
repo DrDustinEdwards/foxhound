@@ -201,11 +201,9 @@ export default [
         route("webhooks", "./routes/admin/webhooks.tsx"),
         route("audit-log", "./routes/admin/audit-log.tsx"),
       ]),
-      ...prefix("blog", [
-        index("./routes/admin/blog/index.tsx"),
-        route(":id", "./routes/admin/blog/detail.tsx"),
-      ]),
-      route("social", "./routes/admin/social.tsx"),
+      // No Blog or Social page: Carrel is the blog editor and admin Social
+      // (RULES.md 7.4, Q7 and Q8). It writes posts through the Carrel site
+      // adapter (app/lib/carrel/adapter.server.ts); /blog still reads them.
       route("staged", "./routes/admin/staged.tsx"),
       route("mcps", "./routes/admin/mcps.tsx"),
     ]),
@@ -285,6 +283,11 @@ export default [
   // legacy's own path, which components/SiteNav.tsx passes to the switcher as
   // switchAccountUrl. The switcher itself is phase (e).
   route("api/account/switch", "./routes/api/account-switch.ts"),
+
+  // Demo business switch: legacy's /api/demo/switch-account, which SiteNav.tsx
+  // passes to the switcher as switchAccountUrl in the demo. Action-only; it
+  // sets which demo business the visitor sees and writes nothing else.
+  route("api/demo/switch-account", "./routes/api/demo-switch-account.ts"),
 
   // The OAuth provider's three endpoints (J79), at Recova's paths. Action-only
   // resource routes; the work is in app/lib/oauth/provider.server.ts.

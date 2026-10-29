@@ -340,11 +340,12 @@
   // jobs (app/lib/cron/registry.ts); each is gated by cron_config + a per-cron DO
   // lock and logs to cron_run_history. These schedules MUST match the
   // CRON_SCHEDULE_* constants (every 5 min recovery tick, 0 3 * * * daily
-  // retention, 0 4 1 * * monthly billing).
+  // retention, 0 4 1 * * monthly billing, 0 9 * * * expiring-card alerts).
   "triggers": {
     // "0 8 * * 1" added session 55 for the weekly merchant digest, which
     // ports legacy's Monday 08:00 UTC cadence. Every schedule in the cron
     // registry MUST appear here or the job never fires, and a test guards it.
-    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *"]
+    // "0 9 * * *" is the expiring-card alert at legacy's hour (parity gap 11).
+    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *", "0 9 * * *"]
   }
 }

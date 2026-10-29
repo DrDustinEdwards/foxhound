@@ -315,6 +315,7 @@ describe("merchant notices carry both parts and never the footer, except the dig
       accountId: ACCOUNT,
       to: "ops@acme.test",
       ...digestContent({
+        personalOutreachCount: 0,
         totalFailed: 4,
         totalRecovered: 2,
         recoveredRevenueCents: 1200,

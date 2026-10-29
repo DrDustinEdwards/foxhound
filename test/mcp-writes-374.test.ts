@@ -332,7 +332,7 @@ describe("PLANT 3b: the action verb is checked, and a wrong shape writes nothing
     const { json } = await manageAlerts(tokens[MINE], {
       action: "create",
       alert_id: `al_${MINE}`,
-      metric: "health_score_avg",
+      metric: "high_risk_customers_count",
       direction: "below",
       threshold: 30,
     });
@@ -359,11 +359,11 @@ describe("PLANT 4: omitting a field leaves it alone, clearing it clears it", () 
 });
 
 describe("PLANT 5: validator parity, over the shared function", () => {
-  it("a metric the nightly evaluator cannot compute is refused, in the form's words", async () => {
+  it("a metric the evaluator cannot compute is refused, in the form's words", async () => {
     const { tokens } = await seed();
     const { json } = await manageAlerts(tokens[MINE], {
       action: "create",
-      metric: "recovery_rate_pct",
+      metric: "health_score_avg",
       direction: "above",
       threshold: 10,
     });
@@ -406,7 +406,7 @@ describe("PLANT 6: every write leaves a trace, naming fields and never values", 
     const created = await traceOf(() =>
       manageAlerts(tokens[MINE], {
         action: "create",
-        metric: "health_score_avg",
+        metric: "high_risk_customers_count",
         direction: "below",
         threshold: 30,
       }),
@@ -424,7 +424,7 @@ describe("PLANT 6: every write leaves a trace, naming fields and never values", 
     // FIELD NAMES, and only the columns the caller actually supplied.
     expect(voice.fields).toEqual(["brand_voice"]);
     expect(context.fields).toEqual(["merchant_industry"]);
-    expect(created.fields).toEqual(["metric", "direction", "threshold_value", "label"]);
+    expect(created.fields).toEqual(["metric", "direction", "threshold_value", "label", "channel"]);
     expect(disabled.fields).toEqual(["enabled"]);
   });
 

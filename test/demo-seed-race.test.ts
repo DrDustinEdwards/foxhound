@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts } from "~/db";
 import { CRON_JOBS } from "~/lib/cron/registry";
-import { DEMO_ACCOUNT_ID, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
+import { DEMO_ACCOUNT_ID, DEMO_BUSINESSES, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
 import { ensureDemoSeededWithLock } from "~/lib/demo/seed";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -30,6 +30,9 @@ async function accountExists(db: ReturnType<typeof createInMemoryDb>["db"]): Pro
   return rows.length > 0;
 }
 
+/** The reset's finished state: every demo business's account row. */
+const demoAccountRows = DEMO_BUSINESSES.map((b) => ({ id: b.accountId, name: b.name }));
+
 describe("demo-reset cron name is a shared constant (LOW-3 guard)", () => {
   it("the CRON_JOBS demo-reset entry resolves from DEMO_RESET_CRON_NAME", () => {
     expect(CRON_JOBS.find((j) => j.name === DEMO_RESET_CRON_NAME)).toBeTruthy();
@@ -37,9 +40,9 @@ describe("demo-reset cron name is a shared constant (LOW-3 guard)", () => {
 });
 
 describe("ensureDemoSeededWithLock", () => {
-  it("fast path: seeded account present, returns without touching the lock", async () => {
+  it("fast path: every demo account present, returns without touching the lock", async () => {
     const { db } = createInMemoryDb();
-    await db.insert(accounts).values({ id: DEMO_ACCOUNT_ID, name: "Teamflow" });
+    await db.insert(accounts).values(demoAccountRows);
     const lock = stubLock();
 
     await ensureDemoSeededWithLock(db, lock);
@@ -55,7 +58,7 @@ describe("ensureDemoSeededWithLock", () => {
     const ensured = ensureDemoSeededWithLock(db, lock);
     setTimeout(() => {
       void (async () => {
-        await db.insert(accounts).values({ id: DEMO_ACCOUNT_ID, name: "Teamflow" });
+        await db.insert(accounts).values(demoAccountRows);
       })();
     }, 10);
     await ensured;

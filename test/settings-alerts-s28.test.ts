@@ -141,10 +141,10 @@ describe("PLANT 2: every bound the evaluator implies is enforced", () => {
 
   it("400 and NO write for a bad direction, a negative threshold, or no threshold", async () => {
     for (const fields of [
-      { _action: "create", metric: "health_score_avg", direction: "sideways", threshold: "5" },
-      { _action: "create", metric: "health_score_avg", direction: "below", threshold: "-1" },
-      { _action: "create", metric: "health_score_avg", direction: "below", threshold: "" },
-      { _action: "create", metric: "health_score_avg", direction: "below", threshold: "abc" },
+      { _action: "create", metric: "high_risk_customers_count", direction: "sideways", threshold: "5" },
+      { _action: "create", metric: "high_risk_customers_count", direction: "below", threshold: "-1" },
+      { _action: "create", metric: "high_risk_customers_count", direction: "below", threshold: "" },
+      { _action: "create", metric: "high_risk_customers_count", direction: "below", threshold: "abc" },
     ]) {
       const res = await post(fields);
       expect(res.status).toBe(400);

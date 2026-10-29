@@ -57,6 +57,8 @@ import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 import { formatMoney } from "~/lib/money-format";
 import { FAILED_PAYMENT_STATUS_LABELS } from "~/lib/recovery/labels";
 import { declineWord } from "~/lib/recovery/payments-list";
+import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
+import { RecommendationBanner } from "~/components/recommendation-banner";
 import type { Route } from "./+types/detail";
 import { disputeDetailAction } from "./detail.action.server";
 import {
@@ -77,9 +79,9 @@ import {
 // evidence, the additional evidence, the sync form, and the approve card where
 // Recova's action bar sits. Look is Capsomer's (Q10), amber.
 //
-// Not built, and why:
-// - Recova's Integrity layer banner: nothing in Foxhound writes a banded
-//   prediction (RULES.md 3.18).
+// Built with the recommendations port (J78):
+// - Recova's IntegrityLayerBanner after the triage banner, worked out when the
+//   page loads (recommendOneCustomer), as Recova's score-ssr did.
 // Built with the dispute context port (app/lib/disputes/triage.ts):
 // - Recova's triage banner under the header, and in What Foxhound found the
 //   billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior
@@ -118,6 +120,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const detail = await getDisputeDetail(db, accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
+  const nowMs = Date.now();
   const [findings, settings] = await Promise.all([
     getDisputeFindings(db, accountId, detail.dispute.stripeCustomerId),
     readDisputeSettings(db, accountId),
@@ -128,7 +131,10 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     shipsPhysical: settings.shipsPhysical,
     filesAvailable: Boolean(env.EVIDENCE),
     isDemo: auth.isDemo,
-    nowMs: Date.now(),
+    nowMs,
+    // Recova's IntegrityLayerBanner reads the customer's recommendation. A
+    // read failure leaves the banner out rather than failing the page.
+    prediction: await recommendOneCustomer(db, accountId, detail.dispute.stripeCustomerId, nowMs).catch(() => null),
   };
 }
 
@@ -138,7 +144,7 @@ export async function action(args: Route.ActionArgs) {
 }
 
 export default function DisputeDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { dispute, evidence, approval, findings, shipsPhysical, filesAvailable, isDemo, nowMs } = loaderData;
+  const { dispute, evidence, approval, findings, shipsPhysical, filesAvailable, isDemo, nowMs, prediction } = loaderData;
   const navigation = useNavigation();
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
@@ -287,6 +293,10 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           </Banner>
         </div>
       ) : null}
+
+      {/* Recova's IntegrityLayerBanner: the customer's context, after the
+          dispute's own triage (DisputeDetailClient.tsx 143). */}
+      <RecommendationBanner prediction={prediction} surface="dispute" nowMs={nowMs} />
 
       {/* 3. Timeline. */}
       <div className="mb-6">
