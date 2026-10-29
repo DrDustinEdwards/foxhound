@@ -23,6 +23,7 @@ import {
 } from "~/lib/constants";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { collectPaginated } from "~/lib/stripe/reads";
 import {
   buildCustomerContextFields,
   monthlyEquivalentCents,
@@ -36,6 +37,16 @@ import {
   type RecoverySignalRow,
 } from "./signals";
 import { buildMrrSnapshotFields, type ChurnReason, type CustomerMrrPoint } from "./mrr";
+import {
+  discountedItemCents,
+  earliestScheduledChange,
+  nextScheduledChange,
+  type CouponTerms,
+  type DiscountTerms,
+  type ItemTerms,
+  type ScheduledChange,
+  type ScheduleTerms,
+} from "./subscription-terms";
 
 // The live Stripe + D1 seam for the Intelligence deterministic engine
 // (TASK-foxhound-intelligence-deterministic.md's "key architectural fact":
@@ -102,6 +113,148 @@ interface CustomerStripeSnapshot {
   refundCount: number;
   disputeCount: number;
   churnReason: ChurnReason;
+  /** The earliest planned change or cancellation across the customer's live
+   *  subscriptions; null when none is scheduled. */
+  scheduledChange: ScheduledChange | null;
+}
+
+/** A subscription or item discount as read off Stripe: its coupon (an id,
+ *  plus the object when Stripe embedded it) and when a repeating one ends. */
+interface RawDiscount {
+  couponId: string;
+  embedded: Stripe.Coupon | null;
+  endMs: number | null;
+}
+
+interface NarrowSubscriptionItem {
+  priceId: string;
+  productId: string | null;
+  productName: string | null;
+  unitAmountCents: number;
+  quantity: number;
+  interval: BillingInterval;
+  intervalCount: number;
+  discounts: RawDiscount[];
+}
+
+/** A subscription cut down to what the sync reads, as each page arrives, so a
+ *  customer's expanded subscriptions are never held whole (reads.ts: the
+ *  Worker's 128 MB). */
+interface NarrowSubscription {
+  status: Stripe.Subscription.Status;
+  createdMs: number;
+  currency: string;
+  churnReason: ChurnReason;
+  cancelAtMs: number | null;
+  items: NarrowSubscriptionItem[];
+  discounts: RawDiscount[];
+  schedule: ScheduleTerms | null;
+}
+
+function narrowDiscounts(discounts: readonly (string | Stripe.Discount)[] | null | undefined): RawDiscount[] {
+  const out: RawDiscount[] = [];
+  for (const d of discounts ?? []) {
+    if (typeof d === "string") continue;
+    const coupon = d.source?.coupon;
+    if (!coupon) continue;
+    out.push({
+      couponId: typeof coupon === "string" ? coupon : coupon.id,
+      embedded: typeof coupon === "string" ? null : coupon,
+      endMs: d.end ? d.end * 1000 : null,
+    });
+  }
+  return out;
+}
+
+function idOf(ref: string | { id?: string } | null | undefined): string {
+  return !ref ? "" : typeof ref === "string" ? ref : (ref.id ?? "");
+}
+
+/** A schedule phase's billing terms as one comparable key (subscription-terms.ts
+ *  nextScheduledChange): its items' prices and quantities, then its discounts. */
+function phaseBillingKey(phase: Stripe.SubscriptionSchedule.Phase): string {
+  const items = phase.items.map((i) => `${idOf(i.price)}x${i.quantity ?? 1}`).sort();
+  const discounts = phase.discounts.map((d) => idOf(d.coupon) || idOf(d.discount) || idOf(d.promotion_code)).sort();
+  return `${items.join(",")}|${discounts.join(",")}`;
+}
+
+function narrowSchedule(schedule: Stripe.Subscription["schedule"]): ScheduleTerms | null {
+  if (!schedule || typeof schedule === "string") return null;
+  return {
+    status: schedule.status,
+    endBehavior: schedule.end_behavior,
+    phases: schedule.phases.map((p) => ({
+      startMs: p.start_date * 1000,
+      endMs: p.end_date * 1000,
+      billingKey: phaseBillingKey(p),
+    })),
+  };
+}
+
+function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription {
+  return {
+    status: sub.status,
+    createdMs: sub.created * 1000,
+    currency: sub.currency,
+    churnReason: sub.status === "canceled" ? subscriptionCancellationChurnReason(sub) : null,
+    cancelAtMs: sub.cancel_at ? sub.cancel_at * 1000 : null,
+    items: sub.items.data.map((item) => ({
+      priceId: item.price.id,
+      productId: idOf(item.price.product) || null,
+      productName: productName(item.price.product),
+      unitAmountCents: item.price.unit_amount ?? 0,
+      quantity: item.quantity ?? 1,
+      interval: priceInterval(item.price),
+      intervalCount: Math.max(1, item.price.recurring?.interval_count ?? 1),
+      discounts: narrowDiscounts(item.discounts),
+    })),
+    discounts: narrowDiscounts(sub.discounts),
+    schedule: narrowSchedule(sub.schedule),
+  };
+}
+
+/** Coupons read once per sync run and shared across the account's customers:
+ *  a merchant has a handful of coupons and many discounted subscriptions.
+ *  Retrieved with applies_to and currency_options, which Stripe includes only
+ *  on request and which decide whether and how much a coupon takes off. A
+ *  coupon that cannot be retrieved (a deleted coupon still discounts the
+ *  subscriptions that hold it) falls back to the embedded object. */
+type CouponCache = Map<string, Promise<Stripe.Coupon | null>>;
+
+function couponTermsIn(coupon: Stripe.Coupon, currency: string): CouponTerms {
+  const amountOffCents =
+    coupon.amount_off === null
+      ? null
+      : coupon.currency === currency
+        ? coupon.amount_off
+        : (coupon.currency_options?.[currency]?.amount_off ?? null);
+  return {
+    percentOff: coupon.percent_off,
+    amountOffCents,
+    duration: coupon.duration,
+    appliesToProducts: coupon.applies_to?.products ?? null,
+  };
+}
+
+async function resolveDiscounts(
+  stripe: Stripe,
+  cache: CouponCache,
+  discounts: readonly RawDiscount[],
+  currency: string,
+): Promise<DiscountTerms[]> {
+  const out: DiscountTerms[] = [];
+  for (const d of discounts) {
+    let pending = cache.get(d.couponId);
+    if (!pending) {
+      pending = stripe.coupons
+        .retrieve(d.couponId, { expand: ["applies_to", "currency_options"] })
+        .catch(() => null);
+      cache.set(d.couponId, pending);
+    }
+    const coupon = (await pending) ?? d.embedded;
+    if (coupon) out.push({ coupon: couponTermsIn(coupon, currency), endMs: d.endMs });
+  }
+  return out;
 }
 
 /** Reads one customer's subscriptions, invoices, and charges from the
@@ -112,6 +265,8 @@ interface CustomerStripeSnapshot {
 async function fetchCustomerStripeSnapshot(
   stripe: Stripe,
   stripeCustomerId: string,
+  coupons: CouponCache,
+  nowMs: number,
 ): Promise<CustomerStripeSnapshot> {
   const activeSubscriptions: ActiveSubscriptionSnapshot[] = [];
   // Raw, uncollapsed lines: a multi-item subscription or a multi-line invoice
@@ -121,40 +276,64 @@ async function fetchCustomerStripeSnapshot(
   // to report every line honestly, not pre-guess which one "matters".
   const billingHistory: RawBillingLineObservation[] = [];
   let churnReason: ChurnReason = null;
+  const scheduled: (ScheduledChange | null)[] = [];
 
-  for await (const sub of stripe.subscriptions.list({
-    customer: stripeCustomerId,
-    status: "all",
-    limit: 100,
-    expand: ["data.items.data.price.product"],
-  })) {
-    for (const item of sub.items.data) {
-      const interval = priceInterval(item.price);
-      const quantity = item.quantity ?? 1;
-      const unitAmountCents = item.price.unit_amount ?? 0;
-      if (ACTIVE_SUBSCRIPTION_STATUSES.has(sub.status)) {
+  // Discounts and the schedule are expanded so MRR is what the customer pays
+  // after coupons and a planned change can be shown; each path stays within
+  // Stripe's four-level expansion limit.
+  const subscriptions = await collectPaginated(
+    stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status: "all",
+      limit: 100,
+      expand: ["data.items.data.price.product", "data.discounts", "data.items.data.discounts", "data.schedule"],
+    }),
+    narrowSubscriptionForSync,
+  );
+
+  for (const sub of subscriptions) {
+    const active = ACTIVE_SUBSCRIPTION_STATUSES.has(sub.status);
+    const subDiscounts = await resolveDiscounts(stripe, coupons, sub.discounts, sub.currency);
+    const itemTerms: ItemTerms[] = [];
+    for (const item of sub.items) {
+      itemTerms.push({
+        productId: item.productId,
+        unitAmountCents: item.unitAmountCents,
+        quantity: item.quantity,
+        discounts: await resolveDiscounts(stripe, coupons, item.discounts, sub.currency),
+      });
+    }
+    const periodCents = discountedItemCents(itemTerms, subDiscounts, nowMs);
+
+    sub.items.forEach((item, i) => {
+      // What one unit costs per interval after discounts, spread over the
+      // price's interval_count (a quarterly price bills three months at once),
+      // so monthlyEquivalentCents (signals.ts) gives the monthly amount paid.
+      const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity / item.intervalCount : 0;
+      if (active) {
         activeSubscriptions.push({
-          priceId: item.price.id,
-          productName: productName(item.price.product),
-          quantity,
-          interval,
+          priceId: item.priceId,
+          productName: item.productName,
+          quantity: item.quantity,
+          interval: item.interval,
           unitAmountCents,
         });
       }
       billingHistory.push({
-        at: sub.created * 1000,
-        priceId: item.price.id,
-        quantity,
-        interval,
+        at: sub.createdMs,
+        priceId: item.priceId,
+        quantity: item.quantity,
+        interval: item.interval,
         // Ranking signal only (collapseBillingObservations): the item with
         // the largest monthly-equivalent amount represents this instant, the
         // same rule summarizeActiveSubscriptions uses for "current plan".
-        valueCents: monthlyEquivalentCents(unitAmountCents, quantity, interval),
+        valueCents: monthlyEquivalentCents(unitAmountCents, item.quantity, item.interval),
       });
-    }
-    if (sub.status === "canceled") {
-      const reason = subscriptionCancellationChurnReason(sub);
-      if (reason) churnReason = reason;
+    });
+    if (sub.churnReason) churnReason = sub.churnReason;
+    if (active) {
+      if (sub.schedule) scheduled.push(nextScheduledChange(sub.schedule, nowMs));
+      if (sub.cancelAtMs !== null && sub.cancelAtMs > nowMs) scheduled.push({ kind: "cancel", atMs: sub.cancelAtMs });
     }
   }
 
@@ -199,7 +378,15 @@ async function fetchCustomerStripeSnapshot(
     if (charge.disputed) disputeCount += 1;
   }
 
-  return { activeSubscriptions, billingHistory, invoiceHistory, refundCount, disputeCount, churnReason };
+  return {
+    activeSubscriptions,
+    billingHistory,
+    invoiceHistory,
+    refundCount,
+    disputeCount,
+    churnReason,
+    scheduledChange: earliestScheduledChange(scheduled),
+  };
 }
 
 /** Foxhound's own account-scoped recovery/dispute/engagement history, read
@@ -266,6 +453,7 @@ function buildCustomerContextUpsert(
     customerSince: Date;
     now: Date;
     fields: CustomerContextFields;
+    scheduledChange: ScheduledChange | null;
   },
 ): BatchItem<"sqlite"> {
   const { fields } = input;
@@ -287,6 +475,8 @@ function buildCustomerContextUpsert(
     paymentLatencyDriftDays: fields.paymentLatencyDriftDays,
     refundCount: fields.refundCount,
     disputeCount: fields.disputeCount,
+    scheduledChangeKind: input.scheduledChange?.kind ?? null,
+    scheduledChangeAt: input.scheduledChange ? new Date(input.scheduledChange.atMs) : null,
     updatedAt: input.now,
   };
   // onConflictDoUpdate's `set` deliberately omits healthScore / healthFactors /
@@ -370,6 +560,7 @@ export async function runIntelligenceSyncForAccount(
   const now = new Date(nowMs);
   const currentPoints: CustomerMrrPoint[] = [];
   const upserts: BatchItem<"sqlite">[] = [];
+  const coupons: CouponCache = new Map();
   let scanned = 0;
   let truncated = false;
 
@@ -381,7 +572,7 @@ export async function runIntelligenceSyncForAccount(
     }
     if (customer.deleted) continue;
 
-    const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id);
+    const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id, coupons, nowMs);
     const customerSinceMs = customer.created * 1000;
     const fields = buildCustomerContextFields({
       customerSinceMs,
@@ -413,6 +604,7 @@ export async function runIntelligenceSyncForAccount(
         customerSince: new Date(customerSinceMs),
         now,
         fields,
+        scheduledChange: snapshot.scheduledChange,
       }),
     );
   }

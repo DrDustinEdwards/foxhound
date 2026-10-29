@@ -35,6 +35,8 @@ interface CustomerDirectoryRow {
   recoverySignals: unknown;
   disputeSignals: unknown;
   recommendedAction: string | null;
+  scheduledChangeKind: string | null;
+  scheduledChangeAt: Date | null;
 }
 
 export interface CustomerDirectoryResult {
@@ -111,6 +113,8 @@ export async function listCustomerDirectory(
       recoverySignals: customerContext.recoverySignals,
       disputeSignals: customerContext.disputeSignals,
       recommendedAction: customerContext.recommendedAction,
+      scheduledChangeKind: customerContext.scheduledChangeKind,
+      scheduledChangeAt: customerContext.scheduledChangeAt,
     })
     .from(customerContext)
     .where(where)
