@@ -136,7 +136,7 @@ export async function recordMissingTokenAttempt(
 
 /** The terminal result on a retry step skipped because the customer has a lost
  *  dispute with this account. */
-export const RETRY_RESULT_DISPUTE_LOST = "retry_skipped_dispute_lost";
+const RETRY_RESULT_DISPUTE_LOST = "retry_skipped_dispute_lost";
 
 /**
  * Whether this customer has a dispute with this account that the merchant lost.
@@ -149,7 +149,7 @@ export const RETRY_RESULT_DISPUTE_LOST = "retry_skipped_dispute_lost";
  * FAILS OPEN, as Recova's check did: an error reads as "no lost dispute" and the
  * retry runs, so a read fault cannot silently stop recovery for everyone.
  */
-export async function hasLostDispute(
+async function hasLostDispute(
   env: Env,
   accountId: string,
   stripeCustomerId: string,
@@ -179,7 +179,7 @@ export async function hasLostDispute(
  * suppression is recorded as Recova's recovery_retry_suppressed outcome, keyed
  * on the step so a replay collapses. Emails in the sequence are unaffected.
  */
-export async function suppressRetryForLostDispute(
+async function suppressRetryForLostDispute(
   env: Env,
   row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & { stripeCustomerId: string },
   now: Date,
