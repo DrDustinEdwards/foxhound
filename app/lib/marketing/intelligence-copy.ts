@@ -21,9 +21,12 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 //   * The score. Recova's is three bands (engagement health, recovery history,
 //     customer value). Foxhound's moves from a baseline with five signals
 //     (risk.ts), and customer value is not one of them.
-//   * Recommended actions. Nothing in Foxhound writes one: recommended_action
-//     exists only in the demo seed (app/lib/recovery/digest-email.ts records
-//     the same finding).
+//   * Recommended actions. The nightly scoring batch writes one per customer
+//     to customer_context.recommended_action (ai-run.server.ts) from Recova's
+//     rules (recommend.ts), which produce four of Recova's seven. The other
+//     three (accept loss dispute, expansion outreach, win-back priority) no
+//     rule produces, in Recova or Foxhound, and none changes a sequence's
+//     timing: Foxhound has no deprioritize delay.
 //   * Cadence. MRR snapshots are daily (intelligence-sync on
 //     CRON_SCHEDULE_DAILY, plus one when Stripe connects) and scores nightly
 //     (intelligence-ai, the same run), as Recova's were.
@@ -72,11 +75,11 @@ export const INTELLIGENCE_HERO = {
   headline: "Know which customers are about to churn.\nBefore they do.",
   // Truthfulness: Recova reads "derived from engagement signals, recovery
   // history, and customer value. Seven recommended actions." The signals are
-  // risk.ts's and no recommended action is written. "Daily MRR tracking" is
-  // Recova's words.
+  // risk.ts's and the rules produce four of the seven actions (see above).
+  // "Daily MRR tracking" is Recova's words.
   // Recova's "$199/mo flat" closed a sentence about MRR tracking; the price is
   // free now and the pricing line under the sub says so.
-  sub: `0-100 health scores per customer, derived from ${signalList}. Daily MRR tracking with NRR and churn rate trends.`,
+  sub: `0-100 health scores per customer, derived from ${signalList}. Four recommended actions. Daily MRR tracking with NRR and churn rate trends.`,
   pricing: "Free · No subscription · Account-wide",
 };
 
@@ -92,13 +95,12 @@ export const INTELLIGENCE_STEPS = [
     body: `${signalCount} signals, ${signalList}, combine into a 0-100 health score for every customer Foxhound reads from Stripe, up to ${customerCap} per account. The nightly AI analyst writes a plain-English assessment for each of the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers.`,
   },
   {
-    // Truthfulness: Recova reads "Seven recommended actions surface" and lists
-    // personal outreach, continue automated and win-back priority. Nothing
-    // writes a recommendation, so the step says what Foxhound does: the
-    // directory sorts by health ascending and the churn page ranks the
-    // high-risk band by MRR (views.server.ts).
-    title: "High-value customers at risk surface first",
-    body: "Customers are sorted by health score, lowest first, and the churn page ranks the high-risk band by MRR, so your highest-value customers showing risk are at the top. A recommended action per customer is not built yet.",
+    // Recova's words, with one truthfulness fix: Recova reads "Seven" and
+    // lists win-back priority, which no rule produces (see above). The four
+    // are recommend.ts's; the two that ask for you are the Recommendations
+    // page's sections (app/routes/app/intelligence/recommendations.tsx).
+    title: "Four recommended actions surface",
+    body: "Personal outreach for high-value customers showing risk. Continue automated where the automated flow is enough, with high-value customers flagged to watch closely. Each recommendation is actionable.",
   },
   {
     // Recova's words: intelligence-sync runs daily, and the dashboard sums
@@ -127,7 +129,8 @@ export function intelligenceBlocks(activeCustomers: string) {
     score: {
       eyebrow: "0-100 per customer",
       // Truthfulness: Recova reads "A score that tells you what to do." The
-      // score recommends no action (see above); it ranks.
+      // score itself ranks; the recommended action comes from Recova's bands,
+      // not from the score (recommend.ts).
       title: "A score that tells you where to look.",
       // Truthfulness: the signals, as above; on the customer page each signal
       // that moved the score is listed with its points (customer.tsx).
@@ -147,8 +150,8 @@ export const INTELLIGENCE_PRICING = {
   points: [
     // Truthfulness: the sync's customer cap.
     `Health scores for every Stripe customer, up to ${customerCap} per account, updated nightly`,
-    // Recova's "Seven recommendation types, actionable, not just labels" is
-    // left out: nothing writes a recommendation, and a ticked line would claim it.
+    // Truthfulness: Recova reads "Seven"; the rules produce four (see above).
+    "Four recommendation types, actionable, not just labels",
     // Truthfulness: Recova reads "per at-risk customer".
     `Nightly AI analyst plain-English assessment for the ${INTELLIGENCE_NARRATIVE_TOP_N} most at-risk customers`,
     // Truthfulness: Recova reads "Daily MRR snapshots with NRR, GRR, and
@@ -191,8 +194,8 @@ export const INTELLIGENCE_FAQS = [
   },
   {
     q: "What is the difference between Intelligence and the free Audit?",
-    // Truthfulness: Recova's "surfaces actionable recommendations"; see above.
-    a: "The Audit is a one-time diagnostic snapshot of your Stripe account. Intelligence is a continuous nightly scoring system that tracks customer health over time, surfaces the customers most at risk, and tracks MRR trends. The Audit is a starting point. Intelligence is an ongoing operational layer.",
+    // Recova's words: the nightly run writes the recommendations (see above).
+    a: "The Audit is a one-time diagnostic snapshot of your Stripe account. Intelligence is a continuous nightly scoring system that tracks customer health over time, surfaces actionable recommendations, and tracks MRR trends. The Audit is a starting point. Intelligence is an ongoing operational layer.",
   },
 ];
 

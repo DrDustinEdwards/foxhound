@@ -224,6 +224,15 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Recovery",
         },
         {
+          // Recova's "Hourly dispute processing" (checks deadlines, fires
+          // reminders, auto-submits, cleans up). Foxhound's dispute-reminders
+          // job rides the tick; auto-submit is deliberately not built
+          // (RULES.md 5.6), and Recova's clean-up has no counterpart.
+          name: `Dispute processing every ${tick} minutes`,
+          description: `Checks dispute deadlines and fires reminders, every ${tick} minutes.`,
+          product: "Disputes",
+        },
+        {
           name: `Win-back processing every ${tick} minutes`,
           description: `Executes win-back email steps on schedule, checked every ${tick} minutes.`,
           product: "Recovery",
@@ -296,6 +305,15 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           name: "Customer health scoring",
           description:
             "0-100 score per customer from payment timing, billing changes, refunds and disputes, engagement with recovery emails, and tenure.",
+          product: "Intelligence",
+        },
+        {
+          // Recova's "7 recommendation types". The nightly scoring batch writes
+          // one per customer (ai-run.server.ts) from Recova's rules, which
+          // produce four of the seven (recommend.ts).
+          name: "4 recommendation types",
+          description:
+            "Every customer gets one: personal outreach, continue automated, continue automated (priority), or continue automated (deprioritize).",
           product: "Intelligence",
         },
         {
@@ -398,6 +416,12 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           name: "Weekly unified digest",
           description: `${digestDay} morning email: recovery stats, open disputes, and Intelligence high-risk customers. One email, all products.`,
           product: "Platform",
+        },
+        {
+          // Recova's words: REMINDER_BANDS in app/lib/disputes/notices.ts.
+          name: "Dispute deadline reminders",
+          description: "Reminder emails at 3 days and 1 day before the dispute evidence deadline.",
+          product: "Disputes",
         },
         {
           name: "List-Unsubscribe headers",
@@ -561,7 +585,13 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Submit dispute evidence",
           description:
-            "Review the drafted evidence, edit any field, and approve its submission to Stripe. The fee is stated on the button.",
+            "Review the drafted evidence, edit any field, attach files, and approve its submission to Stripe. The fee is stated on the button.",
+          product: "Disputes",
+        },
+        {
+          // Recova's words, with Foxhound's name.
+          name: "Accept dispute",
+          description: "Close a dispute without submitting evidence. No Foxhound fee on accepted disputes.",
           product: "Disputes",
         },
         {
@@ -586,7 +616,10 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Email settings",
-          description: "Sender name per Stripe connection, and a test email to your own address.",
+          // Recova's "Sender name, reply-to address, and notification email
+          // per Stripe account"; Foxhound's notification email is the
+          // account's, on the notifications page, not the connection's.
+          description: "Sender name and reply-to address per Stripe connection, and a test email to your own address.",
           product: "Platform",
         },
         {
@@ -596,7 +629,12 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Merchant context",
-          description: "Industry, customer type, and MRR. Used in recovery email copy.",
+          // Recova's "Product description and ships-physical-goods flag. Used in
+          // email copy and dispute evidence." Foxhound keeps those two in
+          // Dispute settings, for evidence and triage, and its recovery email
+          // context is industry, customer type and MRR.
+          description:
+            "Industry, customer type, and MRR, used in recovery email copy. Product description and ships-physical-goods flag, used in dispute evidence.",
           product: "Recovery",
         },
         {

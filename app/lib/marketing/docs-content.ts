@@ -582,7 +582,22 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Recommendations",
         body: [
-          "Intelligence does not recommend an action for each customer yet, and the customers page has no Recommended action column. Each customer's own page lists the factors that moved their score instead, which is the part a person can act on.",
+          // Recova's Part 3 (docs/intelligence/page.tsx, blob e7f18266), with
+          // truthfulness fixes: Recova's "Seven action types" lists three no
+          // rule produces (recommend.ts), and its deprioritize line's "will be
+          // delayed 48 hours" never ran in Recova and does not in Foxhound.
+          // Each line is checked against recommend.ts's table.
+          // The nightly scoring batch writes the action (ai-run.server.ts),
+          // and the Recommendations page shows the two that ask for you.
+          { kind: "h3", text: "Four action types" },
+          "Intelligence produces one of four recommendations per customer:",
+          { kind: "list", items: [
+            [{ strong: "Personal outreach." }, " High value customer showing disengagement or failure history, or a customer who used to recover well and has stopped opening emails. Reach out directly."],
+            [{ strong: "Continue automated." }, " The automated flow is doing its job, no action needed from you."],
+            [{ strong: "Continue automated (priority)." }, " High value, not enough history to call it yet, flag for monitoring."],
+            [{ strong: "Continue automated (deprioritize)." }, " Not a high value customer, with weak engagement or recovery history. The automated sequence continues on its usual timing."],
+          ] },
+          "Customers needing action appear on the Recommendations page grouped by action type: personal outreach under Reach out personally, priority under Watch closely, highest MRR first. Customers on continue automated or continue automated (deprioritize) are excluded: they need nothing from you.",
         ],
       },
       {

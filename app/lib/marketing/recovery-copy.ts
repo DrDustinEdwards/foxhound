@@ -142,10 +142,12 @@ export const RECOVERY_FAQS = [
   },
   {
     q: "What happens if a customer replies to a recovery email?",
-    // Truthfulness: Recova routes replies to the notification email. Foxhound's
-    // send path sets no reply-to address yet (app/lib/settings/test-email.server.ts),
-    // so the copy says that is not built (RULES.md 2.1).
-    a: "Foxhound sends with your brand name. Sending replies to your notification email is not built yet: recovery emails carry no reply-to address today.",
+    // Recova's words (product/recovery/page.tsx), with one truthfulness fix:
+    // Recova's "your notification email, the one set in Recova settings".
+    // Foxhound sets the Reply-To from the connection's reply_to_email
+    // (Settings, Email; due-steps.ts and send.ts), not the notification email,
+    // and with none set a reply goes to the From address.
+    a: "Replies go to your reply-to email, the one set in Foxhound settings. Foxhound sends with your brand name, so replies come back to you. Until you set one, replies go to the address in the From line.",
   },
   {
     q: "Can I pause or cancel a sequence?",
