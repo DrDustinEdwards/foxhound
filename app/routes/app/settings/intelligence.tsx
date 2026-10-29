@@ -40,8 +40,8 @@ import { ALERT_METRIC_LABELS } from "~/lib/settings/alert-metrics";
 // email and by Slack, all in intelligence_notification_preferences. Foxhound's
 // schema has that table; only account deletion touches it. Foxhound sends no
 // weekly Intelligence email or Slack post (the narrative is nightly and stays
-// on the dashboard and Reports), and its alert evaluator records breaches in
-// alert_history without sending anything (app/lib/intelligence/alerts.ts).
+// on the dashboard and Reports). Health alerts are set on /settings/alerts
+// (high-risk customers, Intelligence MRR at risk), sent by email or Slack.
 // A switch here would save a choice nothing honors, so the page names each
 // delivery as not built, where Recova had its checkbox, and points at the
 // nearest thing that is built: for the weekly summary, the weekly digest's

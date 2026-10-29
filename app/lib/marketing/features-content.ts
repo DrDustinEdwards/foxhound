@@ -2,6 +2,7 @@ import {
   AUDIT_LOOKBACK_DAYS,
   ALERT_METRICS,
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
@@ -199,6 +200,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   // registry pairs job and schedule).
   const nightly = cronCadence(CRON_SCHEDULE_DAILY);
   const Nightly = capitalize(nightly);
+  // Expiring cards run on their own schedule, Recova's 09:00 UTC.
+  const CardsCadence = capitalize(cronIsDaily(CRON_SCHEDULE_EXPIRING_CARDS) ? "daily" : cronCadence(CRON_SCHEDULE_EXPIRING_CARDS));
   const daily = cronIsDaily(CRON_SCHEDULE_DAILY) ? "daily" : cronCadence(CRON_SCHEDULE_DAILY);
   const monthly = cronCadence(CRON_SCHEDULE_MONTHLY);
   const Monthly = capitalize(monthly);
@@ -238,8 +241,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Recovery",
         },
         {
-          name: `${Nightly} expiring card alerts`,
-          description: `${Nightly}, finds every card expiring within ${EXPIRING_CARD_DAYS_AHEAD} days and emails the customer a link to Foxhound's card-update page.`,
+          name: `${CardsCadence} expiring card alerts`,
+          description: `${CardsCadence}, finds every card expiring within ${EXPIRING_CARD_DAYS_AHEAD} days and emails the customer a link to Foxhound's card-update page.`,
           product: "Recovery",
         },
         {
