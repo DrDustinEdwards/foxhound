@@ -14,8 +14,9 @@ import { formatMoneyShort } from "~/lib/money-format";
 // - Truthfulness fixes where Recova's words describe something Foxhound does
 //   not do (RULES.md 1.2). Each is named beside its string below. The ones
 //   that recur:
-//   * No auto-submit. Every submission waits for a person's approval, enforced
-//     by the schema (RULES.md 5.6, 3.6; app/lib/disputes/submission.ts).
+//   * Every submission stands on a person's approval, enforced by the schema:
+//     their own Approve and submit, or auto-submit, which they turn on in
+//     Dispute settings (off by default; app/lib/cron/dispute-auto-submit.ts).
 //   * Triage and the Stripe context (prior charges, AVS and CVV, Radar, 3D
 //     Secure, subscription) are read at intake (app/lib/disputes/triage.ts,
 //     context.server.ts), so Recova's lines about them stand.
@@ -52,9 +53,8 @@ export const DISPUTES_STEPS = [
   },
   {
     title: "Submit or accept",
-    // Truthfulness: Recova reads "Auto-submit fires 24 hours before the deadline
-    // if enabled." There is no auto-submit (RULES.md 5.6).
-    body: `Review staged evidence, approve it and submit. Or accept if the score is low. Nothing reaches Stripe until someone on your team approves it. ${pct} only when the submission wins.`,
+    // Recova's words, with "approve it and" naming the approval gate.
+    body: `Review staged evidence, approve it and submit. Or accept if the score is low. Auto-submit fires 24 hours before the deadline if enabled. ${pct} only when the submission wins.`,
   },
 ];
 
@@ -100,10 +100,8 @@ export const DISPUTES_PRICING = {
     "Nothing on disputes you lose or accept",
     "Evidence built automatically from 5 sources",
     "0-100 triage score with fight/accept recommendation",
-    // Truthfulness: Recova's "Auto-submit 24 hours before the deadline (toggle
-    // on)". Auto-submit is deliberately not built (RULES.md 5.6), and copy
-    // describes it as absent (RULES.md 3.6).
-    "No auto-submit: nothing reaches Stripe until you approve it",
+    // Recova's words: app/lib/cron/dispute-auto-submit.ts, off until turned on.
+    "Auto-submit 24 hours before the deadline (toggle on)",
     // Recova's words: app/lib/cron/dispute-reminders.ts sends both.
     "Deadline reminder emails at 3 days and 1 day",
     // Truthfulness: Recova reads "Outcome feeds back into Intelligence customer

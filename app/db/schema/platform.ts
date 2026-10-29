@@ -102,6 +102,33 @@ export const adminAuditLog = sqliteTable("admin_audit_log", {
 });
 
 /**
+ * Admin "View as merchant" (Recova's Impersonate, read-only). One row per
+ * session an admin opens on a merchant's app. The browser holds only a random
+ * token; this row holds its SHA-256, so the cookie names no account and a
+ * leaked row cannot be replayed. app/lib/admin/impersonation.server.ts is the
+ * one reader and writer; the app shell resolves the account from a row that is
+ * open, unexpired, and whose admin still passes Cloudflare Access.
+ */
+export const adminImpersonations = sqliteTable(
+  "admin_impersonations",
+  {
+    id: id(),
+    tokenHash: text("token_hash").notNull(),
+    adminEmail: text("admin_email").notNull(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    startedAt: ts("started_at").notNull(),
+    expiresAt: ts("expires_at").notNull(),
+    endedAt: ts("ended_at"),
+    // 'stopped' (the admin pressed Stop) or 'expired' (seen past expires_at).
+    endReason: text("end_reason"),
+  },
+  (t) => [
+    uniqueIndex("admin_impersonations_token_hash_uq").on(t.tokenHash),
+    index("admin_impersonations_account_idx").on(t.accountId),
+  ],
+);
+
+/**
  * The write trace for the merchant MCP (372's item-4 ruling: "write-audit
  * logging of key id per write").
  *

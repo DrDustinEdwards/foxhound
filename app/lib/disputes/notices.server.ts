@@ -5,7 +5,9 @@ import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 
 import {
+  autoSubmittedNotice,
   createdNotice,
+  DISPUTE_AUTO_SUBMITTED_TEMPLATE,
   DISPUTE_CREATED_TEMPLATE,
   DISPUTE_NOTICE_FROM_NAME,
   DISPUTE_OUTCOME_TEMPLATE,
@@ -70,13 +72,16 @@ interface NoticeRow {
   notificationEmail: string | null;
   processingPaused: boolean;
   billingExempt: boolean;
+  /** Whether the auto-submit job would submit for this account (its reader's
+   *  own conditions: the setting on, a recorded opt-in, Disputes on). */
+  autoSubmit: boolean;
   /** The dispute's own connection's sender name, for Recova's footer line. */
   senderName: string | null;
 }
 
 /** The dispute and its account's notice settings, pinned to the account. */
 async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Promise<NoticeRow | null> {
-  const rows = await getDb(env)
+  const [row] = await getDb(env)
     .select({
       id: disputes.id,
       amountCents: disputes.amountCents,
@@ -96,6 +101,9 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
       notificationEmail: accounts.notificationEmail,
       processingPaused: accounts.processingPaused,
       billingExempt: accounts.billingExempt,
+      autoSubmitSetting: accounts.disputeAutoSubmit,
+      autoSubmitAt: accounts.disputeAutoSubmitAt,
+      disputesEnabled: accounts.disputesEnabled,
       senderName: stripeConnections.senderName,
     })
     .from(disputes)
@@ -106,7 +114,9 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
     .leftJoin(stripeConnections, eq(stripeConnections.id, disputes.stripeConnectionId))
     .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId)))
     .limit(1);
-  return rows[0] ?? null;
+  if (!row) return null;
+  const { autoSubmitSetting, autoSubmitAt, disputesEnabled, ...rest } = row;
+  return { ...rest, autoSubmit: autoSubmitSetting === true && autoSubmitAt != null && disputesEnabled };
 }
 
 export function appUrl(env: Env, path: string): string {
@@ -170,6 +180,7 @@ export async function sendDisputeCreatedNotice(
         customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
         reason: row.reason,
         evidenceDeadline: row.evidenceDeadline,
+        autoSubmit: row.autoSubmit,
         disputeUrl: appUrl(env, `/disputes/${row.id}`),
         triage: row.triageRecommendation
           ? {
@@ -317,6 +328,7 @@ export async function sendDisputeReminderNotice(
     const notice = {
       ...reminderNotice({
         approved: await hasStandingApproval(env, ctx.accountId, row.id),
+        autoSubmit: row.autoSubmit,
         amountCents: row.amountCents,
         currency: row.currency,
         customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
@@ -337,5 +349,44 @@ export async function sendDisputeReminderNotice(
     );
   } catch (err) {
     return failed("reminder", ctx, err);
+  }
+}
+
+/** A dispute's auto-submitted notice's once-only key. */
+function autoSubmittedKey(disputeId: string): string {
+  return `dispute-auto-submitted:${disputeId}`;
+}
+
+/** Recova's "Dispute response submitted", after the auto-submit job's
+ *  submission is confirmed. The job chose the dispute. */
+export async function sendDisputeAutoSubmittedNotice(
+  env: Env,
+  ctx: { accountId: string; disputeId: string; cronRunId: string | null },
+): Promise<DisputeNoticeOutcome> {
+  try {
+    const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
+    if (!row) return { kind: "skipped", reason: "not_found" };
+    if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
+    const notice = {
+      ...autoSubmittedNotice({
+        amountCents: row.amountCents,
+        currency: row.currency,
+        customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
+        reason: row.reason,
+        disputeUrl: appUrl(env, `/disputes/${row.id}`),
+      }),
+      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
+    };
+    return await send(
+      env,
+      ctx.accountId,
+      row.notificationEmail,
+      notice,
+      DISPUTE_AUTO_SUBMITTED_TEMPLATE,
+      autoSubmittedKey(row.id),
+      ctx.cronRunId,
+    );
+  } catch (err) {
+    return failed("auto-submitted", ctx, err);
   }
 }

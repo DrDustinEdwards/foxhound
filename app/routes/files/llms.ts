@@ -66,7 +66,7 @@ export async function loader({ context }: Route.LoaderArgs) {
           {
             title: "Disputes",
             url: `${url}/product/disputes`,
-            description: `Evidence drafted automatically from Stripe data and recovery history. A human always reviews and signs before anything reaches Stripe; there is no auto-submit toggle. Priced as a percentage of won disputes only, capped per dispute, nothing on losses. See ${url}/pricing for the current rate and cap.`,
+            description: `Evidence drafted automatically from Stripe data and recovery history. A person reviews and signs each submission, or turns on auto-submit (off by default) to submit 24 hours before the deadline. Priced as a percentage of won disputes only, capped per dispute, nothing on losses. See ${url}/pricing for the current rate and cap.`,
           },
           {
             title: "Intelligence",

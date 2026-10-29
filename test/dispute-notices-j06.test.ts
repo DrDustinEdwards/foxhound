@@ -175,7 +175,7 @@ describe("NOTICE 1: a new dispute notifies the merchant", () => {
     expect(mail.html).toMatch(/<h1[^>]*>New dispute\.<\/h1>/);
     expect(mail.html).toContain("Product Not Received");
     expect(mail.html).toContain("2026-11-24");
-    // Only the auto-submit-off branch applies (RULES.md 5.6).
+    // The account never turned auto-submit on, so Recova's off sentence.
     expect(mail.html).toContain("Auto-submit is off. We will remind you 3 days before the deadline.");
     expect(mail.html).toContain(`https://foxhoundapp.test/disputes/${disputeRowId()}`);
     // A merchant notice: no unsubscribe link (RULES.md 3.16).

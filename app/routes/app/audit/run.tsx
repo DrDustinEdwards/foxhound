@@ -4,6 +4,7 @@ import { PageHead } from "capsomer/react/page-head";
 import "capsomer/button.css";
 import "capsomer/page-head.css";
 
+import { CopyLinkButton } from "~/components/copy-link-button";
 import {
   AuditDisputesSection,
   AuditHealthSection,
@@ -17,6 +18,7 @@ import { getAuditRun } from "~/lib/audit/persist.server";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/run";
 
@@ -36,7 +38,8 @@ import type { Route } from "./+types/run";
 // PRIVATE (RULES.md 4.14). The run is read through getAuditRun, which pins
 // the account in the predicate, so another account's id is a 404. Recova's
 // page is the same (`.eq('account_id', accountId)`). Recova's "Copy link"
-// is not built (RULES.md 5.6): it copies a link only the same account can open.
+// sits between Back to history and Run new audit, as there; the link opens
+// only for members of the same account, so it is for sharing within a team.
 //
 // THE LIVE FIGURES ARE RECOVA'S THREE: failed payments in active recovery,
 // the lifetime recovery rate, and the win rate on disputes Foxhound submitted,
@@ -72,7 +75,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   } catch (err) {
     console.error(`audit run ${params.id}: live figures could not be read`, err);
   }
-  return { run: toStoredAuditRun(row), ...live };
+  return { run: toStoredAuditRun(row), url: `${siteUrl(env)}/audit/results/${row.id}`, ...live };
 }
 
 function formatDate(value: Date): string {
@@ -101,7 +104,7 @@ function Reveal({ children }: { children: ReactNode[] }) {
 }
 
 export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
-  const { run, activeSequences, recoveryRatePct, foxhoundWinRate } = loaderData;
+  const { run, url, activeSequences, recoveryRatePct, foxhoundWinRate } = loaderData;
 
   const sections: ReactNode[] = [
     run.summary ? <AuditSummary key="summary" summary={run.summary} /> : null,
@@ -125,6 +128,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
               <Link to="/audit/dashboard" className="cap-btn" data-variant="link">
                 Back to history
               </Link>
+              <CopyLinkButton url={url} resetMs={1500} className="cap-btn" data-variant="link" />
               <Link to="/audit/connect" className="cap-btn" data-variant="primary">
                 Run new audit
               </Link>

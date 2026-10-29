@@ -168,6 +168,15 @@ export async function applyFeatureSettings(
 export interface DisputeSettingsState {
   productDescription: string | null;
   shipsPhysical: boolean;
+  autoSubmit: boolean;
+}
+
+/** Who is saving the dispute settings: the signed-in user whose turning
+ *  auto-submit on becomes the standing approval its submissions record. */
+export interface DisputeSettingsActor {
+  userId: string | null;
+  email: string;
+  now: Date;
 }
 
 /** Stripe's limit on an evidence text field, which the description becomes. */
@@ -175,31 +184,58 @@ export interface DisputeSettingsState {
 export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
 
 /**
- * S32's two columns (J06), and nothing else: the product description, which
- * dispute intake reads into every response's evidence, and ships-physical,
- * which puts the shipping inputs on the dispute page. Recova's third column,
- * dispute_auto_submit, is never written (RULES.md 5.6). A blank description is
- * stored as null, so the reader's "not set" is one value.
+ * S32's three columns (J06), and nothing else: the product description, which
+ * dispute intake reads into every response's evidence, ships-physical, which
+ * puts the shipping inputs on the dispute page, and Recova's auto-submit, which
+ * the disputes cron reads (app/lib/cron/dispute-auto-submit.ts). A blank
+ * description is stored as null, so the reader's "not set" is one value.
+ *
+ * AUTO-SUBMIT IS A STANDING APPROVAL (PRICING.md: no approval row, no
+ * submission). Turning it on records who did it and when, and every automatic
+ * submission's dispute_approvals row names that person and time. Saving while
+ * it is already on keeps the original opt-in; turning it off clears it, so a
+ * later turn-on is a new opt-in by whoever makes it.
  */
 export async function applyDisputeSettings(
   db: Db,
   accountId: string,
-  input: { productDescription: unknown; shipsPhysical: unknown },
+  input: { productDescription: unknown; shipsPhysical: unknown; autoSubmit: unknown },
+  actor: DisputeSettingsActor,
   trace?: WriteTrace,
 ): Promise<ApplyResult<DisputeSettingsState>> {
   const productDescription = asOptionalText(input.productDescription);
   if (productDescription && productDescription.length > DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH) {
     return { ok: false, error: DISPUTE_PRODUCT_DESCRIPTION_ERROR };
   }
-  const state: DisputeSettingsState = { productDescription, shipsPhysical: asBoolean(input.shipsPhysical) };
-  const fields = ["dispute_product_description", "dispute_ships_physical"];
+  const state: DisputeSettingsState = {
+    productDescription,
+    shipsPhysical: asBoolean(input.shipsPhysical),
+    autoSubmit: asBoolean(input.autoSubmit),
+  };
+  const [current] = await db
+    .select({ autoSubmit: accounts.disputeAutoSubmit, at: accounts.disputeAutoSubmitAt })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  const alreadyOptedIn = current?.autoSubmit === true && current.at != null;
+  const fields = ["dispute_product_description", "dispute_ships_physical", "dispute_auto_submit"];
+  const optIn = !state.autoSubmit
+    ? { disputeAutoSubmitByUserId: null, disputeAutoSubmitByEmail: null, disputeAutoSubmitAt: null }
+    : alreadyOptedIn
+      ? {}
+      : { disputeAutoSubmitByUserId: actor.userId, disputeAutoSubmitByEmail: actor.email, disputeAutoSubmitAt: actor.now };
   await commit(
     db,
     accountId,
     fields,
     db
       .update(accounts)
-      .set({ disputeProductDescription: state.productDescription, disputeShipsPhysical: state.shipsPhysical })
+      .set({
+        disputeProductDescription: state.productDescription,
+        disputeShipsPhysical: state.shipsPhysical,
+        disputeAutoSubmit: state.autoSubmit,
+        ...optIn,
+      })
       .where(eq(accounts.id, accountId)),
     trace,
   );

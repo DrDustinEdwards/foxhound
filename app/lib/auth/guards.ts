@@ -14,6 +14,13 @@ import {
   resolveDemoMemberships,
 } from "~/lib/demo/session";
 
+import {
+  clearImpersonationCookieHeader,
+  hasImpersonationCookie,
+  IMPERSONATION_READ_ONLY_MESSAGE,
+  resolveImpersonation,
+} from "~/lib/admin/impersonation.server";
+
 import { listMemberships, resolveActiveMembershipFrom } from "./account";
 import { authContext } from "./context";
 import { isAdminEmail } from "./roles";
@@ -82,10 +89,54 @@ export function resolvesToDemo(hasSession: boolean, demoCookiePresent: boolean, 
  *     check (resolveDemoMembership) are unchanged; only which caller reaches
  *     them is new.
  */
-export const appShellMiddleware: MiddlewareFunction<Response> = async (
-  { request, context },
-  next,
-) => {
+export const appShellMiddleware: MiddlewareFunction<Response> = async (args, next) => {
+  const { request, context } = args;
+  if (!hasImpersonationCookie(request)) return resolveSessionOrDemo(args, next);
+
+  // An admin viewing a merchant ("View as merchant", app/lib/admin/
+  // impersonation.server.ts). READ-ONLY FIRST: the cookie alone refuses every
+  // non-GET/HEAD with 405, before any session, membership or database work, the
+  // demo firewall's rule (RULES.md 4.12) and its demoBlocksMethod. A stale
+  // cookie therefore blocks writes too, until Stop or its own expiry clears it.
+  if (demoBlocksMethod(request.method)) {
+    throw data(IMPERSONATION_READ_ONLY_MESSAGE, { status: 405 });
+  }
+
+  // The account is never read from the cookie (RULES.md 4.6): the cookie is an
+  // opaque token, and the account comes from its server-side row, honored only
+  // while that row is open and unexpired AND its admin passes Cloudflare Access
+  // on this very request. Anything else falls through to the caller's own
+  // session or demo, and the dead cookie is cleared on the way out.
+  const { env } = context.get(cloudflareContext);
+  const view = await resolveImpersonation(env, getDb(env), request, new Date());
+  if (view) {
+    context.set(authContext, {
+      userId: view.userId,
+      userName: view.userName,
+      email: view.email,
+      membership: view.membership,
+      memberships: [view.membership],
+      activeAccountId: view.membership.accountId,
+      // The merchant's view, so no admin-only affordance inside it.
+      isAdmin: false,
+      isDemo: false,
+      demoSignedIn: false,
+      viewingAs: { adminEmail: view.adminEmail },
+    });
+    return next();
+  }
+
+  try {
+    const response = await resolveSessionOrDemo(args, next);
+    response?.headers.append("Set-Cookie", clearImpersonationCookieHeader());
+    return response;
+  } catch (thrown) {
+    if (thrown instanceof Response) thrown.headers.append("Set-Cookie", clearImpersonationCookieHeader());
+    throw thrown;
+  }
+};
+
+const resolveSessionOrDemo: MiddlewareFunction<Response> = async ({ request, context }, next) => {
   const { env } = context.get(cloudflareContext);
   const session = await getSession(env, request);
   const pathname = new URL(request.url).pathname;

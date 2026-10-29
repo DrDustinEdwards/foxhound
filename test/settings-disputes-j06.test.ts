@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -9,10 +8,10 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J06 (job_4f4c9c2f5383), row S32: /settings/disputes. Recova's spec is
 // settings/disputes/page.tsx (9d927c62), DisputesForm.tsx (6a769d95) and
-// settings/components/DisputesSection.tsx (eb7bba4d). Only the settings with a
-// reader are built (RULES.md 3.18): the product description (dispute intake's
-// evidence) and ships physical goods (the dispute page's shipping inputs).
-// Auto-submit is never built (RULES.md 5.6).
+// settings/components/DisputesSection.tsx (eb7bba4d). Each setting has a
+// reader (RULES.md 3.18): auto-submit (the disputes cron), the product
+// description (dispute intake's evidence) and ships physical goods (the dispute
+// page's shipping inputs).
 
 const harness = vi.hoisted(() => ({ db: null as unknown, moneyWrites: [] as unknown[] }));
 
@@ -38,8 +37,6 @@ const { handleStampDispute } = await import("~/lib/webhooks/dispute-handlers");
 const { importDisputeFromStripe } = await import("~/lib/disputes/manual-import.server");
 const { splitEvidence } = await import("~/lib/disputes/detail");
 
-const SOURCE = readFileSync(new URL("../app/routes/app/settings/disputes.tsx", import.meta.url), "utf8");
-const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 let sqlite: Database.Database;
 let db: ReturnType<typeof createInMemoryDb>["db"];
@@ -51,6 +48,16 @@ beforeEach(() => {
   sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('a1', 'Acme', 1000)").run();
   sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('a2', 'Other', 1000)").run();
 });
+
+const ACTOR = { userId: "u1", email: "owner@a1.test", now: new Date(5000) };
+
+function optIn(id: string) {
+  return sqlite
+    .prepare(
+      "SELECT dispute_auto_submit_by_user_id AS u, dispute_auto_submit_by_email AS e, dispute_auto_submit_at AS t FROM accounts WHERE id = ?",
+    )
+    .get(id);
+}
 
 function columns(id: string) {
   return sqlite
@@ -76,19 +83,38 @@ function render(
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/settings/disputes"] }));
 }
 
-describe("S32 THE WRITER: two columns, pinned to the account", () => {
-  it("writes the description and the toggle, and never auto-submit", async () => {
-    const result = await applyDisputeSettings(db, "a1", {
-      productDescription: "  Handmade candles  ",
-      shipsPhysical: true,
-    });
+describe("S32 THE WRITER: three columns, pinned to the account", () => {
+  it("writes the description and the toggles, and records who opted in to auto-submit", async () => {
+    const result = await applyDisputeSettings(
+      db,
+      "a1",
+      { productDescription: "  Handmade candles  ", shipsPhysical: true, autoSubmit: true },
+      ACTOR,
+    );
     expect(result.ok).toBe(true);
-    expect(columns("a1")).toEqual({ d: "Handmade candles", s: 1, a: null });
+    expect(columns("a1")).toEqual({ d: "Handmade candles", s: 1, a: 1 });
+    expect(optIn("a1")).toEqual({ u: "u1", e: "owner@a1.test", t: 5000 });
     expect(columns("a2")).toEqual({ d: null, s: null, a: null });
+
+    // A later save keeps the original opt-in; turning it off clears it.
+    await applyDisputeSettings(db, "a1", { productDescription: "", shipsPhysical: true, autoSubmit: true }, {
+      userId: "u2",
+      email: "other@a1.test",
+      now: new Date(9000),
+    });
+    expect(optIn("a1")).toEqual({ u: "u1", e: "owner@a1.test", t: 5000 });
+    await applyDisputeSettings(db, "a1", { productDescription: "", shipsPhysical: true, autoSubmit: false }, ACTOR);
+    expect(columns("a1")).toMatchObject({ a: 0 });
+    expect(optIn("a1")).toEqual({ u: null, e: null, t: null });
   });
 
   it("a description past Stripe's evidence limit is refused and nothing is written", async () => {
-    const result = await applyDisputeSettings(db, "a1", { productDescription: "x".repeat(20_001), shipsPhysical: true });
+    const result = await applyDisputeSettings(
+      db,
+      "a1",
+      { productDescription: "x".repeat(20_001), shipsPhysical: true, autoSubmit: true },
+      ACTOR,
+    );
     expect(result).toEqual({ ok: false, error: DISPUTE_PRODUCT_DESCRIPTION_ERROR });
     expect(columns("a1")).toEqual({ d: null, s: null, a: null });
   });
@@ -96,7 +122,12 @@ describe("S32 THE WRITER: two columns, pinned to the account", () => {
 
 describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''", () => {
   it("an account that never saved reads as blank and off", async () => {
-    expect(await readDisputeSettings(db, "a1")).toEqual({ enabled: true, productDescription: "", shipsPhysical: false });
+    expect(await readDisputeSettings(db, "a1")).toEqual({
+      enabled: true,
+      productDescription: "",
+      shipsPhysical: false,
+      autoSubmit: false,
+    });
     expect(await readDisputeProductDescription(db, "a1")).toBeNull();
   });
 
@@ -121,7 +152,7 @@ describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () 
     expect((await readDisputeSettings(db, "a2")).enabled).toBe(true);
 
     const html = render({ enabled: false, productDescription: "", shipsPhysical: false });
-    expect(html).toContain("Enable Disputes above to configure product description and shipping settings.");
+    expect(html).toContain("Enable Disputes above to configure auto-submit, product description, and shipping settings.");
     expect(html).not.toContain("Save changes");
 
     const claim = {
@@ -144,12 +175,3 @@ describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () 
   });
 });
 
-describe("S32 THE PAGE: Recova's content, in Recova's order, from Capsomer", () => {
-
-  it("there is no auto-submit control anywhere on it (RULES.md 5.6)", () => {
-    const html = render({ productDescription: "", shipsPhysical: false });
-    expect(html.toLowerCase()).not.toContain("auto-submit");
-    expect(CODE).not.toContain("dispute_auto_submit");
-    expect(CODE).not.toContain("disputeAutoSubmit");
-  });
-});
