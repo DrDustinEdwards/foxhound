@@ -35,6 +35,11 @@ export interface IntelligencePreview {
     mrr: string;
     /** The latest snapshot's active customers, as the dashboard writes it. */
     activeCustomers: string;
+    /** The dashboard's Day-over-day figure and its sign ("--" and 0 when flat). */
+    dayOverDay: string;
+    dayOverDaySign: -1 | 0 | 1;
+    /** The dashboard's New MRR (MTD) figure. */
+    newMrrMtd: string;
     currency: string;
     /** The latest snapshot's MRR per plan, largest first (planBreakdownRows). */
     plans: PlanRow[];

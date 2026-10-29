@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { isAdminPath, resolvesToDemo } from "~/lib/auth/guards";
-import { DEMO_SESSION_COOKIE } from "~/lib/demo/constants";
+import { BOLT_DEMO, DEMO_ACTIVE_ACCOUNT_COOKIE, DEMO_SESSION_COOKIE, TEAMFLOW_DEMO } from "~/lib/demo/constants";
 import {
+  activeDemoBusiness,
   clearDemoCookieHeader,
   DEMO_READ_ONLY_MESSAGE,
   demoBlocksMethod,
@@ -31,6 +32,17 @@ describe("demo cookie", () => {
     expect(setDemoCookieHeader()).toContain(`${DEMO_SESSION_COOKIE}=1`);
     expect(setDemoCookieHeader()).toContain("HttpOnly");
     expect(clearDemoCookieHeader()).toContain("Max-Age=0");
+  });
+});
+
+// The demo business switcher (Recova's active_demo_account): the cookie only
+// ever picks among the demo businesses, so a forged id can never name a real
+// account; it falls back to Teamflow.
+describe("active demo business", () => {
+  it("honors a demo business id and nothing else", () => {
+    expect(activeDemoBusiness(withCookie(`${DEMO_ACTIVE_ACCOUNT_COOKIE}=${BOLT_DEMO.accountId}`))).toBe(BOLT_DEMO);
+    expect(activeDemoBusiness(withCookie(`${DEMO_ACTIVE_ACCOUNT_COOKIE}=acct_real_merchant`))).toBe(TEAMFLOW_DEMO);
+    expect(activeDemoBusiness(new Request("https://x/dashboard"))).toBe(TEAMFLOW_DEMO);
   });
 });
 

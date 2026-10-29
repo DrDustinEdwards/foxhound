@@ -50,6 +50,8 @@ import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
 import { dispatchManualAction, moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
 import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
+import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
+import { RecommendationBanner } from "~/components/recommendation-banner";
 import type { AttributionKind } from "~/lib/constants";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 
@@ -87,7 +89,16 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       label: paymentStepLabel(category, step.stepType),
       previewHtml: aiBodyHtml ? sanitizeEmailPreviewHtml(aiBodyHtml) : null,
     }));
-  return { ...detail, steps, nextStepLabel, canResend, nowMs: Date.now() };
+  const nowMs = Date.now();
+  // Recova's IntegrityLayerBanner reads the customer's recommendation. A read
+  // failure leaves the banner out rather than failing the page.
+  const prediction = await recommendOneCustomer(
+    db,
+    auth.membership.accountId,
+    detail.failedPayment.stripeCustomerId,
+    nowMs,
+  ).catch(() => null);
+  return { ...detail, steps, nextStepLabel, canResend, nowMs, prediction };
 }
 
 // Manual per-payment actions: all five are wired (272), each committing through
@@ -271,6 +282,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
     nextStepLabel,
     canResend,
     nowMs,
+    prediction,
   } = loaderData;
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
@@ -378,8 +390,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </div>
       </header>
 
-      {/* Recova's IntegrityLayerBanner sits here. Nothing in Foxhound writes the
-          banded prediction it reads, so it is not built (RULES.md 3.18). */}
+      {/* Recova's IntegrityLayerBanner, PaymentDetailClient.tsx 274. */}
+      <RecommendationBanner prediction={prediction} surface="recovery" nowMs={nowMs} />
 
       {/* Recova's action result banner, PaymentDetailClient.tsx 277-287. */}
       {actionResult ? (

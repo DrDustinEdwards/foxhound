@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -34,20 +34,28 @@ import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 
 import {
-  DEMO_ACCOUNT_ID,
-  DEMO_ACCOUNT_NAME,
+  BOLT_DEMO,
+  DEMO_BUSINESSES,
   DEMO_MEMBER_EMAIL,
-  DEMO_MEMBER_USER_ID,
   DEMO_RESET_CRON_NAME,
+  TEAMFLOW_DEMO,
+  type DemoBusiness,
 } from "./constants";
-import { buildTeamflowBase } from "./customer-base";
-import { buildDisputesSeed } from "./disputes-seed";
-import { buildIntelligenceSeed } from "./intelligence-seed";
-import { buildNarrativeSeed } from "./narratives-seed";
+import { buildBoltBase, buildTeamflowBase, type DemoCustomer } from "./customer-base";
+import { BOLT_DISPUTE_SPECS, buildDisputesSeed, TEAMFLOW_DISPUTE_SPECS, type DisputeSpec } from "./disputes-seed";
+import {
+  boltDisputeOnlyPlan,
+  buildIntelligenceSeed,
+  teamflowDisputeOnlyPlan,
+  type DisputeOnlyPlan,
+} from "./intelligence-seed";
+import { BOLT_NARRATIVE, buildNarrativeSeed, TEAMFLOW_NARRATIVE } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
 
-// The demo seeder. Builds ONE real account (Teamflow) and populates every product
-// table with believable, DETERMINISTIC data, so the REAL app routes render a
+// The demo seeder. Builds the demo businesses as real accounts (Teamflow and
+// Bolt Analytics, legacy's two: app/api/cron/reset-demo/route.ts, blob
+// `c1659670`, seeds both on every reset) and populates every product table for
+// each with believable, DETERMINISTIC data, so the REAL app routes render a
 // convincing portfolio (TASK-foxhound-demo-data-engine.md, porting the legacy
 // six-module demo engine: customer-base, recovery-seed, disputes-seed,
 // intelligence-seed, narratives-seed, composed here). This is NOT a set of mock
@@ -84,10 +92,35 @@ async function runBatched(db: Db, statements: BatchItem<"sqlite">[]): Promise<vo
   }
 }
 
-/** Every demo row, deleted child-table-first so D1's foreign keys never block a
- *  reset. All demo rows carry the demo account id, so a single equality wipes each. */
-async function wipeDemoAccount(db: Db): Promise<void> {
-  const acct = DEMO_ACCOUNT_ID;
+/** What makes each demo business its own: its customer base, its disputes, its
+ *  narrative, and the plan a net-new disputed customer is on. Everything else
+ *  is built by the same builders for both. */
+interface DemoBusinessData {
+  buildBase: (now: Date) => DemoCustomer[];
+  disputeSpecs: DisputeSpec[];
+  narrative: string;
+  disputeOnlyPlan: (amountCents: number) => DisputeOnlyPlan;
+}
+
+const BUSINESS_DATA: Record<string, DemoBusinessData> = {
+  [TEAMFLOW_DEMO.accountId]: {
+    buildBase: buildTeamflowBase,
+    disputeSpecs: TEAMFLOW_DISPUTE_SPECS,
+    narrative: TEAMFLOW_NARRATIVE,
+    disputeOnlyPlan: teamflowDisputeOnlyPlan,
+  },
+  [BOLT_DEMO.accountId]: {
+    buildBase: buildBoltBase,
+    disputeSpecs: BOLT_DISPUTE_SPECS,
+    narrative: BOLT_NARRATIVE,
+    disputeOnlyPlan: boltDisputeOnlyPlan,
+  },
+};
+
+/** Every demo row of one business, deleted child-table-first so D1's foreign
+ *  keys never block a reset. All its rows carry its account id, so a single
+ *  equality wipes each. */
+async function wipeDemoAccount(db: Db, acct: string): Promise<void> {
   // Order matters under real FK enforcement (D1): children before parents.
   await runBatched(db, [
     db.delete(billingLineItems).where(eq(billingLineItems.accountId, acct)),
@@ -119,33 +152,41 @@ async function wipeDemoAccount(db: Db): Promise<void> {
 }
 
 /**
- * Seed (or re-seed) the demo account and all its data. Deletes the demo account's
- * existing rows first, so it is safe to run on every reset. Deterministic: same
- * `now` in, same data out (every seed module is a pure function of `now`).
- * Makes NO external call.
+ * Seed (or re-seed) every demo business and all its data: the daily
+ * demo-reset's one job. Deletes each business's existing rows first, so it is
+ * safe to run on every reset. Deterministic: same `now` in, same data out
+ * (every seed module is a pure function of `now`). Makes NO external call.
  */
 export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
-  await wipeDemoAccount(db);
+  for (const business of DEMO_BUSINESSES) await seedDemoBusiness(db, business, now);
+}
 
-  const customers = buildTeamflowBase(now);
-  const recovery = buildRecoverySeed(DEMO_ACCOUNT_ID, customers, now);
-  const disputesSeed = buildDisputesSeed(DEMO_ACCOUNT_ID, now, DEMO_MEMBER_EMAIL);
+async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Promise<void> {
+  const { accountId } = business;
+  const data = BUSINESS_DATA[accountId];
+  await wipeDemoAccount(db, accountId);
+
+  const customers = data.buildBase(now);
+  const recovery = buildRecoverySeed(accountId, customers, now, business);
+  const disputesSeed = buildDisputesSeed(accountId, now, DEMO_MEMBER_EMAIL, data.disputeSpecs);
   const intelligence = buildIntelligenceSeed({
-    accountId: DEMO_ACCOUNT_ID,
+    accountId,
     now,
     customers,
     failedPayments: recovery.failedPayments,
     recoveredPayments: recovery.recoveredPayments,
     disputes: disputesSeed.disputes,
+    idPrefix: business.idPrefix,
+    disputeOnlyPlan: data.disputeOnlyPlan,
   });
-  const narrative = buildNarrativeSeed(DEMO_ACCOUNT_ID, now);
+  const narrative = buildNarrativeSeed(accountId, now, data.narrative, business.idPrefix);
   const latestMrr = intelligence.mrrSnapshots[intelligence.mrrSnapshots.length - 1];
 
   // 1) Account + member. billing_exempt + processing_paused = the firewall flags
   //    (belt and suspenders alongside the demo_ id prefix).
   await db.insert(accounts).values({
-    id: DEMO_ACCOUNT_ID,
-    name: DEMO_ACCOUNT_NAME,
+    id: accountId,
+    name: business.name,
     currency: "usd",
     createdAt: new Date(now.getTime() - 400 * DAY_MS),
     billingExempt: true,
@@ -157,9 +198,9 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     digestEmail: DEMO_MEMBER_EMAIL,
   });
   await db.insert(accountMembers).values({
-    id: `${DEMO_ACCOUNT_ID}_member`,
-    accountId: DEMO_ACCOUNT_ID,
-    userId: DEMO_MEMBER_USER_ID,
+    id: `${accountId}_member`,
+    accountId,
+    userId: business.memberUserId,
     role: "owner",
     status: "active",
     createdAt: new Date(now.getTime() - 400 * DAY_MS),
@@ -172,17 +213,17 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   // something real to read instead of permanently reading as disconnected.
   // No access token: the demo firewall means nothing here ever calls Stripe.
   await db.insert(stripeConnections).values({
-    id: `${DEMO_ACCOUNT_ID}_connection`,
-    accountId: DEMO_ACCOUNT_ID,
-    stripeUserId: "acct_demo_teamflow",
+    id: `${accountId}_connection`,
+    accountId,
+    stripeUserId: business.stripeUserId,
     isPrimary: true,
     connectedAt: new Date(now.getTime() - 380 * DAY_MS),
     lastWebhookAt: new Date(now.getTime() - 15 * 60_000),
     createdAt: new Date(now.getTime() - 380 * DAY_MS),
-    senderName: DEMO_ACCOUNT_NAME,
+    senderName: business.name,
   });
 
-  // 2) Customer portfolio (200 Teamflow + 7 net-new dispute customers) + health
+  // 2) Customer portfolio (200 base customers + the net-new dispute customers) + health
   //    history + predictions for the at-risk subset.
   await runBatched(
     db,
@@ -197,7 +238,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     .map((c) =>
       db.insert(predictions).values({
         id: `dpred_${c.stripeCustomerId}`,
-        accountId: DEMO_ACCOUNT_ID,
+        accountId: accountId,
         stripeCustomerId: c.stripeCustomerId,
         score: c.healthScore ?? 0,
         bandEvidenceHash: `demo_${c.healthScore}`,
@@ -243,18 +284,18 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
     mrrContributionCents: c.mrrContributionCents ?? 0,
     recoverySignals: c.recoverySignals,
   }));
-  const recommended = await recommendForAccount(db, DEMO_ACCOUNT_ID, subjects, now.getTime());
+  const recommended = await recommendForAccount(db, accountId, subjects, now.getTime());
   await runBatched(
     db,
     subjects.map((s) =>
       db
         .update(customerContext)
         .set({ recommendedAction: recommended.get(s.stripeCustomerId)?.recommendation.action ?? null })
-        .where(and(eq(customerContext.accountId, DEMO_ACCOUNT_ID), eq(customerContext.stripeCustomerId, s.stripeCustomerId))),
+        .where(and(eq(customerContext.accountId, accountId), eq(customerContext.stripeCustomerId, s.stripeCustomerId))),
     ),
   );
 
-  // 4) Disputes: the 8-dispute Teamflow set, with evidence + approvals for the
+  // 4) Disputes: the business's dispute set, with evidence + approvals for the
   //    Foxhound-submitted ones (app/lib/demo/disputes-seed.ts).
   await runBatched(
     db,
@@ -298,16 +339,16 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   );
 
   if (billableRecoveries.length > 0 || billableDisputes.length > 0) {
-    const invoiceId = "dinv_0";
+    const invoiceId = `${business.idPrefix}inv_0`;
     await db.insert(billingInvoices).values({
       id: invoiceId,
-      accountId: DEMO_ACCOUNT_ID,
+      accountId: accountId,
       currency: "usd",
       periodStart: new Date(now.getTime() - 30 * DAY_MS),
       periodEnd: now,
       status: "paid",
       totalCents: 0,
-      idempotencyKey: `${invoiceId}_${DEMO_ACCOUNT_ID}`,
+      idempotencyKey: `${invoiceId}_${accountId}`,
       createdAt: new Date(now.getTime() - 2 * DAY_MS),
       finalizedAt: new Date(now.getTime() - 2 * DAY_MS),
     });
@@ -321,7 +362,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
         db.insert(billingLineItems).values({
           id: `dli_recovery_${r.id}`,
           invoiceId,
-          accountId: DEMO_ACCOUNT_ID,
+          accountId: accountId,
           type: "recovery_fee",
           currency: "usd",
           amountCents: fee,
@@ -339,7 +380,7 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
         db.insert(billingLineItems).values({
           id: `dli_dispute_${d.id}`,
           invoiceId,
-          accountId: DEMO_ACCOUNT_ID,
+          accountId: accountId,
           type: "dispute_fee",
           currency: "usd",
           amountCents: fee,
@@ -355,13 +396,14 @@ export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   }
 }
 
+/** Every demo business has its account row (the reset seeds them in order, so
+ *  the last one landing means the whole set is there). */
 async function demoAccountExists(db: Db): Promise<boolean> {
   const existing = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(eq(accounts.id, DEMO_ACCOUNT_ID))
-    .limit(1);
-  return existing.length > 0;
+    .where(inArray(accounts.id, DEMO_BUSINESSES.map((b) => b.accountId)));
+  return existing.length === DEMO_BUSINESSES.length;
 }
 
 interface DemoResetLock {

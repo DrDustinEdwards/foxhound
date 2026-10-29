@@ -251,6 +251,8 @@ async function seedConsole(opts: {
       stripeCustomerId: `cus_ctx_${c}`,
       customerName: `AtRisk ${c}`,
       healthScore: row.score,
+      // The nightly scoring flags these for personal outreach (Recova's feed row).
+      recommendedAction: "personal_outreach",
       mrrContributionCents: row.mrr,
       currency: "usd",
       createdAt: now,
@@ -336,7 +338,7 @@ describe("getConsoleView attention feed", () => {
     expect(tones.lastIndexOf("urgent")).toBeLessThan(tones.indexOf("subtle"));
   });
 
-  it("orders at-risk customers by MRR and carries the amount for the row", async () => {
+  it("orders outreach customers by MRR and carries the amount for the row", async () => {
     const db = await seedConsole({
       atRisk: [
         { score: 30, mrr: 1_000 },
@@ -345,7 +347,7 @@ describe("getConsoleView attention feed", () => {
       ],
     });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    const rows = view.attention.filter((r) => r.key.startsWith("at-risk-"));
+    const rows = view.attention.filter((r) => r.key.startsWith("outreach-"));
     expect(rows.map((r) => r.mrrCents)).toEqual([50_000, 20_000, 1_000]);
   });
 

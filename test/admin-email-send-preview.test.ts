@@ -96,13 +96,29 @@ const ALL_TYPES = [
   "winback_step3",
   "expiring_card",
   "expiring_card_no_payment_method",
+  "recovery_resend",
   "settings_test",
   "weekly_digest",
   "recovery_notification",
   "sequence_complete",
+  "alert_threshold",
+  "alert_critical_customers",
+  "dispute_created",
+  "dispute_reminder",
+  "dispute_won",
+  "dispute_lost",
+  "monthly_audit",
+  "team_invite",
   "sign_in_link",
+  "cron_failure",
+  "cron_stale",
+  "dead_letter_alert",
 ];
 const CUSTOMER_TYPES = ALL_TYPES.slice(0, 12);
+/** Platform mail on the module's rendered sender, and the one on its HTML-body
+ *  transactional sender; everything else goes through sendEmail. */
+const RENDERED_TYPES = ["sign_in_link", "cron_failure", "cron_stale"];
+const TRANSACTIONAL_TYPES = ["dead_letter_alert"];
 
 interface SentMessage {
   from: string;
@@ -371,10 +387,11 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
     expect(results.map((r) => [r.type, r.status])).toEqual(ALL_TYPES.map((t) => [t, "sent"]));
     expect(sent).toHaveLength(ALL_TYPES.length);
     expect(sent.every((m) => m.to === ADMIN)).toBe(true);
-    // Customer and merchant mail through sendEmail, the sign-in link through
-    // the module's rendered sender: the binding is reached from nowhere else.
-    expect(sendSpies.sendEmail).toHaveBeenCalledTimes(ALL_TYPES.length - 1);
-    expect(sendSpies.sendRenderedTransactionalEmail).toHaveBeenCalledTimes(1);
+    // Customer and merchant mail through sendEmail, platform mail through the
+    // module's transactional senders: the binding is reached from nowhere else.
+    expect(sendSpies.sendEmail).toHaveBeenCalledTimes(ALL_TYPES.length - RENDERED_TYPES.length - TRANSACTIONAL_TYPES.length);
+    expect(sendSpies.sendRenderedTransactionalEmail).toHaveBeenCalledTimes(RENDERED_TYPES.length);
+    expect(sendSpies.sendTransactionalEmail).toHaveBeenCalledTimes(TRANSACTIONAL_TYPES.length);
   });
 
   it("customer mail carries the merchant's sender name and Reply-To; merchant notices carry none", async () => {

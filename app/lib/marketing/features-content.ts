@@ -2,6 +2,7 @@ import {
   AUDIT_LOOKBACK_DAYS,
   ALERT_METRICS,
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
@@ -16,7 +17,7 @@ import {
 } from "~/lib/constants";
 import { recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
-import { DEMO_ACCOUNT_NAME } from "~/lib/demo/constants";
+import { DEMO_BUSINESSES } from "~/lib/demo/constants";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import {
   DECLINE_CATEGORY_COUNT_WORD,
@@ -199,6 +200,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   // registry pairs job and schedule).
   const nightly = cronCadence(CRON_SCHEDULE_DAILY);
   const Nightly = capitalize(nightly);
+  // Expiring cards run on their own schedule, Recova's 09:00 UTC.
+  const CardsCadence = capitalize(cronIsDaily(CRON_SCHEDULE_EXPIRING_CARDS) ? "daily" : cronCadence(CRON_SCHEDULE_EXPIRING_CARDS));
   const daily = cronIsDaily(CRON_SCHEDULE_DAILY) ? "daily" : cronCadence(CRON_SCHEDULE_DAILY);
   const monthly = cronCadence(CRON_SCHEDULE_MONTHLY);
   const Monthly = capitalize(monthly);
@@ -224,23 +227,32 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Recovery",
         },
         {
+          // Recova's "Hourly dispute processing" (checks deadlines, fires
+          // reminders, auto-submits, cleans up). Foxhound's dispute-reminders
+          // job rides the tick; auto-submit is deliberately not built
+          // (RULES.md 5.6), and Recova's clean-up has no counterpart.
+          name: `Dispute processing every ${tick} minutes`,
+          description: `Checks dispute deadlines and fires reminders, every ${tick} minutes.`,
+          product: "Disputes",
+        },
+        {
           name: `Win-back processing every ${tick} minutes`,
           description: `Executes win-back email steps on schedule, checked every ${tick} minutes.`,
           product: "Recovery",
         },
         {
-          name: `${Nightly} expiring card alerts`,
-          description: `${Nightly}, finds every card expiring within ${EXPIRING_CARD_DAYS_AHEAD} days and emails the customer a link to Foxhound's card-update page.`,
+          name: `${CardsCadence} expiring card alerts`,
+          description: `${CardsCadence}, finds every card expiring within ${EXPIRING_CARD_DAYS_AHEAD} days and emails the customer a link to Foxhound's card-update page.`,
           product: "Recovery",
         },
         {
           name: `${Nightly} intelligence scoring`,
-          description: `Computes health scores, predictions, and alerts for every customer ${nightly}.`,
+          description: `Computes health scores and predictions for every customer ${nightly}.`,
           product: "Intelligence",
         },
         {
-          name: `${Monthly} MRR snapshots`,
-          description: `Pulls subscription data from Stripe and computes MRR, NRR, GRR, and the movement waterfall. Updated ${monthly}, on ${billingWhen}.`,
+          name: `${capitalize(daily)} MRR snapshots`,
+          description: `Pulls subscription data from Stripe and computes MRR, NRR, GRR, and the movement waterfall. Updated ${nightly}, and once right after Stripe connects.`,
           product: "Intelligence",
         },
         {
@@ -260,7 +272,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: `${Nightly} demo reset`,
-          description: `Rebuilds the demo account's data ${nightly}. The demo never touches live Stripe.`,
+          description: `Rebuilds the demo accounts' data ${nightly}. The demo never touches live Stripe.`,
           product: "Platform",
         },
         {
@@ -296,6 +308,15 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           name: "Customer health scoring",
           description:
             "0-100 score per customer from payment timing, billing changes, refunds and disputes, engagement with recovery emails, and tenure.",
+          product: "Intelligence",
+        },
+        {
+          // Recova's "7 recommendation types". The nightly scoring batch writes
+          // one per customer (ai-run.server.ts) from Recova's rules, which
+          // produce four of the seven (recommend.ts).
+          name: "4 recommendation types",
+          description:
+            "Every customer gets one: personal outreach, continue automated, continue automated (priority), or continue automated (deprioritize).",
           product: "Intelligence",
         },
         {
@@ -398,6 +419,12 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           name: "Weekly unified digest",
           description: `${digestDay} morning email: recovery stats, open disputes, and Intelligence high-risk customers. One email, all products.`,
           product: "Platform",
+        },
+        {
+          // Recova's words: REMINDER_BANDS in app/lib/disputes/notices.ts.
+          name: "Dispute deadline reminders",
+          description: "Reminder emails at 3 days and 1 day before the dispute evidence deadline.",
+          product: "Disputes",
         },
         {
           name: "List-Unsubscribe headers",
@@ -561,7 +588,13 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           name: "Submit dispute evidence",
           description:
-            "Review the drafted evidence, edit any field, and approve its submission to Stripe. The fee is stated on the button.",
+            "Review the drafted evidence, edit any field, attach files, and approve its submission to Stripe. The fee is stated on the button.",
+          product: "Disputes",
+        },
+        {
+          // Recova's words, with Foxhound's name.
+          name: "Accept dispute",
+          description: "Close a dispute without submitting evidence. No Foxhound fee on accepted disputes.",
           product: "Disputes",
         },
         {
@@ -581,12 +614,15 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Alert thresholds",
-          description: `Configure alerts on ${ALERT_METRICS.length} Intelligence metrics with your own thresholds and directions. Each breach is recorded and shown in Settings.`,
+          description: `Configure metric alerts (${ALERT_METRICS.length} metrics) with custom thresholds, directions, and channels (email or Slack).`,
           product: "Platform",
         },
         {
           name: "Email settings",
-          description: "Sender name per Stripe connection, and a test email to your own address.",
+          // Recova's "Sender name, reply-to address, and notification email
+          // per Stripe account"; Foxhound's notification email is the
+          // account's, on the notifications page, not the connection's.
+          description: "Sender name and reply-to address per Stripe connection, and a test email to your own address.",
           product: "Platform",
         },
         {
@@ -596,7 +632,12 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Merchant context",
-          description: "Industry, customer type, and MRR. Used in recovery email copy.",
+          // Recova's "Product description and ships-physical-goods flag. Used in
+          // email copy and dispute evidence." Foxhound keeps those two in
+          // Dispute settings, for evidence and triage, and its recovery email
+          // context is industry, customer type and MRR.
+          description:
+            "Industry, customer type, and MRR, used in recovery email copy. Product description and ships-physical-goods flag, used in dispute evidence.",
           product: "Recovery",
         },
         {
@@ -799,7 +840,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Demo system",
-          description: `A demo account (${DEMO_ACCOUNT_NAME}) that opens the real app read-only. ${Nightly} reset.`,
+          description: `Two demo accounts (${DEMO_BUSINESSES.map((b) => b.name).join(", ")}) that open the real app read-only. ${Nightly} reset.`,
           product: "Platform",
         },
         {

@@ -67,7 +67,7 @@ function formatAlertValue(metric: string, value: number): string {
   return String(value);
 }
 
-interface AlertMailContent {
+export interface AlertMailContent {
   fromName: string;
   subject: string;
   notice: EmailNotice;
@@ -76,7 +76,7 @@ interface AlertMailContent {
 
 /** The threshold alert (E21): Recova's fireEmail subject, sentence and button,
  *  with Foxhound's name. Pure. */
-function thresholdAlertContent(firing: AlertFiring, baseUrl: string, now: Date): AlertMailContent {
+export function thresholdAlertContent(firing: AlertFiring, baseUrl: string, now: Date): AlertMailContent {
   const label = alertMetricLabel(firing.metric);
   const subject = `Foxhound alert: ${label} ${firing.direction} threshold`;
   return {
@@ -115,7 +115,7 @@ function customerWord(count: number): string {
  * sentence was false for a score of 33; and Recova's `&mdash;` before "all
  * simultaneously" is a comma, as no em dash is ported (monthly.server.ts). Pure.
  */
-function criticalCustomersContent(count: number, baseUrl: string, now: Date): AlertMailContent {
+export function criticalCustomersContent(count: number, baseUrl: string, now: Date): AlertMailContent {
   const word = customerWord(count);
   return {
     fromName: ALERT_FROM_NAME,

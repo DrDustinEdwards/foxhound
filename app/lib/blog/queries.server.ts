@@ -1,6 +1,5 @@
-// Blog data layer (D1/Drizzle). Public reads only: the admin write path
-// (create/update/delete/duplicate a post, setPostLinks) is Phase 7's admin
-// blog editor, out of scope here. blog_posts / blog_post_links are GLOBAL
+// Blog data layer (D1/Drizzle). Public reads only: posts are written through
+// Carrel's site adapter (admin-queries.server.ts), never from here. blog_posts / blog_post_links are GLOBAL
 // tables (no account_id), so none of these queries take an accountId.
 //
 // Ported from legacy lib/blog.ts's read functions onto Drizzle/D1, filtered

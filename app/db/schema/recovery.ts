@@ -30,6 +30,12 @@ export const failedPayments = sqliteTable(
     cardBrand: text("card_brand"),
     cardCountry: text("card_country"),
     cardFunding: text("card_funding"),
+    /** The card network's advice and raw decline code from the declined
+     *  charge's outcome (migration 0049). The advice can override the decline
+     *  category (recovery/decline.ts applyNetworkAdvice), and a stored
+     *  "do_not_try_again" stops every silent retry (engine/retry-step.ts). */
+    networkAdviceCode: text("network_advice_code"),
+    networkDeclineCode: text("network_decline_code"),
     customerLtvCents: integer("customer_ltv_cents"),
     stripeProductId: text("stripe_product_id"),
     stripePriceId: text("stripe_price_id"),

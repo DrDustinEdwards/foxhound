@@ -32,6 +32,8 @@ import {
   getCustomerHealthDetail,
 } from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
+import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
+import { RecommendationBanner } from "~/components/recommendation-banner";
 
 import type { Route } from "./+types/customer";
 
@@ -53,12 +55,11 @@ import type { Route } from "./+types/customer";
 // Foxhound's engine, never Recova's: the signal cards are counted from
 // Foxhound's own tables (getCustomerActivity), the score and its color are
 // Foxhound's bands, and LTV, which nothing in Foxhound computes, says so
-// (RULES.md 2.1). Two Recova parts have nothing to read in Foxhound and are
-// not built: the IntegrityLayerBanner (Recova's Phase 1 recommendation rules;
-// Foxhound has no recommendation producer, the same halt as the customers
-// page's chip, J78 row S20) and the admin-only raw data toggle (Foxhound's
-// admin is behind Cloudflare Access, Q6, and the toggle printed raw database
-// values, RULES.md 1.5).
+// (RULES.md 2.1). The IntegrityLayerBanner is Recova's
+// rules worked out when the page loads (recommendOneCustomer), as Recova's
+// score-ssr did. The admin-only raw data toggle is not built (Foxhound's admin
+// is behind Cloudflare Access, Q6, and the toggle printed raw database values,
+// RULES.md 1.5).
 //
 // The factors list and the predictions table are Foxhound's own and HELD for
 // Dustin, as the dashboard's at-risk table is (J67): kept exactly as they
@@ -108,13 +109,16 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       predictions: detail.predictions,
     },
     activity,
+    // Recova's IntegrityLayerBanner reads the customer's recommendation. A
+    // read failure leaves the banner out rather than failing the page.
+    prediction: await recommendOneCustomer(db, accountId, detail.stripeCustomerId, nowMs).catch(() => null),
   };
 }
 
 type Loaded = Route.ComponentProps["loaderData"];
 
 export default function CustomerHealthPage({ loaderData }: Route.ComponentProps) {
-  const { customer, activity, accountName, nowMs } = loaderData;
+  const { customer, activity, accountName, nowMs, prediction } = loaderData;
   const recoveryCount = activity.recovery.failedPaymentCount;
   const hasDisputeHistory = activity.disputes.count > 0;
 
@@ -165,6 +169,9 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
 
       <div className="flex flex-col gap-5">
         <HeaderCard customer={customer} lastSeenAt={activity.lastActivityAt} nowMs={nowMs} />
+
+        {/* Recova's IntegrityLayerBanner, customers/[id]/page.tsx 133. */}
+        <RecommendationBanner prediction={prediction} surface="customer" nowMs={nowMs} className="" />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SignalCard

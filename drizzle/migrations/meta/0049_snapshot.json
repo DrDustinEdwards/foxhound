@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8cf9d914-a003-4edf-869b-1f7fb02ac137",
-  "prevId": "fd3f0dbc-b3a7-41bf-b10b-c6d67c8d9b8e",
+  "id": "b7f6a5ec-947f-4714-8a84-0c33f112092c",
+  "prevId": "d374b527-31a0-4bb6-ae3f-1b6aa75ef13d",
   "tables": {
     "audit_digest_runs": {
       "name": "audit_digest_runs",
@@ -3427,6 +3427,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "disputes_enabled": {
+          "name": "disputes_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
         "audit_lookback_days": {
           "name": "audit_lookback_days",
           "type": "integer",
@@ -4184,14 +4192,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'card_expiring'"
         }
       },
       "indexes": {
@@ -4376,6 +4376,20 @@
         },
         "card_funding": {
           "name": "card_funding",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "network_advice_code": {
+          "name": "network_advice_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "network_decline_code": {
+          "name": "network_decline_code",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

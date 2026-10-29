@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Form, Link, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
 import { dismissBanner } from "capsomer/behavior/banner";
@@ -29,6 +29,7 @@ import "~/site-header.css";
 
 import { DualRangeSlider } from "~/components/dual-range-slider";
 import { getDb } from "~/db";
+import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { formatTimeAgo } from "~/lib/date-format";
@@ -107,9 +108,8 @@ import type { Route } from "./+types/index";
 // what the button counts and only rows on screen can be selected
 // (2026-08-13); they report per payment and keep the failures selected, and
 // ask above 25 and refuse above 100 (2026-09-19); "Payments - Foxhound"
-// (2026-08-28). Recova's personal-outreach mark after a name waits for its
-// producer (J78, row S20): nothing in Foxhound writes recommended_action yet
-// (RULES.md 3.18).
+// (2026-08-28). Recova's personal-outreach mark after a name reads the action
+// the nightly scoring stores (J78).
 //
 // Every filter is in the URL and runs in the loader. Script applies a filter
 // on change, as Recova's controls do; without script the form still submits
@@ -166,10 +166,15 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     listPaymentSummaryRows(db, accountId, filterInput),
   ]);
 
-  const [previousFailureCounts, stepRows] = await Promise.all([
-    countFailuresByCustomer(db, accountId, [...new Set(result.payments.map((p) => p.stripeCustomerId))]),
+  const customerIds = [...new Set(result.payments.map((p) => p.stripeCustomerId))];
+  const [previousFailureCounts, stepRows, outreachIds] = await Promise.all([
+    countFailuresByCustomer(db, accountId, customerIds),
     listStepsForFailedPayments(db, accountId, result.payments.map((p) => p.id)),
+    // Recova's UI-GAP-04: the visible customers Intelligence flagged for
+    // personal outreach. A read failure leaves the marks off, not the page.
+    personalOutreachCustomerIds(db, accountId, customerIds).catch(() => [] as string[]),
   ]);
+  const outreach = new Set(outreachIds);
 
   // Only what the page shows reaches the browser: no Stripe ids, and a note
   // as whether there is one, since the row shows Recova's "note" chip and not
@@ -186,6 +191,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     status: p.status,
     detectedAt: p.detectedAt,
     hasNote: Boolean(p.notes?.trim()),
+    outreach: outreach.has(p.stripeCustomerId),
     priorFailures: priorFailureCount(previousFailureCounts[p.stripeCustomerId]),
     steps: paymentStepSummary(
       stepRows.filter((s) => s.failedPaymentId === p.id),
@@ -855,6 +861,15 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             <Link className="cap-table-open" to={`${BASE}/${p.id}`}>
                               {name}
                             </Link>
+                            {/* Recova's personal-outreach mark after the name (PaymentRow.tsx). */}
+                            {p.outreach ? (
+                              <TrendingUp
+                                role="img"
+                                aria-label="Intelligence: personal outreach recommended"
+                                className="h-3 w-3 text-accent-text"
+                                strokeWidth={1.5}
+                              />
+                            ) : null}
                             {p.priorFailures > 0 ? <Pill tone="warn">{p.priorFailures + 1}x failure</Pill> : null}
                             {p.hasNote ? <Pill>note</Pill> : null}
                           </span>

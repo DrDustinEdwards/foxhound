@@ -72,3 +72,36 @@ export function classifyDecline(code: string | null | undefined): DeclineCategor
 export function isRetryable(category: DeclineCategory): boolean {
   return category === "soft" || category === "network";
 }
+
+/**
+ * The most specific decline code among several readings of one failure, in the
+ * caller's order of trust. Stripe's charge carries the generic "card_declined"
+ * as its failure_code while the issuer's real reason sits in decline_code, so a
+ * generic code yields to any specific one and is kept only when nothing else
+ * was read. Pure.
+ */
+export function pickDeclineCode(candidates: (string | null | undefined)[]): string | null {
+  const present = candidates.filter((c): c is string => !!c);
+  return present.find((c) => c !== "card_declined") ?? present[0] ?? null;
+}
+
+/**
+ * Let the card network's advice code override the category where it says more
+ * than the decline code does. Only a decline the classifier would treat as
+ * retryable or unreadable (soft, network, unknown) is moved: an expired, fraud
+ * or revoked decline is already at least as strict.
+ *
+ * "do_not_try_again" takes the category the classifier gives the decline code
+ * of the same name, so it is never silently retried. "confirm_card_data" means
+ * the card details are wrong, which is the card-update path an expired card
+ * takes. "try_again_later", and anything else, changes nothing. Pure.
+ */
+export function applyNetworkAdvice(
+  category: DeclineCategory,
+  adviceCode: string | null | undefined,
+): DeclineCategory {
+  if (category !== "soft" && category !== "network" && category !== "unknown") return category;
+  if (adviceCode === "do_not_try_again") return classifyDecline("do_not_try_again");
+  if (adviceCode === "confirm_card_data") return "expired";
+  return category;
+}

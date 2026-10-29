@@ -127,5 +127,5 @@ interface EmailSendMessage {
   headers?: Record<string, string>;
 }
 interface EmailSendBinding {
-  send(message: EmailSendMessage): Promise<{ id?: string } | void>;
+  send(message: EmailSendMessage): Promise<{ id?: string; messageId?: string } | void>;
 }

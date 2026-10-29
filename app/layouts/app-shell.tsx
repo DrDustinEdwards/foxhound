@@ -34,7 +34,7 @@ import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
 import { RouteSplash } from "~/components/route-splash";
-import { businessSwitcher } from "~/components/nav/account-switcher";
+import { ACCOUNT_SWITCH_URL, businessSwitcher, DEMO_ACCOUNT_SWITCH_URL } from "~/components/nav/account-switcher";
 import {
   businessRows,
   currentRow,
@@ -277,9 +277,14 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     current: l === currentTab,
   }));
 
-  // The switchers: the business (not in the demo, whose one hardcoded account
-  // keeps the demo_ firewall as it was), then the product.
-  const business = !isDemo && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
+  // The switchers: the business, then the product. In the demo the business
+  // switcher lists the demo businesses (Teamflow, Bolt Analytics) and posts to
+  // the demo's own switch, as legacy's SiteNav.tsx passed
+  // switchAccountUrl="/api/demo/switch-account" when isDemo.
+  const business =
+    accounts.length > 0
+      ? businessSwitcher(accounts, activeAccountId, isDemo ? DEMO_ACCOUNT_SWITCH_URL : ACCOUNT_SWITCH_URL)
+      : null;
   const products: HeaderSwitcher = {
     id: "products",
     label: activeProduct.label,

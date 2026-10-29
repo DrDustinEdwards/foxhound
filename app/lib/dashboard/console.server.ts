@@ -110,7 +110,7 @@ export interface AttentionRow {
 export interface ConsoleView {
   hero: ConsoleHero;
   tiles: ConsoleTiles;
-  /** Whether the monthly sync will write this account an MRR snapshot, so the
+  /** Whether the daily sync will write this account an MRR snapshot, so the
    *  empty MRR state promises one only when it will come. */
   mrrSync: MrrSyncState;
   attention: AttentionRow[];
@@ -165,6 +165,7 @@ export async function getConsoleView(
     openDisputeRows,
     dueSoonDisputes,
     highRiskCustomers,
+    personalOutreach,
     expiringCards,
     lastAudit,
     connection,
@@ -210,16 +211,7 @@ export async function getConsoleView(
       .orderBy(disputes.evidenceDeadline)
       .limit(DISPUTE_ATTENTION_LIMIT),
     // Every high-risk customer, uncapped: the Intelligence tile counts and sums
-    // them all, as Recova's intelligenceHighRiskResult did, and the feed shows
-    // the first ATTENTION_ROWS_PER_CATEGORY by MRR.
-    //
-    // Legacy's feed row filtered on health_factors->>recommended_action =
-    // 'personal_outreach'. Nothing in Foxhound writes recommended_action: it
-    // exists only as demo seed data and as the unwritten ai_recommended_actions
-    // column, the same blocker that holds /intelligence/recommendations. So this
-    // is Foxhound's own derivation from columns that ARE populated, high-MRR
-    // customers in the at-risk health band, and the row copy says that rather
-    // than implying an engine recommended it.
+    // them all, as Recova's intelligenceHighRiskResult did.
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -238,6 +230,22 @@ export async function getConsoleView(
         ),
       )
       .orderBy(sql`${customerContext.mrrContributionCents} desc`),
+    // Recova's personal-outreach feed rows: the customers the nightly scoring
+    // flagged for personal outreach, highest MRR first, three of them.
+    db
+      .select({
+        stripeCustomerId: customerContext.stripeCustomerId,
+        customerName: customerContext.customerName,
+        customerEmail: customerContext.customerEmail,
+        mrrContributionCents: customerContext.mrrContributionCents,
+        currency: customerContext.currency,
+      })
+      .from(customerContext)
+      .where(
+        and(eq(customerContext.accountId, accountId), eq(customerContext.recommendedAction, "personal_outreach")),
+      )
+      .orderBy(sql`${customerContext.mrrContributionCents} desc`)
+      .limit(ATTENTION_ROWS_PER_CATEGORY),
     listExpiringCardAlerts(db, accountId),
     db
       .select({
@@ -344,19 +352,20 @@ export async function getConsoleView(
     });
   }
 
-  for (const c of highRisk.slice(0, ATTENTION_ROWS_PER_CATEGORY)) {
+  // Recova's buildPersonalOutreachRows.
+  for (const c of personalOutreach) {
     const label = subjectLabel(c.customerName, c.customerEmail);
     attention.push({
-      key: `at-risk-${c.stripeCustomerId}`,
+      key: `outreach-${c.stripeCustomerId}`,
       tone: "warning",
       subject: label,
-      detail: "at risk, worth a personal reach out",
+      detail: "reach out personally",
       emphasis: null,
       mrrCents: c.currency ? (c.mrrContributionCents ?? null) : null,
       mrrCurrency: c.currency ?? null,
       href: `/intelligence/customers/${c.stripeCustomerId}`,
-      ariaLabel: `Open customer ${label}`,
-      product: "Intelligence",
+      ariaLabel: `Open customer ${label} for outreach`,
+      product: "Recovery + Intelligence",
     });
   }
 
@@ -382,7 +391,7 @@ export async function getConsoleView(
 
   const audit = lastAudit[0] ?? null;
 
-  // The same three conditions the monthly sync applies before it writes a
+  // The same three conditions the daily sync applies before it writes a
   // snapshot (sync.server.ts: accountProcessingEligible, then a connection).
   const account = accountRow[0] ?? null;
   const mrrSync: MrrSyncState = account?.cancelledAt

@@ -40,11 +40,13 @@ import { ALERT_METRIC_LABELS } from "~/lib/settings/alert-metrics";
 // email and by Slack, all in intelligence_notification_preferences. Foxhound's
 // schema has that table; only account deletion touches it. Foxhound sends no
 // weekly Intelligence email or Slack post (the narrative is nightly and stays
-// on the dashboard and Reports), and its alert evaluator records breaches in
-// alert_history without sending anything (app/lib/intelligence/alerts.ts).
+// on the dashboard and Reports). Health alerts are set on /settings/alerts
+// (high-risk customers, Intelligence MRR at risk), sent by email or Slack.
 // A switch here would save a choice nothing honors, so the page names each
 // delivery as not built, where Recova had its checkbox, and points at the
-// nearest thing that is built. With no control there is nothing to save, so
+// nearest thing that is built: for the weekly summary, the weekly digest's
+// top at-risk list (digest-email.ts) and the Recommendations page, which the
+// nightly scoring batch fills (ai-run.server.ts writes recommended_action). With no control there is nothing to save, so
 // there is no SaveBar and no action. The day a reader exists, the control goes
 // here.
 //
@@ -107,7 +109,7 @@ export default function IntelligenceSettings() {
       <section className="cap-panel">
         <div className="cap-panel-body">
           <p className="text-label text-text-secondary">
-            Foxhound does not deliver Intelligence outputs to you yet, so there is nothing to set here.
+            There is nothing to set on this page yet. Each row says where the nearest thing Foxhound does deliver is set.
           </p>
           <ul className="mt-2">
             <DeliveryRow first label="Weekly MRR and health summary, by email or Slack">
@@ -119,13 +121,22 @@ export default function IntelligenceSettings() {
               <Link to="/intelligence/reports" className={linkClass}>
                 Reports
               </Link>
-              .
+              . The weekly digest, switched on under{" "}
+              <Link to="/settings/notifications" className={linkClass}>
+                Notifications
+              </Link>
+              , emails your top at-risk customers, and{" "}
+              <Link to="/intelligence/recommendations" className={linkClass}>
+                Recommendations
+              </Link>{" "}
+              lists the customers who need you.
             </DeliveryRow>
             <DeliveryRow label="Alert when a customer's health score drops below a threshold, by email or Slack">
               <Link to="/settings/alerts" className={linkClass}>
                 Settings and Alerts
               </Link>{" "}
-              can alert on {ALERT_METRIC_LABELS.health_score_avg}, across your scored customers. Foxhound records each breach on that page and emails it to your notification address; it does not post alerts to Slack.
+              can alert on {ALERT_METRIC_LABELS.high_risk_customers_count} and{" "}
+              {ALERT_METRIC_LABELS.intelligence_mrr_at_risk_cents}, by email or Slack. Foxhound records each breach on that page.
             </DeliveryRow>
           </ul>
         </div>

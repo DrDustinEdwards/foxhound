@@ -17,6 +17,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 //   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
+//   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -122,6 +123,13 @@ export type WebhookIntent =
       invoiceDefault: string | null;
       subscription: string | { default_payment_method: string | null } | null;
     }
+  | {
+      /** payment_method.automatically_updated: the customer's card was
+       *  refreshed by Stripe's card updater, so an active failed payment is
+       *  retried on it now. */
+      kind: "card_auto_updated";
+      customerId: string;
+    }
   | { kind: "ignore"; reason: string };
 
 function asId(ref: string | { id?: string } | null | undefined): string | null {
@@ -133,16 +141,15 @@ function asId(ref: string | { id?: string } | null | undefined): string | null {
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   switch (event.type) {
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice & {
-        charge?: string | { failure_code?: string } | null;
-      };
+      const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };
       // $0 invoices are not recoverable revenue; skip (legacy parity).
       if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
-      const declineCode =
-        invoice.last_finalization_error?.decline_code ??
-        (typeof invoice.charge === "object" ? invoice.charge?.failure_code : undefined) ??
-        null;
+      // Only what the event carries, which on the pinned API version is a
+      // finalization failure at most (the invoice has no `charge`). The real
+      // payment decline is read off the latest charge in handleIntake, and
+      // this code is its fallback.
+      const declineCode = invoice.last_finalization_error?.decline_code ?? null;
       return {
         kind: "intake",
         // Stripe sends `next_payment_attempt` as a unix timestamp while it
@@ -286,6 +293,15 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         card: null,
         paymentMethodId: pmId,
       };
+    }
+    case "payment_method.automatically_updated": {
+      // Stripe's card updater replaced the card details (a new expiry or
+      // number from the network). Whether the customer has a payment to retry
+      // is the processor's question.
+      const paymentMethod = event.data.object as Stripe.PaymentMethod;
+      const customerId = asId(paymentMethod.customer);
+      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      return { kind: "card_auto_updated", customerId };
     }
     case "invoice.marked_uncollectible": {
       const invoice = event.data.object as Stripe.Invoice;

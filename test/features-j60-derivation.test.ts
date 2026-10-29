@@ -11,6 +11,7 @@ vi.mock("~/lib/constants", async (importOriginal) => {
     CRON_SCHEDULE_DAILY: "0 3 * * 2",
     CRON_SCHEDULE_MONTHLY: "0 4 * * 3",
     CRON_SCHEDULE_MONTHLY_AUDIT: "0 9 * * 4",
+    CRON_SCHEDULE_EXPIRING_CARDS: "0 9 * * 5",
     HEALTH_SCORE_AT_RISK_THRESHOLD: 60,
   };
 });

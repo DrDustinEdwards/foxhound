@@ -72,7 +72,7 @@ async function resendSender(
  * not the engine's "You're receiving this from" sentence, because Recova's
  * resend wraps the stored body in its route's own shell. Pure.
  */
-function resendFooterNote(senderName: string | null | undefined, year: number): string {
+export function resendFooterNote(senderName: string | null | undefined, year: number): string {
   return `\u00a9 ${year} ${footerSenderName(senderName)}`;
 }
 

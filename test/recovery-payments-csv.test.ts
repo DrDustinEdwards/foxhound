@@ -30,6 +30,8 @@ function fakeRow(overrides: Partial<FailedPaymentRow> = {}): FailedPaymentRow {
     cardBrand: null,
     cardCountry: null,
     cardFunding: null,
+    networkAdviceCode: null,
+    networkDeclineCode: null,
     customerLtvCents: null,
     stripeProductId: null,
     stripePriceId: null,
