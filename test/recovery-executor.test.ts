@@ -86,6 +86,7 @@ describe("retry executor: live charge seam", () => {
     const calls: { id: string; options: unknown }[] = [];
     const stripe = {
       invoices: {
+        retrieve: async () => ({ status: "open", next_payment_attempt: null }),
         pay: async (id: string, _params: unknown, options: { idempotencyKey?: string }) => {
           calls.push({ id, options });
           return { status: "paid" };
@@ -102,6 +103,7 @@ describe("retry executor: live charge seam", () => {
   it("classifies a thrown Stripe error as a threw attempt", async () => {
     const stripe = {
       invoices: {
+        retrieve: async () => ({ status: "open", next_payment_attempt: null }),
         pay: async () => {
           throw { type: "StripeCardError" };
         },
@@ -120,6 +122,7 @@ describe("retry executor: orchestration + exactly-once", () => {
       payInvoice: async () => ({ invoiceStatus: "paid" }),
       persistPatch: async () => {
         persisted += 1;
+        return true;
       },
       reconcileRecovery: async (_env, input) => {
         recorded.push(input);
@@ -137,7 +140,7 @@ describe("retry executor: orchestration + exactly-once", () => {
     const recorded: RetryReconciliationInput[] = [];
     const res = await executeRetryStep({} as Env, retryCtx(), {
       payInvoice: async () => ({ invoiceStatus: "open" }),
-      persistPatch: async () => {},
+      persistPatch: async () => true,
       reconcileRecovery: async (_env, input) => {
         recorded.push(input);
         return true;

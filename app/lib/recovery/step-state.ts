@@ -1,4 +1,5 @@
-import { SEND_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } from "~/lib/constants";
+import { type DeclineCategory, SEND_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } from "~/lib/constants";
+import { applyNetworkAdvice, classifyDecline, pickDeclineCode } from "~/lib/recovery/decline";
 import { isEmailStep } from "~/lib/recovery/schedule";
 
 // The recovery_steps send-attempt state machine (SCHEMA.md: attempt_count,
@@ -121,7 +122,17 @@ export type RetryResult =
   | "retry_skipped_dispute_lost"
   /** A retry not attempted because the declined charge carried the network
    *  advice code do_not_try_again (engine/retry-step.ts). Terminal: no charge. */
-  | "retry_skipped_do_not_try_again";
+  | "retry_skipped_do_not_try_again"
+  /** A retry not attempted because the row's decline is one no retry can fix
+   *  (fraud, revoked, unknown), as a declined earlier retry can leave it
+   *  (engine/retry-step.ts). Terminal: no charge. */
+  | "retry_skipped_hard_decline"
+  /** A retry not attempted because Stripe reported the invoice paid, void or
+   *  otherwise not payable when read just before the charge. Terminal. */
+  | "retry_skipped_invoice_closed"
+  /** A retry not attempted because Stripe still has its own attempt scheduled
+   *  on the invoice: Foxhound's retries wait for Stripe to stop. Terminal. */
+  | "retry_skipped_stripe_retrying";
 
 /** Classify a completed invoices.pay call by the resulting invoice status. */
 export function classifyRetryStatus(invoiceStatus: string | null | undefined): RetryResult {
@@ -132,6 +143,47 @@ export function classifyRetryStatus(invoiceStatus: string | null | undefined): R
 export function classifyRetryError(err: unknown): RetryResult {
   const type = (err as { type?: string } | null)?.type;
   return type === "StripeCardError" ? "retry_card_declined" : "retry_error";
+}
+
+/**
+ * Stripe refused the charge request because another request with the same
+ * idempotency key is in flight (or was sent with other parameters, which a
+ * retry step never does). Another run is charging this step, so this one
+ * writes nothing.
+ */
+export function isIdempotencyConflict(err: unknown): boolean {
+  const e = err as { type?: string; code?: string } | null;
+  return e?.type === "StripeIdempotencyError" || e?.code === "idempotency_key_in_use";
+}
+
+/** What a declined retry's card error says, classified as intake classifies a
+ *  charge: the specific decline code over the generic one, then the network
+ *  advice over the code (decline.ts). */
+export interface RetryDeclineReading {
+  declineCode: string | null;
+  declineCategory: DeclineCategory;
+  networkAdviceCode: string | null;
+  networkDeclineCode: string | null;
+}
+
+/** The decline a thrown card error carries, or null for any other error. */
+export function readRetryDecline(err: unknown): RetryDeclineReading | null {
+  const e = err as {
+    type?: string;
+    code?: string;
+    decline_code?: string;
+    network_advice_code?: string;
+    network_decline_code?: string;
+  } | null;
+  if (e?.type !== "StripeCardError") return null;
+  const declineCode = pickDeclineCode([e.decline_code, e.code]);
+  const networkAdviceCode = e.network_advice_code ?? null;
+  return {
+    declineCode,
+    declineCategory: applyNetworkAdvice(classifyDecline(declineCode), networkAdviceCode),
+    networkAdviceCode,
+    networkDeclineCode: e.network_decline_code ?? null,
+  };
 }
 
 export function isRetrySucceeded(result: RetryResult): boolean {

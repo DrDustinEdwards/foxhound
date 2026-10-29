@@ -15,6 +15,10 @@ const harness = vi.hoisted(() => ({
   db: null as unknown,
   paymentIntent: null as unknown,
   paid: [] as { invoiceId: string; idempotencyKey: string }[],
+  /** The invoice as invoices.retrieve returns it now. */
+  invoice: { status: "open", next_payment_attempt: null } as { status: string; next_payment_attempt: number | null },
+  /** What invoices.pay throws, when it should. */
+  payError: null as unknown,
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -49,8 +53,10 @@ vi.mock("~/lib/stripe/client", () => ({
       },
     },
     invoices: {
+      retrieve: async () => harness.invoice,
       pay: async (invoiceId: string, _params: unknown, opts: { idempotencyKey: string }) => {
         harness.paid.push({ invoiceId, idempotencyKey: opts.idempotencyKey });
+        if (harness.payError) throw harness.payError;
         return { status: "open" };
       },
     },
@@ -114,6 +120,8 @@ function cardUpdated(eventId: string): Stripe.Event {
 beforeEach(() => {
   harness.paymentIntent = null;
   harness.paid = [];
+  harness.invoice = { status: "open", next_payment_attempt: null };
+  harness.payError = null;
 });
 
 describe("intake reads the decline off the latest charge", () => {
@@ -185,8 +193,8 @@ describe("payment_method.automatically_updated retries on the new card now", () 
     });
   }
 
-  async function stepResult(db: Awaited<ReturnType<typeof seed>>) {
-    const [step] = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.id, "step_retry"));
+  async function stepResult(db: Awaited<ReturnType<typeof seed>>, id = "step_retry") {
+    const [step] = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.id, id));
     return step.result;
   }
 
@@ -222,5 +230,53 @@ describe("payment_method.automatically_updated retries on the new card now", () 
     await processConnectedWebhook({} as Env, cardUpdated("evt_cau"), AT);
     expect(harness.paid).toEqual([]);
     expect(await stepResult(db2)).toBe("retry_skipped_dispute_lost");
+  });
+
+  it("a declined retry stores its own decline, and a hard one stops the later retries", async () => {
+    const db = await seed();
+    await seedPayment(db);
+    await db.insert(schema.recoverySteps).values({
+      id: "step_retry_2",
+      failedPaymentId: "fp_1",
+      accountId: ACCOUNT,
+      stepType: "retry_day21",
+      scheduledAt: new Date(Date.now() + 40 * 86_400_000),
+    });
+    harness.payError = { type: "StripeCardError", code: "card_declined", decline_code: "stolen_card" };
+
+    await processConnectedWebhook({} as Env, cardUpdated("evt_cau_1"), AT);
+    expect(await stepResult(db)).toBe("retry_card_declined");
+    const [payment] = await db.select().from(schema.failedPayments);
+    expect([payment.declineCode, payment.declineCategory]).toEqual(["stolen_card", "fraud"]);
+
+    await processConnectedWebhook({} as Env, cardUpdated("evt_cau_2"), AT);
+    expect(harness.paid).toHaveLength(1);
+    expect(await stepResult(db, "step_retry_2")).toBe("retry_skipped_hard_decline");
+  });
+
+  it("charges only an invoice Stripe has finished with, and a void one ends recovery", async () => {
+    const db = await seed();
+    await seedPayment(db);
+    harness.invoice = { status: "open", next_payment_attempt: 1_900_000_000 };
+    await processConnectedWebhook({} as Env, cardUpdated("evt_cau_1"), AT);
+    expect(await stepResult(db)).toBe("retry_skipped_stripe_retrying");
+
+    const db2 = await seed();
+    await seedPayment(db2);
+    harness.invoice = { status: "void", next_payment_attempt: null };
+    await processConnectedWebhook({} as Env, cardUpdated("evt_cau_2"), AT);
+    expect(harness.paid).toEqual([]);
+    expect(await stepResult(db2)).toBe("retry_skipped_invoice_closed");
+    const [payment] = await db2.select().from(schema.failedPayments);
+    expect(payment.status).toBe("cancelled");
+  });
+
+  it("leaves the step pending when another run holds the charge's idempotency key", async () => {
+    const db = await seed();
+    await seedPayment(db);
+    harness.payError = { type: "StripeIdempotencyError" };
+    await processConnectedWebhook({} as Env, cardUpdated("evt_cau"), AT);
+    const [step] = await db.select().from(schema.recoverySteps);
+    expect([step.executedAt, step.result]).toEqual([null, null]);
   });
 });
