@@ -95,6 +95,7 @@ const ALL_TYPES = [
   "winback_step2",
   "winback_step3",
   "expiring_card",
+  "expiring_card_no_payment_method",
   "recovery_resend",
   "settings_test",
   "weekly_digest",

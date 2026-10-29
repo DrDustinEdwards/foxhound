@@ -1,5 +1,5 @@
 import { DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import type { disputeApprovals, disputeEvidence, disputes } from "~/db";
+import type { disputeApprovals, disputeBalanceTransactions, disputeEvidence, disputes, earlyFraudWarnings } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
 // Disputes seed (TASK-foxhound-demo-data-engine.md Phase 3): the legacy
@@ -26,12 +26,17 @@ import { disputeFeeCents } from "~/lib/billing/fees";
 export type DisputeInsert = typeof disputes.$inferInsert;
 type DisputeEvidenceInsert = typeof disputeEvidence.$inferInsert;
 type DisputeApprovalInsert = typeof disputeApprovals.$inferInsert;
+type DisputeBalanceTransactionInsert = typeof disputeBalanceTransactions.$inferInsert;
 
 export interface DisputesSeedResult {
   disputes: DisputeInsert[];
   disputeEvidence: DisputeEvidenceInsert[];
   disputeApprovals: DisputeApprovalInsert[];
+  disputeBalanceTransactions: DisputeBalanceTransactionInsert[];
 }
+
+/** Stripe's dispute fee in the demo's funds entries: its standard US fee. */
+const DEMO_STRIPE_DISPUTE_FEE_CENTS = 1500;
 
 export interface DisputeSpec {
   id: string;
@@ -56,6 +61,9 @@ export interface DisputeSpec {
   createdDaysAgo: number;
   /** null = evidence deadline still in the future (open dispute). */
   resolvedDaysAgo: number | null;
+  /** Stripe's status, when it is not intake's needs_response: an inquiry
+   *  carries warning_needs_response. */
+  stripeStatus?: string;
 }
 
 export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
@@ -138,6 +146,9 @@ export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
     triageRecommendation: "fight",
     triageConfidence: 74,
     triageReasoning: "Subscription dispute with prior payment history.",
+    // The demo's inquiry: the issuer is asking before any chargeback, so
+    // Stripe has moved no money for it.
+    stripeStatus: "warning_needs_response",
     priorChargesCount: 2,
     priorChargesTotal: 17800,
     avsResult: "pass",
@@ -326,6 +337,7 @@ export function buildDisputesSeed(
   const disputeRows: DisputeInsert[] = [];
   const evidenceRows: DisputeEvidenceInsert[] = [];
   const approvalRows: DisputeApprovalInsert[] = [];
+  const fundsRows: DisputeBalanceTransactionInsert[] = [];
 
   for (const spec of specs) {
     const createdAt = ago(spec.createdDaysAgo);
@@ -350,7 +362,7 @@ export function buildDisputesSeed(
       // Stripe dispute status at charge.dispute.created and never touches it
       // again on resolution (only `state` advances), so every seeded row keeps
       // its intake-time status regardless of outcome.
-      status: "needs_response",
+      status: spec.stripeStatus ?? "needs_response",
       outcome: spec.state === "resolved_won" ? "won" : spec.state === "resolved_lost" ? "lost" : null,
       outcomeAmountCents: won ? spec.amountCents : null,
       evidenceDeadline: resolvedAt ? new Date(resolvedAt.getTime() - 7 * DAY_MS) : new Date(now.getTime() + 10 * DAY_MS),
@@ -398,6 +410,39 @@ export function buildDisputesSeed(
       );
     }
 
+    // Stripe withdraws a chargeback's amount and its dispute fee when the
+    // dispute opens, and reinstates the amount on a win. An inquiry moves no
+    // money.
+    if (!spec.stripeStatus?.startsWith("warning_")) {
+      const stripeDisputeId = `dstripe_dp_${spec.id}`;
+      fundsRows.push({
+        id: `${spec.id}_bt_withdrawn`,
+        accountId,
+        stripeDisputeId,
+        stripeBalanceTransactionId: `dstripe_txn_${spec.id}_withdrawn`,
+        kind: "withdrawn",
+        amountCents: -spec.amountCents,
+        feeCents: DEMO_STRIPE_DISPUTE_FEE_CENTS,
+        currency: "usd",
+        occurredAt: createdAt,
+        createdAt,
+      });
+      if (won && resolvedAt) {
+        fundsRows.push({
+          id: `${spec.id}_bt_reinstated`,
+          accountId,
+          stripeDisputeId,
+          stripeBalanceTransactionId: `dstripe_txn_${spec.id}_reinstated`,
+          kind: "reinstated",
+          amountCents: spec.amountCents,
+          feeCents: 0,
+          currency: "usd",
+          occurredAt: resolvedAt,
+          createdAt: resolvedAt,
+        });
+      }
+    }
+
     if (spec.foxhoundSubmitted && approvedAt) {
       approvalRows.push({
         id: `${spec.id}_approval`,
@@ -410,5 +455,42 @@ export function buildDisputesSeed(
     }
   }
 
-  return { disputes: disputeRows, disputeEvidence: evidenceRows, disputeApprovals: approvalRows };
+  return {
+    disputes: disputeRows,
+    disputeEvidence: evidenceRows,
+    disputeApprovals: approvalRows,
+    disputeBalanceTransactions: fundsRows,
+  };
+}
+
+type EarlyFraudWarningInsert = typeof earlyFraudWarnings.$inferInsert;
+
+/** Four early fraud warnings on Teamflow customers: three still open, one the
+ *  merchant refunded. No stripe connection is referenced, as with the disputes. */
+export function buildEarlyFraudWarningsSeed(accountId: string, now: Date): EarlyFraudWarningInsert[] {
+  const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
+  const specs = [
+    { n: 1, name: "Northwind Labs", email: "ap@northwind-labs.demo", cents: 29900, type: "made_with_stolen_card", days: 1, refunded: false },
+    { n: 2, name: "Lumen Studio", email: "finance@lumen-studio.demo", cents: 14900, type: "unauthorized_use_of_card", days: 3, refunded: false },
+    { n: 3, name: null, email: "j.ortega@mailbox.demo", cents: 4900, type: "card_never_received", days: 6, refunded: false },
+    { n: 4, name: "Cobalt Freight", email: "billing@cobalt-freight.demo", cents: 9900, type: "made_with_lost_card", days: 12, refunded: true },
+  ];
+  return specs.map((s) => ({
+    id: `${accountId}_efw_${s.n}`,
+    accountId,
+    stripeWarningId: `dstripe_issfr_${s.n}`,
+    stripeChargeId: `dstripe_ch_efw_${s.n}`,
+    stripePaymentIntentId: `dstripe_pi_efw_${s.n}`,
+    stripeCustomerId: `cus_teamflow_efw_${s.n}`,
+    customerEmail: s.email,
+    customerName: s.name,
+    fraudType: s.type,
+    actionable: !s.refunded,
+    amountCents: s.cents,
+    currency: "usd",
+    createdAt: ago(s.days),
+    receivedAt: ago(s.days),
+    refundedAt: s.refunded ? ago(s.days - 1) : null,
+    stripeRefundId: s.refunded ? `dstripe_re_efw_${s.n}` : null,
+  }));
 }

@@ -1,7 +1,7 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, or } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { disputes, getDb } from "~/db";
+import { disputeBalanceTransactions, disputes, getDb } from "~/db";
 import { getUnpricedBillableWins } from "~/db/billable";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
 import { disputeFeeCents } from "~/lib/billing/fees";
@@ -63,6 +63,89 @@ export interface DisputeFeePricingResult {
   failed: number;
   notified: number;
   errors: string[];
+  /** Fees priced in the last day whose basis disagrees with what Stripe
+   *  withdrew (checkPricedFeesAgainstStripe). Logged only. */
+  mismatched: number;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * THE SELF-CHECK against what Stripe actually moved. A won dispute's fee is
+ * priced on disputes.amount_cents; Stripe's charge.dispute.funds_withdrawn
+ * balance transactions (dispute_balance_transactions, dispute-lifecycle.ts)
+ * record the amount it really took from the merchant, and its own dispute fee.
+ * For every win priced in the last day (resolved in it, or priced by this cron
+ * in it), when Stripe's withdrawal is in the fee's currency and its amount
+ * differs from the amount the fee was priced on, a structured warning is
+ * logged. It changes no money and sends nothing: a mismatch is for a person to
+ * read. A withdrawal in another (settlement) currency cannot be compared and is
+ * skipped. Stripe's own dispute fee is carried in the log for context; it is
+ * not Foxhound's fee and is never compared to it.
+ */
+export async function checkPricedFeesAgainstStripe(env: Env, now: Date): Promise<number> {
+  const since = new Date(now.getTime() - DAY_MS);
+  const rows = await getDb(env)
+    .select({
+      id: disputes.id,
+      accountId: disputes.accountId,
+      stripeDisputeId: disputes.stripeDisputeId,
+      pricedOnCents: disputes.amountCents,
+      pricedFeeCents: disputes.resolvedFeeCents,
+      feeCurrency: disputes.resolvedFeeCurrency,
+      withdrawnCents: disputeBalanceTransactions.amountCents,
+      stripeDisputeFeeCents: disputeBalanceTransactions.feeCents,
+      withdrawnCurrency: disputeBalanceTransactions.currency,
+    })
+    .from(disputes)
+    .innerJoin(
+      disputeBalanceTransactions,
+      and(
+        eq(disputeBalanceTransactions.accountId, disputes.accountId),
+        eq(disputeBalanceTransactions.stripeDisputeId, disputes.stripeDisputeId),
+        eq(disputeBalanceTransactions.kind, "withdrawn"),
+      ),
+    )
+    .where(
+      and(
+        eq(disputes.state, "resolved_won"),
+        isNotNull(disputes.resolvedFeeCents),
+        or(gte(disputes.resolvedAt, since), gte(disputes.resolvedFeeRateAt, since)),
+      ),
+    );
+
+  // A dispute can carry more than one withdrawal; the check is on their total.
+  const byDispute = new Map<string, (typeof rows)[number] & { withdrawnTotal: number; stripeFeeTotal: number }>();
+  for (const row of rows) {
+    if (row.withdrawnCurrency.toLowerCase() !== (row.feeCurrency ?? "").toLowerCase()) continue;
+    const seen = byDispute.get(row.id);
+    if (seen) {
+      seen.withdrawnTotal += Math.abs(row.withdrawnCents);
+      seen.stripeFeeTotal += row.stripeDisputeFeeCents;
+    } else {
+      byDispute.set(row.id, { ...row, withdrawnTotal: Math.abs(row.withdrawnCents), stripeFeeTotal: row.stripeDisputeFeeCents });
+    }
+  }
+
+  let mismatched = 0;
+  for (const d of byDispute.values()) {
+    if (d.withdrawnTotal === d.pricedOnCents) continue;
+    mismatched += 1;
+    console.warn(
+      JSON.stringify({
+        event: "dispute_fee_stripe_mismatch",
+        accountId: d.accountId,
+        disputeId: d.id,
+        stripeDisputeId: d.stripeDisputeId,
+        currency: d.feeCurrency,
+        pricedFeeCents: d.pricedFeeCents,
+        pricedOnCents: d.pricedOnCents,
+        stripeWithdrawnCents: d.withdrawnTotal,
+        stripeDisputeFeeCents: d.stripeFeeTotal,
+      }),
+    );
+  }
+  return mismatched;
 }
 
 export async function priceUnpricedDisputeFees(
@@ -71,7 +154,7 @@ export async function priceUnpricedDisputeFees(
   cronRunId: string | null = null,
 ): Promise<DisputeFeePricingResult> {
   const wins = await getUnpricedBillableWins(getDb(env), now.getTime(), DISPUTE_FEE_PRICING_LIMIT);
-  const result: DisputeFeePricingResult = { priced: 0, failed: 0, notified: 0, errors: [] };
+  const result: DisputeFeePricingResult = { priced: 0, failed: 0, notified: 0, errors: [], mismatched: 0 };
 
   for (const win of wins) {
     let cap: ResolvedDisputeCap;
@@ -107,12 +190,21 @@ export async function priceUnpricedDisputeFees(
     if (notice.kind === "sent" && notice.result.status === "sent") result.notified += 1;
   }
 
+  // After pricing, so a fee this run just stored is checked too. A failed
+  // check must not fail the pricing it follows.
+  try {
+    result.mismatched = await checkPricedFeesAgainstStripe(env, now);
+  } catch (err) {
+    console.error("dispute fee stripe check failed:", err instanceof Error ? err.message : "unknown error");
+  }
+
   return result;
 }
 
 /** The cron_run_history message. */
 export function describeDisputeFeePricing(result: DisputeFeePricingResult): string {
-  return `${result.priced} dispute fees priced, ${result.notified} merchants told, ${result.failed} still unpriced`;
+  const base = `${result.priced} dispute fees priced, ${result.notified} merchants told, ${result.failed} still unpriced`;
+  return result.mismatched > 0 ? `${base}, ${result.mismatched} disagree with Stripe's withdrawal` : base;
 }
 
 /** An alert while any win stays unpriced, so a quote that keeps failing is

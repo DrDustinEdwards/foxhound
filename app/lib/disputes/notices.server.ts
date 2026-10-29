@@ -109,11 +109,13 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
   return rows[0] ?? null;
 }
 
-function appUrl(env: Env, path: string): string {
+export function appUrl(env: Env, path: string): string {
   return `${env.BETTER_AUTH_URL ?? ""}${path}`;
 }
 
-async function send(
+/** Hand one merchant notice to the send path. Also used by the early fraud
+ *  warning notice (./fraud-warnings.server.ts), which is the same kind of mail. */
+export async function send(
   env: Env,
   accountId: string,
   to: string,

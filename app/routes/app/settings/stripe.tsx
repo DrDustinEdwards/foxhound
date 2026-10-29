@@ -17,7 +17,8 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { listAccountConnections } from "~/lib/settings/queries.server";
+import { listAccountConnections, listConnectionHealth } from "~/lib/settings/queries.server";
+import { currentHealthProblems, healthProblemLines, STRIPE_DASHBOARD_URL } from "~/lib/stripe/account-health";
 import { disconnectConnection, findLiveConnection } from "~/lib/admin/merchant-cancel.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { disconnectFeedback, type DisconnectResult } from "~/lib/settings/stripe-disconnect-feedback";
@@ -55,13 +56,28 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const connections = await listAccountConnections(db, auth.membership.accountId);
+  const [connections, health] = await Promise.all([
+    listAccountConnections(db, auth.membership.accountId),
+    listConnectionHealth(db, auth.membership.accountId),
+  ]);
+  // The Stripe account health warning: the sentences the notice email sends,
+  // for every problem the stored account.updated state shows now. Empty when
+  // Stripe reported none, or has not reported at all; a deadline with no
+  // problem is not one.
+  const warnings = new Map(
+    health.map((h) => {
+      const problems = currentHealthProblems(h);
+      return [h.id, problems.length > 0 ? healthProblemLines(problems, h) : []] as const;
+    }),
+  );
   return {
     // Live connections drive the list; a disconnected one is history, and no
     // longer counts as the primary (APPROVED-DIFFERENCES, "yes", 2026-09-19).
     // Recova has one empty state, so nothing needs to know whether the
     // account was ever connected.
-    connections: connections.filter((c) => !c.disconnectedAt),
+    connections: connections
+      .filter((c) => !c.disconnectedAt)
+      .map((c) => ({ ...c, healthWarning: warnings.get(c.id) ?? [] })),
   };
 }
 
@@ -152,6 +168,8 @@ type Connection = {
   name: string | null;
   stripeUserId: string;
   connectedAt: Date | null;
+  /** The Stripe account health sentences, empty when there is nothing to say. */
+  healthWarning?: string[];
 };
 
 /**
@@ -254,6 +272,21 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
                         ) : null}
                       </div>
                     </div>
+                    {conn.healthWarning?.length ? (
+                      <div className="mt-3">
+                        <Alert
+                          tone="warn"
+                          title="Your Stripe account needs attention."
+                          action={
+                            <a href={STRIPE_DASHBOARD_URL} className="cap-btn" target="_blank" rel="noreferrer">
+                              Open Stripe dashboard
+                            </a>
+                          }
+                        >
+                          {conn.healthWarning.join(" ")}
+                        </Alert>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );

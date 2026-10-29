@@ -20,8 +20,10 @@ import {
   customerContext,
   customerNotes,
   disputeApprovals,
+  disputeBalanceTransactions,
   disputeEvidence,
   disputes,
+  earlyFraudWarnings,
   emailDeadLetters,
   emailSends,
   emailSuppressions,
@@ -191,6 +193,10 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     db.delete(winBackSteps).where(inArray(winBackSteps.id, winBackStepsOfAccount)),
     db.delete(winBackSequences).where(eq(winBackSequences.accountId, accountId)),
 
+    // ---- early fraud warnings: never billable, so none of it is evidence.
+    // Deleted before the failed payments a warning can point at.
+    db.delete(earlyFraudWarnings).where(eq(earlyFraudWarnings.accountId, accountId)),
+
     // ---- recovery steps and failed payments: kept for recovered payments only.
     db
       .delete(recoverySteps)
@@ -239,6 +245,9 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     // by Foxhound, approved: app/db/billable.ts's predicate without the run
     // date), is kept with its approval. Drafts, open and lost disputes are not.
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, accountId)),
+    // Stripe's own balance transactions for the disputes: Stripe's ledger,
+    // not evidence of a Foxhound fee (the kept dispute row is).
+    db.delete(disputeBalanceTransactions).where(eq(disputeBalanceTransactions.accountId, accountId)),
     db.delete(disputeApprovals).where(
       and(
         eq(disputeApprovals.accountId, accountId),

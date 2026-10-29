@@ -120,10 +120,11 @@ describe("classifyStripeEvent", () => {
     expect(
       classifyStripeEvent(event("charge.dispute.closed", { id: "dp_2", status: "lost" })),
     ).toEqual({ kind: "dispute_resolved", stripeDisputeId: "dp_2", won: false });
-    // An inquiry closed without ever becoming a real dispute is not a chargeback outcome.
+    // An inquiry closed without ever becoming a real dispute is not a chargeback
+    // outcome: it closes the inquiry, never won or lost.
     expect(
       classifyStripeEvent(event("charge.dispute.closed", { id: "dp_3", status: "warning_closed" })),
-    ).toEqual({ kind: "ignore", reason: "dispute_not_resolved" });
+    ).toEqual({ kind: "inquiry_closed", stripeDisputeId: "dp_3" });
   });
 });
 

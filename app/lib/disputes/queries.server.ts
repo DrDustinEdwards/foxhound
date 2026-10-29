@@ -2,8 +2,17 @@ import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
-import { accounts, customerContext, disputeApprovals, disputeEvidence, disputes, stripeConnections } from "~/db";
+import {
+  accounts,
+  customerContext,
+  disputeApprovals,
+  disputeBalanceTransactions,
+  disputeEvidence,
+  disputes,
+  stripeConnections,
+} from "~/db";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
+import type { DisputeFundsEntry } from "~/lib/disputes/timeline";
 import { approveAndSubmit, hashEvidence, type ApproveAndSubmitResult } from "~/lib/disputes/approval";
 import {
   buildPendingApprovalBatch,
@@ -50,6 +59,8 @@ export interface DisputeDetail {
   dispute: DisputeRow;
   evidence: DisputeEvidenceRow[];
   approval: DisputeApprovalRow | null;
+  /** The money Stripe withdrew and reinstated, oldest first. */
+  funds: DisputeFundsEntry[];
 }
 
 /** The full review-and-sign view for one dispute, scoped to the account. Null
@@ -67,7 +78,7 @@ export async function getDisputeDetail(
   const dispute = rows[0];
   if (!dispute) return null;
 
-  const [evidence, approvals] = await Promise.all([
+  const [evidence, approvals, funds] = await Promise.all([
     // Oldest first, then by id: a fixed order, so the page, the draft save and
     // the Stripe payload all take the same row if a field ever has two.
     db
@@ -79,9 +90,25 @@ export async function getDisputeDetail(
       .select()
       .from(disputeApprovals)
       .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId))),
+    db
+      .select({
+        kind: disputeBalanceTransactions.kind,
+        amountCents: disputeBalanceTransactions.amountCents,
+        feeCents: disputeBalanceTransactions.feeCents,
+        currency: disputeBalanceTransactions.currency,
+        occurredAt: disputeBalanceTransactions.occurredAt,
+      })
+      .from(disputeBalanceTransactions)
+      .where(
+        and(
+          eq(disputeBalanceTransactions.accountId, accountId),
+          eq(disputeBalanceTransactions.stripeDisputeId, dispute.stripeDisputeId),
+        ),
+      )
+      .orderBy(asc(disputeBalanceTransactions.occurredAt), asc(disputeBalanceTransactions.id)),
   ]);
 
-  return { dispute, evidence, approval: approvals[0] ?? null };
+  return { dispute, evidence, approval: approvals[0] ?? null, funds };
 }
 
 /**

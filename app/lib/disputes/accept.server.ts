@@ -162,7 +162,7 @@ function buildDisputeAcceptBatch(
 
 /** Stripe answered and refused: a 4xx other than a concurrent idempotent
  *  request (409) or a rate limit (429), neither of which says what happened. */
-function isDefiniteRefusal(error: unknown): boolean {
+export function isDefiniteRefusal(error: unknown): boolean {
   const status = (error as { statusCode?: unknown } | null)?.statusCode;
   return (
     typeof status === "number" &&
