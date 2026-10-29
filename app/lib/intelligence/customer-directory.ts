@@ -4,6 +4,7 @@
 // are unit-testable without a DB or a render tree.
 
 import { DAY_MS } from "~/lib/constants";
+import { formatDateShort } from "~/lib/date-format";
 
 /** Recova's lastSeenLabel (lib/intelligence-display.ts, blob 379635a7) word
  *  for word: "today" / "yesterday" / "Nd ago" (under 30 days) / "1mo ago"
@@ -73,4 +74,14 @@ export function planTierPill(tier: string | null): { label: string; tone?: PlanP
     default:
       return { label: capitalizeTier(key), tone: "nodata" };
   }
+}
+
+/** "Scheduled to cancel on Jan 5, 2026" / "Scheduled to change on Jan 5, 2026"
+ *  from customer_context's scheduled_change_kind and _at, written by the
+ *  nightly sync from a subscription schedule or cancel_at. Null when nothing
+ *  is scheduled, or when the date has already passed and the next sync has
+ *  not yet caught up, so a stale plan never reads as upcoming. */
+export function scheduledChangeLabel(kind: string | null, at: Date | null, now: Date): string | null {
+  if ((kind !== "cancel" && kind !== "change") || !at || at.getTime() <= now.getTime()) return null;
+  return `Scheduled to ${kind} on ${formatDateShort(at)}`;
 }

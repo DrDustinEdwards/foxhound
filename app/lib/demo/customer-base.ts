@@ -81,6 +81,13 @@ export interface DemoCustomer {
 
   // Optional scripted overrides
   scripted: DemoScripted | null;
+
+  // A forever percent-off coupon on the subscription, as a Stripe discount
+  // would carry it; what the customer pays, and so MRR, is after it.
+  couponPercentOff?: number;
+  // A change or cancellation a Stripe subscription schedule (or cancel_at) has
+  // planned, this many days from the seed's now.
+  scheduledChange?: { kind: "change" | "cancel"; daysFromNow: number };
 }
 
 // ============================================================================
@@ -110,25 +117,32 @@ export function monthlyTotalCents(c: DemoCustomer): number {
   return c.planBaseCents + Math.max(0, c.seats - 1) * c.perSeatCents + c.addonCents;
 }
 
+/** The share of the price a customer's coupon leaves them paying. */
+function couponFactor(c: DemoCustomer): number {
+  return 1 - (c.couponPercentOff ?? 0) / 100;
+}
+
 /** Per-invoice amount given the customer's billing cadence. Annual prepay is
- *  monthly_total * 12 * 0.9 (10% discount). Hobby is always 0. */
+ *  monthly_total * 12 * 0.9 (10% discount). Any coupon comes off after.
+ *  Hobby is always 0. */
 export function invoiceAmountCents(c: DemoCustomer): number {
-  const monthly = monthlyTotalCents(c);
+  const monthly = monthlyTotalCents(c) * couponFactor(c);
   if (c.billingCadence === "annual") {
     return Math.round(monthly * 12 * ANNUAL_DISCOUNT);
   }
-  return monthly;
+  return Math.round(monthly);
 }
 
-/** Monthly recurring contribution toward MRR. Annual subscriptions normalize
- *  to (annual_amount / 12). Churned and Hobby customers contribute 0. */
+/** Monthly recurring contribution toward MRR: what the customer pays after
+ *  any coupon. Annual subscriptions normalize to (annual_amount / 12).
+ *  Churned and Hobby customers contribute 0. */
 export function monthlyMrrCents(c: DemoCustomer): number {
   if (c.status === "churned") return 0;
-  const monthly = monthlyTotalCents(c);
+  const monthly = monthlyTotalCents(c) * couponFactor(c);
   if (c.billingCadence === "annual") {
     return Math.round((monthly * 12 * ANNUAL_DISCOUNT) / 12);
   }
-  return monthly;
+  return Math.round(monthly);
 }
 
 /** Day-walk eligibility: scripted customers have hand-placed failure events
@@ -334,6 +348,12 @@ function perSeatCentsForTier(tier: DemoTier, seats: number): number {
   return 0;
 }
 
+/** One paying customer in ten holds a 20% forever coupon. */
+function sampleCoupon(seed: string, tier: DemoTier): number | null {
+  if (tier === "hobby") return null;
+  return seededInt(`${seed}:coupon`, 100) < 10 ? 20 : null;
+}
+
 /** Growth: 30% have an addon (15% $25, 15% $50). Else 0. */
 function sampleAddon(seed: string, tier: DemoTier): number {
   if (tier !== "growth") return 0;
@@ -368,6 +388,7 @@ function buildAnonymousCustomer(
   const addonCents = sampleAddon(seed, tier);
   const status = sampleLifecycleStatus(seed);
   const churnedAt = status === "churned" ? sampleChurnedAt(seed, now) : null;
+  const couponPercentOff = sampleCoupon(seed, tier);
 
   return {
     stripeCustomerId: customerId,
@@ -384,6 +405,7 @@ function buildAnonymousCustomer(
     status,
     churnedAt,
     scripted: null,
+    ...(couponPercentOff ? { couponPercentOff } : {}),
   };
 }
 
@@ -606,6 +628,8 @@ function teamflowScripted(now: Date): DemoCustomer[] {
       customerEmail: "finance@lakeside-ventures.demo",
       customerName: "Lakeside Ventures",
       customerSince: daysAgo(now, 14 * 30),
+      // A negotiated 15% off the annual contract.
+      couponPercentOff: 15,
       tier: "scale",
       planBaseCents: TIER_BASE_CENTS.scale,
       billingCadence: "annual",
@@ -673,6 +697,8 @@ function boltScripted(now: Date): DemoCustomer[] {
       customerEmail: "founder@driftwave-labs.demo",
       customerName: "Driftwave Labs",
       customerSince: daysAgo(now, 21),
+      // Set to cancel at the end of its billing period.
+      scheduledChange: { kind: "cancel", daysFromNow: 9 },
       tier: "pro",
       planBaseCents: TIER_BASE_CENTS.pro,
       billingCadence: "monthly",
