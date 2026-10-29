@@ -220,3 +220,13 @@ describe("refund: Stripe first, never a disputed charge, nothing billable", () =
     expect(warningRow().refunded_at).toBeNull();
   });
 });
+
+describe("a connected account's test-mode event is claimed and ignored", () => {
+  it("writes nothing and mails no one, because a live Connect endpoint gets test events too", async () => {
+    const event = { ...(warningEvent("created", "evt_test") as object), livemode: false } as never;
+    expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({ status: "ignored", reason: "test_mode" });
+    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({ n: 0 });
+    expect(harness.sent).toHaveLength(0);
+    expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({ status: "duplicate" });
+  });
+});
