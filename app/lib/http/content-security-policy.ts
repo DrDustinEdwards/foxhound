@@ -52,10 +52,14 @@
 //    are self-hosted and preloaded from root.tsx; no <img src="https://...">
 //    beyond same-origin; no js.stripe.com / Stripe Elements usage anywhere in
 //    the client tree.
-//  - frame-src is written here, not through the builder's `sources.frame`,
-//    because the builder always adds 'self' to frame-src and the pre-J22 policy
-//    framed Turnstile ONLY. RULES.md 4.1: a new default never loosens what
-//    Foxhound already had.
+//  - frame-src comes from the builder's `sources.frame`, which writes
+//    'self' before Turnstile. Until site-runtime v0.26.0 it was written here
+//    as an extra directive naming Turnstile ONLY, as the pre-J22 policy did;
+//    v0.26.0 refuses frame-src in extraDirectives. The added 'self' lets a
+//    Foxhound page frame another Foxhound page and nothing else; frame-ancestors
+//    stays 'none', so no page can be framed by another site. RULES.md 4.1 says
+//    a new default never loosens what Foxhound had, so this waits for Dustin's
+//    yes on the pull request that made it.
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
 import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
@@ -83,12 +87,12 @@ const POLICY = buildContentSecurityPolicy({
   sources: {
     script: [TURNSTILE],
     img: ["data:"],
+    frame: [TURNSTILE],
   },
   nonce: NONCE_PLACEHOLDER,
   styleHashes: INLINE_STYLE_HASHES,
   styleAttributesInline: true,
   cloudflareWebAnalytics: true,
-  extraDirectives: [`frame-src ${TURNSTILE}`],
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
 });

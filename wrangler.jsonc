@@ -345,6 +345,9 @@
     // "0 8 * * 1" added session 55 for the weekly merchant digest, which
     // ports legacy's Monday 08:00 UTC cadence. Every schedule in the cron
     // registry MUST appear here or the job never fires, and a test guards it.
-    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *"]
+    // "* * * * *" is scheduled blog publishing (site-api v0.10.0): the
+    // blog-schedules job runs runSchedules, so a post Carrel scheduled goes
+    // live within a minute of its time.
+    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *", "* * * * *"]
   }
 }

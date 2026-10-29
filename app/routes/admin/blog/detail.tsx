@@ -1,3 +1,4 @@
+import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { data, Form, useActionData, useNavigation } from "react-router";
 
 import { AdminTime } from "~/components/admin-time";
@@ -17,7 +18,7 @@ import {
 import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { CANONICAL_TAGS } from "~/lib/blog/tags";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { blogPostUrl, scheduleIndexNow } from "~/lib/seo/indexnow.server";
+import { notifyIndexNow } from "~/lib/seo/indexnow.server";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
@@ -92,12 +93,15 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     // leaves the post published. A save changes neither the slug nor the
     // published flag, so the row read above still answers both. Fire and
     // forget; it never fails or delays the save.
-    if (post.published) scheduleIndexNow(request, ctx, [blogPostUrl(post.slug)]);
+    if (post.published) notifyIndexNow(request, ctx, post);
     return data<ActionResult>({ intent, ok: true });
   }
 
   if (intent === "publish" || intent === "unpublish") {
     const published = intent === "publish";
+    // A schedule Carrel set on this post (site-api v0.10.0) is dropped, as a
+    // Carrel publish or unpublish drops it, so the cron never undoes this.
+    await d1ScheduledUpdates(env.DB).remove(postId).run();
     await setPublished(db, postId, published);
     await logAdminAction(db, {
       actorEmail: auth.email,
@@ -108,7 +112,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     // unpublish submits nothing, as in Recova. This hook and the save's move
     // when Carrel's blog publishing (J11, job_09c55603e321) and Prelum's blog
     // pages (J19 job_deffd581af37, J61 job_2ee0cfdd5c29) land.
-    if (published) scheduleIndexNow(request, ctx, [blogPostUrl(post.slug)]);
+    if (published) notifyIndexNow(request, ctx, post);
     return data<ActionResult>({ intent, ok: true });
   }
 

@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "~/db/client";
 import { cronAlerts, cronRunHistory } from "~/db/schema";
 import {
+  CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_DAILY,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
@@ -85,6 +86,10 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   // reported as `unknown_schedule`, which is a blind spot rather than an alert,
   // so a new expression that skips this line silently stops being watched.
   [CRON_SCHEDULE_MONTHLY_AUDIT]: 31 * DAY_MS,
+  // Every minute, judged at five: the daily check runs on its own trigger, and
+  // a tick skipped on the lock is normal, so a one-minute period would alert on
+  // a healthy job.
+  [CRON_SCHEDULE_BLOG]: 5 * 60 * 1000,
 };
 
 /** A job may miss this many periods before it is called stale. Two rather than
@@ -104,6 +109,7 @@ const CADENCE_LABEL: Record<string, string> = {
   [CRON_SCHEDULE_WEEKLY]: "weekly (Mon 08:00 UTC)",
   [CRON_SCHEDULE_MONTHLY]: "monthly (1st 04:00 UTC)",
   [CRON_SCHEDULE_MONTHLY_AUDIT]: "monthly (1st 09:00 UTC)",
+  [CRON_SCHEDULE_BLOG]: "every minute",
 };
 
 /** Recova's describeAge (check-cron-health/route.ts), its units and its floor

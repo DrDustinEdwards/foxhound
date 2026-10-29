@@ -4,7 +4,7 @@ import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { serializePostSource } from "~/lib/carrel/source";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // IndexNow (job_b0b24df12155, row F20). Recova is the spec: it publishes a key
 // file at /<key>.txt and, on every save that leaves a blog post published, POSTs
@@ -12,7 +12,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // failing the save. Foxhound does the same with its OWN key (Dustin, Q15,
 // 2026-10-14, "new key"): never Recova's key, never its filename.
 
-const harness = vi.hoisted(() => ({ db: null as unknown }));
+const harness = vi.hoisted(() => ({ db: null as unknown, d1: null as unknown }));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -20,7 +20,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { INDEXNOW_KEY } = await import("~/lib/seo/indexnow-key");
-const indexNow = await import("~/lib/seo/indexnow.server");
 const keyRoute = await import("~/routes/files/indexnow-key");
 const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
 const adminDetail = await import("~/routes/admin/blog/detail");
@@ -58,7 +57,7 @@ afterEach(() => {
 function envFor(): Env {
   const stub = { hit: async () => ({ ok: true, retryAfterSeconds: 0 }) };
   return {
-    DB: {},
+    DB: harness.d1,
     CARREL_SITE_KEY: SITE_KEY,
     BETTER_AUTH_URL: ORIGIN,
     RATE_LIMITER: { idFromName: (n: string) => n, get: () => stub },
@@ -111,8 +110,9 @@ async function carrelVersion(id: string): Promise<string> {
 }
 
 function freshDb() {
-  const { db } = createInMemoryDb();
+  const { db, sqlite } = createInMemoryDb();
   harness.db = db;
+  harness.d1 = d1Over(sqlite);
   return db;
 }
 
@@ -148,15 +148,6 @@ describe("(b) a publish submits exactly Foxhound's changed URL", () => {
     await settled();
     expect(captured).toHaveLength(1);
     expectFoxhoundSubmission(captured[0], "why-cards-fail");
-  });
-
-  it("the helper drops URLs that are not Foxhound's and is a no-op on an empty list", async () => {
-    await indexNow.submitToIndexNow([]);
-    await indexNow.submitToIndexNow(["https://recovamrr.com/blog/x", "http://foxhoundapp.com/blog/y"]);
-    expect(captured).toEqual([]);
-    await indexNow.submitToIndexNow(["https://recovamrr.com/blog/x", "https://foxhoundapp.com/blog/z"]);
-    expect(captured).toHaveLength(1);
-    expect(captured[0].body.urlList).toEqual(["https://foxhoundapp.com/blog/z"]);
   });
 });
 

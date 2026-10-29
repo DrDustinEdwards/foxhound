@@ -111,10 +111,10 @@ describe("applySecurityHeaders", () => {
     expect(result.headers.get("Content-Security-Policy")).toBe("default-src 'none'");
   });
 
-  it("has exactly one frame-src, so a later sources.frame cannot shadow or be shadowed by the hand-written one", () => {
+  it("frames Turnstile and Foxhound's own pages only, in exactly one frame-src", () => {
     const csp = applied().headers.get("Content-Security-Policy") ?? "";
     const frameSrc = csp.split(";").map((d) => d.trim()).filter((d) => d.split(/\s+/)[0]?.toLowerCase() === "frame-src");
-    expect(frameSrc).toEqual(["frame-src https://challenges.cloudflare.com"]);
+    expect(frameSrc).toEqual(["frame-src 'self' https://challenges.cloudflare.com"]);
   });
 
   it("reports violations to this origin's endpoint, by report-uri and report-to", () => {

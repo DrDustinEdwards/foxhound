@@ -208,7 +208,14 @@ function versionIdsToPrune(idsNewestFirst: string[], retention: number): string[
   return idsNewestFirst.slice(retention);
 }
 
-export async function setPublished(db: Db, postId: string, published: boolean): Promise<void> {
+/** `firstPublishedAt` is the date a first publication records: now by default,
+ *  the time it was scheduled for when a schedule publishes it. */
+export async function setPublished(
+  db: Db,
+  postId: string,
+  published: boolean,
+  firstPublishedAt: Date = new Date(),
+): Promise<void> {
   const rows = await db.select({ publishedAt: blogPosts.publishedAt }).from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
   const current = rows[0];
   await db
@@ -218,7 +225,7 @@ export async function setPublished(db: Db, postId: string, published: boolean): 
       // First publish stamps publishedAt; unpublishing never clears it (so a
       // later republish keeps its original publish date, matching how the
       // public blog's "showPublishedAt" toggle is meant to work).
-      publishedAt: published && !current?.publishedAt ? new Date() : current?.publishedAt,
+      publishedAt: published && !current?.publishedAt ? firstPublishedAt : current?.publishedAt,
       updatedAt: new Date(),
     })
     .where(eq(blogPosts.id, postId));
