@@ -169,14 +169,16 @@ export function manageEmailSettingsLine(baseUrl: string): FooterLine {
 //
 // Capsomer's own `magicLink` template, used as it stands, in its own words (the
 // family's one sign-in mail). Recova had no sign-in link: it had passwords. The
-// template's expiry line, "The link works once and expires in <expiresIn>.", is
-// true here: Better Auth consumes the link's token on use.
+// template's expiry line, "The link and the code work once and expire in
+// <expiresIn>.", is true here: Better Auth consumes each on use.
 
 export interface SignInLinkRenderInput {
   to: string;
   /** Better Auth's sign-in link, passed through untouched. */
   url: string;
-  /** How long the link works, in words: "5 minutes". */
+  /** The six-digit code for the tab that asked. */
+  code: string;
+  /** How long the link and code work, in words: "15 minutes". */
   expiresIn: string;
 }
 
@@ -187,6 +189,7 @@ export function renderFoxhoundSignInLinkEmail(input: SignInLinkRenderInput): Ren
     brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY },
     to: input.to,
     url: input.url,
+    code: input.code,
     expiresIn: input.expiresIn,
   });
 }
