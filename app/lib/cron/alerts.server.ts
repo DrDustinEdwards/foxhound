@@ -18,6 +18,7 @@ import {
   renderFoxhoundAlertEmail,
   type EmailAlert,
 } from "~/lib/email/templates";
+import type { Rendered } from "capsomer/email";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 /** Cron-failure alerting (313). Ruling 311 measured that a failing cron records
@@ -293,6 +294,36 @@ export function billingFailureError(failedAccountIds: string[], periodStart: Dat
   return `${failedAccountIds.length} account(s) failed to invoice for ${monthLabel}: ${failedAccountIds.join(", ")}.`;
 }
 
+/** A cron alert (E26, E27) on Capsomer's alert template, with Recova's footer
+ *  as wrapEmailHtml(body, 'Recova Ops') writes it with no unsubscribe token:
+ *  its sentence, then Manage email settings. Pure; the admin email preview
+ *  renders through it too. */
+export function renderCronAlertEmail(to: string, message: CronAlertMessage, baseUrl: string, now: Date): Rendered {
+  return renderFoxhoundAlertEmail({
+    subject: message.subject,
+    to,
+    alert: message.alert,
+    footer: [recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()), manageEmailSettingsLine(baseUrl)],
+  });
+}
+
+/** The dead-letter alert's subject and body, Foxhound's own. Pure. */
+export function deadLetterAlertMessage(
+  counts: { written: number; failed: number },
+  now: Date,
+): { subject: string; bodyHtml: string } {
+  return {
+    subject: "Foxhound dunning emails DEAD-LETTERED",
+    bodyHtml: [
+      `<p>${counts.written} dunning email(s) exhausted their queue retries and were dead-lettered at ${now.toISOString()}.</p>`,
+      counts.failed ? `<p>${counts.failed} dead letter(s) could not even be recorded.</p>` : "",
+      `<p>Query email_dead_letters for the rows. One alert per day.</p>`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
+}
+
 /** Send one alert, deduped, never throwing. A cron alert (E26, E27) goes on
  *  Capsomer's alert template with Recova's footer; the dead-letter alert,
  *  Foxhound's own, keeps its HTML body. */
@@ -309,17 +340,7 @@ export async function sendAlert(
 
   try {
     if ("alert" in message) {
-      // Recova's footer as wrapEmailHtml(body, 'Recova Ops') writes it with no
-      // unsubscribe token: its sentence, then Manage email settings.
-      const rendered = renderFoxhoundAlertEmail({
-        subject: message.subject,
-        to: SUPPORT_EMAIL,
-        alert: message.alert,
-        footer: [
-          recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()),
-          manageEmailSettingsLine(env.BETTER_AUTH_URL ?? ""),
-        ],
-      });
+      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, env.BETTER_AUTH_URL ?? "", now);
       const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
       if (outcome.status === "sent") return { sent: true };
       return { sent: false, reason: "send_failed", error: outcome.error ?? outcome.reason };
@@ -375,18 +396,7 @@ export async function alertDeadLetters(
       db,
       DEAD_LETTER_ALERT_KEY,
       "dead_letter",
-      {
-        subject: "Foxhound dunning emails DEAD-LETTERED",
-        bodyHtml: [
-          `<p>${counts.written} dunning email(s) exhausted their queue retries and were dead-lettered at ${now.toISOString()}.</p>`,
-          counts.failed
-            ? `<p>${counts.failed} dead letter(s) could not even be recorded.</p>`
-            : "",
-          `<p>Query email_dead_letters for the rows. One alert per day.</p>`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
+      deadLetterAlertMessage(counts, now),
       now,
     );
   } catch (err) {

@@ -218,7 +218,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     name: "foxhound_admin_preview_email",
     title: "Preview an email",
     description:
-      "See any email Foxhound sends exactly as it would arrive (From, Reply-To, subject, HTML and text), without sending it. Call with no type for the list of types. Customer emails (recovery, win-back, expiring card, the merchant's test email) need account_id: they render with that merchant's sender name and Reply-To, on sample customer data. Read only.",
+      "See any email Foxhound sends exactly as it would arrive (From, Reply-To, subject, HTML and text), without sending it. Call with no type for the list of types. Customer emails (recovery, the manual resend, win-back, expiring card, the merchant's test email) and the weekly digest need account_id: they render with that merchant's sender name and Reply-To, on sample customer data. Read only.",
     inputSchema: {
       type: "object",
       properties: {

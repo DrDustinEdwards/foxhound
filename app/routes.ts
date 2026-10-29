@@ -201,11 +201,9 @@ export default [
         route("webhooks", "./routes/admin/webhooks.tsx"),
         route("audit-log", "./routes/admin/audit-log.tsx"),
       ]),
-      ...prefix("blog", [
-        index("./routes/admin/blog/index.tsx"),
-        route(":id", "./routes/admin/blog/detail.tsx"),
-      ]),
-      route("social", "./routes/admin/social.tsx"),
+      // No Blog or Social page: Carrel is the blog editor and admin Social
+      // (RULES.md 7.4, Q7 and Q8). It writes posts through the Carrel site
+      // adapter (app/lib/carrel/adapter.server.ts); /blog still reads them.
       route("staged", "./routes/admin/staged.tsx"),
       route("mcps", "./routes/admin/mcps.tsx"),
     ]),
