@@ -28,6 +28,7 @@ import {
   hasActiveRecoverySignal,
   hasDisputeHistorySignal,
   planTierPill,
+  scheduledChangeLabel,
 } from "~/lib/intelligence/customer-directory";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { listCustomerDirectory, listCustomerTiers, type CustomerDirectorySort } from "~/lib/intelligence/directory.server";
@@ -86,6 +87,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const pageParam = Number(params.get("page") ?? "1");
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
 
+  const nowMs = Date.now();
   const [result, tiers] = await Promise.all([
     listCustomerDirectory(db, accountId, { search, tier, healthBand, sort, page }),
     listCustomerTiers(db, accountId),
@@ -109,6 +111,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
         hasActiveRecovery: hasActiveRecoverySignal(c.recoverySignals),
         hasDisputeHistory: hasDisputeHistorySignal(c.disputeSignals),
         chip: chipLabelFor(c.recommendedAction),
+        scheduled: scheduledChangeLabel(c.scheduledChangeKind, c.scheduledChangeAt, new Date(nowMs)),
       })),
     },
     tiers,
@@ -121,7 +124,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     otherDemoName: auth.isDemo
       ? (DEMO_BUSINESSES.find((b) => b.accountId !== accountId)?.name ?? null)
       : null,
-    nowMs: Date.now(),
+    nowMs,
   };
 }
 
@@ -248,6 +251,12 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               {/* Recova's second line under the name: the Stripe
                                   id, micro and mono. */}
                               <span className="block font-mono text-micro text-text-subtle">{c.stripeCustomerId}</span>
+                              {/* A planned change or cancellation from the
+                                  customer's Stripe subscription schedule or
+                                  cancel_at, under the id. */}
+                              {c.scheduled ? (
+                                <span className="block text-micro font-normal text-text-secondary">{c.scheduled}</span>
+                              ) : null}
                             </th>
                             <td>
                               {/* Capsomer's pill markup rather than its Pill

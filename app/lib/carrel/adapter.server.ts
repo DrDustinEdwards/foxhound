@@ -37,7 +37,7 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 // current post.
 //
 // SCHEDULED PUBLISHING (site-api v0.10.0). One row per post in site-api's
-// scheduled_updates table (migration 0055, read and written only through the
+// scheduled_updates table (migration 0056, read and written only through the
 // package's d1ScheduledUpdates). On a draft the row makes it "scheduled": it
 // goes live at publish_at. On a live post the row is a pending update: the live
 // version stays served until publish_at, then the row's source replaces it.

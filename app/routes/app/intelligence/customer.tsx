@@ -16,7 +16,7 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { formatDateShort } from "~/lib/date-format";
-import { planTierPill } from "~/lib/intelligence/customer-directory";
+import { planTierPill, scheduledChangeLabel } from "~/lib/intelligence/customer-directory";
 import {
   disputeSignalFields,
   drawHealthHistory,
@@ -100,6 +100,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       mrrContributionCents: detail.mrrContributionCents,
       currency: detail.currency,
       ltvCents: detail.ltvCents,
+      scheduled: scheduledChangeLabel(detail.scheduledChangeKind, detail.scheduledChangeAt, new Date(nowMs)),
       customerSince: detail.customerSince,
       healthScore: detail.healthScore,
       healthFactors: detail.healthFactors,
@@ -298,6 +299,11 @@ function HeaderCard({
             </span>
           </div>
         </div>
+        {/* A planned change or cancellation from the customer's Stripe
+            subscription schedule or cancel_at, beside what they pay now. */}
+        {customer.scheduled ? (
+          <p className="m-0 mt-3 text-right text-label text-text-secondary">{customer.scheduled}</p>
+        ) : null}
         <dl className="m-0 mt-5 grid grid-cols-2 gap-4 border-t border-border-sub pt-4 md:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label}>
