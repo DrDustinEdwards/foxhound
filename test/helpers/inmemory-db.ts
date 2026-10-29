@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import type { D1Like, D1StatementLike } from "@dustinedwards/site-api/schedules";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 
@@ -99,4 +100,16 @@ export function inMemoryMoneyWriter(sqlite: () => Database.Database) {
     }),
   };
   return { binding, commits };
+}
+
+/** The part of a D1 binding site-api's d1ScheduledUpdates uses, over the same
+ *  in-memory SQLite, so the package's own SQL runs against the migrated schema. */
+export function d1Over(sqlite: Database.Database): D1Like {
+  const statement = (sql: string, values: unknown[] = []): D1StatementLike => ({
+    bind: (...next) => statement(sql, next),
+    first: async <T>() => (sqlite.prepare(sql).get(...(values as never[])) ?? null) as T | null,
+    all: async <T>() => ({ results: sqlite.prepare(sql).all(...(values as never[])) as T[] }),
+    run: async () => sqlite.prepare(sql).run(...(values as never[])),
+  });
+  return { prepare: (sql) => statement(sql) };
 }

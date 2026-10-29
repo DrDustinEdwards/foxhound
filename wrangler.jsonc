@@ -346,6 +346,10 @@
     // ports legacy's Monday 08:00 UTC cadence. Every schedule in the cron
     // registry MUST appear here or the job never fires, and a test guards it.
     // "0 9 * * *" is the expiring-card alert at legacy's hour (parity gap 11).
-    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *", "0 9 * * *"]
+    // "* * * * *" is scheduled blog publishing (site-api v0.10.0): the
+    // blog-schedules job runs runSchedules, so a post Carrel scheduled goes
+    // live within a minute of its time. The five-minute ticker runs it too, in
+    // case this trigger stops firing as "*/5" did (~/lib/cron/ticker.ts).
+    "crons": ["*/5 * * * *", "0 3 * * *", "0 4 1 * *", "0 8 * * 1", "0 9 1 * *", "0 9 * * *", "* * * * *"]
   }
 }
