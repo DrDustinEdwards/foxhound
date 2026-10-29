@@ -4,6 +4,7 @@ import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from
 import { computeBillingPeriod, describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_WEEKLY,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
@@ -163,11 +164,13 @@ const demoReset: CronHandler = async (env) => {
  *  makes the self-reference below safe: the array is fully constructed long
  *  before any cron fires. Expectations are therefore DERIVED from the registry,
  *  so a job added tomorrow is watched automatically instead of being forgotten. */
-/** The nightly expiring-card alert (341). Two passes in one job, like legacy:
+/** The daily expiring-card alert (341). Two passes in one job, like legacy:
  *  scan every connected account's active subscriptions for cards inside the
  *  30-day lead window and record a candidate, then send one customer-facing
- *  warning per unsent candidate. CRON_SCHEDULE_DAILY matches legacy's nightly
- *  cadence, and the CronLockDurableObject lease in run.ts is what stops two
+ *  warning per unsent candidate. CRON_SCHEDULE_EXPIRING_CARDS is legacy's
+ *  "0 9 * * *" (vercel.json, /api/cron/expiring-cards): it rode the 03:00
+ *  daily sweep until parity gap 11, which landed the email in the middle of
+ *  the US night. The CronLockDurableObject lease in run.ts is what stops two
  *  ticks scanning at once. */
 /** The win-back send pass (343, 344). Legacy's own header says it "Runs hourly
  *  via Vercel Cron (piggybacking on process-recovery schedule)", so its cadence
@@ -299,7 +302,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "alerts-evaluate", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: alertsEvaluate },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
-  { name: "expiring-cards", schedule: CRON_SCHEDULE_DAILY, handler: expiringCards },
+  { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },

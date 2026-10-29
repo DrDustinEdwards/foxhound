@@ -581,6 +581,19 @@ export const CRON_SCHEDULE_WEEKLY = "0 8 * * 1";
  * staleness. A derived plant asserts all three agree.
  */
 export const CRON_SCHEDULE_MONTHLY_AUDIT = "0 9 1 * *";
+/**
+ * The expiring-card alert: 09:00 UTC daily, LEGACY'S HOUR. Recova's vercel.json
+ * scheduled /api/cron/expiring-cards at "0 9 * * *"; riding the 03:00 daily
+ * sweep instead put the customer-facing warning in US inboxes in the middle of
+ * the night (parity gap 11).
+ *
+ * The THIRD new cron expression, with the same sites as the audit's: this
+ * constant, wrangler.jsonc triggers.crons, and alerts.server.ts's
+ * SCHEDULE_PERIOD_MS and CADENCE_LABEL. Six triggers sits well inside Workers
+ * Paid's 250 Cron Triggers per account, so it gets its own expression rather
+ * than sharing the monthly audit's behind a day-of-month gate.
+ */
+export const CRON_SCHEDULE_EXPIRING_CARDS = "0 9 * * *";
 /** Recovery tick: sweeps due recovery_steps. Every 5 minutes.
  *
  *  The original rationale (matching the 5-minute first send-retry backoff) no

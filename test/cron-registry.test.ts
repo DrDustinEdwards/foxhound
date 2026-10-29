@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 
 import {
   CRON_SCHEDULE_DAILY,
+  CRON_SCHEDULE_EXPIRING_CARDS,
   CRON_SCHEDULE_MONTHLY,
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
@@ -53,6 +54,7 @@ describe("cron registry", () => {
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_DAILY);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY_AUDIT);
+    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_EXPIRING_CARDS);
     expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
   });
 
@@ -80,6 +82,13 @@ describe("cron registry", () => {
     expect(jobsForSchedule(CRON_SCHEDULE_MONTHLY_AUDIT).map((j) => j.name)).toEqual([
       "monthly-audit",
     ]);
+  });
+
+  it("sends expiring-card alerts at legacy's 09:00 UTC daily, not on the 03:00 sweep", () => {
+    // Recova's vercel.json: { "path": "/api/cron/expiring-cards", "schedule": "0 9 * * *" }.
+    expect(CRON_SCHEDULE_EXPIRING_CARDS).toBe("0 9 * * *");
+    expect(jobsForSchedule(CRON_SCHEDULE_EXPIRING_CARDS).map((j) => j.name)).toEqual(["expiring-cards"]);
+    expect(jobsForSchedule(CRON_SCHEDULE_DAILY).map((j) => j.name)).not.toContain("expiring-cards");
   });
 
   it("dispatches the demo reset on the daily schedule", () => {

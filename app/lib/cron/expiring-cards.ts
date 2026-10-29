@@ -19,7 +19,8 @@ import {
 
 // THE EXPIRING-CARD ALERT CRON. Ported from legacy's
 // app/api/cron/expiring-cards/route.ts (blob `717f6bbe`, 15,163 bytes), which
-// runs two passes in one nightly job and this reproduces both.
+// runs two passes in one daily job (09:00 UTC, legacy's vercel.json "0 9 * * *")
+// and this reproduces both.
 //
 // PASS 1, the scan: per connected account, list ACTIVE SUBSCRIPTIONS with the
 // customer and default payment method expanded, and record a candidate for every
@@ -434,7 +435,7 @@ export interface ExpiringCardRunResult {
   send: SendResult;
 }
 
-/** One nightly run: scan, then send. */
+/** One daily run (09:00 UTC): scan, then send. */
 export async function runExpiringCards(env: Env, now: Date): Promise<ExpiringCardRunResult> {
   const scan = await scanExpiringCards(env, now);
   const send = await sendExpiringCardAlerts(env, now);
