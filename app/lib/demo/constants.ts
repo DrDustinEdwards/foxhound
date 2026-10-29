@@ -21,10 +21,10 @@ export interface DemoBusiness {
 
 export const DEMO_ACCOUNT_ID = `${DEMO_ACCOUNT_ID_PREFIX}teamflow`;
 const DEMO_ACCOUNT_NAME = "Teamflow";
-export const DEMO_MEMBER_USER_ID = `${DEMO_ACCOUNT_ID_PREFIX}user_teamflow`;
+const DEMO_MEMBER_USER_ID = `${DEMO_ACCOUNT_ID_PREFIX}user_teamflow`;
 
 export const DEMO_BOLT_ACCOUNT_ID = `${DEMO_ACCOUNT_ID_PREFIX}bolt`;
-export const DEMO_BOLT_ACCOUNT_NAME = "Bolt Analytics";
+const DEMO_BOLT_ACCOUNT_NAME = "Bolt Analytics";
 
 export const TEAMFLOW_DEMO: DemoBusiness = {
   accountId: DEMO_ACCOUNT_ID,
