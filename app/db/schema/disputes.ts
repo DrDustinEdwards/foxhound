@@ -73,14 +73,53 @@ export const disputes = sqliteTable(
      *  which case resolved_fee_cents stays null and the dispute is not billable
      *  until it is resolved again. Fail closed, never a flat-cap fallback. */
     resolvedFeeError: text("resolved_fee_error"),
+    /** Stripe's evidence_details.has_evidence and submission_count, kept
+     *  current by charge.dispute.updated. Null until the first update. */
+    stripeHasEvidence: bool("stripe_has_evidence"),
+    stripeSubmissionCount: integer("stripe_submission_count"),
+    /** The `created` time of the last charge.dispute.updated event applied to
+     *  this row, so an older update delivered late never overwrites a newer one. */
+    stripeSyncedAt: ts("stripe_synced_at"),
   },
   (t) => [
     index("disputes_account_idx").on(t.accountId),
     uniqueIndex("disputes_stripe_dispute_uq").on(t.stripeDisputeId),
     check(
       "disputes_state_ck",
-      sql`${t.state} in ('draft', 'pending_review', 'approved', 'submitted', 'resolved_won', 'resolved_lost')`,
+      sql`${t.state} in ('draft', 'pending_review', 'approved', 'submitted', 'resolved_won', 'resolved_lost', 'inquiry_closed')`,
     ),
+  ],
+);
+
+/**
+ * The money Stripe moved for a dispute: each balance transaction on
+ * dispute.balance_transactions, recorded from charge.dispute.funds_withdrawn,
+ * charge.dispute.funds_reinstated and charge.dispute.updated. Keyed on the
+ * Stripe dispute id rather than disputes.id because Stripe sends
+ * funds_withdrawn alongside charge.dispute.created and either may be processed
+ * first. fee_cents is Stripe's own dispute fee as debited (or returned, when
+ * negative), never Foxhound's fee, which stays on disputes.resolved_fee_cents.
+ * amount_cents and fee_cents are signed as Stripe signs them, in the balance
+ * transaction's own currency.
+ */
+export const disputeBalanceTransactions = sqliteTable(
+  "dispute_balance_transactions",
+  {
+    id: id(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    stripeDisputeId: text("stripe_dispute_id").notNull(),
+    stripeBalanceTransactionId: text("stripe_balance_transaction_id").notNull(),
+    kind: text("kind").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    feeCents: integer("fee_cents").notNull(),
+    currency: text("currency").notNull(),
+    occurredAt: ts("occurred_at").notNull(),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [
+    index("dispute_balance_transactions_dispute_idx").on(t.accountId, t.stripeDisputeId),
+    uniqueIndex("dispute_balance_transactions_bt_uq").on(t.stripeBalanceTransactionId),
+    check("dispute_balance_transactions_kind_ck", sql`${t.kind} in ('withdrawn', 'reinstated')`),
   ],
 );
 

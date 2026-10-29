@@ -260,6 +260,9 @@ export const DISPUTE_STATES = [
   "submitted",
   "resolved_won",
   "resolved_lost",
+  // An inquiry (a warning_* dispute) Stripe closed as warning_closed: over,
+  // with no ruling and nothing billable.
+  "inquiry_closed",
 ] as const;
 export type DisputeState = (typeof DISPUTE_STATES)[number];
 

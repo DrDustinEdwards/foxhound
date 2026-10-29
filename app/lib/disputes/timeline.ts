@@ -9,7 +9,17 @@
 // notification by using resolved_at for the ruling.
 
 import { formatMoney } from "~/lib/money-format";
-import { humanizeDisputeReason } from "./labels";
+import { humanizeDisputeReason, isInquiryStatus } from "./labels";
+
+/** One balance transaction Stripe recorded for the dispute
+ *  (dispute_balance_transactions), signed as Stripe signs it. */
+export interface DisputeFundsEntry {
+  kind: string;
+  amountCents: number;
+  feeCents: number;
+  currency: string;
+  occurredAt: Date;
+}
 
 export interface DisputeTimelineInput {
   createdAt: Date;
@@ -23,6 +33,10 @@ export interface DisputeTimelineInput {
   outcomeNotifiedAt: Date | null;
   resolvedAt: Date | null;
   state: string;
+  /** Stripe's dispute status; a warning_* status makes this an inquiry. */
+  status?: string | null;
+  /** Money Stripe withdrew and reinstated for this dispute. */
+  funds?: readonly DisputeFundsEntry[];
 }
 
 export interface DisputeTimelineItem {
@@ -39,18 +53,37 @@ function submitterPhrase(submittedBy: string | null): string {
   return "Foxhound";
 }
 
+/** A funds entry in words: the amount moved and Stripe's own dispute fee, each
+ *  in the balance transaction's currency. A fee Stripe returned is negative. */
+function fundsLabel(f: DisputeFundsEntry): string {
+  const amount = formatMoney(Math.abs(f.amountCents), f.currency);
+  const fee = formatMoney(Math.abs(f.feeCents), f.currency);
+  if (f.kind === "withdrawn") {
+    return f.feeCents > 0
+      ? `Funds withdrawn by Stripe: ${amount}, plus a ${fee} Stripe dispute fee.`
+      : `Funds withdrawn by Stripe: ${amount}.`;
+  }
+  if (f.feeCents < 0) return `Funds reinstated by Stripe: ${amount}, and the ${fee} Stripe dispute fee returned.`;
+  if (f.feeCents > 0) return `Funds reinstated by Stripe: ${amount}, less a ${fee} Stripe fee.`;
+  return `Funds reinstated by Stripe: ${amount}.`;
+}
+
 /**
  * The ordered event list for one dispute. Events with a timestamp sort by it;
  * an event whose timestamp is null keeps its position relative to the events
  * around it rather than collapsing to the top.
  */
 export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineItem[] {
+  const inquiry = d.state === "inquiry_closed" || isInquiryStatus(d.status);
   const items: DisputeTimelineItem[] = [
     {
       at: d.createdAt,
-      label: `Dispute received. ${formatMoney(d.amountCents, d.currency)} for ${humanizeDisputeReason(d.reason)}.`,
+      label: `${inquiry ? "Inquiry" : "Dispute"} received. ${formatMoney(d.amountCents, d.currency)} for ${humanizeDisputeReason(d.reason)}.`,
     },
   ];
+  for (const f of d.funds ?? []) {
+    items.push({ at: f.occurredAt, label: fundsLabel(f) });
+  }
 
   if (d.aiGeneratedAt) {
     items.push({ at: d.aiGeneratedAt, label: "Foxhound drafted evidence from your records." });
@@ -75,6 +108,8 @@ export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineIt
     items.push({ at: d.resolvedAt, label: "Bank ruled: WON. Funds retained." });
   } else if (d.state === "resolved_lost") {
     items.push({ at: d.resolvedAt, label: "Bank ruled: LOST. Funds deducted." });
+  } else if (d.state === "inquiry_closed") {
+    items.push({ at: d.resolvedAt, label: "Inquiry closed with no chargeback ruling." });
   }
 
   // Stable sort on the timestamp, leaving null-timestamped events where they

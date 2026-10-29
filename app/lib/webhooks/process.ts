@@ -8,6 +8,7 @@ import { classifyStripeEvent } from "./events";
 import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
 import { handleAccountHealth } from "./account-handlers";
+import { handleDisputeFunds, handleDisputeUpdated, handleInquiryClosed } from "./dispute-lifecycle";
 import { handleEarlyFraudWarning } from "./fraud-warning-handlers";
 import {
   handleCardAutoUpdated,
@@ -90,6 +91,9 @@ export async function processConnectedWebhook(
     if (intent.kind === "renewal_card_check") return await handleRenewalCardCheck(ctx, intent);
     if (intent.kind === "stamp_dispute") return await handleStampDispute(ctx, intent);
     if (intent.kind === "dispute_resolved") return await handleDisputeResolved(ctx, intent);
+    if (intent.kind === "dispute_updated") return await handleDisputeUpdated(ctx, intent);
+    if (intent.kind === "dispute_funds") return await handleDisputeFunds(ctx, intent);
+    if (intent.kind === "inquiry_closed") return await handleInquiryClosed(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
     if (intent.kind === "account_health") return await handleAccountHealth(ctx, intent);
     if (intent.kind === "early_fraud_warning") return await handleEarlyFraudWarning(ctx, intent);

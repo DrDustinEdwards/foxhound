@@ -1,6 +1,12 @@
 import type Stripe from "stripe";
 
-import { disputeIntakeFields } from "~/lib/disputes/stripe-dispute";
+import {
+  disputeFundsMovements,
+  disputeIntakeFields,
+  disputeLiveFields,
+  type DisputeFundsMovement,
+  type DisputeLiveFields,
+} from "~/lib/disputes/stripe-dispute";
 
 import { type DeclineCategory } from "~/lib/constants";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
@@ -17,7 +23,10 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
 //   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
-//   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot)
+//   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot),
+//                                 or inquiry_closed for an inquiry closed as warning_closed
+//   charge.dispute.updated     -> dispute_updated (live status, deadline, evidence counts)
+//   charge.dispute.funds_withdrawn / funds_reinstated -> dispute_funds (money Stripe moved)
 //   account.updated            -> account_health (the connected account's own
 //                                 charges, payouts and requirements)
 //   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
@@ -87,6 +96,14 @@ export type WebhookIntent =
       createdAt: Date;
     }
   | { kind: "dispute_resolved"; stripeDisputeId: string; won: boolean }
+  | { kind: "inquiry_closed"; stripeDisputeId: string }
+  | ({
+      kind: "dispute_updated";
+      /** The event's own `created`, so a late older update never wins. */
+      eventCreatedAt: Date;
+      funds: DisputeFundsMovement[];
+    } & DisputeLiveFields)
+  | { kind: "dispute_funds"; stripeDisputeId: string; funds: DisputeFundsMovement[] }
   | {
       kind: "winback_start";
       subscriptionId: string;
@@ -233,11 +250,29 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const dispute = event.data.object as Stripe.Dispute;
       if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
       // Only a definitive win/loss resolves our state machine. An inquiry closed
-      // as warning_closed (or any other status) is not a chargeback outcome.
+      // as warning_closed is not a chargeback outcome: it closes the inquiry,
+      // with nothing won, lost or billable. Any other status is ignored.
+      if (dispute.status === "warning_closed") return { kind: "inquiry_closed", stripeDisputeId: dispute.id };
       if (dispute.status !== "won" && dispute.status !== "lost") {
         return { kind: "ignore", reason: "dispute_not_resolved" };
       }
       return { kind: "dispute_resolved", stripeDisputeId: dispute.id, won: dispute.status === "won" };
+    }
+    case "charge.dispute.updated": {
+      const fields = disputeLiveFields(event.data.object as Stripe.Dispute);
+      if (!fields) return { kind: "ignore", reason: "no_dispute_id" };
+      return {
+        kind: "dispute_updated",
+        ...fields,
+        eventCreatedAt: new Date(event.created * 1000),
+        funds: disputeFundsMovements(event.data.object as Stripe.Dispute),
+      };
+    }
+    case "charge.dispute.funds_withdrawn":
+    case "charge.dispute.funds_reinstated": {
+      const dispute = event.data.object as Stripe.Dispute;
+      if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
+      return { kind: "dispute_funds", stripeDisputeId: dispute.id, funds: disputeFundsMovements(dispute) };
     }
     case "customer.subscription.deleted": {
       // Win-back intake (290). Legacy's handleSubscriptionDeleted is the spec.
