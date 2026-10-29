@@ -212,7 +212,7 @@ describe("(b) the /admin/blog editor path", () => {
 // scheduled on a live post replaces the whole post at its time, so the editor
 // must say so before a save there is silently undone (site-api v0.10.0).
 describe("the /admin/blog editor and a scheduled update", () => {
-  it("shows the waiting update's time and warns before a save", async () => {
+  it("warns before a save, with the waiting update's time in the admin's exact form", async () => {
     const db = freshDb();
     const id = await seedPost(db);
     await adminCall(id, { _intent: "publish" });
@@ -226,9 +226,7 @@ describe("the /admin/blog editor and a scheduled update", () => {
       publishAt: "2030-01-01T15:00:00Z",
     });
     expect(sched?.status).toBe(200);
-    const shown = await load();
-    expect(shown.scheduledUpdate?.publishAt).toBe("2030-01-01T15:00:00.000Z");
-    expect(shown.saveWarning).toContain("2030-01-01 15:00 UTC");
+    expect((await load()).saveWarning).toContain("scheduled for 1 January 2030, 15:00 UTC.");
   });
 });
 

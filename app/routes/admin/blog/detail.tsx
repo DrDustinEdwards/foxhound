@@ -1,5 +1,6 @@
 import { liveSaveWarning } from "@dustinedwards/site-api/admin";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import { exact } from "capsomer/behavior/time";
 import { Alert } from "capsomer/react/banner";
 import { data, Form, useActionData, useNavigation } from "react-router";
 
@@ -50,11 +51,16 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const linkCandidates = allPosts.filter((p) => p.id !== post.id && p.published);
   // An update Carrel scheduled on this live post (site-api v0.10.0) replaces
   // the whole post at its time, so a save here is warned about first, in
-  // site-api's own words, rather than silently undone later.
+  // site-api's own words, rather than silently undone later. The time is in the
+  // admin's exact form, AdminTime's tooltip words, in UTC: the server does not
+  // know the reader's zone, and the warning says the time once.
   const scheduledUpdate = post.published && waiting ? { publishAt: waiting.publishAt, changeId: waiting.changeId } : null;
-  const saveWarning = liveSaveWarning({ status: post.published ? "published" : "draft", scheduledUpdate });
+  const saveWarning = liveSaveWarning(
+    { status: post.published ? "published" : "draft", scheduledUpdate },
+    (publishAt) => exact(Date.parse(publishAt), "UTC"),
+  );
 
-  return { post, versions, links, linkCandidates, previewHtml: rendered.html, scheduledUpdate, saveWarning };
+  return { post, versions, links, linkCandidates, previewHtml: rendered.html, saveWarning };
 }
 
 type ActionResult = { intent: string; ok: boolean; error?: string };
@@ -139,7 +145,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 }
 
 export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
-  const { post, versions, links, linkCandidates, previewHtml, scheduledUpdate, saveWarning } = loaderData;
+  const { post, versions, links, linkCandidates, previewHtml, saveWarning } = loaderData;
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
   const selectedLinkIds = new Set(links.map((l) => l.targetId));
@@ -325,16 +331,8 @@ export default function AdminBlogDetail({ loaderData }: Route.ComponentProps) {
             </label>
           </div>
 
-          {scheduledUpdate && saveWarning ? (
-            <Alert
-              id="scheduled-update-warning"
-              tone="warn"
-              title={
-                <>
-                  Update scheduled <AdminTime at={new Date(scheduledUpdate.publishAt)} />
-                </>
-              }
-            >
+          {saveWarning ? (
+            <Alert id="scheduled-update-warning" tone="warn" title="Update scheduled">
               {saveWarning}
             </Alert>
           ) : null}
