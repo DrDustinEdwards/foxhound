@@ -86,7 +86,7 @@ export async function generateMarketingEmailSample(
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const client = createAnthropicClient(env);
+  const client = createAnthropicClient(env, { source: "marketing_email_sample", accountId: null });
   const call = (instruction = ""): Promise<MarketingEmailCopy> => draftSample(client, category, instruction);
   // One retry when the sample reads as machine-written (ai/plain-writing.ts):
   // it is the email a visitor judges Foxhound by.

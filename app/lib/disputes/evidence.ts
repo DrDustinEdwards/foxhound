@@ -1,4 +1,4 @@
-import { createAnthropicClient } from "~/lib/ai/client";
+import { createAnthropicClient, type AiCallMeter } from "~/lib/ai/client";
 import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
@@ -142,7 +142,11 @@ function buildUserPrompt(facts: EvidenceFacts): string {
  * least one fact to ground it in. A missing ANTHROPIC_API_KEY or a model-call
  * failure never blocks intake: the deterministic fields still land.
  */
-export async function draftDisputeEvidence(env: Env, facts: EvidenceFacts): Promise<EvidenceField[]> {
+export async function draftDisputeEvidence(
+  env: Env,
+  facts: EvidenceFacts,
+  meter: AiCallMeter,
+): Promise<EvidenceField[]> {
   if (!hasGroundingFacts(facts)) return [];
 
   const fields: EvidenceField[] = [];
@@ -162,7 +166,7 @@ export async function draftDisputeEvidence(env: Env, facts: EvidenceFacts): Prom
   if (!env.ANTHROPIC_API_KEY) return fields;
 
   try {
-    const client = createAnthropicClient(env);
+    const client = createAnthropicClient(env, meter);
     const call = async (instruction = ""): Promise<string> => {
       const response = await client.messages.create({
         model: MODEL_RECOVERY_EMAIL,
