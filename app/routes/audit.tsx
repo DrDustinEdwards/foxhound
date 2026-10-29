@@ -134,10 +134,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 // The four lines of Recova's covers card.
 //
-// Two clauses of Recova's own copy are NOT restored, because they name renders
-// Foxhound does not have: Recova's "estimated recoverable amount" comes from
-// AUDIT_RECOVERY_ESTIMATE_PCT and its dispute "historical win rate" is a
-// platform figure, both NOT PORTED at 365 binding 31. The expiring-cards line
+// One clause of Recova's own copy is NOT restored, because it names a render
+// Foxhound does not have: its dispute "historical win rate" is a platform
+// figure, NOT PORTED at 365 binding 31. The "estimated recoverable amount" is
+// back with the results page's Recoverable estimate (Dustin, 2026-10-29). The expiring-cards line
 // says what the engine's predicate actually does, which includes
 // already-expired cards; Recova says "next 30 days" and counts them too.
 //
@@ -148,7 +148,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 const COVERS: ReadonlyArray<readonly [string, string]> = [
   [
     "Failed invoices",
-    `Payments Stripe marked uncollectible in the last ${AUDIT_LOOKBACK_DAYS} days, and the decline reason behind each one.`,
+    `Payments Stripe marked uncollectible in the last ${AUDIT_LOOKBACK_DAYS} days, the decline reason behind each one, and the estimated recoverable amount.`,
   ],
   [
     "Expiring cards",

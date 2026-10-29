@@ -286,7 +286,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Reading your results",
         body: [
           "The summary at the top is a few plain sentences on what stands out. When the AI model is not available, a fixed sentence takes its place.",
-          "Below it, the results come in three sections: Revenue leaking now (failed invoices by category, the Card Updater line, expiring cards, and past-due subscriptions), Disputes unmanaged, and Business snapshot. Where a scope could not be read, it says so rather than showing you a zero, because a zero that means unknown is worse than no number at all.",
+          "Below it, the results come in three sections: Revenue leaking now (failed invoices by category, the Card Updater line, expiring cards, past-due subscriptions, and a recoverable estimate that assumes 30% of the failed invoices come back), Disputes unmanaged, and Business snapshot. Where a scope could not be read, it says so rather than showing you a zero, because a zero that means unknown is worse than no number at all.",
         ],
       },
       {
