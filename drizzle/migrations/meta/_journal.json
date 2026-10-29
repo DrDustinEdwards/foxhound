@@ -358,6 +358,13 @@
       "when": 1793255023967,
       "tag": "0054_recovered_payment_fees",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1793278964498,
+      "tag": "0055_scheduled_change",
+      "breakpoints": true
     }
   ]
 }

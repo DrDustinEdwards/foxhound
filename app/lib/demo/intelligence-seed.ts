@@ -471,6 +471,8 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
       activeSubscriptionsCount: c.tier === "hobby" ? 0 : 1,
       currentPlanName: planNameFor(c),
       currentPlanTier: c.tier,
+      scheduledChangeKind: c.scheduledChange?.kind ?? null,
+      scheduledChangeAt: c.scheduledChange ? new Date(now.getTime() + c.scheduledChange.daysFromNow * DAY_MS) : null,
       recoverySignals: recovery,
       disputeSignals,
       engagementSignals,

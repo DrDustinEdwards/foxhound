@@ -50,6 +50,11 @@ export const customerContext = sqliteTable(
     paymentLatencyDriftDays: integer("payment_latency_drift_days"),
     refundCount: integer("refund_count"),
     disputeCount: integer("dispute_count"),
+    // The earliest change a subscription schedule or cancel_at has planned for
+    // one of the customer's live subscriptions ("change" or "cancel") and when.
+    // Written by the nightly sync; both null when nothing is scheduled.
+    scheduledChangeKind: text("scheduled_change_kind"),
+    scheduledChangeAt: ts("scheduled_change_at"),
   },
   (t) => [
     index("customer_context_account_idx").on(t.accountId),
