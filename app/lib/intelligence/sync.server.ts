@@ -86,10 +86,18 @@ async function resolveAccountConnection(
 }
 
 function priceInterval(price: Stripe.Price | null | undefined): BillingInterval {
-  const interval = price?.recurring?.interval;
-  return interval === "day" || interval === "week" || interval === "month" || interval === "year"
-    ? interval
-    : "month";
+  // The SDK types Stripe's enums as open (`| OtherString`), so an equality
+  // check does not narrow them: each known value is returned by name.
+  switch (price?.recurring?.interval) {
+    case "day":
+      return "day";
+    case "week":
+      return "week";
+    case "year":
+      return "year";
+    default:
+      return "month";
+  }
 }
 
 function productName(product: Stripe.Price["product"] | undefined): string | null {
@@ -231,7 +239,9 @@ function couponTermsIn(coupon: Stripe.Coupon, currency: string): CouponTerms {
   return {
     percentOff: coupon.percent_off,
     amountOffCents,
-    duration: coupon.duration,
+    // Anything but once or repeating counts as forever, as recurs() in
+    // subscription-terms.ts already reads it.
+    duration: coupon.duration === "once" ? "once" : coupon.duration === "repeating" ? "repeating" : "forever",
     appliesToProducts: coupon.applies_to?.products ?? null,
   };
 }

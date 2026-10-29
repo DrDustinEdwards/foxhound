@@ -18,7 +18,7 @@ import { getStripe } from "~/lib/stripe/client";
 // frozen on the row. A locked quote would cost a fee for a guarantee nobody
 // needs.
 //
-// THE SDK DOES NOT TYPE THIS ENDPOINT. stripe@22.3.1 ships no `fxQuotes`
+// THE SDK DOES NOT TYPE THIS ENDPOINT. stripe@23.0.1 ships no `fxQuotes`
 // resource, so the call goes through `stripe.rawRequest`, which still carries
 // the SDK's auth, retries and idempotency. Adding a dependency to reach a typed
 // wrapper is exactly what 371 binding 1 warns about on a money repo. The

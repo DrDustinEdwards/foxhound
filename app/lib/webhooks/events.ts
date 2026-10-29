@@ -32,6 +32,7 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 //                                 charges, payouts and requirements)
 //   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
 //   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
+//   payment_method.card_automatically_updated (its pre-2020 name) -> card_auto_updated
 // Everything else is ignored.
 
 export type WebhookIntent =
@@ -191,7 +192,23 @@ function asId(ref: string | { id?: string } | null | undefined): string | null {
 }
 
 /** Classify a verified Stripe event into the processor intent. Pure. */
+/** Stripe's card updater replaced the card details (a new expiry or number
+ *  from the network). Whether the customer has a payment to retry is the
+ *  processor's question. */
+function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
+  const customerId = asId(paymentMethod.customer);
+  if (!customerId) return { kind: "ignore", reason: "no_customer" };
+  return { kind: "card_auto_updated", customerId };
+}
+
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
+  // Stripe's name for payment_method.automatically_updated before 2020-08-27,
+  // with the same PaymentMethod payload. Stripe no longer emits it and the SDK
+  // no longer types it (see readCardUpdaterEvents), but the endive Connect
+  // destination still lists it, so one that arrives takes the same path.
+  if ((event.type as string) === "payment_method.card_automatically_updated") {
+    return cardAutoUpdated(event.data.object as Stripe.PaymentMethod);
+  }
   switch (event.type) {
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice;
@@ -387,15 +404,8 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         changes,
       };
     }
-    case "payment_method.automatically_updated": {
-      // Stripe's card updater replaced the card details (a new expiry or
-      // number from the network). Whether the customer has a payment to retry
-      // is the processor's question.
-      const paymentMethod = event.data.object as Stripe.PaymentMethod;
-      const customerId = asId(paymentMethod.customer);
-      if (!customerId) return { kind: "ignore", reason: "no_customer" };
-      return { kind: "card_auto_updated", customerId };
-    }
+    case "payment_method.automatically_updated":
+      return cardAutoUpdated(event.data.object as Stripe.PaymentMethod);
     case "invoice.marked_uncollectible": {
       const invoice = event.data.object as Stripe.Invoice;
       if (!invoice.id) return { kind: "ignore", reason: "no_invoice_id" };

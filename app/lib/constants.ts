@@ -817,7 +817,7 @@ export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
  * (esm/apiVersion). Pinning here removes dependence on the Stripe account's
  * dashboard default so behavior is reproducible (non-negotiable #6).
  */
-export const STRIPE_API_VERSION = "2026-06-24.dahlia";
+export const STRIPE_API_VERSION = "2026-09-30.endive";
 /** Stripe Connect OAuth authorize endpoint. */
 export const STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize";
 /**
