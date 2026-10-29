@@ -20,7 +20,7 @@ export interface DemoBusiness {
 }
 
 export const DEMO_ACCOUNT_ID = `${DEMO_ACCOUNT_ID_PREFIX}teamflow`;
-export const DEMO_ACCOUNT_NAME = "Teamflow";
+const DEMO_ACCOUNT_NAME = "Teamflow";
 export const DEMO_MEMBER_USER_ID = `${DEMO_ACCOUNT_ID_PREFIX}user_teamflow`;
 
 export const DEMO_BOLT_ACCOUNT_ID = `${DEMO_ACCOUNT_ID_PREFIX}bolt`;
