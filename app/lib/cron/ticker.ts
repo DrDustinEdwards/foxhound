@@ -1,4 +1,9 @@
-import { CRON_SCHEDULE_RECOVERY_TICK, CRON_TICKER_INSTANCE_NAME, CRON_TICKER_INTERVAL_MS } from "~/lib/constants";
+import {
+  CRON_SCHEDULE_BLOG,
+  CRON_SCHEDULE_RECOVERY_TICK,
+  CRON_TICKER_INSTANCE_NAME,
+  CRON_TICKER_INTERVAL_MS,
+} from "~/lib/constants";
 
 import type { CronJob } from "./registry";
 import { runCronJob } from "./run";
@@ -21,6 +26,13 @@ import { runCronJob } from "./run";
 // alarm run in the same window meet the lock (one skips as "locked") or run one
 // after the other, and the per-step and per-send claims stop any double charge
 // or double send, as they already do for overlapping trigger runs.
+//
+// BLOG SCHEDULES RIDE ALONG. blog-schedules has its own "* * * * *" trigger, so a
+// post Carrel scheduled goes live within a minute. That trigger is new and may
+// fail the way "*/5" did, so the ticker runs blog-schedules too: if the minute
+// trigger never fires, a scheduled post still goes live within five minutes.
+// runSchedules applies only what is due and still matches, so a second run in
+// the same minute applies nothing.
 
 /** The two alarm calls the ticker needs, so a test can drive it without a
  *  Durable Object. DurableObjectStorage satisfies it. */
@@ -51,10 +63,14 @@ export interface TickerDeps {
 const defaultDeps: TickerDeps = {
   now: () => Date.now(),
   run: runCronJob,
-  jobs: async () => (await import("./registry")).jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK),
+  jobs: async () => {
+    const { jobsForSchedule } = await import("./registry");
+    return [...jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK), ...jobsForSchedule(CRON_SCHEDULE_BLOG)];
+  },
 };
 
-/** The alarm: re-arm FIRST, then run every job on the five-minute schedule.
+/** The alarm: re-arm FIRST, then run every job on the five-minute schedule,
+ *  and blog-schedules after them.
  *
  *  Re-arming before the jobs is what keeps the chain alive. A job that throws,
  *  runs until the platform kills the invocation, or fails to import would
