@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { ArrowRight } from "lucide-react";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
 import "capsomer/page-head.css";
@@ -12,13 +11,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import { SettingsBackLink } from "~/components/settings-back-link";
-import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { ALERT_METRIC_LABELS } from "~/lib/settings/alert-metrics";
-
-import type { Route } from "./+types/intelligence";
 
 // S35, /settings/intelligence (J69, job_c7d73b4f3c1c).
 //
@@ -52,19 +45,14 @@ import type { Route } from "./+types/intelligence";
 // A switch here would save a choice nothing honors, so the page names each
 // delivery as not built, where Recova had its checkbox, and points at the
 // nearest thing that is built. With no control there is nothing to save, so
-// there is no SaveBar and no action. The day a reader exists, the reader guard
-// in test/settings-intelligence-j69.test.ts fails and the control goes here.
+// there is no SaveBar and no action. The day a reader exists, the control goes
+// here.
 //
-// TWO LINES OF RECOVA'S COPY ARE MADE TRUE (RULES.md 1.2). Its lead,
+// ONE LINE OF RECOVA'S COPY IS MADE TRUE (RULES.md 1.2). Its lead,
 // "Control which Intelligence outputs are delivered to you, and where they
 // go.", promises controls this page cannot have yet, so it loses "Control".
-// Its inactive notice links "Enable from billing", and Foxhound's billing page
-// says subscribing is not built (components/billing-sections.tsx), so the link
-// says what is there.
-//
-// THE GATE IS FOXHOUND'S. Recova reads account_products; Foxhound's
-// entitlement is isIntelligenceEntitled over account_subscriptions, the same
-// check the nav and every Intelligence page use.
+// Recova's inactive notice ("Enable from billing") is gone: Intelligence is free
+// on every account (Dustin, 2026-10-29), so the page is always the active one.
 //
 // LOOK FROM CAPSOMER (Q10, Q11, 2026-10-14): PageHead, a Panel's card and
 // Status, amber throughout. Recova's arrangement stays: the phone-only back
@@ -75,13 +63,6 @@ import type { Route } from "./+types/intelligence";
 
 export function meta() {
   return [{ title: "Intelligence settings - Foxhound" }];
-}
-
-export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const intelligenceActive = await isIntelligenceEntitled(getDb(env), auth.membership.accountId);
-  return { intelligenceActive };
 }
 
 // Underlined at rest, not only on hover, because these links sit inside
@@ -113,7 +94,7 @@ function DeliveryRow({
   );
 }
 
-export default function IntelligenceSettings({ loaderData }: Route.ComponentProps) {
+export default function IntelligenceSettings() {
   return (
     <>
       <SettingsBackLink />
@@ -123,51 +104,32 @@ export default function IntelligenceSettings({ loaderData }: Route.ComponentProp
         <PageHead title="Intelligence" lead="Which Intelligence outputs are delivered to you, and where they go." />
       </div>
 
-      {loaderData.intelligenceActive ? (
-        <section className="cap-panel">
-          <div className="cap-panel-body">
-            <p className="text-label text-text-secondary">
-              Foxhound does not deliver Intelligence outputs to you yet, so there is nothing to set here.
-            </p>
-            <ul className="mt-2">
-              <DeliveryRow first label="Weekly MRR and health summary, by email or Slack">
-                The nightly narrative is on the{" "}
-                <Link to="/intelligence/dashboard" className={linkClass}>
-                  Intelligence dashboard
-                </Link>
-                , and each month keeps its own under{" "}
-                <Link to="/intelligence/reports" className={linkClass}>
-                  Reports
-                </Link>
-                .
-              </DeliveryRow>
-              <DeliveryRow label="Alert when a customer's health score drops below a threshold, by email or Slack">
-                <Link to="/settings/alerts" className={linkClass}>
-                  Settings and Alerts
-                </Link>{" "}
-                can alert on {ALERT_METRIC_LABELS.health_score_avg}, across your scored customers. Foxhound records each breach on that page and emails it to your notification address; it does not post alerts to Slack.
-              </DeliveryRow>
-            </ul>
-          </div>
-        </section>
-      ) : (
-        <section className="cap-panel">
-          <div className="cap-panel-body">
-            <p className="text-label text-text-secondary">
-              Intelligence is not active on this account.{" "}
-              <Link to="/billing" className={`group inline-flex min-h-6 items-center gap-1 ${linkClass}`}>
-                See Intelligence on billing
-                <ArrowRight
-                  className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                  size={13}
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
+      <section className="cap-panel">
+        <div className="cap-panel-body">
+          <p className="text-label text-text-secondary">
+            Foxhound does not deliver Intelligence outputs to you yet, so there is nothing to set here.
+          </p>
+          <ul className="mt-2">
+            <DeliveryRow first label="Weekly MRR and health summary, by email or Slack">
+              The nightly narrative is on the{" "}
+              <Link to="/intelligence/dashboard" className={linkClass}>
+                Intelligence dashboard
               </Link>
-            </p>
-          </div>
-        </section>
-      )}
+              , and each month keeps its own under{" "}
+              <Link to="/intelligence/reports" className={linkClass}>
+                Reports
+              </Link>
+              .
+            </DeliveryRow>
+            <DeliveryRow label="Alert when a customer's health score drops below a threshold, by email or Slack">
+              <Link to="/settings/alerts" className={linkClass}>
+                Settings and Alerts
+              </Link>{" "}
+              can alert on {ALERT_METRIC_LABELS.health_score_avg}, across your scored customers. Foxhound records each breach on that page and emails it to your notification address; it does not post alerts to Slack.
+            </DeliveryRow>
+          </ul>
+        </div>
+      </section>
     </>
   );
 }

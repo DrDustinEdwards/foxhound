@@ -49,8 +49,6 @@ export interface DigestInput extends DigestNumbers {
   senderName: string | null;
   /** Recova gates the Disputes row and section on the product being active. */
   disputesActive: boolean;
-  /** Recova gates the Intelligence section on the product being active. */
-  intelligenceActive: boolean;
   highRiskCustomers: { name: string; mrrCents: number | null }[];
   /** The digest's own clock, so the header line and subject agree. */
   now: Date;
@@ -108,24 +106,20 @@ function formatAmount(cents: number, currency: string): string {
 
 /**
  * Legacy's subject: `platform` when Intelligence or Disputes is active, else
- * `recovery`, so a single-product merchant is not sent a multi-product framing.
+ * `recovery`. Intelligence is on for every account (free, Dustin 2026-10-29),
+ * so it is always `platform`.
  *
  * The date is formatted in UTC. Legacy's `toLocaleDateString` runs in the
  * server's zone; both platforms run UTC in production, and pinning it here
  * makes the render independent of where the test runs (342 binding 2).
  */
-function digestSubject(input: {
-  now: Date;
-  intelligenceActive: boolean;
-  disputesActive: boolean;
-}): string {
-  const scope = input.intelligenceActive || input.disputesActive ? "platform" : "recovery";
+function digestSubject(input: { now: Date }): string {
   const date = input.now.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     timeZone: "UTC",
   });
-  return `Your weekly ${scope} report: ${date}`;
+  return `Your weekly platform report: ${date}`;
 }
 
 /** Recova's label and value, on one line: its rows set the label left and
@@ -164,7 +158,6 @@ function disputesSection(input: DigestInput): Block[] {
  * mrr_contribution_cents ARE written.
  */
 function intelligenceSection(input: DigestInput): Block[] {
-  if (!input.intelligenceActive) return [];
   if (input.highRiskCustomers.length === 0) return [];
   const out: Block[] = [
     { type: "paragraph", text: "Intelligence" },

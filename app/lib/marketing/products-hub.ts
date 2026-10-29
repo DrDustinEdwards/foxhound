@@ -1,4 +1,4 @@
-import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS, INTELLIGENCE_PRICE_CENTS, RECOVERY_FEE_BPS } from "~/lib/constants";
+import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS, RECOVERY_FEE_BPS } from "~/lib/constants";
 import { formatMoneyShort } from "~/lib/money-format";
 
 import type { ProductKey } from "./products";
@@ -24,12 +24,8 @@ import type { ProductKey } from "./products";
 // - Disputes: Recova reads "20% on wins", but billing caps each dispute's fee
 //   (DISPUTE_FEE_CAP_CENTS, applied in app/lib/billing/run.ts), so the cap is
 //   named, as /pricing names it.
-// - Intelligence: Recova reads "$199/mo" beside "MRR analytics, ...", but
-//   Foxhound's MRR analytics are free (the dashboard reads them with no
-//   entitlement check, app/routes/app/dashboard.tsx) and the $199 buys the
-//   predictive layer (health scores, churn, alerts and the AI narrative sit
-//   behind isIntelligenceEntitled). So it says what the $199 is for, in
-//   /pricing's words.
+// - Intelligence: Recova reads "$199/mo", but Intelligence is free on every
+//   account (Dustin, 2026-10-29), so it says "Free".
 
 const pct = (bps: number) => `${bps / 100}%`;
 
@@ -53,6 +49,6 @@ export const HUB_COPY: Record<ProductKey, HubCardCopy> = {
   },
   intelligence: {
     description: "MRR analytics, churn prediction, customer health scoring, AI narrative",
-    price: `${formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo for predictive risk scoring`,
+    price: "Free",
   },
 };

@@ -1,6 +1,5 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import {
-  accountSubscriptions,
   accounts,
   alertHistory,
   alerts,
@@ -16,40 +15,14 @@ import {
   type Db,
 } from "~/db";
 import { groupSumByCurrency } from "~/lib/billing/preview.server";
-import {
-  DAY_MS,
-  FAILED_PAYMENT_STATUS_ACTIVE,
-  INTELLIGENCE_PRODUCT,
-  SUBSCRIPTION_STATUS_ACTIVE,
-} from "~/lib/constants";
+import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import type { CustomerActivity } from "./customer-detail";
 import { healthScoreBand } from "./health-band";
 import type { HealthFactor } from "./risk";
 
-// Read models for the paid Intelligence surfaces (TASK-foxhound-intelligence-ai.md
-// deliverable 6). Every query is account-scoped. No entitlement check for the
-// Intelligence paid subscription exists elsewhere in the app yet; this is that
-// check, built honestly against account_subscriptions (product='intelligence',
-// status='active'). If a real billing-driven write path for this row is added
-// later, this read-side gate does not need to change.
-
-/** True when the account currently has an active Intelligence subscription
- *  (admin-granted rows count too: PRICING.md, admin_granted never touches
- *  Stripe but is still a real entitlement). */
-export async function isIntelligenceEntitled(db: Db, accountId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: accountSubscriptions.id })
-    .from(accountSubscriptions)
-    .where(
-      and(
-        eq(accountSubscriptions.accountId, accountId),
-        eq(accountSubscriptions.product, INTELLIGENCE_PRODUCT),
-        eq(accountSubscriptions.status, SUBSCRIPTION_STATUS_ACTIVE),
-      ),
-    )
-    .limit(1);
-  return rows.length > 0;
-}
+// Read models for the Intelligence surfaces (TASK-foxhound-intelligence-ai.md
+// deliverable 6). Every query is account-scoped. Intelligence is free on every
+// account (Dustin, 2026-10-29), so there is no entitlement gate.
 
 const OVERVIEW_CUSTOMER_LIMIT = 25;
 

@@ -12,7 +12,6 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import { EnarratioFigure } from "~/components/enarratio-figure";
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -31,7 +30,6 @@ import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import {
   getCustomerActivity,
   getCustomerHealthDetail,
-  isIntelligenceEntitled,
 } from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
 
@@ -82,9 +80,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
   const nowMs = Date.now();
   const [detail, activity] = await Promise.all([
     getCustomerHealthDetail(db, accountId, params.id),
@@ -92,7 +87,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   ]);
   if (!detail) throw new Response("Not Found", { status: 404 });
   return {
-    entitled: true as const,
     nowMs,
     accountName: auth.membership.accountName,
     // Only what the page shows reaches the browser.
@@ -117,18 +111,9 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   };
 }
 
-type Loaded = Extract<Route.ComponentProps["loaderData"], { entitled: true }>;
+type Loaded = Route.ComponentProps["loaderData"];
 
 export default function CustomerHealthPage({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) {
-    return (
-      <div className="mx-auto max-w-[1080px] px-4 py-8 md:px-8">
-        <h1 className="text-title font-medium text-text">Customer health</h1>
-        <IntelligenceUpsell />
-      </div>
-    );
-  }
-
   const { customer, activity, accountName, nowMs } = loaderData;
   const recoveryCount = activity.recovery.failedPaymentCount;
   const hasDisputeHistory = activity.disputes.count > 0;

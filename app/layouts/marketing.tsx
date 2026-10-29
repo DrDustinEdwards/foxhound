@@ -7,7 +7,6 @@ import { listMemberships, resolveActiveMembershipFrom } from "~/lib/auth/account
 import { isAdminEmail } from "~/lib/auth/roles";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getSession } from "~/lib/auth/session";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import { resolveThemeForRequest } from "~/lib/theme.server";
 
@@ -15,10 +14,8 @@ import type { Route } from "./+types/marketing";
 
 // Anonymous visitors stay zero-DB (task: "Anonymous visitors stay zero-DB
 // exactly as now"). An authenticated visitor additionally resolves their
-// memberships (for the account switcher) and Intelligence entitlement (for
-// the section pill's dropdown), reusing isIntelligenceEntitled directly
-// rather than duplicating its query or pulling in resolveNavContext's
-// last-visited-product logic, which marketing pages have no use for
+// memberships (for the account switcher), without pulling in
+// resolveNavContext's last-visited-product logic, which marketing pages have no use for
 // (TASK-foxhound-marketing-header-v2.md).
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -32,7 +29,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return {
       isAuthenticated: false as const,
       theme,
-      intelligenceEntitled: false,
       isAdmin: false,
       accountLabel: "",
       hasAccount: false,
@@ -63,12 +59,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     memberships,
     session.session.activeAccountId ?? null,
   );
-  const intelligenceEntitled = membership ? await isIntelligenceEntitled(db, membership.accountId) : false;
-
   return {
     isAuthenticated: true as const,
     theme,
-    intelligenceEntitled,
     // The switcher's rows. Legacy assembles these in the nav's own loader with
     // a separate stripe_connections query, never in the account resolver.
     accounts: await listSwitcherAccounts(db, memberships),
@@ -94,7 +87,6 @@ export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
       <Header
         isAuthenticated={loaderData.isAuthenticated}
         theme={loaderData.theme}
-        intelligenceEntitled={loaderData.intelligenceEntitled}
         isAdmin={loaderData.isAdmin}
         accountLabel={loaderData.accountLabel}
         hasAccount={loaderData.hasAccount}

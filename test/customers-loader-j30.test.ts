@@ -16,15 +16,10 @@ vi.mock("~/db", async (importOriginal) => ({
 // the loader passes the signed-in account, and only that account, to every
 // query (see "scopes every query to the signed-in account" below).
 const mocks = vi.hoisted(() => ({
-  isIntelligenceEntitled: vi.fn(),
   listCustomerTiers: vi.fn(),
   listCustomerDirectory: vi.fn(),
 }));
 
-vi.mock("~/lib/intelligence/views.server", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("~/lib/intelligence/views.server")>()),
-  isIntelligenceEntitled: mocks.isIntelligenceEntitled.mockImplementation(async () => true),
-}));
 vi.mock("~/lib/intelligence/directory.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/intelligence/directory.server")>()),
   listCustomerTiers: mocks.listCustomerTiers.mockImplementation(async () => ["growth"]),
@@ -81,7 +76,7 @@ describe("J30 customers loader", () => {
       context: context(),
       request: new Request("https://x.test/intelligence/customers"),
       params: {},
-    } as never)) as { entitled: true; result: { customers: Record<string, unknown>[] } };
+    } as never)) as { result: { customers: Record<string, unknown>[] } };
     expect(data.result.customers).toHaveLength(2);
     expect(data.result.customers[0].stripeCustomerId).toBe("cus_sample_1");
     expect(data.result.customers[0]).not.toHaveProperty("customerEmail");

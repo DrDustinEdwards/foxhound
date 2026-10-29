@@ -4,17 +4,11 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 // J67: the dashboard's action is the one door to report generation. It takes
-// the account from the session, never from the form (RULES.md 4.6), checks the
-// Intelligence entitlement the page itself checks, and hands the month to
-// generateMonthlyReport, whose result the page shows.
+// the account from the session, never from the form (RULES.md 4.6), and hands
+// the month to generateMonthlyReport, whose result the page shows.
 
 const generateMonthlyReport = vi.fn();
-const isIntelligenceEntitled = vi.fn();
 vi.mock("~/lib/intelligence/report-generate.server", () => ({ generateMonthlyReport }));
-vi.mock("~/lib/intelligence/views.server", async (orig) => ({
-  ...(await orig<object>()),
-  isIntelligenceEntitled,
-}));
 vi.mock("~/db", async (orig) => ({ ...(await orig<object>()), getDb: () => ({ fake: "db" }) }));
 
 const route = await import("~/routes/app/intelligence/index");
@@ -60,7 +54,6 @@ async function answer(fields: Record<string, string>, isDemo = false) {
 
 describe("/intelligence/dashboard action", () => {
   it("generates for the session's account and the posted month, ignoring any posted account", async () => {
-    isIntelligenceEntitled.mockResolvedValue(true);
     generateMonthlyReport.mockResolvedValue({ ok: true, month: "2026-10", narrative: "Hi." });
     const { status, body: result } = await answer({ intent: "generate", month: "2026-10", accountId: "acct_other" });
     expect(status).toBe(200);
@@ -72,18 +65,8 @@ describe("/intelligence/dashboard action", () => {
     expect(result).toEqual({ ok: true, month: "2026-10", narrative: "Hi." });
   });
 
-  it("refuses an account without Intelligence, generating nothing", async () => {
-    generateMonthlyReport.mockClear();
-    isIntelligenceEntitled.mockResolvedValue(false);
-    const { status, body } = await answer({ intent: "generate", month: "2026-10" });
-    expect(generateMonthlyReport).not.toHaveBeenCalled();
-    expect(body).toMatchObject({ ok: false, error: "not_entitled" });
-    expect(status).toBe(403);
-  });
-
   it("refuses an unknown intent", async () => {
     generateMonthlyReport.mockClear();
-    isIntelligenceEntitled.mockResolvedValue(true);
     const { status, body } = await answer({ intent: "delete" });
     expect(generateMonthlyReport).not.toHaveBeenCalled();
     expect(body).toMatchObject({ ok: false, error: "invalid_intent" });
@@ -92,7 +75,6 @@ describe("/intelligence/dashboard action", () => {
 
   it("refuses the demo with a 403, generating nothing", async () => {
     generateMonthlyReport.mockClear();
-    isIntelligenceEntitled.mockResolvedValue(true);
     const { status, body } = await answer({ intent: "generate", month: "2026-10" }, true);
     expect(generateMonthlyReport).not.toHaveBeenCalled();
     expect(body).toMatchObject({ ok: false, error: "demo_read_only" });
@@ -109,19 +91,16 @@ describe("/intelligence/dashboard action", () => {
     ["generation_failed", 502],
     ["limiter_unavailable", 503],
   ] as const)("answers %s with %i", async (error, expected) => {
-    isIntelligenceEntitled.mockResolvedValue(true);
     generateMonthlyReport.mockResolvedValue({ ok: false, error });
     const { status, body } = await answer({ intent: "generate", month: "2026-10" });
     expect(body).toEqual({ ok: false, error });
     expect(status).toBe(expected);
   });
 
-  it("keeps a thrown entitlement read in the card as a 500 too", async () => {
-    generateMonthlyReport.mockClear();
-    isIntelligenceEntitled.mockRejectedValue(new Error("D1_ERROR: no such table"));
+  it("keeps a thrown read in the card as a 500", async () => {
+    generateMonthlyReport.mockRejectedValue(new Error("D1_ERROR: no such table"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const { status, body } = await answer({ intent: "generate", month: "2026-10" });
-    expect(generateMonthlyReport).not.toHaveBeenCalled();
     expect(body).toEqual({ ok: false, error: "server_error" });
     expect(status).toBe(500);
     log.mockRestore();

@@ -31,10 +31,8 @@ import type { AccountBillingState, CurrencyAmount } from "~/lib/billing/preview.
 import {
   BILLING_RUN_DAY_OF_MONTH,
   DISPUTE_FEE_CAP_CENTS,
-  INTELLIGENCE_PRICE_CENTS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
-import { PRODUCTS } from "~/lib/marketing/products";
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
 // /billing's five sections (J65, row S3), in Recova's order and with Recova's
@@ -281,22 +279,6 @@ export function DisputeFeesSection({
           ))}
         </RowList>
       )}
-    </Panel>
-  );
-}
-
-/** Recova's Intelligence offer, shown only to an account without Intelligence.
- *  Recova's "Subscribe to Intelligence" button posts to a checkout Foxhound does
- *  not have, so it is left out and the section says so (RULES.md 2.1, 2.7). */
-export function IntelligenceSection() {
-  const product = PRODUCTS.intelligence;
-  return (
-    <Panel title={product.name}>
-      <p className="mb-3 text-label text-text-subtle">{product.description}</p>
-      <p className="mb-4 font-mono text-label text-accent-text">
-        {formatMoneyShort(INTELLIGENCE_PRICE_CENTS, "usd")}/mo, account-wide
-      </p>
-      <p className="text-label text-text-tertiary">Subscribing from Foxhound is not built yet.</p>
     </Panel>
   );
 }

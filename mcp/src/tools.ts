@@ -13,7 +13,7 @@ import { SCOPE_WRITE } from "./scopes";
 // Eight read and three write. Test mail goes only to the signed-in admin's own
 // inbox or one on the API's allow list, and moves no money. Pause is the one direct write, because pausing stops
 // money moving. Everything that starts or changes money (resuming a merchant,
-// releasing the brake, enabling a cron, billing exemption, a plan grant) can
+// releasing the brake, enabling a cron, billing exemption) can
 // only be STAGED: the API records it, and an admin confirms it, signed in, in
 // /admin/staged on foxhoundapp.com. There is no tool for refunds, adjustments,
 // cancel or Stripe disconnect, and the API offers no route for one either.
@@ -158,13 +158,13 @@ export const ADMIN_TOOLS: AdminTool[] = [
     name: "foxhound_admin_stage_change",
     title: "Stage a change",
     description:
-      "Ask for a change that starts or changes money, for an admin to confirm in /admin/staged. Nothing changes until then. kind is resume_account (account_id), release_brake, cron_enable (cron_name), billing_exempt (account_id and exempt true or false) or intelligence_grant (account_id). Add a note saying why.",
+      "Ask for a change that starts or changes money, for an admin to confirm in /admin/staged. Nothing changes until then. kind is resume_account (account_id), release_brake, cron_enable (cron_name) or billing_exempt (account_id and exempt true or false). Add a note saying why.",
     inputSchema: {
       type: "object",
       properties: {
         kind: {
           type: "string",
-          enum: ["resume_account", "release_brake", "cron_enable", "billing_exempt", "intelligence_grant"],
+          enum: ["resume_account", "release_brake", "cron_enable", "billing_exempt"],
         },
         account_id: { type: "string" },
         cron_name: { type: "string", description: "For cron_enable: a cron foxhound_admin_check_health lists." },

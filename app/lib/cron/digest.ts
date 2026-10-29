@@ -18,7 +18,6 @@ import { DAY_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { processEmailJob, type EmailSendStatus } from "~/lib/email/dispatch";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 
 import {
@@ -336,7 +335,6 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
       }
 
       const numbers = await collectDigestNumbers(db, account.accountId, windowStart);
-      const intelligenceActive = await isIntelligenceEntitled(db, account.accountId);
       // LEGACY GATES THIS ON THE DISPUTES PRODUCT AND FOXHOUND HAS NO SUCH
       // ENTITLEMENT: there is no DISPUTES_PRODUCT and no account_subscriptions
       // row for it, so only the second half of legacy's condition survives.
@@ -350,7 +348,6 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           ...digestContent({
             ...numbers,
             senderName: account.senderName,
-            intelligenceActive,
             disputesActive,
             highRiskCustomers: numbers.highRisk,
             now,

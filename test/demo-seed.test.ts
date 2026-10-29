@@ -3,10 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getRecoveryStats, getMrrAnalytics } from "~/lib/dashboard/stats.server";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
-import {
-  getIntelligenceOverview,
-  isIntelligenceEntitled,
-} from "~/lib/intelligence/views.server";
+import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import {
   listFailedPayments,
 } from "~/lib/recovery/queries.server";
@@ -49,9 +46,7 @@ describe("demo seeder -> real loaders render populated data", () => {
     expect(mrr.latest!.totalMrrCents).toBeLessThan(3_500_000);
   });
 
-  it("intelligence: entitled, overview populated, at-risk anchors present", async () => {
-    expect(await isIntelligenceEntitled(db, DEMO_ACCOUNT_ID)).toBe(true);
-
+  it("intelligence: overview populated, at-risk anchors present", async () => {
     const overview = await getIntelligenceOverview(db, DEMO_ACCOUNT_ID);
     // 200 base customers + 7 net-new dispute-only customers (Harborline is
     // already one of the 200, not net-new).

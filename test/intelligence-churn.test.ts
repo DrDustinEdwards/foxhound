@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { accountSubscriptions, accounts, customerContext, mrrSnapshots } from "~/db";
-import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
+import { accounts, customerContext, mrrSnapshots } from "~/db";
 import { churnBandSharePct } from "~/lib/intelligence/churn";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 
@@ -14,13 +13,6 @@ async function setup(opts: { scored?: { score: number | null; mrrCents: number; 
   const { db } = createInMemoryDb();
   const now = new Date(NOW);
   await db.insert(accounts).values({ id: ACCOUNT_ID, name: "Churn Co", createdAt: now });
-  await db.insert(accountSubscriptions).values({
-    id: "sub_1",
-    accountId: ACCOUNT_ID,
-    product: INTELLIGENCE_PRODUCT,
-    status: SUBSCRIPTION_STATUS_ACTIVE,
-    createdAt: now,
-  });
 
   const rows = opts.scored ?? [];
   if (rows.length > 0) {

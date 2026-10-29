@@ -10,7 +10,6 @@ import "capsomer/panel.css";
 
 import { Meter } from "~/components/charts";
 import { EnarratioFigure } from "~/components/enarratio-figure";
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -34,7 +33,7 @@ import {
 } from "~/lib/intelligence/dashboard-charts";
 import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
 import { generateMonthlyReport } from "~/lib/intelligence/report-generate.server";
-import { getIntelligenceOverview, getReportsArchive, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { getIntelligenceOverview, getReportsArchive } from "~/lib/intelligence/views.server";
 import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/trends.server";
 import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format";
 
@@ -76,9 +75,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
   const nowMs = Date.now();
   const [overview, healthDistribution, mrrSeries, archive] = await Promise.all([
     getIntelligenceOverview(db, accountId),
@@ -87,7 +83,6 @@ export async function loader({ context }: Route.LoaderArgs) {
     getReportsArchive(db, accountId),
   ]);
   return {
-    entitled: true as const,
     overview,
     healthDistribution,
     mrrSeries,
@@ -123,7 +118,6 @@ export async function action({ context, request }: Route.ActionArgs) {
     const db = getDb(env);
     const form = await request.formData();
     if (form.get("intent") !== "generate") return refused("invalid_intent");
-    if (!(await isIntelligenceEntitled(db, accountId))) return refused("not_entitled");
     const result = await generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
     if (!result.ok) return refused(result.error);
     return data<ActionResult>(result, { status: 200 });
@@ -134,15 +128,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function IntelligenceDashboardPage({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) {
-    return (
-      <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
-        <PageHead title="Dashboard" lead="MRR trends and customer health" />
-        <IntelligenceUpsell />
-      </div>
-    );
-  }
-
   const { overview, healthDistribution, mrrSeries, reports, currentMonth, nowMs, isDemo } = loaderData;
   const latest = mrrSeries[mrrSeries.length - 1];
 
@@ -225,7 +210,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
   );
 }
 
-type Series = Extract<Route.ComponentProps["loaderData"], { entitled: true }>["mrrSeries"];
+type Series = Route.ComponentProps["loaderData"]["mrrSeries"];
 type Latest = Series[number];
 
 /**
@@ -327,7 +312,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
 /** Recova's HealthDistributionChart: customers per band per sampled day over
  *  90 days (intelligence-ai is daily, so the window is true here), in
  *  Foxhound's bands (healthScoreBand, 78/79). */
-function HealthCard({ days }: { days: Extract<Route.ComponentProps["loaderData"], { entitled: true }>["healthDistribution"] }) {
+function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["healthDistribution"] }) {
   const draw = useCallback((w: number) => drawHealth(days, w), [days]);
   if (days.length === 0) return null;
   return (

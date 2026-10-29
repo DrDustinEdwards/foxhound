@@ -380,7 +380,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       // Its unsubscribe is signed for an account, so it needs a merchant, as
       // customer mail does.
       if (!merchant) throw new Error("the weekly digest needs a merchant");
-      const flags = { now, intelligenceActive: false, disputesActive: true };
+      const flags = { now, disputesActive: true };
       return {
         channel: "job",
         audience: "digest",

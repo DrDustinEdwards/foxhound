@@ -34,16 +34,11 @@ interface SentMessage {
 const harness = vi.hoisted(() => ({
   db: null as unknown,
   sent: [] as SentMessage[],
-  intelligenceEntitled: false,
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
-}));
-
-vi.mock("~/lib/intelligence/views.server", () => ({
-  isIntelligenceEntitled: async () => harness.intelligenceEntitled,
 }));
 
 const digestEmail = await import("~/lib/recovery/digest-email");
@@ -82,7 +77,6 @@ beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
   harness.sent = [];
-  harness.intelligenceEntitled = false;
 });
 
 function seedAccount(senderName: string | null = "Teamflow"): void {
@@ -139,7 +133,6 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
     currency: "usd",
     senderName: "Teamflow",
     disputesActive: true,
-    intelligenceActive: true,
     highRiskCustomers: [
       { name: "Acme Co", mrrCents: 19900 },
       { name: "(unnamed)", mrrCents: null },
@@ -163,7 +156,7 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
         openDisputeCount: 0,
         openDisputeCents: 0,
         disputesActive: false,
-        intelligenceActive: false,
+        highRiskCustomers: [],
       }),
     );
     const words = JSON.stringify(blocks);
@@ -202,7 +195,7 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
     const m = harness.sent[0];
     expect(m.to).toBe(OWNER);
     expect(m.from).toMatch(/^Foxhound </);
-    expect(m.subject).toBe("Your weekly recovery report: November 2");
+    expect(m.subject).toBe("Your weekly platform report: November 2");
     // No Reply-To: Recova's digest passes none, though the merchant saved one.
     expect(m.replyTo).toBeUndefined();
 
@@ -232,7 +225,6 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
 
   it("a customer name carrying markup is shown as written, escaped by Capsomer", async () => {
     seedAccount();
-    harness.intelligenceEntitled = true;
     sqlite
       .prepare(
         "INSERT INTO customer_context (id, account_id, stripe_customer_id, customer_name, health_score, mrr_contribution_cents, created_at, updated_at) VALUES ('cc1', ?, 'cus_9', ?, 10, 19900, 1000, 1000)",

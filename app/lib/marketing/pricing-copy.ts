@@ -2,7 +2,6 @@ import {
   DISPUTE_FEE_BPS,
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
-  INTELLIGENCE_PRICE_CENTS,
   RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
@@ -48,10 +47,10 @@ export interface PricingCard {
 }
 
 // Audit first: the free, no-signup entry point, as Recova orders them.
-/** PRICING.md (Intelligence): the free tier, in the words every page uses
- *  (here and /product/intelligence, J58), so the site says one thing. */
-export const INTELLIGENCE_FREE_TIER_SENTENCE =
-  "MRR, movements, churn, and cohort analytics are free for every Recovery merchant.";
+/** Intelligence is free on every account (Dustin, 2026-10-29), in the words
+ *  every page uses (here, the home page and /product/intelligence), so the site
+ *  says one thing. */
+export const INTELLIGENCE_FREE_SENTENCE = "Intelligence is free for every Foxhound account, with nothing to subscribe to.";
 
 export const PRICING_CARDS: PricingCard[] = [
   {
@@ -102,25 +101,17 @@ export const PRICING_CARDS: PricingCard[] = [
   {
     id: "intelligence",
     name: "Intelligence",
-    price: usd(INTELLIGENCE_PRICE_CENTS),
-    priceLabel: "per month for predictive risk scoring",
-    description: `${INTELLIGENCE_FREE_TIER_SENTENCE} Predictive risk scoring is the paid layer.`,
+    price: "Free",
+    description: `Customer health scoring, churn prediction, and MRR trend analysis. ${INTELLIGENCE_FREE_SENTENCE}`,
     features: [
-      "MRR, movements, churn, cohorts: free for Recovery merchants",
-      `Predictive risk scoring: the paid ${usd(INTELLIGENCE_PRICE_CENTS)}/mo layer`,
+      "MRR, movements, churn, and cohorts",
+      "Health scores, churn risk, alerts, and the nightly AI analyst",
       // Recova's "Health signals feed Recovery timing and Disputes triage" is
       // removed: failed-payment retries and emails follow the decline category
       // alone, Disputes computes no triage (APPROVED-DIFFERENCES, Intelligence
       // entry), and the one timing Intelligence does change, win-back step 1,
       // is a delay, not an improvement (winback-copy.ts).
-      "Account-wide, not per-customer",
-      // 377(8): the annual term comes off the page until a checkout exists. An
-      // offer with no way to accept it fails the FTC's bona fide test whatever
-      // the intent behind it, and nothing in the billing run can sell or invoice
-      // an annual term today: run.ts emits recovery_fee and dispute_fee lines
-      // only. PRICING rev 3's 10-month term is unchanged and returns the day a
-      // purchase path ships. The price figure is untouched.
-      "Granted during early access; ask us",
+      "Every account, no subscription",
     ],
   },
 ];

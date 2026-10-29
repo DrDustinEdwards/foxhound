@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 
 import { accounts, type Db } from "~/db";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 
 import { isProductKey, resolveProductFromPath, type ProductKey } from "./manifest";
 
@@ -13,7 +12,6 @@ export interface NavContext {
   /** True on settings/billing/help/admin: pages that aren't themselves a
    *  product, so the primary link row has nothing product-specific to show. */
   isPlatformPage: boolean;
-  intelligenceEntitled: boolean;
 }
 
 /** Narrower than the full Cloudflare ExecutionContext: only the one method
@@ -23,7 +21,7 @@ type WaitUntil = (promise: Promise<unknown>) => void;
 /**
  * Resolves nav context ONCE per app-shell request (task Part 2 rule 1: zero
  * extra DB queries in the nav component itself). Always reads
- * last_visited_product alongside the entitlement check (nav assessment F-1:
+ * last_visited_product (nav assessment F-1:
  * this used to be read-on-platform-page-only, write-on-product-page-only;
  * that meant a blind write on EVERY product-page GET, which both violated
  * the demo read-only invariant - a demo visitor's browsing bled
@@ -46,15 +44,12 @@ export async function resolveNavContext(
 ): Promise<NavContext> {
   const currentProduct = resolveProductFromPath(pathname);
 
-  const [lastVisitedProduct, intelligenceEntitled] = await Promise.all([
-    db
-      .select({ lastVisitedProduct: accounts.lastVisitedProduct })
-      .from(accounts)
-      .where(eq(accounts.id, accountId))
-      .limit(1)
-      .then((rows) => rows[0]?.lastVisitedProduct ?? null),
-    isIntelligenceEntitled(db, accountId),
-  ]);
+  const lastVisitedProduct = await db
+    .select({ lastVisitedProduct: accounts.lastVisitedProduct })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1)
+    .then((rows) => rows[0]?.lastVisitedProduct ?? null);
 
   if (currentProduct && currentProduct !== lastVisitedProduct && !isDemo) {
     waitUntil(
@@ -67,5 +62,5 @@ export async function resolveNavContext(
   const activeProductKey: ProductKey =
     currentProduct ?? (isProductKey(lastVisitedProduct) ? lastVisitedProduct : "dashboard");
 
-  return { activeProductKey, isPlatformPage: currentProduct === null, intelligenceEntitled };
+  return { activeProductKey, isPlatformPage: currentProduct === null };
 }

@@ -143,30 +143,16 @@ export async function handleWinbackStart(
   //        ... if (recommendation !== 'winback_priority') { step1OffsetHours = 4 }
   //      }
   //
-  // THE READ TARGETS THE CAPABILITY, NOT THE STORAGE. Legacy's row IS an
-  // Intelligence entitlement, and Foxhound's live entitlement is
-  // isIntelligenceEntitled over account_subscriptions, which keys the SAME
-  // two constants legacy keys, INTELLIGENCE_PRODUCT and
-  // SUBSCRIPTION_STATUS_ACTIVE. account_products exists here but is
-  // VESTIGIAL: one admin SELECT, zero writers. Reading it verbatim
-  // reproduced legacy's letter and lost its meaning, because the gate stayed
-  // dead even after an admin grant. 292 rules that equivalence MEASURED, so
-  // this is a port and not an invented mapping. The same mapping is already
-  // precedent here: dashboard/console.server.ts gates the Intelligence tile
-  // on the real entitlement, for this exact reason.
+  // INTELLIGENCE IS FREE (Dustin, 2026-10-29), so legacy's condition is true
+  // on every account and the gate itself is gone; only its body remains.
   //
-  // Value and direction are unchanged and stay legacy's: on an entitled
-  // account a customer NOT flagged winback_priority is DELAYED from the 1h
-  // default to 4h, and a flagged customer keeps the default. Legacy falls
-  // open to the default on any lookup error and so does this.
+  // Value and direction stay legacy's: a customer NOT flagged
+  // winback_priority is DELAYED from the 1h default to 4h, and a flagged
+  // customer keeps the default. Legacy falls open to the default on any
+  // lookup error and so does this.
   //
-  // THE REMAINING BOUND, halved by this rewire (M9 carries it): the gate is
-  // now REACHABLE, because grantIntelligence writes exactly the row
-  // isIntelligenceEntitled reads. What it still cannot do is DISCRIMINATE:
-  // nothing in Foxhound writes `winback_priority` into recommended_action,
-  // and the demo seed's vocabulary does not contain the value either, so on
-  // a granted account every customer takes the unflagged 4h branch today.
-  // The flagged branch starts working the day a producer lands.
+  // The flagged branch needs `winback_priority` in recommended_action; a
+  // customer without it takes the unflagged 4h branch.
   const step1OffsetHours = await resolveWinbackStep1Offset(env, accountId, intent.customerId);
 
   const { applied } = await executeMoneyWrite(env, {

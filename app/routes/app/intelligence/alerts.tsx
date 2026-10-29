@@ -1,9 +1,8 @@
 import { Badge } from "~/components/badge";
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { getAlertsView, isIntelligenceEntitled } from "~/lib/intelligence/views.server";
+import { getAlertsView } from "~/lib/intelligence/views.server";
 
 import type { Route } from "./+types/alerts";
 
@@ -17,11 +16,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
-  const view = await getAlertsView(db, accountId);
-  return { entitled: true as const, ...view };
+  return getAlertsView(db, accountId);
 }
 
 function directionLabel(direction: string): string {
@@ -29,15 +24,6 @@ function directionLabel(direction: string): string {
 }
 
 export default function IntelligenceAlertsPage({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <h1 className="text-title font-medium text-text">Alerts</h1>
-        <IntelligenceUpsell />
-      </div>
-    );
-  }
-
   const { alerts, history } = loaderData;
 
   return (

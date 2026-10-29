@@ -15,7 +15,6 @@ import "capsomer/table.css";
 import "./churn.css";
 
 import { EnarratioFigure } from "~/components/enarratio-figure";
-import { IntelligenceUpsell } from "~/components/intelligence-upsell";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -28,7 +27,6 @@ import {
   formatChurnPct,
   type ChurnRatePointLike,
 } from "~/lib/intelligence/churn";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "~/lib/money-format";
 
@@ -74,15 +72,11 @@ export async function loader({ context }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const entitled = await isIntelligenceEntitled(db, accountId);
-  if (!entitled) return { entitled: false as const };
-
   const view = await getChurnView(db, accountId, Date.now());
-  return { entitled: true as const, view };
+  return { view };
 }
 
 export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) {
-  if (!loaderData.entitled) return <IntelligenceUpsell />;
   const { view } = loaderData;
   const currency = "usd";
 

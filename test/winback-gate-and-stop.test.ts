@@ -1,47 +1,14 @@
-import { readFileSync } from "node:fs";
-
-
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
-import {
-  WINBACK_PRIORITY_ACTION,
-} from "~/lib/constants";
 import { buildInvoluntaryStopBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// RULING 291: the schedule alignment, the entitlement gate on the aligned base,
-// and the involuntary flip through 265's RATIFIED transition.
-//
-// Legacy's gate, quoted:
-//   let step1OffsetHours = WIN_BACK_SCHEDULE[0].offsetHours
-//   ... .from('account_products').eq('product','intelligence').eq('status','active')
-//   if (intelligenceProduct) {
-//     ... if (recommendation !== 'winback_priority') { step1OffsetHours = 4 }
-//   }
-// So the gate DELAYS the unflagged from 1h to 4h. It is only coherent because
-// 291 aligned the base to legacy's 1h; on the old 24h base a literal 4 would
-// have ACCELERATED the unflagged, inverting the mechanism.
+// RULING 291: the involuntary flip through 265's RATIFIED transition. The
+// win-back gate itself is driven end to end in winback-gate.test.ts.
 
 const now = new Date("2026-08-14T00:00:00.000Z");
-const PROCESS = ["process", "lookups", "recovery-handlers", "dispute-handlers", "winback-handlers"]
-  .map((f) => readFileSync(`app/lib/webhooks/${f}.ts`, "utf8"))
-  .join("\n");
-
-
-describe("291 B: the gate delays the UNFLAGGED, on the aligned base", () => {
-
-  it("the gate reads the LIVE capability and legacy's value (292)", () => {
-    // 292's semantic port: the STORAGE moved to the live entitlement, the value
-    // and the direction stayed legacy's. The vestigial table is gone from this
-    // file entirely, so a revert cannot hide in a leftover import.
-    expect(PROCESS).toContain("isIntelligenceEntitled(db, accountId)");
-    expect(PROCESS).not.toContain("accountProducts");
-    expect(PROCESS).toContain("recommendation === WINBACK_PRIORITY_ACTION");
-    expect(WINBACK_PRIORITY_ACTION).toBe("winback_priority");
-  });
-});
 
 describe("291 C: the involuntary flip goes through 265's ratified transition", () => {
   function seedActive(ids: string[]) {

@@ -119,7 +119,6 @@ describe("recommendations, from the nightly batch to the page", () => {
       request: new Request("https://foxhound.example.com/intelligence/recommendations"),
       params: {},
     } as never)) as {
-      entitled: true;
       rows: { stripeCustomerId: string; recommendedAction: string; planName: string | null }[];
       totalCount: number;
     };

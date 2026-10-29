@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  accountSubscriptions,
   accounts,
   auditRuns,
   customerContext,
@@ -12,7 +11,6 @@ import {
   recoverySteps,
   stripeConnections,
 } from "~/db";
-import { INTELLIGENCE_PRODUCT, SUBSCRIPTION_STATUS_ACTIVE } from "~/lib/constants";
 import {
   atRiskSubtext,
   deadlinePhrase,
@@ -119,7 +117,6 @@ async function seedConsole(opts: {
   cardMonthsOut?: number[];
   audit?: { daysAgo: number; failedCents: number; disputeCents: number } | null;
   connected?: boolean;
-  entitled?: boolean;
 } = {}) {
   const { db } = createInMemoryDb();
   const now = new Date(NOW);
@@ -135,16 +132,6 @@ async function seedConsole(opts: {
       isPrimary: true,
     });
   }
-  if (opts.entitled) {
-    await db.insert(accountSubscriptions).values({
-      id: "sub_1",
-      accountId: ACCOUNT_ID,
-      product: INTELLIGENCE_PRODUCT,
-      status: SUBSCRIPTION_STATUS_ACTIVE,
-      createdAt: now,
-    });
-  }
-
   let n = 0;
   const fp = async (amountCents: number, status: string) => {
     n++;
@@ -339,7 +326,6 @@ describe("getConsoleView attention feed", () => {
       disputeDeadlines: [HOUR],
       atRisk: [{ score: 20, mrr: 9900 }],
       cardMonthsOut: [0],
-      entitled: true,
     });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     const tones = view.attention.map((r) => r.tone);
@@ -357,7 +343,6 @@ describe("getConsoleView attention feed", () => {
         { score: 10, mrr: 50_000 },
         { score: 35, mrr: 20_000 },
       ],
-      entitled: true,
     });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     const rows = view.attention.filter((r) => r.key.startsWith("at-risk-"));
@@ -406,16 +391,6 @@ describe("getConsoleView attention feed", () => {
     const db = await seedConsole({ activeAmounts: [1000] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.attention.filter((r) => r.key.startsWith("exhausted"))).toEqual([]);
-  });
-
-  it("links an expiring card to the customer only when Intelligence is entitled", async () => {
-    const withIntel = await seedConsole({ cardMonthsOut: [0], entitled: true });
-    const a = await getConsoleView(withIntel, ACCOUNT_ID, NOW, null);
-    expect(a.attention.find((r) => r.key.startsWith("card-"))?.href).toContain("/intelligence/customers/");
-
-    const withoutIntel = await seedConsole({ cardMonthsOut: [0], entitled: false });
-    const b = await getConsoleView(withoutIntel, ACCOUNT_ID, NOW, null);
-    expect(b.attention.find((r) => r.key.startsWith("card-"))?.href).toBeNull();
   });
 
   it("omits a card expiring far in the future", async () => {

@@ -9,7 +9,6 @@ import "capsomer/panel.css";
 
 import {
   DisputeFeesSection,
-  IntelligenceSection,
   PaymentMethodSection,
   RecoverySection,
   SubscriptionsSection,
@@ -28,22 +27,22 @@ import {
 } from "~/lib/billing/platform-customer";
 import { getBillingPreview } from "~/lib/billing/preview.server";
 import { getBillingLedger, listAccountSubscriptions, listBillingInvoices } from "~/lib/billing/queries.server";
-import { isIntelligenceEntitled } from "~/lib/intelligence/views.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
 
 // /billing (J65, row S3): Recova's billing page on Foxhound's billing engine.
 // Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
-// head, then Recovery, Dispute Fees, the Intelligence offer, Subscriptions and
-// Payment method, in a 720px column. The sections are in
+// head, then Recovery, Dispute Fees, Subscriptions and Payment method, in a
+// 720px column (Recova's Intelligence offer is gone: Intelligence is free,
+// Dustin 2026-10-29). The sections are in
 // app/components/billing-sections.tsx. The evidence ledger, which Recova does
 // not have and PRICING.md requires ("The billing page renders action ->
 // recovery -> fee for every charge"), follows them; whether it stays is an open
 // question for Dustin in the J65 pull request.
 //
 // The loader is read-only: billing preview, invoices and their line items,
-// subscriptions, the Intelligence entitlement and the card on file. The one
+// subscriptions and the card on file. The one
 // write is the existing billing-setup action below, unchanged.
 
 export function meta() {
@@ -84,13 +83,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   }
 
   const db = getDb(env);
-  const [accountRow, ledger, invoices, preview, subscriptions, intelligenceEntitled] = await Promise.all([
+  const [accountRow, ledger, invoices, preview, subscriptions] = await Promise.all([
     loadAccountBillingRow(env, accountId),
     getBillingLedger(db, accountId),
     listBillingInvoices(db, accountId),
     getBillingPreview(db, accountId, Date.now()),
     listAccountSubscriptions(db, accountId),
-    isIntelligenceEntitled(db, accountId),
   ]);
 
   // The card on file is a Stripe read. The demo never calls Stripe (RULES.md
@@ -103,7 +101,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     preview,
     recoveryHistory: buildRecoveryHistory(invoices, ledger.lineItems),
     disputeFees: buildDisputeFeeRows(invoices, ledger.lineItems, preview.pendingDisputeFees),
-    intelligenceEntitled,
     subscriptions,
     ledger,
   };
@@ -152,7 +149,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function Billing({ loaderData }: Route.ComponentProps) {
-  const { card, preview, recoveryHistory, disputeFees, intelligenceEntitled, subscriptions, ledger } = loaderData;
+  const { card, preview, recoveryHistory, disputeFees, subscriptions, ledger } = loaderData;
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
@@ -197,8 +194,6 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
           accountBillingState={preview.accountBillingState}
           rows={disputeFees}
         />
-
-        {intelligenceEntitled ? null : <IntelligenceSection />}
 
         <SubscriptionsSection subscriptions={subscriptions} />
 

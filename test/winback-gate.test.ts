@@ -9,19 +9,10 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// RULING 292: the win-back Intelligence gate's entitlement read rewires from the
-// VESTIGIAL account_products table to the LIVE capability, isIntelligenceEntitled
-// over account_subscriptions. Both key the same two constants, INTELLIGENCE_PRODUCT
-// and SUBSCRIPTION_STATUS_ACTIVE, which is the measured equivalence 292 rules on.
-//
-// 291 ported legacy's read VERBATIM and the gate stayed dead even after an admin
-// grant, because nothing in Foxhound has ever written account_products. These
-// assertions exist because the previous proof was a SOURCE-STRING check: it could
-// not tell a reachable gate from an unreachable one, since both read the same
-// literal. So the gate is driven END TO END here instead, through the real webhook
-// processor, against a real account_subscriptions row written by the real admin
-// grant. If the rewire were reverted, every assertion in "the GRANTED branch"
-// below goes red, because the granted row would no longer be the row the gate reads.
+// The win-back Intelligence gate, end to end through the real webhook processor.
+// Intelligence is free on every account (Dustin, 2026-10-29), so legacy's
+// entitlement condition always holds and only its body remains: an unflagged
+// customer's first win-back step is delayed to 4h, a winback_priority one keeps 1h.
 //
 // The harness models the production transaction boundary per 286: executeMoneyWrite
 // commits the batch, so a redelivery rolls back rather than double-writing.
@@ -69,7 +60,6 @@ vi.mock("~/lib/stripe/client", () => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { grantIntelligence } = await import("~/lib/admin/merchants.server");
 const schema = await import("~/db/schema");
 
 /** A cancellation event for the seeded customer. Legacy's win-back trigger. */
@@ -96,10 +86,7 @@ function deletionEvent(eventId: string): Stripe.Event {
 /** Seed an eligible win-back: an account, a connection, and nothing that would
  *  trip legacy's earlier eligibility gates (no active failed payments, no recently
  *  resolved ones, no existing sequence, and a customer with an email). */
-async function seed(opts: {
-  grant?: boolean;
-  recommendedAction?: string;
-}): Promise<ReturnType<typeof createInMemoryDb>> {
+async function seed(opts: { recommendedAction?: string }): Promise<ReturnType<typeof createInMemoryDb>> {
   const made = createInMemoryDb();
   harness.db = made.db;
   const db = made.db;
@@ -121,9 +108,6 @@ async function seed(opts: {
       updatedAt: NOW,
     });
   }
-  // THE GRANT IS THE REAL ONE: the admin path, not a hand-written row, so this
-  // proves the capability rather than a shape the test invented.
-  if (opts.grant) await grantIntelligence(db, ACCOUNT_ID, NOW);
   return made;
 }
 
@@ -137,24 +121,17 @@ function step1OffsetHours(sqlite: ReturnType<typeof createInMemoryDb>["sqlite"])
   return (row.scheduled_at - NOW.getTime()) / HOUR_MS;
 }
 
-describe("292: the gate reads the LIVE entitlement, end to end", () => {
-  it("UNGRANTED: no entitlement row, so the schedule keeps its 1h default", async () => {
-    const { sqlite } = await seed({});
-    const outcome = await processConnectedWebhook({} as Env, deletionEvent("evt_a"), NOW);
-    expect(outcome).toEqual({ status: "applied" });
-    expect(step1OffsetHours(sqlite)).toBe(WINBACK_STEP1_HOURS);
-  });
-
-  it("GRANTED with NO customer_context row is still UNFLAGGED, so still 4h", async () => {
+describe("the win-back gate on every account, end to end", () => {
+  it("with NO customer_context row the customer is UNFLAGGED, so 4h", async () => {
     // Legacy reads the recommendation with maybeSingle and compares the absent
     // value, which is not the priority string, so the delay applies.
-    const { sqlite } = await seed({ grant: true });
+    const { sqlite } = await seed({});
     await processConnectedWebhook({} as Env, deletionEvent("evt_c"), NOW);
     expect(step1OffsetHours(sqlite)).toBe(WINBACK_UNFLAGGED_STEP1_HOURS);
   });
 
-  it("GRANTED and FLAGGED winback_priority: keeps the 1h default", async () => {
-    const { sqlite } = await seed({ grant: true, recommendedAction: WINBACK_PRIORITY_ACTION });
+  it("FLAGGED winback_priority: keeps the 1h default", async () => {
+    const { sqlite } = await seed({ recommendedAction: WINBACK_PRIORITY_ACTION });
     await processConnectedWebhook({} as Env, deletionEvent("evt_d"), NOW);
     expect(step1OffsetHours(sqlite)).toBe(WINBACK_STEP1_HOURS);
   });

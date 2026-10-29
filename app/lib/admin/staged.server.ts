@@ -8,7 +8,6 @@
 //   release_brake       resume every merchant the emergency brake paused
 //   cron_enable         re-enable a cron (the recovery tick charges cards)
 //   billing_exempt      change whether an account is billed
-//   intelligence_grant  grant the paid Intelligence plan
 //
 // CONFIRMING RUNS THE SAME HELPER THE MATCHING /admin SCREEN RUNS, and asks for
 // the same typed phrase where that screen does (enabling a cron, releasing the
@@ -29,16 +28,10 @@ import { logAdminAction } from "./audit.server";
 import { BRAKE_CONFIRM_PHRASES, cronEnableConfirmPhrase } from "./brake";
 import { releaseBrake } from "./brake.server";
 import { isKnownCronName, setCronEnabled } from "./crons.server";
-import { grantIntelligence, setBillingExempt, setProcessingPaused } from "./merchants.server";
+import { setBillingExempt, setProcessingPaused } from "./merchants.server";
 import { DAY_MS } from "~/lib/constants";
 
-const STAGED_KINDS = [
-  "resume_account",
-  "release_brake",
-  "cron_enable",
-  "billing_exempt",
-  "intelligence_grant",
-] as const;
+const STAGED_KINDS = ["resume_account", "release_brake", "cron_enable", "billing_exempt"] as const;
 type StagedKind = (typeof STAGED_KINDS)[number];
 
 /** A pending change older than this can no longer be confirmed. */
@@ -74,8 +67,6 @@ export function describeStaged(row: Pick<StagedRow, "kind" | "targetAccountId" |
       return `Enable the ${row.targetCronName} cron`;
     case "billing_exempt":
       return `${row.params?.exempt ? "Exempt" : "Stop exempting"} ${row.targetAccountId} from billing`;
-    case "intelligence_grant":
-      return `Grant the Intelligence plan to ${row.targetAccountId}`;
     default:
       return row.kind;
   }
@@ -104,7 +95,7 @@ export async function stageChange(db: Db, input: StageInput): Promise<StagedOutc
   const note = typeof input.note === "string" && input.note ? input.note.slice(0, 500) : null;
   let params: Record<string, unknown> | null = null;
 
-  if (kind === "resume_account" || kind === "billing_exempt" || kind === "intelligence_grant") {
+  if (kind === "resume_account" || kind === "billing_exempt") {
     if (!accountId) return { ok: false, error: `${kind} needs account_id. Find one with the merchants read.` };
     if (!(await accountExists(db, accountId))) {
       return { ok: false, error: `No merchant ${accountId}. Find one with the merchants read.` };
@@ -193,8 +184,6 @@ async function apply(env: Env, row: StagedRow, actorEmail: string, now: Date): P
     case "billing_exempt":
       await setBillingExempt(env, row.targetAccountId as string, row.params?.exempt === true, now);
       return { exempt: row.params?.exempt === true };
-    case "intelligence_grant":
-      return await grantIntelligence(db, row.targetAccountId as string, now);
   }
 }
 
