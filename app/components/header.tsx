@@ -85,13 +85,18 @@ export function Header({
   // LEGACY'S RENDER RULE for the business switcher (components/SiteNavClient.tsx):
   // shown from ONE account, hidden only when the visitor has none.
   const business = isAuthenticated && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
-  // The product switcher, legacy's pill: marketing pages track no active
-  // product, so it reads "Home", and it lists legacy's Console, Audit,
-  // Recovery, Disputes, Intelligence.
+  // The product switcher, legacy's pill, listing legacy's Console, Audit,
+  // Recovery, Disputes, Intelligence. It names the product whose pages this
+  // header sits on (the anonymous /audit pages are the Audit product), and
+  // reads "Home" on every other marketing page, as legacy's always did.
+  const currentProduct = MARKETING_PILL_ITEMS.find(
+    (i) => pathname === i.to || pathname.startsWith(`${i.to}/`),
+  )?.label;
+  const productLabel = currentProduct ?? "Home";
   const products: HeaderSwitcher = {
     id: "products",
-    label: "Home",
-    name: "Products: Home",
+    label: productLabel,
+    name: `Products: ${productLabel}`,
     sheetLabel: "Products",
     groups: [
       {
