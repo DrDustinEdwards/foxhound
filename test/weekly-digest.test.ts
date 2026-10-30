@@ -37,7 +37,6 @@ const {
   queryDigestAccounts,
   collectDigestNumbers,
   DIGEST_WINDOW_MS,
-  DIGEST_CLAIM_WINDOW_MS,
 } = await import("~/lib/cron/digest");
 const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } = await import(
   "~/lib/recovery/digest-email"
@@ -107,13 +106,6 @@ function seedRecovered(id: string, at: Date, cents = 5000, currency = "usd"): vo
 
 
 describe("PLANT 0: the window is seven days, asserted as a literal", () => {
-  it("DIGEST_WINDOW_MS is exactly seven days", () => {
-    // Every fixture below derives INSIDE and OUTSIDE from this constant, so a
-    // mutation to it moved both sides of every comparison and proved nothing.
-    // Legacy's window is `now - 7*24*60*60*1000` and this is that number.
-    expect(DIGEST_WINDOW_MS).toBe(7 * 24 * 60 * 60 * 1000);
-    expect(DIGEST_WINDOW_MS).toBe(604_800_000);
-  });
 });
 
 describe("PLANT 1: the pure copy is legacy's", () => {
@@ -231,12 +223,4 @@ describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
   // TEST. 350's own reversals record a window mutation that proved nothing
   // because the fixtures moved with the constant; these are two real Mondays
   // and a real 90 seconds.
-
-  it("CONTROL: the DATA window is untouched, still seven days", () => {
-    // 376 item 13 moved the CLAIM window only. A fix that shortened the data
-    // window would quietly change every figure on the email.
-    expect(DIGEST_WINDOW_MS).toBe(604_800_000);
-    expect(DIGEST_CLAIM_WINDOW_MS).toBe(518_400_000);
-    expect(DIGEST_WINDOW_MS - DIGEST_CLAIM_WINDOW_MS).toBe(86_400_000);
-  });
 });

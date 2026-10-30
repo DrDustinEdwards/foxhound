@@ -53,7 +53,7 @@ const FOOTER_SENDER_FALLBACK = "Foxhound";
 
 /** The subject and body of the invite. Pure. The team name is escaped: it is
  *  the merchant's own text, and the body is read as HTML. */
-export function buildTeamInviteCopy(
+function buildTeamInviteCopy(
   accountName: string | null | undefined,
   inviteUrl: string,
 ): { subject: string; bodyHtml: string } {

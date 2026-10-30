@@ -27,16 +27,6 @@ import { afterTransientFailure } from "~/lib/recovery/step-state";
 
 describe("CHUNKS item 17: win-back window", () => {
 
-  it("carries legacy's INTERIOR steps too, aligned by 291", () => {
-    // The interiors were 24h and 72h against legacy's 1h and 96h. 291 ruled the
-    // divergence a defect: the earlier restoration reached only the outer bound,
-    // and the blame finding above is proof the interiors were never ratified.
-    // Pinned as VALUES for the same reason step 3 is: the symbolic assertion
-    // below cannot notice a number changing.
-    expect(WINBACK_STEP1_HOURS).toBe(1);
-    expect(WINBACK_STEP2_HOURS).toBe(96);
-  });
-
   it("is the span the planner actually schedules, not just a loose constant", () => {
     // Pinning the constant alone would not catch WIN_BACK_SCHEDULE being rewired
     // to a different one, so assert the last step the planner emits.

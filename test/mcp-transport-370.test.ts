@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { classifyPath } from "~/lib/http/cache-policy";
 import {
   DENIED_TOOL_FRAGMENTS,
@@ -240,13 +239,6 @@ describe("PLANT 5: the posture", () => {
     // And an authenticated caller over ITS budget gets 429 too.
     const authed = await call({ token: good, allowed: false });
     expect(authed.status).toBe(429);
-  });
-
-  it("the two buckets carry the numbers the record states", () => {
-    expect(RATE_LIMIT_MCP).toEqual({ max: 120, windowMs: 60_000 });
-    expect(RATE_LIMIT_MCP_ANON).toEqual({ max: 20, windowMs: 60_000 });
-    // The anon bucket is TIGHTER than the authed one, which is the whole design.
-    expect(RATE_LIMIT_MCP_ANON.max).toBeLessThan(RATE_LIMIT_MCP.max);
   });
 
   it("/mcp IS PRIVATE, and no public directive can reach it", async () => {

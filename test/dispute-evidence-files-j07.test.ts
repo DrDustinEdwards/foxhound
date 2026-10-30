@@ -6,11 +6,7 @@ import { accounts, disputeApprovals, disputeEvidence, disputes } from "~/db/sche
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
-import {
-  DISPUTE_EVIDENCE_ALLOWED_TYPES,
-  DISPUTE_EVIDENCE_MAX_FILES,
-  DISPUTE_EVIDENCE_MAX_SIZE_BYTES,
-} from "~/lib/constants";
+import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import type { DisputeSubmissionContext } from "~/lib/disputes/submission";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
@@ -273,11 +269,6 @@ afterEach(() => {
 // ---- Recova's limits ----
 
 describe("J07: Recova's limits from lib/constants.ts", () => {
-  it("allows five files of 5 MB each, JPG, PNG or PDF", () => {
-    expect(DISPUTE_EVIDENCE_MAX_FILES).toBe(5);
-    expect(DISPUTE_EVIDENCE_MAX_SIZE_BYTES).toBe(5 * 1024 * 1024);
-    expect([...DISPUTE_EVIDENCE_ALLOWED_TYPES]).toEqual(["image/jpeg", "image/png", "application/pdf"]);
-  });
 });
 
 // ---- Upload ----

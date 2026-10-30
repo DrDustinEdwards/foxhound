@@ -26,7 +26,7 @@ export type LookbackOption = (typeof LOOKBACK_OPTIONS)[number];
 
 /** Legacy's fallback, used both for a missing column and for a value outside the
  *  option set. AuditSection computes `safeLookback` exactly this way. */
-export const LOOKBACK_DEFAULT: LookbackOption = 90;
+const LOOKBACK_DEFAULT: LookbackOption = 90;
 
 /** Clamp any stored or submitted value onto the option set.
  *
