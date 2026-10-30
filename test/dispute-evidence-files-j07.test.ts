@@ -266,11 +266,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// ---- Recova's limits ----
-
-describe("J07: Recova's limits from lib/constants.ts", () => {
-});
-
 // ---- Upload ----
 
 describe("J07: upload (Recova's upload-evidence route)", () => {

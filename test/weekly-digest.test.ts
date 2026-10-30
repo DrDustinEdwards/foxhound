@@ -105,9 +105,6 @@ function seedRecovered(id: string, at: Date, cents = 5000, currency = "usd"): vo
 }
 
 
-describe("PLANT 0: the window is seven days, asserted as a literal", () => {
-});
-
 describe("PLANT 1: the pure copy is legacy's", () => {
   it("recovery rate is a whole percent and ZERO when nothing failed", () => {
     expect(recoveryRate(0, 0)).toBe(0);
@@ -223,4 +220,16 @@ describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
   // TEST. 350's own reversals record a window mutation that proved nothing
   // because the fixtures moved with the constant; these are two real Mondays
   // and a real 90 seconds.
+  it("last Monday's send, written 90 seconds after last Monday's run began, does not claim this Monday", async () => {
+    sqlite
+      .prepare(
+        "INSERT INTO email_sends (id, account_id, template, status, created_at) VALUES ('es_last', ?, 'weekly_digest', 'sent', ?)",
+      )
+      .run(ACCOUNT, new Date("2026-10-26T08:01:30Z").getTime());
+
+    const result = await runWeeklyDigest(env, new Date("2026-11-02T08:00:00Z"));
+
+    expect(result.outcomes).toEqual([{ accountId: ACCOUNT, status: "sent" }]);
+    expect(harness.jobs).toHaveLength(1);
+  });
 });
