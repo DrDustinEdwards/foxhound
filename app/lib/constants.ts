@@ -253,18 +253,16 @@ export const BILLABLE_ATTRIBUTION_KINDS = [
   "card_update",
 ] as const;
 
-export const DISPUTE_STATES = [
-  "draft",
-  "pending_review",
-  "approved",
-  "submitted",
-  "resolved_won",
-  "resolved_lost",
+export type DisputeState =
+  | "draft"
+  | "pending_review"
+  | "approved"
+  | "submitted"
+  | "resolved_won"
+  | "resolved_lost"
   // An inquiry (a warning_* dispute) Stripe closed as warning_closed: over,
   // with no ruling and nothing billable.
-  "inquiry_closed",
-] as const;
-export type DisputeState = (typeof DISPUTE_STATES)[number];
+  | "inquiry_closed";
 
 // ---- Dispute evidence files (J07) ----
 // Recova's lib/constants.ts DISPUTE_EVIDENCE_* limits, as its upload route,
@@ -278,13 +276,7 @@ export const DISPUTE_EVIDENCE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 export const DISPUTE_EVIDENCE_ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
 export type DisputeEvidenceFileType = (typeof DISPUTE_EVIDENCE_ALLOWED_TYPES)[number];
 
-export const BILLING_LINE_ITEM_TYPES = [
-  "recovery_fee",
-  "dispute_fee",
-  "subscription",
-  "adjustment",
-] as const;
-export type BillingLineItemType = (typeof BILLING_LINE_ITEM_TYPES)[number];
+export type BillingLineItemType = "recovery_fee" | "dispute_fee" | "subscription" | "adjustment";
 
 // ---- AI models (ARCHITECTURE.md: Sonnet generates, Haiku scores) ----
 // One place holds every model id. Phase 4e owns the ai_calls cost map that must

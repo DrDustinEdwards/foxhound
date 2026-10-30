@@ -26,13 +26,11 @@ export type ValueBand = "high" | "medium" | "low";
 type BandConfidence = "high" | "medium" | "low" | "unknown";
 type RecommendationConfidence = "high" | "medium" | "low";
 
-export const RECOMMENDED_ACTIONS = [
-  "personal_outreach",
-  "continue_automated",
-  "continue_automated_priority",
-  "continue_automated_deprioritize",
-] as const;
-export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
+export type RecommendedAction =
+  | "personal_outreach"
+  | "continue_automated"
+  | "continue_automated_priority"
+  | "continue_automated_deprioritize";
 
 /** The actions that ask the merchant to do something, in Recova's page order.
  *  Recova's list also held the three actions nothing produces (see above). */
