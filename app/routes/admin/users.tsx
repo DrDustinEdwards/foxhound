@@ -57,7 +57,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
             A person appears here once they sign up for Foxhound.
           </Empty>
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+          <div className="cap-table-wrap" data-cap="table" data-reflow="" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
             <table className="cap-table">
               <caption className="cap-sr-only">Everyone who can sign in to Foxhound, one person per row</caption>
               <thead>
@@ -77,7 +77,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                       <span className="block text-text">{u.name}</span>
                       <span className="block text-text-tertiary">{u.email}</span>
                     </th>
-                    <td>
+                    <td data-label="Accounts">
                       {u.memberships.length === 0 ? (
                         <span className="text-text-tertiary">No account</span>
                       ) : (
@@ -93,14 +93,14 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                         </ul>
                       )}
                     </td>
-                    <td>{u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}</td>
-                    <td>
+                    <td data-label="Platform role">{u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}</td>
+                    <td data-label="Last sign-in">
                       <AdminTime at={u.lastSignInAt} empty="No sign-in on record" />
                     </td>
-                    <td>
+                    <td data-label="Joined">
                       <AdminTime at={u.createdAt} />
                     </td>
-                    <td className="font-mono text-micro break-all text-text-tertiary">{u.id}</td>
+                    <td data-label="User ID" className="font-mono text-micro break-all text-text-tertiary">{u.id}</td>
                   </tr>
                 ))}
               </tbody>
