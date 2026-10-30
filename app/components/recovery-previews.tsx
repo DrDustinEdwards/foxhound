@@ -35,10 +35,10 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
           <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
             {label}: {count}
           </div>
-          {/* Recova's row scrolls sideways on a narrow screen; a window that
-              scrolls is a keyboard stop, named for what it holds. */}
-          <div role="region" aria-label={`${label} sequence, ${count}`} tabIndex={0} className="overflow-x-auto pb-2">
-            <ol className="m-0 flex min-w-max list-none items-center gap-1 p-0">
+          {/* Recova's row scrolls sideways on a narrow screen; this one wraps instead, since no
+              page may need a sideways scrollbar (Dustin, 2026-10-30). */}
+          <div className="pb-2">
+            <ol aria-label={`${label} sequence, ${count}`} className="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0">
               {steps.map((step, i) => {
                 const retry = isRetryStep(step.stepType);
                 return (
@@ -232,7 +232,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
             ))}
           </ul>
           <div className="hidden sm:block">
-            <div className="cap-table-wrap" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -255,16 +255,16 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                         {row.email ? <div className="mt-0.5 text-micro font-normal text-text-subtle">{row.email}</div> : null}
                         {row.plan ? <div className="mt-0.5 text-micro font-normal text-text-subtle">{row.plan}</div> : null}
                       </th>
-                      <td className="whitespace-nowrap">
+                      <td data-label="Amount" className="whitespace-nowrap">
                         <span className="font-mono text-label text-accent-text">{row.amount}</span>
                       </td>
-                      <td>
+                      <td data-label="Decline">
                         <CategoryPill category={row.category} />
                         {row.declineCode ? (
                           <div className="mt-1 font-mono text-micro text-text-subtle">{row.declineCode}</div>
                         ) : null}
                       </td>
-                      <td>
+                      <td data-label="Steps">
                         <span className={`font-mono text-micro ${row.stepsDone > 0 ? "text-text" : "text-text-subtle"}`}>
                           {row.stepsDone}/{row.stepsTotal}
                         </span>
@@ -272,10 +272,10 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                           <div className="mt-0.5 text-micro text-accent-text">Next: {row.nextStep}</div>
                         ) : null}
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <StatusPill row={row} />
                       </td>
-                      <td className="whitespace-nowrap">
+                      <td data-label="Detected" className="whitespace-nowrap">
                         <div className="text-micro text-text-subtle">{row.detectedAgo}</div>
                         <div className="mt-0.5 text-micro text-text-subtle">{row.detectedDate}</div>
                       </td>

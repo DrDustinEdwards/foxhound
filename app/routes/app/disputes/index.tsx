@@ -211,7 +211,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Disputes" tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Disputes" tabIndex={0}>
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -253,17 +253,17 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                           </div>
                           <div className="text-micro text-text-subtle">{d.customerEmail || ""}</div>
                         </td>
-                        <td data-num="">{formatMoney(d.amountCents, d.currency)}</td>
-                        <td className="text-label text-text-secondary">{humanizeDisputeReason(d.reason)}</td>
-                        <td>
+                        <td data-label="Amount" data-num="">{formatMoney(d.amountCents, d.currency)}</td>
+                        <td data-label="Reason" className="text-label text-text-secondary">{humanizeDisputeReason(d.reason)}</td>
+                        <td data-label="Foxhound status">
                           <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
                         </td>
-                        <td
+                        <td data-label="Deadline"
                           className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
                         >
                           {deadlineShort(days, resolved)}
                         </td>
-                        <td>
+                        <td data-label="View">
                           <Link
                             to={`/disputes/${d.id}`}
                             className="inline-flex min-h-6 items-center text-label text-brand-text no-underline hover:text-brand-text-hover"

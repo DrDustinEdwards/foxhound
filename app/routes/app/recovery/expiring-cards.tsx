@@ -7,6 +7,7 @@ import { listExpiringCardAlerts } from "~/lib/recovery/queries.server";
 
 import type { Route } from "./+types/expiring-cards";
 import { NOINDEX } from "~/lib/seo/meta";
+import "capsomer/table.css";
 
 export function meta() {
   return [{ title: "Expiring cards - Foxhound" }, NOINDEX];
@@ -39,15 +40,22 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
           No expiring cards detected yet.
         </p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-left text-label">
+        <div
+          className="mt-6 cap-table-wrap rounded-lg border border-border"
+          data-cap="table"
+          data-reflow=""
+          role="region"
+          aria-label="Expiring cards"
+          tabIndex={0}
+        >
+          <table className="cap-table">
             <thead>
-              <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                <th className="px-4 py-3 font-normal">Customer</th>
-                <th className="px-4 py-3 font-normal">Card</th>
-                <th className="px-4 py-3 font-normal">Expires</th>
-                <th className="px-4 py-3 font-normal">Status</th>
-                <th className="px-4 py-3 font-normal">Alert</th>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col">Card</th>
+                <th scope="col">Expires</th>
+                <th scope="col">Status</th>
+                <th scope="col">Alert</th>
               </tr>
             </thead>
             <tbody>
@@ -59,20 +67,20 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                 const expiringSoon = isCardExpiringSoon(alert.expiresYear, alert.expiresMonth, now);
                 const month = `${String(alert.expiresMonth).padStart(2, "0")}/${alert.expiresYear}`;
                 return (
-                  <tr key={alert.id} className="border-b border-border-sub last:border-0">
-                    <td className="px-4 py-3">
+                  <tr key={alert.id}>
+                    <td>
                       <p className="text-text">{alert.customerName ?? alert.customerEmail}</p>
                       <p className="text-micro text-text-subtle">{alert.customerEmail}</p>
                     </td>
-                    <td className="px-4 py-3 text-text-tertiary">
+                    <td data-label="Card" className="text-text-tertiary">
                       {noPaymentMethod
                         ? "No payment method"
                         : `${alert.cardBrand ?? "Card"} ${alert.cardLast4 ? `•••• ${alert.cardLast4}` : ""}`}
                     </td>
-                    <td className="px-4 py-3 font-mono text-text">
+                    <td data-label="Expires" className="font-mono text-text">
                       {noPaymentMethod ? `Trial ends ${month}` : month}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Status">
                       {noPaymentMethod ? (
                         <Badge tone="neutral">{expired ? "Trial ended" : "Trial ending"}</Badge>
                       ) : (
@@ -81,7 +89,7 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                         </Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-text-tertiary">
+                    <td data-label="Alert" className="text-text-tertiary">
                       {alert.alertSentAt ? `Sent ${alert.alertSentAt.toLocaleDateString()}` : "Not sent yet"}
                     </td>
                   </tr>

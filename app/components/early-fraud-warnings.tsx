@@ -123,6 +123,7 @@ export function EarlyFraudWarnings({
           <div
             className="cap-table-wrap"
             data-cap="table"
+            data-reflow="medium"
             role="region"
             aria-label="Early fraud warnings"
             tabIndex={0}
@@ -155,19 +156,11 @@ export function EarlyFraudWarnings({
                           </div>
                         ) : null}
                       </td>
-                      <td data-num="">
-                        {formatMoney(w.amountCents, w.currency)}
-                      </td>
-                      <td className="text-label text-text-secondary">
-                        {fraudTypeWords(w.fraudType)}
-                      </td>
-                      <td className="font-mono text-label">
-                        {formatDateShort(toDate(w.createdAt))}
-                      </td>
-                      <td className="font-mono text-micro text-text-secondary">
-                        {w.stripeChargeId}
-                      </td>
-                      <td>
+                      <td data-label="Amount" data-num="">{formatMoney(w.amountCents, w.currency)}</td>
+                      <td data-label="Fraud type" className="text-label text-text-secondary">{fraudTypeWords(w.fraudType)}</td>
+                      <td data-label="Date" className="font-mono text-label">{formatDateShort(toDate(w.createdAt))}</td>
+                      <td data-label="Charge" className="font-mono text-micro break-all text-text-secondary">{w.stripeChargeId}</td>
+                      <td data-label="Actions" className="[grid-column:1/-1]">
                         {readOnly ? (
                           <div className="flex flex-wrap justify-end gap-2">
                             <button

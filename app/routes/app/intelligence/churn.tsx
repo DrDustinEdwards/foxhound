@@ -146,6 +146,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
             >
               <div
                 className="cap-table-wrap"
+                data-reflow=""
                 data-cap="table"
                 role="region"
                 // The one landmark here: the panel is a plain section (no
@@ -178,13 +179,13 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                               micro and mono. */}
                           <span className="block font-mono text-micro text-text-subtle">{row.stripeCustomerId}</span>
                         </th>
-                        <td>
+                        <td data-label="Plan">
                           {/* Recova's rounded border pill. Recova labels it from
                               current_plan_tier, which nothing in Foxhound writes
                               (signals.ts), so the plan's own name is shown. */}
                           <Pill variant="outline">{row.currentPlanName ?? "-"}</Pill>
                         </td>
-                        <td data-num="">
+                        <td data-label="Health" data-num="">
                           {/* Toned from the score rather than hardcoded red: the
                               query pre-filters to the high-risk band today, but a
                               widened predicate should not leave the color lying. */}
@@ -192,7 +193,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                             {row.healthScore}
                           </span>
                         </td>
-                        <td data-num="" className="font-mono">
+                        <td data-label="MRR" data-num="" className="font-mono">
                           {row.mrrContributionCents > 0 ? formatMoney(row.mrrContributionCents, currency) : "-"}
                         </td>
                       </tr>

@@ -11,6 +11,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "capsomer/table.css";
 
 // NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
 // each of the six named competitors (ROUTES.md Rev 2). Neither Capsid
@@ -72,34 +73,32 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           Back to comparisons
         </Link>
 
-        <div className="mb-10 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[560px] border-collapse text-label">
+        <div
+          className="cap-table-wrap mb-10 rounded-lg border border-border"
+          data-cap="table"
+          data-reflow=""
+          role="region"
+          aria-label={`Foxhound vs ${competitor.name}`}
+          tabIndex={0}
+        >
+          <table className="cap-table">
             <thead>
-              <tr className="border-b border-border bg-surface2">
-                <th className="px-4 py-3 text-left font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                  Dimension
-                </th>
-                <th className="px-4 py-3 text-left font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                  Foxhound
-                </th>
-                <th className="px-4 py-3 text-left font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                  {competitor.name}
-                </th>
+              <tr>
+                <th scope="col">Dimension</th>
+                <th scope="col">Foxhound</th>
+                <th scope="col">{competitor.name}</th>
               </tr>
             </thead>
             <tbody>
-              {competitor.rows.map((row, i) => (
-                <tr
-                  key={row.dimension}
-                  className={i % 2 === 1 ? "bg-surface" : undefined}
-                >
-                  <td className="px-4 py-3 align-top font-medium text-text">
+              {competitor.rows.map((row) => (
+                <tr key={row.dimension}>
+                  <th scope="row" className="align-top font-medium text-text">
                     {row.dimension}
-                  </td>
-                  <td className="px-4 py-3 align-top leading-relaxed text-text-secondary">
+                  </th>
+                  <td data-label="Foxhound" className="align-top leading-relaxed text-text-secondary">
                     {row.foxhound}
                   </td>
-                  <td className="px-4 py-3 align-top leading-relaxed text-text-secondary">
+                  <td data-label={competitor.name} className="align-top leading-relaxed text-text-secondary">
                     {row.competitor}
                   </td>
                 </tr>

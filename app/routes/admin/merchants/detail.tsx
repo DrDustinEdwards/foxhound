@@ -214,12 +214,12 @@ function AdjustmentForm({
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
-        <label className="flex flex-col gap-1.5">
+        <label className="flex min-w-0 max-w-full flex-col gap-1.5">
           <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Direction</span>
           <select
             name="direction"
             defaultValue="credit"
-            className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
+            className="max-w-full rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
           >
             <option value="credit">Credit merchant (reduces what they owe)</option>
             <option value="correction">Correction (increases what they owe)</option>

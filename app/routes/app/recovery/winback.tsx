@@ -8,6 +8,7 @@ import { WINBACK_STATUS } from "~/lib/recovery/winback";
 
 import type { Route } from "./+types/winback";
 import { NOINDEX } from "~/lib/seo/meta";
+import "capsomer/table.css";
 
 export function meta() {
   return [{ title: "Win-back - Foxhound" }, NOINDEX];
@@ -47,24 +48,31 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
           here.
         </p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-left text-label">
+        <div
+          className="mt-6 cap-table-wrap rounded-lg border border-border"
+          data-cap="table"
+          data-reflow=""
+          role="region"
+          aria-label="Win-back customers"
+          tabIndex={0}
+        >
+          <table className="cap-table">
             <thead>
-              <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                <th className="px-4 py-3 font-normal">Customer</th>
-                <th className="px-4 py-3 font-normal">Plan</th>
-                <th className="px-4 py-3 font-normal">Canceled</th>
-                <th className="px-4 py-3 font-normal">Status</th>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col">Plan</th>
+                <th scope="col">Canceled</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
               {sequences.map((seq) => (
-                <tr key={seq.id} className="border-b border-border-sub last:border-0">
-                  <td className="px-4 py-3">
+                <tr key={seq.id}>
+                  <td>
                     <p className="text-text">{seq.customerName ?? seq.customerEmail}</p>
                     <p className="text-micro text-text-subtle">{seq.customerEmail}</p>
                   </td>
-                  <td className="px-4 py-3 text-text-tertiary">
+                  <td data-label="Plan" className="text-text-tertiary">
                     {seq.planName ?? "-"}
                     {seq.amountCents != null && seq.currency ? (
                       <span className="ml-2 font-mono text-text">
@@ -72,8 +80,8 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-text-tertiary">{seq.createdAt.toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
+                  <td data-label="Canceled" className="text-text-tertiary">{seq.createdAt.toLocaleDateString()}</td>
+                  <td data-label="Status">
                     <div className="flex flex-col items-start gap-1">
                       <Badge tone={statusTone(seq.status)}>{STATUS_LABEL[seq.status] ?? seq.status}</Badge>
                       {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
