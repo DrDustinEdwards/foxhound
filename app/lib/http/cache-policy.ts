@@ -47,7 +47,7 @@ export type CacheClass = "marketing" | "docs" | "blog" | "files" | "private";
  * schedule purges the tag (workers/app.ts, app/lib/carrel/handler.server.ts).
  * The browser keeps nothing (max-age=0), because a purge cannot reach it.
  */
-export const EDGE_PAGE_CLASSES: ReadonlySet<CacheClass> = new Set(["marketing", "docs", "blog"]);
+const EDGE_PAGE_CLASSES: ReadonlySet<CacheClass> = new Set(["marketing", "docs", "blog"]);
 
 /**
  * The directive for a files route that sets none of its own (the card route).

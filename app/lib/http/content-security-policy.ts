@@ -126,7 +126,7 @@ export function applySecurityHeaders(response: Response, nonce: string, origin: 
 const INLINE_SCRIPT = /<script\b(?![^>]*\ssrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi;
 
 /** The `sha256-...` source of every distinct inline script in a rendered page. */
-export async function inlineScriptHashes(html: string): Promise<string[]> {
+async function inlineScriptHashes(html: string): Promise<string[]> {
   const texts = new Set<string>();
   for (const match of html.matchAll(INLINE_SCRIPT)) texts.add(match[1] ?? "");
   return Promise.all([...texts].map((text) => scriptHash(text)));
