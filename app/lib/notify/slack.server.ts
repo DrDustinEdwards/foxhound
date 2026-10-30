@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { accounts, getDb } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
+import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 
 // THE SLACK SENDER. Ported from legacy's `sendSlackNotification` in
 // lib/recovery-execution.ts (blob 3a8f8768, 27,136 bytes, lines 121 to 146).
@@ -118,11 +119,17 @@ export async function postToSlack(
 }
 
 async function postSlackBody(webhookUrl: string, body: { text: string }): Promise<SlackOutcome> {
+  // The host is checked again at the fetch, whatever the stored value claims,
+  // and a redirect is never followed: a 3xx is a failure like any non-2xx, so
+  // hooks.slack.com is the only host this request can ever reach.
+  const checked = normalizeSlackWebhookUrl(webhookUrl);
+  if (!checked.ok || !checked.value) return { status: "failed", reason: "host_not_allowed" };
   try {
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(checked.value, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      redirect: "manual",
     });
     if (!res.ok) {
       console.error(`slack notification rejected: ${res.status}`);
