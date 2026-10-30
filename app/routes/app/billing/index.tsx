@@ -16,6 +16,7 @@ import {
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { accounts, getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { buildDisputeFeeRows, buildRecoveryHistory } from "~/lib/billing/page.server";
 import {
@@ -115,6 +116,12 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
 
+  // OWNERS ONLY: the card on file pays every fee the account owes, so only the
+  // owner puts one there, as only an owner disconnects Stripe or mints an API key.
+  if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+    return data({ error: "Only the account owner can set up billing." }, { status: 403 });
+  }
+
   const form = await request.formData();
   if (String(form.get("intent") ?? "") !== "setup_billing") {
     return data({ error: "Unknown action." }, { status: 400 });
@@ -145,10 +152,9 @@ export async function action({ context, request }: Route.ActionArgs) {
     });
     return redirect(session.url);
   } catch (err) {
-    return data(
-      { error: err instanceof Error ? err.message : "Could not start billing setup." },
-      { status: 400 },
-    );
+    // Stripe's and D1's messages stay in the log; the merchant gets one sentence.
+    console.error("billing setup start failed:", err instanceof Error ? err.message : err);
+    return data({ error: "Could not start billing setup. Please try again." }, { status: 400 });
   }
 }
 
