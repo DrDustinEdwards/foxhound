@@ -257,6 +257,8 @@ export default [
   // Recova's card URL, /og?type=blog&title=...&description=... (ruling 41,
   // row F6). Same module as the path form, so it needs its own id.
   route("og", "./routes/files/og.ts", { id: "og-recova" }),
+  // The blog's media library (Carrel uploads): an original, or one size for ?w=.
+  route("media/*", "./routes/files/media.ts"),
 
   // Recova's config-level redirects (J23, ledger row F17), at Recova's own
   // paths. One resource module answers all of them from Recova's table in
