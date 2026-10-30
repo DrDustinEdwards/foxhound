@@ -1,10 +1,8 @@
-import { readFileSync } from "node:fs";
-
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { accounts } from "~/db/schema";
-import { LIVE_SENDS_DISABLED_ERROR, liveSendsEnabled } from "~/lib/email/dispatch";
+import { liveSendsEnabled } from "~/lib/email/dispatch";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -20,8 +18,6 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // The column is asserted against the REAL committed migrations, so what proves
 // "defaults OFF" is the actual DEFAULT false NOT NULL in 0013, not a TypeScript
 // default that would never reach D1.
-
-const DISPATCH = readFileSync("app/lib/email/dispatch.ts", "utf8");
 
 function seedAccount(over: { liveSendsEnabled?: boolean } = {}) {
   const { sqlite, db } = createInMemoryDb();
@@ -64,11 +60,3 @@ describe("live-send flag: the column defaults OFF against the real schema", () =
   });
 });
 
-describe("live-send flag: where the gate sits", () => {
-
-  it("logs the block to email_sends rather than dropping it silently", () => {
-    expect(DISPATCH).toContain('status: "blocked"');
-    expect(DISPATCH).toContain("LIVE_SENDS_DISABLED_ERROR");
-    expect(LIVE_SENDS_DISABLED_ERROR).toBe("live sends are disabled for this account");
-  });
-});

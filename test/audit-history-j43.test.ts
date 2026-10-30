@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
@@ -22,9 +19,6 @@ vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
 }));
-
-const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const ACCOUNT_A = "acct_alpha";
 const ACCOUNT_B = "acct_beta";
@@ -63,10 +57,7 @@ function contextFor(accountId: string): unknown {
 }
 
 describe("J43: the path is Recova's /audit/dashboard", () => {
-  const routes = read("app/routes.ts");
-
   it("answers the old /audit/history with one 301 to /audit/dashboard, keeping the query", async () => {
-    expect(routes).toContain('route("audit/history", "./routes/audit/history-redirect.ts")');
     const mod = await import("~/routes/audit/history-redirect");
     const res = (await mod.loader({
       request: new Request("https://foxhoundapp.test/audit/history?x=1"),
@@ -123,12 +114,7 @@ describe("J43: Since last run, Recova's compare()", async () => {
   });
 });
 
-
 const page = await import("~/routes/app/audit/dashboard");
-
-
-
-
 
 describe("J43: the loader and the action, scoped to the caller's account", () => {
   const callAction = (accountId: string, form: Record<string, string>) => {

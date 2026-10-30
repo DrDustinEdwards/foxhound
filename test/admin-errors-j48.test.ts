@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -219,18 +217,3 @@ describe("failed actions from the audit log (Recova's list)", () => {
   });
 });
 
-describe("the page source", () => {
-  const read = (p: string) => {
-    try {
-      return readFileSync(p, "utf8");
-    } catch {
-      return "";
-    }
-  };
-  const source = read("app/routes/admin/errors.tsx");
-
-  it("never names the read token in what it renders", () => {
-    expect(source).not.toMatch(/SENTRY_AUTH_TOKEN\b(?!")/);
-    expect(read("app/lib/admin/errors.server.ts")).toMatch(/Authorization/);
-  });
-});

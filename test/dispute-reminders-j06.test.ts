@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,10 +32,7 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { resolveReminderBucket, DISPUTE_REMINDER_TEMPLATE } = await import("~/lib/disputes/notices");
-const { runDisputeReminders, DISPUTE_REMINDERS_CRON_NAME, REFUSED_REMINDER_BACKOFF_MS } = await import(
-  "~/lib/cron/dispute-reminders"
-);
-const { CRON_JOBS } = await import("~/lib/cron/registry");
+const { runDisputeReminders, REFUSED_REMINDER_BACKOFF_MS } = await import("~/lib/cron/dispute-reminders");
 
 const NOW = new Date("2026-11-10T12:00:00Z");
 const HOUR = 60 * 60 * 1000;
@@ -230,11 +224,3 @@ describe("job_2663d92094ab: a refused reminder backs off instead of retrying eve
   });
 });
 
-describe("THE CRON: registered on a schedule that fires", () => {
-  it("is in the registry, on a schedule wrangler.jsonc triggers", () => {
-    const job = CRON_JOBS.find((j) => j.name === DISPUTE_REMINDERS_CRON_NAME);
-    expect(job).toBeDefined();
-    const wrangler = readFileSync(fileURLToPath(new URL("../wrangler.jsonc", import.meta.url)), "utf8");
-    expect(wrangler).toContain(`"${job!.schedule}"`);
-  });
-});

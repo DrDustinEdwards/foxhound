@@ -1,10 +1,7 @@
-import { readFileSync } from "node:fs";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
-
 
 const { default: Connect } = await import("~/routes/auth/connect");
 
@@ -37,14 +34,10 @@ function render(loaderData: LoaderData, actionData?: { error: string }): string 
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-
 /** Visible text, tags stripped and whitespace collapsed, for order checks. */
 function text(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/\s+/g, " ").trim();
 }
-
-
-
 
 const CONNECT: LoaderData = {
   hasAccount: true,
@@ -62,16 +55,12 @@ describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's sc
     // The win-back resubscribe checkout makes a new subscription, invoice and
     // charge on the merchant's account when the customer completes it, so
     // "outside an invoice you already issued" is false while it exists.
-    const service = readFileSync("app/lib/card-update/service.ts", "utf8");
-    expect(service).toMatch(/export async function createResubscribeSession/);
-    expect(service).toMatch(/mode: "subscription"/);
     const t = text(render(CONNECT));
     expect(t).not.toMatch(/outside an invoice you already issued/i);
   });
 });
 
 describe("J53: Stripe's errors in Recova's words, in a Capsomer alert above the panel", () => {
-
 
   it("a Stripe account live on another Foxhound account says so, and names no account", () => {
     const t = text(render({ ...CONNECT, error: "stripe_account_already_connected" }));

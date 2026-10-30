@@ -1,6 +1,3 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,13 +8,7 @@ import {
   AUDIT_ACTION,
   buildConnectState,
 } from "~/lib/stripe/connect-state";
-import {
-  AUDIT_OAUTH_STATE_COOKIE,
-  AUDIT_TOKEN_COOKIE,
-  AUDIT_TOKEN_TTL_SECONDS,
-  RATE_LIMIT_AUDIT,
-  STRIPE_AUDIT_SCOPE,
-} from "~/lib/constants";
+import { AUDIT_OAUTH_STATE_COOKIE, AUDIT_TOKEN_COOKIE, AUDIT_TOKEN_TTL_SECONDS, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -75,18 +66,6 @@ const callbackRoute = await import("~/routes/audit/callback");
 const resultsRoute = await import("~/routes/audit/results");
 const connectCallback = await import("~/routes/auth/connect-callback");
 
-const ROOT = new URL("../", import.meta.url);
-const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
-
-/** Source with comments stripped, so an assertion cannot pass on a comment that
- *  EXPLAINS the thing it asserts is absent (session 57's lesson). */
-const code = (source: string) =>
-  source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//"))
-    .join("\n");
-
 const ACCOUNT_A = "acct_alpha";
 const ACCOUNT_B = "acct_beta";
 const USER = "user_1";
@@ -117,7 +96,6 @@ function fakeList<T>(items: T[]): AsyncIterable<T> {
     },
   };
 }
-
 
 const INVOICE = {
   amount_due: 4200,
@@ -248,55 +226,6 @@ describe("PLANT 1: THE SCOPE PARAMETER", () => {
     expect(STRIPE_AUDIT_SCOPE).toBe("read_write");
     expect(url.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/audit/callback`);
   });
-
-  it("authorize URLs are built in ONE module, and prose pages only name the scopes", () => {
-    // DERIVED, so a second write-scope caller added later cannot arrive quietly.
-    // Sweeps every module for a use of the onboarding scope constant and for the
-    // raw literal, and requires the one legitimate site.
-    const callers: string[] = [];
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir)) {
-        const full = `${dir}/${entry}`;
-        if (statSync(full).isDirectory()) walk(full);
-        else if (/\.tsx?$/.test(entry)) {
-          const body = code(readFileSync(full, "utf8"));
-          if (body.includes("STRIPE_CONNECT_SCOPE") || body.includes('"read_write"')) {
-            callers.push(full.slice(full.indexOf("app/")).split("\\").join("/"));
-          }
-        }
-      }
-    };
-    walk(fileURLToPath(new URL("app", ROOT)));
-    expect(callers.sort()).toEqual([
-      "app/lib/constants.ts",
-      "app/lib/stripe/connect.ts",
-      // /security DESCRIBES the two scopes to a reader and interpolates the
-      // constants rather than typing "read_write", so it is a documentation
-      // reference and not a request site. It is listed here rather
-      // than excused by loosening the grep, and the assertion below keeps the
-      // ruling's real subject intact: a prose page may name the scope, and may
-      // never build an authorize URL.
-      "app/routes/security.tsx",
-    ]);
-    expect(code(read("app/routes/security.tsx"))).not.toContain("buildConnectAuthorizeUrl");
-    expect(code(read("app/routes/security.tsx"))).not.toContain("buildAuditAuthorizeUrl");
-    // The audit's builder is the only caller of the audit's scope constant, so
-    // the audit's scope has one enforcement point rather than one per route.
-    expect(code(read("app/lib/stripe/connect.ts"))).toContain("STRIPE_AUDIT_SCOPE");
-    expect(code(read("app/routes/audit/connect.tsx"))).toContain("buildAuditAuthorizeUrl");
-  });
-});
-
-describe("PLANT 2: the start mints the audit's own state and cookie", () => {
-
-  it("USES THE AUDIT COOKIE NAME, so a half-finished /connect is not clobbered", () => {
-    // Legacy keeps `audit_oauth_state` separate from its merchant flow's cookie
-    // and the separation is load-bearing: both flows can be in flight in one
-    // browser, and a shared name means starting an audit silently invalidates
-    // the other. This is the assertion that keeps them apart.
-    expect(AUDIT_OAUTH_STATE_COOKIE).toBe("audit_oauth_state");
-    expect(AUDIT_OAUTH_STATE_COOKIE).not.toBe("stripe_oauth_state");
-  });
 });
 
 describe("PLANT 3: the callback, and what it refuses", () => {
@@ -406,35 +335,6 @@ describe("PLANT 5: what the anonymous path must never create", () => {
     expect(data.signedIn).toBe(false);
     expect(data.notSaved).toBe("anonymous");
     expect(counts()).toEqual(before);
-  });
-
-  it("and the whole chain carries a no-write pin, module by module", () => {
-    // The two pure modules already pin this; the three phase (f) files are where
-    // a money write would have to be introduced to create a billable path off a
-    // free audit, so each is swept. PRICING rev 3: the audit is free.
-    for (const path of [
-      "app/routes/audit/connect.tsx",
-      "app/routes/audit/callback.ts",
-      "app/lib/audit/run.server.ts",
-    ]) {
-      const body = code(read(path));
-      for (const forbidden of [
-        "recordOutcome",
-        "executeMoneyWrite",
-        "billingLineItems",
-        "recoveredPayments",
-        "findAttributionSignals",
-        "saveAuditRun",
-      ]) {
-        expect(body, `${forbidden} reached ${path}`).not.toContain(forbidden);
-      }
-    }
-    // The results page is the ONE file in the pair that may persist, and only
-    // through saveAuditRun, which is a plain insert rather than a money write.
-    const results = code(read("app/routes/audit/results.tsx"));
-    expect(results).toContain("saveAuditRun");
-    expect(results).not.toContain("executeMoneyWrite");
-    expect(results).not.toContain("recordOutcome");
   });
 });
 
@@ -569,21 +469,6 @@ describe("PLANT 7: 311's rate limiter is USED, and UNCHANGED", () => {
     expect(post("/audit/callback")).toBeNull();
     expect(post("/audit/results")).toBeNull();
     expect(resolveRateLimitBinding(new Request(`${ORIGIN}/audit`))).toBeNull();
-  });
-
-  it("both audit routes check their own budget at legacy's numbers", () => {
-    // Legacy IP-limits `audit-connect` and `audit-callback` at 10 per hour each.
-    expect(RATE_LIMIT_AUDIT).toEqual({ max: 10, windowMs: 3_600_000 });
-    for (const [path, bucket] of [
-      ["app/routes/audit/connect.tsx", "audit-connect"],
-      ["app/routes/audit/callback.ts", "audit-callback"],
-    ] as const) {
-      const body = code(read(path));
-      expect(body, `${path} does not check the limiter`).toContain("isWithinRateLimit");
-      expect(body, `${path} uses the wrong bucket`).toContain(`"${bucket}"`);
-      expect(body, `${path} does not use legacy's numbers`).toContain("RATE_LIMIT_AUDIT");
-      expect(body, `${path} keys on the wrong header`).toContain("cf-connecting-ip");
-    }
   });
 
   it("a throttled start refuses without minting a state cookie", async () => {

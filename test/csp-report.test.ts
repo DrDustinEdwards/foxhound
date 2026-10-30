@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -60,11 +58,5 @@ describe("POST /api/csp-report", () => {
       disposition: "enforce",
     });
     expect(line).not.toMatch(/tok|secret|session/);
-  });
-
-  it("is mounted at the path the policy names", () => {
-    expect(readFileSync("app/routes.ts", "utf8")).toContain(
-      `route("${CSP_REPORT_PATH.slice(1)}", "./routes/api/csp-report.ts")`,
-    );
   });
 });

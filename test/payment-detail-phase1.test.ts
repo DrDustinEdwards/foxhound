@@ -1,36 +1,16 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
-import { estimateCustomerLtvCents } from "~/lib/recovery/queries.server";
+import { accounts, failedPayments } from "~/db/schema";
+import { estimateCustomerLtvCents, getFailedPaymentDetail } from "~/lib/recovery/queries.server";
+
+import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
 // S7 Phase 1 closing build, rulings 253, 255 and 256.
-//
-// 256 refuted 254's premise: Foxhound already ships sanitize-html and
-// app/lib/recovery/email-preview.server.ts already carries legacy's exact
-// allowlist, server-side. So the expander wires to that helper and NO
-// dependency was added. These assertions pin the sanitization actually
-// reaching the response, not merely the helper existing.
 //
 // 253's column guard: failed_payments.customer_ltv_cents holds a DIFFERENT
 // value and must never be rendered under legacy's "est. LTV" label. The LTV is
 // computed fresh, and legacy's own gate is two recovered payments, not one.
-
-const ROUTE = readFileSync("app/routes/app/recovery/payments/detail.tsx", "utf8");
-const QUERIES = readFileSync("app/lib/recovery/queries.server.ts", "utf8");
-
-describe("expander sanitization: hostile aiBodyHtml is neutralized", () => {
-
-  it("the ROUTE sanitizes in the loader, before the body is in the response", () => {
-    // The whole point of 256: never render step.aiBodyHtml directly.
-    // J76: the raw body is taken off the step before it is returned, so only
-    // the sanitized preview is in the response.
-    expect(ROUTE).toContain(".map(({ aiBodyHtml, ...step }) => ({");
-    expect(ROUTE).toContain("previewHtml: aiBodyHtml ? sanitizeEmailPreviewHtml(aiBodyHtml) : null,");
-    expect(ROUTE).toContain("__html: step.previewHtml");
-    expect(ROUTE).not.toContain("__html: step.aiBodyHtml");
-  });
-});
+// The sanitized email preview is test/payments-parity-followups.test.ts.
 
 describe("LTV computed fresh, under 253's column guard", () => {
   it("averages and multiplies by twelve", () => {
@@ -46,9 +26,33 @@ describe("LTV computed fresh, under 253's column guard", () => {
   });
 });
 
-describe("previous-failures query shape, per 253's spec", () => {
+describe("previous failures, per 253's spec", () => {
+  it("stays account-scoped: the same Stripe customer id on another account never appears", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    runStatement(sqlite, db.insert(accounts).values([{ id: "acc_a", name: "A" }, { id: "acc_b", name: "B" }]));
+    const payment = (id: string, accountId: string, day: number) => ({
+      id,
+      accountId,
+      stripeEventId: `evt_${id}`,
+      stripeInvoiceId: `in_${id}`,
+      stripeCustomerId: "cus_shared",
+      customerEmail: "x@example.com",
+      amountCents: 4200,
+      currency: "usd",
+      declineCategory: "soft",
+      status: "active",
+      detectedAt: new Date(Date.UTC(2026, 9, day)),
+    });
+    runStatement(
+      sqlite,
+      db.insert(failedPayments).values([
+        payment("fp_now", "acc_a", 10),
+        payment("fp_before", "acc_a", 5),
+        payment("fp_other_account", "acc_b", 8),
+      ]),
+    );
 
-  it("stays account-scoped, as every read in this tree is", () => {
-    expect(QUERIES).toContain("eq(failedPayments.accountId, accountId)");
+    const detail = await getFailedPaymentDetail(db, "acc_a", "fp_now");
+    expect(detail?.previousFailures.map((p) => p.id)).toEqual(["fp_before"]);
   });
 });

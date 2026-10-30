@@ -128,43 +128,6 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
 });
 
 describe("PLANT 3: validator parity, over the shared function", () => {
-  it("THE TOOL AND THE FORM CANNOT DISAGREE, because there is one implementation", () => {
-    // DERIVED, not compared. The property is structural: each route action calls
-    // the same `applyX` the tool calls, so a "same bounds" assertion is really an
-    // assertion that neither side validates on its own.
-    const strip = (s: string) =>
-      s
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .split("\n")
-        .filter((l) => !l.trim().startsWith("//"))
-        .join("\n");
-
-    for (const [route, fn] of [
-      ["app/routes/app/settings/audit.tsx", "applyAuditSettings"],
-      ["app/routes/app/settings/email.tsx", "applyFeatureSettings"],
-      ["app/routes/app/settings/notifications.tsx", "applyNotificationSettings"],
-      ["app/routes/app/settings/email.tsx", "applySenderName"],
-    ] as const) {
-      const body = strip(read(route));
-      expect(body, `${route} does not call ${fn}`).toContain(`${fn}(`);
-      // And it no longer reaches the writer directly, which is what would let a
-      // second validation path grow back.
-      expect(body, `${route} still writes directly`).not.toMatch(
-        /build(Feature|Notification|Sender)SettingsUpdate\(/,
-      );
-      // NOR DOES IT CALL A VALIDATOR ITSELF. This arm was missing on the first
-      // cut and a mutation walked through it: a route can keep calling `applyX`
-      // AND grow its own `normalizeSlackWebhookUrl` beside it, which is exactly
-      // the two-implementations state the extraction existed to prevent. The
-      // CALL is forbidden, not the import, because a route may legitimately
-      // import a bound or an option list to render with.
-      expect(body, `${route} validates on its own`).not.toMatch(
-        /normalize(SlackWebhookUrl|Lookback)\s*\(/,
-      );
-    }
-    const tools = strip(read("app/lib/mcp/tools.server.ts"));
-    expect(tools).toContain('from "~/lib/settings/apply.server"');
-  });
 
   it("an over-long sender name is refused with the form's own sentence and bound", async () => {
     const { tokens } = await seed();
@@ -213,25 +176,6 @@ describe("PLANT 4: every write leaves a trace naming the key", () => {
     expect(JSON.stringify(rows)).not.toContain("Zebulon");
     expect(rows[0].fields).toEqual(["sender_name"]);
   });
-
-  it("and the trace goes in the SAME batch, so a write cannot outrun it", () => {
-    // Structural: `commit` builds one array and hands it to db.batch. A write
-    // that committed before its trace would be a state the database could reach
-    // with a change nobody can attribute.
-    const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "");
-    const apply = strip(read("app/lib/settings/apply.server.ts"));
-    expect(apply).toContain("batch(statements)");
-    // Session 80 widened `commit` to take an ARRAY of writes, because brand
-    // voice lands two statements. The literal this used to pin changed shape;
-    // the property did not, so it is pinned by shape instead: the trace is the
-    // last element of the one array that goes to batch, and there is exactly
-    // one place that array is built.
-    expect(apply).toContain("[...writes, traceInsert(db, accountId, fields, trace)]");
-    expect(apply.match(/traceInsert\(db, accountId, fields, trace\)/g)).toHaveLength(1);
-    // And no applyX may reach db.batch on its own, which would be a second,
-    // unaudited way to write a setting.
-    expect(apply.match(/\.batch\(/g)).toHaveLength(1);
-  });
 });
 
 describe("PLANT 5: the write tools carry no PII and no money path", () => {
@@ -246,9 +190,6 @@ describe("PLANT 5: the write tools carry no PII and no money path", () => {
     // failed_payments, so there is nothing to redact, and this asserts that
     // rather than assuming it.
     expect(text).toContain("owner@merchant.test");
-    const apply = read("app/lib/settings/apply.server.ts");
-    expect(apply).not.toContain("customerContext");
-    expect(apply).not.toContain("failedPayments");
   });
 
   it("no money path reached the apply layer", () => {

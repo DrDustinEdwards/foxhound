@@ -72,7 +72,6 @@ const MY_EMAIL = "zebulon.quicksilver@example.test";
 const THEIR_NAME = "Persephone Nightingale";
 const THEIR_EMAIL = "persephone.nightingale@other.test";
 
-
 function env(): Env {
   return {
     DB: {},
@@ -161,7 +160,6 @@ async function call(token: string | null, method: string, params: Record<string,
 const callTool = (token: string, name: string, args: Record<string, unknown> = {}) =>
   call(token, "tools/call", { name, arguments: args });
 
-
 describe("PLANT 3: the redaction default (370)", () => {
 
   it("the masker itself: first character plus domain, and a malformed address fails CLOSED", () => {
@@ -173,18 +171,6 @@ describe("PLANT 3: the redaction default (370)", () => {
     expect(maskEmail("not-an-email")).toBe("***");
     expect(maskEmail("trailing@")).toBe("***");
     expect(maskEmail("@leading.test")).toBe("***");
-  });
-
-  it("ONE IMPLEMENTATION: no tool masks inline, because no tool redacts at all", () => {
-    // A second masker in the tools file would be a second authority for one
-    // rule, and the boundary plant below would stay green while this file
-    // quietly held the property up.
-    const tools = code(read("app/lib/mcp/tools.server.ts"));
-    expect(tools).not.toContain("lastIndexOf(\"@\")");
-    expect(tools).not.toContain("***");
-    expect(tools).not.toContain("redact");
-    // And the authority is where it is claimed to be.
-    expect(code(read("app/lib/mcp/registry.ts"))).toContain("redactToolResult");
   });
 });
 

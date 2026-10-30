@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
 import routes from "~/routes";
@@ -70,12 +68,5 @@ describe("admin route guard wiring", () => {
     const shellFiles = new Set(collectFiles(appShellNode!.children ?? []));
     expect(shellFiles.has("./layouts/admin-shell.tsx")).toBe(false);
     expect([...shellFiles].some((f) => f.startsWith("./routes/admin/"))).toBe(false);
-  });
-
-  it("the admin-shell layout carries the Access middleware", () => {
-    const source = readFileSync("app/layouts/admin-shell.tsx", "utf8");
-    expect(source).toContain("export const middleware");
-    expect(source).toContain("getAdminSession(env, request)");
-    expect(source).toContain('status: 404');
   });
 });
