@@ -366,9 +366,11 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
   // Keyed on the figures, not the array, so a parent re-render does not
   // restart the count.
   const key = totals.map((t) => `${t.currency}:${t.cents}`).join(",");
+  // A function of the figures, so it changes only when `key` does.
+  const hasFigure = anyAbove(totals);
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    if (!anyAbove(totals)) return;
+    if (!hasFigure) return;
     let frame = 0;
     const start = performance.now();
     const step = (now: number) => {
@@ -378,8 +380,7 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the figures
-  }, [key]);
+  }, [key, hasFigure]);
   const shown = totals.map((t) => ({ currency: t.currency, cents: Math.round(t.cents * progress) }));
   return (
     <>

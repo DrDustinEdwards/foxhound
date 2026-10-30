@@ -101,7 +101,7 @@ export async function importDisputeFromStripe(
   // step 1). Recova's sync still inserted a bare row before that step
   // returned; Foxhound creates none, which is what "off" says.
   if (!(await readDisputesEnabled(getDb(env), accountId))) {
-    console.log(`manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
+    console.info(`manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
     return { status: "disputes_disabled" };
   }
 

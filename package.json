@@ -13,7 +13,7 @@
     "gen:recova-map": "vitest run test/redirect-map.test.ts --update",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
+    "auth:generate": "npx auth@1.7.12 generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/db-migrate.mjs",
     "check-gates": "node scripts/check-gates.mjs",
@@ -59,7 +59,6 @@
     "workers-og": "0.0.27"
   },
   "devDependencies": {
-    "@better-auth/cli": "1.4.21",
     "@cloudflare/vite-plugin": "1.65.0",
     "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.17.0",
     "@eslint/js": "9.39.5",
