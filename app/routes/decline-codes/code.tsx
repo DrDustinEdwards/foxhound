@@ -68,17 +68,6 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           <Badge tone={categoryBadgeTone(view.category)}>{CATEGORY_STATUS_LABEL[view.category]}</Badge>
         </div>
 
-        {/* Pass 3 content-doc check (session start and pre-write) found neither
-            phase6-content-decline-codes.md content, so this page's prose is
-            template copy, not a dedicated content pass's final wording. Marked
-            visibly rather than silently, per the task's instruction to leave
-            placeholder content clearly marked. */}
-        <div className="mb-8 rounded-lg border border-border-sub bg-surface2 px-4 py-3 text-label text-text-tertiary">
-          Draft content: this page's explanatory copy is Pass 3 template writing pending a
-          dedicated content pass. The classification badge above and the recovery behavior
-          described below are live, not draft: both come directly from the recovery engine.
-        </div>
-
         <section className="mb-10">
           <h2 className="mb-3 text-title font-medium text-text">Why it happens</h2>
           <p className="text-body leading-relaxed text-text-secondary">{content.whyItHappens}</p>

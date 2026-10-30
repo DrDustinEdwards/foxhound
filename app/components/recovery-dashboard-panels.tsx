@@ -421,8 +421,7 @@ export function DeliverabilityPanel({
       <Panel title={`Email deliverability · ${rangeLabel}`}>
         {f === null ? (
           <p className="m-0 text-label text-text-subtle">
-            No bounces or spam reports to show. Foxhound does not yet record them against the account that sent
-            the email.
+            No bounces or spam reports in this range.
           </p>
         ) : (
           <div className="flex flex-wrap items-baseline gap-6">

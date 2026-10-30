@@ -33,7 +33,9 @@ import {
 import { recommendForAccount } from "~/lib/intelligence/recommendations.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { formatMoneyShort } from "~/lib/money-format";
 
 import {
   BOLT_DEMO,
@@ -390,7 +392,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
           amountCents: fee,
           feeCents: fee,
           recoveredPaymentId: r.id,
-          description: "20% of a recovered payment",
+          description: `${RECOVERY_FEE_PERCENT}% of a recovered payment`,
           createdAt: new Date(now.getTime() - 2 * DAY_MS),
         }),
       );
@@ -408,7 +410,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
           amountCents: fee,
           feeCents: fee,
           disputeId: d.id,
-          description: "20% of a won dispute (capped at $500)",
+          description: `${DISPUTE_FEE_PERCENT}% of a won dispute (capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")})`,
           createdAt: new Date(now.getTime() - 2 * DAY_MS),
         }),
       );

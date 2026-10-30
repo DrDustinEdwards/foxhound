@@ -2,7 +2,9 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { COMPETITORS } from "~/lib/compare/competitors";
+import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -90,6 +92,12 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           </ul>
         </section>
 
+        {competitor.priceSource ? (
+          <p className="mb-4 text-label text-text-tertiary">
+            {competitor.name} pricing: {competitor.priceSource.url}, read {competitor.priceSource.checked}.
+          </p>
+        ) : null}
+
         {competitor.omittedNote ? (
           <p className="mb-10 text-label text-text-tertiary">{competitor.omittedNote}</p>
         ) : null}
@@ -97,8 +105,9 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         <div className="rounded-lg border border-border bg-surface p-6 text-center">
           <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
           <p className="mb-5 text-label text-text-secondary">
-            20% of Foxhound-attributed recoveries, capped disputes, a free Intelligence tier. No fee until a
-            recovery has matured 30 days.
+            {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of won disputes
+            with a cap, and Intelligence free. No fee until a recovery has matured {RECOVERY_MATURITY_DAYS}{" "}
+            days.
           </p>
           <Link
             to="/pricing"

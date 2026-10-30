@@ -16,6 +16,13 @@ import "capsomer/field.css";
  *  first render is unchanged. */
 const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
 
+/** The failure slider's starting position, also an ASSUMPTION the visitor may
+ *  change. It replaced "About 8% of MRR fails on average" (2026-10-30), a
+ *  statistic with no page or date behind it (CLAUDE.md hard rule 1); no
+ *  verifiable public source for a share of MRR that fails was found. 8 is kept
+ *  so the first render's figures are unchanged. */
+const DEFAULT_ASSUMED_FAILURE_SHARE = 8;
+
 // Recova's components/marketing/RecoveryCalculator.tsx (blob 1a4374f5), read
 // whole: pure client math, unchanged multipliers, Recova's rows in Recova's
 // order. The changes: the second slider (approved 2026-08-26 and 2026-09-19),
@@ -35,7 +42,9 @@ export function RecoveryCalculator() {
   // the page looks the same on arrival; what changed is who owns the number.
   const [recoveryShare, setRecoveryShare] = useState(DEFAULT_ASSUMED_RECOVERY_SHARE);
 
-  const failedRevenue = Math.round(mrr * 0.08); // 8% of MRR fails
+  const [failureShare, setFailureShare] = useState(DEFAULT_ASSUMED_FAILURE_SHARE);
+
+  const failedRevenue = Math.round((mrr * failureShare) / 100); // the visitor's assumed share of MRR that fails
   const stripeRecovers = Math.round(failedRevenue * (STRIPE_RECOVERY_RATE_PERCENT / 100));
   const remaining = failedRevenue - stripeRecovers; // what Stripe could not get
   const foxhoundRecovers = Math.round(remaining * (recoveryShare / 100));
@@ -88,6 +97,36 @@ export function RecoveryCalculator() {
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
           <label
+            htmlFor="failure-share-slider"
+            className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
+          >
+            Assumed share of MRR that fails
+          </label>
+          <span className="font-mono text-body font-medium text-text">{failureShare}%</span>
+        </div>
+        <Range
+          id="failure-share-slider"
+          min={0}
+          max={20}
+          step={1}
+          value={failureShare}
+          onChange={(e) => setFailureShare(Number(e.target.value))}
+          aria-valuemin={0}
+          aria-valuemax={20}
+          aria-valuenow={failureShare}
+          aria-valuetext={`${failureShare}%`}
+          // Same react-dom hydration workaround as the slider above.
+          suppressHydrationWarning
+        />
+        <div className="mt-1 flex justify-between">
+          <span className="font-mono text-source text-text-subtle">0%</span>
+          <span className="font-mono text-source text-text-subtle">20%</span>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <div className="mb-2 flex items-center justify-between">
+          <label
             htmlFor="recovery-share-slider"
             className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
           >
@@ -118,7 +157,7 @@ export function RecoveryCalculator() {
       <div className="mb-6 flex flex-col gap-3">
         <Row
           label="Failed payments per month"
-          sub="About 8% of MRR fails on average"
+          sub={`${failureShare}% of MRR, the share you set above`}
           value={fmt(failedRevenue)}
         />
         <Row
@@ -170,8 +209,8 @@ export function RecoveryCalculator() {
 
       <p className="mb-6 text-center font-mono text-source text-text-subtle">
         Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}. The
-        recovery share is an assumption you set, not a Foxhound result: Foxhound does not project a
-        recovery rate.
+        failure and recovery shares are assumptions you set, not Foxhound results: Foxhound does not
+        project a failure or recovery rate.
       </p>
 
       <div className="flex justify-center">
