@@ -24,11 +24,13 @@
 //    this. Since J22 the policy also has a report sink (/api/csp-report), so a
 //    blocked script is heard about.
 //  - site-runtime's rule is a nonce only on a response that is never
-//    shared-cached. A Worker's own response is not stored by Cloudflare's edge
-//    unless the Worker puts it in the Cache API, which Foxhound does not;
-//    cache-policy.ts's `public, max-age=300` on marketing pages lets the
-//    reader's own browser keep one page with its own nonce, which is the same
-//    reader. A cache rule that stored HTML at the edge would break this.
+//    shared-cached. Since the edge page cache (site-runtime ./edge-cache), a
+//    public page rendered by the Renderer entrypoint IS stored and handed to
+//    every reader, so it carries no nonce: it is rendered without one and its
+//    inline scripts (React Router's hydration data and module bootstrap, and
+//    the JSON-LD) are trusted by hash, computed from the page as rendered
+//    (applyHashedSecurityHeaders). Every page the gateway renders, signed-in or
+//    private, keeps its per-request nonce.
 //  - style-src has NO 'unsafe-inline' for elements since J22, which is stricter
 //    than the pre-J22 policy. Inline style={{}} attributes (charts.tsx,
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
@@ -61,7 +63,7 @@
 //    its own while `sources.frame` is empty, so there is still exactly one.
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
-import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
+import { buildContentSecurityPolicy, reportingEndpoints, scriptHash } from "@dustinedwards/site-runtime/csp";
 import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 
 import { SECURITY_HEADERS } from "./header-set";
@@ -81,18 +83,18 @@ export const CSP_REPORT_GROUP = "csp-endpoint";
 // and generateNonce cannot produce (24 base64 characters always end in "==",
 // this one has none), so the substitution can only hit the nonce sources.
 const NONCE_PLACEHOLDER = "Rk9YSE9VTkROT05DRVBMQUNFSE9MREVS";
-const POLICY = buildContentSecurityPolicy({
+const SITE = {
   sources: {
     script: [TURNSTILE_ORIGIN],
     img: ["data:"],
   },
-  nonce: NONCE_PLACEHOLDER,
   styleHashes: INLINE_STYLE_HASHES,
   styleAttributesInline: true,
   cloudflareWebAnalytics: true,
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
-});
+} as const;
+const POLICY = buildContentSecurityPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER });
 const POLICY_VALUE = `${POLICY.value}; frame-src ${TURNSTILE_ORIGIN}`;
 const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
@@ -116,10 +118,42 @@ function contentSecurityPolicy(nonce: string) {
  * the header named the bare path and no report-to report was ever sent).
  */
 export function applySecurityHeaders(response: Response, nonce: string, origin: string): Response {
+  return withHeaders(response, contentSecurityPolicy(nonce), origin);
+}
+
+// An inline <script> (no src) and its text. React Router escapes "</" inside
+// what it writes inline, so the first closing tag ends each one.
+const INLINE_SCRIPT = /<script\b(?![^>]*\ssrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi;
+
+/** The `sha256-...` source of every distinct inline script in a rendered page. */
+async function inlineScriptHashes(html: string): Promise<string[]> {
+  const texts = new Set<string>();
+  for (const match of html.matchAll(INLINE_SCRIPT)) texts.add(match[1] ?? "");
+  return Promise.all([...texts].map((text) => scriptHash(text)));
+}
+
+/**
+ * The same header set for a page the edge stores: rendered with no nonce, its
+ * inline scripts trusted by hash. An HTML body is read whole to hash it (a
+ * miss only; a hit is served from the cache), then sent on as that text. The
+ * builder runs per response here, which is every check it makes, on a path
+ * that runs once per page per deploy or purge.
+ */
+export async function applyHashedSecurityHeaders(response: Response, origin: string): Promise<Response> {
+  const isHtml = (response.headers.get("Content-Type") ?? "").startsWith("text/html");
+  const html = isHtml ? await response.text() : null;
+  const scriptHashes = html === null ? [] : await inlineScriptHashes(html);
+  const policy = buildContentSecurityPolicy({ ...SITE, scriptHashes });
+  const page = html === null
+    ? response
+    : new Response(html, { status: response.status, statusText: response.statusText, headers: response.headers });
+  return withHeaders(page, { name: policy.name, value: `${policy.value}; frame-src ${TURNSTILE_ORIGIN}` }, origin);
+}
+
+function withHeaders(response: Response, policy: { name: string; value: string }, origin: string): Response {
   const headers = new Headers(response.headers);
   applyHeaderSet(headers, SECURITY_HEADERS, { overwrite: false });
   if (!headers.has("Content-Security-Policy")) {
-    const policy = contentSecurityPolicy(nonce);
     headers.set(policy.name, policy.value);
     try {
       headers.set("Reporting-Endpoints", reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)));
