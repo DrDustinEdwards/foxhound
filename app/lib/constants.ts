@@ -819,6 +819,9 @@ export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
  * dashboard default so behavior is reproducible (non-negotiable #6).
  */
 export const STRIPE_API_VERSION = "2026-09-30.endive";
+/** The public-preview channel of the same release, for preview-only endpoints
+ *  such as FX Quotes, which Stripe serves only on a `.preview` version. */
+export const STRIPE_PREVIEW_API_VERSION = STRIPE_API_VERSION.replace(/\.[a-z]+$/, ".preview");
 /** Stripe Connect OAuth authorize endpoint. */
 export const STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize";
 /**
