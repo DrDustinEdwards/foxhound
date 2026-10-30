@@ -1,7 +1,8 @@
 {
   "libraries": {
     "sanitize-html": "the recovery-sequence preview discards tags outside a five-tag email allowlist; Prelum's ./render/safe only scans and refuses",
-    "jose": "test only: test/admin-access.test.ts signs Access tokens to drive the real verifier"
+    "jose": "test only: test/admin-access.test.ts signs Access tokens to drive the real verifier",
+    "mdast-util-directive": "types only: app/lib/blog/markdown.server.ts imports its mdast type augmentation for directive nodes; the parsing itself is Prelum's ./render"
   },
   "spelling": {
     "contracts": [
