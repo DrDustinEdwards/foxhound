@@ -34,14 +34,18 @@
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
 //    allowed by style-src-attr 'unsafe-inline', which runs no code. The two
 //    inline <style> elements are trusted by hash (inline-styles.ts).
-//  - form-action is 'self' only. Stripe Checkout starts through a React Router
-//    <Form method="post"> (DemoGuardedForm on app/routes/app/billing/index.tsx,
-//    Form on app/routes/utility/card-update.tsx) whose action returns
+//  - form-action is 'self' plus Stripe Checkout. Checkout starts through a
+//    React Router <Form method="post"> (DemoGuardedForm on
+//    app/routes/app/billing/index.tsx, the card-update and win-back forms on
+//    app/routes/utility/card-update.tsx) whose action returns
 //    `redirect(session.url)`. Once hydrated, that submission is a fetch and the
-//    router then navigates to Stripe, which form-action does not govern. A
-//    native POST made before hydration that redirects to checkout.stripe.com
-//    would be refused, because Chromium applies form-action to the redirect
-//    after a form submission (pre-existing, reported, not changed here).
+//    router then navigates to Stripe, which form-action does not govern; a
+//    native POST made before hydration (or with no JS) is a form navigation, and
+//    Chromium applies form-action to its redirect, so 'self' alone refused it.
+//    The builder writes form-action itself and refuses it in extraDirectives,
+//    so the one origin is appended to its 'self' at module load, like frame-src
+//    below. site-runtime's checkSecurityHeaders grades form-action as 'self' or
+//    'none' only, so that one line of a live header check reports this origin.
 //  - No external origins except Cloudflare's own: Turnstile
 //    (challenges.cloudflare.com, script and frame) and the Web Analytics beacon,
 //    which Cloudflare injects at the edge and which public sites allow (Dustin's
@@ -73,6 +77,7 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 export const CSP_REPORT_GROUP = "csp-endpoint";
 
 const TURNSTILE = "https://challenges.cloudflare.com";
+const STRIPE_CHECKOUT = "https://checkout.stripe.com";
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
@@ -94,7 +99,9 @@ const POLICY = buildContentSecurityPolicy({
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
 });
-const POLICY_VALUE = `${POLICY.value}; frame-src ${TURNSTILE}`;
+const FORM_ACTION_SELF = "form-action 'self'";
+if (POLICY.value.split(FORM_ACTION_SELF).length !== 2) throw new Error("the builder's form-action is not 'self' exactly once");
+const POLICY_VALUE = `${POLICY.value.replace(FORM_ACTION_SELF, `${FORM_ACTION_SELF} ${STRIPE_CHECKOUT}`)}; frame-src ${TURNSTILE}`;
 const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */
