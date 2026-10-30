@@ -1,5 +1,6 @@
-/* The 404 and error page (app/components/error-view.tsx, job J21): Capsomer's
-   button on the amber family, in Foxhound's neutrals.
+/* The 404 and error page (Capsomer's ErrorPage in app/root.tsx, the bar, footer
+   and 410 withdrawal in app/components/error-view.tsx): Capsomer's button,
+   Empty and error page on the amber family, in Foxhound's neutrals.
 
    Same pattern as app/site-header.css: Capsomer's tokens and the amber family
    go into the capbase layer, the lowest, so Foxhound's own tokens and
@@ -10,10 +11,12 @@
 
    This file reaches every page, not just the boundary: root.tsx imports the
    view, so its CSS rides in the root route's stylesheet. Nothing here changes
-   a page that draws no .cap-btn or .fh-error-page. */
+   a page that draws no .cap-btn, .cap-empty or .fh-error-page. */
 @import "capsomer/tokens.css" layer(capbase);
 @import "capsomer/family-amber.css" layer(capbase);
 @import "capsomer/button.css";
+@import "capsomer/empty.css";
+@import "capsomer/error-page.css";
 
 /* The numeral's two tones (Recova's expected-state accent and red, carried
    onto the amber family): the family's accent text for an expected state (404, the 410

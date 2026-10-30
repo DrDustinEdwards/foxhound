@@ -1,4 +1,5 @@
 import {
+  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
@@ -8,16 +9,17 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { ErrorPage, errorTitle } from "capsomer/react/error-page";
 import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
-import { ErrorView } from "./components/error-view";
+import { ErrorBar, ErrorFooter, ErrorLinks, WithdrawnView } from "./components/error-view";
 import { cloudflareContext } from "./lib/cloudflare-context";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
-export function meta() {
-  return [{ title: "Foxhound" }];
+export function meta({ error }: Route.MetaArgs) {
+  return [{ title: error ? errorTitle(error, "Foxhound") : "Foxhound" }];
 }
 
 // The font preloads, also sent as the Early Hints `Link` header (lib/preloads.ts).
@@ -119,10 +121,19 @@ export default function App() {
   return <Outlet />;
 }
 
+// Capsomer's error page under Foxhound's wordmark bar, with Recova's dashboard and demo links under
+// its message (components/error-view.tsx). The 410 withdrawal keeps its own view. A message a route
+// threw with data() (the demo's read-only 405, DEMO_READ_ONLY_MESSAGE) is shown as it was written.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  // The view lives in components/error-view.tsx so it can be rendered in a
-  // test; root.tsx itself cannot be imported there (app.css, the `?url` font
-  // assets and lib/theme.server). error.data carries whatever a route threw via
-  // data(), which the view resolves through resolveErrorBoundaryDetails.
-  return <ErrorView error={error} isDev={import.meta.env.DEV} />;
+  const routeError = isRouteErrorResponse(error) ? error : null;
+  if (routeError?.status === 410) return <WithdrawnView />;
+  const thrownMessage = routeError && routeError.status !== 404 && typeof routeError.data === "string" ? routeError.data : "";
+  return (
+    <div className="fh-cap fh-error-page flex min-h-screen flex-col bg-bg" data-cap-site="foxhound" data-family="amber">
+      <ErrorPage error={error} home="/" className="flex-1" siteHeader={<ErrorBar />} siteFooter={<ErrorFooter />} dev={import.meta.env.DEV}>
+        {thrownMessage ? <p className="m-0 text-body text-text-tertiary">{thrownMessage}</p> : null}
+        <ErrorLinks notFound={routeError?.status === 404} />
+      </ErrorPage>
+    </div>
+  );
 }
