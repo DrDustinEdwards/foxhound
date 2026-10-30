@@ -5,6 +5,7 @@ import type { Db } from "~/db";
 import { accounts, earlyFraudWarnings, getDb, stripeConnections } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { asId } from "~/lib/stripe/ids";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 import { isDefiniteRefusal } from "./accept.server";
@@ -63,11 +64,6 @@ async function findEarlyFraudWarning(db: Db, accountId: string, warningId: strin
     .where(and(eq(earlyFraudWarnings.id, warningId), eq(earlyFraudWarnings.accountId, accountId)))
     .limit(1);
   return row ?? null;
-}
-
-function asId(ref: string | { id?: string } | null | undefined): string | null {
-  if (!ref) return null;
-  return typeof ref === "string" ? ref : (ref.id ?? null);
 }
 
 export interface WarningCharge {

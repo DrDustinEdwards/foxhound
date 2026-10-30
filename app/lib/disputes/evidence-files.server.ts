@@ -1,7 +1,7 @@
 import { and, count, eq, exists, notExists, notInArray, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { disputeApprovals, disputeEvidence, disputes } from "~/db";
+import { changedRows, disputeApprovals, disputeEvidence, disputes } from "~/db";
 import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 import {
@@ -36,12 +36,6 @@ import {
 
 /** The bucket slice this module uses, so tests can pass a fake. */
 export type EvidenceBucket = Pick<R2Bucket, "put" | "get" | "delete">;
-
-function changedRows(result: unknown): number {
-  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
-  const n = r?.meta?.changes ?? r?.changes;
-  return typeof n === "number" ? n : 0;
-}
 
 /** True while the evidence may still change: no approval row for the dispute,
  *  and the dispute is not submitted or resolved. Joined into each write. */

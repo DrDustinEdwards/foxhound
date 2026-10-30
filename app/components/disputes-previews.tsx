@@ -1,5 +1,6 @@
 import { Pill } from "capsomer/react/status";
 
+import { PreviewStatCard } from "~/components/stat-card";
 import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
@@ -57,21 +58,6 @@ function TriagePill({ row }: { row: PreviewDisputeRow }) {
   );
 }
 
-function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
-  // Recova's stat card leads nowhere, so it is a panel with a figure in it,
-  // not Capsomer's stat tile, which is always a link or a button.
-  return (
-    <li className="cap-panel">
-      <div className="cap-panel-body">
-        <div>
-          <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{label}</p>
-          {children}
-        </div>
-      </div>
-    </li>
-  );
-}
-
 function Figure({ value }: { value: string | number }) {
   return <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{value}</p>;
 }
@@ -83,22 +69,22 @@ function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; colu
   const grid = columns === 5 ? "md:grid-cols-5" : "sm:grid-cols-3";
   return (
     <ul className={`m-0 grid list-none grid-cols-2 gap-3 p-0 ${grid}`} aria-label="Dispute figures">
-      <StatCard label="Open disputes">
+      <PreviewStatCard label="Open disputes">
         <Figure value={stats.openCount} />
-      </StatCard>
-      <StatCard label="At stake">
+      </PreviewStatCard>
+      <PreviewStatCard label="At stake">
         <Figure value={stats.atStake} />
-      </StatCard>
-      <StatCard label="Submitted by Foxhound">
+      </PreviewStatCard>
+      <PreviewStatCard label="Submitted by Foxhound">
         <Figure value={stats.submittedByFoxhound} />
-      </StatCard>
-      <StatCard label="Fees owed">
+      </PreviewStatCard>
+      <PreviewStatCard label="Fees owed">
         <Figure value={stats.feesOwed} />
-      </StatCard>
-      <StatCard label="Win rate">
+      </PreviewStatCard>
+      <PreviewStatCard label="Win rate">
         <Figure value={stats.winRate} />
         <p className="m-0 mt-1 text-label text-text-tertiary">{stats.winRateSubtext}</p>
-      </StatCard>
+      </PreviewStatCard>
     </ul>
   );
 }

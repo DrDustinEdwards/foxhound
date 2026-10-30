@@ -21,6 +21,25 @@ import type { Db } from "~/db";
 // which uses it to decide whether a run may be filed into a merchant's history.
 
 /**
+ * The account's Stripe connection to read from: the earliest-connected
+ * still-active one (gotcha #22). For callers with no per-row hint to tell
+ * apart an account's several active connections; card-update.tsx's
+ * resolveConnectionForFailedPayment has one and does not use this.
+ */
+export async function findActiveConnection(
+  db: Db,
+  accountId: string,
+): Promise<{ id: string; stripeAccessToken: string | null } | null> {
+  const rows = await db
+    .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
+    .from(stripeConnections)
+    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
+    .orderBy(stripeConnections.connectedAt)
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
  * A DISCRIMINATED OUTCOME, never a bare id or null (339 binding 5): "nobody
  * holds it", "the caller holds it here" and "somebody else holds it" are three
  * different answers with three different responses, and collapsing the last two

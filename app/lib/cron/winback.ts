@@ -5,6 +5,7 @@ import { accounts, getDb, stripeConnections, winBackSequences, winBackSteps } fr
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
+import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 
@@ -219,10 +220,6 @@ async function claimSequenceExhausted(
     );
 }
 
-async function signUnsubscribeFor(env: Env, email: string, accountId: string): Promise<string> {
-  const { signUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
-  return signUnsubscribeToken(env, { email, accountId });
-}
 
 
 /** What went out, and which of legacy's two result strings records it. The
@@ -379,7 +376,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           // CUSTOMER audience: footer, unsubscribe headers and the suppression
           // gate all apply, because this is commercial mail sent on the
           // merchant's behalf.
-          unsubscribeToken: await signUnsubscribeFor(env, step.customerEmail, step.accountId),
+          unsubscribeToken: await signUnsubscribeToken(env, { email: step.customerEmail, accountId: step.accountId }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `winback-step:${step.stepId}`,
           cronRunId: null,

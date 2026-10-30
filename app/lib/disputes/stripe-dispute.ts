@@ -1,5 +1,7 @@
 import type Stripe from "stripe";
 
+import { asId } from "~/lib/stripe/ids";
+
 // The ONE mapping from a Stripe.Dispute object to the fields dispute intake
 // writes, shared by the two callers that produce one.
 //
@@ -32,12 +34,6 @@ export interface DisputeIntakeFields {
   status: string;
   evidenceDeadline: Date | null;
   createdAt: Date;
-}
-
-/** The id of a Stripe field that may arrive expanded or as a bare string. */
-function asId(value: string | { id?: string } | null | undefined): string | null {
-  if (!value) return null;
-  return typeof value === "string" ? value : (value.id ?? null);
 }
 
 /**

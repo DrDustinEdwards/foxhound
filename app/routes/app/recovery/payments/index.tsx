@@ -48,8 +48,11 @@ import {
   BULK_RESULT_DISMISS_MS,
   bulkResultClearsItself,
   bulkResultLine,
+  parsePaymentsAmount,
   parsePaymentsPage,
   parsePaymentsPageSize,
+  parsePaymentsSort,
+  parsePaymentsTimeRange,
   declineWord,
   paymentsHeaderLine,
   paymentsShowingText,
@@ -80,7 +83,7 @@ import {
   BULK_ACTION_MAX_PER_SUBMISSION,
 } from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
+import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
 
@@ -119,21 +122,6 @@ export function meta() {
   return [{ title: "Payments - Foxhound" }];
 }
 
-function parseSort(value: string | null): FailedPaymentSort {
-  return value === "oldest" || value === "amount_desc" || value === "amount_asc" ? value : "newest";
-}
-
-function parseTimeRange(value: string | null): PaymentTimeRange {
-  return value && isPaymentTimeRange(value) ? value : "all";
-}
-
-function parseAmountParam(value: string | null, floorCents: number, ceilingCents: number): number | null {
-  if (!value) return null;
-  const n = Math.round(Number(value));
-  if (!Number.isFinite(n)) return null;
-  return Math.min(Math.max(n, floorCents), ceilingCents);
-}
-
 export async function loader({ context, request }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -145,14 +133,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const search = params.get("q")?.trim() || null;
   const status = params.get("status") || null;
   const declineCategory = params.get("category") || null;
-  const sort = parseSort(params.get("sort"));
-  const time = parseTimeRange(params.get("time"));
+  const sort = parsePaymentsSort(params.get("sort"));
+  const time = parsePaymentsTimeRange(params.get("time"));
   const page = parsePaymentsPage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
-  const amountMinParsed = parseAmountParam(params.get("amountMin"), bounds.minCents, bounds.maxCents);
-  const amountMaxParsed = parseAmountParam(params.get("amountMax"), bounds.minCents, bounds.maxCents);
+  const amountMinParsed = parsePaymentsAmount(params.get("amountMin"), bounds.minCents, bounds.maxCents);
+  const amountMaxParsed = parsePaymentsAmount(params.get("amountMax"), bounds.minCents, bounds.maxCents);
   // A handle resting on its own end is no filter.
   const amountMinCents = amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
   const amountMaxCents = amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
