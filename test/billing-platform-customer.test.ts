@@ -18,7 +18,7 @@ describe("ensurePlatformCustomer (reuse vs create)", () => {
   });
 });
 
-// J65 (row S3): Recova's Payment method section shows the card on file (brand,
+// J65: Recova's Payment method section shows the card on file (brand,
 // last four, expiry), read from the platform customer's default payment method.
 // Foxhound's page said "A payment method is on file" whenever a platform
 // customer existed, which the setup action creates BEFORE the card is
@@ -53,7 +53,7 @@ describe("getDefaultCard (the card on file, read only)", () => {
   });
 });
 
-// E25 (J97): Recova's billing customer carries the address Stripe emails the
+// E25: Recova's billing customer carries the address Stripe emails the
 // invoice to, chosen in lib/billing-email.ts (blob 312e9177): the connected
 // account's support_email, then its account email, then the login email, with
 // an empty string treated as missing.

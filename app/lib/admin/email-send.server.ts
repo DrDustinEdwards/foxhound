@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db/schema";
@@ -44,6 +44,7 @@ import {
   noPaymentMethodSubject,
 } from "~/lib/recovery/expiring-card-email";
 import { resendFooterNote } from "~/lib/recovery/manual-action-deps.server";
+import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
 import { sequenceCompleteContent } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
@@ -71,7 +72,7 @@ import type { Rendered } from "capsomer/email";
 // Stripe connection, and SAMPLE customer data: no customer row is ever read, so
 // no customer's name or address can reach a preview or an inbox. The copy is the
 // deterministic template, which is what a send uses whenever generation is not
-// used or fails (RULES.md 3.15); brand voice only shapes model-written copy, and
+// used or fails; brand voice only shapes model-written copy, and
 // this module never calls the model, so the voice is returned beside the preview
 // rather than applied to it.
 //
@@ -322,13 +323,7 @@ export async function loadMerchantEmailSettings(db: Db, accountId: string): Prom
       fraud: stripeConnections.brandVoiceFraud,
     })
     .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.accountId, accountId),
-        eq(stripeConnections.isPrimary, true),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
+    .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
   return {
     accountId: account.id,
@@ -586,14 +581,14 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
             personalOutreachCount: 2,
             totalFailed: 12,
             totalRecovered: 7,
-            recoveredRevenueCents: 69300,
-            atRiskRevenueCents: 118800,
+            recoveredRevenue: [{ currency: SAMPLE_CURRENCY, cents: 69300 }],
+            atRiskRevenue: [{ currency: SAMPLE_CURRENCY, cents: 118800 }],
             activeCount: 5,
             emailsSent: 31,
             winBackCount: 2,
             expiringCardCount: 3,
             openDisputeCount: 1,
-            openDisputeCents: 4900,
+            openDisputeAmounts: [{ currency: SAMPLE_CURRENCY, cents: 4900 }],
             currency: SAMPLE_CURRENCY,
             senderName,
             highRiskCustomers: [],

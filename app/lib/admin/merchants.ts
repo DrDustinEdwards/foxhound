@@ -95,7 +95,7 @@ export const CONNECTION_WORDS = {
   never_connected: "Never connected",
 } as const;
 
-/** Amounts in several currencies are never added together (RULES.md 3.20):
+/** Amounts in several currencies are never added together:
  *  each is said once, joined with a plus. */
 export function moneyWords(amounts: ReadonlyArray<{ cents: number; currency: string }>, none: string): string {
   return amounts.length === 0 ? none : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");

@@ -23,9 +23,9 @@ export async function handleWinbackReactivate(
   const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
   // THE REACTIVATION, PRIMARY PATH. The session carries the sequence id
   // Foxhound put on it at the resubscribe click, so the match is exact and
-  // needs no Stripe read (344 binding 1).
+  // needs no Stripe read.
   //
-  // THE FLIP RUNS FIRST AND THROUGH THE PLAIN BATCH PATH (343 binding 3),
+  // THE FLIP RUNS FIRST AND THROUGH THE PLAIN BATCH PATH,
   // and its own status condition is the idempotency claim: a redelivery
   // flips zero rows and records no second outcome, whether it arrives
   // before or after the webhook claim below lands.
@@ -50,7 +50,7 @@ export async function handleWinbackStart(
   intent: IntentOf<"winback_start">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
-  // WIN-BACK CREATION (290), ported from legacy's handleSubscriptionDeleted.
+  // WIN-BACK CREATION, ported from legacy's handleSubscriptionDeleted.
   // Legacy's eligibility conditions in legacy's order; each returns without
   // a sequence, and each still CLAIMS the event so redelivery short-circuits.
   //
@@ -69,7 +69,7 @@ export async function handleWinbackStart(
   //    transition is a ruling, not a build session's default.
   const involuntaryIds = await listActiveFailedPaymentIds(env, accountId, intent.customerId);
   if (involuntaryIds.length > 0) {
-    // THE FLIP LANDS HERE (291), through 265's ratified transition rather
+    // THE FLIP LANDS HERE, through 265's ratified transition rather
     // than legacy's unconditional per-row update. Still no win-back.
     const { applied } = await executeMoneyWrite(env, {
       accountId,
@@ -132,7 +132,7 @@ export async function handleWinbackStart(
     return applied ? { status: "ignored", reason: "no_customer_email" } : { status: "duplicate" };
   }
 
-  // 5. THE INTELLIGENCE GATE (291), SEMANTICALLY ported from legacy (292).
+  // 5. THE INTELLIGENCE GATE, SEMANTICALLY ported from legacy.
   //    Legacy's provenance, quoted:
   //
   //      const { data: intelligenceProduct } = await supabase
@@ -175,7 +175,7 @@ export async function handleWinbackStart(
         step1OffsetHours,
       }),
   });
-  // THE STARTED OUTCOME (343 binding 2), the pre-existing divergence this
+  // THE STARTED OUTCOME, the pre-existing divergence this
   // session fixes. Legacy records `winback_sequence_started` at creation;
   // buildWinbackStartBatch wrote the sequence and its steps and recorded
   // nothing, so a Foxhound merchant's moat was missing a row legacy has.

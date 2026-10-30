@@ -1,4 +1,4 @@
-// FOXHOUND'S OWN INDEXNOW KEY (job_b0b24df12155, row F20).
+// FOXHOUND'S OWN INDEXNOW KEY.
 //
 // IndexNow (Bing, Yandex and the other engines that share api.indexnow.org)
 // proves a site owns the URLs it submits by fetching a key file at the root:

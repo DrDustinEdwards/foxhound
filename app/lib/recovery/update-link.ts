@@ -8,8 +8,8 @@ import { verifyEngagementToken } from "~/lib/engagement/token";
 //
 // Legacy relies on the prompt alone ("use this exact placeholder URL") and
 // never reads the body back. Foxhound reads it back after generation and before
-// the send, and the caller falls back to the template when the link is missing
-// (RULES.md 3.15), because the template always carries it.
+// the send, and the caller falls back to the template when the link is missing,
+// because the template always carries it.
 //
 // WHAT COUNTS AS CARRYING THE LINK: the minted URL as the exact value of an
 // anchor's own href, the one place a customer can press it. Not counted: the URL

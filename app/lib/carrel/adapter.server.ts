@@ -24,9 +24,9 @@ import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
-// The Carrel site adapter over Foxhound's blog (job_cbe1b96107fc). Posts live in
+// The Carrel site adapter over Foxhound's blog. Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
-// Foxhound's own /admin/blog editor (RULES.md 7.4); the adapter writes through
+// Foxhound's own /admin/blog editor; the adapter writes through
 // admin-queries, the one write path.
 //
 // Version = the post's updated_at in epoch milliseconds, as a string, with a

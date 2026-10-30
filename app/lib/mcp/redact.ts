@@ -43,7 +43,7 @@
 // A new tool written next year by somebody who never reads this file is covered
 // on the day it is registered.
 //
-// ONE AUTHORITY, NOT TWO (381 binding e). The per-tool helpers this file used to
+// ONE AUTHORITY, NOT TWO. The per-tool helpers this file used to
 // export are GONE rather than kept alongside the boundary. Two places applying
 // one rule is two places for it to drift, and a plant that mutates one while the
 // other silently holds the assertion up is a guard proving nothing.
@@ -56,7 +56,7 @@ type RedactionRule = "drop" | "mask-email";
 
 /**
  * THE FIELDS THE RULE REMOVES AND WHAT IT DOES TO EACH. This constant is the
- * authority (383): the walk below reads it and contains no field name of its
+ * authority: the walk below reads it and contains no field name of its
  * own, so adding or removing a field here is the whole edit, and a field removed
  * here is genuinely unprotected, which is what makes the plant meaningful.
  *

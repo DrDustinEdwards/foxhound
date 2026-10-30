@@ -6,7 +6,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E3 (parity/ROWS-E.md, job J84): the Send test email control on
+// E3 (parity/ROWS-E.md): the Send test email control on
 // /settings/email delivers Recova's preview.
 //
 // Recova is the spec: app/(app)/settings/test-email/route.ts (blob dcc3a06f,
@@ -57,7 +57,7 @@ const USER_EMAIL = "owner@acme.test";
 const REPLY = "help@acme.test";
 const SENDER = "Alex from Acme";
 // Capsomer's amber family, light theme, body text: the same frame every
-// Foxhound mail, the real recovery email included, is drawn in (J02).
+// Foxhound mail, the real recovery email included, is drawn in.
 
 function makeEnv(over: Record<string, unknown> = {}): Env {
   return {

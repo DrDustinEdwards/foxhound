@@ -40,7 +40,7 @@ describe("evaluateAcceptInvite (the team invite/role decision, pure)", () => {
 
   // WAS: "rejects a user who already holds an active membership elsewhere
   // (single-account invariant)", asserting { ok: false, reason: "already_member" }
-  // against a membership on acc_2. That invariant is struck (324) and the
+  // against a membership on acc_2. That invariant is struck and the
   // refusal is enforcement layer 2, removed by ruling 327 by CHANGING THE
   // VERDICT: legacy's app/api/invite/accept/route.ts:47-57 (blob `13708537`)
   // answers { success: true, redirect: '/console' } on this branch.

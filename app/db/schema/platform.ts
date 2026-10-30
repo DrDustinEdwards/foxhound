@@ -80,7 +80,7 @@ export const cronRunHistory = sqliteTable(
     index("cron_run_history_created_idx").on(t.createdAt),
     // The admin overview's "last cron finished" read (admin/overview.server.ts).
     index("cron_run_history_finished_idx").on(t.finishedAt),
-    // The admin Crons page (J72) reads each cron's newest run and newest
+    // The admin Crons page reads each cron's newest run and newest
     // success (max finished_at grouped by cron and status, then those rows) and
     // the last day's failures. Without these it scans the whole history, which
     // the five-minute ticks fill at 576 rows a day.
@@ -94,7 +94,7 @@ export const adminAuditLog = sqliteTable("admin_audit_log", {
   id: id(),
   actorEmail: text("actor_email").notNull(),
   action: text("action").notNull(),
-  // soft ref to Better Auth user.id (Phase 3)
+  // soft ref to Better Auth user.id
   targetUserId: text("target_user_id"),
   targetEmail: text("target_email"),
   metadata: json("metadata"),
@@ -211,7 +211,7 @@ export const mcpCalls = sqliteTable(
 
 /**
  * Changes an admin AI asked for that start or change money, waiting for a person
- * (MCP ruling 2026-10-10, DECIDE answer 4; job_21de68b30fc2).
+ * (MCP ruling 2026-10-10, DECIDE answer 4).
  *
  * The Foxhound Admin API may pause directly, because pausing stops money
  * moving. Resuming a merchant, releasing the brake, re-enabling a cron,

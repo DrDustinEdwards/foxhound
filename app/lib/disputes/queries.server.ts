@@ -3,6 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import {
+  changedRows,
   accounts,
   customerContext,
   disputeApprovals,
@@ -113,14 +114,14 @@ export async function getDisputeDetail(
 }
 
 /**
- * Save Recova's draft fields (J77): the evidence narrative and the customer IP
+ * Save Recova's draft fields: the evidence narrative and the customer IP
  * from "Additional evidence", each held as one dispute_evidence row under its
  * Stripe evidence name, so the approved package and its hash carry exactly what
  * the merchant saved. An existing row is updated; a missing one is inserted only
  * when there is something to say, so a blank field never adds a row. The same
  * plain batch as saveDisputeEvidence: editing a draft is not a money write.
  *
- * Every statement carries its own guards, joined to the write (RULES.md 3.9),
+ * Every statement carries its own guards, joined to the write,
  * so a check the caller made on an earlier read cannot be raced past:
  * - no dispute_approvals row for this dispute: once a merchant has approved,
  *   the evidence that approval's hash attests is never rewritten, even while
@@ -129,7 +130,7 @@ export async function getDisputeDetail(
  * - the INSERT also needs the dispute to be this account's, and no row for the
  *   same field already, so two first-time saves cannot leave two rows.
  * A statement whose guard fails matches nothing and writes nothing, and that
- * is a failure to report, never a success (RULES.md 3.9): the result is true
+ * is a failure to report, never a success: the result is true
  * only when every statement changed a row. SQLite counts a matched UPDATE even
  * when the value is unchanged, so saving an unchanged draft is still true.
  */
@@ -198,15 +199,6 @@ export async function saveDisputeDraft(
   if (!first) return true;
   const results = await db.batch([first, ...rest]);
   return results.every((r) => changedRows(r) > 0);
-}
-
-/** Rows a run statement changed: D1 reports meta.changes; the test suite's
- *  better-sqlite3 driver reports changes. Anything else reads as none, so an
- *  unreadable result is never taken for a write. */
-function changedRows(result: unknown): number {
-  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
-  const n = r?.meta?.changes ?? r?.changes;
-  return typeof n === "number" ? n : 0;
 }
 
 /** The connected Stripe account's access token for a dispute's connection, or
@@ -295,7 +287,7 @@ export async function approveAndSubmitDispute(
         return submittedAt != null ? "already_submitted" : "resume";
       }
     },
-    // Phase B. The merchant's evidence files (J07) are read from the bucket
+    // Phase B. The merchant's evidence files are read from the bucket
     // here, inside the submit step, so Phase A and Phase C are untouched; a
     // file that cannot be read is left out and the submission goes on, as
     // Recova's submit route does, and with no EVIDENCE binding none are sent.
@@ -307,7 +299,7 @@ export async function approveAndSubmitDispute(
         files: await readEvidenceFilesForSubmission(env.EVIDENCE, evidence),
       }),
     confirmSubmission: async () => {
-      await db.batch(
+      const [result] = await db.batch(
         buildSubmissionConfirmationBatch(db, {
           disputeId: input.disputeId,
           accountId: input.accountId,
@@ -315,11 +307,18 @@ export async function approveAndSubmitDispute(
           submittedAt: input.approvedAt,
         }),
       );
+      // Stripe has the evidence, so a zero-row write means billing will never
+      // see this submission. It cannot be retried from here; say so loudly.
+      if (changedRows(result) === 0) {
+        console.error(
+          `dispute submission not recorded: dispute ${input.disputeId} account ${input.accountId} was accepted by Stripe but already carried a submitted marker or no longer exists`,
+        );
+      }
     },
   });
 }
 
-/** D1 caps bound parameters per statement (RULES.md 3.11), so an id list is
+/** D1 caps bound parameters per statement, so an id list is
  *  read in chunks well under the cap (health scores and evidence alike). */
 const HEALTH_LOOKUP_CHUNK = 90;
 
@@ -370,7 +369,7 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
       .where(and(eq(disputeEvidence.accountId, accountId), inArray(disputeEvidence.disputeId, chunk)));
     for (const row of rows) {
       // An uploaded file is not drafted evidence: Recova's "Evidence ready"
-      // read staged_at, which a file never set (J07).
+      // read staged_at, which a file never set.
       if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "") found.add(row.disputeId);
     }
   }

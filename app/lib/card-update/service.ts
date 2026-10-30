@@ -71,6 +71,8 @@ export async function finalizeCardUpdateSession(input: {
   accessToken: string;
   sessionId: string;
   subscriptionId?: string | null;
+  /** Read for its subscription when `subscriptionId` is not known. */
+  invoiceId?: string | null;
 }): Promise<FinalizeCardUpdateResult> {
   const stripe = getConnectedStripe(input.accessToken);
   const session = await stripe.checkout.sessions.retrieve(input.sessionId, {
@@ -93,15 +95,23 @@ export async function finalizeCardUpdateSession(input: {
   await stripe.customers.update(customerId, {
     invoice_settings: { default_payment_method: paymentMethodId },
   });
-  if (input.subscriptionId) {
-    await stripe.subscriptions.update(input.subscriptionId, {
+  // A subscription's own default card outranks the customer's, so a retry
+  // would still charge the declined card unless the subscription moves too.
+  let subscriptionId = input.subscriptionId ?? null;
+  if (!subscriptionId && input.invoiceId) {
+    const invoice = await stripe.invoices.retrieve(input.invoiceId);
+    const sub = invoice.parent?.subscription_details?.subscription ?? null;
+    subscriptionId = typeof sub === "string" ? sub : (sub?.id ?? null);
+  }
+  if (subscriptionId) {
+    await stripe.subscriptions.update(subscriptionId, {
       default_payment_method: paymentMethodId,
     });
   }
   return { ok: true };
 }
 
-// ── Resubscribe (343 binding 4) ──────────────────────────────────────────────
+// ── Resubscribe ──────────────────────────────────────────────
 // Legacy's win-back email links to a Stripe billing portal session created at
 // SEND time, once per step, on the merchant's account. Foxhound creates nothing
 // at send time: the email carries a signed token, and the Stripe object is
@@ -111,7 +121,7 @@ export async function finalizeCardUpdateSession(input: {
 
 // The metadata keys the created Checkout Session and its subscription carry.
 // They live in ~/lib/recovery/winback-metadata so the webhook classifier that
-// READS them and this creator that WRITES them share one definition (316).
+// READS them and this creator that WRITES them share one definition.
 ;
 
 interface ResubscribeSessionParamsInput {

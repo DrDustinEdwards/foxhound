@@ -2,11 +2,12 @@ import { useCallback } from "react";
 import { Pill, type Tone } from "capsomer/react/status";
 
 import { EnarratioFigure } from "~/components/enarratio-figure";
+import { PreviewStatCard } from "~/components/stat-card";
 import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 
-// The previews on /product/intelligence (J58), Recova's three feature-block
+// The previews on /product/intelligence, Recova's three feature-block
 // UIs: the Intelligence dashboard (IntelligenceDashboardPreview.tsx, blob
 // 11972333, which mounts the dashboard's MRRStatCards, 2920fa3b, and
 // PlanBreakdown, 65b5674f, over a narrative card), the customer table
@@ -14,8 +15,8 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 // HealthScoreBadge, f25f29d8) and the churn bands
 // (components/docs/ChurnRiskSummary.tsx, ba1fbb51).
 //
-// Content and layout are Recova's; the parts are Capsomer's (Q12) and the one
-// chart is Enarratio's (Q1), drawn by the dashboard's own drawPlans. Every
+// Content and layout are Recova's; the parts are Capsomer's and the one
+// chart is Enarratio's, drawn by the dashboard's own drawPlans. Every
 // figure and row is the demo seed read through Foxhound's own Intelligence
 // code (app/lib/marketing/intelligence-preview.server.ts), never a merchant's
 // rows.
@@ -41,21 +42,6 @@ function CardLabel({ children }: { children: React.ReactNode }) {
   return <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{children}</p>;
 }
 
-function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
-  // Recova's stat card leads nowhere, so it is a panel with a figure in it,
-  // not Capsomer's stat tile, which is always a link or a button.
-  return (
-    <li className="cap-panel">
-      <div className="cap-panel-body">
-        <div>
-          <CardLabel>{label}</CardLabel>
-          {children}
-        </div>
-      </div>
-    </li>
-  );
-}
-
 /** Block 1: Recova's dashboard preview, four cards, MRR by plan, the narrative. */
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
@@ -66,10 +52,10 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
   return (
     <div className="flex flex-col gap-5 p-5">
       <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4" aria-label="MRR figures">
-        <StatCard label="MRR">
+        <PreviewStatCard label="MRR">
           <p className="m-0 font-mono text-title font-bold tabular-nums text-accent-text">{dashboard.mrr}</p>
-        </StatCard>
-        <StatCard label="Day-over-day">
+        </PreviewStatCard>
+        <PreviewStatCard label="Day-over-day">
           <p
             className={`m-0 font-mono text-title font-bold tabular-nums ${
               dashboard.dayOverDaySign > 0
@@ -81,13 +67,13 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
           >
             {dashboard.dayOverDay}
           </p>
-        </StatCard>
-        <StatCard label="Active customers">
+        </PreviewStatCard>
+        <PreviewStatCard label="Active customers">
           <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{dashboard.activeCustomers}</p>
-        </StatCard>
-        <StatCard label="New MRR (MTD)">
+        </PreviewStatCard>
+        <PreviewStatCard label="New MRR (MTD)">
           <p className="m-0 font-mono text-title font-bold tabular-nums text-success-text">{dashboard.newMrrMtd}</p>
-        </StatCard>
+        </PreviewStatCard>
       </ul>
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">

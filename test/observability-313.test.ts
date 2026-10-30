@@ -158,7 +158,7 @@ describe("313 A: the never-executed detector", () => {
     // covered on the day it is added rather than on the day somebody remembers.
     const scheduled = [...new Set(CRON_JOBS.map((j) => j.schedule))];
 
-    // THE READER, MUTATED (379 binding 3). A derivation that returns nothing
+    // THE READER, MUTATED. A derivation that returns nothing
     // makes "every schedule has a period" vacuously true, and this guard would
     // pass over an empty registry while every job on earth went unwatched.
     expect(scheduled.length).toBeGreaterThan(0);

@@ -47,8 +47,8 @@ import { accountProcessingEligible } from "./sync.server";
  *  words differ, each because Foxhound already has one definition:
  *  the recovery rate is the dashboard's (getRecoveryStats), "open" for a
  *  dispute is a state not yet resolved (the digest's), and the high-risk band
- *  is Recova's health score of 33 or less. Cents are summed across currencies,
- *  as Recova and the weekly digest sum them. */
+ *  is Recova's health score of 33 or less. Amounts are summed per currency,
+ *  never across currencies. */
 async function computeAlertMetrics(
   db: Db,
   accountId: string,
@@ -74,7 +74,8 @@ async function computeAlertMetrics(
           isNull(failedPayments.deletedAt),
           eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
         ),
-      ),
+      )
+      .groupBy(failedPayments.currency),
     db
       .select({ n: count() })
       .from(recoverySteps)
@@ -90,7 +91,8 @@ async function computeAlertMetrics(
     db
       .select({ n: count(), cents: sql<number>`coalesce(sum(${disputes.amountCents}), 0)` })
       .from(disputes)
-      .where(openDispute),
+      .where(openDispute)
+      .groupBy(disputes.currency),
     db
       .select({ n: count() })
       .from(disputes)
@@ -98,7 +100,8 @@ async function computeAlertMetrics(
     db
       .select({ n: count(), cents: sql<number>`coalesce(sum(${customerContext.mrrContributionCents}), 0)` })
       .from(customerContext)
-      .where(highRisk),
+      .where(highRisk)
+      .groupBy(customerContext.currency),
     db
       .select({ failed: auditRuns.failedInvoicesCents, disputed: auditRuns.openDisputesCents })
       .from(auditRuns)
@@ -107,18 +110,23 @@ async function computeAlertMetrics(
       .limit(2),
   ]);
 
+  // Counts add across currencies; amounts never do (hard rule 2). A threshold
+  // is one number, so an amount alert compares against the largest
+  // single-currency total: it fires when any one currency crosses it.
+  const totalCount = (rows: { n: number }[]) => rows.reduce((sum, r) => sum + r.n, 0);
+  const largestCents = (rows: { cents: number }[]) => Math.max(0, ...rows.map((r) => Number(r.cents)));
   const leaking = (r: { failed: number | null; disputed: number | null } | undefined) =>
     r ? (r.failed ?? 0) + (r.disputed ?? 0) : 0;
   return {
     recovery_rate_pct: stats.recoveryRatePct ?? 0,
-    mrr_at_risk_cents: Number(active[0]?.cents ?? 0),
-    active_sequences: active[0]?.n ?? 0,
+    mrr_at_risk_cents: largestCents(active),
+    active_sequences: totalCount(active),
     emails_sent_7d: emails[0]?.n ?? 0,
-    open_disputes_count: openDisputes[0]?.n ?? 0,
+    open_disputes_count: totalCount(openDisputes),
     disputes_due_48h: dueSoon[0]?.n ?? 0,
-    dispute_amount_at_stake_cents: Number(openDisputes[0]?.cents ?? 0),
-    high_risk_customers_count: highRiskRow[0]?.n ?? 0,
-    intelligence_mrr_at_risk_cents: Number(highRiskRow[0]?.cents ?? 0),
+    dispute_amount_at_stake_cents: largestCents(openDisputes),
+    high_risk_customers_count: totalCount(highRiskRow),
+    intelligence_mrr_at_risk_cents: largestCents(highRiskRow),
     audit_leaking_cents: leaking(auditRows[0]),
     // Recova's: 0 without a prior run, so "above 0" cannot fire on the first.
     audit_leaking_delta_cents: auditRows.length >= 2 ? leaking(auditRows[0]) - leaking(auditRows[1]) : 0,
@@ -184,12 +192,12 @@ export type CriticalCustomersOutcome =
  * customer_context health score of 33 or less, and an open dispute, for the
  * same Stripe customer on the same account. One query with joins rather than
  * Recova's three reads with growing id lists, because D1 caps bound
- * parameters (RULES.md 3.11).
+ * parameters.
  *
  * "OPEN" IS FOXHOUND'S. Recova reads disputes.status in (needs_response,
  * under_review); Foxhound stores Stripe's status at intake and never updates
  * it, and keeps the dispute's life in `state`, so open is a state not yet
- * resolved, the same predicate the digest counts (RULES.md 3.20). The dispute's
+ * resolved, the same predicate the digest counts. The dispute's
  * customer is stripe_customer_id, which Foxhound writes at intake; Recova's
  * customer_id is a provenance column here.
  */
@@ -227,7 +235,7 @@ async function findCriticalCustomerIds(db: Db, accountId: string): Promise<strin
  * Recova's order: the cooldown on the account's last cross_product_critical
  * row, the customers, the notification (notifyCriticalCustomers: email first,
  * Slack without an address), then one alert_history row with whether it went.
- * The row is written here, not in the notification module (RULES.md 3.2), as
+ * The row is written here, not in the notification module, as
  * evaluateAndRecordAlerts does for E21. Never throws.
  */
 export async function runCriticalCustomersCheck(

@@ -233,6 +233,28 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
     expect(outcome).toEqual({ status: "failed", reason: "http_500" });
   });
 
+  it("a redirect is never followed, and a URL off hooks.slack.com is never fetched", async () => {
+    let redirectMode: RequestRedirect | undefined;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      redirectMode = init?.redirect;
+      return new Response(null, { status: 302, headers: { Location: "http://169.254.169.254/" } });
+    }) as typeof globalThis.fetch;
+    expect(await postToSlack("https://hooks.slack.com/services/x", event)).toEqual({ status: "failed", reason: "http_302" });
+    expect(redirectMode).toBe("manual");
+
+    harness.posted = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      harness.posted.push({ url: String(input), body: {} });
+      return new Response("ok");
+    }) as typeof globalThis.fetch;
+    expect(await postToSlack("https://hooks.slack.com:8443/services/x", event)).toEqual({
+      status: "failed",
+      reason: "host_not_allowed",
+    });
+    expect(await postToSlack("https://internal.example/x", event)).toEqual({ status: "failed", reason: "host_not_allowed" });
+    expect(harness.posted).toEqual([]);
+  });
+
   it("a THROWN fetch is caught and named, never rethrown", async () => {
     globalThis.fetch = (async () => {
       throw new Error("network down");

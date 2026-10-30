@@ -90,7 +90,7 @@ export async function handleIntake(
   const { env, event, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
   // Per-invoice dedupe: Stripe emits one payment_failed per collection
   // attempt. The FIRST creates the row; a later one either promotes it out
-  // of stripe_retrying or is a no-op claim (377(1)).
+  // of stripe_retrying or is a no-op claim.
   const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
   if (existing && existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
     return claimOnly(ctx, "duplicate_attempt");
@@ -144,6 +144,7 @@ export async function handleIntake(
         stripeEventId: event.id,
         invoiceId: intent.invoiceId,
         customerId: intent.customerId,
+        subscriptionId: intent.subscriptionId,
         customerEmail: intent.customerEmail,
         customerName: intent.customerName,
         amountCents: intent.amountCents,
@@ -157,7 +158,7 @@ export async function handleIntake(
 }
 
 // invoice.marked_uncollectible: Stripe has written the invoice off, which is
-// the other way it can be finished with a payment (377(1)). Same promotion,
+// the other way it can be finished with a payment. Same promotion,
 // same conditional flip, so an uncollectible arriving after a final
 // payment_failed plans no second sequence.
 //
@@ -258,6 +259,9 @@ export async function handleRecover(
     now: receivedAt,
   });
 
+  // When the customer paid, not when the event arrived: a late or replayed
+  // event must not let a later click or card update claim the payment.
+  const recoveredAt = intent.paidAt ?? receivedAt;
   const failedPaymentId = await findRecoverableFailedPayment(env, accountId, intent.invoiceId);
   if (!failedPaymentId) {
     // A normal renewal payment (no active failure): nothing to recover, claim only.
@@ -269,7 +273,7 @@ export async function handleRecover(
     return applied ? { status: "ignored", reason: "no_active_failure" } : { status: "duplicate" };
   }
   const { attribution, recoveredByStepId, recoveryMethod } =
-    await resolveRecoveryAttribution(env, failedPaymentId, receivedAt);
+    await resolveRecoveryAttribution(env, failedPaymentId, recoveredAt);
   // What Stripe took, read BEFORE the batch and outside it, as intake reads its
   // decline facts: the Durable Object batch makes no Stripe call. The read
   // never throws, and a failed one records the recovery with the fee columns
@@ -285,7 +289,7 @@ export async function handleRecover(
         failedPaymentId,
         amountPaidCents: intent.amountPaidCents,
         currency: intent.currency,
-        recoveredAt: receivedAt,
+        recoveredAt,
         attribution,
         recoveredByStepId,
         recoveryMethod,
@@ -314,7 +318,7 @@ export async function handleRecordExpiringCard(
   intent: IntentOf<"record_expiring_card">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
-  // WRITER TWO (341 binding 4). It RECORDS and never sends: legacy's
+  // WRITER TWO. It RECORDS and never sends: legacy's
   // handleCustomerUpdated writes the candidate row and the nightly cron
   // owns every send, so a card update cannot email a customer directly.
   //
@@ -415,7 +419,7 @@ export async function handleStampRefund(
       }),
   });
 
-  // THE CLAWBACK, AFTER THE STAMP COMMITS (ruling 377(5)). It depends on a
+  // THE CLAWBACK, AFTER THE STAMP COMMITS. It depends on a
   // Stripe call, so it cannot ride the batch above, and it must not be able
   // to unwind it: the refund is a fact whether or not Stripe answers.
   //

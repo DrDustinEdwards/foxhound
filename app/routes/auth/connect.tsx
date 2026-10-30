@@ -1,6 +1,5 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { and, eq, isNull } from "drizzle-orm";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
@@ -27,6 +26,7 @@ import {
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
+import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { setStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
@@ -50,7 +50,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // and that account's connection state on the screen where a merchant grants a
   // live payment processor, and the OAuth flow the action starts attaches to
   // whichever account the CALLBACK resolves, which is the active one
-  // (connect-callback.ts:223, phase (d)). While this read used the null-marker
+  // (connect-callback.ts:223). While this read used the null-marker
   // shim the two disagreed: a merchant switched to a second account, then
   // bounced back here by any `/connect?error=...` redirect, was shown the first
   // account's name and the first account's "already connected" state for a flow
@@ -66,12 +66,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const rows = await db
       .select({ id: stripeConnections.id })
       .from(stripeConnections)
-      .where(
-        and(
-          eq(stripeConnections.accountId, membership.accountId),
-          isNull(stripeConnections.disconnectedAt),
-        ),
-      )
+      .where(activeConnectionWhere(membership.accountId))
       .limit(1);
     hasConnection = rows.length > 0;
   }
@@ -149,11 +144,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 // The access-disclosure panel (ruling 20(d)): Recova's own panel from
 // app/connect/page.tsx (blob a79ee373, lines 21 to 31 and 59 to 77), restored
-// on the screen where a merchant grants the connection (J53, row A6).
+// on the screen where a merchant grants the connection.
 //
 // RECOVA'S LINES ARE KEPT WORD FOR WORD WHERE THEY ARE TRUE OF FOXHOUND AND SAY
 // AS MUCH AS THE GRANT DOES. The rest are fixed as copy, never by narrowing the
-// scope (RULES.md 2.2):
+// scope:
 //
 //   - The read line stays the wider one main carried until Dustin rules (PR #65,
 //     open question 1). Recova's "View failed invoices and payment history" says
@@ -282,7 +277,7 @@ function CardLink({ to, children }: { to: string; children: ReactNode }) {
 
 /**
  * The page's frame: Recova's one card, centered, 480px wide (app/connect/page.tsx
- * line 43), under the site header (J10). Not AuthShell: Recova's /connect has no
+ * line 43), under the site header. Not AuthShell: Recova's /connect has no
  * brand panel, and AuthShell's own main landmark would sit inside the marketing
  * layout's.
  *

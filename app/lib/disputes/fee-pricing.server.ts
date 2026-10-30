@@ -4,16 +4,16 @@ import type { Db, MoneyWriteBatch } from "~/db";
 import { disputeBalanceTransactions, disputes, getDb } from "~/db";
 import { getUnpricedBillableWins } from "~/db/billable";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { disputeFeeCents } from "~/lib/billing/fees";
+import { disputeFeeCents, feeForCurrency } from "~/lib/billing/fees";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { sendDisputeFeeNotice } from "./notices.server";
 
 // THE PRICING RETRY for a won dispute whose fee could not be priced at
-// resolution (Dustin, 2026-10-25, "Skip until priced"; job_a7020c40c211).
+// resolution (Dustin, 2026-10-25, "Skip until priced").
 //
 // Resolution converts the USD 500 cap into the dispute's currency with a Stripe
-// FX quote (ruling 377(7)). When that quote fails the win resolves with no
+// FX quote. When that quote fails the win resolves with no
 // stored fee, and the billing run skips it (billableDisputeRowConditions). This
 // is what prices it later: daily, before the monthly run on the 1st, every such
 // win gets a fresh quote. A quote that works stores the fee exactly as the
@@ -40,7 +40,10 @@ function buildDisputeFeePricingUpdate(
     db
       .update(disputes)
       .set({
-        resolvedFeeCents: disputeFeeCents(input.amountCents, input.cap.capMinorUnits),
+        resolvedFeeCents: feeForCurrency(
+          disputeFeeCents(input.amountCents, input.cap.capMinorUnits),
+          input.currency,
+        ),
         resolvedFeeCurrency: input.currency,
         resolvedFeeRate: input.cap.rate,
         resolvedFeeQuoteId: input.cap.quoteId,

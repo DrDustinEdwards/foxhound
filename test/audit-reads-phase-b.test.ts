@@ -48,7 +48,7 @@ describe("PLANT 2: every read answers, and a failure is data", () => {
     events: { list: () => fakeList([{ id: "evt_1" }, { id: "evt_2" }]) },
   });
 
-  // Rows come back narrowed to what the engine reads (J63 review round 1), so
+  // Rows come back narrowed to what the engine reads, so
   // these hold the count and one read field each, not the Stripe object.
   it("all five succeed and carry their rows", async () => {
     const invoices = await readUncollectibleInvoices(stripe, 0);
@@ -101,7 +101,7 @@ describe("PLANT 3: the arguments legacy sends", () => {
     expect(calls.subscriptions).toEqual({
       status: "all",
       limit: 100,
-      expand: ["data.default_payment_method"],
+      expand: ["data.default_payment_method", "data.customer.invoice_settings.default_payment_method"],
     });
 
     await readCardUpdaterEvents(stripe, 1_700_000_000);

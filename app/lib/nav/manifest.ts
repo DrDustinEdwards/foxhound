@@ -102,7 +102,7 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Notifications", to: "/settings/notifications" },
   // Dispute settings (S32, J06). Same mechanism as its siblings.
   { label: "Dispute settings", to: "/settings/disputes" },
-  // S24 and S25 (session 59): legacy's hub gained two sub-pages when the
+  // S24 and S25: legacy's hub gained two sub-pages when the
   // inline cards were split off it.
   { label: "Stripe connections", to: "/settings/stripe" },
   { label: "My account", to: "/settings/account" },

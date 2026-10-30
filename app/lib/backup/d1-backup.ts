@@ -32,7 +32,7 @@ import type { CronJobResult } from "~/lib/cron/run";
  * and email_suppressions.token (the unsubscribe token) stay because the tables
  * are business data; d1-dump excludes whole tables only.
  */
-export const BACKUP_EXCLUDED_TABLES = ["session", "verification", "account"] as const;
+const BACKUP_EXCLUDED_TABLES = ["session", "verification", "account"] as const;
 
 /** Tables that must be in every dump; their absence means the dump is not real. */
 const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;

@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J33 (job_947a0b8bbe06), row S28, under Dustin's Q10 and Q11 rulings of
+// J33, row S28, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: the alerts (now on /settings/notifications) are Recova's page
 // (app/(app)/settings/alerts/page.tsx at blob 3c1d6bb0 and AlertsClient.tsx at
 // blob ee8dac99, both read whole) built from Capsomer 0.9.0's components, amber

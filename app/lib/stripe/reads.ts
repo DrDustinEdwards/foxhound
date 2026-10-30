@@ -1,30 +1,36 @@
 import type Stripe from "stripe";
 
-import type { ReadOutcome } from "~/lib/audit/engine";
+import type {
+  AuditDispute,
+  AuditEvent,
+  AuditInvoice,
+  AuditSubscription,
+  ReadOutcome,
+} from "~/lib/audit/engine";
 
 // Phase (b) of the audit port, ruled by 362 ruling 4. The Stripe half the pure
 // engine takes as injected input.
 //
-// EVERY LIST HERE IS PAGINATED TO THE END (RULES.md 3.19), and that is the
+// EVERY LIST HERE IS PAGINATED TO THE END, and that is the
 // whole reason this module exists. Legacy's audit issues five `limit: 100`
 // calls and reads exactly one page of each, so a merchant past their first
 // hundred subscriptions gets an audit of their first hundred and no sign that
 // anything was left out. 341 found the same defect in the expiring-card scan
 // and fixed it there with `for await`; this is that fix generalized.
 //
-// EVERY ROW IS NARROWED AS IT IS READ (J63 review round 1). Paging to the end
+// EVERY ROW IS NARROWED AS IT IS READ. Paging to the end
 // with whole Stripe objects held in memory puts a large merchant's audit at
 // the mercy of the Worker's 128 MB: an expanded subscription carries its
 // customer, its payment method and its items, and none of that is read. So
 // each page is cut down to the fields the engine reads before the next page
 // arrives, and the full object is never kept. The narrowed rows are typed as
-// the Stripe objects the engine takes; the fields left out are fields the
-// engine does not read, which the equivalence test in
-// test/audit-results-j63.test.ts holds.
+// the engine's own row types (AuditInvoice and the rest in engine.ts); the
+// fields left out are fields the engine does not read, which the equivalence
+// test in test/audit-results-j63.test.ts holds.
 //
 // A FAILED READ IS DATA, NOT A THROW. Each read answers `{ ok: false, reason }`,
 // which the engine turns into that scope's failed status, so a Stripe outage
-// renders as "we could not read this" instead of as a zero (362 ruling 2).
+// renders as "we could not read this" instead of as a zero.
 
 /**
  * Walk an auto-paginating Stripe list to the end, keeping only what `narrow`
@@ -51,11 +57,11 @@ function reasonFor(what: string, err: unknown): string {
 }
 
 /** One audit read, walked to the end, narrowed row by row, its count logged. */
-async function read<T>(
+async function read<T, R>(
   what: string,
   list: () => AsyncIterable<T>,
-  narrow: (item: T) => T,
-): Promise<ReadOutcome<T>> {
+  narrow: (item: T) => R,
+): Promise<ReadOutcome<R>> {
   try {
     const rows = await collectPaginated(list(), narrow);
     console.info(`audit stripe read ${what}: ${rows.length} rows`);
@@ -72,10 +78,11 @@ type InvoiceWithCharge = Stripe.Invoice & {
 
 /** An invoice as the engine reads it: amount, currency, dates and the three
  *  places a decline code can sit (engine.ts extractDeclineCode). */
-function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
+function narrowInvoice(invoice: Stripe.Invoice): AuditInvoice {
   const full = invoice as InvoiceWithCharge;
   const charge = typeof full.charge === "object" && full.charge ? { failure_code: full.charge.failure_code } : null;
   return {
+    id: full.id,
     amount_due: full.amount_due,
     currency: full.currency,
     due_date: full.due_date,
@@ -85,13 +92,18 @@ function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
       : null,
     last_payment_error: full.last_payment_error ? { code: full.last_payment_error.code } : null,
     charge,
-  } as unknown as Stripe.Invoice;
+  };
 }
 
 /** A subscription as the engine reads it: status, currency, customer id, the
  *  card's expiry, the first item's price, and the cancellation. */
-function narrowSubscription(subscription: Stripe.Subscription): Stripe.Subscription {
-  const pm = subscription.default_payment_method;
+function narrowSubscription(subscription: Stripe.Subscription): AuditSubscription {
+  // The subscription's own card, else the customer's default (what Stripe
+  // charges when the subscription names none).
+  const customer = typeof subscription.customer === "object" && !("deleted" in subscription.customer)
+    ? subscription.customer
+    : null;
+  const pm = subscription.default_payment_method ?? customer?.invoice_settings?.default_payment_method ?? null;
   const card = pm && typeof pm === "object" ? pm.card : null;
   const price = subscription.items?.data?.[0]?.price;
   return {
@@ -117,11 +129,11 @@ function narrowSubscription(subscription: Stripe.Subscription): Stripe.Subscript
     cancellation_details: subscription.cancellation_details
       ? { reason: subscription.cancellation_details.reason }
       : null,
-  } as unknown as Stripe.Subscription;
+  };
 }
 
 /** A dispute as the engine reads it. */
-function narrowDispute(dispute: Stripe.Dispute): Stripe.Dispute {
+function narrowDispute(dispute: Stripe.Dispute): AuditDispute {
   return {
     status: dispute.status,
     amount: dispute.amount,
@@ -129,19 +141,19 @@ function narrowDispute(dispute: Stripe.Dispute): Stripe.Dispute {
     evidence_details: dispute.evidence_details
       ? { submission_count: dispute.evidence_details.submission_count }
       : null,
-  } as unknown as Stripe.Dispute;
+  };
 }
 
 /** The engine counts Card Updater events and reads nothing inside one. */
-function narrowEvent(): Stripe.Event {
-  return {} as Stripe.Event;
+function narrowEvent(): AuditEvent {
+  return {};
 }
 
 /** Uncollectible invoices created inside the lookback. */
 export function readUncollectibleInvoices(
   stripe: Stripe,
   lookbackStartSeconds: number,
-): Promise<ReadOutcome<Stripe.Invoice>> {
+): Promise<ReadOutcome<AuditInvoice>> {
   return read("failed invoices", () =>
     stripe.invoices.list({
       status: "uncollectible",
@@ -154,7 +166,7 @@ export function readUncollectibleInvoices(
 
 /** Open invoices. The overdue filter is the ENGINE's, not this module's: a read
  *  returns what Stripe has and the pure half decides what counts. */
-export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<Stripe.Invoice>> {
+export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<AuditInvoice>> {
   return read("open invoices", () => stripe.invoices.list({ status: "open", limit: 100 }), narrowInvoice);
 }
 
@@ -166,12 +178,12 @@ export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<Stripe.Inv
  * live subscriptions; the audit needs `"all"` because past-due and canceled
  * subscriptions are two of its six scopes. Same call, one parameter apart.
  */
-export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<Stripe.Subscription>> {
+export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<AuditSubscription>> {
   return read("subscriptions", () =>
     stripe.subscriptions.list({
       status: "all",
       limit: 100,
-      expand: ["data.default_payment_method"],
+      expand: ["data.default_payment_method", "data.customer.invoice_settings.default_payment_method"],
     }),
     narrowSubscription,
   );
@@ -179,7 +191,7 @@ export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<Stripe.Su
 
 /** Disputes. NEW to Foxhound's Stripe surface: the wrapper previously called
  *  `disputes.update` and nothing else. */
-export function readDisputes(stripe: Stripe): Promise<ReadOutcome<Stripe.Dispute>> {
+export function readDisputes(stripe: Stripe): Promise<ReadOutcome<AuditDispute>> {
   return read("disputes", () => stripe.disputes.list({ limit: 100 }), narrowDispute);
 }
 
@@ -194,7 +206,7 @@ export function readDisputes(stripe: Stripe): Promise<ReadOutcome<Stripe.Dispute
 export function readCardUpdaterEvents(
   stripe: Stripe,
   windowStartSeconds: number,
-): Promise<ReadOutcome<Stripe.Event>> {
+): Promise<ReadOutcome<AuditEvent>> {
   return read("card updater events", () =>
     stripe.events.list({
       type: "payment_method.automatically_updated",

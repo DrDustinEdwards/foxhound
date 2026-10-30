@@ -33,7 +33,9 @@ import {
 import { recommendForAccount } from "~/lib/intelligence/recommendations.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { formatMoneyShort } from "~/lib/money-format";
 
 import {
   BOLT_DEMO,
@@ -288,7 +290,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     recovery.expiringCardAlerts.map((row) => db.insert(expiringCardAlerts).values(row)),
   );
 
-  // 4b) Recommended actions (J78), by the same rules the nightly run uses, over
+  // 4b) Recommended actions, by the same rules the nightly run uses, over
   //     the rows just written: the demo is firewalled out of the nightly run,
   //     so without this /intelligence/recommendations would have nothing to read.
   const subjects = intelligence.customerContext.map((c) => ({
@@ -390,7 +392,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
           amountCents: fee,
           feeCents: fee,
           recoveredPaymentId: r.id,
-          description: "20% of a recovered payment",
+          description: `${RECOVERY_FEE_PERCENT}% of a recovered payment`,
           createdAt: new Date(now.getTime() - 2 * DAY_MS),
         }),
       );
@@ -408,7 +410,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
           amountCents: fee,
           feeCents: fee,
           disputeId: d.id,
-          description: "20% of a won dispute (capped at $500)",
+          description: `${DISPUTE_FEE_PERCENT}% of a won dispute (capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")})`,
           createdAt: new Date(now.getTime() - 2 * DAY_MS),
         }),
       );
@@ -429,7 +431,7 @@ async function demoAccountExists(db: Db): Promise<boolean> {
 }
 
 interface DemoResetLock {
-  /** The holder's token, or null when the lock is held (376 item 14). */
+  /** The holder's token, or null when the lock is held. */
   acquire(leaseMs: number): Promise<string | null>;
   release(token: string): Promise<void>;
 }

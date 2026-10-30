@@ -3,6 +3,7 @@ import { inArray } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts } from "~/db";
 import type { Membership } from "~/lib/auth/account";
+import { readCookie } from "~/lib/http/cookies";
 
 import {
   DEMO_ACTIVE_ACCOUNT_COOKIE,
@@ -39,15 +40,6 @@ export function clearDemoCookieHeader(): string {
 // Legacy kept `active_demo_account` for a year (switch-account/route.ts), so a
 // returning visitor lands on the business they last looked at.
 const DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-
-function readCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("cookie") ?? "";
-  for (const part of header.split(";")) {
-    const [key, ...rest] = part.trim().split("=");
-    if (key === name) return rest.join("=");
-  }
-  return null;
-}
 
 /** The demo business with this account id, or null for anything else. The one
  *  check both the switch route and the cookie reader use: only an id in

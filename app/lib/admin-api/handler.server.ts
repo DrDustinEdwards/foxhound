@@ -320,7 +320,7 @@ const ROUTES: ApiRoute[] = [
     handler: async ({ db, params }) => {
       await merchantForAgent(db, params[0]);
       const [overview, paymentStatusCounts, disputes] = await Promise.all([
-        getIntelligenceOverview(db, params[0]),
+        getIntelligenceOverview(db, params[0], { forAgent: true }),
         getGlobalPaymentStatusCounts(db, params[0]),
         listDisputes(db, params[0]),
       ]);

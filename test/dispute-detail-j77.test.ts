@@ -18,10 +18,10 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// J77 (job_4d41a53774f0), row S14: /disputes/:id is Recova's page
+// J77, row S14: /disputes/:id is Recova's page
 // (app/(app)/disputes/[id]/page.tsx a9452f59, DisputeDetailClient.tsx 3d56b55d,
 // components/disputes/* at the blobs the job names, read whole) built from
-// Capsomer 0.9.0's parts (Q10), amber, on Foxhound's engine. Every
+// Capsomer 0.9.0's parts, amber, on Foxhound's engine. Every
 // assertion here was seen failing first.
 
 const harness = vi.hoisted(() => ({
@@ -63,7 +63,7 @@ const B = "acct_beta";
 
 type LoaderData = Awaited<ReturnType<typeof route.loader>>;
 
-function contextFor(accountId: string, isDemo = false): unknown {
+function contextFor(accountId: string, isDemo = false, role = "owner"): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
@@ -74,7 +74,7 @@ function contextFor(accountId: string, isDemo = false): unknown {
           userId: "u",
           userName: "u",
           email: "owner@alpha.test",
-          membership: { memberId: "m", accountId, accountName: "Alpha", role: "owner" },
+          membership: { memberId: "m", accountId, accountName: "Alpha", role },
           memberships: [],
           activeAccountId: accountId,
           isAdmin: false,
@@ -173,11 +173,16 @@ async function load(id = "dsp_1", accountId = A, isDemo = false): Promise<Loader
   } as never)) as LoaderData;
 }
 
-async function act(fields: Record<string, string>, id = "dsp_1", accountId = A): Promise<{ status: number; body: unknown }> {
+async function act(
+  fields: Record<string, string>,
+  id = "dsp_1",
+  accountId = A,
+  role = "owner",
+): Promise<{ status: number; body: unknown }> {
   const body = new FormData();
   for (const [k, v] of Object.entries(fields)) body.set(k, v);
   const result = await route.action({
-    context: contextFor(accountId),
+    context: contextFor(accountId, false, role),
     request: new Request(`https://foxhoundapp.test/disputes/${id}`, { method: "POST", body }),
     params: { id },
   } as never);
@@ -335,6 +340,22 @@ describe("J77: Recova's sync form and the approve card", () => {
     const res = await act({ intent: "approve" });
     expect(res.status).toBe(200);
     expect(seen[2]).toMatchObject({ approvedByUserId: "u", accountId: A, disputeId: "dsp_1" });
+  });
+
+  it("refuses Approve and Accept from a member with 403, before Stripe", async () => {
+    seedConnection();
+    seedDispute({ stripeConnectionId: "conn_1" });
+    let called = false;
+    harness.approve = async () => {
+      called = true;
+      return { status: "submitted" };
+    };
+    for (const intent of ["approve", "accept"]) {
+      const res = await act({ intent }, "dsp_1", A, "member");
+      expect(res.status).toBe(403);
+      expect(res.body).toMatchObject({ intent, error: "Only the account owner can do this." });
+    }
+    expect(called).toBe(false);
   });
 
   it("logs the whole error and answers 500 with a true line when approval throws", async () => {

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { sentryOptions } from "~/lib/errors/sentry-options";
 
-// J05 (job_f1f5ebd7fe50): Sentry posture before Dustin sets SENTRY_DSN.
+// J05: Sentry posture before Dustin sets SENTRY_DSN.
 // RULES.md 3.14 keeps the package pinned exactly; this suite pins what the SDK
 // is told to do on the day the DSN goes in: no default PII, sampled tracing,
 // and a scrubber that takes personal data out of what Foxhound itself sends.

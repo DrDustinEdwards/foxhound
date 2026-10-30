@@ -13,6 +13,7 @@ import {
   DAY_MS,
 } from "~/lib/constants";
 import { sendRenderedTransactionalEmail, sendTransactionalEmail } from "~/lib/email/send";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import {
   manageEmailSettingsLine,
   recoveryFooterNote,
@@ -22,7 +23,7 @@ import {
 import type { Rendered } from "capsomer/email";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
-/** Cron-failure alerting (313). Ruling 311 measured that a failing cron records
+/** Cron-failure alerting. Ruling 311 measured that a failing cron records
  *  `status: "failed"` to cron_run_history and notifies NOBODY, so a job that
  *  fails every run fails silently until somebody opens /admin/operations. That
  *  matters most for billing-monthly, which has never executed once in any
@@ -31,7 +32,7 @@ import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
  *  CHANNEL: email to SUPPORT_EMAIL through the existing transactional sender, so
  *  ZERO new credentials. 312 ruled the channel.
  *
- *  THE FAILURE-MODE OVERLAP IS REAL AND ACCEPTED (312): this alerts about an
+ *  THE FAILURE-MODE OVERLAP IS REAL AND ACCEPTED: this alerts about an
  *  email-adjacent system BY EMAIL, so a total email outage silences its own
  *  alarm. Stated rather than glossed. It is still strictly better than the
  *  nothing that preceded it: cron failures are not usually email failures, and
@@ -72,7 +73,7 @@ export function utcDay(now: Date): string {
  *  that test, which is the only reason this is not module-private. */
 export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   [CRON_SCHEDULE_RECOVERY_TICK]: 5 * 60 * 1000,
-  // THE WEEKLY DIGEST'S SCHEDULE (376 item 15). It was missing from this table
+  // THE WEEKLY DIGEST'S SCHEDULE. It was missing from this table
   // from the day session 55 added the repo's first new cron expression, so
   // cron-health reported weekly-digest as `unknown_schedule` every day since:
   // the one job in the registry that this table could not answer for.
@@ -83,7 +84,7 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   [CRON_SCHEDULE_WEEKLY]: 7 * DAY_MS,
   [CRON_SCHEDULE_DAILY]: DAY_MS,
   [CRON_SCHEDULE_MONTHLY]: 31 * DAY_MS,
-  // The merged monthly audit's own hour (362 ruling 3). Mapped at the same
+  // The merged monthly audit's own hour. Mapped at the same
   // period as the other monthly jobs: a schedule missing from this map is
   // reported as `unknown_schedule`, which is a blind spot rather than an alert,
   // so a new expression that skips this line silently stops being watched.
@@ -189,9 +190,14 @@ export async function claimAlertSlot(
       createdAt: now,
     });
     return true;
-  } catch {
+  } catch (err) {
     // The unique index rejected it: already alerted today for this cron+kind.
-    return false;
+    if (isUniqueConstraintError(err)) return false;
+    // Anything else (D1 down, a schema error) is not "already alerted". The
+    // alert exists to report a broken system, so it goes out undeduplicated
+    // rather than being swallowed.
+    console.error("cron alert dedupe claim failed; sending anyway:", err instanceof Error ? err.message : err);
+    return true;
   }
 }
 
@@ -221,7 +227,7 @@ const STACK_EXCERPT_CHARS = 500;
  * The cron failure alert (E26): Recova's notifyCronFailure subject and body,
  * Foxhound's name, then Foxhound's run id and last success, which say which
  * run is on the record and when the cron last worked. Recova's bold labels
- * ("Message:") are plain text (Capsomer job_2adddfaab5dc, bold runs), and its
+ * ("Message:") are plain text (bold runs), and its
  * stack <pre> is one paragraph per line (Capsomer gap named in the PR). Pure.
  */
 export function buildFailureAlertEmail(input: FailureAlertInput, now: Date): CronAlertMessage {

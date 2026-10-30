@@ -43,8 +43,7 @@ function loaderArgs(slug: string) {
 describe("PLANT 1: every old slug 301s to its new one, driven through the loader", () => {
   it("ALL FOUR REDIRECT, with the status and the Location asserted", async () => {
     const entries = Object.entries(BLOG_SLUG_REDIRECTS);
-    // The reader, mutated: an empty map would make this loop assert nothing
-    // (379 binding 3).
+    // The reader, mutated: an empty map would make this loop assert nothing.
     expect(entries).toHaveLength(4);
 
     for (const [oldSlug, newSlug] of entries) {

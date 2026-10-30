@@ -80,7 +80,7 @@ describe("buildPendingApprovalBatch (Phase A: durable record BEFORE Stripe)", ()
 });
 
 describe("buildSubmissionConfirmationBatch (Phase C: submitted marker AFTER Stripe)", () => {
-  it("advances the dispute to submitted and sets submitted_at, guarded by state", () => {
+  it("sets submitted_at once, keeping a resolved dispute's state", () => {
     const batch = buildSubmissionConfirmationBatch(db, {
       disputeId: "dsp_1",
       accountId: "acc_1",
@@ -91,7 +91,8 @@ describe("buildSubmissionConfirmationBatch (Phase C: submitted marker AFTER Stri
     const update = sqlOf(batch[0]);
     expect(update.sql).toMatch(/update .*disputes/i);
     expect(update.sql).toMatch(/submitted_at/i);
-    expect(update.sql).toMatch(/not in/i); // only from a pre-submission/pre-resolution state
+    expect(update.sql).toMatch(/"submitted_at" is null/i); // written once
+    expect(update.sql).toMatch(/case when/i); // a resolved state is kept
     expect(update.params).toContain("submitted");
     expect(update.params).toContain("dsp_1");
   });

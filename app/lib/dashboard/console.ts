@@ -107,8 +107,8 @@ export function isCardInAttentionWindow(expiresAt: Date, nowMs: number): boolean
 
 /**
  * Each currency's total in Recova's short format (formatAmountShort: whole
- * units), joined with " · ". A total is never summed across currencies
- * (RULES.md 3.20), so an account paid in two currencies sees both. Nothing at
+ * units), joined with " · ". A total is never summed across currencies,
+ * so an account paid in two currencies sees both. Nothing at
  * all reads as Recova's zero, "$0".
  */
 export function formatCurrencyTotalsShort(rows: readonly { currency: string; cents: number }[]): string {

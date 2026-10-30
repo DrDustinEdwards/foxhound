@@ -1,14 +1,15 @@
-import { createSiteApi, type RateLimiter, type ScheduleRun, type SiteApi } from "@dustinedwards/site-api";
+import { createSiteApi, type PublishHook, type RateLimiter, type ScheduleRun, type SiteApi } from "@dustinedwards/site-api";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 
 import { getDb } from "~/db";
+import { purgePublicPages } from "~/lib/http/edge-purge.server";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { indexNow } from "~/lib/seo/indexnow.server";
 
 import { carrelAdapter } from "./adapter.server";
 import { carrelMediaAdapter } from "./media-adapter.server";
 
-// Mounts site-api at /api/carrel/v1 (job_cbe1b96107fc). The guard order is the
+// Mounts site-api at /api/carrel/v1. The guard order is the
 // package's: prefix, rate limit, key, route. CARREL_SITE_KEY is a separate,
 // revocable secret that is read ONLY here and reaches ONLY that prefix; every
 // other route (admin, merchant, billing, webhooks) authenticates by session or
@@ -30,9 +31,21 @@ function carrelLimiter(env: Env): RateLimiter {
   };
 }
 
+/** An applied schedule changes a public page with no request behind it, so
+ *  the stored pages are purged here. A Carrel request's write is purged by the
+ *  gateway instead (workers/app.ts), which also covers the media library's
+ *  writes that no publish hook sees. */
+const purgeOnSchedule: PublishHook = {
+  name: "edge-page-purge",
+  async run(event) {
+    if (event.trigger !== "schedule") return true;
+    return (await purgePublicPages(`schedule ${event.action} ${event.path}`)) !== false;
+  },
+};
+
 /** One site-api over the blog, for a Carrel request and for the cron alike.
  *  The IndexNow hook runs after a write that changes a public page and after
- *  each schedule the cron applies (job_b0b24df12155). */
+ *  each schedule the cron applies. */
 function carrelSiteApi(env: Env): SiteApi {
   const db = getDb(env);
   return createSiteApi({
@@ -40,7 +53,7 @@ function carrelSiteApi(env: Env): SiteApi {
     adapter: { ...carrelAdapter(db, d1ScheduledUpdates(env.DB)), media: carrelMediaAdapter(env, db) },
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
-    hooks: [indexNow],
+    hooks: [indexNow, purgeOnSchedule],
   });
 }
 

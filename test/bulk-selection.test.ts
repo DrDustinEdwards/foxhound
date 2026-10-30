@@ -11,7 +11,7 @@ import {
   type SelectableRow,
 } from "~/lib/recovery/bulk-selection";
 
-// S6 bulk selection, Session 1 (274). The selection layer only: no POST target,
+// S6 bulk selection, Session 1. The selection layer only: no POST target,
 // no mutation, no dispatcher change.
 //
 // The property under test is 274 decision three, that the selection prunes to

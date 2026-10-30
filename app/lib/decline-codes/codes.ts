@@ -1,7 +1,7 @@
 import { classifyDecline, isRetryable } from "~/lib/recovery/decline";
 import type { DeclineCategory } from "~/lib/constants";
 
-// The seeded code list for the /decline-codes library (Phase 6). Synced to
+// The seeded code list for the /decline-codes library. Synced to
 // the full 32-code set researched in recova/phase6-content-decline-codes.md,
 // plus card_error (present in decline.ts's NETWORK_CODES but not covered by
 // that content doc; card_error's copy is hand-written in content.ts,

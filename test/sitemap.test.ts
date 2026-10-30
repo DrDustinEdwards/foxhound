@@ -44,7 +44,7 @@ const EXCLUDED_PREFIXES = [
   // already Disallow'd in robots.txt.
   "/console",
   // The audit's authenticated surfaces, plus the anonymous OAuth pair and the
-  // live results page (phase (f)). A bare "/audit" would also exclude the
+  // live results page. A bare "/audit" would also exclude the
   // PUBLIC estimator, which is the one page here that should be indexed.
   // Legacy's own sitemap lists /audit and none of these, which is the same
   // call: a consent screen, an OAuth return and a cookie-gated render are
@@ -110,22 +110,22 @@ const EXCLUDED_PREFIXES = [
   "/feed.rss",
   "/og/",
   "/og",
-  // Recova's next.config.ts redirects (J23): /user-guides and
+  // Recova's next.config.ts redirects: /user-guides and
   // /sitemap_index.xml answer a 308 and are not pages. Recova's own sitemap
   // lists neither. (/recovery/audit is already covered by "/recovery".)
   "/user-guides",
   "/sitemap_index.xml",
-  // JSON health for monitors (job_f7f35d4b7ac7), not a page.
+  // JSON health for monitors, not a page.
   "/health",
-  // The OAuth consent page (J79): a step inside an agent's connect flow,
+  // The OAuth consent page: a step inside an agent's connect flow,
   // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
   "/oauth/",
-  // RFC 9116's well-known file (377 item 11). Not HTML, and not a page a reader
+  // RFC 9116's well-known file. Not HTML, and not a page a reader
   // navigates to: a client looks for it at a fixed path by the spec, so listing
   // it in the sitemap would advertise a file that is found by convention.
   // The /security PAGE it points at IS in STATIC_PAGES.
   "/.well-known/",
-  // The IndexNow key file (job_b0b24df12155). A verification file the engines
+  // The IndexNow key file. A verification file the engines
   // fetch by the protocol's convention, not a page; Recova's sitemap leaves its
   // own key file out too.
   INDEXNOW_KEY_PATH,

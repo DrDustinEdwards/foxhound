@@ -13,7 +13,7 @@ import { plainMajorAmount } from "~/lib/money-format";
 // WHAT IS NOT LEGACY'S: how a scope that could not be read is presented. Legacy
 // has no such state, because its scopes degrade to zeroes, so it hands the model
 // a 0 for a scope its Stripe call failed on and the model writes about a
-// merchant with no open disputes. Foxhound's per-scope status (362 ruling 2)
+// merchant with no open disputes. Foxhound's per-scope status
 // reaches the prompt as the words "could not be read", class (c): a model told a
 // zero writes a sentence about a zero, and that sentence would be a lie with
 // digits in it.
@@ -21,7 +21,7 @@ import { plainMajorAmount } from "~/lib/money-format";
 /** Legacy's "$1234.56" for a USD run, kept byte for byte. Any other currency
  *  is read in its own minor unit with its code after it ("5000 JPY"), because
  *  legacy's dollar sign and hundredths made a yen run's figures a hundred times
- *  too small and in the wrong currency (RULES.md 1.2). */
+ *  too small and in the wrong currency. */
 function amountIn(currency: string): (minor: number) => string {
   const code = currency.toLowerCase();
   if (code === "usd") return (minor) => `$${plainMajorAmount(minor, "usd")}`;
@@ -29,8 +29,8 @@ function amountIn(currency: string): (minor: number) => string {
 }
 
 /**
- * A figure's amounts, each in its own currency, joined with "and"
- * (job_ed1c41e4bd95): never one sum across currencies (RULES.md 3.20). A
+ * A figure's amounts, each in its own currency, joined with "and":
+ * never one sum across currencies. A
  * single-currency run reads exactly as before, and no money at all reads as a
  * zero in the run's currency.
  */
@@ -49,7 +49,7 @@ function line<T>(scope: ScopeOutcome<T>, render: (data: T) => string): string {
 /**
  * The summary's sentence plan, in the prompt's order. Exported so the
  * /product/audit page describes the summary the model is asked for, read here
- * rather than retyped (RULES.md 2.1). The prompt text is unchanged by it.
+ * rather than retyped. The prompt text is unchanged by it.
  */
 export const AUDIT_SUMMARY_STRUCTURE = [
   "The biggest revenue leak with its dollar amount.",
@@ -136,7 +136,7 @@ export const AUDIT_SUMMARY_FALLBACK =
  * canon and a model reply is the one string in the repo nobody reviewed.
  *
  * The dashes are built from char codes so this file does not itself carry the
- * characters it removes (332 binding 2).
+ * characters it removes.
  */
 export function sanitizeSummary(raw: string): string {
   const EM = String.fromCharCode(0x2014);

@@ -13,7 +13,7 @@
 //      The host rule (app.recovamrr.com to the apex, path kept) becomes a
 //      second host the whole map answers on.
 //
-// The rule is "same path, new domain" (ruling 408 binding 3): a Recova path
+// The rule is "same path, new domain": a Recova path
 // Foxhound serves maps to itself. Only a Recova path Foxhound does NOT serve
 // needs a named target, and each of those is listed below with its reason. An
 // entry here for a path Foxhound now serves is stale and fails the build, so a

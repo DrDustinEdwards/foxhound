@@ -9,7 +9,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J32 (job_54cb0e7420dc), row S27, under Dustin's Q10 and Q11 rulings of
+// J32, row S27, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/account is Recova's signed-in page, read whole at HEAD:
 //   settings/account/page.tsx               blob b42f9159  1,661 bytes
 //   settings/account/AccountProfileForm.tsx blob 85bd1a33    863 bytes

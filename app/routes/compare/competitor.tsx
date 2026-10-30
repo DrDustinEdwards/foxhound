@@ -2,7 +2,9 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { COMPETITORS } from "~/lib/compare/competitors";
+import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -62,7 +64,12 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           to="/compare"
           className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
         >
-          <ArrowLeft className="transition-transform group-hover:-translate-x-0.5" size={13} strokeWidth={1.5} aria-hidden />
+          <ArrowLeft
+            className="transition-transform group-hover:-translate-x-0.5"
+            size={13}
+            strokeWidth={1.5}
+            aria-hidden
+          />
           Back to comparisons
         </Link>
 
@@ -101,26 +108,51 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         </div>
 
         <section className="mb-10 rounded-lg border border-border bg-surface p-5">
-          <h2 className="mb-3 text-title font-medium text-text">Where Foxhound is behind</h2>
+          <h2 className="mb-3 text-title font-medium text-text">
+            Where Foxhound is behind
+          </h2>
           <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-relaxed text-text-secondary">
             {competitor.foxhoundCons.map((con) => (
               <li key={con} className="flex items-start gap-2">
-                <span aria-hidden="true" className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-tertiary" />
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-tertiary"
+                />
                 <span>{con}</span>
               </li>
             ))}
           </ul>
         </section>
 
+        {competitor.priceSource ? (
+          <p className="mb-4 text-label text-text-tertiary">
+            {competitor.name} pricing:{" "}
+            <a
+              href={competitor.priceSource.url}
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              {competitor.priceSource.url}
+            </a>
+            , read {competitor.priceSource.checked}.
+          </p>
+        ) : null}
+
         {competitor.omittedNote ? (
-          <p className="mb-10 text-label text-text-tertiary">{competitor.omittedNote}</p>
+          <p className="mb-10 text-label text-text-tertiary">
+            {competitor.omittedNote}
+          </p>
         ) : null}
 
         <div className="rounded-lg border border-border bg-surface p-6 text-center">
-          <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
+          <p className="mb-2 text-body font-medium text-text">
+            See Foxhound's pricing in full
+          </p>
           <p className="mb-5 text-label text-text-secondary">
-            20% of Foxhound-attributed recoveries, capped disputes, a free Intelligence tier. No fee until a
-            recovery has matured 30 days.
+            {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries,{" "}
+            {DISPUTE_FEE_PERCENT}% of won disputes with a cap, and Intelligence
+            free. No fee until a recovery has matured {RECOVERY_MATURITY_DAYS}{" "}
+            days.
           </p>
           <Link
             to="/pricing"

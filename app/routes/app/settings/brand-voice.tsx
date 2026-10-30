@@ -50,7 +50,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 //   settings/components/BrandVoiceSection.tsx blob 9f4de70c 4,362 bytes
 //   settings/SaveBar.tsx                     blob f1d6eb23    830 bytes
 //
-// J36 (job_36eb888192d0) rebuilt the page from Capsomer 0.9.0's parts under
+// J36 rebuilt the page from Capsomer 0.9.0's parts under
 // Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, a Panel's card,
 // Select, a cap-input textarea, Button and Status, amber throughout. Recova
 // stays the spec for what is here and in what order: the phone-only back
@@ -83,7 +83,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // maxLength, unlike the voice fields above.
 //
 // DIVERGENCE, class (a): legacy's write path is the shared /settings/update
-// handler (row S38, unbuilt). This is the route's own action, exactly S30's
+// handler (unbuilt). This is the route's own action, exactly S30's
 // divergence 1.
 
 export function meta() {

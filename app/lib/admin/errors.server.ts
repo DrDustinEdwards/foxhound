@@ -1,6 +1,6 @@
-// /admin/platform/errors data layer (J48). READ only.
+// /admin/platform/errors data layer. READ only.
 //
-// Two sources, each read only when something writes to it (RULES.md 3.18):
+// Two sources, each read only when something writes to it:
 //
 // 1. Sentry. The Worker sends to Sentry only while SENTRY_DSN is set
 //    (workers/app.ts). The DSN cannot read anything back: listing issues needs

@@ -36,7 +36,7 @@ export interface SwitcherAccount {
  * also keeps the anonymous marketing loader at zero DB reads (ruling 59's rule
  * for that surface) since it never gets here with memberships in hand.
  *
- * FILTERED ON `disconnected_at IS NULL` (ruling 333). This paragraph used to
+ * FILTERED ON `disconnected_at IS NULL`. This paragraph used to
  * argue the opposite, that a disconnected primary still names the Stripe
  * account and SiteNav.tsx filters on `is_primary` alone. S37 made that reading
  * wrong rather than merely debatable: once a merchant can disconnect from

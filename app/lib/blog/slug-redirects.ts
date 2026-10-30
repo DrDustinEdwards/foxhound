@@ -1,4 +1,4 @@
-// THE FOUR RENAMED COMPARISON SLUGS (376 item 21).
+// THE FOUR RENAMED COMPARISON SLUGS.
 //
 // Four blog posts shipped under `recova-vs-*` URLs and kept them through the
 // rename. Their TITLES already said Foxhound; only the paths still carried the

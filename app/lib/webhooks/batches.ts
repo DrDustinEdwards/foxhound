@@ -11,7 +11,7 @@ import {
   winBackSteps,
 } from "~/db";
 import type { ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { disputeFeeCents } from "~/lib/billing/fees";
+import { disputeFeeCents, feeForCurrency } from "~/lib/billing/fees";
 import {
   FAILED_PAYMENT_STATUS_ACTIVE,
   FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
@@ -84,6 +84,8 @@ export interface IntakeBatchInput {
   stripeEventId: string;
   invoiceId: string;
   customerId: string;
+  /** The invoice's subscription, when it has one. */
+  subscriptionId: string | null;
   customerEmail: string;
   customerName: string | null;
   amountCents: number;
@@ -183,7 +185,7 @@ export interface SequenceStartBatchInput {
 
 /**
  * Stripe has stopped retrying: flip a `stripe_retrying` row to `active` and plan
- * its sequence, atomically with the claim (ruling 377(1)).
+ * its sequence, atomically with the claim.
  *
  * THE UPDATE IS CONDITIONAL ON THE ROW STILL BEING `stripe_retrying`, so a
  * second promotion flips nothing. That alone is NOT what stops a second
@@ -322,7 +324,7 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
 
 /**
  * charge.refunded: claim + the refund MARKER on failed_payments + the
- * recovered_payments stamp. Fires on ANY refund, full or partial (ruling 29).
+ * recovered_payments stamp. Fires on ANY refund, full or partial.
  * All three in one atomic batch, so a claim without its marker is impossible.
  *
  * TWO writes, not one, because the stamp alone is order-dependent. The stamp is
@@ -377,12 +379,22 @@ export function buildRefundStampBatch(
  *  buildDisputeIntakeBatch (dispute intake also excludes the underlying
  *  recovery from billing when the disputed charge is resolved to one). */
 function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
-  return db
-    .update(recoveredPayments)
-    .set({ disputedAt: at })
-    .where(
-      and(eq(recoveredPayments.failedPaymentId, failedPaymentId), isNull(recoveredPayments.disputedAt)),
-    );
+  return [
+    // The order-independent half, as refund_signal_at is for refunds: a dispute
+    // that lands BEFORE the recovery row exists stamps the failed payment, and
+    // buildRecoveryBatch reads it so the recovery is born disputed. First
+    // dispute wins.
+    db
+      .update(failedPayments)
+      .set({ disputeSignalAt: at })
+      .where(and(eq(failedPayments.id, failedPaymentId), isNull(failedPayments.disputeSignalAt))),
+    db
+      .update(recoveredPayments)
+      .set({ disputedAt: at })
+      .where(
+        and(eq(recoveredPayments.failedPaymentId, failedPaymentId), isNull(recoveredPayments.disputedAt)),
+      ),
+  ] as const;
 }
 
 /** charge.dispute.created: claim + stamp recovered_payments.disputed_at (feeds the billable predicate). */
@@ -390,7 +402,7 @@ export function buildDisputeStampBatch(
   db: Db,
   input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
-  return [buildWebhookClaim(db, input.claim), buildDisputedAtStamp(db, input.failedPaymentId, input.at)];
+  return [buildWebhookClaim(db, input.claim), ...buildDisputedAtStamp(db, input.failedPaymentId, input.at)];
 }
 
 export interface DisputeIntakeInput {
@@ -449,7 +461,15 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     evidenceDeadline: input.evidenceDeadline,
     createdAt: input.createdAt,
     stripeConnectionId: input.stripeConnectionId,
-    state: "pending_review",
+    // A dispute Stripe has already closed (its closed event was processed
+    // first, or this created event is a late retry) is born resolved, so it
+    // is never left awaiting review or picked up by auto-submit.
+    ...(input.status === "won" || input.status === "lost"
+      ? {
+          state: input.status === "won" ? ("resolved_won" as const) : ("resolved_lost" as const),
+          resolvedAt: input.claim.receivedAt,
+        }
+      : { state: "pending_review" as const }),
     ...input.contextColumns,
   });
   const evidenceInserts = input.evidence.map((field) =>
@@ -463,7 +483,7 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     }),
   );
   const stamp = input.linkedFailedPaymentId
-    ? [buildDisputedAtStamp(db, input.linkedFailedPaymentId, input.createdAt)]
+    ? buildDisputedAtStamp(db, input.linkedFailedPaymentId, input.createdAt)
     : [];
   return [claim, disputeInsert, ...evidenceInserts, ...stamp];
 }
@@ -482,8 +502,8 @@ export interface DisputeResolutionInput {
   /** The disputed amount, read from the existing dispute row (the fee base). */
   amountCents: number;
   currency: string;
-  /** The USD 500 cap in THIS dispute's currency, converted at resolution
-   *  (ruling 377(7)). Null when the quote failed, which is the fail-closed
+  /** The USD 500 cap in THIS dispute's currency, converted at resolution.
+   * Null when the quote failed, which is the fail-closed
    *  case: no fee is snapshotted. */
   cap: ResolvedDisputeCap | null;
   /** Why the cap could not be resolved, stored on the row so the dispute's
@@ -515,7 +535,7 @@ export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInpu
 /**
  * The resolution UPDATE itself, the one writer of a dispute's resolved state
  * and fee snapshot. buildDisputeResolutionBatch rides it behind the webhook
- * claim, unchanged; the merchant's Accept (J06, app/lib/disputes/accept.server.ts)
+ * claim, unchanged; the merchant's Accept (app/lib/disputes/accept.server.ts)
  * rides it as a loss Foxhound did not submit, so an accepted dispute is resolved
  * by the same statement Stripe's closing event would have used, with no fee.
  */
@@ -526,14 +546,16 @@ export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResoluti
     .set({
       state: input.won ? "resolved_won" : "resolved_lost",
       resolvedAt: input.resolvedAt,
-      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT (ruling 377(7)). It
+      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT. It
       // needs a Stripe FX quote, and an external call cannot live inside the
       // money batch, so process.ts fetches it and hands the result in. A
       // quote that failed arrives as a null cap and the fee is NOT
       // snapshotted: the dispute resolves, and it is simply not billable
       // until a run that can price it. Never the flat 50,000.
       resolvedFeeCents:
-        billableWin && input.cap ? disputeFeeCents(input.amountCents, input.cap.capMinorUnits) : null,
+        billableWin && input.cap
+          ? feeForCurrency(disputeFeeCents(input.amountCents, input.cap.capMinorUnits), input.currency)
+          : null,
       resolvedFeeCurrency: billableWin && input.cap ? input.currency : null,
       resolvedFeeRate: input.cap?.rate ?? null,
       resolvedFeeQuoteId: input.cap?.quoteId ?? null,
@@ -608,13 +630,13 @@ export interface WinbackStartInput {
   currency: string | null;
   cancelReason: string | null;
   canceledAt: Date;
-  /** Step-1 override from the Intelligence gate (291). Undefined = the default. */
+  /** Step-1 override from the Intelligence gate. Undefined = the default. */
   step1OffsetHours?: number;
 }
 
 /**
  * customer.subscription.deleted: claim + the win-back sequence + its steps, all
- * atomic. Ported from legacy's handleSubscriptionDeleted (290); this is
+ * atomic. Ported from legacy's handleSubscriptionDeleted; this is
  * planWinbackSteps' FIRST production caller, the planner having existed since
  * the rebuild with only the demo seeder and its own test calling it.
  *

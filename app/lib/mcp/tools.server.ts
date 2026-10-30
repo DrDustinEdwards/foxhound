@@ -42,7 +42,7 @@ import {
   ToolInputError,
 } from "./registry";
 
-// THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING (job_874dc20ea9ac).
+// THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING.
 //
 // Twenty-three one-endpoint tools became twelve whole-job ones (rule 3: 5 to 15
 // per server; rule 4: outcomes, not API mirrors), each named
@@ -73,7 +73,7 @@ import {
 // `executeMoneyWrite`, `recordOutcome`, a billing writer or a dispute writer.
 //
 // REDACTION IS DEFAULT-ON FOR EVERY TOOL, AND NOT ONE LINE OF IT IS IN THIS
-// FILE (376 item 7). Registering a tool is what redacts it; see ./redact.ts. A
+// FILE. Registering a tool is what redacts it; see ./redact.ts. A
 // tool's job is to choose WHICH fields to return, never to disguise one.
 
 type ToolArgs = Record<string, unknown>;
@@ -270,7 +270,7 @@ const READ_TOOLS: McpTool[] = [
     annotations: READ,
     execute: async (ctx) => {
       const [overview, payment_status_counts, connections] = await Promise.all([
-        getIntelligenceOverview(ctx.db, ctx.accountId),
+        getIntelligenceOverview(ctx.db, ctx.accountId, { forAgent: true }),
         getGlobalPaymentStatusCounts(ctx.db, ctx.accountId),
         listAccountConnections(ctx.db, ctx.accountId),
       ]);
@@ -499,7 +499,7 @@ const READ_TOOLS: McpTool[] = [
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: READ,
     execute: async (ctx) => {
-      const [account, audit, connections, sender, brand_voice, intelligence_context] = await Promise.all([
+      const [account, audit, connections, sender, voices, intelligence_context] = await Promise.all([
         getAccount(ctx.db, ctx.accountId),
         readAccountAuditSettings(ctx.db, ctx.accountId),
         listAccountConnections(ctx.db, ctx.accountId),
@@ -507,6 +507,20 @@ const READ_TOOLS: McpTool[] = [
         getPrimaryBrandVoices(ctx.db, ctx.accountId),
         getMerchantContext(ctx.db, ctx.accountId),
       ]);
+      // The voice samples are left out: they are the merchant's past emails to
+      // customers, greeting them by name, kept as one JSON string the field
+      // redactor cannot see into, and no writer here takes them back.
+      const brand_voice =
+        voices === null
+          ? null
+          : {
+              id: voices.id,
+              general: voices.general,
+              soft: voices.soft,
+              expired: voices.expired,
+              network: voices.network,
+              fraud: voices.fraud,
+            };
       return {
         audit,
         features: {
@@ -862,5 +876,3 @@ export const MERCHANT_TOOL_NAMES = [...READ_TOOLS, ...WRITE_TOOLS].map((t) => t.
 /** The write half, named so a plant can assert exactly these carry a trace. */
 export const MERCHANT_WRITE_TOOL_NAMES = WRITE_TOOLS.map((t) => t.name);
 
-export { ToolInputError };
-export type { McpToolContext };

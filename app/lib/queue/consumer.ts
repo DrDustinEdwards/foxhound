@@ -28,7 +28,11 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
       try {
         await processEmailEvent(env, message.body);
         message.ack();
-      } catch {
+      } catch (err) {
+        console.error(
+          `email event ${message.id} failed (attempt ${message.attempts}), retrying:`,
+          err instanceof Error ? err.message : err,
+        );
         message.retry();
       }
     }

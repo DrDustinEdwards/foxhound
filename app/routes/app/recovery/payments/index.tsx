@@ -49,8 +49,11 @@ import {
   BULK_RESULT_DISMISS_MS,
   bulkResultClearsItself,
   bulkResultLine,
+  parsePaymentsAmount,
   parsePaymentsPage,
   parsePaymentsPageSize,
+  parsePaymentsSort,
+  parsePaymentsTimeRange,
   declineWord,
   paymentsHeaderLine,
   paymentsShowingText,
@@ -81,12 +84,12 @@ import {
   BULK_ACTION_MAX_PER_SUBMISSION,
 } from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
+import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /recovery/payments (row S6, job J75). Recova is the spec: its page,
+// /recovery/payments. Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
 // 94043896, components/PaymentsHeader.tsx 27cd8e4a, PaymentsStats.tsx
 // b386c660, PaymentsFilters.tsx b6612faf, PaymentsTable.tsx 95a10450,
@@ -98,12 +101,12 @@ import { NOINDEX } from "~/lib/seo/meta";
 // Clear filters), the rows-per-page links, the table, the pager, and the bulk
 // bar while something is selected.
 //
-// Built from Capsomer 0.9.0's parts (Q10), amber throughout. No Foxhound
+// Built from Capsomer 0.9.0's parts, amber throughout. No Foxhound
 // class sits on a Capsomer element: Recova's mono figures, its sizes and its
 // spacing go on elements of the page's own inside or around them. Recova's
 // per-status colors on the status filter and the row pills, its filled (now
 // amber) Next button in the pager, and its 12px radius wait for Capsomer's
-// per-site layer (capsomer job_ec5ec0754626), listed in the J75 pull request.
+// per-site layer, listed in the J75 pull request.
 //
 // Approved differences kept (APPROVED-DIFFERENCES): status pills say the tab
 // word (2026-08-14); "Stop recovery" (2026-08-10); bulk actions submit exactly
@@ -111,7 +114,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // (2026-08-13); they report per payment and keep the failures selected, and
 // ask above 25 and refuse above 100 (2026-09-19); "Payments - Foxhound"
 // (2026-08-28). Recova's personal-outreach mark after a name reads the action
-// the nightly scoring stores (J78).
+// the nightly scoring stores.
 //
 // Every filter is in the URL and runs in the loader. Script applies a filter
 // on change, as Recova's controls do; without script the form still submits
@@ -119,21 +122,6 @@ import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
   return [{ title: "Payments - Foxhound" }, NOINDEX];
-}
-
-function parseSort(value: string | null): FailedPaymentSort {
-  return value === "oldest" || value === "amount_desc" || value === "amount_asc" ? value : "newest";
-}
-
-function parseTimeRange(value: string | null): PaymentTimeRange {
-  return value && isPaymentTimeRange(value) ? value : "all";
-}
-
-function parseAmountParam(value: string | null, floorCents: number, ceilingCents: number): number | null {
-  if (!value) return null;
-  const n = Math.round(Number(value));
-  if (!Number.isFinite(n)) return null;
-  return Math.min(Math.max(n, floorCents), ceilingCents);
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -147,14 +135,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const search = params.get("q")?.trim() || null;
   const status = params.get("status") || null;
   const declineCategory = params.get("category") || null;
-  const sort = parseSort(params.get("sort"));
-  const time = parseTimeRange(params.get("time"));
+  const sort = parsePaymentsSort(params.get("sort"));
+  const time = parsePaymentsTimeRange(params.get("time"));
   const page = parsePaymentsPage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
-  const amountMinParsed = parseAmountParam(params.get("amountMin"), bounds.minCents, bounds.maxCents);
-  const amountMaxParsed = parseAmountParam(params.get("amountMax"), bounds.minCents, bounds.maxCents);
+  const amountMinParsed = parsePaymentsAmount(params.get("amountMin"), bounds.minCents, bounds.maxCents);
+  const amountMaxParsed = parsePaymentsAmount(params.get("amountMax"), bounds.minCents, bounds.maxCents);
   // A handle resting on its own end is no filter.
   const amountMinCents = amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
   const amountMaxCents = amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
@@ -238,7 +226,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
  *
  * Nothing the browser sends is trusted: every id is re-derived through
  * dispatchManualAction's own account-scoped read and per-intent preconditions,
- * one payment and one key at a time (RULES.md 3.2), so an unowned id answers
+ * one payment and one key at a time, so an unowned id answers
  * not_found exactly as it would singly. A submission over the ceiling is
  * refused whole.
  */
@@ -555,7 +543,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
-    // the page's one <main> (ruling 146), so this is a plain wrapper.
+    // the page's one <main>, so this is a plain wrapper.
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
       <div className="mb-6">
         <PageHead

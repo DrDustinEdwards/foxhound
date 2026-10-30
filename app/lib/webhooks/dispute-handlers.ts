@@ -9,7 +9,12 @@ import { isDisputeResolved } from "~/lib/disputes/labels";
 import { sendDisputeCreatedNotice, sendDisputeOutcomeNotice } from "~/lib/disputes/notices.server";
 import { readDisputeProductDescription, readDisputesEnabled } from "~/lib/disputes/queries.server";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { DISPUTE_CREDIT_DESCRIPTION, issueCreditNoteForEvidence } from "~/lib/billing/credit-note";
+import {
+  CHARGEBACK_CREDIT_DESCRIPTION,
+  DISPUTE_CREDIT_DESCRIPTION,
+  disputedRecoveryIdsFor,
+  issueCreditNoteForEvidence,
+} from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import {
@@ -26,7 +31,7 @@ import { findDisputeByStripeId, resolveDisputedRecovery } from "./lookups";
  * sent." Recova stamped it after its send too. The stamp is its own small batch
  * through the money-write Durable Object, keyed on the dispute and guarded on
  * the column still being empty, so it is written once and never moves; the
- * notice module itself writes nothing (RULES.md 3.2). Never throws.
+ * notice module itself writes nothing. Never throws.
  */
 async function notifyDisputeOutcome(env: Env, accountId: string, disputeId: string): Promise<void> {
   const notice = await sendDisputeOutcomeNotice(env, { accountId, disputeId });
@@ -118,7 +123,7 @@ export async function handleStampDispute(
         contextColumns: stripeContext.columns,
       }),
   });
-  // THE NEW-DISPUTE NOTICE (J06), after the intake has committed and
+  // THE NEW-DISPUTE NOTICE, after the intake has committed and
   // changing nothing about it, as the recovery notification above. Recova
   // sends it at the end of handleDisputeCreated. It never throws.
   //
@@ -138,6 +143,20 @@ export async function handleStampDispute(
       );
   if (noticeFor) {
     await sendDisputeCreatedNotice(env, { accountId, disputeId: noticeFor });
+  }
+  // A CHARGEBACK ON A RECOVERED PAYMENT credits that recovery's fee if it was
+  // already invoiced, keyed on the fee line exactly as a refund is, so a refund
+  // and a dispute on the same payment still credit it once. Only on `applied`,
+  // as the refund path: a failure here is picked up by the daily
+  // credit-note-retry sweep, which reads the same disputed_at stamp.
+  if (applied && linked) {
+    for (const recoveredPaymentId of await disputedRecoveryIdsFor(env, linked.failedPayment.id)) {
+      await issueCreditNoteForEvidence(
+        env,
+        { recoveredPaymentId },
+        { now: intent.createdAt, description: CHARGEBACK_CREDIT_DESCRIPTION },
+      );
+    }
   }
   return applied ? { status: "applied" } : { status: "duplicate" };
 }
@@ -172,7 +191,7 @@ export async function handleDisputeResolved(
     if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
     return applied ? { status: "ignored", reason: "already_resolved" } : { status: "duplicate" };
   }
-  // THE CAP IS CONVERTED HERE, BEFORE THE BATCH (ruling 377(7)). It needs a
+  // THE CAP IS CONVERTED HERE, BEFORE THE BATCH. It needs a
   // Stripe FX quote and an external call cannot ride the money batch. A
   // failure is recorded and the fee is left unsnapshotted, which is the
   // fail-closed shape: the dispute resolves either way, and an unpriced win
@@ -210,7 +229,7 @@ export async function handleDisputeResolved(
       }),
   });
 
-  // A lost dispute credits any fee line it carries (377(5)), after the commit,
+  // A lost dispute credits any fee line it carries, after the commit,
   // never unwinding it, keyed on the fee line. Stripe does not move a dispute
   // from won to lost: an issuer that re-files opens a NEW dispute object with
   // its own charge.dispute.created (Stripe's "Receiving multiple disputes per
@@ -226,7 +245,7 @@ export async function handleDisputeResolved(
       { now: receivedAt, description: DISPUTE_CREDIT_DESCRIPTION },
     );
   }
-  // THE WON OR LOST NOTICE (J06), after the resolution has committed.
+  // THE WON OR LOST NOTICE, after the resolution has committed.
   if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
   return applied ? { status: "applied" } : { status: "duplicate" };
 }

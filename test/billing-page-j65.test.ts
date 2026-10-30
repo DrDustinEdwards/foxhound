@@ -1,7 +1,10 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import { authContext } from "~/lib/auth/context";
+import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { BillingPreview } from "~/lib/billing/preview.server";
 import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.server";
@@ -19,7 +22,15 @@ const { buildRecoveryHistory, buildDisputeFeeRows, BILLING_HISTORY_LIMIT } = awa
   "~/lib/billing/page.server"
 );
 const { ordinal, subscriptionDetail } = await import("~/lib/billing/page");
-const BillingRoute = (await import("~/routes/app/billing/index")).default;
+const finalizeCalls = vi.hoisted(() => ({ n: 0 }));
+vi.mock("~/lib/billing/platform-customer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/lib/billing/platform-customer")>()),
+  finalizeBillingSetupSession: async () => {
+    finalizeCalls.n += 1;
+  },
+}));
+const billingModule = await import("~/routes/app/billing/index");
+const BillingRoute = billingModule.default;
 
 const NEXT_RUN_MS = Date.parse("2026-08-01T04:00:00.000Z");
 const T = (iso: string) => new Date(iso);
@@ -420,5 +431,56 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
       expect(html).toContain("This account is canceled. Fees already earned still appear on the next invoice.");
       expect(html).toContain("Next invoice: August 1, 2026");
     });
+  });
+});
+
+describe("the setup session's return leg", () => {
+  it("never finalizes at Stripe in the demo or while an admin views as the merchant", async () => {
+    for (const extra of [{ isDemo: true }, { isDemo: false, viewingAs: { adminEmail: "admin@foxhound.test" } }]) {
+      const context = {
+        get(key: unknown) {
+          if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+          if (key === authContext) {
+            return { userId: "u", membership: { accountId: "acct_1", role: "owner" }, isAdmin: false, ...extra };
+          }
+          throw new Error("unexpected context key");
+        },
+      };
+      const thrown = await billingModule
+        .loader({ context, request: new Request("https://foxhoundapp.test/billing?session_id=cs_x"), params: {} } as never)
+        .catch((e: unknown) => e);
+      expect(thrown).toBeInstanceOf(Response);
+      expect((thrown as Response).headers.get("Location")).toBe("/billing");
+    }
+    expect(finalizeCalls.n).toBe(0);
+  });
+});
+
+describe("starting billing setup", () => {
+  function contextFor(role: string) {
+    return {
+      get(key: unknown) {
+        if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+        if (key === authContext) return { userId: "u", membership: { accountId: "acct_1", role }, isAdmin: false, isDemo: false };
+        throw new Error("unexpected context key");
+      },
+    };
+  }
+  function setupRequest() {
+    return new Request("https://foxhoundapp.test/billing", { method: "POST", body: new URLSearchParams({ intent: "setup_billing" }) });
+  }
+  type Result = { init: { status: number }; data: { error: string } };
+
+  it("is refused to a member who is not the owner, and an owner's failure never shows the raw error", async () => {
+    const refused = (await billingModule.action({ context: contextFor("member"), request: setupRequest(), params: {} } as never)) as unknown as Result;
+    expect(refused.init.status).toBe(403);
+    expect(refused.data.error).toBe("Only the account owner can set up billing.");
+
+    // env has no DB, so the owner's first read throws a TypeError whose text must stay in the log.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failed = (await billingModule.action({ context: contextFor("owner"), request: setupRequest(), params: {} } as never)) as unknown as Result;
+    expect(failed.data.error).toBe("Could not start billing setup. Please try again.");
+    expect(logged).toHaveBeenCalledWith("billing setup start failed:", expect.stringMatching(/\S/));
+    logged.mockRestore();
   });
 });

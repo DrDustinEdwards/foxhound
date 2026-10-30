@@ -21,7 +21,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // Plus a fourth guard for the harness gap: better-sqlite3 is more permissive
 // than D1, so where the two can disagree the assertion is on the SQL SHAPE
-// rather than on the harness accepting the query (ruling 318).
+// rather than on the harness accepting the query.
 
 
 

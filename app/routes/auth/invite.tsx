@@ -9,7 +9,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/invite";
 
-// Row A7, /invite/:token (J28). Recova's app/invite/page.tsx (blob cd317a14),
+// Row A7, /invite/:token. Recova's app/invite/page.tsx (blob cd317a14),
 // InviteClient.tsx (blob 0eb98af4) and app/api/invite/accept/route.ts (blob
 // 13708537), read whole. The page is one 400px card, centered: "You've been
 // invited", "Join <account> on Foxhound" and one "Accept invite" button, or,
@@ -53,14 +53,15 @@ function readInviteCookie(request: Request): string | null {
   return null;
 }
 
+// A signed-in caller under another address gets this same sentence. Recova
+// named the invited address there, which told anyone holding the link who it
+// was for; that is a Recova bug not copied.
 const INVALID = "This invite link is invalid or has expired.";
-const wrongUser = (invitedEmail: string | null) =>
-  `This invite was sent to ${invitedEmail ?? "another address"}. Copy this page's URL and open it in an incognito window to accept with the correct account.`;
 
 type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 
 /** Accept for the signed-in caller and land them in the account, or say why not. */
-async function accept(db: Db, token: string, session: Session, invitedEmail: string | null, headers?: HeadersInit) {
+async function accept(db: Db, token: string, session: Session, headers?: HeadersInit) {
   const result = await acceptInvite(db, token, session.user.id, session.user.email);
   if (result.ok) {
     // Point this session at the account they just joined, or at the one they
@@ -70,7 +71,7 @@ async function accept(db: Db, token: string, session: Session, invitedEmail: str
     return redirect("/console", { headers });
   }
   return result.reason === "email_mismatch"
-    ? data({ accountName: null, error: wrongUser(invitedEmail) }, { status: 403, headers })
+    ? data({ accountName: null, error: INVALID }, { status: 403, headers })
     : data({ accountName: null, error: INVALID }, { status: 400, headers });
 }
 
@@ -88,7 +89,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   }
   // Back from sign-up or sign-in after a signed-out "Accept invite".
   if (session && carried) {
-    return accept(db, params.token, session, invite.invitedEmail, { "Set-Cookie": clearInviteCookie() });
+    return accept(db, params.token, session, { "Set-Cookie": clearInviteCookie() });
   }
   return data({ accountName: invite.accountName, error: null as string | null });
 }
@@ -105,7 +106,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       headers: { "Set-Cookie": setInviteCookie(params.token) },
     });
   }
-  return accept(db, params.token, session, invite.invitedEmail);
+  return accept(db, params.token, session);
 }
 
 export default function Invite({ loaderData, actionData }: Route.ComponentProps) {

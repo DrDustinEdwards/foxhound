@@ -1,4 +1,7 @@
-import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import {
+  DISPUTE_FEE_CAP_CENTS,
+  STRIPE_PREVIEW_API_VERSION,
+} from "~/lib/constants";
 import { currencyExponent } from "~/lib/money-format";
 import { getStripe } from "~/lib/stripe/client";
 
@@ -44,7 +47,10 @@ export interface ResolvedDisputeCap {
 }
 
 export class DisputeCapQuoteError extends Error {
-  constructor(readonly currency: string, cause: unknown) {
+  constructor(
+    readonly currency: string,
+    cause: unknown,
+  ) {
     super(
       `fx quote for usd->${currency} failed: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
@@ -60,7 +66,7 @@ interface FxQuoteResponse {
 /**
  * The USD 500 cap expressed in one dispute's currency, at today's rate.
  *
- * FAILS CLOSED, and that is the whole design (377(7)). A quote that cannot be
+ * FAILS CLOSED, and that is the whole design. A quote that cannot be
  * fetched throws, the caller does not snapshot a fee, and the dispute stays
  * unresolved for billing with the error recorded. It NEVER falls back to the
  * flat 50,000, because that fallback is the defect being removed and a silent
@@ -76,23 +82,41 @@ export async function resolveDisputeCap(
   if (code === "usd") {
     // Nothing to convert and nothing to record. A USD dispute must not depend
     // on an external call to resolve at all.
-    return { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null };
+    return {
+      capMinorUnits: DISPUTE_FEE_CAP_CENTS,
+      rate: null,
+      quoteId: null,
+      quotedAt: null,
+    };
   }
 
   let quote: FxQuoteResponse;
   try {
-    quote = (await getStripe(env).rawRequest("POST", "/v1/fx_quotes", {
-      from_currency: "usd",
-      "to_currencies[0]": code,
-      lock_duration: "none",
-    })) as FxQuoteResponse;
+    // Stripe's shape: ONE `to_currency` and a list of `from_currencies`, with
+    // `rates` keyed by the SOURCE currency, where rates[from].exchange_rate is
+    // units of to_currency per one unit of from. So USD is the source and the
+    // dispute's currency the target, and the rate is read at rates.usd.
+    quote = (await getStripe(env).rawRequest(
+      "POST",
+      "/v1/fx_quotes",
+      {
+        to_currency: code,
+        "from_currencies[0]": "usd",
+        lock_duration: "none",
+      },
+      { apiVersion: STRIPE_PREVIEW_API_VERSION },
+    )) as FxQuoteResponse;
   } catch (err) {
     throw new DisputeCapQuoteError(code, err);
   }
 
-  const rate = quote.rates?.[code]?.exchange_rate;
+  // Dispute-currency units per one USD.
+  const rate = quote.rates?.usd?.exchange_rate;
   if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
-    throw new DisputeCapQuoteError(code, new Error("quote carried no usable exchange rate"));
+    throw new DisputeCapQuoteError(
+      code,
+      new Error("quote carried no usable exchange rate"),
+    );
   }
 
   // USD 500 in major units, converted, then expressed in the target's minor

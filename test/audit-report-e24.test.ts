@@ -13,7 +13,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // (app/api/cron/run-scheduled-audits/route.ts, blob be1ed2ca, lines 169 to 310)
 // and its send (lines 384 to 389, from FROM_HELLO through wrapEmailHtml with no
 // unsubscribe token) are the spec for what the mail says, carries and when it
-// sends. Its layout is Capsomer's email component (Q3). Every send assertion
+// sends. Its layout is Capsomer's email component. Every send assertion
 // reads the message as it reaches env.EMAIL.send.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, stripe: null as unknown }));
@@ -235,7 +235,7 @@ describe("E24 carries what Recova's carries, and sends when Recova's does", () =
     expect(m.from).not.toContain(EMAIL_AUTH_SENDER_ADDRESS);
     expect(m.subject).toBe("Your monthly Foxhound report");
     expect(m.replyTo).toBeUndefined();
-    // Merchant mail: no unsubscribe link, header or postal address (RULES.md 3.16).
+    // Merchant mail: no unsubscribe link, header or postal address.
     expect(m.headers).toBeUndefined();
     expect(m.text).not.toContain("Unsubscribe");
     // Recova's wrapEmailHtml footer with no unsubscribe token.

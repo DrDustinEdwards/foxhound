@@ -10,7 +10,7 @@ import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
 import { formatMoney } from "~/lib/money-format";
 
-// THE ALERT EMAILS (J94, rows E21 and E22). Ported from Recova's
+// THE ALERT EMAILS. Ported from Recova's
 // lib/alert-evaluation.ts (blob 0e28ecbf, 18,968 bytes): fireEmail and
 // fireSlack for a threshold alert, and the cross-product critical customers
 // check with its email-then-Slack order. Recova's words, Foxhound's name.
@@ -19,19 +19,19 @@ import { formatMoney } from "~/lib/money-format";
 // no unsubscribe token, so the footer is "You're receiving this from Recova
 // about a recent payment" and a "Manage email settings" link; Foxhound's
 // merchant audience writes the same footer (E10), and no unsubscribe or postal
-// address (RULES.md 3.16). Each goes through processEmailJob, so suppression,
+// address. Each goes through processEmailJob, so suppression,
 // the live-send gate and the email_sends claim all apply.
 //
-// ON CAPSOMER'S NOTICE TEMPLATE (RULES.md 3.16; Q3). The notice has one
+// ON CAPSOMER'S NOTICE TEMPLATE. The notice has one
 // heading, which Recova's mails do not: the threshold alert takes its subject
 // as the heading, and the critical customers alert its own first line, so no
 // word is added that Recova does not send. Recova's bold runs are plain text
-// here (capsomer job_2adddfaab5dc, a bold run inside a paragraph).
+// here (a bold run inside a paragraph).
 //
-// WRITES NOTHING (RULES.md 3.2). The firing's alert_history row and the
+// WRITES NOTHING. The firing's alert_history row and the
 // cooldown reads belong to the caller, evaluateAndRecordAlerts and
 // runCriticalCustomersCheck in ai-run.server.ts, which record after the send in
-// Recova's order. Every send path returns a named outcome (RULES.md 3.16).
+// Recova's order. Every send path returns a named outcome.
 //
 // SLACK HERE, NOT app/lib/notify/slack.server.ts. That sender gates on the
 // account's Slack notifications toggle, as Recova's recovery-event posts do;
@@ -49,9 +49,9 @@ const ALERT_FROM_NAME = "Foxhound";
  * THE CRITICAL CUSTOMERS ALERT WAITED UNTIL ITS BUTTON HAD SOMEWHERE TO GO.
  *
  * Recova's mail and Slack line both send the merchant to
- * /intelligence/recommendations (row S20). RULES.md 2.7 says an email ships
+ * /intelligence/recommendations. RULES.md 2.7 says an email ships
  * after its link has somewhere to go, so the nightly run called this check only
- * once that page existed; it does now (job J78). A test holds this equal to
+ * once that page existed; it does now. A test holds this equal to
  * whether routes.ts serves the page.
  */
 export const CRITICAL_CUSTOMERS_ALERT_LIVE = true;
@@ -169,18 +169,21 @@ type SlackPostOutcome =
  * JSON body `{ text }`, `res.ok` is the answer, a throw is false. Recova reads
  * only the webhook, not the Slack notifications toggle, on both alert paths.
  * Two refusals Recova lacks: a demo account never fetches (the demo firewall,
- * RULES.md 4.12), and a stored URL off hooks.slack.com is never fetched
- * (RULES.md 4.16). Never throws, and never logs the URL, which is a credential.
+ * RULES.md 4.12), and a stored URL off hooks.slack.com is never fetched.
+ * Never throws, and never logs the URL, which is a credential.
  */
 async function postAlertToSlack(accountId: string, webhookUrl: string, text: string): Promise<SlackPostOutcome> {
   if (accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) return { status: "refused", reason: "demo" };
   const checked = normalizeSlackWebhookUrl(webhookUrl);
   if (!checked.ok || !checked.value) return { status: "refused", reason: "host_not_allowed" };
   try {
+    // A redirect is never followed: a 3xx is not ok, so hooks.slack.com is the
+    // only host this request can reach.
     const res = await fetch(checked.value, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
+      redirect: "manual",
     });
     return res.ok ? { status: "posted" } : { status: "failed", reason: `http_${res.status}` };
   } catch {
@@ -272,7 +275,7 @@ export interface CriticalNotifyOutcome {
  * Notify the merchant of `count` critical customers in Recova's order: email
  * when the account has a notification address and the mail binding exists
  * (Recova's `notification_email && resend`), else Slack when it has a webhook,
- * else neither. Writes nothing (RULES.md 3.2): the caller records the firing
+ * else neither. Writes nothing: the caller records the firing
  * (runCriticalCustomersCheck in ai-run.server.ts). A provider refusal or a
  * refused Slack host comes back in the outcome; only a database failure
  * throws, and the caller turns that into its own named outcome, writing no

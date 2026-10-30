@@ -2,7 +2,11 @@ import { drizzle } from "drizzle-orm/d1";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as schema from "~/db/schema";
-import { buildRetryReconciliationBatch, reconcileRetryRecovery } from "~/lib/recovery/record-recovery";
+import {
+  buildRetryReconciliationBatch,
+  reconcileRetryRecovery,
+  upgradeMissedRetryAttributions,
+} from "~/lib/recovery/record-recovery";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import {
   SerialMoneyCommitter,
@@ -12,6 +16,15 @@ import {
   type CompiledStatement,
 } from "~/lib/money/serializer";
 import { buildRecoverBatch, type WebhookClaimInput } from "~/lib/webhooks/batches";
+
+import { createInMemoryDb, inMemoryMoneyWriter, runStatement } from "./helpers/inmemory-db";
+
+// Only the real-schema cases below set this; the fake-D1 cases keep getDb as is.
+const realDb = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("~/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/db")>();
+  return { ...actual, getDb: (env: Env) => (realDb.db as ReturnType<typeof actual.getDb>) ?? actual.getDb(env) };
+});
 
 // Regression cover for the review's Finding 1 + 2 (recovery-executors-review.md):
 // the invoice.payment_succeeded webhook is the sole recovery recorder and sole
@@ -263,5 +276,84 @@ describe("recovery collapse: reconcileRetryRecovery's retry window", () => {
     expect(fake.attributionOf("fp_1")).toBe("foxhound_retry");
     expect(fake.outcomeAttributionOf("fp_1")).toBe("foxhound_retry");
     expect(fake.isActive("fp_1")).toBe(false);
+  });
+});
+
+describe("recovery collapse: a reconcile that changes nothing is not a reconcile", () => {
+  afterEach(() => {
+    realDb.db = null;
+  });
+
+  function seedBaselineRecovery() {
+    const { sqlite, db } = createInMemoryDb();
+    realDb.db = db;
+    runStatement(sqlite, db.insert(schema.accounts).values({ id: "acc_1", name: "Acme" }));
+    runStatement(
+      sqlite,
+      db.insert(schema.failedPayments).values({
+        id: "fp_1",
+        accountId: "acc_1",
+        stripeEventId: "evt_intake",
+        stripeInvoiceId: "in_1",
+        stripeCustomerId: "cus_1",
+        customerEmail: "c@example.com",
+        amountCents: 4200,
+        currency: "usd",
+        declineCategory: "soft",
+        status: "active",
+        detectedAt: new Date(now.getTime() - 60_000),
+      }),
+    );
+    runStatement(
+      sqlite,
+      db.insert(schema.recoverySteps).values({
+        id: "step_1",
+        accountId: "acc_1",
+        failedPaymentId: "fp_1",
+        stepType: "retry_1",
+        scheduledAt: now,
+        executedAt: now,
+        result: "retry_succeeded",
+      }),
+    );
+    const env = { MONEY_WRITER: inMemoryMoneyWriter(() => sqlite).binding } as unknown as Env;
+    return { sqlite, db, env };
+  }
+
+  it("reports false when no recovery row exists yet, and the daily sweep later upgrades the late baseline once", async () => {
+    const { sqlite, db, env } = seedBaselineRecovery();
+    vi.useFakeTimers();
+    const reconcile = reconcileRetryRecovery(env, {
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      stepId: "step_1",
+      recoveredAt: now,
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(await reconcile).toBe(false);
+    vi.useRealTimers();
+
+    // The webhook lands after the reconcile window, unable to see the retry.
+    for (const stmt of buildRecoverBatch(db, {
+      claim: claim("evt_late"),
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      amountPaidCents: 4200,
+      currency: "usd",
+      recoveredAt: now,
+      attribution: { kind: "stripe_baseline", ref: null },
+      recoveredByStepId: null,
+      recoveryMethod: "stripe_baseline",
+      idempotencyKey: "fp_1",
+    })) {
+      runStatement(sqlite, stmt);
+    }
+
+    const later = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    expect(await upgradeMissedRetryAttributions(env, later)).toEqual({ upgraded: 1, failed: [] });
+    expect(await upgradeMissedRetryAttributions(env, later)).toEqual({ upgraded: 0, failed: [] });
+    const [row] = await db.select().from(schema.recoveredPayments);
+    expect(row.attributionKind).toBe("foxhound_retry");
+    expect(row.attributionRef).toBe("step_1");
   });
 });

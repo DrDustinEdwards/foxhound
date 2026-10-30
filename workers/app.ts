@@ -1,4 +1,7 @@
+// aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
+import { WorkerEntrypoint } from "cloudflare:workers";
 import { generateNonce } from "@dustinedwards/site-runtime/csp";
+import { cacheKey, forReader, PAGES_CACHE_TAG, purgeTags, settleCacheHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
@@ -8,8 +11,8 @@ import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
-import { applyCachePolicy } from "~/lib/http/cache-policy";
-import { applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
+import { applyHashedSecurityHeaders, applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -22,11 +25,11 @@ export { CronLockDurableObject } from "./cron-lock";
 // keep running when Cloudflare stops firing that trigger (~/lib/cron/ticker.ts).
 export { CronTickerDurableObject } from "./cron-ticker";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
-// signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
+// signup limiter (app/lib/auth/rate-limit.server.ts).
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 // RATE_LIMITER (app/lib/http/rate-limit.ts) counts with the same class under
 // its old name, which keeps its namespace: retiring the name would delete a
-// Durable Object namespace, which waits for Dustin (RULES.md 3.13).
+// Durable Object namespace, which waits for Dustin.
 export class RateLimiterDurableObject extends RateLimiter {}
 // The admin API, served only to a service binding that names this entrypoint
 // (FH-20); the public fetch below does not route it.
@@ -62,19 +65,27 @@ export default withSentry<Env>(
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
-      // limited inside their actions by site-runtime's limiter (J52), where a
+      // limited inside their actions by site-runtime's limiter, where a
       // ".data" spelling of the path cannot slip past it.
       const limited = await enforceRateLimit(request, env);
       if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin));
 
-      // CARREL'S SITE API (job_cbe1b96107fc), before the router. Null for any path
+      // CARREL'S SITE API, before the router. Null for any path
       // outside /api/carrel/v1; inside it the package enforces rate limit, key and
       // route in that order. The path is checked before the import so the adapter
       // graph stays off every page render, as the MCP mount below does.
       if (new URL(request.url).pathname.startsWith("/api/carrel/v1")) {
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
         const carrel = await handleCarrelRequest(request, env, ctx);
-        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
+        if (carrel) {
+          // Any write Carrel makes (a post, its schedule, a media library
+          // picture a post shows) can change a stored page, so they are all
+          // dropped. Never awaited, never throws.
+          if (request.method !== "GET" && request.method !== "HEAD" && carrel.ok) {
+            ctx.waitUntil(ctx.exports.Renderer.purgePages(`carrel ${request.method} ${new URL(request.url).pathname}`));
+          }
+          return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
+        }
       }
 
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
@@ -98,25 +109,40 @@ export default withSentry<Env>(
         if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce, origin));
       }
 
+      // THE EDGE PAGE CACHE (site-runtime ./edge-cache). This default export
+      // has the Workers cache disabled, so it runs on every request, hits
+      // included, and decides here, before the cache is consulted, what may be
+      // served from it: only an anonymous GET of a public page (cache-policy.ts,
+      // edgeCacheable). A request carrying a session cookie, or any cookie but
+      // the theme, never reaches the Renderer and is rendered below with its own
+      // nonce, stored nowhere. forReader tells the browser no-store when the
+      // request carried a cookie at all.
+      if (edgeCacheable(request)) {
+        const edge = edgeRequest(request, cacheKey(request.url));
+        const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: edge.cacheKey } });
+        return forReader(page, request);
+      }
+
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx, nonce });
       const response = await requestHandler(request, context);
       // THE CACHE POLICY, applied in the one place every response already
-      // passes through (345 binding 4). A route's own `headers` export would be
+      // passes through. A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
       return withPreloads(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)));
     },
-    // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
-    // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
-    // provisions the queues + Email Service).
+    // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
+    // foxhound-email (no producer; live sends are synchronous in the recovery
+    // cron), its dead-letter queue, and foxhound-email-events (bounces and
+    // complaints).
     async queue(batch, env, ctx) {
       // Arms the five-minute ticker if its alarm is not set (a no-op once it
       // is). The queues run whenever mail is sent or an email event arrives, so
       // this arms the ticker soon after a deploy rather than at the next 03:00
       // UTC daily run. Off the batch's path: it never throws and is not awaited.
       ctx.waitUntil(ensureCronTickerArmed(env));
-      // TWO QUEUES, ONE HANDLER (313). The dead-letter queue routes here too, so
+      // TWO QUEUES, ONE HANDLER. The dead-letter queue routes here too, so
       // the branch is on the queue NAME. Before this, foxhound-email-dlq had ZERO
       // consumers (measured) and a repeatedly-failing dunning email was discarded
       // with no trace after max_retries; this branch writes the row that ends
@@ -135,7 +161,7 @@ export default withSentry<Env>(
       }
       await handleQueueBatch(batch, env);
     },
-    // Cron Triggers (Phase 4e). Dispatch every registered job on the fired
+    // Cron Triggers. Dispatch every registered job on the fired
     // schedule; each runs through runCronJob (config + interval + DO-lock gates,
     // cron_run_history logging). Jobs are independent, run sequentially to keep
     // D1 load bounded.
@@ -151,7 +177,7 @@ export default withSentry<Env>(
       // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
       // runCronJob, which is total: it returns a failed outcome rather than
       // throwing, including for infrastructure failures outside the handler. A
-      // second guard here would be two guards for one rule (381 binding e), and
+      // second guard here would be two guards for one rule, and
       // the one that a plant can drive directly is the one that keeps it.
       for (const job of jobsForSchedule(controller.cron)) {
         await runCronJob(env, job.name, job.handler);
@@ -159,3 +185,30 @@ export default withSentry<Env>(
     },
   } satisfies ExportedHandler<Env>,
 );
+
+/**
+ * THE CACHEABLE ENTRYPOINT (site-runtime ./edge-cache; wrangler.jsonc
+ * `exports`). The gateway below sends it only what edgeCacheable() allows: a
+ * GET of a public page or files route whose one cookie, if any, is the theme.
+ * Its responses are stored by the Workers cache under the key the gateway
+ * names, so every header a stored page leaves with is set here, or it is
+ * missing from every hit. The page is rendered with no nonce and its inline
+ * scripts trusted by hash, since every reader of a stored page would share one.
+ * settleCacheHeaders runs last: anything but a shared 200 leaves
+ * `private, no-store` and is stored nowhere.
+ */
+export class Renderer extends WorkerEntrypoint<Env> {
+  override async fetch(request: Request): Promise<Response> {
+    const context = new RouterContextProvider();
+    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined });
+    const response = await requestHandler(request, context);
+    const secured = await applyHashedSecurityHeaders(response, new URL(request.url).origin);
+    return settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)));
+  }
+
+  /** Drops every stored page. Here, not in the gateway, because a purge only
+   *  reaches the cache of the entrypoint that calls it. Never throws. */
+  async purgePages(why: string): Promise<boolean | null> {
+    return purgeTags(this.ctx.cache, [PAGES_CACHE_TAG], why);
+  }
+}

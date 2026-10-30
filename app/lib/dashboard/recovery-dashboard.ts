@@ -1,3 +1,4 @@
+import { groupSumByCurrency } from "~/lib/money/totals";
 import {
   DAY_MS,
   DECLINE_CATEGORIES,
@@ -11,7 +12,7 @@ import { formatMoney, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
 
 import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
 
-// The /recovery/dashboard page's display arithmetic (J74, row S5): pure, no
+// The /recovery/dashboard page's display arithmetic: pure, no
 // database, safe in the browser bundle. Recova is the spec for what each panel
 // shows (app/(app)/recovery/dashboard at the blob shas named in the route);
 // every number here is computed from Foxhound's own read model and constants.
@@ -25,13 +26,6 @@ export interface CurrencyCents {
 
 /** The recovery fee as Foxhound's pricing constant prints it ("20%"). */
 export const RECOVERY_FEE_LABEL = `${RECOVERY_FEE_BPS / 100}%`;
-
-/** Sum per currency, never across currencies (RULES.md 3.20). */
-function sumByCurrency(rows: readonly { currency: string; cents: number }[]): CurrencyCents[] {
-  const totals = new Map<string, number>();
-  for (const r of rows) totals.set(r.currency, (totals.get(r.currency) ?? 0) + r.cents);
-  return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
-}
 
 export interface RoiColumn {
   recovered: CurrencyCents[];
@@ -53,8 +47,8 @@ export interface RoiColumn {
  * so those claims are not copied (ROWS-S S5, 181).
  */
 export function roiColumn(rows: readonly { amountCents: number; currency: string }[]): RoiColumn {
-  const recovered = sumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
-  const fee = sumByCurrency(rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })));
+  const recovered = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
+  const fee = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })));
   const kept = recovered.map((r) => ({
     currency: r.currency,
     cents: r.cents - (fee.find((f) => f.currency === r.currency)?.cents ?? 0),
@@ -72,7 +66,7 @@ export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
  * Recova's "N% of MRR" under Currently at risk: one decimal, shown only when
  * the account has an MRR figure. Only an at-risk total in a single currency is
  * divided, because an MRR estimate is one number in one currency and a sum
- * across currencies is meaningless (RULES.md 3.20).
+ * across currencies is meaningless.
  */
 export function atRiskPctOfMrr(atRisk: readonly CurrencyCents[], mrrEstimateCents: number | null): number | null {
   if (!mrrEstimateCents || mrrEstimateCents <= 0 || atRisk.length !== 1) return null;
@@ -125,8 +119,8 @@ export interface DailyRecoveredRow {
 /**
  * Recovered amounts per UTC day over the last `days` days (oldest first),
  * zero-filled, one row per day per currency. Recova's buildDailyChart summed
- * amount_cents across currencies; a cross-currency sum is meaningless
- * (RULES.md 3.20), so each currency keeps its own bars.
+ * amount_cents across currencies; a cross-currency sum is meaningless,
+ * so each currency keeps its own bars.
  */
 export function dailyRecoveredRows(
   payments: readonly { recoveredAt: Date; amountCents: number; currency: string }[],

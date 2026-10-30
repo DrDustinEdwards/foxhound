@@ -1,3 +1,4 @@
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { and, count, desc, eq, gte, inArray, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -37,7 +38,7 @@ import {
 //
 // THE WEEK IS A ROLLING SEVEN DAYS, not a calendar week. Legacy computes
 // `now - 7*24h` and every windowed query is `>= that`. Ported as written; the
-// arithmetic is UTC-safe because it is pure milliseconds (342 binding 2).
+// arithmetic is UTC-safe because it is pure milliseconds.
 //
 // NULL IS OFF. `digest_enabled` is the ONE toggle with that semantic (337
 // binding 3): legacy selects `.eq('digest_enabled', true)`, so an account that
@@ -73,7 +74,7 @@ export const DIGEST_WINDOW_MS = 7 * DAY_MS;
  * meanings of "week", and would change a shipped behavior (a digest sent last
  * Friday no longer blocks Monday's) that no ruling has asked to change.
  */
-export const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
+const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
 
 /** Legacy takes the top three at-risk customers. */
 const DIGEST_HIGH_RISK_LIMIT = 3;
@@ -174,7 +175,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
  * running at once; the two are independent layers and each is reached alone in
  * the plants.
  *
- * THE CALLER PASSES THE CLAIM WINDOW, NOT THE DATA WINDOW (376 item 13). This
+ * THE CALLER PASSES THE CLAIM WINDOW, NOT THE DATA WINDOW. This
  * function takes whatever start it is given and has no opinion, which is why the
  * defect lived in the caller rather than here; see DIGEST_CLAIM_WINDOW_MS.
  */
@@ -202,7 +203,12 @@ export async function collectDigestNumbers(
   db: Db,
   accountId: string,
   windowStart: Date,
-): Promise<DigestNumbers & { highRisk: { name: string; mrrCents: number | null }[]; personalOutreachCount: number }> {
+): Promise<
+  DigestNumbers & {
+    highRisk: { name: string; mrrCents: number | null; currency: string | null }[];
+    personalOutreachCount: number;
+  }
+> {
   const [failedRows, recoveredRows, activeRows, emailRows, winBackRows, expiringRows, disputeRows] =
     await Promise.all([
       db
@@ -269,7 +275,7 @@ export async function collectDigestNumbers(
           ),
         ),
       db
-        .select({ amountCents: disputes.amountCents })
+        .select({ amountCents: disputes.amountCents, currency: disputes.currency })
         .from(disputes)
         .where(
           and(
@@ -284,6 +290,7 @@ export async function collectDigestNumbers(
     .select({
       name: customerContext.customerName,
       mrrCents: customerContext.mrrContributionCents,
+      currency: customerContext.currency,
     })
     .from(customerContext)
     .where(
@@ -305,19 +312,26 @@ export async function collectDigestNumbers(
   return {
     totalFailed: failedRows.length,
     totalRecovered: recoveredRows.length,
-    recoveredRevenueCents: recoveredRows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0),
-    atRiskRevenueCents: failedRows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0),
+    recoveredRevenue: totalsOf(recoveredRows),
+    atRiskRevenue: totalsOf(failedRows),
     activeCount: activeRows[0]?.n ?? 0,
     emailsSent: emailRows[0]?.n ?? 0,
     winBackCount: winBackRows[0]?.n ?? 0,
     expiringCardCount: expiringRows[0]?.n ?? 0,
     openDisputeCount: disputeRows.length,
-    openDisputeCents: disputeRows.reduce((sum, d) => sum + (d.amountCents ?? 0), 0),
+    openDisputeAmounts: totalsOf(disputeRows),
     currency: resolveDigestCurrency(recoveredRows, failedRows),
     // Legacy's `(unnamed)` for a customer_context row with no name.
-    highRisk: highRisk.map((c) => ({ name: c.name ?? "(unnamed)", mrrCents: c.mrrCents })),
+    highRisk: highRisk.map((c) => ({ name: c.name ?? "(unnamed)", mrrCents: c.mrrCents, currency: c.currency })),
     personalOutreachCount: outreachRows[0]?.n ?? 0,
   };
+}
+
+/** Per-currency totals of rows that may lack an amount or currency. */
+function totalsOf(rows: { amountCents: number | null; currency: string | null }[]): CurrencyAmount[] {
+  return groupSumByCurrency(
+    rows.flatMap((r) => (r.amountCents != null && r.currency ? [{ currency: r.currency, cents: r.amountCents }] : [])),
+  );
 }
 
 /** One weekly run. */
@@ -330,8 +344,8 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
     else result.skipped += 1;
   };
   const windowStart = new Date(now.getTime() - DIGEST_WINDOW_MS);
-  // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix
-  // (376 item 13). The DATA window stays legacy's seven days; the CLAIM window
+  // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix.
+  // The DATA window stays legacy's seven days; the CLAIM window
   // is a day shorter so last week's send row, written moments after last week's
   // run started, falls OUTSIDE it and this week's digest is not skipped by its
   // own predecessor.
@@ -372,7 +386,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           // marked `list: "digest"`: following it switches off THIS account's
           // digest and suppresses nothing, so the merchant's notices and any
           // other account on the address carry on, as a Recova merchant sees
-          // (PR 158 review round 1, RULES.md 3.16). processEmailJob's
+          // (PR 158 review round 1). processEmailJob's
           // suppression gate still runs, so bounces, complaints and migrated
           // opt-outs stop the digest as Recova's check does.
           unsubscribeToken: await signUnsubscribeToken(env, {
@@ -385,7 +399,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           // digest is for, so a redelivery within one run cannot double-send.
           idempotencyKey: `weekly-digest:${account.accountId}:${windowStart.toISOString().slice(0, 10)}`,
           // The DIGEST audience: Recova's footer with Unsubscribe and the postal
-          // address, on this merchant mail only (RULES.md 3.16). A missing
+          // address, on this merchant mail only. A missing
           // address refuses the send, as on customer mail.
           audience: "digest",
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",

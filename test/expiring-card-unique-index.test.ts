@@ -6,12 +6,12 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // MIGRATION 0019: the unique index on expiring_card_alerts
 // (account_id, stripe_customer_id, expires_month, expires_year).
 //
-// AIMED AT THE MIGRATION, NOT AT schema.ts (314). The in-memory harness builds
+// AIMED AT THE MIGRATION, NOT AT schema.ts. The in-memory harness builds
 // from the committed migration files, so this fails if the .sql is missing or
 // wrong, and passes for no other reason. A plant against the schema object would
 // bite nothing, because the database is not built from it.
 //
-// WHY THE INDEX EXISTS (341 binding 3): the subsystem has TWO writers, the
+// WHY THE INDEX EXISTS: the subsystem has TWO writers, the
 // nightly scan and the customer.updated webhook, and legacy's webhook upserts
 // onConflict on exactly this tuple, which only works against a unique index.
 // Without it both writers race to insert the same card-month and the merchant's

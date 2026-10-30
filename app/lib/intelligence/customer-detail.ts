@@ -33,7 +33,7 @@ type Amounts = readonly { currency: string; cents: number }[];
 
 /** What Foxhound has on record for one customer, read from its own tables
  *  (getCustomerActivity in views.server.ts). Money is per currency, never
- *  added across currencies (RULES.md 3.20). */
+ *  added across currencies. */
 export interface CustomerActivity {
   recovery: {
     failedPaymentCount: number;

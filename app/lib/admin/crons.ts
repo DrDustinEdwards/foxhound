@@ -1,6 +1,8 @@
 // Pure display helpers for /admin/platform/crons and the Overview's cron health, shared
 // by both pages (not a .server module: the components render them).
 
+import { ordinal } from "~/lib/billing/page";
+
 /** The element id of one run on /admin/platform/crons. */
 export function cronRunAnchor(runId: string): string {
   return `run-${runId}`;
@@ -18,21 +20,6 @@ export function cronAnchor(cronName: string): string {
 }
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-function ordinal(n: number): string {
-  const tens = n % 100;
-  if (tens >= 11 && tens <= 13) return `${n}th`;
-  switch (n % 10) {
-    case 1:
-      return `${n}st`;
-    case 2:
-      return `${n}nd`;
-    case 3:
-      return `${n}rd`;
-    default:
-      return `${n}th`;
-  }
-}
 
 /** The 0-based (Sunday first) weekday of a cron day-of-week field, as
  *  Cloudflare reads it: SUN..SAT, or 1 = Sunday to 7 = Saturday. */

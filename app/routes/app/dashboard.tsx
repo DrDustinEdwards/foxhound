@@ -25,7 +25,7 @@ import { formatMoney } from "~/lib/money-format";
 import type { Route } from "./+types/dashboard";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /console (row S2, job J64). Recova is the spec: app/(app)/console/page.tsx
+// /console. Recova is the spec: app/(app)/console/page.tsx
 // at blob 3b8a736e, lib/console-data.tsx at 234791c4 and lib/products.ts at
 // 6be24574, each read whole. In Recova's order and width (max-w-[1280px],
 // px-4 md:px-8, py-8 md:py-10): the "Console" heading, the hero row of three
@@ -34,9 +34,9 @@ import { NOINDEX } from "~/lib/seo/meta";
 // together" block is not built: its three sentences claim cooperation between
 // products that Foxhound's engine does not perform (ROWS-S S2, frozen into 20d).
 //
-// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), amber
+// Built from Capsomer 0.9.0's parts, charts by Enarratio, amber
 // throughout. The numbers are Foxhound's engine, never Recova's: money
-// per currency through groupSumByCurrency (RULES.md 3.20), and the recovery
+// per currency through groupSumByCurrency, and the recovery
 // rate the one getRecoveryStats computes over every failure by the date it
 // failed (APPROVED-DIFFERENCES, "Recovery rate statistics count by the date a
 // payment failed").

@@ -8,7 +8,7 @@ import IntelligenceChurn, { ChurnRateChart } from "~/routes/app/intelligence/chu
 
 import type { ChurnView } from "~/lib/intelligence/trends.server";
 
-// J29 (job_6f2452e8b11d), row S19, under Dustin's Q1, Q10 and Q11 rulings of
+// J29, row S19, under Dustin's Q1, Q10 and Q11 rulings of
 // 2026-10-14: /intelligence/churn is Recova's page (app/(app)/intelligence/churn/
 // page.tsx at blob 718cd7f5, ChurnRateChart.tsx at blob f4b9d3e5) built from
 // Capsomer 0.9.0's components, with its chart drawn by Enarratio 0.3.1. Recova

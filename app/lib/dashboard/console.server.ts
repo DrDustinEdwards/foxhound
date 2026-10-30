@@ -11,7 +11,7 @@ import {
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { byCurrencyCode } from "~/lib/money-format";
-import { groupSumByCurrency, type CurrencyAmount } from "./stats.server";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   ATTENTION_ROWS_PER_CATEGORY,
   DISPUTE_ATTENTION_LIMIT,
@@ -56,7 +56,7 @@ import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 //    nothing for Audit (legacy had no inactive state there either).
 
 // Money is a CurrencyAmount[] everywhere on this view, one entry per currency,
-// built by groupSumByCurrency (RULES.md 3.20). The console used to keep one
+// built by groupSumByCurrency. The console used to keep one
 // figure and one currency per card, which summed EUR into USD on two cards and
 // dropped every currency but the first on the third.
 
@@ -123,7 +123,7 @@ function subjectLabel(name: string | null, email: string | null): string {
 
 /**
  * The audit tile's leak: the run's failed invoices plus its open disputes,
- * added within each currency only (RULES.md 3.20) and shown one per currency
+ * added within each currency only and shown one per currency
  * (Dustin, 2026-10-25). A run stored before money_by_currency has one figure
  * per scope in its one currency, and shows that as it always did; one that
  * recorded no currency reads as USD, the engine's own fallback. No money at
@@ -140,7 +140,7 @@ function auditLeaking(audit: {
   const parts = money
     ? [...(money.failedInvoices ?? []), ...(money.openDisputes ?? [])]
     : [{ currency, cents: (audit.failedInvoicesCents ?? 0) + (audit.openDisputesCents ?? 0) }];
-  const totals = groupSumByCurrency(parts.map((p) => ({ currency: p.currency, amountCents: p.cents })))
+  const totals = groupSumByCurrency(parts)
     .filter((t) => t.cents !== 0)
     .sort(byCurrencyCode);
   return totals.length > 0 ? totals : [{ currency, cents: 0 }];
@@ -271,15 +271,15 @@ export async function getConsoleView(
   // currencies produced a total that was the arithmetic sum of USD and EUR
   // labeled with whichever row sorted first.
   const protectedThisMonth = groupSumByCurrency(
-    monthRecovered.map((r) => ({ currency: r.currency, amountCents: r.cents })),
+    monthRecovered,
   );
-  const atRisk = groupSumByCurrency(activeFailed);
+  const atRisk = groupSumByCurrency(activeFailed.map((r) => ({ currency: r.currency, cents: r.amountCents })));
   // A customer with no MRR currency recorded has no figure to add, so it is
   // counted but not summed.
   const highRisk = highRiskCustomers;
   const highRiskMrr = groupSumByCurrency(
     highRisk.flatMap((c) =>
-      c.currency && c.mrrContributionCents ? [{ currency: c.currency, amountCents: c.mrrContributionCents }] : [],
+      c.currency && c.mrrContributionCents ? [{ currency: c.currency, cents: c.mrrContributionCents }] : [],
     ),
   );
   const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);

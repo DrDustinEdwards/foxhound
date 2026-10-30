@@ -17,8 +17,8 @@ import {
 // app/lib/webhooks/account-handlers.ts decides what is new). Legacy had no such
 // notice; it follows the dispute notices' rules (app/lib/disputes/notices.server.ts):
 //
-// RECIPIENT: accounts.notification_email ONLY, no fallback to a login address
-// (RULES.md 3.16). Sent through processEmailJob, so suppression, the per-account
+// RECIPIENT: accounts.notification_email ONLY, no fallback to a login address.
+// Sent through processEmailJob, so suppression, the per-account
 // live-send gate (which also holds every demo account) and the email_sends claim
 // apply. There is no per-notice toggle: like a new dispute, a Stripe account that
 // cannot charge is something the merchant has to hear about.

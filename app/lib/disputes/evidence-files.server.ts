@@ -1,7 +1,7 @@
 import { and, count, eq, exists, notExists, notInArray, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { disputeApprovals, disputeEvidence, disputes } from "~/db";
+import { changedRows, disputeApprovals, disputeEvidence, disputes } from "~/db";
 import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 import {
@@ -16,7 +16,7 @@ import {
   type EvidenceFileUpload,
 } from "~/lib/disputes/evidence-files";
 
-// Merchant evidence files on R2 (J07), the bucket half. Recova is the spec:
+// Merchant evidence files on R2, the bucket half. Recova is the spec:
 // lib/r2.ts (3997617f) and app/api/disputes/upload-evidence (7acca2a9),
 // delete-evidence (06a2cd1a), evidence-url (57ccef71) and submit (6c21ef74),
 // read whole. Recova reached a private bucket over the S3 API with a key pair;
@@ -28,7 +28,7 @@ import {
 // a submission goes ahead without files.
 //
 // Every read and write is scoped by account AND dispute, and the writes carry
-// their guards inside the statement (RULES.md 3.9): no file is added or removed
+// their guards inside the statement: no file is added or removed
 // once an approval exists or the dispute is submitted or resolved, because the
 // approval's evidence hash covers the file rows; an upload past the fifth file
 // matches nothing. None of this is a money write: a file is evidence the
@@ -36,12 +36,6 @@ import {
 
 /** The bucket slice this module uses, so tests can pass a fake. */
 export type EvidenceBucket = Pick<R2Bucket, "put" | "get" | "delete">;
-
-function changedRows(result: unknown): number {
-  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
-  const n = r?.meta?.changes ?? r?.changes;
-  return typeof n === "number" ? n : 0;
-}
 
 /** True while the evidence may still change: no approval row for the dispute,
  *  and the dispute is not submitted or resolved. Joined into each write. */

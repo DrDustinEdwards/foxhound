@@ -102,11 +102,11 @@ export default function DemosPage() {
             density: 24px sides as Recova's p-6, 16px top and bottom where
             Recova has 24px, 10px corners where Recova has 12px. Those are
             Capsomer's panel as it ships; a Foxhound variant waits for
-            Capsomer's per-site layer (capsomer job_ec5ec0754626). FadeUp,
+            Capsomer's per-site layer. FadeUp,
             Recova's reveal, is a one-cell grid so the panel fills the row.
             The panel's body does not fill the panel, so a button sits under
             its own blurb rather than at the foot of a taller neighbor, as
-            on the blog's cards (J19); that is the layer's too. */}
+            on the blog's cards; that is the layer's too. */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-density="comfortable">
           {PRODUCT_ENTRIES.map((entry, index) => (
             <FadeUp key={entry.href} delay={index * 100} className="grid">

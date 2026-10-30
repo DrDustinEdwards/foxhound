@@ -14,7 +14,7 @@ import { readDisputes } from "~/lib/stripe/reads";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J63 (job_66a3ffa02214), rows U3 and U4: the live audit results page and a
+// J63, rows U3 and U4: the live audit results page and a
 // saved run, against Recova's app/audit/results/page.tsx (blob 9aad7745),
 // app/audit/results/[id]/page.tsx (a0dbf6ef) and the four section components
 // (AuditRecoverySection ab6ec2c5, AuditDisputesSection 6db9c3bc,
@@ -319,6 +319,25 @@ describe("Review round 1, must-fix 1: the reads keep only what the engine reads"
     expect(a.expiringCards.ok && a.expiringCards.data.count).toBe(1);
     expect(a.health.ok && a.health.data.voluntaryChurnRateBps).toBeGreaterThan(0);
     expect(a.meta.currency).toBe("eur");
+  });
+});
+
+describe("the audit reads each failed invoice's real decline code", () => {
+  it("files an invoice under its charge's decline, not unknown, on the pinned API version", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    // What Stripe sends now: no charge, no last_payment_error on the invoice.
+    const bare = fullInvoice({ last_finalization_error: null, last_payment_error: null, charge: undefined });
+    const stripe = {
+      ...fakeStripe({ invoices: [bare], subscriptions: [], disputes: [], events: [] }),
+      invoicePayments: { list: listOf([{ created: 1, payment: { payment_intent: "pi_1" } }]) },
+      paymentIntents: {
+        retrieve: async () => ({ last_payment_error: { decline_code: "expired_card" }, latest_charge: { failure_code: "card_declined" } }),
+      },
+    } as unknown as Stripe;
+    const { collectAuditInputs } = await import("~/lib/audit/run.server");
+    const reads = await collectAuditInputs(stripe, 90, RAN_AT);
+    const result = runAudit({ stripeAccountId: "acct_x", lookbackDays: 90, ranAt: RAN_AT, reads });
+    expect(result.failedInvoices.ok && result.failedInvoices.data.byCategory.expired).toBeGreaterThan(0);
   });
 });
 

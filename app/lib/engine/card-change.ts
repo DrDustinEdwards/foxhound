@@ -22,6 +22,7 @@ import type Stripe from "stripe";
 import { getDb } from "~/db";
 import { hasCardUpdateSignal } from "~/lib/card-update/signal";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { asId } from "~/lib/stripe/ids";
 import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
 import type { RetryStepContext } from "./retry-step";
@@ -59,11 +60,6 @@ export function cardChangedSinceDecline(
   return expiryKnown && (declined.expMonth !== current.expMonth || declined.expYear !== current.expYear);
 }
 
-function idOf(ref: string | { id: string } | null | undefined): string | null {
-  if (!ref) return null;
-  return typeof ref === "string" ? ref : ref.id;
-}
-
 /** The card that was last declined on this invoice, from the charge's own
  *  record of it (payment_method_details is fixed at charge time, so a card the
  *  updater changed later still shows the old expiry here). */
@@ -78,7 +74,7 @@ async function declinedCard(
   if (!card) return null;
   return {
     snapshot: { fingerprint: card.fingerprint ?? null, expMonth: card.exp_month ?? null, expYear: card.exp_year ?? null },
-    paymentMethodId: idOf(charge.payment_method),
+    paymentMethodId: asId(charge.payment_method),
   };
 }
 
@@ -100,14 +96,14 @@ export async function chargePaymentMethodId(stripe: Stripe, sources: ChargeMetho
       typeof sources.subscription === "string"
         ? await stripe.subscriptions.retrieve(sources.subscription)
         : sources.subscription;
-    const fromSubscription = idOf(subscription.default_payment_method);
+    const fromSubscription = asId(subscription.default_payment_method);
     if (fromSubscription) return fromSubscription;
   }
   if (sources.customer) {
     const customer =
       typeof sources.customer === "string" ? await stripe.customers.retrieve(sources.customer) : sources.customer;
     if (!customer.deleted) {
-      const fromCustomer = idOf(customer.invoice_settings?.default_payment_method);
+      const fromCustomer = asId(customer.invoice_settings?.default_payment_method);
       if (fromCustomer) return fromCustomer;
     }
   }
@@ -123,9 +119,9 @@ async function currentPaymentMethodId(
 ): Promise<string | null> {
   const invoice = await stripe.invoices.retrieve(invoiceId);
   const resolved = await chargePaymentMethodId(stripe, {
-    invoiceDefault: idOf(invoice.default_payment_method),
-    subscription: idOf(invoice.parent?.subscription_details?.subscription),
-    customer: idOf(invoice.customer),
+    invoiceDefault: asId(invoice.default_payment_method),
+    subscription: asId(invoice.parent?.subscription_details?.subscription),
+    customer: asId(invoice.customer),
   });
   return resolved ?? declinedPaymentMethodId;
 }

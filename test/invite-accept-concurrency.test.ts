@@ -8,6 +8,7 @@ import { acceptInvite } from "~/lib/auth/invites";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { SerialMoneyCommitter } from "~/lib/money/serializer";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -20,7 +21,7 @@ vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 // Proven against a REAL in-memory SQLite with the committed migrations applied,
 // so the index (not a SQL-shape assertion) is what stops the second membership.
 //
-// REAIMED AT PHASE (a) OF THE MULTI-ACCOUNT BUILD (rulings 324 and 326). The
+// REAIMED AT PHASE (a) OF THE MULTI-ACCOUNT BUILD. The
 // guard used to be `account_members_one_active_per_user_uq`, unique on `user_id`
 // alone, and this file asserted that a user could never hold two active
 // memberships. That is the constraint 324 STRUCK: many accounts per user is the
@@ -84,8 +85,8 @@ function activeMemberships(db: Db) {
     );
 }
 
-// createAccountForUser now commits through the money-write Durable Object
-// (ruling 329 phase (d)), which the better-sqlite3 harness has no binding for.
+// createAccountForUser now commits through the money-write Durable Object,
+// which the better-sqlite3 harness has no binding for.
 // This models the DO faithfully in the two ways the assertions depend on:
 // sqlite.transaction gives the batch D1's all-or-nothing semantics, and the seen
 // set gives it the idempotency that makes a re-delivered key a no-op. Without
@@ -278,6 +279,35 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
     expect(active).toHaveLength(2);
     expect(active.map((m) => m.accountId).sort()).toEqual(["acc_A", "acc_B"]);
   });
+
+  it("an invite whose token changed between the read and the write is refused and activates nothing", async () => {
+    const { sqlite, db } = seedTwoInvites();
+    // The owner resends (a new token) after acceptInvite has read the old one.
+    let injected = false;
+    const racingDb = new Proxy(db as object, {
+      get(target, prop, receiver) {
+        if (prop === "update") {
+          return (...args: unknown[]) => {
+            if (!injected) {
+              injected = true;
+              runStatement(
+                sqlite,
+                db.update(accountMembers).set({ inviteToken: "tok_A_new" }).where(eq(accountMembers.id, "mem_A")),
+              );
+            }
+            return (db.update as (...a: unknown[]) => unknown)(...args);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+
+    const result = await acceptInvite(racingDb, "tok_A", USER, EMAIL);
+
+    expect(result).toEqual({ ok: false, reason: "invalid" });
+    expect(await activeMemberships(db)).toHaveLength(0);
+  });
 });
 
 describe("MEDIUM #4 sibling: concurrent account creation cannot land two active memberships", () => {
@@ -357,5 +387,32 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
     expect(active).toHaveLength(1);
     expect(result).toEqual({ ok: true, accountId: "acc_W" });
     expect(await resolveMembership(db, USER)).toMatchObject({ accountId: "acc_W" });
+  });
+
+  // The DO's seen set is written only after D1 commits, so a DO that dies in
+  // between forgets the key. The retry must still find the first account, which
+  // the database's unique row on the user now guarantees.
+  it("a retry after the DO lost its seen key reports the first account and creates no second", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    // A fresh committer per call: the real serializer, with nothing remembered.
+    vi.mocked(executeMoneyWrite).mockImplementation(async (_env, write) => {
+      const committer = new SerialMoneyCommitter({
+        hasSeen: async () => false,
+        markSeen: async () => {},
+        runBatch: async (statements) => {
+          sqlite.transaction(() => {
+            for (const s of statements) sqlite.prepare(s.sql).run(...(s.params as never[]));
+          })();
+        },
+      });
+      const statements = write.build(db).map((item) => (item as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL());
+      return committer.commit({ idempotencyKey: write.idempotencyKey, statements });
+    });
+
+    const first = await createAccountForUser(ENV, db, USER, "First Co");
+    const retry = await createAccountForUser(ENV, db, USER, "First Co");
+
+    expect(first.ok && retry.ok && retry.accountId).toBe(first.ok && first.accountId);
+    expect(await db.select({ id: accounts.id }).from(accounts)).toHaveLength(1);
   });
 });

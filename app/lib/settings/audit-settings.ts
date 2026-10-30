@@ -1,4 +1,4 @@
-/** Audit settings: the lookback period and the monthly-digest opt-in (S30, 315).
+/** Audit settings: the lookback period and the monthly-digest opt-in (S30).
  *
  *  LEGACY IS THE SPEC, read WHOLE at blob shas per 260:
  *    app/(app)/settings/audit/page.tsx        18e6a384, 1,068 bytes
@@ -26,7 +26,7 @@ export type LookbackOption = (typeof LOOKBACK_OPTIONS)[number];
 
 /** Legacy's fallback, used both for a missing column and for a value outside the
  *  option set. AuditSection computes `safeLookback` exactly this way. */
-export const LOOKBACK_DEFAULT: LookbackOption = 90;
+const LOOKBACK_DEFAULT: LookbackOption = 90;
 
 /** Clamp any stored or submitted value onto the option set.
  *

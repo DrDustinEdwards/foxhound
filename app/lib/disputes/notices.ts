@@ -5,7 +5,7 @@ import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
-// THE MERCHANT'S DISPUTE NOTICES (J06, job_4f4c9c2f5383): the words and the
+// THE MERCHANT'S DISPUTE NOTICES: the words and the
 // pure rules, no database and no send. Recova is the spec, read whole:
 //   lib/disputes-email.ts                     blob 156719f1, 12,097 bytes
 //   lib/dispute-handlers.ts                   blob e2bb8de8, 25,069 bytes
@@ -27,15 +27,15 @@ import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 //   words, "(20% of the saved amount)", the percentage read from the constants.
 //   Recova had no cap (its lib/dispute-fees.ts, blob 00b58c14), so where the cap
 //   set the fee the sentence adds ", capped at $500", and only there: Recova's
-//   words alone would be untrue above the cap (RULES.md 1.2, 2.1).
+//   words alone would be untrue above the cap.
 //
-// ALL FOUR NOTICES (J92 rows E16 and E17, J93 rows E19 and E20) are Capsomer's
+// ALL FOUR NOTICES are Capsomer's
 // `notice` template, as the recovery notification is (E10): Recova's bold first
 // line is the title and the mail's one heading, its sentences are the
 // paragraphs, and "Review dispute" is the button. Plain strings, never markup:
 // Capsomer escapes each one, so a customer name from Stripe is shown exactly as
 // written. Recova's bold runs (the reason, the deadline, the fee and its invoice
-// date) are plain text here (capsomer job_2adddfaab5dc).
+// date) are plain text here.
 // The footer is Recova's wrapEmailHtml line with the connection's sender name
 // (disputeNoticeFooterNote), and send.ts puts "Manage email settings" under it.
 
@@ -189,8 +189,8 @@ const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit,
 const REMINDER_AUTO_LINE =
   "Auto-submit is on. We will submit at the 24-hour mark using the staged evidence unless you cancel or override it.";
 
-/** The line for an approved dispute Stripe has not confirmed as submitted
- *  (job_2663d92094ab). Accept is refused while an approval stands (PR 149
+/** The line for an approved dispute Stripe has not confirmed as submitted.
+ * Accept is refused while an approval stands (PR 149
  *  review), so Recova's "or choose to accept" would offer what the page
  *  refuses; the page's Approve and submit resumes the standing approval, and
  *  Stripe is where the merchant can see whether the evidence arrived. Recova
@@ -237,7 +237,7 @@ export function autoSubmittedNotice(input: AutoSubmittedNoticeInput): NoticeMail
         "What we included: transaction context, card verification (AVS, CVV, 3DS, Radar), prior charge history, subscription tenure where applicable, and recovery email engagement.",
         // Recova's sentence went on "unless you want to add more evidence", but
         // Stripe takes no more evidence once a response is submitted, and the
-        // dispute page locks it, so that clause is left out (RULES.md 1.2).
+        // dispute page locks it, so that clause is left out.
         "The cardholder bank now has 60 to 75 days to decide. No action needed from you.",
       ],
       action: { label: "View submission", url: input.disputeUrl },

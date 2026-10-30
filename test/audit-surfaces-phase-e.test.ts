@@ -14,11 +14,11 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // THE PROPERTY THESE PLANTS EXIST FOR is the one that has now survived four
 // hand-offs: a scope that could not be read must never render as a zero. The
-// engine gave it a status (362 ruling 2), persistence stored it as NULL (364),
+// engine gave it a status, persistence stored it as NULL,
 // and this is the layer where legacy loses it: its stored-run page maps every
 // column with `?? 0`.
 //
-// PLANTS DRIVE THE REAL LOADERS (352), with two accounts in every fixture.
+// PLANTS DRIVE THE REAL LOADERS, with two accounts in every fixture.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 

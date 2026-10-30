@@ -62,7 +62,7 @@ export const disputes = sqliteTable(
     resolvedFeeCents: integer("resolved_fee_cents"),
     resolvedFeeCurrency: text("resolved_fee_currency"),
     /** The USD-to-dispute-currency rate the $500 cap was converted at, with the
-     *  quote that produced it and when (ruling 377(7), PRICING rev 5 item 2).
+     *  quote that produced it and when (PRICING rev 5 item 2).
      *  Null on a USD dispute, where nothing is converted. Stored so the ledger
      *  line can show the merchant the rate they were capped at rather than
      *  asking them to take the number on trust. */
@@ -145,7 +145,7 @@ export const disputeApprovals = sqliteTable(
     id: id(),
     disputeId: text("dispute_id").notNull().references(() => disputes.id),
     accountId: text("account_id").notNull().references(() => accounts.id),
-    // soft ref to Better Auth user.id (Phase 3)
+    // soft ref to Better Auth user.id
     approvedByUserId: text("approved_by_user_id"),
     approvedByEmail: text("approved_by_email"),
     // hash of the evidence version approved (submission requires this row)

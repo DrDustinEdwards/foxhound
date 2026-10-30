@@ -6,10 +6,10 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J78 (row S20): the nightly scoring batch writes each customer's recommended
+// J78: the nightly scoring batch writes each customer's recommended
 // action to customer_context.recommended_action, logs it with an empty outcome
 // slot, and /intelligence/recommendations reads that column. Before this, the
-// page's Recova original read a field nothing ever wrote (RULES.md 3.18).
+// page's Recova original read a field nothing ever wrote.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

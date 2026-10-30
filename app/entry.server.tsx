@@ -31,7 +31,7 @@ export const streamTimeout = 5_000;
 // useFrameworkContext(), as a fallback when no explicit nonce prop is given)
 // AND <StreamTransfer nonce={nonce}>. Passing it there is what actually
 // fixed it - reverified after, same method, all script tags now match.
-// THE 404 COUNT (ruling 37, job J21): page_404_daily, read by the admin API's
+// THE 404 COUNT: page_404_daily, read by the admin API's
 // /health top_404s_7d. Two doors reach it. handleRequest below sees every
 // document 404, an unmatched URL and a route that throws a 404 alike.
 // handleDataRequest sees a client-side navigation whose loader throws a 404 (an

@@ -3,7 +3,7 @@ import { indexNowHook } from "@dustinedwards/site-api";
 
 import { INDEXNOW_KEY } from "./indexnow-key";
 
-// IndexNow submissions (job_b0b24df12155, row F20). Recova is the spec
+// IndexNow submissions. Recova is the spec
 // (lib/indexnow.ts in the legacy repo): when a blog post is saved and is
 // published after the save, POST that post's one URL to api.indexnow.org so
 // Bing, Yandex and the other IndexNow engines crawl it now rather than on their
@@ -14,7 +14,7 @@ import { INDEXNOW_KEY } from "./indexnow-key";
 // submitIndexNow. The Carrel mount (app/lib/carrel/handler.server.ts) passes
 // the hook to site-api, which runs it after a Carrel write and after each
 // schedule the cron applies. Carrel is the one publish path since the
-// /admin/blog editor was removed (RULES.md 7.4).
+// /admin/blog editor was removed.
 //
 // Foxhound differs from Recova in three ways:
 // 1. Its own key (indexnow-key.ts), never Recova's key or filename. Dustin's

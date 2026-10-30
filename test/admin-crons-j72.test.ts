@@ -8,7 +8,7 @@ import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J72 (job_a64949b43595): /admin/platform/crons on the family admin pattern
+// J72: /admin/platform/crons on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
 // review, with Recova's crons page read as the inventory
 // (app/admin/platform/crons/page.tsx and CronControlClient.tsx, blobs 98fc42ff
@@ -16,7 +16,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // run's status pill, when it last succeeded and the last message, and a note
 // when a cron has never been switched (Recova's "no config row"). Enable stays
 // behind its typed phrase (APPROVED-DIFFERENCES, 2026-09-19) on Capsomer's
-// confirm page; "Run now" stays out (ruling 406 binding 5).
+// confirm page; "Run now" stays out.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

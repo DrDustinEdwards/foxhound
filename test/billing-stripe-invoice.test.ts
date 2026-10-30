@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
+
 // createPlatformInvoice calls the real Stripe SDK; mock the client factory so
 // these tests assert the CALL SHAPE (order, params, idempotency keys) without
 // a network call. This is a different testing style from the compile-test
@@ -211,7 +214,7 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
   });
 });
 
-// E25 (J97): Recova emails the month's invoice when the platform customer has
+// E25: Recova emails the month's invoice when the platform customer has
 // no payment method on file (collection_method send_invoice, days_until_due 30)
 // and charges the card otherwise. Same rule for "on file" as Recova:
 // invoice_settings.default_payment_method, else default_source.
@@ -270,7 +273,7 @@ describe("collection method follows the payment method on file (E25)", () => {
   });
 });
 
-// E25 (J97): a platform customer made before it carried an email has nowhere
+// E25: a platform customer made before it carried an email has nowhere
 // for Stripe to send the invoice, so the address is filled in first.
 describe("an emailed invoice needs an address on the customer (E25)", () => {
   const noCard = { invoice_settings: { default_payment_method: null }, default_source: null };

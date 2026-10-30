@@ -1,3 +1,4 @@
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { and, eq, gte } from "drizzle-orm";
 
 import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
@@ -11,7 +12,7 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 
-// The /billing fee preview (ruling 33): what the next monthly run will invoice,
+// The /billing fee preview: what the next monthly run will invoice,
 // shown to the merchant before the invoice exists. Strictly read-only.
 //
 // This module computes NO money of its own. The billable sets come from
@@ -26,11 +27,6 @@ import { recoveryFeeCents } from "~/lib/billing/fees";
 // Everything here is evaluated at the NEXT RUN INSTANT, not at now. See
 // nextBillingRunAtMs.
 
-
-export interface CurrencyAmount {
-  currency: string;
-  cents: number;
-}
 
 export interface AccountBillingState {
   billingExempt: boolean;
@@ -109,14 +105,6 @@ export function nextBillingRunAtMs(nowMs: number): number {
 export function startOfUtcMonthMs(nowMs: number): number {
   const now = new Date(nowMs);
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-}
-
-export function groupSumByCurrency(rows: { currency: string; cents: number }[]): CurrencyAmount[] {
-  const totals = new Map<string, number>();
-  for (const row of rows) {
-    totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.cents);
-  }
-  return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
 }
 
 /**

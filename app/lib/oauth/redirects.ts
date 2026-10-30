@@ -1,4 +1,4 @@
-// Redirect URI rules for the OAuth provider (J79). Pure, so the page, the
+// Redirect URI rules for the OAuth provider. Pure, so the page, the
 // endpoints and the tests share one copy.
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1"]);

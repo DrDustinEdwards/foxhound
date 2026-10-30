@@ -17,8 +17,9 @@ import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
-import { groupSumByCurrency } from "~/lib/billing/preview.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import {
   daysUntilDeadline,
@@ -41,12 +42,12 @@ import { formatAmounts, formatMoney } from "~/lib/money-format";
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /disputes (J66, row S13): Recova's disputes dashboard on Foxhound's engine.
+// /disputes: Recova's disputes dashboard on Foxhound's engine.
 // Recova is the spec: app/(app)/disputes/dashboard/page.tsx (blob c97c3e93),
 // DisputesDashboardView.tsx (3c1b7a98) and SyncDisputeLink.tsx (d2c2a744). In
 // Recova's order: the "Dashboard" head, the stat cards (shown on the empty
 // state too), then the empty card or the table, then the sync control, in a
-// 1280px column. Look is Capsomer's (Q10), amber.
+// 1280px column. Look is Capsomer's, amber.
 //
 // Dustin answered PR #75's five questions "yes ro all" (2026-10-15,
 // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): the status column uses
@@ -128,6 +129,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     withEvidence,
     nowMs,
     isDemo: auth.isDemo,
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
     warnings: warnings.any ? warnings.open : null,
   };
 }
@@ -155,6 +157,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   if (isWarningIntent(intent)) {
+    // A refund cannot be undone, so only the account owner makes one.
+    if (intent !== "dismiss_warning" && auth.membership.role !== MEMBER_ROLE.OWNER) {
+      return data({ efw: { ok: false, message: "Only the account owner can do this." } }, { status: 403 });
+    }
     const result = await runWarningAction(env, auth.membership.accountId, intent, String(form.get("warning_id") ?? ""));
     return data(result.data, { status: result.status });
   }
@@ -178,7 +184,7 @@ const PILL_TONE: Record<Tone, PillTone | undefined> = {
 };
 
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
-  const { disputes, stats, health, withEvidence, nowMs, isDemo, warnings } = loaderData;
+  const { disputes, stats, health, withEvidence, nowMs, isDemo, isOwner, warnings } = loaderData;
   const hasEvidence = new Set(withEvidence);
 
   return (
@@ -286,6 +292,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
           result={actionData && "efw" in actionData ? actionData.efw : undefined}
           confirmId={actionData && "efwConfirm" in actionData ? actionData.efwConfirm : null}
           readOnly={isDemo}
+          canRefund={isOwner}
         />
       ) : null}
 

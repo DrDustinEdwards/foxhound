@@ -1,7 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db";
+import { activeConnectionWhere, activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 
 // Settings read models (Phase 5 slice 5f). Added for the perf-audit ORM-leak
 // fix (foxhound-audit-perf.md M-1): these were previously inline db.select()
@@ -73,13 +74,13 @@ export async function listConnectionHealth(db: Db, accountId: string) {
       currentDeadline: stripeConnections.currentDeadline,
     })
     .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)));
+    .where(activeConnectionWhere(accountId));
 }
 
 export interface SenderSettingsConnection {
   id: string;
   senderName: string | null;
-  /** `reply_to_email`, the Reply-To on customer mail (J03). */
+  /** `reply_to_email`, the Reply-To on customer mail. */
   replyToEmail: string | null;
 }
 
@@ -108,13 +109,7 @@ export async function getPrimarySenderConnection(
       replyToEmail: stripeConnections.replyToEmail,
     })
     .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.accountId, accountId),
-        eq(stripeConnections.isPrimary, true),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
+    .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
   return rows[0] ?? null;
 }
@@ -198,13 +193,7 @@ export async function getPrimaryBrandVoices(
       samples: stripeConnections.brandVoiceSamples,
     })
     .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.accountId, accountId),
-        eq(stripeConnections.isPrimary, true),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
+    .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
   return rows[0] ?? null;
 }

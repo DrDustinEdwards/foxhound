@@ -115,7 +115,7 @@ function requestPathname(request: Request): string {
 // (user_id, account_id). One of 232's carriers, discharged here by the build
 // rather than by another repair to its wording.
 //
-// `auth.memberships` comes off the chokepoint (phase (b)); the
+// `auth.memberships` comes off the chokepoint; the
 // stripe_connections lookup that turns it into switcher rows happens HERE, in
 // the nav's own loader, per ruling 328 and per legacy's own structure
 // (components/SiteNav.tsx:73-90, never resolveAccount).

@@ -2,7 +2,7 @@ import { redirect } from "react-router";
 
 import type { Route } from "./+types/runs-redirect";
 
-// J63 (row U4): a saved audit run moved to Recova's own path,
+// J63: a saved audit run moved to Recova's own path,
 // /audit/results/:id (app/audit/results/[id]/page.tsx). The old path was the
 // link in every monthly audit email sent before the move, so it answers one 301
 // to the new one rather than a 404. Only the id and the query string are

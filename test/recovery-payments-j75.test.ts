@@ -9,13 +9,13 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// J75 (job_16d5559b7974), row S6: /recovery/payments is Recova's page
+// J75, row S6: /recovery/payments is Recova's page
 // (app/(app)/recovery/payments/page.tsx bab8d48d, PaymentsClient.tsx 94043896,
 // components/PaymentsHeader.tsx 27cd8e4a, PaymentsStats.tsx b386c660,
 // PaymentsFilters.tsx b6612faf, PaymentsTable.tsx 95a10450, BulkActionBar.tsx
 // 7f40166f, components/recovery/PaymentRow.tsx 0d2e1f52,
 // components/AmountRangeSlider.tsx d6bb58e8 and lib/payments-data.ts 14e0a6a3,
-// each read whole) built from Capsomer 0.9.0's parts (Q10), amber throughout
+// each read whole) built from Capsomer 0.9.0's parts, amber throughout
 //, on Foxhound's engine. The approved differences it keeps are named
 // where they are tested. Every assertion here was seen failing first.
 

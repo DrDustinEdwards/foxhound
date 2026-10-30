@@ -1,4 +1,4 @@
-// The home page's live email generator, its shapes (J59, row M3). Plain data,
+// The home page's live email generator, its shapes. Plain data,
 // no server-only imports, so both the client component and the server
 // generation route can import it.
 //

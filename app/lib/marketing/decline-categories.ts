@@ -2,7 +2,7 @@ import type { DeclineCategory } from "~/lib/constants";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 // THE DECLINE-CATEGORY COUNT AND NAMES, FOR MARKETING COPY, DERIVED FROM THE
-// ENGINE (376 item 18).
+// ENGINE.
 //
 // WHY THIS EXISTS. Four marketing surfaces said "four decline categories"
 // against an engine that ships six: /pricing, home, /features and the

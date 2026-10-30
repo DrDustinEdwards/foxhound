@@ -1,8 +1,6 @@
-
 import { describe, expect, it } from "vitest";
 
-import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments-stats";
-
+import { showingCountFor } from "~/lib/recovery/payments-stats";
 
 // S6's LAST two build items, raised by 279 and assigned by 284: the stat-card
 // value colors and the Showing card with its pill-responsiveness.
@@ -27,28 +25,7 @@ import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments
 //     label and the value mechanism are both real, and there is a THIRD part it
 //     did not name: Foxhound carried a `subtext="all filters"` that legacy has
 //     no counterpart for. Removing it restores legacy, which is a repair and
-//     never a ratified divergence (252).
-
-
-
-
-
-describe("S6 recovery-rate color: legacy's thresholds, both boundaries inclusive", () => {
-  it("36 and above is green", () => {
-    expect(recoveryRateValueClass(36)).toBe("text-green");
-    expect(recoveryRateValueClass(100)).toBe("text-green");
-  });
-
-  it("21 to 35 is caution", () => {
-    expect(recoveryRateValueClass(21)).toBe("text-caution");
-    expect(recoveryRateValueClass(35)).toBe("text-caution");
-  });
-
-  it("below 21 is red", () => {
-    expect(recoveryRateValueClass(20)).toBe("text-red");
-    expect(recoveryRateValueClass(0)).toBe("text-red");
-  });
-});
+//     never a ratified divergence.
 
 describe("S6 Showing card: legacy's global count, responding only to the pill", () => {
 

@@ -13,6 +13,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { AdminShell, FAMILY_APPS, type AdminApp, type AdminEntry } from "capsomer/react/admin-shell";
+import { refuseCrossOrigin } from "@dustinedwards/site-runtime/origin";
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
@@ -42,6 +43,14 @@ export const middleware: Route.MiddlewareFunction[] = [
     const { env } = context.get(cloudflareContext);
     const session = await getAdminSession(env, request);
     if (!session) throw new Response("Not Found", { status: 404 });
+    // ONLY THIS ORIGIN MAY WRITE. Access's CF_Authorization cookie rides along
+    // on a POST from any site the admin has open, so every admin action (the
+    // brake, merchant pauses, staged confirms, crons) would otherwise run on a
+    // cross-site form. Checked after the session, so the 404 still hides
+    // /admin from everyone else. site-runtime's shared check: a write whose
+    // Origin is another site (or "null") gets its 403.
+    const refusal = refuseCrossOrigin(request);
+    if (refusal) throw refusal;
     context.set(adminContext, { email: session.email });
     return next();
   },

@@ -9,7 +9,7 @@ import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/segmented.css";
 
-// The home page's live email generator (J59, row M3). Recova's spec is
+// The home page's live email generator. Recova's spec is
 // components/marketing/EmailGenerator.tsx (blob c4592a56), read whole.
 //
 // Recova's parts in Recova's order: the header with its live dot, the decline

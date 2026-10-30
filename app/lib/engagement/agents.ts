@@ -1,4 +1,4 @@
-// THE CLICK INTEGRITY GUARD (368 ruling 1). Pure, so the decision is testable
+// THE CLICK INTEGRITY GUARD. Pure, so the decision is testable
 // without a request, a database or a network.
 //
 // WHY THIS EXISTS, AND WHY IT IS A MONEY GUARD RATHER THAN A CRAWLER NUISANCE.
@@ -16,7 +16,7 @@
 // it creates money the merchant can verify; a click nobody made is the one
 // failure that promise cannot survive.
 //
-// ROBOTS.TXT IS THE ADVISORY HALF AND IS NOT SUFFICIENT (368 ruling 1). The
+// ROBOTS.TXT IS THE ADVISORY HALF AND IS NOT SUFFICIENT. The
 // group-parity fix in app/routes/files/robots.ts now excludes /e/ from every
 // named group, and a well-behaved crawler will obey it. The agents that make
 // this urgent are the USER-TRIGGERED fetchers (ChatGPT-User, Claude-User,
@@ -94,7 +94,7 @@ const PREFETCH_HEADERS: readonly [string, string][] = [
 
 /**
  * Why a request was refused the write. A DISCRIMINATED OUTCOME, never a bare
- * boolean (339 binding 5): "a bot", "a prefetch" and "no user agent at all" are
+ * boolean: "a bot", "a prefetch" and "no user agent at all" are
  * three different findings and the reason is what a later reader needs when a
  * merchant asks why an engagement is missing.
  */

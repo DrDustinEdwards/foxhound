@@ -10,7 +10,7 @@
 //   - enums (canon-defined only): CHECK constraints; legacy-valued text columns are
 //     left as plain text (their value sets were not probed) per legacy-map.md.
 // Every tenant table carries account_id + an index. Better Auth owns user/session/
-// account(singular)/verification (Phase 3); user_id columns here are soft references
+// account(singular)/verification; user_id columns here are soft references
 // (no enforced FK yet) per legacy-map.md.
 //
 // One module per domain; every table is re-exported here, so "~/db/schema" stays

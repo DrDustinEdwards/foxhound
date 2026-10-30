@@ -47,9 +47,13 @@ vi.mock("~/lib/stripe/client", () => ({
     rawRequest: async (method: string, path: string, params: Record<string, unknown>) => {
       harness.rawRequests.push({ method, path, params });
       if (harness.failQuote) throw new Error("stripe unavailable");
-      const to = String(params["to_currencies[0]"]);
+      // Stripe's documented shape: one to_currency, a list of from_currencies,
+      // and rates keyed by the SOURCE currency. harness.rates is per target,
+      // in target units per one USD.
+      const to = String(params.to_currency);
+      const from = String(params["from_currencies[0]"]);
       if (harness.omitRate) return { id: "fxq_1", rates: {} };
-      return { id: "fxq_1", rates: { [to]: { exchange_rate: harness.rates[to] } } };
+      return { id: "fxq_1", rates: { [from]: { exchange_rate: harness.rates[to] } } };
     },
   }),
   getConnectedStripe: () => {

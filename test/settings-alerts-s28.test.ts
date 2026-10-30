@@ -113,7 +113,7 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
     params: {},
   } as never)) as unknown as Response | { data: Record<string, unknown>; init?: { status?: number } };
   // A successful create redirects back to the page, as Recova's dismissPanel
-  // closes the form (J33); every other answer is data with a status.
+  // closes the form; every other answer is data with a status.
   if (res instanceof Response) return { status: res.status, body: {} };
   return { status: res.init?.status ?? 200, body: res.data };
 }

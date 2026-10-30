@@ -16,14 +16,14 @@ import "~/site-header.css";
 import type { Route } from "./+types/index";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
-// The /docs index (J17, row M17). Recova's spec is app/(marketing)/docs/page.tsx
+// The /docs index. Recova's spec is app/(marketing)/docs/page.tsx
 // (blob 4562a1ed) and components/MarketingPageHeader.tsx (blob 118a5104), read
 // whole.
 //
 // Layout is Recova's: the shared page header, the 720px column with px-6 and
 // pb-16, Platform as a full-width card above a two-column grid at sm, the four
 // product guides in Recova's order (Audit, Recovery, Disputes, Intelligence),
-// then the two cross-links. Look is Capsomer's (Q12): each card is Capsomer's
+// then the two cross-links. Look is Capsomer's: each card is Capsomer's
 // panel in the amber family at Recova's sizes, amber throughout. Guide titles and descriptions come from
 // app/lib/marketing/docs-content.ts and stay 20d-frozen.
 
@@ -77,7 +77,7 @@ export default function DocsIndexPage() {
         </div>
 
         {/* Recova's cross-links. leading-6 makes each link a 24px target, as
-            the /pricing Learn more links (J54). */}
+            the /pricing Learn more links. */}
         <div className="mt-12 flex flex-wrap items-center gap-6 text-label">
           <Link to="/features" className={CROSS_LINK}>
             See all features <Arrow />

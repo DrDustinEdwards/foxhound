@@ -21,7 +21,7 @@ function connectRedirectUri(env: Env): string {
 }
 
 /**
- * The anonymous audit's redirect_uri (phase (f)). A SECOND registered URI, which
+ * The anonymous audit's redirect_uri. A SECOND registered URI, which
  * is legacy's shape too: its audit flow lands on /audit/callback while its
  * merchant flow lands on the auth callback, and Stripe matches redirect_uri
  * exactly. Both have to be registered on the platform's Connect settings before

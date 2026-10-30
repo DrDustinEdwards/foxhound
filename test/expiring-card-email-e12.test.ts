@@ -5,7 +5,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J90, row E12 (parity/ROWS-E.md): the expiring card alert a merchant's
 // customer gets. Recova is the spec for what it says, carries and when it
-// sends (RULES.md 1.1). The layout is Capsomer's email component (Q3), so
+// sends. The layout is Capsomer's email component, so
 // nothing here asserts Recova's layout.
 //
 // Recova read whole, at HEAD, through Capsid repo "legacy":

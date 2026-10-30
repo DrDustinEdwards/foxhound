@@ -1,10 +1,10 @@
 import { FEATURE_FILTERS, type FeatureFilterValue } from "~/lib/marketing/features-content";
 
-// The /features product filter (J60). Recova's spec is
+// The /features product filter. Recova's spec is
 // components/features/FeatureFilter.tsx (blob 4e2ef1fa): six pills, All first,
 // exactly one active, flex-wrap with gap-2 and mb-10 under the header. The
 // pills are Capsomer's filter chips (capsomer/chips.css), the family part for
-// "filter a list by up to six values" (Q12): a pressed chip carries a tick,
+// "filter a list by up to six values": a pressed chip carries a tick,
 // the accent edge and the tint, so the active one is not marked by color
 // alone. Recova's one-active behavior is kept, so a press moves the choice
 // rather than adding to it; Capsomer's FilterChips React wrapper is

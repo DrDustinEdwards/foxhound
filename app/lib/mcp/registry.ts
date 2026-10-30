@@ -48,8 +48,8 @@ export const DENIED_TOOL_FRAGMENTS: readonly string[] = [
   "connect_stripe",
   "stripe_connect",
   "add_account",
-  // Account deletion (row S40): a person deletes their own account, signed in,
-  // and no key or agent ever can (RULES.md 3.6, cancel's family).
+  // Account deletion: a person deletes their own account, signed in,
+  // and no key or agent ever can (cancel's family).
   "delete_account",
   "account_delete",
   "delete_user",
@@ -173,7 +173,7 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
     if (byName.has(tool.name)) {
       throw new Error(`MCP tool "${tool.name}" is registered twice`);
     }
-    // REGISTRATION IS WHAT APPLIES THE REDACTION (376 item 7). The executor
+    // REGISTRATION IS WHAT APPLIES THE REDACTION. The executor
     // stored here is the tool's own wrapped in `redactToolResult`, so 370's
     // DEFAULT-REDACT holds for every tool in the registry rather than for the
     // three tools whose authors remembered to call a helper. A tool cannot skip

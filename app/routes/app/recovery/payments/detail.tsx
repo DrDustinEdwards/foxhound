@@ -103,8 +103,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { ...detail, steps, nextStepLabel, canResend, nowMs, prediction };
 }
 
-// Manual per-payment actions: all five are wired (272), each committing through
-// the per-account money-write DO (262 decision four). Mark as recovered enters
+// Manual per-payment actions: all five are wired, each committing through
+// the per-account money-write DO. Mark as recovered enters
 // through the spine's own buildRecoveryBatch and is never a second writer of
 // recovered_payments. This route only reports what the dispatcher decided.
 
@@ -189,7 +189,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       return data({ error: "Customer has unsubscribed from emails" }, { status: 409 });
     case "live_sends_disabled":
       // No legacy counterpart: legacy has no send switch. Honest rather than a
-      // silent success, because nothing was mailed (268).
+      // silent success, because nothing was mailed.
       return data({ error: "Live email sending is switched off for this account." }, { status: 409 });
     case "resend_failed":
       return data({ error: `Failed to resend${outcome.detail ? `: ${outcome.detail}` : ""}` }, { status: 500 });
@@ -363,7 +363,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 {failedPayment.customerName ?? failedPayment.customerEmail}
               </h1>
               {/* The open-dispute badge, gated on the live dispute predicate
-                  alone (ruling 304). */}
+                  alone. */}
               {openDisputes.length > 0 ? (
                 <Pill variant="outline" href={`/disputes/${openDisputes[0].id}`}>
                   <Shield className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
@@ -403,7 +403,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       ) : null}
 
       {/* Recova's action buttons, PaymentDetailClient.tsx 289-327: only while
-          the payment is active (ruling 250); in the demo the same buttons,
+          the payment is active; in the demo the same buttons,
           disabled and titled as Recova's are. */}
       {actionsVisible && !isDemo ? (
         <div className="mb-6 flex flex-wrap gap-2.5">
@@ -714,7 +714,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                 )}
                                 {step.openedAt ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}` : "Not opened"}
                               </span>
-                              {/* A suspect click is shown as what it is (377(4)):
+                              {/* A suspect click is shown as what it is:
                                   something fetched the link, and it is not billed. */}
                               <span
                                 className={`inline-flex items-center gap-1 text-micro ${

@@ -30,7 +30,7 @@ import type { MoneyPart } from "./stats";
 // No money writer, batch, key or order is touched; nothing here writes.
 
 /** The dispute fees an account still owes, one part per fee, in its currency.
- *  The caller totals them per currency (groupSumByCurrency, RULES.md 3.20). */
+ *  The caller totals them per currency (groupSumByCurrency). */
 export async function getDisputeFeesOwed(db: Db, accountId: string, nowMs: number): Promise<MoneyPart[]> {
   const [pending, invoiced, credits] = await Promise.all([
     getBillableDisputes(db, accountId, nowMs),

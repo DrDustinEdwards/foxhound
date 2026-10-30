@@ -29,7 +29,7 @@ import { formatMoney } from "~/lib/money-format";
 import type { Route } from "./+types/recommendations";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /intelligence/recommendations (row S20, job J78). Recova is the spec: its
+// /intelligence/recommendations. Recova is the spec: its
 // page, app/(app)/intelligence/recommendations/page.tsx at blob 4f03c7d6, and
 // its read, fetchActionableRecommendations in
 // lib/intelligence/customer-context-ssr.ts at blob a499c285, both read whole.
@@ -47,14 +47,14 @@ import { NOINDEX } from "~/lib/seo/meta";
 // (expansion_outreach) is not, and neither are the win-back priority and
 // accept dispute loss rows Recova filed under the other two: no rule in Recova
 // or Foxhound produces those actions, and a section over data nothing writes is
-// not built (RULES.md 3.18).
+// not built.
 //
 // Recova's Plan column reads current_plan_tier, which nothing in Foxhound
 // writes (signals.ts: no tier taxonomy), so it shows the plan's own name from
 // Stripe, the product of the customer's largest subscription, as
 // /intelligence/churn does.
 //
-// Built from Capsomer's parts (Q10), amber throughout. No Foxhound class sits
+// Built from Capsomer's parts, amber throughout. No Foxhound class sits
 // on a Capsomer element. Recova's mono uppercase column heads and its 12px
 // radius wait for Capsomer's per-site layer, as on the other Intelligence pages.
 
@@ -109,7 +109,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   const { rows, totalCount, page, totalPages } = loaderData;
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
-  // the page's one <main> (ruling 146), so this is a plain wrapper.
+  // the page's one <main>, so this is a plain wrapper.
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8">
       <div className="mb-6">

@@ -5,7 +5,7 @@ import {
   type DisputeEvidenceFileType,
 } from "~/lib/constants";
 
-// Merchant evidence files (J07), the client-safe half: no database, no bucket.
+// Merchant evidence files, the client-safe half: no database, no bucket.
 // Recova is the spec, read whole: components/disputes/DisputeFileUploads.tsx
 // (1286eb21), hooks/useDisputeActions.ts (b650cd6d), app/api/disputes/
 // upload-evidence/route.ts (7acca2a9), delete-evidence/route.ts (06a2cd1a),
@@ -28,7 +28,7 @@ export const EVIDENCE_FILES_LIMITS_LINE = `JPG, PNG, or PDF. ${DISPUTE_EVIDENCE_
 
 /** In the upload control's place while the EVIDENCE bucket is not bound. Not
  *  Recova's: Recova always had its bucket. Copy about an unbuilt feature says
- *  not built, never "cannot" (RULES.md 2.1). */
+ *  not built, never "cannot". */
 export const EVIDENCE_FILES_UNAVAILABLE_LINE = "File uploads are not available yet.";
 
 /** Recova's Remove file confirmation (useDisputeActions.ts). */
@@ -53,7 +53,7 @@ export type EvidenceFileOutcome =
 /** What the merchant reads for each outcome. Recova's own lines where it had
  *  them (useDisputeActions.ts); Recova printed its server codes raw
  *  ("file_type_not_allowed"), a raw value shown to a merchant, which is not
- *  copied (RULES.md 1.5). */
+ *  copied. */
 export const EVIDENCE_FILE_MESSAGES: Record<EvidenceFileOutcome, string> = {
   uploaded: "",
   deleted: "",

@@ -33,17 +33,17 @@ import { formatMoney } from "~/lib/money-format";
 import type { Route } from "./+types/churn";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /intelligence/churn (row S19, job J29). Recova is the spec: its real page,
+// /intelligence/churn. Recova is the spec: its real page,
 // app/(app)/intelligence/churn/page.tsx at blob 718cd7f5, and its chart,
 // app/(app)/intelligence/churn/components/ChurnRateChart.tsx at blob f4b9d3e5,
 // both read whole. In Recova's order and width: the head, the churn-rate chart,
 // the three band cards, then the high-risk customers table; or, when nobody is
 // scored yet, Recova's "being calculated" card in place of the bands and table.
 //
-// Built from Capsomer 0.9.0's parts (Q10) with the chart drawn by Enarratio
-// (Q1), amber throughout. No Foxhound CSS sits over a Capsomer component:
+// Built from Capsomer 0.9.0's parts with the chart drawn by Enarratio,
+// amber throughout. No Foxhound CSS sits over a Capsomer component:
 // Recova's band tints, its pill colors per plan and its 12px radius wait for
-// Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in the J29
+// Capsomer's per-site layer, listed in the J29
 // notes. Band cutoffs are Foxhound's engine (40/70, rulings 78/79), derived
 // from the constants below, never Recova's 33/66.
 
@@ -88,7 +88,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   );
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
-  // the page's one <main> (ruling 146), so this is a plain wrapper.
+  // the page's one <main>, so this is a plain wrapper.
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8">
       <div className="mb-6">
@@ -238,11 +238,11 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
     // Recova's colors, through Enarratio's own option: Involuntary on the
     // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
     // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio 0.3.1 has
-    // no per-series dash (enarratio gap, J29 notes).
+    // no per-series dash (enarratio gap).
     colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },
     xLabel: null,
     // Enarratio 0.3.1 has no tick format, so Recova's "2%" ticks read as "2"
-    // under this axis label until it does (enarratio gap, J29 notes).
+    // under this axis label until it does (enarratio gap).
     yLabel: "Churn rate (%)",
     formatValue: formatChurnPct,
     formatX: formatChurnMonth,

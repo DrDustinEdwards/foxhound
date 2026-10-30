@@ -8,8 +8,8 @@ import type { DeclineCategory } from "~/lib/constants";
 // label, hairline connectors between them, and a horizontal scroll on narrow
 // viewports.
 //
-// The DATA is Foxhound's, read from RECOVERY_SCHEDULES rather than restated
-// (ruling 78). Legacy hardcodes its own cadence, which is email-first over four
+// The DATA is Foxhound's, read from RECOVERY_SCHEDULES rather than restated.
+// Legacy hardcodes its own cadence, which is email-first over four
 // categories; Foxhound's engine is silent-retry-first over six. Shipping
 // legacy's array would have drawn a diagram that contradicts the code actually
 // scheduling the steps, on a payments product. Driving it from the schedule
@@ -17,7 +17,7 @@ import type { DeclineCategory } from "~/lib/constants";
 //
 // NOTE, raised not resolved: the silent-retry-first ordering is recorded in
 // schedule.ts:24 as "a deliberate change from legacy" with no ratification line.
-// That conflict is logged against the recovery rows (ruling 80); this component
+// That conflict is logged against the recovery rows; this component
 // renders whatever the engine actually does, either way.
 /** Recova's step timing words: "4 hr" under a day, "Day N" from a day on.
  *  Shared with the Recovery spoke's sequence preview. */

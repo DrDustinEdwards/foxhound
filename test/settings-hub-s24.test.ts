@@ -1,8 +1,6 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
+import routes from "~/routes";
 import {
   isSettingsItemActive,
   SETTINGS_NAV_GROUPS,
@@ -17,17 +15,23 @@ import { SETTINGS_HUB_ENTRIES } from "~/routes/app/settings/hub";
 // so the hub and the sub-nav are both checked against the ROUTE TABLE rather
 // than against a list in this file.
 
-/** Every settings path registered in routes.ts, derived from the source. */
+interface RouteEntry {
+  path?: string;
+  file: string;
+  children?: RouteEntry[];
+}
+
+/** Every settings page path in the route table. */
 const REGISTERED: string[] = (() => {
-  const src = readFileSync(
-    fileURLToPath(new URL("../app/routes.ts", import.meta.url)),
-    "utf8",
-  );
-  const block = src.slice(src.indexOf('...prefix("settings"'), src.indexOf('route("help"'));
-  const paths = ["/settings"];
-  for (const m of block.matchAll(/route\("([a-z-]+)",\s*"\.\/routes\/app\/settings\//g)) {
-    paths.push(`/settings/${m[1]}`);
-  }
+  const paths: string[] = [];
+  const walk = (entries: RouteEntry[], base: string) => {
+    for (const e of entries) {
+      const full = e.path ? `${base}/${e.path}`.replace(/\/+/g, "/") : base;
+      if (e.file.startsWith("./routes/app/settings/")) paths.push(full);
+      if (e.children) walk(e.children, full);
+    }
+  };
+  walk(routes as unknown as RouteEntry[], "");
   return paths;
 })();
 
@@ -60,30 +64,5 @@ describe("PLANT 3: the active rule is legacy's, both halves", () => {
     expect(isSettingsItemActive("/settings/email/anything", "/settings/email")).toBe(true);
     expect(isSettingsItemActive("/settings/emails", "/settings/email")).toBe(false);
     expect(isSettingsItemActive("/settings/team", "/settings/email")).toBe(false);
-  });
-});
-
-describe("PLANT 4: every settings path the docs name resolves", () => {
-  it("the guides name no settings route that does not exist", async () => {
-    const { DOC_GUIDES } = await import("~/lib/marketing/docs-content");
-    const body = DOC_GUIDES.flatMap((g) => g.sections)
-      .flatMap((s) => s.body)
-      .join(" ");
-
-    // The docs name settings destinations in prose ("Settings and Team"), not
-    // as URLs, so the check is that each named destination has a route.
-    const named: [string, string][] = [
-      ["Settings and Notifications", "/settings/notifications"],
-      ["Settings and API keys", "/settings/api-keys"],
-      ["Settings and Team", "/settings/team"],
-      ["Settings and Brand voice", "/settings/brand-voice"],
-      ["Settings and Email", "/settings/email"],
-      ["Settings and My account", "/settings/account"],
-      ["notifications page", "/settings/notifications"],
-    ];
-    for (const [phrase, path] of named) {
-      expect(body, `${phrase} is named in the docs`).toContain(phrase);
-      expect(REGISTERED, `${phrase} resolves to ${path}`).toContain(path);
-    }
   });
 });

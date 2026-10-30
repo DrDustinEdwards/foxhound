@@ -121,7 +121,7 @@ const HEADING_ID = "admin-crons-heading";
 // Disable is one click; Enable opens Capsomer's confirm page and needs the
 // cron's own typed phrase (APPROVED-DIFFERENCES, 2026-09-19; review MEDIUM-4).
 // No Undo after a Disable: undoing it is an Enable, which must be typed. There
-// is no "Run now" (ruling 406 binding 5). Everything is a form or a link, so
+// is no "Run now". Everything is a form or a link, so
 // the page works without script.
 export default function AdminCrons({ loaderData, actionData }: Route.ComponentProps) {
   const { crons, confirmEnable } = loaderData;

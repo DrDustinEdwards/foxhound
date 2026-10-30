@@ -12,7 +12,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // payments and billing line items to the wrong ledger. An application check can
 // be bypassed by a race between two callbacks; the index cannot.
 //
-// THE FIXTURE CARRIES TWO USERS, NOT TWO MEMBERSHIPS (356 binding 5): DEFECT 4
+// THE FIXTURE CARRIES TWO USERS, NOT TWO MEMBERSHIPS: DEFECT 4
 // predates multi-account and needs two people who both hold Stripe access to
 // one connected account, which is why a two-membership fixture would miss it.
 //
@@ -74,7 +74,7 @@ function liveRowsFor(stripeUserId: string): string[] {
 
 describe("the index exists and is the one this session shipped", () => {
   it("stripe_connections_live_stripe_account_uq is present, unique, and scoped to live rows", () => {
-    // CALIBRATION (259): read the real DDL rather than trusting that the
+    // CALIBRATION: read the real DDL rather than trusting that the
     // migration ran, and pin the WHERE clause, because an index without it
     // would pass every refusal test below while permanently banning reconnect.
     const row = sqlite

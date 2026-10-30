@@ -9,6 +9,7 @@ import { data, redirect } from "react-router";
 import { SYNC_RESULT_MESSAGES } from "~/components/sync-dispute-link";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { ACCEPT_APPROVED_MESSAGE, acceptDispute } from "~/lib/disputes/accept.server";
 import { canApprove } from "~/lib/disputes/approval";
@@ -60,6 +61,12 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }).formData();
   const intent = String(form.get("intent") ?? "");
 
+  // Approving submits evidence to Stripe and accepting concedes the dispute;
+  // neither can be undone, so only the account owner does either.
+  if ((intent === "approve" || intent === "accept") && auth.membership.role !== MEMBER_ROLE.OWNER) {
+    return data({ error: "Only the account owner can do this.", intent }, { status: 403 });
+  }
+
   if (intent === "save") {
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data(
@@ -99,7 +106,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     }
     // A guarded write that changed nothing (an approval or another session's
     // save got there between this read and the write) is reported, never
-    // "Saved." (RULES.md 3.9). The result is not ok, so the page keeps the
+    // "Saved.". The result is not ok, so the page keeps the
     // draft unsaved and Approve held.
     if (!written) {
       return data(
@@ -114,7 +121,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
 
   if (intent === "upload_file" || intent === "delete_file") {
-    // Recova's upload-evidence and delete-evidence (J07). The dispute was read
+    // Recova's upload-evidence and delete-evidence. The dispute was read
     // under the signed-in account above, so another account's dispute is
     // already a 404. With no bucket bound, the answer says so first.
     if (!env.EVIDENCE) return fileResult(intent, "uploads_unavailable");
@@ -273,7 +280,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
 const UPLOAD_BODY_SLACK_BYTES = 64 * 1024;
 
 /** A file path's answer: its named outcome, the merchant's line, and the
- *  outcome's status (J07). */
+ *  outcome's status. */
 function fileResult(intent: "upload_file" | "delete_file", outcome: EvidenceFileOutcome, status?: number) {
   const message = EVIDENCE_FILE_MESSAGES[outcome];
   return data(

@@ -24,6 +24,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { formatDateShort } from "~/lib/date-format";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
@@ -41,7 +42,7 @@ import { formatDateShort } from "~/lib/date-format";
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  // THE RENAMED COMPARISON SLUGS (376 item 21), checked BEFORE the lookup.
+  // THE RENAMED COMPARISON SLUGS, checked BEFORE the lookup.
   //
   // Before the lookup rather than in the 404 branch, deliberately: an old slug
   // must redirect whether or not a post happens to still answer to it, so the
@@ -53,7 +54,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw redirect(`/blog/${renamed}`, 301);
   }
 
-  // WITHDRAWN POSTS ANSWER 410, NOT 404 (391). The row is unpublished, so the
+  // WITHDRAWN POSTS ANSWER 410, NOT 404. The row is unpublished, so the
   // lookup below would return null and this route would 404, which says "we have
   // nothing here" and is indistinguishable from a typo. 410 says the page existed
   // and is deliberately gone. Checked before the lookup for the same reason the
@@ -278,7 +279,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>
           <p className="m-0 text-copy leading-relaxed text-text-secondary">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
-            intelligence. 20% of Foxhound-attributed recoveries only, nothing until then.
+            intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing until then.
           </p>
         </div>
       </div>

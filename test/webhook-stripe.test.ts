@@ -41,7 +41,7 @@ describe("classifyStripeEvent", () => {
         customer_email: "a@b.com",
         collection_method: "charge_automatically",
         last_finalization_error: { decline_code: "expired_card" },
-        // STATED, NOT OMITTED (377(1)). An absent next_payment_attempt reads as
+        // STATED, NOT OMITTED. An absent next_payment_attempt reads as
         // null, which is "Stripe gave up", so a fixture that leaves it out
         // cannot tell a working gate from a missing one.
         next_payment_attempt: null,
@@ -160,6 +160,7 @@ describe("webhook batch builders (compile against schema)", () => {
       stripeEventId: "evt_1",
       invoiceId: "in_1",
       customerId: "cus_1",
+      subscriptionId: null,
       customerEmail: "a@b.com",
       customerName: null,
       amountCents: 4200,
@@ -202,8 +203,9 @@ describe("webhook batch builders (compile against schema)", () => {
     const flip = sqlOf(batch[1]);
     expect(flip.sql).toMatch(/update .*failed_payments/i);
     expect(flip.params).toContain("recovered");
-    expect(sqlOf(batch[2]).sql).toMatch(/recovered_payments/i);
-    expect(sqlOf(batch[3]).sql).toMatch(/outcomes/i);
+    // The outcomes key first, so a second recorder reads as a replay.
+    expect(sqlOf(batch[2]).sql).toMatch(/insert into "outcomes"/i);
+    expect(sqlOf(batch[3]).sql).toMatch(/insert into "recovered_payments"/i);
   });
 
   it("refund stamp batch = claim + failed_payments marker + conditional recovered_payments update", () => {
@@ -220,10 +222,11 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(refund[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
-  it("dispute stamp batch is unchanged: claim + conditional update on recovered_payments", () => {
+  it("dispute stamp batch: claim + the failed payment's dispute marker + conditional update on recovered_payments", () => {
     const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
-    expect(dispute.length).toBe(2);
-    expect(sqlOf(dispute[1]).sql).toMatch(/update .*recovered_payments/i);
+    expect(dispute.length).toBe(3);
+    expect(sqlOf(dispute[1]).sql).toMatch(/update .*failed_payments.*dispute_signal_at/i);
+    expect(sqlOf(dispute[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
   it("dispute intake batch = claim + disputes row + evidence rows, no recovery link", () => {
@@ -278,9 +281,9 @@ describe("webhook batch builders (compile against schema)", () => {
       linkedFailedPaymentId: "fp_1",
       evidence: [],
     });
-    // claim + disputes insert + stamp (no evidence rows this time)
-    expect(batch.length).toBe(3);
-    const stamp = sqlOf(batch[2]);
+    // claim + disputes insert + dispute marker + stamp (no evidence rows this time)
+    expect(batch.length).toBe(4);
+    const stamp = sqlOf(batch[3]);
     expect(stamp.sql).toMatch(/update .*recovered_payments/i);
     expect(stamp.sql).toMatch(/disputed_at/i);
     expect(stamp.params).toContain("fp_1");
@@ -297,7 +300,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
@@ -323,7 +326,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 10_000_00,
       currency: "usd",
       foxhoundSubmitted: true,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
@@ -338,7 +341,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
@@ -358,7 +361,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: false,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
