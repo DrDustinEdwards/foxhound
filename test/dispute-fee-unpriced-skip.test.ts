@@ -58,7 +58,7 @@ vi.mock("~/lib/stripe/client", () => ({
     rawRequest: async (_method: string, path: string, params: Record<string, unknown>) => {
       if (path !== "/v1/fx_quotes") throw new Error(`unexpected stripe call ${path}`);
       if (harness.failQuote) throw new Error("stripe unavailable");
-      return { id: "fxq_late", rates: { [String(params["to_currencies[0]"])]: { exchange_rate: 1.2 } } };
+      return { id: "fxq_late", rates: { [String(params["from_currencies[0]"])]: { exchange_rate: 1.2 } } };
     },
   }),
   getConnectedStripe: () => {

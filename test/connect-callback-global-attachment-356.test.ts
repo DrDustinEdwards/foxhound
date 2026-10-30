@@ -278,6 +278,28 @@ describe("PLANT 4: the same user's own second account is refused too, unchanged"
   });
 });
 
+describe("PLANT 4b: the unique index refuses a connection that went live after the read", () => {
+  it("bounces add_account and leaves the session where it was when the write is refused", async () => {
+    signIn(SESSION_B, OTHER, ACCOUNT_B);
+    // Another account connects Stripe account X between the predicate's read
+    // and this callback's write, so only the index can refuse it.
+    vi.mocked(executeMoneyWrite).mockImplementationOnce(async (_env, write) => {
+      seedConnection({ id: "conn_race", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });
+      const statements = write.build(db);
+      sqlite.transaction(() => {
+        for (const stmt of statements) runStatement(sqlite, stmt);
+      })();
+      return { applied: true };
+    });
+
+    const response = await callback(ADD_ACCOUNT_ACTION);
+
+    expect(errorParam(response)).toBe("stripe_account_already_connected");
+    expect(markerOf(SESSION_B)).toBe(ACCOUNT_B);
+    expect(connections()).toEqual([{ id: "conn_race", accountId: ACCOUNT_A, stripeUserId: STRIPE_X }]);
+  });
+});
+
 describe("PLANT 5: the cases that must still SUCCEED", () => {
   it("330 binding 2 is unchanged: add_account for a Stripe account the caller already holds redirects and writes nothing", async () => {
     seedConnection({ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });

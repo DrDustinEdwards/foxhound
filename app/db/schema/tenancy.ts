@@ -156,6 +156,25 @@ export const accountMembers = sqliteTable(
   ],
 );
 
+// The one first account a user creates at /connect, written in the same money
+// batch as that account. Its unique user_id is the database's half of the
+// `connect:first:<user>` idempotency key: if the Durable Object dies after D1
+// commits but before it records the key, the retry's batch is refused here and
+// reports the account that already exists rather than minting a second.
+export const accountFirstCreations = sqliteTable(
+  "account_first_creations",
+  {
+    id: id(),
+    userId: text("user_id").notNull(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("account_first_creations_user_uq").on(t.userId),
+    index("account_first_creations_account_idx").on(t.accountId),
+  ],
+);
+
 export const stripeConnections = sqliteTable(
   "stripe_connections",
   {

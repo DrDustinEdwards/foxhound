@@ -222,10 +222,11 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(refund[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
-  it("dispute stamp batch is unchanged: claim + conditional update on recovered_payments", () => {
+  it("dispute stamp batch: claim + the failed payment's dispute marker + conditional update on recovered_payments", () => {
     const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
-    expect(dispute.length).toBe(2);
-    expect(sqlOf(dispute[1]).sql).toMatch(/update .*recovered_payments/i);
+    expect(dispute.length).toBe(3);
+    expect(sqlOf(dispute[1]).sql).toMatch(/update .*failed_payments.*dispute_signal_at/i);
+    expect(sqlOf(dispute[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
   it("dispute intake batch = claim + disputes row + evidence rows, no recovery link", () => {
@@ -280,9 +281,9 @@ describe("webhook batch builders (compile against schema)", () => {
       linkedFailedPaymentId: "fp_1",
       evidence: [],
     });
-    // claim + disputes insert + stamp (no evidence rows this time)
-    expect(batch.length).toBe(3);
-    const stamp = sqlOf(batch[2]);
+    // claim + disputes insert + dispute marker + stamp (no evidence rows this time)
+    expect(batch.length).toBe(4);
+    const stamp = sqlOf(batch[3]);
     expect(stamp.sql).toMatch(/update .*recovered_payments/i);
     expect(stamp.sql).toMatch(/disputed_at/i);
     expect(stamp.params).toContain("fp_1");

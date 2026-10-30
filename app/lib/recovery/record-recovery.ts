@@ -1,7 +1,7 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, like, ne, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { failedPayments, outcomes, recoveredPayments } from "~/db";
+import { failedPayments, getDb, outcomes, recoveredPayments, recoverySteps } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
@@ -80,6 +80,10 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
   // and writing: the value is resolved at insert time, in this same atomic batch.
   // See buildRefundStampBatch for the other half and why the pair is exhaustive.
   const refundedAtFromMarker = sql`(select ${failedPayments.refundSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
+  // Born DISPUTED the same way: dispute intake stamps dispute_signal_at on the
+  // failed payment whether or not this row exists yet (buildDisputedAtStamp in
+  // webhooks/batches.ts), and the same DO ordering makes the pair exhaustive.
+  const disputedAtFromMarker = sql`(select ${failedPayments.disputeSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
   // THE GUARD IS JOINED TO THE WRITE (hard rule 3). Every caller flips the
   // failed payment to recovered at `recoveredAt` in the statement before this
   // one, conditionally. If that flip matched nothing (the merchant canceled
@@ -130,6 +134,7 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
       // Attributed recoveries stamp attributed_at; baseline stays null (free).
       attributedAt: attributed ? input.recoveredAt : null,
       refundedAt: refundedAtFromMarker,
+      disputedAt: disputedAtFromMarker,
       stripeBalanceTransactionId: input.chargeFee?.stripeBalanceTransactionId ?? null,
       stripeFeeCents: input.chargeFee?.stripeFeeCents ?? null,
       netAmountCents: input.chargeFee?.netAmountCents ?? null,
@@ -144,6 +149,9 @@ export interface RetryReconciliationInput {
   /** The succeeded retry step, the ground-truth cause of the recovery. */
   stepId: string;
   recoveredAt: Date;
+  /** Upgrade only a row at exactly this attribution (the daily sweep passes
+   *  stripe_baseline). Absent: any row not already foxhound_retry. */
+  fromKind?: "stripe_baseline";
 }
 
 /**
@@ -179,7 +187,10 @@ export function buildRetryReconciliationBatch(
       .where(
         and(
           eq(recoveredPayments.failedPaymentId, input.failedPaymentId),
-          ne(recoveredPayments.attributionKind, "foxhound_retry"),
+          eq(recoveredPayments.accountId, input.accountId),
+          input.fromKind
+            ? eq(recoveredPayments.attributionKind, input.fromKind)
+            : ne(recoveredPayments.attributionKind, "foxhound_retry"),
         ),
       ),
     db
@@ -189,8 +200,21 @@ export function buildRetryReconciliationBatch(
         attributionKind: "foxhound_retry",
         attributedRef: input.stepId,
       })
-      .where(and(eq(outcomes.idempotencyKey, key), ne(outcomes.attributionKind, "foxhound_retry"))),
+      .where(
+        and(
+          eq(outcomes.idempotencyKey, key),
+          eq(outcomes.accountId, input.accountId),
+          ne(outcomes.attributionKind, "foxhound_retry"),
+        ),
+      ),
   ];
+}
+
+/** True only when the reconcile's recovered_payments UPDATE (the batch's first
+ *  statement) changed a row. A zero-row UPDATE is not a reconcile (hard rule 3),
+ *  and neither is a batch whose driver did not report what it changed. */
+function upgradedARow(result: { applied: boolean; changes?: number[] }): boolean {
+  return result.applied && (result.changes?.[0] ?? 0) > 0;
 }
 
 // A single reconcile attempt cannot see a webhook write that has not landed in
@@ -210,21 +234,96 @@ const RECONCILE_RETRY_DELAYS_MS = [0, 150, 350];
  *  write (ARCHITECTURE.md #1), even though the UPDATE-only shape is idempotent
  *  by construction. Retries a few times with short delays (see
  *  RECONCILE_RETRY_DELAYS_MS) so a webhook that lands moments after the first
- *  attempt still gets corrected. Returns true if any attempt applied cleanly. */
+ *  attempt still gets corrected. Returns true only when an attempt actually
+ *  upgraded a row; a webhook that lands after the last attempt is caught by
+ *  the daily sweep below (upgradeMissedRetryAttributions). */
 export async function reconcileRetryRecovery(
   env: Env,
   input: RetryReconciliationInput,
 ): Promise<boolean> {
-  let appliedAny = false;
   for (let attempt = 0; attempt < RECONCILE_RETRY_DELAYS_MS.length; attempt++) {
     const delayMs = RECONCILE_RETRY_DELAYS_MS[attempt];
     if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    const { applied } = await executeMoneyWrite(env, {
+    const result = await executeMoneyWrite(env, {
       accountId: input.accountId,
       idempotencyKey: `recovery-reconcile:${input.failedPaymentId}:${attempt}`,
       build: (db) => buildRetryReconciliationBatch(db, input),
     });
-    if (applied) appliedAny = true;
+    if (upgradedARow(result)) return true;
   }
-  return appliedAny;
+  return false;
+}
+
+/** How far back the daily sweep looks. The race it closes is seconds wide and
+ *  the sweep runs daily, so a week covers every missed tick without reaching
+ *  back to re-attribute (and so newly bill) old history. */
+const ATTRIBUTION_SWEEP_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const ATTRIBUTION_SWEEP_LIMIT = 200;
+
+export interface AttributionSweepResult {
+  upgraded: number;
+  failed: { failedPaymentId: string; error: string }[];
+}
+
+/**
+ * The backstop for reconcileRetryRecovery's retry window: a recovery recorded
+ * as stripe_baseline whose failed payment has a succeeded retry step was caused
+ * by that retry, and the webhook simply landed after the last reconcile
+ * attempt. Each one is upgraded to foxhound_retry through the money writer with
+ * the same UPDATE-only batch, restricted to rows still at stripe_baseline, so a
+ * rerun is a no-op. Runs daily, before billing.
+ */
+export async function upgradeMissedRetryAttributions(env: Env, now: Date): Promise<AttributionSweepResult> {
+  const db = getDb(env);
+  const rows = await db
+    .select({
+      accountId: recoveredPayments.accountId,
+      failedPaymentId: recoveredPayments.failedPaymentId,
+      recoveredAt: recoveredPayments.recoveredAt,
+      stepId: recoverySteps.id,
+    })
+    .from(recoveredPayments)
+    .innerJoin(
+      recoverySteps,
+      and(
+        eq(recoverySteps.failedPaymentId, recoveredPayments.failedPaymentId),
+        eq(recoverySteps.accountId, recoveredPayments.accountId),
+      ),
+    )
+    .where(
+      and(
+        eq(recoveredPayments.attributionKind, "stripe_baseline"),
+        isNull(recoveredPayments.deletedAt),
+        gte(recoveredPayments.recoveredAt, new Date(now.getTime() - ATTRIBUTION_SWEEP_LOOKBACK_MS)),
+        like(recoverySteps.stepType, "retry_%"),
+        eq(recoverySteps.result, "retry_succeeded"),
+        isNull(recoverySteps.deletedAt),
+      ),
+    )
+    .limit(ATTRIBUTION_SWEEP_LIMIT);
+
+  const result: AttributionSweepResult = { upgraded: 0, failed: [] };
+  const done = new Set<string>();
+  for (const row of rows) {
+    if (done.has(row.failedPaymentId)) continue;
+    done.add(row.failedPaymentId);
+    try {
+      const write = await executeMoneyWrite(env, {
+        accountId: row.accountId,
+        idempotencyKey: `recovery-reconcile-sweep:${row.failedPaymentId}:${row.stepId}`,
+        build: (bdb) =>
+          buildRetryReconciliationBatch(bdb, {
+            accountId: row.accountId,
+            failedPaymentId: row.failedPaymentId,
+            stepId: row.stepId,
+            recoveredAt: row.recoveredAt,
+            fromKind: "stripe_baseline",
+          }),
+      });
+      if (upgradedARow(write)) result.upgraded += 1;
+    } catch (err) {
+      result.failed.push({ failedPaymentId: row.failedPaymentId, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return result;
 }

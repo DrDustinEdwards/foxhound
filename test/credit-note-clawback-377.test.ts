@@ -276,6 +276,20 @@ describe("the daily credit-note-retry sweep", () => {
     expect(await lines(db)).toHaveLength(1);
   });
 
+  it("credits an invoiced recovery fee once when the recovered payment is charged back", async () => {
+    const db = await seed();
+    await db
+      .update(schema.recoveredPayments)
+      .set({ disputedAt: REFUNDED_AT })
+      .where(eq(schema.recoveredPayments.id, RECOVERY));
+
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(1);
+    // A refund on the same payment later is the same fee line: no second credit.
+    await stampRefund(db);
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(0);
+    expect(await lines(db)).toHaveLength(1);
+  });
+
   it("finds a note that reached Stripe without its ledger row instead of issuing a second", async () => {
     // Stripe prunes idempotency keys after 24 hours, and the sweep is daily, so
     // the key cannot be what stops the second note.

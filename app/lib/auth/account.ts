@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
-import { type Db, accountMembers, accounts, apiKeys, oauthGrants, user } from "~/db";
+import { type Db, accountFirstCreations, accountMembers, accounts, apiKeys, oauthGrants, user } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
@@ -263,14 +263,24 @@ export async function createAccountForUser(
           status: MEMBER_STATUS.ACTIVE,
           createdAt: now,
         }),
+        // THE DATABASE'S HALF OF THE KEY. The DO's seen set is written after D1
+        // commits, so a DO that dies between the two would let a retry mint a
+        // second account; this unique row refuses that retry's whole batch.
+        tx.insert(accountFirstCreations).values({ userId, accountId, createdAt: now }),
       ],
     });
 
     if (!applied) {
-      // Lost the race. The winner's account is committed by now (the DO runs
-      // these in order), so report THEIR id rather than the one minted above,
-      // which was never written. Returning the local id here would be the same
-      // orphan defect wearing a success.
+      // Lost the race, or a retry of a write that landed. The winner's account
+      // is committed by now (the DO runs these in order), so report THEIR id
+      // rather than the one minted above, which was never written. Returning
+      // the local id here would be the same orphan defect wearing a success.
+      const first = await db
+        .select({ accountId: accountFirstCreations.accountId })
+        .from(accountFirstCreations)
+        .where(eq(accountFirstCreations.userId, userId))
+        .limit(1);
+      if (first[0]) return { ok: true, accountId: first[0].accountId };
       const existing = await listMemberships(db, userId);
       const won = existing[0];
       return won

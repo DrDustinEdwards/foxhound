@@ -9,7 +9,12 @@ import { isDisputeResolved } from "~/lib/disputes/labels";
 import { sendDisputeCreatedNotice, sendDisputeOutcomeNotice } from "~/lib/disputes/notices.server";
 import { readDisputeProductDescription, readDisputesEnabled } from "~/lib/disputes/queries.server";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { DISPUTE_CREDIT_DESCRIPTION, issueCreditNoteForEvidence } from "~/lib/billing/credit-note";
+import {
+  CHARGEBACK_CREDIT_DESCRIPTION,
+  DISPUTE_CREDIT_DESCRIPTION,
+  disputedRecoveryIdsFor,
+  issueCreditNoteForEvidence,
+} from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import {
@@ -138,6 +143,20 @@ export async function handleStampDispute(
       );
   if (noticeFor) {
     await sendDisputeCreatedNotice(env, { accountId, disputeId: noticeFor });
+  }
+  // A CHARGEBACK ON A RECOVERED PAYMENT credits that recovery's fee if it was
+  // already invoiced, keyed on the fee line exactly as a refund is, so a refund
+  // and a dispute on the same payment still credit it once. Only on `applied`,
+  // as the refund path: a failure here is picked up by the daily
+  // credit-note-retry sweep, which reads the same disputed_at stamp.
+  if (applied && linked) {
+    for (const recoveredPaymentId of await disputedRecoveryIdsFor(env, linked.failedPayment.id)) {
+      await issueCreditNoteForEvidence(
+        env,
+        { recoveredPaymentId },
+        { now: intent.createdAt, description: CHARGEBACK_CREDIT_DESCRIPTION },
+      );
+    }
   }
   return applied ? { status: "applied" } : { status: "duplicate" };
 }

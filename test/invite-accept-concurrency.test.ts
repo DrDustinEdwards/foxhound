@@ -8,6 +8,7 @@ import { acceptInvite } from "~/lib/auth/invites";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { SerialMoneyCommitter } from "~/lib/money/serializer";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -386,5 +387,32 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
     expect(active).toHaveLength(1);
     expect(result).toEqual({ ok: true, accountId: "acc_W" });
     expect(await resolveMembership(db, USER)).toMatchObject({ accountId: "acc_W" });
+  });
+
+  // The DO's seen set is written only after D1 commits, so a DO that dies in
+  // between forgets the key. The retry must still find the first account, which
+  // the database's unique row on the user now guarantees.
+  it("a retry after the DO lost its seen key reports the first account and creates no second", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    // A fresh committer per call: the real serializer, with nothing remembered.
+    vi.mocked(executeMoneyWrite).mockImplementation(async (_env, write) => {
+      const committer = new SerialMoneyCommitter({
+        hasSeen: async () => false,
+        markSeen: async () => {},
+        runBatch: async (statements) => {
+          sqlite.transaction(() => {
+            for (const s of statements) sqlite.prepare(s.sql).run(...(s.params as never[]));
+          })();
+        },
+      });
+      const statements = write.build(db).map((item) => (item as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL());
+      return committer.commit({ idempotencyKey: write.idempotencyKey, statements });
+    });
+
+    const first = await createAccountForUser(ENV, db, USER, "First Co");
+    const retry = await createAccountForUser(ENV, db, USER, "First Co");
+
+    expect(first.ok && retry.ok && retry.accountId).toBe(first.ok && first.accountId);
+    expect(await db.select({ id: accounts.id }).from(accounts)).toHaveLength(1);
   });
 });

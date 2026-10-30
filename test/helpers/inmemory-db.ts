@@ -81,9 +81,9 @@ export function inMemoryMoneyWriter(sqlite: () => Database.Database) {
         },
         runBatch: async (statements) => {
           const handle = sqlite();
-          handle.transaction(() => {
-            for (const s of statements) handle.prepare(s.sql).run(...(s.params as never[]));
-          })();
+          return handle.transaction(() =>
+            statements.map((s) => handle.prepare(s.sql).run(...(s.params as never[])).changes),
+          )();
         },
       });
       committers.set(partition, committer);

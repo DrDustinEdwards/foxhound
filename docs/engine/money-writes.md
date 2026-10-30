@@ -35,7 +35,12 @@ Closures and Drizzle internals never cross the DO boundary; only compiled
 1. **Database (authoritative).** Money batches include a row carrying a UNIQUE
    idempotency key (e.g. `outcomes.idempotency_key`, `outcomes_idempotency_uq`).
    A replay makes the whole atomic batch fail the constraint and roll back. The
-   committer catches that specific failure and reports `applied: false`.
+   committer catches that specific failure and reports `applied: false`, but
+   only for the designed replay keys listed in `REPLAY_KEYS`
+   (app/lib/money/serializer.ts). Any other unique violation is a real
+   conflict (a live Stripe account already connected elsewhere, for example)
+   and throws, so callers never read it as "already done". A new unique index
+   a money batch relies on for exactly-once must be added to that list.
 2. **DO storage (fast path).** A `seen` set in DO storage short-circuits a key we
    already know landed, avoiding a redundant batch. It is only an optimization;
    the DB is the guarantee.

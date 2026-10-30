@@ -105,6 +105,20 @@ describe("SerialMoneyCommitter", () => {
     expect(seen.has("k")).toBe(false);
   });
 
+  it("throws on a unique key that is a real conflict, not a replay key", async () => {
+    const { deps, seen } = instrumentedDeps({
+      onRun: async () => {
+        throw new Error("D1_ERROR: UNIQUE constraint failed: stripe_connections.stripe_user_id: SQLITE_CONSTRAINT");
+      },
+    });
+    const committer = new SerialMoneyCommitter(deps);
+
+    await expect(
+      committer.commit({ idempotencyKey: "k", statements: [stmt("C")] }),
+    ).rejects.toThrow(/stripe_connections\.stripe_user_id/);
+    expect(seen.has("k")).toBe(false);
+  });
+
   it("propagates a non-constraint failure and does NOT mark the key seen (retryable)", async () => {
     const { deps, seen } = instrumentedDeps({
       onRun: async () => {

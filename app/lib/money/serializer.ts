@@ -29,14 +29,19 @@ export interface CommitRequest {
 /** Whether the batch was newly applied (false = idempotent no-op / already applied). */
 export interface CommitResult {
   applied: boolean;
+  /** Rows each statement changed, in batch order, when the batch ran and the
+   *  driver reported them. Lets an UPDATE-only write tell a real change from a
+   *  zero-row no-op (hard rule 3). Absent on a no-op or an unreporting driver. */
+  changes?: number[];
 }
 
 /** Injected side effects the serializer drives. Real impls live in the DO. */
 export interface CommitterDeps {
   hasSeen(idempotencyKey: string): Promise<boolean>;
   markSeen(idempotencyKey: string): Promise<void>;
-  /** Commits the statements as ONE atomic batch. Throws on any failure. */
-  runBatch(statements: CompiledStatement[]): Promise<void>;
+  /** Commits the statements as ONE atomic batch. Throws on any failure.
+   *  May return the rows each statement changed. */
+  runBatch(statements: CompiledStatement[]): Promise<number[] | void>;
 }
 
 /** True for a SQLite/D1 UNIQUE (or PRIMARY KEY) constraint violation. */
@@ -45,9 +50,55 @@ export function isUniqueConstraintError(err: unknown): boolean {
   return /UNIQUE constraint failed|PRIMARY KEY constraint failed/i.test(message);
 }
 
-function constraintName(err: unknown): string {
+/** The table and column(s) a SQLite unique violation names, e.g.
+ *  "outcomes.idempotency_key" or "t.a, t.b". "unknown" when the message carries
+ *  none (a PRIMARY KEY failure on a rowid table, or a driver that drops it). */
+export function constraintName(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
-  return /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim() ?? "unknown";
+  return /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim().replace(/\s+/g, " ") ?? "unknown";
+}
+
+/**
+ * THE UNIQUE KEYS THAT ARE DESIGNED REPLAY KEYS, and only these. A batch refused
+ * on one of them is a re-delivery of a write that already landed, so it reports
+ * `applied: false`. A batch refused on ANY other unique key is a real conflict
+ * (two live connections for one Stripe account, a second open exemption
+ * stretch, a second active membership) and throws: callers that read
+ * `applied: false` as "already done" would otherwise redirect as connected, or
+ * answer Stripe 200 "duplicate" so the event is never retried.
+ *
+ * Named as SQLite names them in the error, table.column with composite columns
+ * joined by ", ". Adding a unique index that a money batch relies on for
+ * exactly-once means adding it here.
+ */
+const REPLAY_KEYS: ReadonlySet<string> = new Set([
+  "outcomes.idempotency_key",
+  "webhook_events.stripe_event_id",
+  "billing_invoices.idempotency_key",
+  "billing_line_items.recovered_payment_id",
+  "billing_line_items.dispute_id",
+  "billing_line_items.credits_line_item_id",
+  "engagement_events.idempotency_key",
+  "email_sends.idempotency_key",
+  "account_first_creations.user_id",
+  "failed_payments.stripe_invoice_id",
+  "disputes.stripe_dispute_id",
+  "dispute_balance_transactions.stripe_balance_transaction_id",
+  "dispute_approvals.dispute_id",
+  "early_fraud_warnings.account_id, early_fraud_warnings.stripe_warning_id",
+  "subscription_changes.stripe_event_id, subscription_changes.kind",
+  "win_back_sequences.stripe_subscription_id",
+  "customer_context.account_id, customer_context.stripe_customer_id",
+]);
+
+/** True when a unique violation fired on one of the designed replay keys. */
+export function isReplayConstraintError(err: unknown): boolean {
+  return isUniqueConstraintError(err) && REPLAY_KEYS.has(constraintName(err));
+}
+
+/** True when a unique violation fired on exactly the named key ("table.column"). */
+export function isConstraintOn(err: unknown, key: string): boolean {
+  return isUniqueConstraintError(err) && constraintName(err) === key;
 }
 
 export class SerialMoneyCommitter {
@@ -72,25 +123,27 @@ export class SerialMoneyCommitter {
       return { applied: false };
     }
 
+    let changes: number[] | void;
     try {
-      await this.deps.runBatch(request.statements);
+      changes = await this.deps.runBatch(request.statements);
     } catch (err) {
-      if (isUniqueConstraintError(err)) {
-        // The DB rejected the batch on a unique key, which is how a replay
-        // looks: report a no-op. The key is NOT marked seen, because any unique
-        // index can fire here, not only the idempotency key (audit M8): a
-        // batch refused for another reason must stay retryable rather than be
-        // filed as done forever. A true replay is refused again by the DB, so
-        // nothing lands twice. The constraint is logged so a misfiled refusal
-        // shows up (table and column only, no values).
-        console.warn("money write refused on a unique key:", constraintName(err));
+      if (isReplayConstraintError(err)) {
+        // The DB rejected the batch on a designed replay key: a re-delivery of
+        // a write that already landed, so report a no-op. Not marked seen, so
+        // the DB stays the authority (a true replay is refused again).
         return { applied: false };
+      }
+      if (isUniqueConstraintError(err)) {
+        // Any other unique key is a real conflict, not a replay: it throws so
+        // the caller sees it (a webhook answers 500 and Stripe retries). Logged
+        // by table and column only, no values.
+        console.warn("money write refused on a non-replay unique key:", constraintName(err));
       }
       // Any other failure: do NOT mark seen, so a retry re-attempts the batch.
       throw err;
     }
 
     await this.deps.markSeen(request.idempotencyKey);
-    return { applied: true };
+    return changes ? { applied: true, changes } : { applied: true };
   }
 }
