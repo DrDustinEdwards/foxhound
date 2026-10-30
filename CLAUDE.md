@@ -6,7 +6,7 @@ Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscri
 
 - Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
 - Read `foxhound/core.md` in Capsid with this file. Before writing anything another site might have, read what the family shares: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's family check fails on a copy). Fees are `foxhound/PRICING.md`; read it before touching billing.
-- Recova is the spec (Dustin: "I want the new site to be like the old site, except built to be native on Cloudflare"): its content, layout, widths, text sizes and features, with Capsomer's components in Recova's amber and the shared family pieces in place of Foxhound's own. Shared pieces, their defaults, not copying Recova's bugs, and plain improvements in accessibility, speed, security, search and correctness need no ruling. Dropping a Recova feature or content, or moving the layout or look away from Recova, needs Dustin's quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`. Deliberately not built: Recova's email-body editor and the Recovery cross-sell card; sender_domain, because Cloudflare Email Service sends only from domains on Foxhound's own Cloudflare account; prevention alerts, which Recova never had and Stripe sells directly (decided after research on Dustin's instruction, 2026-10-29).
+- Recova is the spec (Dustin: "I want the new site to be like the old site, except built to be native on Cloudflare"): its content, layout, widths, text sizes and features, with Capsomer's components in Recova's amber and the shared family pieces in place of Foxhound's own. Shared pieces, their defaults, not copying Recova's bugs, and plain improvements need no ruling; a change people can see is approved the way every visual PR is, by Dustin's yes on its screenshots. Only dropping a Recova feature or content needs his quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`, which also lists what is deliberately not built.
 
 ## Commands
 
@@ -17,7 +17,7 @@ Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscri
 
 ## Hard rules
 
-Code comments that cite "RULES.md n.n" point at the retired Capsid file `foxhound/RULES.md`; its history and `foxhound/RULES-INDEX.md` explain them.
+A ruling number or "RULES.md n.n" in a code comment is a reference to retired rules: look it up in `foxhound/RULES-INDEX.md` in Capsid.
 
 1. Product facts in copy come from Foxhound's engine constants, never retyped and never Recova's numbers. Every statistic names its source URL and date. No recovery-rate promise, testimonial, counter or security attestation until a real one exists. A control that cannot do its job yet is left out. Stripe scope is read_write at /connect and for the free audit (Stripe gives read_only only to Extensions), and Foxhound revokes the audit grant when its window ends; when copy and scope disagree, fix the copy.
 2. One writer per money table: recoveries only through buildRecoveryBatch, account state through cancelMerchant, alerts and win-back events through recordOutcome (never billable). Money parameters are required arguments with no default. Totals go through groupSumByCurrency. A second writer is a billing error a merchant finds first, and no test notices one being added.

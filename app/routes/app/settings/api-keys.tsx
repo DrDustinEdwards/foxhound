@@ -23,6 +23,7 @@ import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import {
@@ -60,12 +61,20 @@ import type { Route } from "./+types/api-keys";
 // alert, and legacy's revoke still has no confirm, because a revoked key is
 // recoverable by issuing another.
 //
+// OWNERS ONLY. A key can change the account's settings and brand voice, so
+// only the account's owner creates or revokes one, as only an owner invites
+// (/settings/team). Legacy let any member mint one; the August audit's S3.
+//
 // THE SECRET IS SHOWN ONCE. It lives only on the action's response and in the
 // one <pre>; it is never logged, never put in a URL, and never stored (only its
 // hash is, in issueMcpToken).
 
 export function meta() {
   return [{ title: "API keys - Foxhound" }];
+}
+
+function isOwner(auth: { membership: { role: string } }): boolean {
+  return auth.membership.role === MEMBER_ROLE.OWNER;
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -76,7 +85,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       getDb(env),
       auth.membership.accountId,
     );
-    return { keys, loadError: false, isAdmin: auth.isAdmin };
+    return { keys, loadError: false, isAdmin: auth.isAdmin, isOwner: isOwner(auth) };
   } catch (err) {
     // Legacy's page shows "Couldn't load your API keys" when its read fails,
     // rather than an error page; this is that state. The message names the
@@ -85,9 +94,11 @@ export async function loader({ context }: Route.LoaderArgs) {
       "api keys read failed:",
       err instanceof Error ? err.message : "unknown error",
     );
-    return { keys: null, loadError: true, isAdmin: auth.isAdmin };
+    return { keys: null, loadError: true, isAdmin: auth.isAdmin, isOwner: isOwner(auth) };
   }
 }
+
+const OWNER_ONLY = "Only the account owner can create or revoke API keys.";
 
 interface ActionResult {
   action: string;
@@ -105,6 +116,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
+
+  if (!isOwner(auth)) {
+    return data<ActionResult>(
+      { action: intent, ok: false, error: OWNER_ONLY },
+      { status: 403 },
+    );
+  }
 
   if (intent === "create") {
     const label = String(form.get("label") ?? "").trim();
@@ -362,7 +380,7 @@ export default function ApiKeySettings({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { keys, loadError, isAdmin } = loaderData;
+  const { keys, loadError, isAdmin, isOwner: owner } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
   const revoking =
@@ -412,7 +430,9 @@ export default function ApiKeySettings({
             ) : (
               <span />
             )}
-            {panelOpen ? (
+            {!owner ? (
+              <p className="text-label text-text-secondary">{OWNER_ONLY}</p>
+            ) : panelOpen ? (
               <GenerateDisabled />
             ) : (
               <Link to="?new=1" className="cap-btn" data-variant="primary">
@@ -467,18 +487,20 @@ export default function ApiKeySettings({
                       <td>{formatDate(k.createdAt)}</td>
                       <td>{formatDate(k.lastUsedAt)}</td>
                       <td data-num>
-                        <DemoGuardedForm method="post">
-                          <input type="hidden" name="_action" value="revoke" />
-                          <input type="hidden" name="keyId" value={k.id} />
-                          <Button
-                            type="submit"
-                            size="xs"
-                            pending={revoking === k.id}
-                          >
-                            Revoke key
-                            <span className="sr-only"> {k.label}</span>
-                          </Button>
-                        </DemoGuardedForm>
+                        {owner ? (
+                          <DemoGuardedForm method="post">
+                            <input type="hidden" name="_action" value="revoke" />
+                            <input type="hidden" name="keyId" value={k.id} />
+                            <Button
+                              type="submit"
+                              size="xs"
+                              pending={revoking === k.id}
+                            >
+                              Revoke key
+                              <span className="sr-only"> {k.label}</span>
+                            </Button>
+                          </DemoGuardedForm>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -488,7 +510,7 @@ export default function ApiKeySettings({
           ) : null}
 
           {rawKey !== undefined ? <RevealKey rawKey={rawKey} /> : null}
-          {creating && rawKey === undefined ? (
+          {owner && creating && rawKey === undefined ? (
             <GenerateForm isAdmin={isAdmin} error={createError} />
           ) : null}
         </div>

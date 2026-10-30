@@ -18,9 +18,6 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 // rides the same serialized, idempotent path as billing. The row carries a
 // required idempotency key (outcomes_idempotency_uq) closing the legacy
 // at-most-once crash gap (SCHEMA.md spine #4).
-//
-// Call-site inventory (which legacy sites map here, wired in 4b-4d):
-// docs/engine/outcome-callsites.md.
 
 export interface RecordOutcomeParams {
   accountId: string;
