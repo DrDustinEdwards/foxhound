@@ -17,6 +17,9 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: verify
@@ -124,6 +127,9 @@ jobs:
   deploy:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # worker-deploy.yml's jobs ask for contents: read and nothing more.
+    permissions:
+      contents: read
     uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@64997ae3facf4360eb676c57b7a5b5e8ec3350de # v0.18.0
     with:
       worker-name: foxhound
