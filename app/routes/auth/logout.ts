@@ -1,3 +1,4 @@
+import { LOGOUT_HEADERS } from "@dustinedwards/site-runtime/headers";
 import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
@@ -13,7 +14,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     asResponse: true,
   });
 
-  const headers = new Headers();
+  // Clear-Site-Data, OSHP's logout header: the browser also drops this site's
+  // other cookies (theme, demo, view-as), its storage and its cache.
+  const headers = new Headers(LOGOUT_HEADERS);
   for (const cookie of res.headers.getSetCookie()) {
     headers.append("Set-Cookie", cookie);
   }

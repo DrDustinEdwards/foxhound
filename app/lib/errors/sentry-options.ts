@@ -1,3 +1,4 @@
+import { scrubText as scrubSharedText, scrubUrl as scrubSharedUrl } from "@dustinedwards/site-runtime/log";
 import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 
 // J05 (job_f1f5ebd7fe50): the Sentry posture, set before Dustin puts in
@@ -19,33 +20,16 @@ import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 //
 // Sentry never wraps the money Durable Object.
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-// DrizzleQueryError's message is "Failed query: <sql>\nparams: <values>".
-const DRIZZLE_PARAMS = /\nparams: [\s\S]*$/;
 // Routes whose last segment is one person's token (app/routes.ts).
 const TOKEN_PATH = /\/(u|p|e\/[och]|invite)\/[^/?#\s'"]+/g;
-// The query string or fragment of a full URL inside free text.
-const TEXT_URL_QUERY = /(https?:\/\/[^\s?#'"]*)[?#][^\s'"]*/g;
-// The query string or fragment of a field that holds only a URL or path.
-const URL_QUERY = /[?#]\S*/g;
-// Stripe secret, restricted and webhook-signing keys, should one reach an error message.
-const STRIPE_KEY = /\b(sk|rk)_(live|test)_[A-Za-z0-9]+|\bwhsec_[A-Za-z0-9]+/g;
 // Data keys that hold a query string, request headers, cookies, or raw console
 // arguments (the Console integration keeps them unformatted beside the message).
 const DROP_KEY = /query|header|cookie|arguments/i;
 
-function scrubText(text: string): string {
-  return text
-    .replace(DRIZZLE_PARAMS, "\nparams: [redacted]")
-    .replace(TEXT_URL_QUERY, "$1")
-    .replace(STRIPE_KEY, "[key]")
-    .replace(EMAIL, "[email]")
-    .replace(TOKEN_PATH, "/$1/[token]");
-}
-
-function scrubUrl(url: string): string {
-  return scrubText(url.replace(URL_QUERY, ""));
-}
+// The text and URL scrubbers are site-runtime's ./log (emails, URL queries,
+// Stripe keys, Drizzle params), with Foxhound's token routes.
+const scrubText = (text: string) => scrubSharedText(text, { tokenPath: TOKEN_PATH });
+const scrubUrl = (url: string) => scrubSharedUrl(url, { tokenPath: TOKEN_PATH });
 
 function scrubValue(key: string, value: unknown): unknown {
   if (typeof value === "string") return /url|path/i.test(key) ? scrubUrl(value) : scrubText(value);

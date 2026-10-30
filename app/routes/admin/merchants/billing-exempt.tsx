@@ -7,6 +7,7 @@ import { loadMerchantsPage } from "~/lib/admin/merchants-page.server";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/billing-exempt";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export { action, default } from "./index";
 
@@ -14,7 +15,7 @@ export { action, default } from "./index";
 // document.title itself today (job_490a6bc5b957, blocked); this is right for
 // when that lands.
 export function meta() {
-  return [{ title: "Billing exempt merchants - Foxhound admin" }];
+  return [{ title: "Billing exempt merchants - Foxhound admin" }, NOINDEX];
 }
 
 // One page name: the menu's Merchants, as the list's tab says which list.

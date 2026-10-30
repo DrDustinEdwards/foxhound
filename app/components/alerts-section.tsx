@@ -28,6 +28,7 @@ import {
   type AlertDirection,
 } from "~/lib/settings/alert-metrics";
 import type { AlertActionResult, loadAlertsSection } from "~/lib/settings/alerts-section.server";
+import { formatDateShort } from "~/lib/date-format";
 
 // The alerts part of /settings/notifications (S28, once its own page at
 // /settings/alerts; combined on Dustin's word of 2026-10-29). Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
@@ -58,8 +59,7 @@ import type { AlertActionResult, loadAlertsSection } from "~/lib/settings/alerts
 // S30's divergence 1, and a failure is shown rather than reverted invisibly.
 
 function formatDate(at: Date | null): string {
-  if (!at) return "Never";
-  return new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return at ? formatDateShort(new Date(at)) : "Never";
 }
 
 function formatDateTime(at: Date): string {

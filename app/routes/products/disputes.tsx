@@ -25,6 +25,7 @@ import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/disputes";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The Disputes spoke (J57, row M8). Recova's spec, read whole at HEAD:
 // app/(marketing)/product/disputes/page.tsx (blob c412d54f) and the files it
@@ -49,12 +50,25 @@ const TITLE = "Disputes - Foxhound";
 const CONNECT = { href: "/connect", label: "Connect Stripe" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: TITLE,
-    description: DISPUTES_META_DESCRIPTION,
-    path: PATH,
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // SpeakableSpecification, as Recova emits it: the selectors point at
+  // the classes product-sections-cap.tsx puts on the sections.
+  return [
+    ...marketingMeta({
+      title: TITLE,
+      description: DISPUTES_META_DESCRIPTION,
+      path: PATH,
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
+            name: TITLE,
+            path: PATH,
+            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+          })),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -63,7 +77,7 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function DisputesProductPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, preview } = loaderData;
+  const { preview } = loaderData;
   const { dashboard, numbers, evidence } = DISPUTES_BLOCKS;
 
   return (
@@ -119,20 +133,6 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
         sub={DISPUTES_BOTTOM_CTA.sub}
         cta={CONNECT}
         note={DISPUTES_BOTTOM_CTA.note}
-      />
-      {/* SpeakableSpecification, as Recova emits it: the selectors point at
-          the classes product-sections-cap.tsx puts on the sections. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            speakableWebPageJsonLd(url, {
-              name: TITLE,
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        }}
       />
     </div>
   );

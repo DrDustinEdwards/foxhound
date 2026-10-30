@@ -69,6 +69,7 @@ import {
   EvidenceFileForms,
   EvidenceFiles,
 } from "../../../components/dispute-detail-parts";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /disputes/:id (J77, row S14): Recova's dispute page on Foxhound's engine.
 // Recova is the spec, read whole at HEAD: app/(app)/disputes/[id]/page.tsx
@@ -109,7 +110,7 @@ import {
 //   2026-08-28).
 
 export function meta() {
-  return [{ title: "Dispute detail - Foxhound" }];
+  return [{ title: "Dispute detail - Foxhound" }, NOINDEX];
 }
 
 // The page bar's name (app-shell.tsx). Recova had no page bar, so it is the

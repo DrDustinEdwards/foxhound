@@ -36,6 +36,7 @@ import {
 } from "~/lib/settings/slack-webhook";
 
 import type { Route } from "./+types/notifications";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S36, /settings/notifications. THE SURFACE FIVE ENGINES HAVE BEEN WAITING ON.
 //
@@ -91,7 +92,7 @@ import type { Route } from "./+types/notifications";
 // field. Legacy stores any string verbatim.
 
 export function meta() {
-  return [{ title: "Notification settings - Foxhound" }];
+  return [{ title: "Notification settings - Foxhound" }, NOINDEX];
 }
 
 /** Legacy's `?? true` pair. A column nobody has touched means the merchant is

@@ -8,9 +8,10 @@ import { getBillingInvoiceDetail } from "~/lib/billing/queries.server";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/invoice";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Invoice - Foxhound" }];
+  return [{ title: "Invoice - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {

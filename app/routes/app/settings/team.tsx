@@ -22,9 +22,10 @@ import { pendingState, shouldClearInvite, type TeamActionData } from "~/lib/sett
 import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-invite-email.server";
 
 import type { Route } from "./+types/team";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Team - Foxhound" }];
+  return [{ title: "Team - Foxhound" }, NOINDEX];
 }
 
 // This page is scoped to ONE account, the active one: invites add a member to
