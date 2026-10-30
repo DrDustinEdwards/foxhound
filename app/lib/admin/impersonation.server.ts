@@ -11,7 +11,7 @@
 //     still passes Cloudflare Access (getAdminSession) on the same request.
 //   - It is read-only: appShellMiddleware refuses every non-GET/HEAD with 405
 //     while the cookie is present, before any session, membership or database
-//     work, the demo firewall's approach (RULES.md 4.12).
+//     work, the demo firewall's approach.
 //   - Start, Stop and expiry each write admin_audit_log (impersonation_start /
 //     impersonation_stop, Recova's codes), naming the admin and the account.
 

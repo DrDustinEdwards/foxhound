@@ -59,7 +59,10 @@ export interface AttributionStepRow {
   stepType: string;
   result: string | null;
   clickedAt: Date | null;
-  /** Set when the click failed a scanner test (ruling 377(4) phase one). Such a
+  /** When the step happened. A card update counts only when it came before
+   *  the payment; absent is read as "not known to be later". */
+  executedAt?: Date | null;
+  /** Set when the click failed a scanner test. Such a
    *  click is recorded and displayed, and never bills. */
   clickSuspectReason?: string | null;
 }
@@ -93,10 +96,17 @@ export function findAttributionSignals(
   const succeededRetry = steps.find(
     (s) => isRetryStep(s.stepType) && s.result === "retry_succeeded",
   );
+  const recoveredAtMs = recoveredAt.getTime();
+  // A card update after the payment cannot have caused it: the customer had
+  // already paid (for example on Stripe's hosted invoice page) and a late
+  // webhook would otherwise bill the merchant for it.
   const cardUpdate = steps.find(
-    (s) => s.stepType === "card_update" && s.result === "card_updated",
+    (s) =>
+      s.stepType === "card_update" &&
+      s.result === "card_updated" &&
+      (s.executedAt == null || new Date(s.executedAt).getTime() <= recoveredAtMs),
   );
-  // THE LATEST CLICK WINS, AND THE ORDERING IS DONE HERE (ruling 377(3)).
+  // THE LATEST CLICK WINS, AND THE ORDERING IS DONE HERE.
   //
   // This was `steps.find((s) => s.clickedAt != null)` against a caller query
   // that has no `orderBy` (webhooks/process.ts), so which click became the
@@ -113,16 +123,15 @@ export function findAttributionSignals(
   // two overlapping guards where neither can be shown to fail on its own.
   //
   // `filter` returns a fresh array, so sorting it cannot reorder the caller's.
-  // THE CLICK MUST PRECEDE THE RECOVERY AND BE RECENT ENOUGH TO HAVE CAUSED IT
-  // (ruling 377(2)). Both halves matter and each has its own failure. A click
+  // THE CLICK MUST PRECEDE THE RECOVERY AND BE RECENT ENOUGH TO HAVE CAUSED IT.
+  // Both halves matter and each has its own failure. A click
   // AFTER the payment cannot have caused it; that is a customer tidying an
   // inbox, and reading it as causation bills the merchant for their own
   // customer's housekeeping. A click months before is the 284 case: the
   // recovery is real and records, but Foxhound's email is not why.
-  const recoveredAtMs = recoveredAt.getTime();
   const clicked = steps
     .filter((s) => s.clickedAt != null)
-    // A SUSPECT CLICK NEVER BILLS (ruling 377(4) phase one). It is still stamped
+    // A SUSPECT CLICK NEVER BILLS. It is still stamped
     // on the step and still shown on the ledger, because suppressing it would
     // make a scanner fetch indistinguishable from a customer who never engaged
     // and would destroy the evidence the merchant is owed. It simply cannot be

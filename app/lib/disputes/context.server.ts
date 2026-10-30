@@ -48,6 +48,10 @@ function iso(seconds: number | null | undefined): string | null {
   return seconds ? new Date(seconds * 1000).toISOString() : null;
 }
 
+/** Prior charges read for evidence, and how many are listed in it. */
+const PRIOR_CHARGES_CAP = 500;
+const PRIOR_CHARGES_LISTED = 20;
+
 /** Read the context with a connected-account client. Exported for tests. */
 export async function fetchDisputeContextWith(
   stripe: Stripe,
@@ -64,8 +68,10 @@ export async function fetchDisputeContextWith(
     console.error("dispute context: disputes.retrieve failed", err instanceof Error ? err.message : err);
   }
 
+  let disputedCurrency: string | null = null;
   try {
     const charge = await stripe.charges.retrieve(input.chargeId);
+    disputedCurrency = charge.currency;
     const card = charge.payment_method_details?.card;
     context.customerName = charge.billing_details?.name ?? null;
     context.customerEmail = charge.billing_details?.email ?? charge.receipt_email ?? null;
@@ -88,11 +94,20 @@ export async function fetchDisputeContextWith(
   if (!customerId) return context;
 
   try {
-    const prior = await stripe.charges.list({ customer: customerId, limit: 20 });
-    const historic = prior.data.filter((c) => c.id !== input.chargeId && c.status === "succeeded");
+    // The customer's whole history up to a cap, not just the latest page: a
+    // long-standing customer is the strongest evidence and the first 20
+    // charges understated it. The total stays in the disputed charge's
+    // currency (hard rule 2); the list keeps the newest entries.
+    const historic: Stripe.Charge[] = [];
+    for await (const c of stripe.charges.list({ customer: customerId, limit: 100 })) {
+      if (c.id !== input.chargeId && c.status === "succeeded") historic.push(c);
+      if (historic.length >= PRIOR_CHARGES_CAP) break;
+    }
     context.priorChargesCount = historic.length;
-    context.priorChargesTotal = historic.reduce((sum, c) => sum + c.amount, 0);
-    context.priorChargesJson = historic.map((c) => ({
+    context.priorChargesTotal = historic
+      .filter((c) => !disputedCurrency || c.currency === disputedCurrency)
+      .reduce((sum, c) => sum + c.amount, 0);
+    context.priorChargesJson = historic.slice(0, PRIOR_CHARGES_LISTED).map((c) => ({
       date: new Date(c.created * 1000).toISOString(),
       amount: c.amount,
       currency: c.currency,
@@ -103,7 +118,8 @@ export async function fetchDisputeContextWith(
   }
 
   try {
-    const subs = await stripe.subscriptions.list({ customer: customerId, limit: 5 });
+    // Every status: a churned customer's disputed subscription is canceled.
+    const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 5 });
     const sub = subs.data[0];
     if (sub) {
       context.subscriptionJson = {

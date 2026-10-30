@@ -43,12 +43,12 @@ import { NOINDEX } from "~/lib/seo/meta";
 // DIVERGENCES, each classed rather than glossed:
 //
 // 1. ONE OF LEGACY'S THREE FIELDS IS NOT RENDERED. `sender_domain` has no
-//    reader and is deliberately not built (RULES.md 5.6); its legacy job ("Used
+//    reader and is deliberately not built; its legacy job ("Used
 //    in billing portal links", its own help string) is a different subsystem.
 //    `reply_to_email` IS rendered since J03, with its reader: send.ts sets
 //    Reply-To on merchant-customer email only when a valid address is saved,
 //    and sets none otherwise, so a reply goes to the From. The writer landed
-//    with the reader (RULES.md 3.18). Two differences from legacy, both flagged
+//    with the reader. Two differences from legacy, both flagged
 //    for Dustin: a server-side format check and a 254-character bound
 //    (app/lib/settings/reply-to.ts), input hygiene like the sender name's bound;
 //    and no Reply-To fallback to the From when the box is empty, which legacy's
@@ -61,15 +61,15 @@ import { NOINDEX } from "~/lib/seo/meta";
 //    input hygiene on a header field, and is still an addition rather than a
 //    port.
 // 3. THE WRITE PATH is this route's own action rather than legacy's shared
-//    `/settings/update` (row S38, unbuilt). Class (a), exactly S30's divergence
+//    `/settings/update` (unbuilt). Class (a), exactly S30's divergence
 //    1, and it avoids building S38 as a side effect.
 // 4. THE TEST EMAIL'S OUTCOMES. Recova's button says "Sent! Check your inbox"
 //    or "Failed. Try again." and goes back to "Send test email" after four
 //    seconds; so does this one. Foxhound's send path also refuses a suppressed
 //    address, which Recova's has no such gate for, and "Try again" would not
-//    help there, so that outcome says why nothing was sent (RULES.md 1.2).
+//    help there, so that outcome says why nothing was sent.
 //
-// J37 (job_49a1f499ce53) rebuilt the page from Capsomer 0.9.0's parts under
+// J37 rebuilt the page from Capsomer 0.9.0's parts under
 // Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field
 // parts, Button and Status, amber throughout. Recova stays the spec for what is
 // here and in what order: the phone-only back link, the title and its line, one
@@ -89,7 +89,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // switches, win-back sequences and expiring card alerts. Dustin had the page
 // combined with this one on 2026-10-29, since both switches turn emails to
 // customers on or off. It keeps its own form and save bar, and the NULL-is-ON
-// pair (337 binding 3): a merchant who never touched it has both on.
+// pair: a merchant who never touched it has both on.
 
 export function meta() {
   return [{ title: "Email settings - Foxhound" }, NOINDEX];
@@ -179,7 +179,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         connectionId: form.get("connectionId"),
         senderName: form.get("senderName"),
         // Sent only when the form carries the field, as legacy's
-        // `formData.has('reply_to_email')` (J03).
+        // `formData.has('reply_to_email')`.
         replyToEmail: form.has("replyToEmail") ? form.get("replyToEmail") : undefined,
       });
     } catch (err) {
@@ -200,7 +200,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "features") {
-    // TWO columns, through the shared apply layer (session 79) so this form
+    // TWO columns, through the shared apply layer so this form
     // and the MCP `set_feature_settings` tool cannot disagree. A checkbox posts
     // its name only when checked, so an absent key is OFF.
     try {
@@ -217,7 +217,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   if (intent === "test-email") {
     // The address is the SESSION user's, never the form's, so this cannot be
-    // pointed at a third party (RULES.md 4.7). It sends with the account's live
+    // pointed at a third party. It sends with the account's live
     // sending off, as Recova's does, because its audience is "preview".
     try {
       const { result } = await sendTestEmail(env, accountId, auth.email);

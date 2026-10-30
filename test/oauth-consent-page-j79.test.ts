@@ -13,7 +13,7 @@ const { default: Authorize } = await import("~/routes/oauth/authorize");
 // site navigation (Recova's root layout has none), the wordmark, the h1 naming
 // the client, the line under it, the account box, what the client can do, the
 // error, Allow access and Deny side by side, and the closing line. The parts
-// are Capsomer's (Q12), amber, on the five text sizes (RULES.md 5.2).
+// are Capsomer's, amber, on the five text sizes.
 
 type Props = Parameters<typeof Authorize>[0];
 type LoaderData = Props["loaderData"];

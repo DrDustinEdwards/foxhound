@@ -9,9 +9,9 @@ import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 // THE ONE send module (ARCHITECTURE.md non-negotiable #3: only this file touches
 // the EMAIL binding). Everything else enqueues a job; the queue consumer calls
 // through here. Message construction is pure and unit-tested; the binding call is
-// the single seam finalized when Email Service is live (Phase 8).
+// the single seam finalized when Email Service is live.
 //
-// THE FRAME (J02, RULES.md 3.16). Every message is rendered by templates.ts on
+// THE FRAME. Every message is rendered by templates.ts on
 // Capsomer's shared email component, which gives an HTML part and a plain-text
 // part from the same content. Both functions below go through it, so no mail
 // leaves without both parts. A body link the frame refuses is kept as words; a
@@ -28,6 +28,19 @@ const DEFAULT_FROM_NAME = "Support";
 function fromDisplayName(name: string | null | undefined): string {
   const cleaned = (name ?? DEFAULT_FROM_NAME).replace(/["\r\n]/g, "").trim();
   return cleaned.length > 0 ? cleaned : DEFAULT_FROM_NAME;
+}
+
+/** A Subject header with no line break in it: a CR or LF would start a header
+ *  of the sender's choosing, so each run of them becomes one space. */
+function headerSubject(subject: string): string {
+  return subject.replace(/[\r\n]+/g, " ").trim();
+}
+
+/** The To address, refused outright if it carries a line break (a header
+ *  injection); there is no safe way to guess which address was meant. */
+function headerRecipient(to: string): string {
+  if (/[\r\n]/.test(to)) throw new Error("email blocked: line break in recipient");
+  return to;
 }
 
 /**
@@ -94,12 +107,12 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   );
   const message: EmailSendMessage = {
     from: `${fromName} <${EMAIL_FROM_ADDRESS}>`,
-    to: job.to,
-    subject: rendered.subject,
+    to: headerRecipient(job.to),
+    subject: headerSubject(rendered.subject),
     html: rendered.html,
     text: rendered.text,
   };
-  // REPLY-TO (J03): a customer who replies reaches the merchant's own inbox,
+  // REPLY-TO: a customer who replies reaches the merchant's own inbox,
   // from Recova's `replyTo: replyTo ?? fromAddress` (lib/recovery-execution.ts).
   // Customer mail, and the preview of it (E3), as in Recova, whose test-email
   // route passes the same reply_to_email; its merchant notices carry none.
@@ -192,8 +205,8 @@ function renderTransactional(message: { to: string; subject: string; bodyHtml: s
 function authSenderMessage(to: string, rendered: Rendered, fromName: string): EmailSendMessage {
   return {
     from: `${fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
-    to,
-    subject: rendered.subject,
+    to: headerRecipient(to),
+    subject: headerSubject(rendered.subject),
     html: rendered.html,
     text: rendered.text,
   };

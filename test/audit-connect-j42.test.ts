@@ -13,7 +13,7 @@ import {
 import { AUDIT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
 import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 
-// J42 (job_c6e2110edde1), rows U1 and U5: /audit/connect, the free audit's
+// J42, rows U1 and U5: /audit/connect, the free audit's
 // consent page, and /audit/callback, its OAuth return.
 //
 // Recova is the spec for the page's content, layout and features:
@@ -23,14 +23,14 @@ import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 // "Connect your Stripe account", the line under it, a box with WHAT WE CAN DO
 // and WHAT WE CAN NEVER DO, the full-width "Connect Stripe and see my numbers
 // →" button and "Reads only · Secure · Free · See a demo first". Its parts are
-// Capsomer's (Q12), amber, on the five text sizes (RULES.md 5.2).
+// Capsomer's, amber, on the five text sizes.
 //
 // The OAuth pair (Recova's app/api/audit/connect/route.ts, blob dedddf99, and
 // app/audit/callback/route.ts, blob 0cf90598) is driven through the REAL
 // action and loader. The scope is read_write (Stripe gives read_only only to
 // Extensions, 2026-10-29) and the grant's revoke is queued, the state is a
-// minted pair matched against an HttpOnly cookie (RULES.md 4.6), and no
-// refusal names who holds an account (RULES.md 4.14).
+// minted pair matched against an HttpOnly cookie, and no
+// refusal names who holds an account.
 
 const exchange = vi.hoisted(() => ({ impl: null as unknown, calls: 0 }));
 const sent: Array<{ body: unknown; options: unknown }> = [];

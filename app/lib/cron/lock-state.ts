@@ -63,7 +63,7 @@ export function decideAcquire(
 }
 
 /**
- * Decide whether a release may clear the lock: ONLY the holder may (376 item 14).
+ * Decide whether a release may clear the lock: ONLY the holder may.
  *
  * THE DEFECT THIS CLOSES. `release` used to delete the expiry unconditionally,
  * so an overrunning run's release freed a lease it no longer owned. The sequence

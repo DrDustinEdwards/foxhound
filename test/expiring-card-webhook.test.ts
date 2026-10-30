@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// WRITER TWO (341 binding 4): the Stripe webhook's customer.updated handler.
+// WRITER TWO: the Stripe webhook's customer.updated handler.
 //
 // IT RECORDS AND NEVER SENDS. Legacy's handleCustomerUpdated writes the
 // candidate row and the nightly cron owns every send, so a card update cannot

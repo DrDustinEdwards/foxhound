@@ -294,7 +294,7 @@ export async function finalizeBillingSetupSession(
 }
 
 /** The platform customer's default card, as Recova's Payment method section
- *  shows it (J65, row S3): brand, last four, expiry. */
+ *  shows it: brand, last four, expiry. */
 export interface CardSummary {
   brand: string;
   last4: string;

@@ -4,9 +4,9 @@
 // token goes near-invisible in light mode, so those callers pass
 // tone="chrome" for the always-light chrome-text color instead.
 //
-// size="title" sets it on the title step of the five text sizes (RULES.md 5.2),
+// size="title" sets it on the title step of the five text sizes,
 // for a page that shows the wordmark as Recova's 20px page mark above its
-// content (the unsubscribe page, row F7) rather than in a header.
+// content (the unsubscribe page) rather than in a header.
 export function Wordmark({
   tone = "auto",
   size = "header",

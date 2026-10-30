@@ -14,10 +14,11 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
-import { groupSumByCurrency } from "~/lib/billing/preview.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import type { CustomerActivity } from "./customer-detail";
 import { healthScoreBand } from "./health-band";
+import { narrativeWithCustomerIds } from "./narrative";
 import type { HealthFactor } from "./risk";
 
 // Read models for the Intelligence surfaces (TASK-foxhound-intelligence-ai.md
@@ -49,7 +50,11 @@ export interface IntelligenceOverview {
 
 /** The /intelligence overview: score distribution, MRR-at-risk exposure, and
  *  this month's narrative. Caller must have already checked entitlement. */
-export async function getIntelligenceOverview(db: Db, accountId: string): Promise<IntelligenceOverview> {
+export async function getIntelligenceOverview(
+  db: Db,
+  accountId: string,
+  options: { forAgent?: boolean } = {},
+): Promise<IntelligenceOverview> {
   const [account, customers, latestReport] = await Promise.all([
     db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
     db
@@ -99,6 +104,7 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
       mrrContributionCents: c.mrrContributionCents ?? 0,
     }));
 
+  const narrative = latestReport[0]?.narrative ?? null;
   return {
     currency: account[0]?.currency ?? "usd",
     scoredCustomerCount: scored.length,
@@ -106,7 +112,8 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
     mrrAtRiskCents,
     atRiskCustomerCount,
     topAtRisk,
-    narrative: latestReport[0]?.narrative ?? null,
+    // An agent reads the narrative with Stripe customer ids in place of names.
+    narrative: narrative !== null && options.forAgent ? narrativeWithCustomerIds(narrative, customers) : narrative,
     narrativeGeneratedAt: latestReport[0]?.generatedAt ?? null,
   };
 }
@@ -237,7 +244,7 @@ const byCurrency = (rows: readonly { currency: string; cents: number }[]) =>
 
 /**
  * What Foxhound has on record for one customer of one account: the customer
- * detail page's three signal cards (row S18, job J68). Read from Foxhound's own
+ * detail page's three signal cards. Read from Foxhound's own
  * tables rather than customer_context's signal JSON, because the nightly sync
  * writes only counts there (signals.ts), with no amounts, dates or 30-day
  * window, and the demo seeds a different shape. Every query carries both the
@@ -397,7 +404,7 @@ export async function getAlertsView(
       })
       .from(alerts)
       .where(eq(alerts.accountId, accountId))
-      // Newest first, as Recova's alerts page orders them (J33). Unordered,
+      // Newest first, as Recova's alerts page orders them. Unordered,
       // SQLite returned insertion order, so a new alert sank to the bottom.
       // The id breaks a tie on the same millisecond (seeds, batch inserts).
       .orderBy(desc(alerts.createdAt), desc(alerts.id)),

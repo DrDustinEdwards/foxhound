@@ -5,6 +5,7 @@ import {
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
 } from "~/lib/constants";
+import { readCookie } from "~/lib/http/cookies";
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 
 // CSRF state cookie for the Stripe Connect OAuth flow (legacy rule: a state
@@ -27,16 +28,6 @@ export function setStateCookie(
 
 export function clearStateCookie(name: string = STRIPE_OAUTH_STATE_COOKIE): string {
   return `${name}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
-}
-
-function readCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("Cookie") ?? "";
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
-  }
-  return null;
 }
 
 export function readStateCookie(
@@ -88,7 +79,7 @@ const AUDIT_GRANT_CLOCK_SKEW_MS = 60_000;
  * from `?account=` on the results page. The visitor can edit the query but not
  * the token, so a merchant who authorized somebody else's Stripe account could
  * put their own id in the URL and have the other account's numbers filed into
- * their own history under their own id (RULES.md 4.14). The results page now
+ * their own history under their own id. The results page now
  * takes the account id from here, never from the URL.
  *
  * SEALED WITH AES-GCM under ENCRYPTION_KEY (the same keyring as stored

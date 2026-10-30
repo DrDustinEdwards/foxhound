@@ -1,10 +1,11 @@
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { accountBillingEligibleCondition } from "~/db/billable";
+import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee-retry";
 import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
 import {
@@ -13,6 +14,8 @@ import {
   findPlatformInvoiceByBillingId,
   lineItemIdempotencyKey,
   payPlatformInvoice,
+  STRIPE_CHARGEABLE_TYPES,
+  STRIPE_SETTLED_STATUSES,
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 
@@ -109,6 +112,9 @@ export async function queryStrandedInvoices(env: Env, limit: number): Promise<St
         // A zero-total invoice has nothing chargeable and would only ever make
         // createPlatformInvoice throw its no-chargeable-lines guard.
         sql`${billingInvoices.totalCents} > 0`,
+        // An invoice holding only adjustments (an admin's manual entry) has no
+        // line Stripe is ever sent; sweeping it would only fail it monthly.
+        sql`exists (select 1 from ${billingLineItems} where ${billingLineItems.invoiceId} = ${billingInvoices.id} and ${billingLineItems.amountCents} > 0 and ${inArray(billingLineItems.type, [...STRIPE_CHARGEABLE_TYPES])})`,
       ),
     )
     .limit(limit);
@@ -200,7 +206,12 @@ function buildChargeAttemptUpdate(
         chargeAttemptCount: input.attemptCount,
         lastChargeAttemptAt: input.now,
       })
-      .where(eq(billingInvoices.id, input.billingInvoiceId)),
+      .where(
+        and(
+          eq(billingInvoices.id, input.billingInvoiceId),
+          notInArray(billingInvoices.status, STRIPE_SETTLED_STATUSES),
+        ),
+      ),
   ];
 }
 
@@ -343,7 +354,7 @@ export async function retryInvoiceCharge(
 
   let platformCustomerId = invoice.platformCustomerId;
   if (!platformCustomerId) {
-    // E25 (J97): Recova made every account's billing customer at connect, so
+    // E25: Recova made every account's billing customer at connect, so
     // no fee waited on one. An invoice stranded before its account had a
     // platform customer gets one here, stored through the existing
     // platform-customer write, exactly as runAccountBilling does. If it cannot
@@ -406,7 +417,7 @@ export async function retryInvoiceCharge(
         // Passed explicitly, and asserted by a plant. Stripe bills a
         // multi-currency customer in a second currency only when `currency` is
         // set on the invoice AND on every invoice item, and this is the value
-        // that reaches both (ruling 377(6)).
+        // that reaches both.
         currency: invoice.currency,
         lines,
         billingInvoiceId: invoice.id,
@@ -414,7 +425,7 @@ export async function retryInvoiceCharge(
         billingEmail: () => lookupPlatformBillingEmail(env, invoice.accountId),
       });
     } catch (err) {
-      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED (ruling 377(6)).
+      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED.
       //
       // The pay path below has always done this; the CREATE path did not, so a
       // throw here propagated to the sweep's per-invoice catch with nothing
@@ -649,6 +660,7 @@ export async function runChargeRetrySweep(
   nowMs: number,
   opts: { limit?: number; deps?: Partial<ChargeRetryDeps> } = {},
 ): Promise<SweepResult[]> {
+  if (!PLATFORM_CHARGES_ENABLED) return [];
   const stranded = await queryStrandedInvoices(env, opts.limit ?? 200);
   const checkGuard = opts.deps?.checkGuard ?? checkChargeGuard;
   const results: SweepResult[] = [];

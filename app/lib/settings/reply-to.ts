@@ -1,5 +1,5 @@
 /**
- * The reply-to address on a connection (J03), in a CLIENT-SAFE module for the
+ * The reply-to address on a connection, in a CLIENT-SAFE module for the
  * same reason as ./sender-name.ts: the form renders `maxLength` from it, and a
  * `.server` import would ship drizzle into that route's client chunk.
  *

@@ -4,7 +4,7 @@ import { cronAlerts, cronRunHistory } from "~/db/schema";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// ROWS E26 AND E27 (job J98, job_6ecdefaab14b): the cron failure and cron stale
+// ROWS E26 AND E27: the cron failure and cron stale
 // alerts, checked against Recova's lib/cron-monitor.ts (blob 2891dd9b,
 // notifyCronFailure and notifyCronStale), app/api/cron/check-cron-health/
 // route.ts (blob 5341fc8a) and app/api/cron/process-recovery-billing/route.ts

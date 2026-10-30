@@ -7,13 +7,13 @@ import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attri
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// Row F10 (J27, job_a6f44c83feaa): the /e/c/:token click recorder against
+// Row F10: the /e/c/:token click recorder against
 // Recova's email.clicked handler in app/api/webhooks/resend/route.ts (blob
 // f9175569, read whole). Per click Recova sets, on the recovery step:
 //   email_clicked_count += 1 (null read as 0)   on every click
 //   last_clicked_at      = now                   on every click
 //   clicked_at           = now                   first click only
-// Foxhound keeps its own engine and its money rules (RULES.md 3.4): automated
+// Foxhound keeps its own engine and its money rules: automated
 // requests write nothing, a suspect click is marked and never bills, and the
 // billing reads (clicked_at, click_suspect_reason) stay first-click only. The
 // engagement_events row stays one per step on its existing idempotency key.
@@ -163,7 +163,7 @@ describe("A billable click is a money write (Dustin, 2026-10-25, RULES.md 3.4)",
   });
 
   it("a click before executed_at is written is too fast, so it never bills", async () => {
-    // Send first, claim second (RULES.md 3.8): a scanner can fetch the link in
+    // Send first, claim second: a scanner can fetch the link in
     // the seconds before the claim stamps executed_at.
     const db = await seed(null, null);
     await clickAt(at(10));

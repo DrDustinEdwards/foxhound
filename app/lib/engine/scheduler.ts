@@ -1,5 +1,5 @@
 // Recovery step scheduler: pure selection of which recovery_steps row is due to
-// run now. The cron (Phase 4e) loads a payment's steps and asks this which one to
+// run now. The cron loads a payment's steps and asks this which one to
 // execute; the engine runs at most one step per tick per payment (silent-first
 // ordering is baked into the schedule, so "earliest due" is correct ordering).
 

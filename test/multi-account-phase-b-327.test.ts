@@ -9,7 +9,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // carries WHICH account it is looking at, a switch action moves it, and
 // enforcement layer 2 comes out of the invite path by changing its verdict.
 //
-// NOTHING USER-VISIBLE MOVES. There is still no switcher (phase (e)), so the
+// NOTHING USER-VISIBLE MOVES. There is still no switcher, so the
 // only way to prove this half works is at the action and the resolver, which is
 // what this file does.
 //

@@ -1,8 +1,12 @@
 // Shared product metadata (Phase 6 Pass 1). The home page's product cards take
 // key, name and href (their copy is in home-copy.ts since J59), and the /products hub
 // (app/routes/products/index.tsx) takes only key, name and href, with its card
-// copy from products-hub.ts (J16). Mirrors legacy lib/products.ts; each href is
+// copy from products-hub.ts. Mirrors legacy lib/products.ts; each href is
 // Recova's own /product/<name> page, which Foxhound serves since J09.
+
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { formatMoneyShort } from "~/lib/money-format";
 
 import {
   DECLINE_CATEGORY_COUNT_WORD,
@@ -37,7 +41,7 @@ export const PRODUCTS: Record<ProductKey, ProductDef> = {
     description:
       // Read from the engine: it schedules more categories than sequences.
       `AI email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
-    price: "20%",
+    price: `${RECOVERY_FEE_PERCENT}%`,
     priceLabel: "of Foxhound-attributed recoveries",
     href: "/product/recovery",
   },
@@ -46,8 +50,8 @@ export const PRODUCTS: Record<ProductKey, ProductDef> = {
     name: "Disputes",
     description:
       "Evidence drafted for every dispute. You review and sign every submission before it reaches Stripe.",
-    price: "20%",
-    priceLabel: "of won disputes, capped at $500",
+    price: `${DISPUTE_FEE_PERCENT}%`,
+    priceLabel: `of won disputes, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`,
     href: "/product/disputes",
   },
   intelligence: {

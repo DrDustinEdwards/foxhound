@@ -26,7 +26,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/audit";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
-// The Audit spoke (J55, row M6). Recova's spec, read whole at HEAD:
+// The Audit spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/audit/page.tsx (blob 210ce79d) and the files it draws
 // from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2) and
 // components/docs/AuditScopeCard.tsx (dc1d18dd).
@@ -39,7 +39,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // truthfulness fixes named (lib/marketing/audit-copy.ts). Recova draws no chart
 // here, so neither does this page.
 //
-// The path is Recova's own /product/audit since J09 (rulings 55 and 56).
+// The path is Recova's own /product/audit since J09.
 
 const PATH = "/product/audit";
 const TITLE = "Audit - Foxhound";

@@ -190,7 +190,7 @@ export interface PaymentStatusCounts {
   active: number;
   recovered: number;
   failedUnrecovered: number;
-  /** Merchant-stopped sequences (S7's "Stop recovery", ruling 262 decision two).
+  /** Merchant-stopped sequences (S7's "Stop recovery").
    *  Counted separately because operator-terminated is not the same outcome as
    *  exhausted, and folding it into failedUnrecovered would overstate how often
    *  the engine ran out of road. */
@@ -221,7 +221,7 @@ export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
  *
  *  ONE card reads a different member of this same result depending on the
  *  selected status pill, "Showing", which is legacy's own behavior at its
- *  PaymentsClient.tsx call site (279). That is a different KEY off this
+ *  PaymentsClient.tsx call site. That is a different KEY off this
  *  unfiltered tally and never a filtered query, so this function stays
  *  status-independent and still runs once. This comment read
  *  "search/category/amount/time/status ... so it always reads the same" until

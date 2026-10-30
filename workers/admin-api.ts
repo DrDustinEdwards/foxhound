@@ -1,6 +1,6 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 
-// THE FOXHOUND ADMIN API (job_21de68b30fc2) as a named entrypoint, reachable only
+// THE FOXHOUND ADMIN API as a named entrypoint, reachable only
 // through a service binding that names it (Grok audit FH-20). The Foxhound Admin
 // MCP Worker binds it with "entrypoint": "AdminApi" (mcp/wrangler.jsonc). The
 // public fetch handler in app.ts never routes /api/admin/v1, so a leaked admin

@@ -15,7 +15,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/welcome";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// Row A8, /welcome (J28). Recova's app/welcome/page.tsx (blob f0181a74) and
+// Row A8, /welcome. Recova's app/welcome/page.tsx (blob f0181a74) and
 // WelcomeClient.tsx (blob a9489188), read whole. The landing after a NEW Stripe
 // connection: the Stripe callback sends /welcome?connection=<id> (Foxhound's
 // connect-callback.ts, Recova's app/api/auth/stripe/callback/route.ts), and
@@ -23,12 +23,12 @@ import { NOINDEX } from "~/lib/seo/meta";
 // /console. It shows "You're connected.", the connection's name (or its Stripe
 // id), one line, Recova's "Two quick steps" (sender name, notification email)
 // and the way on to the Recovery dashboard. Inside the dashboard frame, so the
-// parts are Capsomer's (Q10): the panel and the rows the dashboard's own
+// parts are Capsomer's: the panel and the rows the dashboard's own
 // getting-started checklist uses.
 //
 // Recova's app/api/welcome/activate route (blob b6bbc549) is not ported:
 // nothing in Recova calls it (WelcomeClient posts nothing), and the
-// account_products table it writes was dropped (ruling 298).
+// account_products table it writes was dropped.
 
 export function meta() {
   return [{ title: "Welcome - Foxhound" }, NOINDEX];

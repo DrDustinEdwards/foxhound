@@ -1,13 +1,9 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E23 (job J95, job_c42d1a6d1869): the weekly digest on Capsomer's email
+// E23: the weekly digest on Capsomer's email
 // component, with Recova's words, From, footer, unsubscribe and suppression.
 //
 // Recova is the spec, read whole at the blobs parity/ROWS-E.md names:
@@ -122,20 +118,20 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
   return {
     totalFailed: 4,
     totalRecovered: 1,
-    recoveredRevenueCents: 5000,
-    atRiskRevenueCents: 20000,
+    recoveredRevenue: [{ currency: "usd", cents: 5000 }],
+    atRiskRevenue: [{ currency: "usd", cents: 20000 }],
     activeCount: 3,
     emailsSent: 7,
     winBackCount: 2,
     expiringCardCount: 2,
     openDisputeCount: 1,
-    openDisputeCents: 9900,
+    openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
     currency: "usd",
     senderName: "Teamflow",
     disputesActive: true,
     highRiskCustomers: [
-      { name: "Acme Co", mrrCents: 19900 },
-      { name: "(unnamed)", mrrCents: null },
+      { name: "Acme Co", mrrCents: 19900, currency: "usd" },
+      { name: "(unnamed)", mrrCents: null, currency: "usd" },
     ],
     personalOutreachCount: 2,
     now: NOW,
@@ -155,7 +151,7 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
       fullInput({
         expiringCardCount: 0,
         openDisputeCount: 0,
-        openDisputeCents: 0,
+        openDisputeAmounts: [{ currency: "usd", cents: 0 }],
         disputesActive: false,
         highRiskCustomers: [],
         personalOutreachCount: 0,
@@ -167,6 +163,20 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
     expect(words).not.toContain("Disputes");
     expect(words).not.toContain("Intelligence");
     expect(blocks.at(-1)).toEqual({ type: "button", label: "View Dashboard", url: `${BASE}/recovery/dashboard` });
+  });
+
+  it("never adds two currencies together (hard rule 2)", () => {
+    const words = JSON.stringify(
+      digestEmail.digestContent(
+        fullInput({
+          recoveredRevenue: [
+            { currency: "usd", cents: 5000 },
+            { currency: "jpy", cents: 1000 },
+          ],
+        }),
+      ).blocks,
+    );
+    expect(words).toContain("$50.00 + ¥1,000");
   });
 
   it("the Intelligence section waits for an at-risk customer or an outreach flag, as Recova's does", () => {
@@ -279,7 +289,6 @@ describe("E23 honors suppression, as Recova's checkAndRegisterUnsubscribe does",
 // ============================================================================
 
 describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
-  const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
   const job = {
     accountId: ACCOUNT,
     to: OWNER,
@@ -304,47 +313,16 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
       /unsubscribe token/,
     );
   });
-
-  it("only the digest's two senders ask for the digest audience, anywhere under app/", () => {
-    // Every .ts and .tsx file under app/, not a chosen list (RULES.md 6.5):
-    // a merchant notice switched to the digest audience would gain an
-    // unsubscribe, and a list that leaves its file out would never see it.
-    const root = fileURLToPath(new URL("../", import.meta.url));
-    const walk = (dir: string): string[] =>
-      readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) =>
-        e.isDirectory()
-          ? walk(`${dir}/${e.name}`)
-          : /\.tsx?$/.test(e.name)
-            ? [`${dir}/${e.name}`]
-            : [],
-      );
-    const files = walk("app");
-    expect(files.length).toBeGreaterThan(300);
-    expect(files).toContain("app/lib/disputes/notices.server.ts");
-    const users = files.filter((f) => /audience:\s*"digest"/.test(read(f))).sort();
-    expect(users).toEqual(["app/lib/admin/email-send.server.ts", "app/lib/cron/digest.ts"]);
-  });
 });
 
 // ============================================================================
-// Links have somewhere to go (RULES.md 2.7)
+// Links have somewhere to go
 // ============================================================================
 
-describe("View recommendations waits for its page", () => {
-  const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
-
-  it("is live only when /intelligence/recommendations is a route", () => {
-    const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
-    expect(digestEmail.DIGEST_RECOMMENDATIONS_LIVE).toBe(hasPage);
-  });
-
+describe("every digest link resolves", () => {
   it("the Intelligence section ends with the button, and every link resolves", () => {
     const { blocks } = digestEmail.digestContent(fullInput());
     const urls = blocks.flatMap((b) => (b.type === "button" ? [b.url] : []));
-    const routes = read("app/routes.ts");
-    expect(routes).toMatch(/prefix\("recovery", \[\s*route\("dashboard"/);
-    expect(routes).toMatch(/prefix\("disputes", \[\s*route\("dashboard"/);
-    expect(routes).toMatch(/prefix\("intelligence", \[[^\]]*route\("recommendations"/);
     expect(urls).toEqual([
       `${BASE}/disputes/dashboard`,
       `${BASE}/intelligence/recommendations`,

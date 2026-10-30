@@ -6,14 +6,14 @@ import type { BlogPostSummary } from "~/lib/blog/queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J19 (job_deffd581af37), rows M11 (/blog) and M14 (/blog/tag/:tag). Recova's
+// J19, rows M11 (/blog) and M14 (/blog/tag/:tag). Recova's
 // spec, read whole: app/(marketing)/blog/page.tsx (blob d2d4dbfd),
 // BlogHeaderIntro.tsx (a8ba9e72), BlogPostCard.tsx (48ba6d39), lib/blog.ts
 // (55a92d1a) and tag/[tag]/page.tsx (3f6aa696).
 //
 // Recova is the spec for content, layout and features; the parts are
-// Capsomer's (Q12), the color amber, the text on the five sizes
-// (RULES.md 5.2). The defects not copied: a section over a tag with no posts,
+// Capsomer's, the color amber, the text on the five sizes.
+// The defects not copied: a section over a tag with no posts,
 // Recova's arbitrary text-[X] sizes, and an unknown tag served as a page.
 // These read the RENDERED page, so a class on a helper that never reaches a
 // reader cannot pass.

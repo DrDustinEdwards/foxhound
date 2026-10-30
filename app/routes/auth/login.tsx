@@ -27,7 +27,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/login";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// Row A2, /login (J52): Recova's app/(auth)/login/page.tsx (blob ec09cd24),
+// Row A2, /login: Recova's app/(auth)/login/page.tsx (blob ec09cd24),
 // read whole, for the frame: one card, "Welcome back", the line under it, the
 // providers, the "or" rule, Email, the error, then "Don't have an account?
 // Connect Stripe". The ways in are the family's one sign-in (site-runtime
@@ -61,7 +61,7 @@ const SIGN_IN_FAILED = "That sign-in did not complete. Try again or use another 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const params = new URL(request.url).searchParams;
-  // Where to land after signing in (J79; ruling 8): Recova's login read next=
+  // Where to land after signing in: Recova's login read next=
   // through validateRedirect, which /oauth/authorize relies on to bring a
   // signed-out merchant back to the consent page with every parameter. The
   // checks are anchored (app/lib/auth/next-path.ts); anything else lands on
@@ -82,7 +82,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  // First, before the form is read or mail is sent (J52).
+  // First, before the form is read or mail is sent.
   const refusal = await checkAuthLimit(env, request, "credential");
   if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 

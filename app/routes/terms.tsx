@@ -12,7 +12,10 @@ import {
   type LegalSectionDef,
 } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
+import { formatMoneyShort } from "~/lib/money-format";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -26,7 +29,7 @@ import type { Route } from "./+types/terms";
 // review-and-sign disputes, maturity-window billing); every other section
 // is boilerplate legal structure carried over unchanged in substance.
 //
-// J51 (job_615a012e7035, row M21): the chrome kit (column, contents, rule,
+// J51: the chrome kit (column, contents, rule,
 // section, h3, paragraph, lists, links) is shared with /privacy in
 // ~/components/legal-page, as Recova's two pages share one (blob 88005fad).
 // Links are Capsomer amber, text is on the five sizes. Copy waits for Dustin.
@@ -266,13 +269,13 @@ export default function TermsPage() {
         <Section id="subscriptions" number={6} title="SUBSCRIPTIONS">
           <H3>Billing and maturity</H3>
           <P>
-            Recovery and Disputes are billed as a percentage of outcomes: 20% of Foxhound-attributed
-            recoveries, and 20% of disputes Foxhound wins (capped at $500 per dispute). A recovery is
-            never billed until it has been held for 30 or more days, each monthly billing run charges only
+            Recovery and Disputes are billed as a percentage of outcomes: {RECOVERY_FEE_PERCENT}% of
+            Foxhound-attributed recoveries, and {DISPUTE_FEE_PERCENT}% of disputes Foxhound wins (capped at{" "}
+            {formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute). A recovery is never billed until it
+            has been held for {RECOVERY_MATURITY_DAYS} or more days, each monthly billing run charges only
             the prior month&apos;s matured recoveries. Recoveries that Stripe&apos;s own tools would have
             produced without any Foxhound action are recorded and shown to you for free, never billed.
-            Intelligence&apos;s predictive layer is billed as a flat monthly subscription at the rate then
-            in effect; its MRR and churn analytics are free. Audit is free with no billing.
+            Intelligence and Audit are free, with no billing.
           </P>
           <H3>Cancellation</H3>
           <P>

@@ -2,11 +2,11 @@ import type { DeclineCategory } from "~/lib/constants";
 
 import { RECOVERY_SCHEDULES } from "./schedule";
 
-// The /recovery/sequence page's own words for each category (row S9, J12).
+// The /recovery/sequence page's own words for each category.
 // Recova's page keeps its own category table (components/SequenceView.tsx at
 // blob 5507b89f, CATEGORIES): plural names, its own order, and one sentence
 // each. These follow it, on Foxhound's six categories and its silent-retry-
-// first schedules (ruling 80). The shared singular labels in labels.ts stay as
+// first schedules. The shared singular labels in labels.ts stay as
 // they are, because the payments list, the payment page, the dashboard and the
 // CSV export render them too.
 

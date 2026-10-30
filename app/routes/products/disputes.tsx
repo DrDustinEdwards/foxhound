@@ -27,7 +27,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/disputes";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
-// The Disputes spoke (J57, row M8). Recova's spec, read whole at HEAD:
+// The Disputes spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/disputes/page.tsx (blob c412d54f) and the files it
 // draws from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2),
 // DisputesDashboardPreview.tsx (dcde195e) with the DisputesDashboardView it
@@ -43,7 +43,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // account's seed, never a merchant's rows
 // (lib/marketing/disputes-preview.server.ts).
 //
-// The path is Recova's own /product/disputes since J09 (rulings 55 and 56).
+// The path is Recova's own /product/disputes since J09.
 
 const PATH = "/product/disputes";
 const TITLE = "Disputes - Foxhound";

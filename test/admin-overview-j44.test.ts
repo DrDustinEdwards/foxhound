@@ -13,14 +13,14 @@ import { type AdminOverview } from "~/lib/admin/overview.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J44 (job_6eca2dc859c2): /admin's Overview on the family admin pattern
+// J44: /admin's Overview on the family admin pattern
 // (Dustin's Q9, 2026-10-14) and his 2026-10-11 admin review, with Recova's
 // overview (app/admin/page.tsx, blob acb4ccbe) read as the inventory: its
 // Needs attention and Recent admin actions panels and its stats, each one
-// computed by Foxhound's own engine. Per-currency money stays (RULES.md 3.20).
+// computed by Foxhound's own engine. Per-currency money stays.
 
 // Imported so that a missing helper fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const overviewLib: Partial<typeof import("~/lib/admin/overview")> = await import("~/lib/admin/overview").catch(() => ({}));
 
 // The page's read is getAdminOverview; getPlatformOverview stays the admin

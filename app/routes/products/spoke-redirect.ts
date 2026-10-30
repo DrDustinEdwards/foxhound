@@ -2,13 +2,13 @@ import { redirect } from "react-router";
 
 import type { Route } from "./+types/spoke-redirect";
 
-// Foxhound's former product pages, /products/<name> (J09, rulings 55 and 56).
+// Foxhound's former product pages, /products/<name>.
 // Recova serves each product page at /product/<name>, singular, and Foxhound
 // now does too. These four old addresses are the only retired Foxhound paths
 // that were ever public: the sitemap listed them. So each answers ONE 301 to
 // its new address, with the query string kept, and nothing else under
 // /products/ redirects, because a redirect to a page that does not exist
-// claims a replacement there is none of (RULES.md 2.5).
+// claims a replacement there is none of.
 //
 // The names are an allow-list, never interpolated from the request beyond a
 // lookup, so this cannot become an open redirect.

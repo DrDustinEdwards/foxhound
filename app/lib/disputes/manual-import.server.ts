@@ -1,11 +1,10 @@
-import { and, eq, isNull } from "drizzle-orm";
-
-import { getDb, stripeConnections } from "~/db";
+import { getDb } from "~/db";
 import { buildEvidenceFacts, draftDisputeEvidence } from "~/lib/disputes/evidence";
 import { readDisputeProductDescription, readDisputesEnabled } from "~/lib/disputes/queries.server";
 import { disputeIntakeFields, isStripeDisputeId } from "~/lib/disputes/stripe-dispute";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { findActiveConnection } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { mergeEvidence, readDisputeIntakeContext } from "./context.server";
 import { buildDisputeIntakeBatch } from "~/lib/webhooks/batches";
@@ -77,23 +76,6 @@ export type ManualImportResult =
   | { status: "not_connected" }
   | { status: "not_found" };
 
-/** The account's Stripe connection to read from: the earliest-connected
- *  still-active one, the established precedent shared by the Intelligence sync
- *  and the settings pages (gotcha #22). */
-async function resolveAccountConnection(
-  env: Env,
-  accountId: string,
-): Promise<{ id: string; stripeAccessToken: string | null } | null> {
-  const db = getDb(env);
-  const rows = await db
-    .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-    .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
-    .orderBy(stripeConnections.connectedAt)
-    .limit(1);
-  return rows[0] ?? null;
-}
-
 /**
  * Import one dispute by its Stripe id into `accountId`.
  *
@@ -119,11 +101,11 @@ export async function importDisputeFromStripe(
   // step 1). Recova's sync still inserted a bare row before that step
   // returned; Foxhound creates none, which is what "off" says.
   if (!(await readDisputesEnabled(getDb(env), accountId))) {
-    console.log(`manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
+    console.info(`manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
     return { status: "disputes_disabled" };
   }
 
-  const connection = await resolveAccountConnection(env, accountId);
+  const connection = await findActiveConnection(getDb(env), accountId);
   if (!connection?.stripeAccessToken) return { status: "not_connected" };
 
   const token = await decryptToken(env, connection.stripeAccessToken);

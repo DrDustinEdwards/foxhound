@@ -22,7 +22,7 @@ export async function isSuppressed(env: Env, email: string): Promise<boolean> {
 // explicit unsubscribe apart from a deliverability suppression.
 export const UNSUBSCRIBE_REASON = "unsubscribe";
 
-/** What a followed unsubscribe link did: Recova's two success states (row F7). */
+/** What a followed unsubscribe link did: Recova's two success states. */
 export type UnsubscribeOutcome = "unsubscribed" | "already";
 
 /**
@@ -73,7 +73,7 @@ export async function recordUnsubscribe(
 
 /** What a followed digest unsubscribe link did. "changed": the account no
  *  longer sends its digest to this address, so nothing was switched off and
- *  the visit is not reported as a success (RULES.md 3.9). */
+ *  the visit is not reported as a success. */
 export type DigestUnsubscribeOutcome = UnsubscribeOutcome | "changed";
 
 /**
@@ -82,7 +82,7 @@ export type DigestUnsubscribeOutcome = UnsubscribeOutcome | "changed";
  * still sends its digest to the token's address. No suppression row is
  * written: the digest's link leaves the digest, as a Recova merchant sees it,
  * and every other mail to the address, and every other account sharing it,
- * carries on (RULES.md 3.16, 1.6).
+ * carries on.
  *
  * One conditional UPDATE does the switch, its guard joined to the write (3.9):
  * it matches only a row whose id, address and toggle (on) all agree. When it

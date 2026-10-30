@@ -32,7 +32,7 @@ import {
 // results can carry (bulk-results.ts) and an intent allow-list, which Session 2
 // shipped without.
 //
-// SEND-PRECEDES-PERSIST (268) APPLIES TO BULK TRIGGER, WITH THE SURFACE
+// SEND-PRECEDES-PERSIST APPLIES TO BULK TRIGGER, WITH THE SURFACE
 // MULTIPLIED, and is STATED here rather than solved, exactly as 268 parked it.
 // The defect is the executor's: an email step's claim (WHERE executed_at IS
 // NULL) prevents the double WRITE, not the double SEND, so a manual trigger
@@ -41,9 +41,9 @@ import {
 // not widen it per payment; it multiplies the number of payments exposed to it
 // in one click, so N selected email steps are N independent chances at the same
 // shared defect. Two things bound it and neither is a fix: 274 decision four's
-// confirmation and ceiling bound N, and the executors are untouched here (267),
+// confirmation and ceiling bound N, and the executors are untouched here,
 // so the exposure is exactly the single-payment one, N times. The design is owed
-// at the pre-first-merchant hardening pass (272), and no session may quietly
+// at the pre-first-merchant hardening pass, and no session may quietly
 // close it by changing executor semantics from this layer.
 
 /**
@@ -113,7 +113,7 @@ export interface RunBulkActionInput {
  *
  * A submission over the ceiling, REFUSED with its own count reported. It is
  * never trimmed to the first hundred, which would mutate a set the merchant
- * never chose (274 decision four).
+ * never chose.
  */
 export async function runBulkAction(
   input: RunBulkActionInput,

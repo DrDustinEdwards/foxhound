@@ -190,7 +190,7 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     db.update(emailSends).set({ recipientHash: null, error: null }).where(sendOfAccount),
     db.delete(emailDeadLetters).where(eq(emailDeadLetters.accountId, accountId)),
 
-    // ---- win-back: never billable (RULES.md 3.2), so none of it is evidence.
+    // ---- win-back: never billable, so none of it is evidence.
     db.delete(winBackSteps).where(inArray(winBackSteps.id, winBackStepsOfAccount)),
     db.delete(winBackSequences).where(eq(winBackSequences.accountId, accountId)),
 
@@ -214,7 +214,7 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
       .set({
         // NOT NULL in the schema, so the address is replaced with an empty
         // string rather than nulled: relaxing NOT NULL on D1 means recreating
-        // the table (RULES.md 3.11), a migration this job does not need.
+        // the table, a migration this job does not need.
         customerEmail: "",
         customerName: null,
         planName: null,
@@ -334,7 +334,7 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
 
     // ---- credentials, subscriptions, webhook payloads, members.
     // An OAuth grant points at the api_keys row that is its access token, so
-    // the grants go first, then the codes, then the keys (J79).
+    // the grants go first, then the codes, then the keys.
     db.delete(oauthGrants).where(eq(oauthGrants.accountId, accountId)),
     db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.accountId, accountId)),
     db.delete(apiKeys).where(eq(apiKeys.accountId, accountId)),

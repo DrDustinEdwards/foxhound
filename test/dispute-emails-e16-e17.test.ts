@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J92 (job_ec4810299217), parity rows E16 and E17: the new dispute notice and
+// J92, parity rows E16 and E17: the new dispute notice and
 // the dispute deadline reminder say and carry what Recova's say, on Capsomer's
 // `notice` template. Recova's spec, read whole at HEAD:
 //   lib/disputes-email.ts                   blob 156719f1 (lines 80 to 159)

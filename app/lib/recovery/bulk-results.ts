@@ -41,7 +41,7 @@ export function isBulkActionIntent(value: unknown): value is BulkActionIntent {
  * Why one payment in a bulk submission did not succeed.
  *
  * Every value maps 1:1 onto a dispatcher outcome, so the surface can say WHICH
- * refusal happened rather than folding them into a count (274 decision one).
+ * refusal happened rather than folding them into a count.
  * Legacy reads only `res.ok`, so a 400, a 409 and a 502 are one number (scope
  * 1.6); this is the repair, and it is why the list grew when trigger arrived
  * rather than trigger's four extra statuses collapsing into "failed".
@@ -149,7 +149,7 @@ export function orderForDisplay(results: readonly BulkItemResult[]): BulkItemRes
 
 /** The ids a merchant should still have selected after the response lands:
  *  exactly the ones that failed, so the next click retries precisely those and
- *  nothing else (274 decision one). Successes drop out of the selection. */
+ *  nothing else. Successes drop out of the selection. */
 export function failedIds(results: readonly BulkItemResult[]): string[] {
   return results.filter((r) => !r.ok).map((r) => r.id);
 }

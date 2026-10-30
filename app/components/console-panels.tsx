@@ -17,12 +17,12 @@ import type { AttentionRow, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/co
 // The console's three parts in Recova's order (app/(app)/console/page.tsx at
 // blob 3b8a736e, with lib/console-data.tsx at 234791c4): the hero row of three
 // platform figures, the four product tiles, then the needs-attention rows.
-// Built from Capsomer 0.9.0's parts (Q10): the hero cards are Panels, the
+// Built from Capsomer 0.9.0's parts: the hero cards are Panels, the
 // product tiles are StatTiles, the attention rows are row-list rows with a
 // Pill for the product. No Foxhound CSS sits over a Capsomer component; what
 // Recova's look needs beyond Capsomer's defaults (the tile icons and arrows,
 // the dimmed inactive tile, the row's colored dot) waits for Capsomer's
-// per-site layer (capsomer job_ec5ec0754626) and is listed in the J64 pull
+// per-site layer and is listed in the J64 pull
 // request.
 //
 // Pure components: every number arrives already computed from
@@ -50,7 +50,7 @@ function HeroCard({
 }
 
 /** Whether any currency's total is above zero. A tone needs only the sign, so
- *  no figure is ever added across currencies (RULES.md 3.20). */
+ *  no figure is ever added across currencies. */
 const anyAboveZero = (rows: readonly { cents: number }[]) => rows.some((r) => r.cents > 0);
 
 export function ConsoleHeroRow({ hero }: { hero: ConsoleHero }) {
@@ -111,7 +111,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
 
       {/* Always active. Recova gated this tile on account_products, which
           nothing in Foxhound writes, and dispute intake is webhook-driven with
-          no switch to turn on (RULES.md 3.18), so the "Enable in Settings"
+          no switch to turn on, so the "Enable in Settings"
           state could never be true. */}
       <li className="grid">
         <StatTile

@@ -16,11 +16,24 @@ const harness = vi.hoisted(() => ({
   sent: [] as { to: string; subject: string; html: string }[],
   charge: { refunded: false, disputed: false },
   refunds: [] as { params: unknown; options: unknown }[],
+  /** Make the first database read after the next commit throw. */
+  failReadAfterCommit: false,
+  failNextRead: false,
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
-  getDb: () => harness.db,
+  getDb: () => {
+    if (harness.failNextRead) {
+      harness.failNextRead = false;
+      return {
+        select: () => {
+          throw new Error("D1 unavailable");
+        },
+      };
+    }
+    return harness.db;
+  },
 }));
 
 // The money-write DO as the other webhook tests fake it: a seen key is a no-op,
@@ -39,6 +52,10 @@ vi.mock("~/lib/money/execute", () => ({
       throw err;
     }
     harness.seen.add(write.idempotencyKey);
+    if (harness.failReadAfterCommit) {
+      harness.failReadAfterCommit = false;
+      harness.failNextRead = true;
+    }
     return { applied: true };
   },
 }));
@@ -97,6 +114,8 @@ beforeEach(() => {
   harness.sent = [];
   harness.refunds = [];
   harness.charge = { refunded: false, disputed: false };
+  harness.failReadAfterCommit = false;
+  harness.failNextRead = false;
   sqlite
     .prepare(
       "INSERT INTO accounts (id, name, created_at, notification_email, processing_paused, live_sends_enabled) VALUES (?, 'Acme', 1000, 'ops@acme.test', 0, 1)",
@@ -168,6 +187,16 @@ describe("intake: the webhook records the warning and tells the merchant once", 
 
     expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({ status: "duplicate" });
     expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({ n: 1 });
+    expect(harness.sent).toHaveLength(1);
+  });
+
+  it("a failed lookup after the commit answers an error, and the redelivery still sends the notice", async () => {
+    harness.failReadAfterCommit = true;
+    const first = await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED);
+    expect(first).toMatchObject({ status: "error" });
+    expect(harness.sent).toHaveLength(0);
+
+    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({ status: "duplicate" });
     expect(harness.sent).toHaveLength(1);
   });
 

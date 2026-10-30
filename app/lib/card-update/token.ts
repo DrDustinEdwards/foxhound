@@ -68,8 +68,8 @@ export async function verifyCardUpdateToken(
   // EXACTLY ONE MODE. A token carrying no id is refused here rather than
   // resolving to nothing downstream, and a token carrying more than one is
   // refused rather than letting the route's dispatch order silently pick a
-  // winner. This is the fail-closed half of making `failedPaymentId` optional
-  // (341 binding 2): the fields are optional, the REQUIREMENT that a token
+  // winner. This is the fail-closed half of making `failedPaymentId` optional:
+  // the fields are optional, the REQUIREMENT that a token
   // names exactly one target is not.
   const targets = [
     parsed.failedPaymentId,

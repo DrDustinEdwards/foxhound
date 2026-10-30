@@ -43,7 +43,7 @@ import { formatDateShort } from "~/lib/date-format";
 // app/api/settings/api-keys/route.ts (blob 81e694f5) and [id]/route.ts (blob
 // d0d306ba).
 //
-// J34 (job_cc3655778b55) rebuilt it from Capsomer 0.9.0's parts under Dustin's
+// J34 rebuilt it from Capsomer 0.9.0's parts under Dustin's
 // Q10 and Q11 answers of 2026-10-14: PageHead, Panel, Table, Field, Segmented,
 // Button, Empty and Alert, amber throughout. Recova stays the spec for what is
 // here and in what order: the phone-only back link, the title and its line,
@@ -57,7 +57,7 @@ import { formatDateShort } from "~/lib/date-format";
 // the account (`revokeAccountApiKey`); legacy's handlers check both too, and
 // both are pinned in test/settings-api-keys-s29.test.ts.
 //
-// THE SAME RESULT THROUGH A DIFFERENT SHAPE (RULES.md 1.2): legacy opens the
+// THE SAME RESULT THROUGH A DIFFERENT SHAPE: legacy opens the
 // form and reveals the key in client state over a JSON API; here the form opens
 // at ?new=1 and the key comes back once on the action's response, so both work
 // without script. Legacy's browser alert() on a failure is an inline Capsomer
@@ -268,7 +268,7 @@ function RevealKey({ rawKey }: { rawKey: string }) {
   // The form that had focus is gone once the key shows, which would drop focus
   // to the page. It moves to the key instead, named by the panel's heading, so a
   // keyboard or screen reader lands on what has to be copied. Nothing visible
-  // changes (RULES.md 1.5).
+  // changes.
   useEffect(() => {
     keyBlock.current?.focus();
   }, []);
@@ -339,7 +339,7 @@ function GenerateForm({
   const name = useId();
 
   // Opening the form is a navigation to ?new=1, which leaves focus on the page;
-  // it moves to the one field the form needs. Invisible (RULES.md 1.5).
+  // it moves to the one field the form needs. Invisible.
   useEffect(() => {
     document.getElementById(name)?.focus();
   }, [name]);

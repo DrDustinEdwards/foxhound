@@ -6,7 +6,7 @@ import { exchangeToken, oauthResponse, parseOAuthBody } from "~/lib/oauth/provid
 
 import type { Route } from "./+types/oauth-token";
 
-// POST /api/oauth/token (J79), at Recova's path: the authorization-code and
+// POST /api/oauth/token, at Recova's path: the authorization-code and
 // refresh-token grants. The work is in app/lib/oauth/provider.server.ts.
 //
 // RATE LIMIT: Recova's 30 a minute per IP, on 311's limiter, failing open like

@@ -37,7 +37,7 @@ beforeEach(async () => {
   harness.deauthorized = [];
   harness.ok = true;
   await db.insert(accounts).values({ id: "acct_a", name: "Sample A", createdAt: CREATED });
-  vi.spyOn(console, "log").mockImplementation(() => {});
+  vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 

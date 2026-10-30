@@ -1,4 +1,4 @@
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -72,11 +72,18 @@ export function buildSubmissionConfirmationBatch(
   db: Db,
   input: SubmissionConfirmationInput,
 ): OperationalBatch {
+  const settled = sql.join(
+    SUBMITTED_OR_RESOLVED.map((state) => sql`${state}`),
+    sql`, `,
+  );
   return [
     db
       .update(disputes)
       .set({
-        state: "submitted",
+        // A dispute that already resolved (its closed event can beat this
+        // write) keeps its state; it still gets the submitted marker, which
+        // is the only thing billing reads to know Foxhound filed it.
+        state: sql`case when ${disputes.state} in (${settled}) then ${disputes.state} else 'submitted' end`,
         submittedAt: input.submittedAt,
         submittedBy: input.submittedBy,
       })
@@ -84,7 +91,7 @@ export function buildSubmissionConfirmationBatch(
         and(
           eq(disputes.id, input.disputeId),
           eq(disputes.accountId, input.accountId),
-          notInArray(disputes.state, SUBMITTED_OR_RESOLVED as string[]),
+          isNull(disputes.submittedAt),
         ),
       ),
   ];

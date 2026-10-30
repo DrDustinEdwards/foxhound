@@ -6,10 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J06 (job_4f4c9c2f5383), row S32: /settings/disputes. Recova's spec is
+// J06, row S32: /settings/disputes. Recova's spec is
 // settings/disputes/page.tsx (9d927c62), DisputesForm.tsx (6a769d95) and
 // settings/components/DisputesSection.tsx (eb7bba4d). Each setting has a
-// reader (RULES.md 3.18): auto-submit (the disputes cron), the product
+// reader: auto-submit (the disputes cron), the product
 // description (dispute intake's evidence) and ships physical goods (the dispute
 // page's shipping inputs).
 

@@ -13,6 +13,7 @@ import { detectSubscriptionChanges, type SubscriptionChange } from "~/lib/intell
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
+import { asId } from "~/lib/stripe/ids";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
 // verified event to the intent the processor acts on and pulls the refs it needs
@@ -44,6 +45,10 @@ export type WebhookIntent =
       kind: "intake";
       invoiceId: string;
       customerId: string;
+      /** The invoice's subscription, so the card-update page can move the
+       *  subscription itself onto the new card (a subscription's own default
+       *  card outranks the customer's). */
+      subscriptionId: string | null;
       customerEmail: string;
       customerName: string | null;
       amountCents: number;
@@ -52,7 +57,7 @@ export type WebhookIntent =
       declineCategory: DeclineCategory;
       /**
        * TRUE when Stripe has stopped retrying this invoice, read from
-       * `next_payment_attempt` being null (ruling 377(1)). This is the whole
+       * `next_payment_attempt` being null. This is the whole
        * gate: while Stripe has another attempt scheduled the payment is
        * Stripe's, and Foxhound plans nothing.
        *
@@ -69,7 +74,7 @@ export type WebhookIntent =
   | {
       /** invoice.marked_uncollectible: Stripe has written the invoice off, so
        *  it is unambiguously finished with it. Promotes a stripe_retrying row
-       *  the same way a final payment_failed does (377(1)). */
+       *  the same way a final payment_failed does. */
       kind: "stripe_gave_up";
       invoiceId: string;
     }
@@ -84,15 +89,21 @@ export type WebhookIntent =
       invoiceId: string;
       customerId: string | null;
       /** The invoice's subscription, when it has one. A win-back reactivation
-       *  is read off THIS subscription's metadata (344 binding 1). */
+       *  is read off THIS subscription's metadata. */
       subscriptionId: string | null;
+      /** When the customer actually paid (Stripe's paid_at), not when the
+       *  event reached Foxhound: attribution compares signals against it, so
+       *  a late or replayed event cannot credit Foxhound with a payment the
+       *  customer made before the click or card update. Null when the event
+       *  carries neither paid_at nor its own created time. */
+      paidAt: Date | null;
       amountPaidCents: number;
       currency: string;
     }
   | {
       /** A Checkout Session completed carrying a win-back sequence id, which is
        *  the EXACT reactivation signal: the session Foxhound created on the
-       *  resubscribe click carries the id in its own metadata (344). */
+       *  resubscribe click carries the id in its own metadata. */
       kind: "winback_reactivate";
       sequenceId: string;
     }
@@ -204,11 +215,6 @@ export type WebhookIntent =
     }
   | { kind: "ignore"; reason: string };
 
-function asId(ref: string | { id?: string } | null | undefined): string | null {
-  if (!ref) return null;
-  return typeof ref === "string" ? ref : ref.id ?? null;
-}
-
 /** Classify a verified Stripe event into the processor intent. Pure. */
 /** Stripe's card updater replaced the card details (a new expiry or number
  *  from the network). Whether the customer has a payment to retry is the
@@ -217,6 +223,10 @@ function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
   const customerId = asId(paymentMethod.customer);
   if (!customerId) return { kind: "ignore", reason: "no_customer" };
   return { kind: "card_auto_updated", customerId };
+}
+
+function unixToDate(seconds: number | null | undefined): Date | null {
+  return typeof seconds === "number" && Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
 }
 
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
@@ -251,6 +261,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         stripeGaveUp: (invoice.next_payment_attempt ?? null) === null,
         invoiceId: invoice.id,
         customerId: asId(invoice.customer) ?? "",
+        subscriptionId: asId(invoice.parent?.subscription_details?.subscription),
         customerEmail: invoice.customer_email ?? "",
         customerName: invoice.customer_name ?? null,
         amountCents: invoice.amount_due ?? 0,
@@ -266,12 +277,10 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         kind: "recover",
         invoiceId: invoice.id,
         customerId: asId(invoice.customer),
-        // On the pinned API version the invoice no longer types `subscription`,
-        // and legacy reads it through the same cast.
-        subscriptionId: asId(
-          (invoice as Stripe.Invoice & { subscription?: string | { id: string } | null })
-            .subscription,
-        ),
+        // On the pinned API version the subscription lives under `parent`;
+        // the top-level `subscription` field is gone.
+        subscriptionId: asId(invoice.parent?.subscription_details?.subscription),
+        paidAt: unixToDate(invoice.status_transitions?.paid_at ?? event.created),
         amountPaidCents: invoice.amount_paid ?? 0,
         currency: invoice.currency ?? "usd",
       };
@@ -327,7 +336,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       return { kind: "dispute_funds", stripeDisputeId: dispute.id, funds: disputeFundsMovements(dispute) };
     }
     case "customer.subscription.deleted": {
-      // Win-back intake (290). Legacy's handleSubscriptionDeleted is the spec.
+      // Win-back intake. Legacy's handleSubscriptionDeleted is the spec.
       // Everything reachable WITHOUT a Stripe call is pulled here, per this
       // file's own no-extra-calls rule; the customer EMAIL is not on the
       // subscription object and legacy fetches it separately, so that read and
@@ -356,7 +365,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     case "checkout.session.completed": {
       // The reactivation's PRIMARY path, and the only one that needs no Stripe
       // read: Foxhound put the sequence id on this session itself when the
-      // customer clicked the resubscribe button (344).
+      // customer clicked the resubscribe button.
       const session = event.data.object as Stripe.Checkout.Session;
       const sequenceId = readWinbackSequenceId(session.metadata);
       if (!sequenceId) return { kind: "ignore", reason: "not_a_winback_checkout" };

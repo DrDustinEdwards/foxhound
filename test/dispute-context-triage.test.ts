@@ -11,6 +11,14 @@ import { calculateTriage, contextEvidenceFields } from "~/lib/disputes/triage";
 
 const day = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
 
+function pages<T>(items: T[]) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      yield* items;
+    },
+  };
+}
+
 function fakeStripe(overrides: { chargeThrows?: boolean } = {}) {
   return {
     disputes: { retrieve: async () => ({ id: "dp_1", smart_disputes: { status: "available" } }) },
@@ -30,15 +38,14 @@ function fakeStripe(overrides: { chargeThrows?: boolean } = {}) {
           },
         };
       },
-      list: async () => ({
-        data: [
+      // Auto-paginated, as Stripe's list is when walked with for await.
+      list: () => pages([
           { id: "ch_disputed", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-09-01") },
           { id: "ch_a", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-08-01") },
           { id: "ch_b", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-07-01") },
           { id: "ch_c", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-06-01") },
           { id: "ch_failed", amount: 5000, currency: "usd", status: "failed", created: day("2026-05-01") },
-        ],
-      }),
+      ]),
     },
     subscriptions: {
       list: async () => ({

@@ -1,8 +1,10 @@
 import { formatCurrencyTotalsShort } from "~/lib/dashboard/console";
+import type { FailedPaymentSort } from "~/lib/recovery/queries.server";
+import { isPaymentTimeRange, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
-// /recovery/payments (row S6, job J75): the page's pure, client-safe pieces.
+// /recovery/payments: the page's pure, client-safe pieces.
 // The route component imports these, so nothing here may import a .server
-// module (RULES.md 4.5).
+// module.
 
 /** Recova's rows-per-page choices and its default, lib/payments-data.ts
  *  (VALID_PER_PAGE, DEFAULT_PER_PAGE = 25). */
@@ -18,6 +20,25 @@ export function parsePaymentsPageSize(value: string | null): PaymentsPageSize {
   return (PAYMENTS_PAGE_SIZE_OPTIONS as readonly (number | "all")[]).includes(n)
     ? (n as PaymentsPageSize)
     : PAYMENTS_DEFAULT_PAGE_SIZE;
+}
+
+/** The sort in the URL ("sort"), newest first when it is not one of the four. */
+export function parsePaymentsSort(value: string | null): FailedPaymentSort {
+  return value === "oldest" || value === "amount_desc" || value === "amount_asc" ? value : "newest";
+}
+
+/** The time range in the URL ("time"), all time when it is not a known range. */
+export function parsePaymentsTimeRange(value: string | null): PaymentTimeRange {
+  return value && isPaymentTimeRange(value) ? value : "all";
+}
+
+/** An amount bound in the URL, in cents, clamped to the account's range; null
+ *  when absent or not a number. */
+export function parsePaymentsAmount(value: string | null, floorCents: number, ceilingCents: number): number | null {
+  if (!value) return null;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return null;
+  return Math.min(Math.max(n, floorCents), ceilingCents);
 }
 
 /** The page number in the URL ("page"), 1 when absent or not a whole page. */
@@ -84,7 +105,7 @@ export const BULK_RESULT_DISMISS_MS = 3000;
  *  when every payment took the action: a report with a failure, or a refused
  *  submission, stays until the merchant dismisses it, since a failure list
  *  that vanishes on a timer fails WCAG 2.2.1 (Timing Adjustable). Pending
- *  Dustin's ruling (J75 review). */
+ *  Dustin's ruling. */
 export function bulkResultClearsItself(
   bulk: { results?: readonly { ok: boolean }[]; refused?: unknown } | null | undefined,
 ): boolean {

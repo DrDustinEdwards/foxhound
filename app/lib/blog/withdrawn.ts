@@ -1,4 +1,4 @@
-// POSTS WITHDRAWN FROM THE BLOG (391, Dustin's decision).
+// POSTS WITHDRAWN FROM THE BLOG (Dustin's decision).
 //
 // Two posts were built almost entirely on third-party benchmarks whose sources
 // could not be verified against any fixed document, live or archived:

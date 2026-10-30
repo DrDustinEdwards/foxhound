@@ -6,7 +6,7 @@ import { oauthResponse, parseOAuthBody, revokeOAuthToken } from "~/lib/oauth/pro
 
 import type { Route } from "./+types/oauth-revoke";
 
-// POST /api/oauth/revoke (J79), at Recova's path: RFC 7009 revocation. Always
+// POST /api/oauth/revoke, at Recova's path: RFC 7009 revocation. Always
 // 200 with an empty body, as Recova answered, so the endpoint never says
 // whether a token was real. RATE LIMIT: Recova's 30 a minute per IP. The
 // shared cache policy makes every response here private, no-store, so the

@@ -5,7 +5,7 @@ import { getDb } from "~/db";
 
 import { buildAiCallRow } from "./cost";
 
-// THE ONE ANTHROPIC CLIENT FACTORY (346, session 54).
+// THE ONE ANTHROPIC CLIENT FACTORY.
 //
 // Four call sites constructed their own client inline: the dunning generator,
 // the dispute drafter, the intelligence narrative and the home page's public

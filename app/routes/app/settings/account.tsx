@@ -48,7 +48,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 
 // S27, /settings/account, legacy's hub entry 12, "My account".
 //
-// LEGACY IS THE SPEC, read whole at HEAD (J32, job_54cb0e7420dc):
+// LEGACY IS THE SPEC, read whole at HEAD:
 //   settings/account/page.tsx                     blob b42f9159  1,661 bytes
 //   settings/account/AccountProfileForm.tsx       blob 85bd1a33    863 bytes
 //   settings/components/AccountNameSection.tsx    blob bb58b169    875 bytes
@@ -73,8 +73,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 // prompt ("Merchant context: ..." in recovery/email-generation.ts, the S27
 // reader of parity/SETTINGS-READERS.md), so Recova's "Used to personalize
 // recovery emails." is true here. They are written through
-// applyIntelligenceContext, the one writer the merchant's agent tool shares
-// (372, 374), and the name through buildAccountProfileUpdate.
+// applyIntelligenceContext, the one writer the merchant's agent tool shares,
+// and the name through buildAccountProfileUpdate.
 //
 // THE APPROVED DIFFERENCES ON THIS PAGE. "Cancel account" keeps billing
 // records where Recova's "Delete account" erased them (APPROVED-DIFFERENCES,
@@ -103,7 +103,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     userEmail: auth.email,
     // Every account this person owns, which a deletion clears, so the
     // confirmation can say which (S40 review fix F2). From the session's
-    // memberships, so this loader reads no other account's rows (ruling 326).
+    // memberships, so this loader reads no other account's rows.
     ownedAccountNames: ownedAccountNames(auth.memberships),
     // The theme this account stores, which is the one the root drew the page
     // in: accounts.theme is NOT NULL, so for a signed-in merchant
@@ -263,7 +263,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
     case "delete-account": {
       // The SIGNED-IN user, never an id from the form: a person deletes
-      // themselves and nobody else (RULES.md 4.6). Recova's route does the same
+      // themselves and nobody else. Recova's route does the same
       // with supabase.auth.getUser().
       try {
         await deleteUserAccount(env, auth.userId);
@@ -591,7 +591,7 @@ type Confirming = "cancel-account" | "delete-account" | null;
  * "Are you sure?" callout with the confirm and "Keep my account" under it;
  * while it runs, the confirm says so and Keep is withdrawn.
  *
- * TWO CONTROLS. "Cancel account" (S37, 333) stops processing and keeps the
+ * TWO CONTROLS. "Cancel account" (S37) stops processing and keeps the
  * account and its billing records; "Delete account" (S40) is Recova's, and
  * deletes the person while keeping the fee evidence. Both take Recova's
  * two-step confirmation. Focus moves to "Keep my account" when a confirmation

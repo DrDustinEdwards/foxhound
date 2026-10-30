@@ -16,11 +16,11 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 
-// The /products hub (J16, row M5). Recova's spec is app/(marketing)/products/page.tsx
+// The /products hub. Recova's spec is app/(marketing)/products/page.tsx
 // (blob 1349c46e) and lib/products.ts (blob 6be24574), read whole.
 //
 // Layout is Recova's: the shared page header, the 720px column, the two-column
-// grid at sm, and the four cards in Recova's order. Look is Capsomer's (Q12):
+// grid at sm, and the four cards in Recova's order. Look is Capsomer's:
 // each card is Capsomer's linked panel in the amber family at Recova's sizes
 // (p-5, 8px corners, the 4px lift and amber edge under the pointer), amber
 // throughout.
@@ -33,7 +33,7 @@ import type { Route } from "./+types/index";
 // diff decides whether it stands.
 //
 // Spoke hrefs come from lib/marketing/products.ts and are Recova's /product/*
-// since J09 (rulings 55 and 56).
+// since J09.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

@@ -78,8 +78,8 @@ export const authOptions = {
     //
     // `input: false` is the money-path half: without it a client could set the
     // field through a sign-in or sign-up payload and choose which account its own
-    // session points at. It is writable only by the server-side switch action
-    // (phase (b)), which ports legacy's validation from
+    // session points at. It is writable only by the server-side switch action,
+    // which ports legacy's validation from
     // app/api/account/switch/route.ts:18-28: the target must be an account the
     // caller ACTIVELY holds, or the switch is refused.
     //

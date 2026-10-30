@@ -3,7 +3,7 @@
 // D1 size + per-table growth surfaced here, alert at 50% of the 10GB cap, from
 // day one. The queue depth and the lock health are what Recova's Operations
 // page showed (OperationsClient.tsx, blob 419a51ac), read from Foxhound's own
-// engine (J71).
+// engine.
 
 import { and, count, eq, isNotNull, isNull, min } from "drizzle-orm";
 
@@ -50,7 +50,7 @@ export async function getD1SizeBytes(env: Env): Promise<number> {
 
 /** Applied-migration filenames, in order, DERIVED from drizzle's own journal.
  *
- *  THE HAND-MAINTAINED LIST IS GONE (317). It failed twice: it drifted FOUR
+ *  THE HAND-MAINTAINED LIST IS GONE. It failed twice: it drifted FOUR
  *  behind in July (stopping at 0005 against a schema at 0009, so
  *  /admin/operations under-reported schema state on the page treated as the
  *  authoritative answer for exactly that), and it went red again at 316 when
@@ -199,10 +199,10 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup
     // cron throws on every run and /health reports no backup.
     ["BACKUPS", "binding"],
-    // The monthly audit queue producer (job_97878f0d1fde). Unset means the
+    // The monthly audit queue producer. Unset means the
     // monthly-audit cron fails on its first send and no account is audited.
     ["AUDIT_QUEUE", "binding"],
-    // Merchant dispute evidence files (J07). Unset means uploads answer 503
+    // Merchant dispute evidence files. Unset means uploads answer 503
     // uploads_unavailable and a submission goes to Stripe without files.
     ["EVIDENCE", "binding"],
     // The blog's media library (Carrel uploads, /media/*). Unset means every
@@ -233,7 +233,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["TURNSTILE_SECRET_KEY", "secret"],
     ["PHYSICAL_ADDRESS", "secret"],
     ["SENTRY_DSN", "secret"],
-    // Read back by /admin/platform/errors (J48): optional, unset means the
+    // Read back by /admin/platform/errors: optional, unset means the
     // page says it cannot read Sentry and names what is missing.
     ["SENTRY_AUTH_TOKEN", "secret"],
     ["SENTRY_ORG", "secret"],

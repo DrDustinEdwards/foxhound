@@ -1,4 +1,4 @@
-// STAGED CHANGES (MCP ruling 2026-10-10, DECIDE answer 4; job_21de68b30fc2).
+// STAGED CHANGES (MCP ruling 2026-10-10, DECIDE answer 4).
 //
 // The Foxhound Admin API pauses directly, because pausing stops money moving.
 // Everything that starts or changes money is STAGED here instead, and applied

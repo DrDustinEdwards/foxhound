@@ -98,7 +98,7 @@ export const LEGACY_MARKETING_ROUTES: LegacyRouteFixtureEntry[] = [
   { url: "/robots.txt", sourceFile: "app/robots.ts" },
   { url: "/llms.txt", sourceFile: "app/llms.txt/route.ts" },
   { url: "/llms-full.txt", sourceFile: "app/llms-full.txt/route.ts" },
-  // Recova's social card image (ruling 41, row F6): /og and /og?type=blog
+  // Recova's social card image: /og and /og?type=blog
   // are already embedded in shared links and third-party caches, so the old
   // URL has to keep answering after the move.
   { url: "/og", sourceFile: "app/og/route.tsx" },

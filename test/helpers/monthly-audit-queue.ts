@@ -4,7 +4,7 @@ import {
   parseMonthlyAuditMessage,
 } from "~/lib/audit/monthly.server";
 
-// The monthly audit as two halves (job_97878f0d1fde): the cron enqueues one
+// The monthly audit as two halves: the cron enqueues one
 // message per opted-in account and the queue consumer audits one account per
 // message. This helper runs both halves in order against an in-memory queue and
 // totals the per-account outcomes, so a suite about WHAT the audit does to one

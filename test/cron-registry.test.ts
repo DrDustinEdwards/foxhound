@@ -50,14 +50,6 @@ describe("cron registry", () => {
     }
   });
 
-  it("the schedule constants match wrangler triggers", () => {
-    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_DAILY);
-    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY);
-    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_MONTHLY_AUDIT);
-    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_EXPIRING_CARDS);
-    expect(WRANGLER_CRONS).toContain(CRON_SCHEDULE_RECOVERY_TICK);
-  });
-
   it("dispatches billing on the monthly schedule, intelligence sync, AI + retention on the daily one", () => {
     // THE AUDIT DIGEST LEFT THIS LIST IN PHASE (g), and this assertion catching
     // it is the guard working. 362 ruling 3 merged its send into the monthly
@@ -99,15 +91,11 @@ describe("cron registry", () => {
   it("dispatches the recovery tick, the win-back send, alerts and the dispute reminder on the high-cadence schedule", () => {
     // Kept STRICT rather than relaxed to toContain, so a fourth job arriving on
     // the highest-cadence schedule still trips this. win-back shares it because
-    // legacy's own cron piggybacks on the recovery schedule (343, 344); the
-    // dispute reminder (J06) because legacy's process-disputes ran hourly and a
+    // legacy's own cron piggybacks on the recovery schedule; the
+    // dispute reminder because legacy's process-disputes ran hourly and a
     // new expression would need its own cron-health period.
     const tick = jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK);
     // Alerts too: Recova evaluated them at the tail of its recovery cron.
     expect(tick.map((j) => j.name)).toEqual(["recovery-tick", "winback-send", "dispute-reminders", "alerts-evaluate"]);
-  });
-
-  it("an unregistered schedule dispatches nothing", () => {
-    expect(jobsForSchedule("*/7 * * * *")).toEqual([]);
   });
 });

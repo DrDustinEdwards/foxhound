@@ -1,5 +1,7 @@
 import { article, breadcrumbs, faqPage, thing, website } from "@drdustinedwards/site-helpers/schema";
 
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+
 // Single source of truth for the site's public origin and the JSON-LD
 // builders used across marketing pages (TASK-foxhound-phase6.md SITE_URL
 // discipline). Every absolute URL (JSON-LD @id, canonical links) must derive
@@ -66,7 +68,7 @@ export function softwareApplicationJsonLd(url: string) {
     operatingSystem: "Web",
     url,
     description:
-      "Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. 20% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.",
+      `Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. ${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.`,
     publisher: { "@id": `${url}/#organization` },
     // NO `offers` BLOCK, DELIBERATELY (376 item 22, verified true at 2569400).
     //

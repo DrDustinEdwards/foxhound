@@ -13,6 +13,7 @@ import type { Membership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { isConstraintOn } from "~/lib/money/serializer";
 import {
   exchangeConnectCode,
   fetchConnectedAccountName,
@@ -162,7 +163,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // guard was right. 356's tests import the predicate from its module.
 
 /**
- * Where a merchant lands, as Recova's callback decides it (J28, row A8): a NEW
+ * Where a merchant lands, as Recova's callback decides it: a NEW
  * connection goes to /welcome?connection=<its id>, anything else (a reconnect,
  * or a Stripe account the caller already holds) to /console. The welcome page
  * needs the id and goes to /console without it, as Recova's does.
@@ -246,7 +247,7 @@ async function addAccount(
   const accountName = await fetchConnectedAccountName(env, oauth.stripeUserId);
   const now = new Date();
 
-  await executeMoneyWrite(env, {
+  const { applied } = await writeConnection(env, {
     accountId,
     idempotencyKey: `add-account:${accountId}`,
     build: (tx) => [
@@ -273,6 +274,10 @@ async function addAccount(
       }),
     ],
   });
+  // Continue only on a write that landed: a refusal (another account went live
+  // on this Stripe account between the read above and the write) must not move
+  // the session onto an account that was never created.
+  if (!applied) return bounceTo("/connect?error=stripe_account_already_connected");
 
   syncSoon(accountId);
   return landOn(db, sessionId, accountId, connectionId);
@@ -344,7 +349,7 @@ async function attachToActiveAccount(
   // under the per-account DO serialization (no concurrent writer for this
   // account). Connect is not fee-bearing, so a fresh idempotency key per
   // callback lets a genuine reconnect update the token.
-  await executeMoneyWrite(env, {
+  const { applied } = await writeConnection(env, {
     accountId: membership.accountId,
     idempotencyKey: `connect:${membership.accountId}:${oauth.stripeUserId}:${now.getTime()}`,
     build: (tx) =>
@@ -376,11 +381,30 @@ async function attachToActiveAccount(
             }),
           ],
   });
+  if (!applied) return bounceTo("/connect?error=stripe_account_already_connected");
 
   syncSoon(membership.accountId);
   return redirect(destinationFor(newConnectionId), {
     headers: { "Set-Cookie": clearStateCookie() },
   });
+}
+
+/**
+ * The connection write, with the live-Stripe-account unique index's refusal
+ * read as what it is: this Stripe account went live on another Foxhound account
+ * after findLiveAttachment looked. That is reported as not applied, never as a
+ * success, and any other failure still throws.
+ */
+async function writeConnection(
+  env: Env,
+  write: Parameters<typeof executeMoneyWrite>[1],
+): Promise<{ applied: boolean }> {
+  try {
+    return await executeMoneyWrite(env, write);
+  } catch (err) {
+    if (isConstraintOn(err, "stripe_connections.stripe_user_id")) return { applied: false };
+    throw err;
+  }
 }
 
 function bounceTo(path: string): Response {

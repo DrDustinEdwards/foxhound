@@ -7,7 +7,7 @@ import type { PlannedRecoveryStep } from "~/lib/recovery/schedule";
 // the recovery_steps rows. These are OPERATIONAL rows (scheduling state), not
 // money rows, so they ride a plain per-request db.batch() rather than the
 // money-write DO. The failed_payments row itself is written by the
-// invoice.payment_failed webhook (Phase 4c); intake links steps to that row's id.
+// invoice.payment_failed webhook; intake links steps to that row's id.
 //
 // Idempotency: the webhook that calls intake owns dedup on the Stripe event id
 // (SCHEMA.md failed_payments), so intake does not re-check; a caller must not

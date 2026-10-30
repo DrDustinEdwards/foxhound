@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +6,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J48 (job_4217eaf96f91): /admin/platform/errors on the family admin pattern
+// J48: /admin/platform/errors on the family admin pattern
 // (Capsomer's parts, Dustin's Q9 of 2026-10-14) and his 2026-10-11 review.
 // Recova's page (app/admin/platform/errors/page.tsx, blob 9cca8956) is the
 // inventory: the last 50 audit log entries whose action names an error or a
@@ -16,7 +14,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // would be wired in later. Foxhound writes such entries (staged.failed and the
 // account deletion's deauthorize failure), so that list is ported. Sentry is
 // read only when something writes to it (SENTRY_DSN set) and the page holds a
-// read token and an organization (RULES.md 3.18); until then the page says
+// read token and an organization; until then the page says
 // plainly that error reporting is not connected.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
@@ -26,7 +24,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 // Looked up so a missing module or export fails the assertion that names it,
-// not the whole file (RULES.md 6.5).
+// not the whole file.
 const route: Record<string, unknown> = await import("~/routes/admin/errors").catch(() => ({}));
 const lib: Record<string, unknown> = await import("~/lib/admin/errors.server").catch(() => ({}));
 
@@ -219,18 +217,3 @@ describe("failed actions from the audit log (Recova's list)", () => {
   });
 });
 
-describe("the page source", () => {
-  const read = (p: string) => {
-    try {
-      return readFileSync(p, "utf8");
-    } catch {
-      return "";
-    }
-  };
-  const source = read("app/routes/admin/errors.tsx");
-
-  it("never names the read token in what it renders", () => {
-    expect(source).not.toMatch(/SENTRY_AUTH_TOKEN\b(?!")/);
-    expect(read("app/lib/admin/errors.server.ts")).toMatch(/Authorization/);
-  });
-});

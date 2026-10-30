@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J06 (job_4f4c9c2f5383): Accept dispute. Recova's spec is
+// J06: Accept dispute. Recova's spec is
 // app/api/disputes/accept/route.ts (blob d85b5761): refuse a closed dispute,
 // call stripe.disputes.close on the connected account, then mark the dispute
 // lost with no fee ("submitted_by stays null: no Recova fee on accepted

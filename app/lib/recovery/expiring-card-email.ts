@@ -30,7 +30,7 @@ export interface ExpiringCardCopyInput {
   expiresYear: number;
   senderName: string | null;
   /** The card-update link. Legacy's is a Stripe billing portal session; this is
-   *  Foxhound's own /p/:token page in alert mode (341 binding 2). */
+   *  Foxhound's own /p/:token page in alert mode. */
   updateUrl: string;
 }
 
@@ -45,8 +45,8 @@ export function expiringCardSubject(input: {
 }
 
 /**
- * Recova's body, verbatim in wording and order, as Capsomer's email blocks
- * (J90, row E12). The send seam renders them on Capsomer's email component,
+ * Recova's body, verbatim in wording and order, as Capsomer's email blocks.
+ * The send seam renders them on Capsomer's email component,
  * which writes the HTML part and the plain-text part from the same blocks and
  * escapes every value, so a customer name from Stripe is shown exactly as
  * written and never read as markup.
@@ -60,7 +60,7 @@ export function expiringCardSubject(input: {
  *
  * TWO DIFFERENCES FROM RECOVA'S MARKUP, both recorded:
  *
- * - THE BUTTON is Capsomer's, in Foxhound's amber (Q3), not Recova's own
+ * - THE BUTTON is Capsomer's, in Foxhound's amber, not Recova's own
  *   inline style. The label "Update Payment Method" is Recova's.
  * - THE LINK TARGET is Foxhound's own /p/:token card-update page rather than a
  *   Stripe billing portal session (APPROVED-DIFFERENCES, "yes", 2026-09-19).

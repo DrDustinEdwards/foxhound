@@ -1,4 +1,4 @@
-/** Legacy's route loading splash, ported as a CAPABILITY per 292 (ruling 305).
+/** Legacy's route loading splash, ported as a CAPABILITY per 292.
  *
  *  LEGACY'S SHAPE, read at blob 7466b69991de78e58ce75427611240723139bfe4 (366
  *  bytes) rather than from the scope doc's summary of it. It is NOT a skeleton:

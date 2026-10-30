@@ -3,7 +3,7 @@
 //
 // ONE SHAPE FOR ALL THREE FLOWS: `{nonce, action}`, plus `uid` on the two
 // merchant flows, where action is "connect", "add_account" (ruling 329 phase
-// (d)) or "audit" (phase (f), 362 ruling 1).
+// (d)) or "audit".
 // The third arrived with the anonymous audit pair and cost this module one
 // constant and one array entry, which is what "reuse the minted state shape with
 // a new action" was supposed to cost. Legacy carries the same idea and the
@@ -40,7 +40,7 @@ export const ADD_ACCOUNT_ACTION = "add_account";
  *  legacy's default branch, made explicit so there is no unmarked state. */
 export const CONNECT_ACTION = "connect";
 /**
- * The ANONYMOUS AUDIT flow (phase (f)). Legacy has no marker for this either,
+ * The ANONYMOUS AUDIT flow. Legacy has no marker for this either,
  * because legacy mints its audit state as a bare `crypto.randomUUID()` in a
  * separate route with a separate cookie and never has to tell the two apart.
  *

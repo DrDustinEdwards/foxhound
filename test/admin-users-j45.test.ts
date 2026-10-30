@@ -5,15 +5,15 @@ import { accountMembers, accounts, session, user } from "~/db";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J45 (job_e3ac5fdfcfdc, row D7): /admin/users on the family admin pattern
+// J45: /admin/users on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14), with Recova's users page
 // (app/admin/users/page.tsx, blob efd3620b) read as the inventory: email, last
 // sign-in, joined, user ID and a count. Last sign-in comes from Foxhound's own
 // engine (Better Auth's session table in D1). A user may belong to several
-// accounts (RULES.md 1.6), so every membership shows, one person per row.
+// accounts, so every membership shows, one person per row.
 
 // Looked up so a missing export fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const serverLib: Record<string, unknown> = await import("~/lib/admin/users.server");
 const pageLib: Record<string, unknown> = await import("~/lib/admin/page");
 

@@ -1,5 +1,5 @@
 // The Merchants page's loader, for its three routes: every merchant
-// (/admin/merchants) and Recova's Paused and Billing exempt lists (J50). Each
+// (/admin/merchants) and Recova's Paused and Billing exempt lists. Each
 // route passes its own list. The list is never read from the request's
 // address: a revalidation after a post asks for /admin/merchants/paused.data,
 // which no address match would know.

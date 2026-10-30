@@ -56,7 +56,7 @@ describe("cache-order resolution (custom_body -> cached -> generate)", () => {
 describe("applyCustomBody + brand voice", () => {
 
   it("resolves a default voice when the merchant has none, else the merchant's", () => {
-    // The third rung is legacy's BRAND_VOICE_DEFAULT, byte for byte (338).
+    // The third rung is legacy's BRAND_VOICE_DEFAULT, byte for byte.
     expect(resolveBrandVoice({ merchantName: "Acme" }, "soft")).toBe(
       "Friendly and direct. Write like a real person, not a company.",
     );

@@ -15,8 +15,8 @@ import {
   type PlanRow,
 } from "./dashboard";
 
-// The Intelligence dashboard's five charts (row S16, job J67), drawn by
-// Enarratio (Q1) from what Recova's charts plot: MRRTrendChart (area),
+// The Intelligence dashboard's five charts, drawn by
+// Enarratio from what Recova's charts plot: MRRTrendChart (area),
 // NRRChart (line with a dashed 100% rule), MRRMovementChart (five stacked
 // series, contraction and churn below the baseline), PlanBreakdown (one bar
 // per plan, largest first) and HealthDistributionChart (three stacked bands).

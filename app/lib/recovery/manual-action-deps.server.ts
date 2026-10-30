@@ -46,7 +46,7 @@ export interface ResendDeps {
 }
 
 /** The merchant's sender for a resend: `sender_name` for the From name (E9)
- *  and `reply_to_email` for the Reply-To (J03), both raw and nullable, on the
+ *  and `reply_to_email` for the Reply-To, both raw and nullable, on the
  *  connection the step's payment came through, as the engine's send reads
  *  them. Scoped to the account, so a step id never reads another merchant's
  *  connection. */

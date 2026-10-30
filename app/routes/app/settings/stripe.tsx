@@ -15,20 +15,34 @@ import "~/site-header.css";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { listAccountConnections, listConnectionHealth } from "~/lib/settings/queries.server";
-import { currentHealthProblems, healthProblemLines, STRIPE_DASHBOARD_URL } from "~/lib/stripe/account-health";
-import { disconnectConnection, findLiveConnection } from "~/lib/admin/merchant-cancel.server";
+import {
+  listAccountConnections,
+  listConnectionHealth,
+} from "~/lib/settings/queries.server";
+import {
+  currentHealthProblems,
+  healthProblemLines,
+  STRIPE_DASHBOARD_URL,
+} from "~/lib/stripe/account-health";
+import {
+  disconnectConnection,
+  findLiveConnection,
+} from "~/lib/admin/merchant-cancel.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
-import { disconnectFeedback, type DisconnectResult } from "~/lib/settings/stripe-disconnect-feedback";
+import {
+  disconnectFeedback,
+  type DisconnectResult,
+} from "~/lib/settings/stripe-disconnect-feedback";
 
 import type { Route } from "./+types/stripe";
 import { NOINDEX } from "~/lib/seo/meta";
 
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
-// LEGACY IS THE SPEC, read whole at HEAD (J41, job_a2651905db4f):
+// LEGACY IS THE SPEC, read whole at HEAD:
 //   app/(app)/settings/stripe/page.tsx              blob 338541e6   738 bytes
 //   app/(app)/settings/components/StripeSection.tsx blob 4068961e 4,410 bytes
 //   app/api/stripe/disconnect/route.ts              blob 01252285 2,656 bytes
@@ -44,14 +58,18 @@ import { NOINDEX } from "~/lib/seo/meta";
 //
 // THE ENGINE IS FOXHOUND'S. Recova's client POSTs /api/stripe/disconnect with
 // no id at a route exporting only DELETE, which picks the account's primary
-// itself (325), so its per-connection buttons are decorative. That request is
+// itself, so its per-connection buttons are decorative. That request is
 // not ported: each row's form names its connection, the action refuses one the
 // ACTIVE account does not hold, and the write is cancelMerchant's plain batch
-// path (disconnectConnection, RULES.md 3.2), never an agent tool (3.6).
+// path (disconnectConnection), never an agent tool (3.6).
 
 export function meta() {
   return [{ title: "Stripe connections - Foxhound" }, NOINDEX];
 }
+
+// OWNERS ONLY disconnect: it revokes Foxhound's Stripe access for the whole
+// account, as only an owner revokes an API key (/settings/api-keys).
+const OWNER_ONLY = "Only the account owner can do this.";
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -68,7 +86,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   const warnings = new Map(
     health.map((h) => {
       const problems = currentHealthProblems(h);
-      return [h.id, problems.length > 0 ? healthProblemLines(problems, h) : []] as const;
+      return [
+        h.id,
+        problems.length > 0 ? healthProblemLines(problems, h) : [],
+      ] as const;
     }),
   );
   return {
@@ -79,6 +100,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     connections: connections
       .filter((c) => !c.disconnectedAt)
       .map((c) => ({ ...c, healthWarning: warnings.get(c.id) ?? [] })),
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
   };
 }
 
@@ -89,14 +111,27 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
 
+  if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+    return data<DisconnectResult>(
+      { action: intent, ok: false, error: OWNER_ONLY },
+      { status: 403 },
+    );
+  }
+
   if (intent !== "disconnect-stripe") {
-    return data<DisconnectResult>({ action: intent, ok: false, error: "Unknown settings action." }, { status: 400 });
+    return data<DisconnectResult>(
+      { action: intent, ok: false, error: "Unknown settings action." },
+      { status: 400 },
+    );
   }
 
   // The id is required and real: Recova's id-less request is the defect.
   const connectionId = String(form.get("connectionId") ?? "").trim();
   if (!connectionId) {
-    return data<DisconnectResult>({ action: intent, ok: false, error: "Connection is required." }, { status: 400 });
+    return data<DisconnectResult>(
+      { action: intent, ok: false, error: "Connection is required." },
+      { status: 400 },
+    );
   }
 
   let warning: string | undefined;
@@ -126,13 +161,20 @@ export async function action({ request, context }: Route.ActionArgs) {
         try {
           return await deauthorizeConnectedAccount(e, stripeUserId);
         } catch (err) {
-          console.error("stripe deauthorize threw after the disconnect committed:", err);
-          return { ok: false, error: err instanceof Error ? err.message : String(err) };
+          console.error(
+            "stripe deauthorize threw after the disconnect committed:",
+            err,
+          );
+          return {
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+          };
         }
       },
     });
     if (result.deauthorizeError) {
-      warning = "Disconnected. Revoking access at Stripe did not complete, so check your Stripe dashboard.";
+      warning =
+        "Disconnected. Revoking access at Stripe did not complete, so check your Stripe dashboard.";
     }
   } catch (err) {
     // The whole error, stack included; it carries no form values beyond the id.
@@ -143,7 +185,8 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  if (warning) return data<DisconnectResult>({ action: intent, ok: true, warning });
+  if (warning)
+    return data<DisconnectResult>({ action: intent, ok: true, warning });
   // Recova's success: `window.location.href = '/settings'`.
   return redirect("/settings");
 }
@@ -183,16 +226,28 @@ type Connection = {
  * Keep connected withdraws the question and hands focus back to the button.
  * While the disconnect runs, the button says so and Keep is withdrawn.
  */
-function StripeSection({ connections, result }: { connections: Connection[]; result?: DisconnectResult }) {
+function StripeSection({
+  connections,
+  result,
+  isOwner,
+}: {
+  connections: Connection[];
+  result?: DisconnectResult;
+  isOwner: boolean;
+}) {
   const navigation = useNavigation();
   const runningId =
-    navigation.state !== "idle" && navigation.formData?.get("_action") === "disconnect-stripe"
+    navigation.state !== "idle" &&
+    navigation.formData?.get("_action") === "disconnect-stripe"
       ? String(navigation.formData.get("connectionId") ?? "")
       : null;
   // The question belongs to the result it was asked under. A new result (a
   // failed or refused disconnect) withdraws it, as Recova resets its confirm
   // after the alert, without setting state from an effect.
-  const [asked, setAsked] = useState<{ id: string; under: DisconnectResult | undefined } | null>(null);
+  const [asked, setAsked] = useState<{
+    id: string;
+    under: DisconnectResult | undefined;
+  } | null>(null);
   const confirmingId = asked && asked.under === result ? asked.id : null;
   const ids = useId();
   const buttonId = (id: string) => `${ids}-disconnect-${id}`;
@@ -238,40 +293,62 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
                   <div className="cap-panel-body">
                     <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <div className="mb-0.5 text-label text-text">{label}</div>
-                        {connected ? <div className="text-micro text-text-subtle">{connected}</div> : null}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <DemoGuardedForm method="post">
-                          <input type="hidden" name="_action" value="disconnect-stripe" />
-                          <input type="hidden" name="connectionId" value={conn.id} />
-                          <Button
-                            id={buttonId(conn.id)}
-                            variant={isConfirming ? "danger" : "default"}
-                            pending={isDisconnecting}
-                            onClick={(e) =>
-                              // ALWAYS type="button". React re-renders inside the
-                              // click, before the browser's default action, so a
-                              // type that flipped to "submit" would post on the
-                              // very press that opens the confirm. The handler
-                              // bound to this press decides, and only a press
-                              // made while confirming submits this row's form.
-                              isConfirming
-                                ? e.currentTarget.form?.requestSubmit()
-                                : setAsked({ id: conn.id, under: result })
-                            }
-                          >
-                            {isDisconnecting
-                              ? "Disconnecting..."
-                              : isConfirming
-                                ? "Yes, disconnect Stripe"
-                                : "Disconnect Stripe"}
-                          </Button>
-                        </DemoGuardedForm>
-                        {isConfirming && !isDisconnecting ? (
-                          <Button onClick={() => keep(conn.id)}>Keep connected</Button>
+                        <div className="mb-0.5 text-label text-text">
+                          {label}
+                        </div>
+                        {connected ? (
+                          <div className="text-micro text-text-subtle">
+                            {connected}
+                          </div>
                         ) : null}
                       </div>
+                      {isOwner ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <DemoGuardedForm method="post">
+                            <input
+                              type="hidden"
+                              name="_action"
+                              value="disconnect-stripe"
+                            />
+                            <input
+                              type="hidden"
+                              name="connectionId"
+                              value={conn.id}
+                            />
+                            <Button
+                              id={buttonId(conn.id)}
+                              variant={isConfirming ? "danger" : "default"}
+                              pending={isDisconnecting}
+                              onClick={(e) =>
+                                // ALWAYS type="button". React re-renders inside the
+                                // click, before the browser's default action, so a
+                                // type that flipped to "submit" would post on the
+                                // very press that opens the confirm. The handler
+                                // bound to this press decides, and only a press
+                                // made while confirming submits this row's form.
+                                isConfirming
+                                  ? e.currentTarget.form?.requestSubmit()
+                                  : setAsked({ id: conn.id, under: result })
+                              }
+                            >
+                              {isDisconnecting
+                                ? "Disconnecting..."
+                                : isConfirming
+                                  ? "Yes, disconnect Stripe"
+                                  : "Disconnect Stripe"}
+                            </Button>
+                          </DemoGuardedForm>
+                          {isConfirming && !isDisconnecting ? (
+                            <Button onClick={() => keep(conn.id)}>
+                              Keep connected
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className="m-0 text-micro text-text-subtle">
+                          Only the account owner can disconnect Stripe.
+                        </p>
+                      )}
                     </div>
                     {conn.healthWarning?.length ? (
                       <div className="mt-3">
@@ -279,7 +356,12 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
                           tone="warn"
                           title="Your Stripe account needs attention."
                           action={
-                            <a href={STRIPE_DASHBOARD_URL} className="cap-btn" target="_blank" rel="noreferrer">
+                            <a
+                              href={STRIPE_DASHBOARD_URL}
+                              className="cap-btn"
+                              target="_blank"
+                              rel="noreferrer"
+                            >
                               Open Stripe dashboard
                             </a>
                           }
@@ -304,8 +386,11 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
   );
 }
 
-export default function StripeSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { connections } = loaderData;
+export default function StripeSettings({
+  loaderData,
+  actionData,
+}: Route.ComponentProps) {
+  const { connections, isOwner } = loaderData;
   const result = actionData as DisconnectResult | undefined;
 
   return (
@@ -316,10 +401,18 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
       <div className="mb-8">
         <PageHead
           title="Stripe connections"
-          lead="Connected Stripe accounts. Add additional accounts or disconnect existing ones."
+          lead={
+            isOwner
+              ? "Connected Stripe accounts. Add additional accounts or disconnect existing ones."
+              : "Connected Stripe accounts. Only the account owner can add or disconnect accounts."
+          }
         />
       </div>
-      <StripeSection connections={connections} result={result} />
+      <StripeSection
+        connections={connections}
+        result={result}
+        isOwner={isOwner}
+      />
     </>
   );
 }

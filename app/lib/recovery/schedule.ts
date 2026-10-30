@@ -28,7 +28,7 @@ import {
 // risks the issuer's fraud counter -> higher fees).
 //
 // This diverges from legacy, where soft and expired led with email_day1, and it
-// is RATIFIED (Dustin, 2026-08-01, ruling 80). Retrying quietly before any
+// is RATIFIED (Dustin, 2026-08-01). Retrying quietly before any
 // customer-facing email is the better product under PRICING.md's outcome model:
 // a transient card failure recovers without the merchant's customer being
 // dunned over a blip, and Stripe-baseline recoveries are free anyway.

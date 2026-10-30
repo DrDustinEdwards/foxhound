@@ -7,7 +7,7 @@ import { readEvidenceFile } from "~/lib/disputes/evidence-files.server";
 
 import type { Route } from "./+types/file";
 
-// /disputes/:id/files/:fileId (J07): one merchant evidence file, served by the
+// /disputes/:id/files/:fileId: one merchant evidence file, served by the
 // Worker. Recova's evidence-url route (57ccef71) checked the key's account
 // prefix and that an evidence row named it, then handed back a one-hour signed
 // S3 URL; Foxhound's bucket is a Worker binding with no signed URLs, so the

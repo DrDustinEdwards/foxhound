@@ -16,7 +16,7 @@ import "capsomer/status.css";
 // Legacy's shape kept: a quiet text link that swaps itself for a bordered card
 // with the "Stripe dispute ID" label, one input, the submit and a Cancel in a
 // row, the result, and the explanatory line underneath. Since J66 the parts are
-// Capsomer's (Q10): a link button, the card as a body-only panel, Capsomer's
+// Capsomer's: a link button, the card as a body-only panel, Capsomer's
 // field label and input, a primary button (amber) and a quiet Cancel, and
 // the result as a Capsomer status in a live region, so it is announced and is
 // never color alone. Like legacy, Cancel clears the result and a successful

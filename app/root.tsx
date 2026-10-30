@@ -28,7 +28,7 @@ export const links: Route.LinksFunction = () => PRELOADS.links;
 // cookie reader: an authenticated merchant's stored accounts.theme has to win
 // HERE, because reading it only in a layout would leave them rendering the
 // default on a new device and then correcting, which is the exact flash this
-// loader exists to prevent (ruling 59). Anonymous requests still touch no DB.
+// loader exists to prevent. Anonymous requests still touch no DB.
 // nonce comes
 // from workers/app.ts's per-request generateNonce() (site-runtime; TASK-foxhound-csp-
 // nonce-hydration.md), threaded via cloudflareContext so <Scripts>/
@@ -82,8 +82,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             its root layout, both resolving to one 512x512 PNG. Foxhound shipped
             only the SVG, so both raster paths 404'd and no apple-touch
             declaration existed at all: ledger row F21, and the blocker on F5's
-            RSS channel image (ruling 99). The rasters are generated from this
-            same SVG by scripts/build-icons.mjs (ruling 108).
+            RSS channel image. The rasters are generated from this
+            same SVG by scripts/build-icons.mjs.
             The SVG stays and is declared first: it is a Foxhound addition legacy
             has no counterpart for, browsers that understand it prefer it, and
             removing a working better icon to match legacy's item set exactly

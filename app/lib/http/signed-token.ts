@@ -1,20 +1,35 @@
 // The one stateless HMAC token format behind the links Foxhound emails: the
 // card-update page (/p/), the unsubscribe link (/u/) and the engagement pixel
-// and click redirect (/e/). `base64url(JSON payload).base64url(HMAC-SHA-256)`,
-// keyed on ENCRYPTION_KEY: integrity, not secrecy, so a payload carries ids and
-// never anything private. Each caller checks its own payload's shape.
+// and click redirect (/e/). `base64url(JSON payload).base64url(HMAC-SHA-256)`:
+// integrity, not secrecy, so a payload carries ids and never anything private.
+// Each caller checks its own payload's shape.
+//
+// ITS OWN KEY, EMAIL_TOKEN_KEY, so the key that encrypts Stripe tokens at rest
+// (ENCRYPTION_KEY, app/lib/stripe/encryption.ts) is not also an HMAC key for
+// links anyone can request by the thousand. Until that secret is set, signing
+// falls back to ENCRYPTION_KEY, as every link was signed before. Verification
+// accepts either key while both exist, so links already in inboxes keep working
+// once EMAIL_TOKEN_KEY is set; the ENCRYPTION_KEY fallback can be removed once
+// the longest-lived of those links has aged out.
 
 import { base64url, fromBase64url, fromHex } from "@dustinedwards/site-runtime/encoding";
 
+function hmacKey(hex: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey("raw", fromHex(hex), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+}
+
+/** The key new links are signed with: EMAIL_TOKEN_KEY, else ENCRYPTION_KEY. */
 async function signingKey(env: Env): Promise<CryptoKey> {
-  if (!env.ENCRYPTION_KEY) throw new Error("ENCRYPTION_KEY is not set");
-  return crypto.subtle.importKey(
-    "raw",
-    fromHex(env.ENCRYPTION_KEY),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"],
-  );
+  const hex = env.EMAIL_TOKEN_KEY || env.ENCRYPTION_KEY;
+  if (!hex) throw new Error("EMAIL_TOKEN_KEY and ENCRYPTION_KEY are not set");
+  return hmacKey(hex);
+}
+
+/** Every key a link may have been signed with, the signing key first. */
+async function verifyingKeys(env: Env): Promise<CryptoKey[]> {
+  const hexes = [env.EMAIL_TOKEN_KEY, env.ENCRYPTION_KEY].filter((hex): hex is string => Boolean(hex));
+  if (hexes.length === 0) throw new Error("EMAIL_TOKEN_KEY and ENCRYPTION_KEY are not set");
+  return Promise.all([...new Set(hexes)].map(hmacKey));
 }
 
 /** Sign a JSON payload into a compact `payload.signature` token. */
@@ -32,10 +47,16 @@ export async function readSignedToken(env: Env, token: string): Promise<Record<s
   const dot = token.indexOf(".");
   if (dot <= 0) return null;
   try {
-    const key = await signingKey(env);
     const payloadBytes = fromBase64url(token.slice(0, dot));
     const sig = fromBase64url(token.slice(dot + 1));
-    if (!(await crypto.subtle.verify("HMAC", key, sig, payloadBytes))) return null;
+    let verified = false;
+    for (const key of await verifyingKeys(env)) {
+      if (await crypto.subtle.verify("HMAC", key, sig, payloadBytes)) {
+        verified = true;
+        break;
+      }
+    }
+    if (!verified) return null;
     const parsed: unknown = JSON.parse(new TextDecoder().decode(payloadBytes));
     return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)

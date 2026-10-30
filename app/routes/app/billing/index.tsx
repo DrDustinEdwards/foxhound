@@ -16,6 +16,7 @@ import {
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { accounts, getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { buildDisputeFeeRows, buildRecoveryHistory } from "~/lib/billing/page.server";
 import {
@@ -32,7 +33,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /billing (J65, row S3): Recova's billing page on Foxhound's billing engine.
+// /billing: Recova's billing page on Foxhound's billing engine.
 // Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
 // head, then Recovery, Dispute Fees, Subscriptions and Payment method, in a
 // 720px column (Recova's Intelligence offer is gone: Intelligence is free,
@@ -73,6 +74,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // as the expected owner; a foreign session never mutates a customer.
   const sessionId = new URL(request.url).searchParams.get("session_id");
   if (sessionId) {
+    // The demo never calls Stripe (hard rule 10), and an admin viewing as a
+    // merchant does not finalize the merchant's card for them: both just land
+    // on the clean URL.
+    if (auth.isDemo || auth.viewingAs) throw redirect("/billing");
     const accountRow = await loadAccountBillingRow(env, accountId);
     await finalizeBillingSetupSession(env, {
       sessionId,
@@ -112,6 +117,12 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
 
+  // OWNERS ONLY: the card on file pays every fee the account owes, so only the
+  // owner puts one there, as only an owner disconnects Stripe or mints an API key.
+  if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+    return data({ error: "Only the account owner can set up billing." }, { status: 403 });
+  }
+
   const form = await request.formData();
   if (String(form.get("intent") ?? "") !== "setup_billing") {
     return data({ error: "Unknown action." }, { status: 400 });
@@ -142,10 +153,9 @@ export async function action({ context, request }: Route.ActionArgs) {
     });
     return redirect(session.url);
   } catch (err) {
-    return data(
-      { error: err instanceof Error ? err.message : "Could not start billing setup." },
-      { status: 400 },
-    );
+    // Stripe's and D1's messages stay in the log; the merchant gets one sentence.
+    console.error("billing setup start failed:", err instanceof Error ? err.message : err);
+    return data({ error: "Could not start billing setup. Please try again." }, { status: 400 });
   }
 }
 

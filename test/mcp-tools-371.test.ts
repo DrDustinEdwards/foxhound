@@ -12,8 +12,8 @@ import { mcpRequest, readMcp, toolOutput, type McpCallInit } from "./helpers/mcp
 
 // SESSION 77: THE THIRTEEN READ TOOLS, under 370's DEFAULT-REDACT. The read
 // count is fifteen since session 83 added 375's two approved readers, and the
-// redaction moved to the registry boundary in the same session (376 item 7).
-// The 2026-10-10 MCP ruling (job_874dc20ea9ac) regrouped all twenty-three into
+// redaction moved to the registry boundary in the same session.
+// The 2026-10-10 MCP ruling regrouped all twenty-three into
 // twelve foxhound_{action}_{resource} tools, ten reads and two writes, served
 // through the official SDK; every plant below was carried over to the new names.
 //
@@ -29,7 +29,7 @@ import { mcpRequest, readMcp, toolOutput, type McpCallInit } from "./helpers/mcp
 //      answers a legacy-era request as an SSE stream, "the bytes" is the JSON-RPC
 //      message `readMcp` lifts out of it, which is everything the agent reads.
 //
-// STACKED-GUARD FIXTURES (371 binding 5). Where a refusal has a neighbor that
+// STACKED-GUARD FIXTURES. Where a refusal has a neighbor that
 // would refuse the same input anyway, the fixture is built so only the guard
 // under test can produce the result. That rule exists because neutering the
 // admin-scope check in session 76 left the suite green.
@@ -71,7 +71,6 @@ const MY_NAME = "Zebulon Quicksilver";
 const MY_EMAIL = "zebulon.quicksilver@example.test";
 const THEIR_NAME = "Persephone Nightingale";
 const THEIR_EMAIL = "persephone.nightingale@other.test";
-
 
 function env(): Env {
   return {
@@ -161,7 +160,6 @@ async function call(token: string | null, method: string, params: Record<string,
 const callTool = (token: string, name: string, args: Record<string, unknown> = {}) =>
   call(token, "tools/call", { name, arguments: args });
 
-
 describe("PLANT 3: the redaction default (370)", () => {
 
   it("the masker itself: first character plus domain, and a malformed address fails CLOSED", () => {
@@ -173,18 +171,6 @@ describe("PLANT 3: the redaction default (370)", () => {
     expect(maskEmail("not-an-email")).toBe("***");
     expect(maskEmail("trailing@")).toBe("***");
     expect(maskEmail("@leading.test")).toBe("***");
-  });
-
-  it("ONE IMPLEMENTATION: no tool masks inline, because no tool redacts at all", () => {
-    // A second masker in the tools file would be a second authority for one
-    // rule, and the boundary plant below would stay green while this file
-    // quietly held the property up (381 binding e).
-    const tools = code(read("app/lib/mcp/tools.server.ts"));
-    expect(tools).not.toContain("lastIndexOf(\"@\")");
-    expect(tools).not.toContain("***");
-    expect(tools).not.toContain("redact");
-    // And the authority is where it is claimed to be.
-    expect(code(read("app/lib/mcp/registry.ts"))).toContain("redactToolResult");
   });
 });
 

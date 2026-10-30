@@ -13,6 +13,7 @@ import "capsomer/stat-tile.css";
 import "~/site-header.css";
 
 import { disputes, failedPayments, getDb, stripeConnections } from "~/db";
+import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
@@ -34,7 +35,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 //
 // TWO DESCRIPTIONS ARE NOT RECOVA'S, because Recova's were untrue (RULES.md
 // 1.2). Email's "Sender name, reply-to, domain" promises a sender domain, which
-// is deliberately not built (RULES.md 5.6); My account's "Profile, appearance,
+// is deliberately not built; My account's "Profile, appearance,
 // sign out" promises an appearance control neither Recova's account page nor
 // Foxhound's has (parity/S-CLOSEOUT.md, reversal 5).
 //
@@ -45,7 +46,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // thing, which is what the card promises; copying Recova's literals would count
 // zero forever.
 //
-// LOOK FROM CAPSOMER (J40; Q10, Q11, 2026-10-14). The title and its line are
+// LOOK FROM CAPSOMER (2026-10-14). The title and its line are
 // Capsomer's PageHead, the three figures its StatTiles, and every entry its
 // Row, so the sizes are Capsomer's five and the accent amber. Recova's content,
 // order and arrangement stay: the phone's one list, the desktop's three
@@ -88,9 +89,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     db
       .select({ stripeUserId: stripeConnections.stripeUserId })
       .from(stripeConnections)
-      .where(
-        and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)),
-      ),
+      .where(activeConnectionWhere(accountId)),
     db
       .select({ n: count() })
       .from(failedPayments)
@@ -212,7 +211,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Recova's "Configuration" is a plain paragraph over the grid; here it
-            is the heading that names the grid (RULES.md 1.5). */}
+            is the heading that names the grid. */}
         <h2
           id={CONFIG_HEADING_ID}
           className="mb-3 font-mono text-micro font-normal uppercase tracking-widest text-text-tertiary"

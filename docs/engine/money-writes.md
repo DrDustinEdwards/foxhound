@@ -35,7 +35,12 @@ Closures and Drizzle internals never cross the DO boundary; only compiled
 1. **Database (authoritative).** Money batches include a row carrying a UNIQUE
    idempotency key (e.g. `outcomes.idempotency_key`, `outcomes_idempotency_uq`).
    A replay makes the whole atomic batch fail the constraint and roll back. The
-   committer catches that specific failure and reports `applied: false`.
+   committer catches that specific failure and reports `applied: false`, but
+   only for the designed replay keys listed in `REPLAY_KEYS`
+   (app/lib/money/serializer.ts). Any other unique violation is a real
+   conflict (a live Stripe account already connected elsewhere, for example)
+   and throws, so callers never read it as "already done". A new unique index
+   a money batch relies on for exactly-once must be added to that list.
 2. **DO storage (fast path).** A `seen` set in DO storage short-circuits a key we
    already know landed, avoiding a redundant batch. It is only an optimization;
    the DB is the guarantee.
@@ -53,8 +58,17 @@ can safely retry.
 
 ## Rules for callers
 
-- Every money write goes through `executeMoneyWrite`. Never write outcomes /
-  billing / webhook claims / stripe_connections directly against `db`.
+- Every money write goes through `executeMoneyWrite`. Never write outcomes or
+  billing directly against `db`. Webhook claims and new Stripe connections go
+  through it too, with these deliberate exceptions, all plain writes:
+  - Claims for events with no account to bill (`claimUnknownAccount` in
+    `app/lib/webhooks/process.ts`, `claimUnroutableEvent` in
+    `app/lib/billing/platform-webhook.ts`) insert `webhook_events` directly,
+    with `account_id` null and no payload, idempotent on the unique index.
+  - Disconnect and cancel (`cancelMerchant` and the disconnect batch in
+    `app/lib/admin/merchant-cancel.server.ts`) and the
+    deauthorize-retry stamps (`app/lib/stripe/deauthorize-retry.server.ts`)
+    update `stripe_connections` directly: account state, not money.
 - The `idempotencyKey` must be stable for a given logical event (so a retry
   collapses) and unique across distinct events.
 - The batch must include the row whose UNIQUE key enforces exactly-once, or
@@ -65,6 +79,6 @@ can safely retry.
 `test/money-write-serialization.test.ts` proves the core: concurrent commits
 serialize (max concurrency 1, arrival order preserved), duplicate keys no-op,
 UNIQUE violations become idempotent no-ops, other failures propagate without
-marking seen, and the chain survives a failed commit. The real DO's D1 batch +
-storage adapters are exercised end-to-end on staging via the Stripe Connect
-write path.
+marking seen, and the chain survives a failed commit. There is no staging
+environment; the real DO's D1 batch + storage adapters run in production on
+every money write, the Stripe Connect write path included.

@@ -39,27 +39,28 @@ import { formatMoneyShort } from "~/lib/money-format";
 // 0.9.0's (Q10 to Q12): each section is a Panel with its description, the
 // calls to action sit in the panel's footer as Capsomer buttons, the Card
 // Updater advisory is a Capsomer banner, and the expiring-cards timeline is an
-// Enarratio chart (Q1). Amber throughout. Text is on the five sizes
-// (RULES.md 5.2). What Recova's look still needs (the summary's accent rail,
+// Enarratio chart. Amber throughout. Text is on the five sizes.
+// What Recova's look still needs (the summary's accent rail,
 // the mono figures, the stat-row layout) is listed for Capsomer's per-site
 // layer, capsomer job_ec5ec0754626, in the J63 pull request; no Foxhound class
 // sits on a Capsomer element.
 //
-// ONE LINE PER CURRENCY. Each money figure is its totals per currency
-// (RULES.md 3.20), stacked one under another as /billing stacks its totals.
+// ONE LINE PER CURRENCY. Each money figure is its totals per currency,
+// stacked one under another as /billing stacks its totals.
 // Recova added the currencies into one number under the first one's label;
 // Dustin approved the lines on 2026-10-25 (parity/APPROVED-DIFFERENCES.md).
 // A single-currency run shows one line, as before.
 //
 // THE NULL. Every figure is `number | null` and says "could not be read"
-// rather than printing a zero (365 binding 2). Recova's `?? 0` is where a
+// rather than printing a zero. Recova's `?? 0` is where a
 // failed Stripe read becomes a merchant with no disputes.
 //
 // THE RECOVERABLE ESTIMATE is Recova's, a fixed share of the failed invoices
 // with its count-up, restored on Dustin's ruling of 2026-10-29 ("30%, with its
 // basis shown"). Truthfulness fix: Recova called the 30% a "platform average
 // recovery rate", which it never measured, so the line under the figure names
-// it as an assumption and gives the published range.
+// it as an assumption. It quotes no outside range: "30 to 70%" had no source
+// with a page and a date (CLAUDE.md hard rule 1), so it came out on 2026-10-30.
 //
 // WHAT IS NOT RENDERED, and why. Recova's two "Platform median" churn figures
 // are statistics with no source and no Foxhound ledger behind them (RULES.md
@@ -90,7 +91,7 @@ export function showDisputesSection(run: AuditRunView): boolean {
 }
 
 /** The one treatment for a scope that was not read, named so a merchant
- *  knows which figure is missing (J63 review round 1). */
+ *  knows which figure is missing. */
 function Unread({ label }: { label: string }) {
   return (
     <div className="py-2">
@@ -215,7 +216,7 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
 }
 
 /** Recova's ExpiringCardsTimeline (33537a84): up to four months of cards
- *  expiring, the peak month marked. Drawn by Enarratio (Q1). */
+ *  expiring, the peak month marked. Drawn by Enarratio. */
 function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<string, number> }) {
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
@@ -366,9 +367,11 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
   // Keyed on the figures, not the array, so a parent re-render does not
   // restart the count.
   const key = totals.map((t) => `${t.currency}:${t.cents}`).join(",");
+  // A function of the figures, so it changes only when `key` does.
+  const hasFigure = anyAbove(totals);
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    if (!anyAbove(totals)) return;
+    if (!hasFigure) return;
     let frame = 0;
     const start = performance.now();
     const step = (now: number) => {
@@ -378,8 +381,7 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the figures
-  }, [key]);
+  }, [key, hasFigure]);
   const shown = totals.map((t) => ({ currency: t.currency, cents: Math.round(t.cents * progress) }));
   return (
     <>
@@ -391,8 +393,8 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
         </div>
       </div>
       <p className="m-0 text-micro text-text-subtle">
-        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. Full recovery programs
-        typically recover 30 to 70%.
+        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. This is an assumption,
+        not a measured rate.
       </p>
     </>
   );
@@ -526,7 +528,7 @@ function DisputeFigures({
           />
           {/* Truthfulness fix: Recova's line says it "submits structured
               evidence automatically". Foxhound builds the evidence on its own
-              and the merchant approves it before it is sent (RULES.md 5.6). */}
+              and the merchant approves it before it is sent. */}
           <p className="m-0 text-micro text-text-subtle">
             Disputes you lost without submitting evidence. Foxhound builds structured evidence automatically,
             and you approve it before it is submitted.

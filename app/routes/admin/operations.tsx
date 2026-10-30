@@ -80,8 +80,8 @@ const figure = (n: number) => n.toLocaleString("en-US");
 // list. Recova's Operations page (app/admin/operations/OperationsClient.tsx,
 // blob 419a51ac) is the inventory: its queue depth and its cron-lock health are
 // here, read from Foxhound's own recovery queue and CronLock Durable Objects.
-// Its global pause is the Brake page and is not repeated (ruling 406 binding 3);
-// its run-now panel stays out (ruling 406 binding 5); its Vercel redeploy hook
+// Its global pause is the Brake page and is not repeated;
+// its run-now panel stays out; its Vercel redeploy hook
 // has no Cloudflare counterpart. Foxhound's own four panels follow: database
 // size, table growth, migrations and settings, then the MCP servers (once
 // /admin/mcps). Read only.

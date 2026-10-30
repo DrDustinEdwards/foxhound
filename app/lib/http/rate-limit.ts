@@ -3,7 +3,7 @@ import { limit } from "@dustinedwards/site-runtime/rate-limit";
 // Rate-limit enforcement, keyed on cf-connecting-ip, on site-runtime's
 // RateLimiter Durable Object (bound as RATE_LIMITER).
 //
-// THE AUTH BUCKET LEFT THIS FILE IN J52 (job_674e728b50a3). Sign-in, signup,
+// THE AUTH BUCKET LEFT THIS FILE IN J52. Sign-in, signup,
 // password reset, the Google start and Better Auth's own /api/auth endpoints
 // are limited by site-runtime's limiter inside their actions
 // (app/lib/auth/rate-limit.server.ts; Q5, RULES.md 4.10). This file matched
@@ -37,7 +37,7 @@ import { limit } from "@dustinedwards/site-runtime/rate-limit";
 // is the same idea, a Durable Object per key, and Foxhound already used it for
 // sign-in and signup. RATE_LIMITER keeps its class name and namespace
 // (workers/app.ts extends site-runtime's class under the old name), so no
-// Durable Object namespace is deleted (RULES.md 3.13). Windows are now aligned
+// Durable Object namespace is deleted. Windows are now aligned
 // to the clock rather than to a key's first hit, and a refused hit is not
 // counted.
 //

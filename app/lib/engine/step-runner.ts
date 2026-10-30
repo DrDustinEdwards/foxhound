@@ -14,7 +14,7 @@ import {
 // retry) whether a recovery must be recorded. They are pure so the orchestration
 // is proven without a live Stripe charge or a live email send.
 //
-// BOUNDARY (Phase 4c): the live executors call these. `executeRetryStep` wraps
+// BOUNDARY: the live executors call these. `executeRetryStep` wraps
 // `decideRetryStep` around a real stripe.invoices.pay + the step persistence + the
 // reconcileRetryRecovery money-write; `executeEmailStep` wraps `decideEmailStep`
 // around the content resolution (email-generation.ts) + the EMAIL-binding send +

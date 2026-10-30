@@ -1,4 +1,4 @@
-import { groupSumByCurrency } from "~/lib/dashboard/stats.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
@@ -20,7 +20,7 @@ import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
 import { HOUR_MS } from "~/lib/constants";
 
-// The data behind the /product/intelligence previews (J58): the demo account's
+// The data behind the /product/intelligence previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hand-written numbers
 // (IntelligenceDashboardPreview.tsx, blob 11972333; IntelligenceCustomerTable.tsx,
 // blob 6ae7c73f; ChurnRiskSummary.tsx, blob ba1fbb51). Foxhound builds the
@@ -35,7 +35,7 @@ import { HOUR_MS } from "~/lib/constants";
 // - Customers: listCustomerDirectory's default order, health ascending, with
 //   its plan pill (planTierPill) and its MRR cell ("-" with none).
 // - Bands: getChurnBands, per healthScoreBand (the engine's 40/70 cutoffs),
-//   totaled with groupSumByCurrency (RULES.md 3.20).
+//   totaled with groupSumByCurrency.
 //
 // Strings are formatted here, on the server, so the page renders the same
 // text on the server and in the browser.
@@ -103,7 +103,7 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     const members = directory.filter((c) => healthScoreBand(c.healthScore) === band);
     // The demo bills in one currency; a second one would be a seed change, and
     // this shows the first, as the Recovery spoke's preview does.
-    const [total] = groupSumByCurrency(members.map((c) => ({ currency: c.currency, amountCents: c.mrrCents })));
+    const [total] = groupSumByCurrency(members.map((c) => ({ currency: c.currency, cents: c.mrrCents })));
     return {
       band,
       customerCount: members.length,

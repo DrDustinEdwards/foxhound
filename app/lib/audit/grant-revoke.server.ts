@@ -88,7 +88,7 @@ export async function processAuditGrantRevokeMessage(
     outcome = "failed";
   }
   if (outcome !== "failed") {
-    console.log(`audit grant revoke: ${outcome}`);
+    console.info(`audit grant revoke: ${outcome}`);
     return "ack";
   }
   const retry = attempts <= 1;

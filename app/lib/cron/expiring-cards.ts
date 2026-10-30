@@ -6,6 +6,7 @@ import { DAY_MS, EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
+import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -77,7 +78,7 @@ async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
 }
 
 /**
- * Legacy's band guard, ported as found (341 binding 6).
+ * Legacy's band guard, ported as found.
  *
  * `cardExpiry > now + lead` skips a card too far out; `cardExpiry < now` skips
  * one that has ALREADY EXPIRED. The window is a band, not a deadline, so a
@@ -135,7 +136,7 @@ export interface CandidateInput {
  * Record one candidate, or do nothing if this card-month is already recorded.
  *
  * THE UPSERT IS THE DEDUPE and it is enforced by the database, not by a
- * preceding SELECT (314). Legacy's cron reads-then-inserts, which races its own
+ * preceding SELECT. Legacy's cron reads-then-inserts, which races its own
  * webhook writer; migration 0019's unique index makes the conflict a no-op
  * instead. Shared by BOTH writers so they cannot disagree.
  */
@@ -170,7 +171,7 @@ export interface ScanResult {
   scanned: number;
   recorded: number;
   /** Accounts whose subscription list crossed the soft ceiling, so the seat can
-   *  see it rather than infer it (341 binding 5). */
+   *  see it rather than infer it. */
   overLimit: string[];
 }
 
@@ -187,7 +188,11 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
       for await (const sub of stripe.subscriptions.list({
         status: "active",
         limit: 100,
-        expand: ["data.customer", "data.default_payment_method"],
+        expand: [
+          "data.customer",
+          "data.default_payment_method",
+          "data.customer.invoice_settings.default_payment_method",
+        ],
       })) {
         if (seen >= EXPIRING_CARD_SCAN_SOFT_LIMIT) {
           result.overLimit.push(account.accountId);
@@ -198,7 +203,9 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
 
         const customer = sub.customer;
         if (!customer || typeof customer === "string" || "deleted" in customer) continue;
-        const pm = sub.default_payment_method;
+        // The subscription's own card, else the customer's default, which is
+        // what Stripe charges when the subscription names none.
+        const pm = sub.default_payment_method ?? customer.invoice_settings?.default_payment_method;
         if (!pm || typeof pm === "string" || !pm.card) continue;
         const card = pm.card;
         if (!isInsideLeadWindow(card.exp_month, card.exp_year, now)) continue;
@@ -276,7 +283,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           and ${stripeConnections.disconnectedAt} is null
         limit 1
       )`,
-      // The Reply-To (J03), from the same primary row as the sender name.
+      // The Reply-To, from the same primary row as the sender name.
       replyToEmail: sql<string | null>`(
         select ${stripeConnections.replyToEmail} from ${stripeConnections}
         where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
@@ -296,7 +303,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         // connection and leaves it unstamped, so the customer is still warned
         // if the merchant reconnects inside the window (E12). Filtered here,
         // not in the loop, so unsendable rows never fill the 100-row page and
-        // starve other merchants' alerts (RULES.md 1.5).
+        // starve other merchants' alerts.
         sql`exists (
           select 1 from ${stripeConnections}
           where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
@@ -352,7 +359,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           // CUSTOMER audience: the CAN-SPAM footer, the unsubscribe headers and
           // the suppression gate all apply, because this is commercial mail sent
           // on the merchant's behalf.
-          unsubscribeToken: await signUnsubscribeFor(env, alert.customerEmail, alert.accountId),
+          unsubscribeToken: await signUnsubscribeToken(env, { email: alert.customerEmail, accountId: alert.accountId }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `expiring-card:${alert.id}`,
           cronRunId: null,
@@ -381,7 +388,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         continue;
       }
 
-      // THE OUTCOME, at legacy's fields (341 binding 1), recorded only by the
+      // THE OUTCOME, at legacy's fields, recorded only by the
       // tick that took the claim, exactly as legacy records only after its own
       // conditional claim returns rows.
       //
@@ -412,11 +419,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
     }
   }
   return result;
-}
-
-async function signUnsubscribeFor(env: Env, email: string, accountId: string): Promise<string> {
-  const { signUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
-  return signUnsubscribeToken(env, { email, accountId });
 }
 
 /** Stamp without claiming: used for refusals, where nothing was sent and there

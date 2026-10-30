@@ -53,7 +53,7 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
           const outcome = await runAdminTool(tool, { env, actor: session.actor, scopes: session.scopes }, (args ?? {}) as Record<string, unknown>);
           // The audit line for this Worker; the API keeps the durable,
           // append-only log of the same call in admin_api_calls.
-          console.log(JSON.stringify({ mcp: "tool-call", tool: tool.name, actor: session.actor, client: session.client, ok: outcome.ok }));
+          console.info(JSON.stringify({ mcp: "tool-call", tool: tool.name, actor: session.actor, client: session.client, ok: outcome.ok }));
           return outcome.ok ? result(outcome.data) : result({ error: outcome.error, tool: tool.name }, true);
         } catch (err) {
           // An unexpected failure's text stays in the log: it was not written

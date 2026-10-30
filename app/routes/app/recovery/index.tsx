@@ -65,7 +65,7 @@ import {
 } from "../../../components/recovery-dashboard-panels";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /recovery/dashboard (row S5, job J74). Recova is the spec: its page,
+// /recovery/dashboard. Recova is the spec: its page,
 // app/(app)/recovery/dashboard/page.tsx at blob 208b0066, and every component
 // it renders, each read whole at the blob J74 names (StatCards b1923468,
 // ROIWidget 549b89ef, DeclineBreakdown 79b7de3f, DeclineSparkline a7ce51f5,
@@ -79,8 +79,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 // time-series panels, decline analysis, timing beside win-back, the queue, the
 // secondary stats, then the failed-payments table.
 //
-// Built from Capsomer 0.9.0's parts (Q10) with every chart drawn by Enarratio
-// (Q1), amber throughout. No Foxhound CSS sits over a Capsomer component;
+// Built from Capsomer 0.9.0's parts with every chart drawn by Enarratio,
+// amber throughout. No Foxhound CSS sits over a Capsomer component;
 // dashboard.css only hides Enarratio's gridlines, which Recova's charts never
 // drew. Recova's per-category colors, its green and red figures inside
 // panels, and its 12px radius wait for Capsomer's per-site layer (capsomer
@@ -190,7 +190,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10, with
   // its banners above it in the same column. The shell owns the page's one
-  // <main> (ruling 146), so this is a plain wrapper.
+  // <main>, so this is a plain wrapper.
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 pb-8 md:px-8 md:pb-10">
       {hasBanners ? (

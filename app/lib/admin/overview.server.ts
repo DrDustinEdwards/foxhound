@@ -19,7 +19,8 @@ import {
 } from "~/db";
 import { auditTarget, describeAuditAction, type AuditTarget } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
-import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { BILLABLE_ATTRIBUTION_KINDS, DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
@@ -312,7 +313,7 @@ async function failedFeeInvoices(db: Db, nowMs: number): Promise<{ count: number
 
 async function recoveredThisMonth(db: Db, nowMs: number): Promise<AdminOverview["recoveredThisMonth"]> {
   // Summed and counted per currency in SQL; the per-currency rows still pass
-  // through groupSumByCurrency, the one money-total path (RULES.md 3.20).
+  // through groupSumByCurrency, the one money-total path.
   const rows = await db
     .select({
       currency: recoveredPayments.currency,

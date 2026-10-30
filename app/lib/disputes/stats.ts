@@ -1,4 +1,4 @@
-// Summary stats for the /disputes stat cards (J66, row S13). Pure: the route
+// Summary stats for the /disputes stat cards. Pure: the route
 // hands it the rows it already loaded, so no extra query.
 //
 // Recova's view (app/(app)/disputes/dashboard/DisputesDashboardView.tsx, blob
@@ -14,11 +14,11 @@
 // - "Fees owed" is read from the billing records, not computed here
 //   (fees-owed.server.ts), so it counts only fees still owed, as Recova's does.
 // - Win rate is not one of Recova's cards. It stays as Dustin's approved
-//   difference (question 4), because /features (J60) cites it.
+//   difference (question 4), because /features cites it.
 //
 // Money is returned as per-currency parts, never summed here: a total across
 // currencies is meaningless, and every money total goes through
-// groupSumByCurrency (RULES.md 3.20), which the loader applies.
+// groupSumByCurrency, which the loader applies.
 
 import { SUBMITTED_EXTERNALLY, isDisputeResolved } from "./labels";
 

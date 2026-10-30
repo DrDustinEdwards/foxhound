@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { planTierPill } from "~/lib/intelligence/customer-directory";
 import IntelligenceCustomersPage from "~/routes/app/intelligence/customers";
 
-// J30 (job_2f939fd1c60f), row S17, under Dustin's Q10 and Q11 rulings of
+// J30, row S17, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /intelligence/customers is Recova's page
 // (app/(app)/intelligence/customers/page.tsx at blob 0413f035, with
 // lib/intelligence-display.ts at blob 379635a7) built from Capsomer 0.9.0's

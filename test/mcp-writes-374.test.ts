@@ -8,7 +8,7 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { mcpRequest, readMcp } from "./helpers/mcp-client";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 80: THE FOUR SURGERIES, AND ITEM 4 CLOSES (372, 374).
+// SESSION 80: THE FOUR SURGERIES, AND ITEM 4 CLOSES.
 //
 // Session 79 took the four settings whose actions were single-concern. These
 // four sat inside multi-branch actions on live merchant self-service: brand
@@ -16,7 +16,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // verbs. The email page's remaining branch is the test send, which is an action
 // and not a setting, so it gained no tool and keeps none.
 //
-// THE 2026-10-10 REGROUP (job_874dc20ea9ac) folded the eight writers into two
+// THE 2026-10-10 REGROUP folded the eight writers into two
 // tools, and every property below survives the fold. set_brand_voice and
 // set_intelligence_context are now the brand_voice and intelligence_context
 // sections of foxhound_update_settings; create_alert and set_alert_config are

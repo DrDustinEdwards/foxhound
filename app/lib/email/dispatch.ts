@@ -23,7 +23,8 @@ import type { OutboundEmailJob } from "./types";
 // references in tests. The CONSUMER stays: consumer.ts also serves
 // foxhound-email-events, which is the bounce and complaint path core.md's
 // blocker 6 depends on, and its own instruction is "do not rebuild the
-// consumer". So the queue registration is what keeps that handler reachable.
+// consumer". The foxhound-email-events consumer entry in wrangler.jsonc is what
+// reaches that handler; the foxhound-email entry does not.
 //
 // The LIVE path bypasses the queue entirely and is synchronous inside the
 // 5-minute recovery cron:
@@ -71,7 +72,7 @@ export function buildEmailSendRow(
     recipientHash: string;
     queueMessageId: string | null;
     now: Date;
-    /** Set ONLY on the claim row (385). Suppressed and blocked rows leave it
+    /** Set ONLY on the claim row. Suppressed and blocked rows leave it
      *  null on purpose: a blocked row is the live-send flag refusing, and a key
      *  on it would mean switching the merchant on finds the claim and skips the
      *  send forever. */
@@ -183,13 +184,13 @@ export async function processEmailJob(
     return { status: "suppressed", providerMessageId: null, error: null, retryable: false };
   }
 
-  // THE LIVE-SEND GATE (268). After suppression, before the send: an account that
+  // THE LIVE-SEND GATE. After suppression, before the send: an account that
   // has not been switched on never reaches env.EMAIL. Logged like any other
   // outcome so the block is visible in email_sends rather than silent.
   //
   // PREVIEW MAIL IS NOT HELD (E3). The gate keeps a merchant's CUSTOMERS from
   // being mailed before the merchant is switched on. A preview goes only to the
-  // signed-in user's own address (RULES.md 4.7) and reaches no customer, and
+  // signed-in user's own address and reaches no customer, and
   // Recova's test-email route sends on every click with no such switch. The
   // admin email tool skips the gate for the same reason (#82).
   //
@@ -219,7 +220,7 @@ export async function processEmailJob(
     };
   }
 
-  // THE SEND CLAIM (385), and it is written BEFORE the provider call.
+  // THE SEND CLAIM, and it is written BEFORE the provider call.
   //
   // WHAT IT CLOSES. 385 ruled the step-level send-then-claim order stays on both
   // the recovery and win-back paths, and named the residual it leaves: a worker
@@ -329,8 +330,8 @@ async function claimSend(
  * `expiring-card-cron.test.ts` already has a test named "a send FAILURE leaves
  * the candidate unsent so tomorrow retries" asserting the opposite.
  *
- * THE RE-TAKE IS ONE CONDITIONAL STATEMENT, not a read followed by a write
- * (380): the UPDATE carries `error IS NOT NULL` in its own WHERE and RETURNING
+ * THE RE-TAKE IS ONE CONDITIONAL STATEMENT, not a read followed by a write:
+ * the UPDATE carries `error IS NOT NULL` in its own WHERE and RETURNING
  * says whether this caller won it, so two workers racing on a refused claim
  * cannot both proceed.
  *

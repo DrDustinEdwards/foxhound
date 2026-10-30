@@ -1,5 +1,4 @@
-// THIRD-PARTY STATISTICS, WITH THEIR SOURCES AND THE DAY THEY WERE READ
-// (377(9)).
+// THIRD-PARTY STATISTICS, WITH THEIR SOURCES AND THE DAY THEY WERE READ.
 //
 // THE RULE THIS ENCODES: every statistic on a marketing surface carries an exact
 // URL and an as-of date, or it comes out. Not a bare domain. 376 item 22 found

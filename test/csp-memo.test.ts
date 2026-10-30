@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 // checks every source, hash and the report sink), and only the nonce changes
 // per request. This proves both halves: the builder is not re-run per request,
 // and the per-request policy is exactly what the builder itself returns for
-// that request's nonce (plus the Turnstile frame-src Foxhound appends, which the
+// that request's nonce (plus Stripe Checkout on form-action and the Turnstile frame-src Foxhound appends, which the
 // builder refuses in extraDirectives since site-runtime 0.26.0), so no check is
 // bypassed by the substitution.
 
@@ -33,7 +33,7 @@ describe("the policy is validated once and only the nonce varies per request", a
       const nonce = generateNonce();
       const expected = buildContentSecurityPolicy({ ...site, nonce });
       expect(applySecurityHeaders(new Response(null), nonce, "https://foxhound.example.com").headers.get(expected.name))
-        .toBe(`${expected.value}; frame-src https://challenges.cloudflare.com`);
+        .toBe(`${expected.value.replace("form-action 'self'", "form-action 'self' https://checkout.stripe.com https://connect.stripe.com")}; frame-src https://challenges.cloudflare.com`);
     }
   });
 });

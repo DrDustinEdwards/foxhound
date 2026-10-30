@@ -81,7 +81,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // THE ACCOUNT IS THE ONE STRIPE NAMED, NEVER THE QUERY'S. Legacy trusts
   // `?account=`, which the visitor can edit, while the token reads whichever
   // account granted it; editing the id would file one account's numbers under
-  // another's id in the caller's history (RULES.md 4.14). The query is kept for
+  // another's id in the caller's history. The query is kept for
   // legacy's URL and checked against the sealed id. A mismatch is refused like
   // a stale link, naming no account and no holder.
   if (queryAccountId !== grant.stripeAccountId) {
@@ -116,7 +116,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   if (membership) {
     // Is the audited Stripe account the one this account actually holds? Asked
-    // through the SAME predicate both connect branches use (356 binding 2), with
+    // through the SAME predicate both connect branches use, with
     // the caller's held set narrowed to the active account, so "held by caller"
     // here means "live on the account this run would be filed under".
     const attachment = await findLiveAttachment(db, stripeAccountId, [membership.accountId]);
@@ -170,7 +170,7 @@ function WhatsNext({
             </Link>
           </>
         ) : (
-          // The refusal, said out loud (RULES.md 4.14). A run that quietly did
+          // The refusal, said out loud. A run that quietly did
           // not save is the same shape of lie as a zero that means unknown.
           <p className="m-0 text-label text-text-secondary">
             This run was not saved to your audit history, because the Stripe account you just
@@ -217,7 +217,7 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
 
   // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The page sits
   // under the marketing shell, which is not a Capsomer family, so it names the
-  // amber family itself, as the legal pages do (J51).
+  // amber family itself, as the legal pages do.
   return (
     <div className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8" data-cap-site="foxhound" data-family="amber">
       <div className="mb-6">

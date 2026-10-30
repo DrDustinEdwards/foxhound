@@ -56,7 +56,7 @@ async function notifySlackEmailSent(env: Env, ctx: EmailStepContext): Promise<vo
 
 /** Everything the email executor needs, loaded by the cron. */
 export interface EmailStepContext {
-  /** The cron run that is executing this step (313), stamped onto the
+  /** The cron run that is executing this step, stamped onto the
    *  email_sends row so a send can be attributed to its run. NULL for every
    *  non-cron caller, which is the enumeration recorded in canon: the manual
    *  "Trigger next step now" and "Resend last email" actions, the bulk actions,
@@ -72,7 +72,7 @@ export interface EmailStepContext {
   declineCategory: string;
   customerEmail: string;
   /** failed_payments.customer_name, raw and nullable. The day 1, 3 and 7
-   *  templates greet with it, falling back to Recova's "there" (J85). Optional
+   *  templates greet with it, falling back to Recova's "there". Optional
    *  so a caller that has no name behaves as a payment with none. */
   customerName?: string | null;
   amountCents: number;
@@ -93,7 +93,7 @@ export interface EmailStepContext {
    *  its prompt takes the sender name on its own. */
   senderName: string | null;
   /** The connection's `reply_to_email`, raw and nullable, for the Reply-To
-   *  header only (J03). When it is unset send.ts sets no Reply-To, so a reply
+   *  header only. When it is unset send.ts sets no Reply-To, so a reply
    *  goes to the From, where Recova's `replyTo ?? fromAddress` also sends it. */
   replyTo?: string | null;
   /** Optional merchant-configured brand voice. */
@@ -122,7 +122,7 @@ export interface EngagementUrls {
   clickTrackedUpdateUrl: string;
   /** The open-pixel URL (Intelligence only, never billable). */
   openUrl: string;
-  /** The invisible trap link (377(4) phase one). */
+  /** The invisible trap link. */
   honeypotUrl: string;
 }
 
@@ -215,7 +215,7 @@ export function sendResultToAttempt(result: EmailJobResult): {
   permanent?: boolean;
   error?: string;
 } {
-  // `duplicate` IS OK, and treating it otherwise would be the defect (385). It
+  // `duplicate` IS OK, and treating it otherwise would be the defect. It
   // means the send claim was already taken for this exact key, so the mail is
   // accounted for. Reporting it as a failure would push the step into backoff
   // and retry with a FRESH key, since the recovery key is `stepId:attemptCount`,
@@ -364,7 +364,7 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
       declineCategory: ctx.declineCategory,
       amountFormatted: formatMoney(ctx.amountCents, ctx.currency),
       updateUrl,
-      // Recova's per-step words for the steps that have them (J85).
+      // Recova's per-step words for the steps that have them.
       stepType: ctx.stepType,
       customerName: ctx.customerName ?? null,
       senderName: ctx.senderName,
@@ -402,7 +402,7 @@ type ResolvedCopy = { copy: EmailCopy; usedTemplate: boolean; templateReason: Te
  * exactly the defect this commit's predecessor fixed.
  *
  * The one exception lives INSIDE the seam, not here: legacy's timing-word guard
- * (job J01) retries once when the SUBJECT says "today" or "tonight", then
+ * retries once when the SUBJECT says "today" or "tonight", then
  * hard-strips what still leaks, so those nine phrases rarely reach this gate.
  * See applyTimingWordGuard in recovery/email-generation.ts.
  *

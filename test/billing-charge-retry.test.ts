@@ -5,6 +5,9 @@ import { FEE_INVOICE_MAX_RETRY_ATTEMPTS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
+
 // The stranded-invoice failure mode, end to end. runAccountBilling commits the
 // ledger atomically and THEN charges Stripe, so a failure in the second half
 // leaves a committed billing_invoices row whose money never moved, and the
@@ -365,7 +368,7 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     expect((await db.select().from(schema.billingInvoices))[0].status).toBe("gave_up");
   });
 
-  // E25 (J97): a stranded send_invoice draft must be finalized the way the
+  // E25: a stranded send_invoice draft must be finalized the way the
   // first attempt would have finalized it, or Stripe never emails it.
   it("finalizes a stranded send_invoice draft so Stripe emails it, and never pays it", async () => {
     const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
@@ -424,7 +427,7 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 });
 
 describe("guards", () => {
-  // E25 (J97): an invoice stranded before its account had a platform customer
+  // E25: an invoice stranded before its account had a platform customer
   // gets one, through the same platform-customer write the run uses.
   it("creates and stores a platform customer for an account with none, then bills against it", async () => {
     const db = await seed({ platformCustomerId: null });
@@ -460,14 +463,11 @@ describe("guards", () => {
     expect(calls).toEqual([]); // Stripe never touched for the invoice
   });
 
-  it("skips an invoice whose line items are missing rather than creating an empty one", async () => {
+  it("never sweeps an invoice with no line Stripe would be sent", async () => {
+    // Covers a missing ledger and an admin adjustment alike: neither has a
+    // chargeable line, so retrying could only fail it month after month.
     await seed({ withLineItem: false });
-    const { calls, deps } = stripeDeps(null);
-    const [invoice] = await queryStrandedInvoices({} as Env, 100);
-
-    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result.reason).toBe("no_line_items");
-    expect(calls).toEqual(["findExisting"]);
+    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
   });
 
   it("isolates a per-invoice failure so the sweep completes", async () => {

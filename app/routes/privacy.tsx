@@ -38,10 +38,10 @@ import type { Route } from "./+types/privacy";
 // copy/content mismatch, not something to replicate; this version's intro
 // only promises what actually exists here (the table of contents below).
 //
-// J51 (job_615a012e7035, row M20) put the page in Recova's order, read from
+// J51 put the page in Recova's order, read from
 // its source (blob 8f8dfb8e, lines 46-192): intro, summary card, table of
 // contents, rule, sections. Foxhound had the contents and rule first. The
-// summary card is a Capsomer panel (Q12), the contents heading is Recova's
+// summary card is a Capsomer panel, the contents heading is Recova's
 // "Table of Contents", and the chrome kit (column, contents, rule, section,
 // paragraph, links) is shared with /terms in ~/components/legal-page. The one
 // word of copy touched is "above" to "below" in the summary's intro, so that

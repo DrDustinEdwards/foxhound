@@ -33,7 +33,7 @@ import "~/site-header.css";
 import type { Route } from "./+types/features";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
-// /features (J60, row M10). Recova's spec is app/(marketing)/features/page.tsx
+// /features. Recova's spec is app/(marketing)/features/page.tsx
 // (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
 // FeatureFilter.tsx (4e2ef1fa) and FeatureFilterShell.tsx (707d79df), all read
 // whole. The content is lib/marketing/features-content.ts: Recova's sections
@@ -43,7 +43,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // Layout is Recova's: the shared page header, one 1100px column, the filter
 // row, the 220px sticky section nav beside the sections at lg, each section's
 // h2 and intro, the per-section inline example, the two-column card grid, and
-// the closing line and audit link. Look is Capsomer's (Q12): the page sits in
+// the closing line and audit link. Look is Capsomer's: the page sits in
 // the amber family with Foxhound's neutrals (.fh-cap, as the site header, the
 // legal pages and the /products hub), the filter is Capsomer's chips, each
 // card is Capsomer's panel, each product tag a Capsomer badge, and the closing
@@ -55,7 +55,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 //
 // Recova renders a third inline example in Visibility, two stat tiles reading
 // its own 26.6% and $6,884. Those are Recova's figures, so the tiles are not
-// drawn (RULES.md 2.1, 2.3); which numbers, if any, Foxhound shows there is
+// drawn; which numbers, if any, Foxhound shows there is
 // left open for a ruling.
 
 function FeatureCard({ feature }: { feature: Feature }) {
@@ -77,7 +77,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
 }
 
 // Recova's inline examples, keyed by section id. The automation timeline reads
-// RECOVERY_SCHEDULES and the badges read healthScoreBand (rulings 78, 79); the
+// RECOVERY_SCHEDULES and the badges read healthScoreBand; the
 // sentence states the same bands, from the same constants.
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {

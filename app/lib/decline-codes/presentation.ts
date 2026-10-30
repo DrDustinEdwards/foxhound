@@ -1,6 +1,12 @@
 import type { BadgeTone } from "~/components/badge";
 import type { DeclineCategory } from "~/lib/constants";
+import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+
 import type { DeclineCodeView } from "./codes";
+
+/** How long the fraud sequence runs, in days: its last step's offset, read
+ *  from the schedule rather than typed. */
+const FRAUD_SEQUENCE_DAYS = Math.round(Math.max(...RECOVERY_SCHEDULES.fraud.map((s) => s.offsetHours)) / 24);
 
 // Shared, category-driven presentation for the /decline-codes surfaces. None
 // of this is per-code hand-authored: it derives entirely from the
@@ -36,7 +42,7 @@ export const CATEGORY_STATUS_LABEL: Record<DeclineCategory, string> = {
 
 export function recoveryApproach(view: DeclineCodeView): string {
   if (view.category === "fraud") {
-    return "Fraud and security declines are never retried, silently or otherwise. Foxhound sends a gentle, clearly worded email sequence across 30 days that names the situation plainly and points the customer to their card issuer, rather than repeating the same charge against a flag the issuer already raised.";
+    return `Fraud and security declines are never retried, silently or otherwise. Foxhound sends a gentle, clearly worded email sequence across ${FRAUD_SEQUENCE_DAYS} days that names the situation plainly and points the customer to their card issuer, rather than repeating the same charge against a flag the issuer already raised.`;
   }
   if (view.category === "expired") {
     return "Expired and stale-card declines do not recover through a repeat charge against the same card details. Foxhound skips straight to the card-update path: a hosted, no-login link goes out by email, and an expiring-card alert can fire ahead of the renewal date when the expiration is already visible on the stored card, so the update happens before the charge ever fails.";

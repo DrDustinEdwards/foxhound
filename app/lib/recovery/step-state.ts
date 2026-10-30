@@ -237,7 +237,7 @@ export function nextPendingStep<T extends ManualActionStepRow>(steps: readonly T
  *   const emailSteps = steps.filter(s => s.step_type.startsWith('email_') && s.executed_at)
  *   const lastEmailStep = emailSteps.filter(s => s.ai_subject && s.ai_body_html).slice(-1)[0]
  *
- * ORDERING, settled by Session D (268). Legacy disagrees with ITSELF here: its
+ * ORDERING, settled by Session D. Legacy disagrees with ITSELF here: its
  * CLIENT picks by array order (`slice(-1)`) while its resend ROUTE re-queries
  * ordered by `executed_at` descending. **Legacy's SERVER rule wins**, because the
  * server is what actually chooses the mail to send and the client's array order

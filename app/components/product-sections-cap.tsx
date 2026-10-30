@@ -13,16 +13,16 @@ import "capsomer/disclosure.css";
 // the page whole under any layout.
 import "~/site-header.css";
 
-// The /product spoke sections built from Capsomer's parts (J56, Q12). Recova's
+// The /product spoke sections built from Capsomer's parts. Recova's
 // spec is components/product/ProductSections.tsx (blob ba3aed7c) and
 // components/product/ProductFAQ.tsx (blob 7c08a5a2), read whole: the same six
 // sections, in the same order, at Recova's five container widths (680 hero,
 // 760 how it works, 1100 feature blocks, 480 pricing and closing) and its
-// 620px FAQ (RULES.md 5.1).
+// 620px FAQ.
 //
 // All four spokes render from this file. It began as a second file beside the
 // pre-Capsomer product-sections.tsx while each spoke's job moved it here; the
-// audit spoke (J55) was the last, and the old file and its product-faq.tsx went
+// audit spoke was the last, and the old file and its product-faq.tsx went
 // with it.
 //
 // Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure. Text is at

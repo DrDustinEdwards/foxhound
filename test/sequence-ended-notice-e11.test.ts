@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E11 (job J89, job_1e3cc5f3efa7): the Recovery sequence ended notice to the
+// E11: the Recovery sequence ended notice to the
 // merchant, on Capsomer's `notice` template with Recova's words, recipient and
 // footer, the same way E10 (PR 152) moved the Payment recovered notice.
 //

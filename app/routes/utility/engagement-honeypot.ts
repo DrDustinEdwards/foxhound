@@ -4,7 +4,7 @@ import { verifyEngagementToken } from "~/lib/engagement/token";
 
 import type { Route } from "./+types/engagement-honeypot";
 
-// The honeypot fetch (ROUTES.md: /e/h/:token, ruling 377(4) phase one).
+// The honeypot fetch (ROUTES.md: /e/h/:token).
 //
 // Every dunning email carries one invisible link to this route. No person can
 // see it or click it, so a fetch is an automated client following every link in

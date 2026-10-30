@@ -168,7 +168,7 @@ function buttonUrls(blocks: { type: string; url?: string }[]): string[] {
 }
 
 /** Every link a sent job carries: the hrefs of an HTML body (generated or
- *  cached copy), or the buttons of the template's blocks (J91). */
+ *  cached copy), or the buttons of the template's blocks. */
 function jobLinks(job: Record<string, unknown>): string[] {
   return Array.isArray(job.blocks)
     ? buttonUrls(job.blocks as { type: string; url?: string }[])

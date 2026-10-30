@@ -1,4 +1,4 @@
-// What /settings/stripe says after a disconnect posts (J41, row S37).
+// What /settings/stripe says after a disconnect posts.
 //
 // Recova's StripeSection (blob 4068961e) has two outcomes: on success it sends
 // the browser to /settings, and on anything else it raises one browser alert,

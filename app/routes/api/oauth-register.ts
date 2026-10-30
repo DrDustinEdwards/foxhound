@@ -6,7 +6,7 @@ import { oauthResponse, registerClient } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/oauth-register";
 
-// POST /api/oauth/register (J79), at Recova's path: RFC 7591 dynamic client
+// POST /api/oauth/register, at Recova's path: RFC 7591 dynamic client
 // registration. Public by specification; a registered client can do nothing
 // until a signed-in merchant approves it.
 //

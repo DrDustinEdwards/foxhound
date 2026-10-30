@@ -66,7 +66,7 @@ export async function resolveThemeForRequest(env: Env, request: Request): Promis
 
 /**
  * Persist a merchant's theme to their account so it follows them across
- * devices and sessions (ruling 59).
+ * devices and sessions.
  *
  * ACTION ONLY. Loaders must not mutate, and that includes helpers they call:
  * a nav-context write once hid outside the routes tree for weeks (core.md
