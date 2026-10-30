@@ -12,7 +12,7 @@ import {
   readUncollectibleInvoices,
 } from "~/lib/stripe/reads";
 
-import { runAudit, type AuditInputs, type AuditResult, type ReadOutcome } from "./engine";
+import { runAudit, type AuditInputs, type AuditInvoice, type AuditResult, type ReadOutcome } from "./engine";
 import { generateAuditSummary, type AuditSummaryOutcome } from "./summary.server";
 
 // The five live reads, the pure engine and the one AI call, joined. Phase (f).
@@ -87,8 +87,8 @@ const DECLINE_LOOKUP_CAP = 100;
  */
 async function withDeclineCodes(
   stripe: Stripe,
-  outcome: ReadOutcome<Stripe.Invoice>,
-): Promise<ReadOutcome<Stripe.Invoice>> {
+  outcome: ReadOutcome<AuditInvoice>,
+): Promise<ReadOutcome<AuditInvoice>> {
   if (!outcome.ok) return outcome;
   const data = await Promise.all(
     outcome.data.map(async (invoice, index) => {
@@ -102,7 +102,7 @@ async function withDeclineCodes(
           charge.outcome?.type === "issuer_declined" ? charge.outcome.reason : null,
           charge.failure_code,
         ]);
-        return code ? ({ ...invoice, charge: { failure_code: code } } as Stripe.Invoice) : invoice;
+        return code ? { ...invoice, charge: { failure_code: code } } : invoice;
       } catch {
         return invoice;
       }

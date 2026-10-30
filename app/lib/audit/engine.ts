@@ -46,12 +46,63 @@ export type ScopeOutcome<T> = { ok: true; data: T } | { ok: false; reason: strin
 /** A read that phase (b) performs, in the shape this module consumes. */
 export type ReadOutcome<T> = ScopeOutcome<T[]>;
 
+// THE ROWS THE ENGINE READS, AND NOTHING ELSE. reads.ts narrows each Stripe row
+// to these as it pages (so a large merchant's audit fits the Worker), and a full
+// Stripe object is assignable to each, so a test or caller holding the whole
+// object passes it unchanged. Naming them keeps a partial row from posing as a
+// complete Stripe type.
+
+/** An invoice as the engine reads it: amount, currency, dates and the three
+ *  places a decline code can sit (extractDeclineCode). Stripe's Invoice type
+ *  dropped `charge` at 2026-03-25.dahlia while the JSON still carries it, and
+ *  `last_payment_error` likewise; legacy shims the same way. */
+export interface AuditInvoice {
+  id?: string;
+  amount_due: number;
+  currency: string;
+  due_date: number | null;
+  created: number;
+  last_finalization_error: { decline_code?: string } | null;
+  last_payment_error?: { code?: string | null } | null;
+  charge?: string | { failure_code: string | null } | null;
+}
+
+/** A subscription as the engine reads it: status, currency, customer id, the
+ *  card's expiry, the first item's price, and the cancellation. */
+export interface AuditSubscription {
+  status: Stripe.Subscription.Status;
+  currency: string;
+  customer: string | { id?: string } | undefined;
+  default_payment_method: string | { card?: { exp_month: number; exp_year: number } } | null;
+  items: {
+    data: {
+      price: {
+        unit_amount: number | null;
+        recurring: { interval: Stripe.Price.Recurring.Interval; interval_count: number } | null;
+      };
+    }[];
+  };
+  canceled_at: number | null;
+  cancellation_details: { reason: Stripe.Subscription.CancellationDetails.Reason | null } | null;
+}
+
+/** A dispute as the engine reads it. */
+export interface AuditDispute {
+  status: Stripe.Dispute.Status;
+  amount: number;
+  currency: string;
+  evidence_details: { submission_count: number } | null;
+}
+
+/** The engine counts Card Updater events and reads nothing inside one. */
+export type AuditEvent = object;
+
 export interface AuditInputs {
-  uncollectibleInvoices: ReadOutcome<Stripe.Invoice>;
-  openInvoices: ReadOutcome<Stripe.Invoice>;
-  subscriptions: ReadOutcome<Stripe.Subscription>;
-  disputes: ReadOutcome<Stripe.Dispute>;
-  cardUpdaterEvents: ReadOutcome<Stripe.Event>;
+  uncollectibleInvoices: ReadOutcome<AuditInvoice>;
+  openInvoices: ReadOutcome<AuditInvoice>;
+  subscriptions: ReadOutcome<AuditSubscription>;
+  disputes: ReadOutcome<AuditDispute>;
+  cardUpdaterEvents: ReadOutcome<AuditEvent>;
 }
 
 /** Per-currency totals from groupSumByCurrency, in currency-code order, zeroes left out.
@@ -126,25 +177,17 @@ export interface AuditResult {
   };
 }
 
-/** Stripe's Invoice type dropped `charge` at 2026-03-25.dahlia while the JSON
- *  still carries it. Legacy shims the same way in its engine and its webhook. */
-type InvoiceWithCharge = Stripe.Invoice & {
-  charge?: string | Stripe.Charge | null;
-  last_payment_error?: { code?: string | null } | null;
-};
-
 /**
  * Legacy's fallback chain, in legacy's order (`audit-engine.ts` extractDeclineCode).
  * The finalization error first, then the last payment error, then the charge's
  * own failure code.
  */
-export function extractDeclineCode(invoice: Stripe.Invoice): string | null {
-  const withCharge = invoice as InvoiceWithCharge;
+export function extractDeclineCode(invoice: AuditInvoice): string | null {
   const fromFinalization = invoice.last_finalization_error?.decline_code;
-  const fromLastPayment = withCharge.last_payment_error?.code;
+  const fromLastPayment = invoice.last_payment_error?.code;
   const fromCharge =
-    typeof withCharge.charge === "object" && withCharge.charge
-      ? withCharge.charge.failure_code
+    typeof invoice.charge === "object" && invoice.charge
+      ? invoice.charge.failure_code
       : null;
   return fromFinalization ?? fromLastPayment ?? fromCharge ?? null;
 }
@@ -154,7 +197,7 @@ export function extractDeclineCode(invoice: Stripe.Invoice): string | null {
  * `monthlyPlanCents`, arithmetic for arithmetic: a day interval times 30, a week
  * times 4, a year divided by 12.
  */
-export function monthlyPlanCents(subscription: Stripe.Subscription): number {
+export function monthlyPlanCents(subscription: AuditSubscription): number {
   const item = subscription.items?.data?.[0];
   const price = item?.price;
   if (!price) return 0;
@@ -234,7 +277,7 @@ function counted(count: number, amounts: Amount[], runCurrency: string): Counted
 function resolveFailedInvoices(
   inputs: AuditInputs,
   nowMs: number,
-): ScopeOutcome<Stripe.Invoice[]> {
+): ScopeOutcome<AuditInvoice[]> {
   if (!inputs.uncollectibleInvoices.ok) {
     return { ok: false, reason: inputs.uncollectibleInvoices.reason };
   }
@@ -245,7 +288,7 @@ function resolveFailedInvoices(
   return { ok: true, data: [...inputs.uncollectibleInvoices.data, ...overdue] };
 }
 
-function computeFailedInvoices(failed: Stripe.Invoice[], runCurrency: string): FailedInvoicesScope {
+function computeFailedInvoices(failed: AuditInvoice[], runCurrency: string): FailedInvoicesScope {
   const amounts: Amount[] = [];
   const byCategoryAmounts: Record<DeclineCategory, Amount[]> = {
     soft: [],
@@ -276,7 +319,7 @@ function computeFailedInvoices(failed: Stripe.Invoice[], runCurrency: string): F
 }
 
 function computeExpiringCards(
-  subscriptions: Stripe.Subscription[],
+  subscriptions: AuditSubscription[],
   ranAt: Date,
   runCurrency: string,
 ): ExpiringCardsScope {
@@ -344,7 +387,7 @@ function computeExpiringCards(
   return { count, mrrAtRiskCents, mrrAtRiskTotals, expiresByMonth };
 }
 
-function computePastDue(subscriptions: Stripe.Subscription[], runCurrency: string): PastDueScope {
+function computePastDue(subscriptions: AuditSubscription[], runCurrency: string): PastDueScope {
   let count = 0;
   const amounts: Amount[] = [];
   for (const subscription of subscriptions) {
@@ -360,7 +403,7 @@ function computePastDue(subscriptions: Stripe.Subscription[], runCurrency: strin
   return counted(count, amounts, runCurrency);
 }
 
-function computeDisputes(disputes: Stripe.Dispute[], runCurrency: string): DisputesScope {
+function computeDisputes(disputes: AuditDispute[], runCurrency: string): DisputesScope {
   const open: Amount[] = [];
   const accepted: Amount[] = [];
   let won = 0;
@@ -387,7 +430,7 @@ function computeDisputes(disputes: Stripe.Dispute[], runCurrency: string): Dispu
 }
 
 function computeHealth(
-  subscriptions: Stripe.Subscription[],
+  subscriptions: AuditSubscription[],
   lookbackStartSeconds: number,
   runCurrency: string,
 ): HealthScope {
