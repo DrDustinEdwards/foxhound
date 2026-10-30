@@ -53,7 +53,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const members = await listMembers(getDb(env), membership.accountId);
   const isOwner = membership.role === MEMBER_ROLE.OWNER;
-  // No account name: Recova's heading is "Team" alone (J31), and the header's
+  // No account name: Recova's heading is "Team" alone, and the header's
   // business tile already names the account this page is scoped to.
   return {
     isOwner,
@@ -133,7 +133,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // One address: no whitespace or control characters (so no line break and no
   // second address after a space), no comma, semicolon or angle brackets, and
   // a dot in the domain. The address becomes the To of the invite email, so
-  // the reply-to field's server check (J03) is the right one, reused as is.
+  // the reply-to field's server check is the right one, reused as is.
   if (!isValidReplyToEmail(email)) return refuse("Invalid email address", 400);
   if (await hasOpenInviteForEmail(db, membership.accountId, email)) {
     return refuse("This email already has a pending or active membership", 409);
@@ -145,7 +145,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // E2: Recova emails the invitee here, after the pending row is written
   // (app/api/invite/route.ts, blob 960aefc6). The link stays on the page as
   // well, and when the email did not go the page says so rather than
-  // reporting success as Recova does (RULES.md 3.16).
+  // reporting success as Recova does.
   const sent = await sendTeamInviteEmail(env, {
     accountId: membership.accountId,
     to: email,
@@ -174,7 +174,7 @@ function displayName(m: { userId: string | null; userName: string | null; userEm
   return (m.userId ? m.userName || m.userEmail : null) || m.invitedEmail || "";
 }
 
-// J31 (job_8d030f93c15f), row S26: Recova's page (app/(app)/settings/team/page.tsx,
+// J31, row S26: Recova's page (app/(app)/settings/team/page.tsx,
 // blob 09983bed; TeamSection.tsx, blob ab19f9de) on Capsomer's parts, amber.
 //
 // Recova, top to bottom: the phone-only Settings link, the page head "Team"
@@ -196,10 +196,9 @@ function displayName(m: { userId: string | null; userName: string | null; userEm
 // app shell's family wrapper (app/layouts/app-shell.tsx).
 //
 // Two words differ from Recova on purpose. The role pill says "Owner" or
-// "Member", never the raw database value (RULES.md 1.5). The success line keeps
+// "Member", never the raw database value. The success line keeps
 // Foxhound's share link beside the invite email (E2), and when the email did
-// not go an alert says so, where Recova would still say "Invite sent to"
-// (RULES.md 1.2).
+// not go an alert says so, where Recova would still say "Invite sent to".
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   const navigation = useNavigation();
   // Pending belongs to the form that was sent: a remove marks its row, an
@@ -223,7 +222,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
       <SettingsBackLink />
       {/* Recova's PageHeader: h1 text-title medium, the line in text-label.
           Composed on the five sizes, because Capsomer's page head computes
-          22px at weight 800, off them (RULES.md 5.2). */}
+          22px at weight 800, off them. */}
       <div className="mb-8">
         <h1 className="mb-1 text-title font-medium text-text">Team</h1>
         <p className="text-label text-text-subtle">Members and pending invites for this account.</p>
@@ -331,7 +330,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                     one error line under the invite row. An alert, and not
                     the field's error, since the address is not what was
                     wrong. Showing it at the row instead is a question for
-                    Dustin (J31 notes). */}
+                    Dustin. */}
                 {removeResult?.error ? (
                   <div className="mt-2">
                     <Alert tone="crit">{removeResult.error}</Alert>

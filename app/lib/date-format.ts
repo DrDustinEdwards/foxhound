@@ -15,6 +15,11 @@
 
 import { DAY_MS, HOUR_MS, MINUTE_MS } from "~/lib/constants";
 
+/** UTC "YYYY-MM" bucket for a timestamp. */
+export function monthKeyUTC(when: Date): string {
+  return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 /** "Jan 5, 2026". Empty string for null, so a caller can drop it into JSX
  *  without a branch. */
 export function formatDateShort(date: Date | null): string {

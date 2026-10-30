@@ -27,7 +27,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/recovery";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
-// The Recovery spoke (J56, row M7). Recova's spec, read whole at HEAD:
+// The Recovery spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/recovery/page.tsx (blob ec4aded8) and the files it
 // draws from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2),
 // RecoveryDashboardPreview.tsx (565b772c), RecoveryPaymentsPreview.tsx
@@ -41,7 +41,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // The previews draw the demo account's seed, never a merchant's rows
 // (lib/marketing/recovery-preview.server.ts).
 //
-// The path is Recova's own /product/recovery since J09 (rulings 55 and 56).
+// The path is Recova's own /product/recovery since J09.
 
 const PATH = "/product/recovery";
 const TITLE = "Recovery - Foxhound";

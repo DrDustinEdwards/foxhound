@@ -1,6 +1,6 @@
 import { INDEXNOW_KEY } from "~/lib/seo/indexnow-key";
 
-// /<key>.txt, the IndexNow key file (job_b0b24df12155). Its body is exactly the
+// /<key>.txt, the IndexNow key file. Its body is exactly the
 // key with no trailing newline, as Recova's public/recova2026indexnow.txt is;
 // IndexNow compares the body with the key in each submission and rejects the
 // submission silently when they differ.

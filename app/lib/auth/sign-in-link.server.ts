@@ -4,7 +4,7 @@ import { data, redirect } from "react-router";
 import { getAuth } from "~/lib/auth";
 
 import { safeNextPath } from "./next-path";
-import { SIGN_IN_LIMITED } from "./rate-limit.server";
+import { checkEmailLimit, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "./rate-limit.server";
 
 // The emailed sign-in link that /login and /signup send (site-runtime
 // ./sign-in's magic link). The page's action calls this after its own
@@ -18,7 +18,7 @@ export type SignInLinkResult = "sent" | "limited" | "check_failed" | "failed";
  *  away for someone who already has a passkey). Absolute on Foxhound's own
  *  origin, as /auth/google makes its callback, because Better Auth's
  *  relative-path check refuses a query that carries an encoded URL, which an
- *  OAuth authorize `next` always does (J79). */
+ *  OAuth authorize `next` always does. */
 function afterLinkURL(env: Env, next: string): string {
   return new URL(`/passkey?next=${encodeURIComponent(safeNextPath(next))}`, env.BETTER_AUTH_URL).toString();
 }
@@ -171,6 +171,18 @@ export async function answerSignInForm(
   const email = String(form.get("email") ?? "").trim();
   if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
   const next = safeNextPath(String(form.get("next") ?? ""));
+
+  // The address's own budget, after the page's IP limit (rate-limit.server.ts).
+  // Its window is an hour or a day, so the words say "later", not "a minute".
+  const emailRefusal = await checkEmailLimit(env, email, page.isCode ? "code" : "link");
+  if (emailRefusal) {
+    return data(
+      page.isCode
+        ? { sent: email as string | null, error: null as string | null, codeError: SIGN_UP_LIMITED as string | null }
+        : { sent: null, error: SIGN_UP_LIMITED, codeError: null },
+      { status: 429, headers: { "Retry-After": String(emailRefusal.retryAfterSeconds) } },
+    );
+  }
 
   // The code from the same mail, typed on the "link sent" screen.
   if (page.isCode) {

@@ -71,6 +71,14 @@ export const failedPayments = sqliteTable(
      * guard. See app/lib/recovery/record-recovery.ts.
      */
     refundSignalAt: ts("refund_signal_at"),
+    /**
+     * When a dispute arrived for this payment's charge. The dispute twin of
+     * refund_signal_at: recovered_payments.disputed_at can only be stamped once
+     * that row exists, so dispute intake also writes this, and buildRecoveryBatch
+     * reads it so a recovery recorded afterwards is born disputed. First
+     * dispute wins.
+     */
+    disputeSignalAt: ts("dispute_signal_at"),
   },
   (t) => [
     index("failed_payments_account_idx").on(t.accountId),
@@ -103,7 +111,7 @@ export const recoverySteps = sqliteTable(
     emailOpenedCount: integer("email_opened_count"),
     emailClickedCount: integer("email_clicked_count"),
     /** Why this step's click is not trusted as human engagement, or null when it
-     *  is (ruling 377(4) phase one). Nullable text rather than a boolean so the
+     *  is. Nullable text rather than a boolean so the
      *  ledger can say WHICH test the click failed. */
     clickSuspectReason: text("click_suspect_reason"),
     lastOpenedAt: ts("last_opened_at"),

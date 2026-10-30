@@ -82,7 +82,7 @@ function row(label: string, value: string): Block {
  * A money row, one line per currency (job_ed1c41e4bd95, approved by Dustin on
  * 2026-10-25). The first currency sits on the labeled row as before; each
  * other currency is its own line straight below it. Recova added them into one
- * number under the first currency's label (RULES.md 3.20). A single-currency
+ * number under the first currency's label. A single-currency
  * account gets the one row it always did. `lead` is what goes before the
  * amount on the labeled row ("3, "), `tail` what follows every amount.
  */
@@ -118,7 +118,7 @@ export interface MonthlyAuditEmailInput {
  * The merged email (E24). Pure, so its content is assertable without sending
  * anything, mirroring `buildFailureAlertEmail` and the digest it replaces.
  *
- * RECOVA'S WORDS, IN RECOVA'S ORDER, ON CAPSOMER'S BLOCKS (Q3). Every label
+ * RECOVA'S WORDS, IN RECOVA'S ORDER, ON CAPSOMER'S BLOCKS. Every label
  * below is Recova's `buildAuditEmailBody` verbatim (blob be1ed2ca, lines 169 to
  * 310), with "Recova" becoming "Foxhound" in the one label that names the
  * product. Its two section labels are muted lines, as Recova's are, not
@@ -130,7 +130,7 @@ export interface MonthlyAuditEmailInput {
  * Recova shows Open disputes and Disputes accepted without response only when
  * their count is above zero, the win rate only when a dispute was decided, and
  * the Card Updater line only with an advisory. A scope whose Stripe read failed
- * still prints its rows as the unread sentence (362 ruling 2), because hiding
+ * still prints its rows as the unread sentence, because hiding
  * them would read as a zero.
  *
  * THE ACTIVITY SECTION IS NOT RECOVA'S. Recova's "What Recova did this month"

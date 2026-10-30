@@ -8,7 +8,7 @@
 // stripe-deauthorize-retry cron retries it until Stripe accepts.
 //
 // Plain writes, not executeMoneyWrite: this is account state on
-// stripe_connections, cancelMerchant's posture (RULES.md 3.2).
+// stripe_connections, cancelMerchant's posture.
 
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
@@ -22,13 +22,40 @@ export interface DeauthorizeFailure {
   connectionId: string;
   stripeUserId: string;
   error: string;
+  /** False when the retry stamp could not be written either, so no cron will
+   *  retry this grant and it needs a manual revoke. Set on the first revoke
+   *  only; the retry cron's own failures leave it absent. */
+  queued?: boolean;
+}
+
+/** Attempts at the retry stamp before the failure is reported as not queued. */
+const STAMP_ATTEMPTS = 2;
+
+/** Stamp deauthorize_failed_at, true only when a row took it. A throw or a
+ *  zero-row UPDATE (hard rule 3) is retried once, then reported. */
+async function stampRetry(env: Env, connectionId: string, now: Date): Promise<boolean> {
+  for (let attempt = 0; attempt < STAMP_ATTEMPTS; attempt++) {
+    try {
+      const rows = await getDb(env)
+        .update(stripeConnections)
+        .set({ deauthorizeFailedAt: now })
+        .where(eq(stripeConnections.id, connectionId))
+        .returning({ id: stripeConnections.id });
+      if (rows.length > 0) return true;
+      console.error(`deauthorize retry stamp matched no row for connection ${connectionId}`);
+    } catch (err) {
+      console.error(`could not queue the deauthorize retry for connection ${connectionId}:`, err);
+    }
+  }
+  return false;
 }
 
 /**
  * Revoke each just-disconnected connection's grant. A failure is stamped on
  * the row for the retry cron and returned for the caller to surface; it never
- * throws and never undoes the disconnect. A failed stamp is logged, and the
- * failure is still returned.
+ * throws and never undoes the disconnect. A stamp that cannot be written is
+ * part of the returned failure (queued: false, and said in its error), since
+ * then nothing will ever retry that grant.
  */
 export async function revokeDisconnectedGrants(
   env: Env,
@@ -40,15 +67,18 @@ export async function revokeDisconnectedGrants(
   for (const c of connections) {
     const result = await deauthorize(env, c.stripeUserId);
     if (result.ok) continue;
-    const failure = { connectionId: c.id, stripeUserId: c.stripeUserId, error: result.error ?? "unknown error" };
-    failures.push(failure);
-    console.error(`stripe deauthorize failed for connection ${c.id}, queued for retry:`, failure.error);
-    try {
-      const db = getDb(env);
-      await db.update(stripeConnections).set({ deauthorizeFailedAt: now }).where(eq(stripeConnections.id, c.id));
-    } catch (err) {
-      console.error(`could not queue the deauthorize retry for connection ${c.id}:`, err);
-    }
+    const error = result.error ?? "unknown error";
+    const queued = await stampRetry(env, c.id, now);
+    console.error(
+      `stripe deauthorize failed for connection ${c.id}, ${queued ? "queued for retry" : "NOT queued for retry"}:`,
+      error,
+    );
+    failures.push({
+      connectionId: c.id,
+      stripeUserId: c.stripeUserId,
+      error: queued ? error : `${error} (not queued for retry: revoke manually)`,
+      queued,
+    });
   }
   return failures;
 }

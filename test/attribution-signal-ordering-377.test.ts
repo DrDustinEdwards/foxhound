@@ -33,7 +33,7 @@ const PAYMENT = "fp_ordering";
 const EARLY_CLICK = new Date("2026-08-15T10:00:00.000Z");
 const LATE_CLICK = new Date("2026-08-20T10:00:00.000Z");
 // RECOVERED_AT is chosen so BOTH clicks sit inside the 14-day engagement
-// window (377(2)). If the early click fell outside it, these tests would pass
+// window. If the early click fell outside it, these tests would pass
 // because the WINDOW excluded it and would say nothing about ordering, which
 // is the neighboring-guard trap 371 binding 5 names.
 const RECOVERED_AT = new Date("2026-08-21T10:00:00.000Z");

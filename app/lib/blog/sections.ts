@@ -6,7 +6,7 @@
 // so an unpublished pick degrades cleanly. The loader shows a section only
 // when at least one curated post resolves AND a published post carries the
 // section's tag, so "See all" never leads to an empty or missing tag page
-// (J19; see blog/index.tsx). Identical to Recova's SECTIONS (diffed at J19).
+// (see blog/index.tsx). Identical to Recova's SECTIONS (diffed at J19).
 export interface BlogSectionConfig {
   id: string;
   label: string;

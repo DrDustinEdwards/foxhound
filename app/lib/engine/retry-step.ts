@@ -4,7 +4,7 @@
 
 import { and, eq, isNull } from "drizzle-orm";
 import type Stripe from "stripe";
-import { type Db, getDb, recoverySteps } from "~/db";
+import { changedRows, type Db, getDb, recoverySteps } from "~/db";
 import type { DeclineCategory } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { formatMoney } from "~/lib/money-format";
@@ -141,15 +141,6 @@ export function buildRetryReconciliationInput(
     stepId: ctx.stepId,
     recoveredAt,
   };
-}
-
-/** Rows a run statement changed: D1 reports meta.changes, the test suite's
- *  better-sqlite3 driver changes. Anything else reads as none, so an
- *  unreadable result is never taken for a write. */
-function changedRows(result: unknown): number {
-  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
-  const n = r?.meta?.changes ?? r?.changes;
-  return typeof n === "number" ? n : 0;
 }
 
 /**

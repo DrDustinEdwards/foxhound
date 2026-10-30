@@ -30,10 +30,11 @@ export class MoneyWriteDurableObject extends DurableObject<Env> {
         const db = env.DB;
         if (!db) throw new Error("D1 binding 'DB' unavailable in MoneyWriteDurableObject");
         const prepared = statements.map((s) => db.prepare(s.sql).bind(...s.params));
-        if (prepared.length === 0) return;
+        if (prepared.length === 0) return [];
         // D1 batch() runs the statements in a single implicit transaction: all
         // commit or none do.
-        await db.batch(prepared as [D1PreparedStatement, ...D1PreparedStatement[]]);
+        const results = await db.batch(prepared as [D1PreparedStatement, ...D1PreparedStatement[]]);
+        return results.map((r) => (typeof r.meta?.changes === "number" ? r.meta.changes : 0));
       },
     });
   }

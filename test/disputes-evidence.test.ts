@@ -106,7 +106,7 @@ describe("draftDisputeEvidence (no fabrication)", () => {
   });
 });
 
-// S32 (J06): /settings/disputes' product description has a reader. Recova's
+// S32: /settings/disputes' product description has a reader. Recova's
 // buildEvidenceFields (lib/disputes-evidence.ts) set product_description from
 // the merchant's dispute_product_description on every response.
 describe("the merchant's product description (S32)", () => {

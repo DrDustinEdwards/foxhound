@@ -4,7 +4,7 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 // J67: the dashboard's action is the one door to report generation. It takes
-// the account from the session, never from the form (RULES.md 4.6), and hands
+// the account from the session, never from the form, and hands
 // the month to generateMonthlyReport, whose result the page shows.
 
 const generateMonthlyReport = vi.fn();

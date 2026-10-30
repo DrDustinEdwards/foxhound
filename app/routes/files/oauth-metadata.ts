@@ -2,8 +2,8 @@ import { authorizationServerMetadata } from "~/lib/oauth/metadata";
 
 import type { Route } from "./+types/oauth-metadata";
 
-// /.well-known/oauth-authorization-server and /.well-known/openid-configuration
-// (J79, rows F18 and F19): RFC 8414 discovery. Recova's next.config.ts rewrote
+// /.well-known/oauth-authorization-server and /.well-known/openid-configuration:
+// RFC 8414 discovery. Recova's next.config.ts rewrote
 // both paths to one handler because Claude.ai probes both; app/routes.ts mounts
 // this one module at both.
 //

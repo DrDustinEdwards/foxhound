@@ -38,6 +38,14 @@ describe("buildEmailMessage (CAN-SPAM + from)", () => {
       /unsubscribe/i,
     );
   });
+
+  it("a line break can never start a header: the subject is flattened and the recipient refused", () => {
+    const message = buildEmailMessage(job({ subject: "Card update\r\nBcc: all@example.com" }), "https://x");
+    expect(message.subject).not.toMatch(/[\r\n]/);
+    expect(() => buildEmailMessage(job({ to: "a@example.com\r\nBcc: b@example.com" }), "https://x")).toThrow(
+      /line break in recipient/,
+    );
+  });
 });
 
 describe("buildEmailSendRow (compile against schema)", () => {

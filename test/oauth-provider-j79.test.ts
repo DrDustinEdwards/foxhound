@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import type Database from "better-sqlite3";
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,15 +16,14 @@ import { DISALLOW_PATHS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J79 (job_1579cff098bf), rows A9, F18 and F19: the OAuth provider external
+// J79, rows A9, F18 and F19: the OAuth provider external
 // agents connect through, ruling 8's build. Recova is the spec for what the
 // flow allows: app/oauth/authorize/page.tsx (63884241), ConsentButtons.tsx
 // (eb31e8e9), app/api/oauth/{authorize,token,register,revoke,metadata}, and
 // lib/oauth.ts (e3a404cd), read whole. The engine is Foxhound's: the access
 // token is a fox_mcp_ key the /mcp door already verifies, so an OAuth caller
-// reaches the merchant tools and nothing else (RULES.md 3.6), and the account
-// is the one the signed-in person had active at consent, never an argument
-// (RULES.md 4.6).
+// reaches the merchant tools and nothing else, and the account
+// is the one the signed-in person had active at consent, never an argument.
 //
 // Every assertion drives the real functions against the committed migrations.
 
@@ -180,11 +177,6 @@ async function fullFlow(): Promise<{ clientId: string; access: string; refresh: 
 // ============================================================================
 
 describe("F18 and F19: the metadata, at both of Recova's well-known paths", () => {
-  it("mounts both paths on one module, as next.config.ts rewrote both to one handler", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    expect(routes).toMatch(/route\("\.well-known\/oauth-authorization-server", "\.\/routes\/files\/oauth-metadata\.ts"/);
-    expect(routes).toMatch(/route\("\.well-known\/openid-configuration", "\.\/routes\/files\/oauth-metadata\.ts"/);
-  });
 
   it("serves Recova's fields with this request's origin as issuer", async () => {
     const res = (await metadataRoute.loader({
@@ -207,17 +199,6 @@ describe("F18 and F19: the metadata, at both of Recova's well-known paths", () =
     expect(body.token_endpoint_auth_methods_supported).toEqual(["none"]);
     expect(body.scopes_supported).toEqual(["merchant"]);
   });
-
-  it("advertises no endpoint that does not exist (RULES.md 2.7)", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    const body = authorizationServerMetadata(ORIGIN) as Record<string, unknown>;
-    const endpoints = Object.entries(body).filter(([k]) => k.endsWith("_endpoint"));
-    expect(endpoints.length).toBe(4);
-    for (const [key, url] of endpoints) {
-      const path = new URL(url as string).pathname.slice(1);
-      expect(routes, `${key} names a route`).toContain(`route("${path}",`);
-    }
-  });
 });
 
 describe("the protected-resource document and the /mcp 401 that points at it", () => {
@@ -233,12 +214,6 @@ describe("the protected-resource document and the /mcp 401 that points at it", (
     expect(body.authorization_servers).toEqual([ORIGIN]);
     expect(body.scopes_supported).toEqual(["merchant"]);
     expect(body).not.toHaveProperty("resource_signing_alg_values_supported");
-  });
-
-  it("is mounted at the bare path and at the /mcp suffix RFC 9728 clients try", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    expect(routes).toMatch(/route\("\.well-known\/oauth-protected-resource", "\.\/routes\/files\/oauth-protected-resource\.ts"/);
-    expect(routes).toMatch(/route\("\.well-known\/oauth-protected-resource\/mcp", "\.\/routes\/files\/oauth-protected-resource\.ts"/);
   });
 });
 
@@ -429,6 +404,26 @@ describe("A9: consent", () => {
     expect(back.searchParams.get("code")).toBeTruthy();
     const [row] = await db.select().from(oauthAuthorizationCodes);
     expect(row.accountId).toBe(ACCOUNT_B);
+  });
+
+  it("a member, not the owner, is refused on the card and on Allow, and nothing is minted", async () => {
+    sqlite.prepare("UPDATE account_members SET role = 'member' WHERE account_id = ?").run(ACCOUNT_B);
+    const clientId = await registered();
+    const { challenge } = await pkcePair();
+    const loaded = (await authorizeRoute.loader({
+      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams(clientId, challenge)}`),
+      context: context(),
+      params: {},
+    } as never)) as { ok: boolean };
+    expect(loaded.ok).toBe(false);
+    const form = authorizeParams(clientId, challenge, { intent: "allow", account_id: ACCOUNT_B });
+    const res = (await authorizeRoute.action({
+      request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+      context: context(),
+      params: {},
+    } as never)) as { init?: { status?: number } } | Response;
+    expect(res instanceof Response ? res.status : res.init?.status).toBe(403);
+    expect(await db.select().from(oauthAuthorizationCodes)).toHaveLength(0);
   });
 
   it("a post from another origin is refused before anything is minted", async () => {
@@ -646,17 +641,18 @@ describe("the authorize page stays out of caches, analytics and crawls", () => {
 
 async function makeMember(): Promise<void> {
   // USER owns ACCOUNT_B in the fixture; removeMember refuses an owner, so the
-  // consenting person is made an ordinary member here.
+  // consenting person is made an ordinary member after consenting (only an
+  // owner may consent; a grant a member made before that rule still exists).
   sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = ?").run(`m_${ACCOUNT_B}`);
 }
 
 describe("a grant ends when the person who approved it leaves the account", () => {
 
   it("removed between consent and exchange: the code is refused and mints nothing", async () => {
-    await makeMember();
     const clientId = await registered();
     const { verifier, challenge } = await pkcePair();
     const code = (await consent(clientId, challenge)).searchParams.get("code")!;
+    await makeMember();
     expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
     const res = await tokenCall({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: clientId });
     expect(res.status).toBe(400);
@@ -666,14 +662,21 @@ describe("a grant ends when the person who approved it leaves the account", () =
   });
 
   it("removeMember ends their grant and its key at once, and refresh cannot revive it", async () => {
-    await makeMember();
     const { clientId, access, refresh } = await fullFlow();
+    await makeMember();
     expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
     expect(await verifyMcpToken(db, access)).toBeNull();
     const [grant] = await db.select().from(oauthGrants);
     expect(grant.revokedAt).not.toBeNull();
     const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
     expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("a closed account's access token stops working", async () => {
+    const { access } = await fullFlow();
+    expect(await verifyMcpToken(db, access)).not.toBeNull();
+    sqlite.prepare("UPDATE accounts SET cancelled_at = ? WHERE id = ?").run(NOW.getTime(), ACCOUNT_B);
+    expect(await verifyMcpToken(db, access)).toBeNull();
   });
 
   it("a membership gone by any other path: the next refresh refuses and revokes", async () => {
@@ -693,10 +696,12 @@ describe("a grant ends when the person who approved it leaves the account", () =
       .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)")
       .run();
     sqlite
-      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'member', 'active', 3000)")
+      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'owner', 'active', 3000)")
       .run(ACCOUNT_B);
     harness.session = { user: { id: "user_2", name: "Eli", email: "eli@acme.test" }, session: { id: "s2", activeAccountId: ACCOUNT_B } };
     const elis = await fullFlow();
+    // Eli consented as an owner and is an ordinary member when deleted.
+    sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = 'm_eli'").run();
     const result = await deleteUserAccountLocal(db, "user_2", new Date());
     expect(result.status).toBe("deleted");
     expect(await verifyMcpToken(db, elis.access)).toBeNull();

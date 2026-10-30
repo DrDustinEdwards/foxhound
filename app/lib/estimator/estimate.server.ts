@@ -35,7 +35,9 @@ export interface EstimatorInput {
 export interface EstimatorResult {
   benchmarkCohort: string;
   estimatedLeakageCents: number;
-  /** The full percentile spread, for the confidence-caveat display; never a single precise number alone. */
+  /** The seed's p25/p75 spread, stored with the run but NOT shown: the seed is
+   *  an interpolation, not a study, so /audit never presents it as what
+   *  comparable accounts show. The page shows medianPct as an assumption. */
   low: number;
   high: number;
   medianPct: number;

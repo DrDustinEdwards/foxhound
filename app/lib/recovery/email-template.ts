@@ -26,7 +26,7 @@ import type { EmailCopy } from "./email-generation";
 //   - NO timing references in the per-category copy. The generator is merely
 //     told not to leak the schedule; a fixed template has no excuse to reference
 //     time, so it does not mention days, hours, or "recently" in any form. The
-//     per-step copy below is Recova's own words instead (J85, J86), which say
+//     per-step copy below is Recova's own words instead, which say
 //     "recent", "a week" and "two weeks" exactly as Recova's do and still pass
 //     the gate.
 //   - the merchant's voice, never Foxhound's. Foxhound is not named.
@@ -52,7 +52,7 @@ export interface TemplateEmailInput {
 //
 // Recova's FALLBACK_TEMPLATES (lib/recovery-execution.ts lines 79 to 114, blob
 // 3a8f8768), word for word, for all five of its email steps. Recova is the
-// spec for what these emails say (RULES.md 1.1), so for these steps its words
+// spec for what these emails say, so for these steps its words
 // replace the per-category copy above in every decline category, as Recova's
 // one template per step does. Its variables are applied as Recova's
 // applyTemplate fills them in executeEmailStep:
@@ -61,13 +61,13 @@ export interface TemplateEmailInput {
 //   sender_name    merchant.sender_name || 'Support' (the From name too)
 //   update_url     the button
 // Recova styled the button inline in its own color; on Capsomer's component a
-// paragraph holding nothing but one link is the button (Q3), so the style goes
+// paragraph holding nothing but one link is the button, so the style goes
 // and the label stays. Names are escaped, so a customer called "<b>" is text.
 //
 // Every step Recova emails now has its template here. The one Foxhound step
 // left on the per-category copy is email_revoked, which Recova does not have.
 //
-// Each of these passes the quality gate (RULES.md 3.15): no dash, no AI tell, no
+// Each of these passes the quality gate: no dash, no AI tell, no
 // schedule leak. "It has been a week since" and "It has been two weeks since"
 // are Recova's own sentences and name no day number or hour count, which is what
 // the timing detector looks for.

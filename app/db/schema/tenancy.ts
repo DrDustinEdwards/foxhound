@@ -72,7 +72,7 @@ export const accounts = sqliteTable("accounts", {
   // app/db/billable.ts's accountBillingEligibleCondition deliberately does not
   // reference this column.
   cancelledAt: ts("cancelled_at"),
-  // When the owner deleted their account (row S40, Q14 and Q16). The row itself
+  // When the owner deleted their account. The row itself
   // survives, emptied of personal data, because billing joins it and its fee
   // evidence (recovered_payments, billing rows) hangs from its id; this stamp
   // says why it is empty. Written only by app/lib/auth/delete-account.server.ts.
@@ -110,7 +110,7 @@ export const accountMembers = sqliteTable(
   {
     id: id(),
     accountId: text("account_id").notNull().references(() => accounts.id),
-    // soft ref to Better Auth user.id (Phase 3); no enforced FK yet
+    // soft ref to Better Auth user.id; no enforced FK yet
     userId: text("user_id"),
     role: text("role").notNull(),
     invitedEmail: text("invited_email"),
@@ -153,6 +153,25 @@ export const accountMembers = sqliteTable(
     uniqueIndex("account_members_user_account_active_uq")
       .on(t.userId, t.accountId)
       .where(sql`${t.status} = 'active'`),
+  ],
+);
+
+// The one first account a user creates at /connect, written in the same money
+// batch as that account. Its unique user_id is the database's half of the
+// `connect:first:<user>` idempotency key: if the Durable Object dies after D1
+// commits but before it records the key, the retry's batch is refused here and
+// reports the account that already exists rather than minting a second.
+export const accountFirstCreations = sqliteTable(
+  "account_first_creations",
+  {
+    id: id(),
+    userId: text("user_id").notNull(),
+    accountId: text("account_id").notNull().references(() => accounts.id),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("account_first_creations_user_uq").on(t.userId),
+    index("account_first_creations_account_idx").on(t.accountId),
   ],
 );
 
@@ -259,7 +278,7 @@ export const apiKeys = sqliteTable(
     lastUsedAt: ts("last_used_at"),
     revokedAt: ts("revoked_at"),
     /** Null for a key made in Settings, which lives until revoked. Set on the
-     *  one-hour access token an OAuth grant issues (J79); verifyMcpToken
+     *  one-hour access token an OAuth grant issues; verifyMcpToken
      *  refuses the key once it has passed. */
     expiresAt: ts("expires_at"),
   },

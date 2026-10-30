@@ -185,7 +185,7 @@ export interface DueStepRow {
   amountCents: number;
   currency: string;
   customerEmail: string;
-  /** failed_payments.customer_name, for the day 1, 3 and 7 greeting (J85). */
+  /** failed_payments.customer_name, for the day 1, 3 and 7 greeting. */
   customerName: string | null;
   declineCategory: string;
   connectionAccessToken: string | null;
@@ -203,7 +203,7 @@ export interface DueStepRow {
   brandVoiceFraud: string | null;
   /** The account's primary connection's `brand_voice_samples`, as stored. */
   brandVoiceSamples?: string | null;
-  /** The payment's connection's `reply_to_email` (J03), for the Reply-To. */
+  /** The payment's connection's `reply_to_email`, for the Reply-To. */
   replyToEmail?: string | null;
   /** failed_payments.stripe_customer_id, for the lost-dispute retry check. */
   stripeCustomerId?: string | null;

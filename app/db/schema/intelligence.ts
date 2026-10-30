@@ -138,7 +138,7 @@ export const predictions = sqliteTable(
 
 // One row per customer per nightly run: the bands, the evidence and the
 // recommendation the rules gave, with an outcome slot left empty, so the lift
-// of each action can be measured once outcomes are graded (J78). Recova logged
+// of each action can be measured once outcomes are graded. Recova logged
 // the same to its outcomes table with outcome and outcome_at null.
 export const recommendationLog = sqliteTable(
   "recommendation_log",
@@ -261,7 +261,7 @@ export const intelligenceNotificationPreferences = sqliteTable(
   {
     id: id(),
     accountId: text("account_id").notNull().references(() => accounts.id),
-    // soft ref to Better Auth user.id (Phase 3)
+    // soft ref to Better Auth user.id
     userId: text("user_id").notNull(),
     weeklyNarrativeEmail: bool("weekly_narrative_email").notNull().default(true),
     weeklyNarrativeSlack: bool("weekly_narrative_slack").notNull().default(false),

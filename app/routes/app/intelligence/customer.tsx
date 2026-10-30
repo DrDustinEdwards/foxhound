@@ -38,7 +38,7 @@ import { RecommendationBanner } from "~/components/recommendation-banner";
 import type { Route } from "./+types/customer";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /intelligence/customers/:id (row S18, job J68). Recova is the spec: its real
+// /intelligence/customers/:id. Recova is the spec: its real
 // page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
 // HealthSparkline (f4a163f5), RawDataToggle (640505cd), IntegrityLayerBanner
 // (1614dfaf) and lib/intelligence/customer-context-ssr.ts (a499c285), each
@@ -47,23 +47,23 @@ import { NOINDEX } from "~/lib/seo/meta";
 // cards, the health score with its chart, the assessment when there is
 // one, and the footer.
 //
-// Built from Capsomer 0.9.0's parts (Q10), the chart by Enarratio (Q1), amber
+// Built from Capsomer 0.9.0's parts, the chart by Enarratio, amber
 // throughout. No Foxhound class sits on a Capsomer element. Recova's
 // 12px card radius, its uppercase mono labels, the score beside the "Health
-// score" heading and its plan colors wait for Capsomer's per-site layer
-// (capsomer job_ec5ec0754626), listed in the J68 pull request.
+// score" heading and its plan colors wait for Capsomer's per-site layer,
+// listed in the J68 pull request.
 //
 // Foxhound's engine, never Recova's: the signal cards are counted from
 // Foxhound's own tables (getCustomerActivity), the score and its color are
-// Foxhound's bands, and LTV, which nothing in Foxhound computes, says so
-// (RULES.md 2.1). The IntegrityLayerBanner is Recova's
+// Foxhound's bands, and LTV, which nothing in Foxhound computes, says so.
+// The IntegrityLayerBanner is Recova's
 // rules worked out when the page loads (recommendOneCustomer), as Recova's
 // score-ssr did. The admin-only raw data toggle is not built (Foxhound's admin
 // is behind Cloudflare Access, Q6, and the toggle printed raw database values,
 // RULES.md 1.5).
 //
 // The factors list and the predictions table are Foxhound's own and HELD for
-// Dustin, as the dashboard's at-risk table is (J67): kept exactly as they
+// Dustin, as the dashboard's at-risk table is: kept exactly as they
 // were, after Recova's sections. The docs guide's Recommendations section
 // names the factors list (docs-content.ts).
 
@@ -125,7 +125,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
   const hasDisputeHistory = activity.disputes.count > 0;
 
   // Recova's main: max-w-[1080px] mx-auto px-4 md:px-8 py-8. The shell owns
-  // the page's one <main> (ruling 146), so this is a plain wrapper.
+  // the page's one <main>, so this is a plain wrapper.
   return (
     <div className="mx-auto max-w-[1080px] px-4 py-8 md:px-8">
       <div className="mb-4">
@@ -261,7 +261,7 @@ function HeaderCard({
     {
       label: "LTV",
       // Nothing in Foxhound computes lifetime value (signals.ts), so this says
-      // so rather than showing a dash that reads as zero (RULES.md 2.1).
+      // so rather than showing a dash that reads as zero.
       value: customer.ltvCents != null ? formatMoney(customer.ltvCents, customer.currency) : "Not computed",
     },
     {

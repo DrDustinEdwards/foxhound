@@ -1,35 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  failedPaymentStatusTone,
-  formatStepResult,
-  formatStepType,
-  recoveryLifecycleStatus,
-  recoveryLifecycleTone,
-  stepResultTone,
-} from "~/lib/recovery/labels";
-
-describe("stepResultTone", () => {
-  it("neutral when there is no result yet", () => {
-    expect(stepResultTone(null)).toBe("neutral");
-  });
-  it("failure for a declined retry or a failed send", () => {
-    expect(stepResultTone("retry_card_declined")).toBe("failure");
-    expect(stepResultTone("retry_error")).toBe("failure");
-    expect(stepResultTone("retry_failed")).toBe("failure");
-    expect(stepResultTone("email_failed")).toBe("failure");
-  });
-  it("falls back to neutral on an unrecognized result rather than throwing", () => {
-    expect(stepResultTone("something_new")).toBe("neutral");
-  });
-});
-
-describe("failedPaymentStatusTone", () => {
-  it("recovered is success, everything else is neutral (never the brand accent)", () => {
-    expect(failedPaymentStatusTone("recovered")).toBe("success");
-    expect(failedPaymentStatusTone("active")).toBe("neutral");
-  });
-});
+import { formatStepResult, formatStepType, recoveryLifecycleStatus, recoveryLifecycleTone } from "~/lib/recovery/labels";
 
 describe("formatStepType", () => {
   it("formats retry and email step types with their timing detail", () => {

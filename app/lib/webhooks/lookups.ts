@@ -50,7 +50,7 @@ import { decryptToken } from "~/lib/stripe/encryption";
  *  omission: `stripe_connections_live_stripe_account_uq` makes at most one live
  *  row possible per `stripe_user_id`, so `.limit(1)` has nothing to choose
  *  between. The filter and the index are INDEPENDENT layers, deliberately, and
- *  each is proven alone (340 binding 3): the index stops the second live row
+ *  each is proven alone: the index stops the second live row
  *  being written, this stops a disconnected row answering. */
 export async function resolveConnection(
   env: Env,
@@ -95,7 +95,7 @@ export async function findActiveFailedPayment(
       networkAdviceCode: failedPayments.networkAdviceCode,
     })
     .from(failedPayments)
-    // LIVE, not just active (377(1)). A second payment_failed on the same
+    // LIVE, not just active. A second payment_failed on the same
     // invoice has to FIND the stripe_retrying row so it can promote it; a
     // status-active-only read would miss it and create a second row for the
     // same invoice, which is the per-invoice dedupe this function exists to be.
@@ -153,7 +153,7 @@ export async function listActiveFailedPaymentIds(
       and(
         eq(failedPayments.accountId, accountId),
         eq(failedPayments.stripeCustomerId, stripeCustomerId),
-        // LIVE, not just active. THIS IS HALT 1 OF SESSION 82 (377(1)): the
+        // LIVE, not just active. THIS IS HALT 1 OF SESSION 82: the
         // whole reason the row is created during Stripe's retry window instead
         // of being deferred. A subscription canceled while the payment sits in
         // stripe_retrying is involuntary churn, and if this read cannot see the
@@ -459,7 +459,7 @@ export async function resolveRecoveryAttribution(
 ) {
   const db = getDb(env);
   // Deliberately unordered. Which click attributes the recovery is decided by
-  // findAttributionSignals, which sorts by clickedAt desc (ruling 377(3)), so
+  // findAttributionSignals, which sorts by clickedAt desc, so
   // this query's row order cannot reach the ledger. Ordering here as well would
   // give two guards for one rule and neither could be shown to fail alone.
   const steps = await db
@@ -468,6 +468,7 @@ export async function resolveRecoveryAttribution(
       stepType: recoverySteps.stepType,
       result: recoverySteps.result,
       clickedAt: recoverySteps.clickedAt,
+      executedAt: recoverySteps.executedAt,
       clickSuspectReason: recoverySteps.clickSuspectReason,
     })
     .from(recoverySteps)
@@ -662,7 +663,7 @@ export async function resolveRecoveredChargeFee(
 
 /** Process one verified connected-account event. */
 /**
- * The invoice-side reactivation attempt (344 binding 1).
+ * The invoice-side reactivation attempt.
  *
  * Legacy matches on the CUSTOMER and nothing else. This uses the customer only
  * to decide whether a Stripe read is worth making, and matches on the sequence

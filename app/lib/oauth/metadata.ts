@@ -1,7 +1,7 @@
-// The two discovery documents (J79, rows F18 and F19).
+// The two discovery documents.
 
 /** Paths the documents name. Each is a route in app/routes.ts, and
- *  test/oauth-provider-j79.test.ts fails if one is not (RULES.md 2.7). */
+ *  test/oauth-provider-j79.test.ts fails if one is not. */
 const OAUTH_PATHS = {
   authorize: "/oauth/authorize",
   token: "/api/oauth/token",

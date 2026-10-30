@@ -67,7 +67,7 @@ const BASELINE_SCORE = HEALTH_SCORE_BASELINE;
  * The signals the score weighs, keyed by the factor's `signal`, each with the
  * words a person reads for it. Every scoring function below names its signal
  * through this map (`satisfies HealthSignal`), marketing copy lists the signals
- * from here (J58, RULES.md 2.1), and test/product-intelligence-j58.test.ts
+ * from here, and test/product-intelligence-j58.test.ts
  * drives computeHealthScore to check the two sets are the same.
  */
 export const HEALTH_SIGNAL_LABELS = {

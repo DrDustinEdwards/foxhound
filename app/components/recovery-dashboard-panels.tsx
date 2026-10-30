@@ -212,7 +212,7 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
         sub={atRiskPct !== null ? `${atRiskPct}% of MRR` : undefined}
       />
       {/* A rate with nothing failed is no rate: Foxhound shows "-" and says
-          why, where Recova printed 0% (RULES.md 2.1). */}
+          why, where Recova printed 0%. */}
       <StatCard
         primary
         icon={Percent}
@@ -421,8 +421,7 @@ export function DeliverabilityPanel({
       <Panel title={`Email deliverability · ${rangeLabel}`}>
         {f === null ? (
           <p className="m-0 text-label text-text-subtle">
-            No bounces or spam reports to show. Foxhound does not yet record them against the account that sent
-            the email.
+            No bounces or spam reports in this range.
           </p>
         ) : (
           <div className="flex flex-wrap items-baseline gap-6">

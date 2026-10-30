@@ -16,7 +16,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 
 import type { ProductKey } from "./products";
 
-// The home page's copy (J59, row M3), out of the route so tests and the JSON-LD
+// The home page's copy, out of the route so tests and the JSON-LD
 // read one source. Recova's spec is app/(marketing)/page.tsx (blob c10db7d5),
 // read whole at HEAD.
 //
@@ -25,7 +25,7 @@ import type { ProductKey } from "./products";
 // how-it-works links of 9b) move back to Recova's wording. The sanctioned
 // truthfulness divergences (read and write scope, review-and-sign disputes,
 // baseline free, 30-day maturity, no Multi-account, attribution language) stay.
-// Every product fact is read from the engine (RULES.md 2.1), never typed: the
+// Every product fact is read from the engine, never typed: the
 // fee, the cap, the price, the maturity window, the sequence length, the
 // decline categories and the Stripe statistic.
 //
@@ -76,7 +76,7 @@ export interface HomeStat {
 /** A cited page as the citation shows it: the address without https://. */
 export const citation = (href: string) => href.replace(/^https:\/\//, "");
 
-/** Recova's three statistics, each with its exact page (RULES.md 2.3). The first
+/** Recova's three statistics, each with its exact page. The first
  *  is Stripe's own rate, read from lib/marketing/statistics.ts. "failed
  *  payments" rather than Recova's "failed recurring payments" is the source's
  *  own wording. */
@@ -171,8 +171,8 @@ export interface HomeFaq {
   answer: string;
 }
 
-/** Recova's five questions. FAQ 1 is the sanctioned read-and-write answer
- *  (ruling 20d), FAQ 2 the sanctioned billable-recovery definition, FAQ 3 the
+/** Recova's five questions. FAQ 1 is the sanctioned read-and-write answer,
+ * FAQ 2 the sanctioned billable-recovery definition, FAQ 3 the
  *  sanctioned maturity and cap timing in Recova's question and Recova's closing
  *  sentence, FAQ 4 the 376 item 19 fix and FAQ 5 Recova's with the maturity
  *  qualifier. FAQ 3's answer is drawn with Recova's four product links in the
@@ -228,5 +228,5 @@ export const SECURITY_CHIPS = [
   "US company, US jurisdiction",
 ];
 
-/** Recova's compatibility line, without Multi-account (divergence 40, ruling 53). */
+/** Recova's compatibility line, without Multi-account (divergence 40). */
 export const COMPAT_TAGS = ["Stripe Billing", "Stripe Checkout", "Custom invoices", "Stripe Subscriptions"];

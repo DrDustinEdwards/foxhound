@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import { accounts, alerts, mcpWrites, stripeConnections } from "~/db";
@@ -41,7 +42,7 @@ import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-sample
 // is reading the form and rendering the result, which is the part that is
 // genuinely about being a form.
 //
-// A DISCRIMINATED OUTCOME, never a throw (339 binding 5). A refusal carries the
+// A DISCRIMINATED OUTCOME, never a throw. A refusal carries the
 // user-facing string the form already showed, so an agent sees the same sentence
 // a person would and a merchant reading both gets one answer.
 //
@@ -87,12 +88,13 @@ async function commit(
   db: Db,
   accountId: string,
   fields: string[],
-  statement: unknown | unknown[],
+  statement: BatchItem<"sqlite"> | [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
   trace: WriteTrace | undefined,
 ) {
-  const writes = Array.isArray(statement) ? statement : [statement];
-  const statements = trace ? [...writes, traceInsert(db, accountId, fields, trace)] : writes;
-  await (db as unknown as { batch: (s: unknown[]) => Promise<unknown> }).batch(statements);
+  type Statements = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
+  const writes: Statements = Array.isArray(statement) ? statement : [statement];
+  const statements: Statements = trace ? [...writes, traceInsert(db, accountId, fields, trace)] : writes;
+  await db.batch(statements);
 }
 
 /** Coerce a JSON or form boolean. Accepts a real boolean and the "true" string
@@ -184,7 +186,7 @@ export interface DisputeSettingsActor {
 export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
 
 /**
- * S32's three columns (J06), and nothing else: the product description, which
+ * S32's three columns, and nothing else: the product description, which
  * dispute intake reads into every response's evidence, ships-physical, which
  * puts the shipping inputs on the dispute page, and Recova's auto-submit, which
  * the disputes cron reads (app/lib/cron/dispute-auto-submit.ts). A blank
@@ -318,7 +320,7 @@ export async function applyNotificationSettings(
 export interface SenderNameState {
   connectionId: string;
   senderName: string | null;
-  /** Present only when the caller sent the field (J03). */
+  /** Present only when the caller sent the field. */
   replyToEmail?: string | null;
 }
 
@@ -353,7 +355,7 @@ export async function applySenderName(
     };
   }
 
-  // THE REPLY-TO (J03), legacy's "Reply-to email" field on the same form.
+  // THE REPLY-TO, legacy's "Reply-to email" field on the same form.
   // Written only when the caller sent it, which is legacy's own
   // `if (formData.has('reply_to_email'))`: the MCP sender tool sends no such
   // field, so it leaves the column alone. Empty is NULL, as legacy's `|| null`.
@@ -575,7 +577,7 @@ export async function applyIntelligenceContext(
     merchantMrrSelfReported?: unknown;
   },
   trace?: WriteTrace,
-  alongside: unknown[] = [],
+  alongside: BatchItem<"sqlite">[] = [],
 ): Promise<ApplyResult<IntelligenceContextState>> {
   const found = await db
     .select({

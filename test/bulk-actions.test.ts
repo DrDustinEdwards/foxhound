@@ -121,7 +121,7 @@ function inMemoryCommit(sqlite: Database.Database, db: Db, keys: string[] = []):
 /** Seams that fail loudly, so a bulk action reaching a mailer or an executor it
  *  did not intend to gets an error rather than a silent pass. Cancel and
  *  mark_recovered send nothing and run nothing, which is also the assertion
- *  behind the claim that SEND-PRECEDES-PERSIST (268) does not apply to them:
+ *  behind the claim that SEND-PRECEDES-PERSIST does not apply to them:
  *  there is no send to precede anything. */
 function loudTriggerDeps(): TriggerDeps {
   return {

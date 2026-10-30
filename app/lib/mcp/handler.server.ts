@@ -39,7 +39,7 @@ import { serveMcp } from "./server";
 // an attacker which of their guesses was a real key that had been revoked, which
 // is the classic user-enumeration leak wearing different clothes.
 //
-// THE 401 SAYS WHERE TO SIGN IN (J79). Its WWW-Authenticate carries RFC 9728's
+// THE 401 SAYS WHERE TO SIGN IN. Its WWW-Authenticate carries RFC 9728's
 // resource_metadata, pointing at /.well-known/oauth-protected-resource, which
 // names this origin as the authorization server, as recova-mcp's 401 did
 // (src/auth.ts wwwAuthenticateHeader). That is how an MCP client such as

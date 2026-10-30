@@ -12,7 +12,6 @@ import {
   mrrSnapshots,
   recoveredPayments,
   recoverySteps,
-  stripeConnections,
   type Db,
 } from "~/db";
 import {
@@ -21,8 +20,11 @@ import {
   INTELLIGENCE_MAX_CUSTOMERS_SCANNED,
   INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER,
 } from "~/lib/constants";
+import { monthKeyUTC } from "~/lib/date-format";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { findActiveConnection } from "~/lib/stripe/connections.server";
+import { asId } from "~/lib/stripe/ids";
 import { collectPaginated } from "~/lib/stripe/reads";
 import {
   buildCustomerContextFields,
@@ -62,28 +64,6 @@ import {
 // (gotcha #25: only recovered_payments + outcomes ride the per-account
 // money-write DO), so everything here is a plain db.batch()/insert() via
 // getDb, never executeMoneyWrite.
-
-function monthKeyUTC(when: Date): string {
-  return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-/** The account's Stripe connection to read from. Mirrors the established
- *  precedent (app/routes/app/settings/index.tsx): the earliest-connected
- *  still-active connection, since nothing here has a per-row hint (unlike
- *  card-update.tsx's resolveConnectionForFailedPayment) to disambiguate an
- *  account with more than one active connection (gotcha #22). */
-async function resolveAccountConnection(
-  db: Db,
-  accountId: string,
-): Promise<{ id: string; stripeAccessToken: string | null } | null> {
-  const rows = await db
-    .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-    .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
-    .orderBy(stripeConnections.connectedAt)
-    .limit(1);
-  return rows[0] ?? null;
-}
 
 function priceInterval(price: Stripe.Price | null | undefined): BillingInterval {
   // The SDK types Stripe's enums as open (`| OtherString`), so an equality
@@ -174,15 +154,11 @@ function narrowDiscounts(discounts: readonly (string | Stripe.Discount)[] | null
   return out;
 }
 
-function idOf(ref: string | { id?: string } | null | undefined): string {
-  return !ref ? "" : typeof ref === "string" ? ref : (ref.id ?? "");
-}
-
 /** A schedule phase's billing terms as one comparable key (subscription-terms.ts
  *  nextScheduledChange): its items' prices and quantities, then its discounts. */
 function phaseBillingKey(phase: Stripe.SubscriptionSchedule.Phase): string {
-  const items = phase.items.map((i) => `${idOf(i.price)}x${i.quantity ?? 1}`).sort();
-  const discounts = phase.discounts.map((d) => idOf(d.coupon) || idOf(d.discount) || idOf(d.promotion_code)).sort();
+  const items = phase.items.map((i) => `${asId(i.price) ?? ""}x${i.quantity ?? 1}`).sort();
+  const discounts = phase.discounts.map((d) => asId(d.coupon) || asId(d.discount) || asId(d.promotion_code) || "").sort();
   return `${items.join(",")}|${discounts.join(",")}`;
 }
 
@@ -208,7 +184,7 @@ function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription
     cancelAtMs: sub.cancel_at ? sub.cancel_at * 1000 : null,
     items: sub.items.data.map((item) => ({
       priceId: item.price.id,
-      productId: idOf(item.price.product) || null,
+      productId: asId(item.price.product) || null,
       productName: productName(item.price.product),
       unitAmountCents: item.price.unit_amount ?? 0,
       quantity: item.quantity ?? 1,
@@ -536,7 +512,7 @@ export async function runIntelligenceSyncForAccount(
   nowMs: number,
 ): Promise<AccountSyncResult> {
   const db = getDb(env);
-  const connection = await resolveAccountConnection(db, accountId);
+  const connection = await findActiveConnection(db, accountId);
   if (!connection?.stripeAccessToken) {
     return { accountId, customersProcessed: 0, snapshotWritten: false, truncated: false };
   }
@@ -628,6 +604,12 @@ export async function runIntelligenceSyncForAccount(
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
     return { accountId, customersProcessed: 0, snapshotWritten: false, truncated };
   }
+  // A scan cut off at the cap saw only part of the customers, so its MRR row
+  // would chart a drop that never happened. The run reports it truncated and
+  // the charts keep the last complete day.
+  if (truncated) {
+    return { accountId, customersProcessed: currentPoints.length, snapshotWritten: false, truncated };
+  }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
   await db.insert(mrrSnapshots).values({
@@ -655,13 +637,11 @@ export async function runIntelligenceSyncForAccount(
 
   // Recova's compute-daily-metrics wrote accounts.mrr_estimate nightly from the
   // active subscriptions, normalized to a month; this total is the same
-  // measure. A truncated scan would understate it, so it is left as it was.
-  if (!truncated) {
-    await db
-      .update(accounts)
-      .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
-      .where(eq(accounts.id, accountId));
-  }
+  // measure (a truncated scan returned above, before understating it).
+  await db
+    .update(accounts)
+    .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
+    .where(eq(accounts.id, accountId));
 
   return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
 }

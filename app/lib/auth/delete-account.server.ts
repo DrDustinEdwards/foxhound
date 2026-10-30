@@ -24,7 +24,7 @@ import { type DeauthorizeFailure, revokeDisconnectedGrants } from "~/lib/stripe/
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 import { buildAccountScrubStatements } from "./account-scrub.server";
 
-// ACCOUNT DELETION (row S40, job J08), the one approved difference from
+// ACCOUNT DELETION, the one approved difference from
 // Recova's delete.
 //
 // Recova's /api/auth/delete-account (blob 2136362a) calls delete_account_cascade,
@@ -41,7 +41,7 @@ import { buildAccountScrubStatements } from "./account-scrub.server";
 //
 //   - recovered_payments, billing_invoices, billing_line_items and outcomes are
 //     NOT WRITTEN AT ALL. None of them holds a personal field, and each keeps its
-//     one writer (RULES.md 3.2). The fee is recomputed from them unchanged.
+//     one writer. The fee is recomputed from them unchanged.
 //   - the rows they point at survive so the chain stays whole: the account row
 //     (billing joins it, and it holds the platform customer the invoice is
 //     charged to), each recovered payment's failed payment, that payment's
@@ -56,17 +56,17 @@ import { buildAccountScrubStatements } from "./account-scrub.server";
 // the batch's first statement, so a deletion and its record commit together or
 // not at all, which is Recova's "no deletion without a record" made atomic.
 //
-// SET PREDICATES, NEVER ID LISTS (RULES.md 3.11). Each statement names its rows
+// SET PREDICATES, NEVER ID LISTS. Each statement names its rows
 // by account and by a correlated EXISTS against the fee rows, so a merchant with
 // ten thousand payments costs the same number of bound parameters as one with
 // ten. EXISTS rather than NOT IN, because NOT IN against a nullable column
 // (recovered_by_step_id) matches nothing at all once one NULL is present.
 //
 // THE ORDER IS THE FOREIGN-KEY ORDER, children before parents, because D1
-// enforces foreign keys and the local harness does not (RULES.md 3.11). The
+// enforces foreign keys and the local harness does not. The
 // tests run with foreign_keys = ON and a foreign_key_check to hold it.
 //
-// NEVER AN AGENT TOOL (RULES.md 3.6): nothing under app/lib/mcp or the admin API
+// NEVER AN AGENT TOOL: nothing under app/lib/mcp or the admin API
 // imports this module, and the tool registry refuses any name containing
 // "delete_account".
 
@@ -162,7 +162,7 @@ function buildUserDeletionStatements(
       .update(disputeApprovals)
       .set({ approvedByEmail: null, approvedByUserId: null })
       .where(eq(disputeApprovals.approvedByUserId, userId)),
-    // The agents this person connected to accounts they do not own (J79). A
+    // The agents this person connected to accounts they do not own. A
     // grant is their delegation and ends with them. The access key goes first,
     // revoked through the grant that names it (a grant points at its key, so
     // the key cannot be deleted while the grant stands, and once the grant is

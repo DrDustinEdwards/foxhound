@@ -1,7 +1,7 @@
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
 import { formatDateShort } from "~/lib/date-format";
 
-// What /billing (J65, row S3) shows, in the shapes its sections render. Pure and
+// What /billing shows, in the shapes its sections render. Pure and
 // client-safe: the rows themselves are built on the server (page.server.ts) and
 // these are the types and the small formatting rules the sections share.
 //
@@ -98,7 +98,7 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   past_due: "Past due",
 };
 
-/** A readable status, never the raw column value (RULES.md 1.5). */
+/** A readable status, never the raw column value. */
 export function subscriptionStatusLabel(status: string): string {
   return SUBSCRIPTION_STATUS_LABELS[status] ?? titleCase(status.replace(/[-_]/g, " "));
 }

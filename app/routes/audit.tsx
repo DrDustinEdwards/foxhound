@@ -34,14 +34,16 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // legacy app/audit/page.tsx marketing structure (Capsid read_repo_file,
 // namespace recova, repo legacy), replacing the earlier Pass-1 RouteStub.
 // Corrections vs legacy, matching this repo's established audit copy
-// discipline (products/audit.tsx): no fabricated recovery-rate stat, and the
-// old bare "2 to 3% of MRR fails every month" marketing figure is replaced
-// with our own seeded, source-cited benchmark_data range rather than an
-// unsourced number.
+// discipline (products/audit.tsx): no fabricated recovery-rate stat, and no
+// bare "2 to 3% of MRR fails every month" marketing figure. The estimator's
+// rate is the seeded benchmark_data median (drizzle/seed/benchmark_data.sql),
+// a rounded interpolation and not a study, so the result card names it as an
+// assumption applied to the visitor's MRR. It never claims to describe other
+// accounts, and the seed's percentile spread is not shown.
 //
-// J18 (row M22), the visual walk: Recova's app/audit/page.tsx (blob 054edf70)
+// J18, the visual walk: Recova's app/audit/page.tsx (blob 054edf70)
 // and app/audit/layout.tsx (blob 0544e53b), read whole, stay the spec for the
-// content, order and width. The look is Capsomer's (RULES.md 1.1, Q12): the
+// content, order and width. The look is Capsomer's: the
 // pill is its badge, every card its panel, the form its field, select and
 // button, the unavailable notice its alert, each call to action its primary
 // button. Amber throughout, text at Recova's sizes: the hero h1 clamp, the
@@ -134,7 +136,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const result = await estimateLeakage(db, { mrrCents, customerCount, currency });
   if (!result) {
     return data<ActionResult>(
-      { ok: false, error: "Not enough benchmark data for this range yet. Try a different MRR amount." },
+      { ok: false, error: "The estimator cannot estimate this amount yet. Try a different MRR amount." },
       { status: 200 },
     );
   }
@@ -199,7 +201,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       </div>
 
       {/* Recova's clamp(28px,5vw,44px) h1, in rem. The words are Recova's,
-          drift fixed on sight (RULES.md 2.2): they describe the audit, not the
+          drift fixed on sight: they describe the audit, not the
           estimator, so they hold in every state of the form below. */}
       <h1 className="m-0 mb-5 text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-[1.15] tracking-[-1px] text-text">
         See everything leaking from your Stripe account
@@ -211,7 +213,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       </p>
 
       {/* The estimator: Foxhound's own working surface, which Recova has no
-          counterpart for (ruling 86). */}
+          counterpart for. */}
       <div className="mb-10 grid">
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -241,20 +243,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
             </div>
           </div>
         </section>
-      </div>
-
-      <div className="mb-10 grid">
-        <div className="cap-panel">
-          <div className="cap-panel-body">
-            <p className="m-0 text-left text-label leading-relaxed text-text-tertiary">
-              Industry commentary on subscription businesses puts monthly failed-payment revenue leakage
-              somewhere in the low single-digit percent of MRR for most accounts, typically higher for
-              smaller, lower-touch accounts and lower for larger ones with more mature dunning already
-              in place. This estimator uses that same directional range (see the confidence caveat on
-              your result), not a claim about your specific account until you connect Stripe.
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Recova's covers card: its heading, the four dot lines, "See my
@@ -302,17 +290,18 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </section>
       </div>
 
-      {/* Recova's two figure cards, restored as treatment (ruling 87). The
-          figures carry Foxhound's already-live claims, not Recova's "2 to 3%"
-          industry benchmark, which Recova's own comment calls marketing copy.
+      {/* Recova's two figure cards, restored as treatment. The
+          figures are product facts read from Foxhound's constants, not Recova's
+          "2 to 3%" industry benchmark, which Recova's own comment calls
+          marketing copy and which no source supports.
           Plain panels, not Capsomer's stat tile: a tile is always a link, and
           these lead nowhere. */}
       <div className="my-10 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="cap-panel">
           <div className="cap-panel-body">
             <div>
-              <p className="m-0 mb-1 font-mono text-display font-bold text-green">Low single digits</p>
-              <p className="m-0 text-caption text-text-subtle">percent of MRR fails every month for most accounts</p>
+              <p className="m-0 mb-1 font-mono text-display font-bold text-green">{AUDIT_LOOKBACK_DAYS} days</p>
+              <p className="m-0 text-caption text-text-subtle">of failed invoices the audit reads</p>
             </div>
           </div>
         </div>
@@ -409,6 +398,11 @@ function EstimatorForm({ busy, siteKey, attempt }: { busy: boolean; siteKey: str
   );
 }
 
+/** The assumed monthly failure rate, a fraction of MRR, as "2.2%". */
+function formatRatePercent(fraction: number): string {
+  return `${Number((fraction * 100).toFixed(1))}%`;
+}
+
 function EstimatorResultCard({ result, currency }: { result: EstimatorResult; currency: string }) {
   return (
     <div>
@@ -417,10 +411,10 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
         {formatMoney(result.estimatedLeakageCents, currency)}
       </p>
       <p className="m-0 mb-4 text-label leading-relaxed text-text-secondary">
-        Directional estimate, not a precise number: comparable accounts in your MRR band typically show
-        {" "}
-        {formatMoney(result.low, currency)} to {formatMoney(result.high, currency)} in monthly
-        failed-payment leakage. Connect Stripe for your account's actual numbers.
+        An estimate from your inputs, not a measurement: your MRR times an assumed{" "}
+        {formatRatePercent(result.medianPct)} of MRR failing each month at your revenue. The rate is
+        an assumption, not data about your account or anyone else's. Connect Stripe for your
+        account's actual numbers.
       </p>
       {/* The estimator's own next step: the audit reads the merchant's actual
           account, takes no account to run, and is what this card has been

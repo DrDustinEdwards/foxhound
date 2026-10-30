@@ -43,7 +43,7 @@ describe("step labels say Recova's day where Foxhound's offset makes it true", (
         expect(paymentStepLabel(category, step.stepType), `${category} ${step.stepType}`).toBe(expected);
       }
     }
-    // The walk proves it saw the retries it is about (RULES.md 6.2).
+    // The walk proves it saw the retries it is about.
     expect(checked).toBeGreaterThanOrEqual(6);
   });
 });
@@ -107,7 +107,7 @@ describe("the payment detail loader", () => {
     } as never);
     const step = data.steps.find((s) => s.id === "s1");
     // The step is there and its preview was built, so the absence below is
-    // about the body, not a missing step (RULES.md 6.4).
+    // about the body, not a missing step.
     expect(step?.previewHtml).toContain("Hi Jordan");
     expect(step).not.toHaveProperty("aiBodyHtml");
     const json = JSON.stringify(data);

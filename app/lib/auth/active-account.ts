@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { session as sessionTable } from "~/db";
 
-// The write half of the active-account marker (ruling 326 phase (b)). The READ
+// The write half of the active-account marker. The READ
 // half is resolveActiveMembershipFrom in account.ts; the column itself and the
 // reasoning for putting it on the session row rather than in legacy's cookie are
 // in the session.additionalFields block in options.ts.

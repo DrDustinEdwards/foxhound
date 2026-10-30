@@ -56,27 +56,41 @@ export function EarlyFraudWarnings({
   result,
   confirmId,
   readOnly,
+  canRefund = true,
 }: {
   warnings: WarningView[];
   result: WarningActionResult | undefined;
   /** The warning a no-script Refund asked to confirm. */
   confirmId: string | null;
   readOnly: boolean;
+  /** False for a member: a refund is the account owner's, so Refund is replaced by a one-line note. */
+  canRefund?: boolean;
 }) {
   const submit = useSubmit();
   const navigation = useNavigation();
   const busy = navigation.state === "submitting";
   const [confirming, setConfirming] = useState<WarningView | null>(null);
   const [lastConfirm, setLastConfirm] = useState<WarningView | null>(null);
-  const [dismissedResult, setDismissedResult] = useState<WarningActionResult | undefined>(undefined);
-  const pageConfirm = confirmId ? warnings.find((w) => w.id === confirmId) ?? null : null;
+  const [dismissedResult, setDismissedResult] = useState<
+    WarningActionResult | undefined
+  >(undefined);
+  const pageConfirm = confirmId
+    ? (warnings.find((w) => w.id === confirmId) ?? null)
+    : null;
   const shown = confirming ?? lastConfirm;
 
   return (
-    <section id={EARLY_FRAUD_WARNINGS_ANCHOR} className="mt-8 scroll-mt-24" aria-labelledby="efw-heading">
+    <section
+      id={EARLY_FRAUD_WARNINGS_ANCHOR}
+      className="mt-8 scroll-mt-24"
+      aria-labelledby="efw-heading"
+    >
       {result && result !== dismissedResult ? (
         <div className="mb-4">
-          <Banner tone={result.ok ? "ok" : "crit"} onDismiss={() => setDismissedResult(result)}>
+          <Banner
+            tone={result.ok ? "ok" : "crit"}
+            onDismiss={() => setDismissedResult(result)}
+          >
             {result.message}
           </Banner>
         </div>
@@ -102,9 +116,17 @@ export function EarlyFraudWarnings({
         flush
       >
         {warnings.length === 0 ? (
-          <p className="m-0 px-4 py-6 text-label text-text-secondary">No open early fraud warnings.</p>
+          <p className="m-0 px-4 py-6 text-label text-text-secondary">
+            No open early fraud warnings.
+          </p>
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Early fraud warnings" tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-cap="table"
+            role="region"
+            aria-label="Early fraud warnings"
+            tabIndex={0}
+          >
             <table className="cap-table">
               <thead>
                 <tr>
@@ -128,13 +150,23 @@ export function EarlyFraudWarnings({
                       <td>
                         <div className="text-label text-text">{label}</div>
                         {w.customerName && w.customerEmail ? (
-                          <div className="text-micro text-text-subtle">{w.customerEmail}</div>
+                          <div className="text-micro text-text-subtle">
+                            {w.customerEmail}
+                          </div>
                         ) : null}
                       </td>
-                      <td data-num="">{formatMoney(w.amountCents, w.currency)}</td>
-                      <td className="text-label text-text-secondary">{fraudTypeWords(w.fraudType)}</td>
-                      <td className="font-mono text-label">{formatDateShort(toDate(w.createdAt))}</td>
-                      <td className="font-mono text-micro text-text-secondary">{w.stripeChargeId}</td>
+                      <td data-num="">
+                        {formatMoney(w.amountCents, w.currency)}
+                      </td>
+                      <td className="text-label text-text-secondary">
+                        {fraudTypeWords(w.fraudType)}
+                      </td>
+                      <td className="font-mono text-label">
+                        {formatDateShort(toDate(w.createdAt))}
+                      </td>
+                      <td className="font-mono text-micro text-text-secondary">
+                        {w.stripeChargeId}
+                      </td>
                       <td>
                         {readOnly ? (
                           <div className="flex flex-wrap justify-end gap-2">
@@ -146,7 +178,8 @@ export function EarlyFraudWarnings({
                               aria-disabled="true"
                               aria-describedby={DEMO_REASON_ID}
                             >
-                              Refund this charge<span className="sr-only"> from {label}</span>
+                              Refund this charge
+                              <span className="sr-only"> from {label}</span>
                             </button>
                             <button
                               type="button"
@@ -156,31 +189,58 @@ export function EarlyFraudWarnings({
                               aria-disabled="true"
                               aria-describedby={DEMO_REASON_ID}
                             >
-                              Dismiss<span className="sr-only"> the warning for {label}</span>
+                              Dismiss
+                              <span className="sr-only">
+                                {" "}
+                                the warning for {label}
+                              </span>
                             </button>
                           </div>
                         ) : (
                           <div className="flex flex-wrap justify-end gap-2">
+                            {canRefund ? (
+                              <Form method="post">
+                                <input
+                                  type="hidden"
+                                  name="intent"
+                                  value="refund_warning_confirm"
+                                />
+                                <input
+                                  type="hidden"
+                                  name="warning_id"
+                                  value={w.id}
+                                />
+                                <button
+                                  type="submit"
+                                  className="cap-btn"
+                                  data-variant="danger"
+                                  data-size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setConfirming(w);
+                                    setLastConfirm(w);
+                                  }}
+                                >
+                                  Refund this charge
+                                  <span className="sr-only"> from {label}</span>
+                                </button>
+                              </Form>
+                            ) : (
+                              <span className="self-center text-micro text-text-subtle">
+                                Only the account owner can refund.
+                              </span>
+                            )}
                             <Form method="post">
-                              <input type="hidden" name="intent" value="refund_warning_confirm" />
-                              <input type="hidden" name="warning_id" value={w.id} />
-                              <button
-                                type="submit"
-                                className="cap-btn"
-                                data-variant="danger"
-                                data-size="sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setConfirming(w);
-                                  setLastConfirm(w);
-                                }}
-                              >
-                                Refund this charge<span className="sr-only"> from {label}</span>
-                              </button>
-                            </Form>
-                            <Form method="post">
-                              <input type="hidden" name="intent" value="dismiss_warning" />
-                              <input type="hidden" name="warning_id" value={w.id} />
+                              <input
+                                type="hidden"
+                                name="intent"
+                                value="dismiss_warning"
+                              />
+                              <input
+                                type="hidden"
+                                name="warning_id"
+                                value={w.id}
+                              />
                               <button
                                 type="submit"
                                 className="cap-btn"
@@ -191,7 +251,11 @@ export function EarlyFraudWarnings({
                                   if (busy) e.preventDefault();
                                 }}
                               >
-                                Dismiss<span className="sr-only"> the warning for {label}</span>
+                                Dismiss
+                                <span className="sr-only">
+                                  {" "}
+                                  the warning for {label}
+                                </span>
                               </button>
                             </Form>
                           </div>

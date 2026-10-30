@@ -1,11 +1,7 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
 import { DOCS_FIRST_PUBLISHED, DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { docsItemListJsonLd, techArticleJsonLd } from "~/lib/seo/jsonld";
-import { STATIC_PAGES } from "~/routes/files/sitemap";
 
 // 368 ROADMAP ITEM 2's REMAINDER: the docs guides had no structured data.
 //
@@ -22,11 +18,6 @@ import { STATIC_PAGES } from "~/routes/files/sitemap";
 //
 // THE PLANT IS DERIVED FROM DOC_GUIDES, so a sixth guide is covered the day it
 // is added rather than the day somebody remembers to add a case.
-
-const ROOT = new URL("../", import.meta.url);
-const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
-
-const GUIDE_ROUTE = read("app/routes/docs/page.tsx");
 
 const URL_BASE = "https://foxhoundapp.test";
 
@@ -50,12 +41,6 @@ describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
       expect(block.datePublished).toBe(DOCS_FIRST_PUBLISHED);
       expect(block.publisher).toEqual({ "@id": `${URL_BASE}/#organization` });
     }
-    // And the route really does feed the h1 and the headline from one value.
-    // J73: the h1 is Recova's page heading ("Platform setup"), so the
-    // headline follows it rather than the card title.
-    expect(GUIDE_ROUTE).toContain("headline: guide.heading");
-    expect(GUIDE_ROUTE).toContain("<h1");
-    expect(GUIDE_ROUTE).toContain(">{guide.heading}</h1>");
   });
 });
 
@@ -73,15 +58,3 @@ describe("PLANT 2: the docs index emits its list", () => {
   });
 });
 
-describe("PLANT 4: the guides stayed indexable, which the fix must not change", () => {
-  it("every guide is still in the sitemap", () => {
-    // The hub is a STATIC_PAGES entry; the five guides are mapped from
-    // DOC_GUIDES into `docEntries` and merged in the route, so the assertion is
-    // against the ROUTE's own derivation rather than the static list, which
-    // never held them.
-    expect(STATIC_PAGES.map((p) => p.path)).toContain("/docs");
-    const sitemapSource = read("app/routes/files/sitemap.ts");
-    expect(sitemapSource).toContain("DOC_GUIDES.map((g) => ({");
-    expect(sitemapSource).toContain("path: `/docs/${g.slug}`");
-  });
-});

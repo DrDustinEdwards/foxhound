@@ -2,13 +2,14 @@ import { getDb } from "~/db";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { DEMO_READ_ONLY_MESSAGE, hasDemoCookie } from "~/lib/demo/session";
 import { setAccountTheme } from "~/lib/theme.server";
 import { isTheme } from "~/lib/theme";
 
 import type { Route } from "./+types/theme";
 
 // Persist an authenticated merchant's theme to accounts.theme so it follows
-// them across devices (ruling 59). Legacy's equivalent is
+// them across devices. Legacy's equivalent is
 // app/api/account/theme/route.ts, a POST that updates the account row.
 //
 // ACTION ONLY, deliberately: this route exports no loader. Loaders must not
@@ -26,6 +27,11 @@ import type { Route } from "./+types/theme";
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
+  }
+
+  // Hard rule 10: the demo refuses a write before any session or database work.
+  if (hasDemoCookie(request)) {
+    return Response.json({ error: DEMO_READ_ONLY_MESSAGE }, { status: 405 });
   }
 
   const { env } = context.get(cloudflareContext);

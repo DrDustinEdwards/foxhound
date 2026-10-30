@@ -10,8 +10,8 @@ import { Outlet } from "react-router";
 // section list, as before. The page column is capped at Recova's 800px with
 // Recova's padding.
 //
-// NO <main> HERE (J40). Recova's layout owns the page's main; in Foxhound the
-// shell does (AdminShell's #cap-main, the skip link's target, ruling 146), and
+// NO <main> HERE. Recova's layout owns the page's main; in Foxhound the
+// shell does (AdminShell's #cap-main, the skip link's target), and
 // this layout renders inside it. A main here made every settings page carry
 // two main landmarks, so the page column is a plain div.
 export default function SettingsLayout() {

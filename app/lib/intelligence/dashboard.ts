@@ -2,7 +2,7 @@ import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import { formatDateMonthDay } from "~/lib/date-format";
 import { formatMoneyShort } from "~/lib/money-format";
 
-// Pure helpers for the Intelligence dashboard (row S16, job J67), shared by the
+// Pure helpers for the Intelligence dashboard, shared by the
 // page and its tests. No database, no AI, no server import: the page bundles
 // this for the browser.
 
@@ -134,7 +134,7 @@ const UNNAMED_PLAN_KEY = "unknown";
  * The snapshot's per_plan_breakdown (plan name to MRR cents, written by
  * buildPlanBreakdown) as rows, largest first, as Recova sorts them. Plans with
  * no MRR are left out, and the engine's "unknown" key is shown as words rather
- * than a raw stored value (RULES.md 1.5). Anything not an object of numbers
+ * than a raw stored value. Anything not an object of numbers
  * reads as no plans.
  */
 export function planBreakdownRows(raw: unknown): PlanRow[] {

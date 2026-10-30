@@ -5,15 +5,15 @@ import { AUDIT_SUMMARY_MAX_TOKENS, MODEL_AUDIT_SUMMARY } from "~/lib/constants";
 import type { AuditResult } from "./engine";
 import { AUDIT_SUMMARY_FALLBACK, buildAuditSummaryPrompt, sanitizeSummary } from "./summary";
 
-// The audit summary's one call, through the factory (347). Phase (c).
+// The audit summary's one call, through the factory. Phase (c).
 //
 // THE SIXTH CALL SITE, and the factory's derived plant caught the addition on
 // the first run rather than after it shipped, which is what 353 binding 9 said
 // it would do.
 //
 // NEVER THROWS INTO THE ENGINE. Legacy returns its fallback string with no API
-// key and again inside a catch; Foxhound returns a DISCRIMINATED outcome instead
-// (339 binding 5), so the caller can tell a real summary from the fallback and
+// key and again inside a catch; Foxhound returns a DISCRIMINATED outcome instead,
+// so the caller can tell a real summary from the fallback and
 // record which. Both arms carry a usable string, so no caller has to handle an
 // absent summary, and none of them can mistake the fallback for a reading of
 // this merchant's numbers.

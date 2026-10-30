@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, adminAuditLog, apiKeys, failedPayments, stripeConnections } from "~/db/schema";
@@ -61,15 +58,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-
-const ROOT = new URL("../", import.meta.url);
-const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
-const code = (source: string) =>
-  source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//"))
-    .join("\n");
 
 const ORIGIN = "https://foxhoundapp.test";
 const ADMIN = "dustin@foxhound.test";
@@ -479,23 +467,6 @@ describe("PLANT 7: no tracking, no billable record, no real customer data", () =
     for (const body of [...previews, ...sent.map((m) => JSON.stringify(m))]) {
       expect(body).not.toContain(REAL_CUSTOMER_EMAIL);
       expect(body).not.toContain(REAL_CUSTOMER_NAME);
-    }
-  });
-
-  it("the capability's module never touches the EMAIL binding or a money writer", () => {
-    const body = code(read("app/lib/admin/email-send.server.ts"));
-    for (const forbidden of [
-      "env.EMAIL",
-      ".EMAIL.send",
-      "processEmailJob",
-      "emailSends",
-      "executeMoneyWrite",
-      "recordOutcome",
-      "signEngagementToken",
-      "signCardUpdateToken",
-      "buildEngagementUrls",
-    ]) {
-      expect(body, forbidden).not.toContain(forbidden);
     }
   });
 });

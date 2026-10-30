@@ -1,4 +1,4 @@
-// Per-code marketing copy for the /decline-codes library (Phase 6).
+// Per-code marketing copy for the /decline-codes library.
 //
 // SOURCING: content is drawn from recova/phase6-content-decline-codes.md (the
 // dedicated content pass, 32 codes) plus a hand-written card_error entry

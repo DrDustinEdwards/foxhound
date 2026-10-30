@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
+
 
 // RULING 377(6): MULTI-CURRENCY IS ONE PLATFORM CUSTOMER, AND STRIPE NEEDS TO BE
 // TOLD THE CURRENCY EVERY TIME.

@@ -59,10 +59,10 @@ export const DISALLOW_PATHS = [
   "/admin",
   "/api/",
   "/auth/",
-  // The OAuth consent page (J79), a step inside an agent's connect flow and
+  // The OAuth consent page, a step inside an agent's connect flow and
   // never a destination. Recova's app/robots.ts disallows '/oauth/' too.
   "/oauth/",
-  // The merchant MCP endpoint (370). An agent connects with a bearer key and a
+  // The merchant MCP endpoint. An agent connects with a bearer key and a
   // crawler has no business there: it is POST-only, so a crawl can only ever
   // collect a 405. Every named group inherits this by the parity rule below.
   "/mcp",
@@ -77,7 +77,7 @@ export const ALLOWED_BOTS = [...SEARCH_ENGINE_BOTS, ...AI_SEARCH_BOTS, ...AI_TRA
 export { DENIED_BOTS };
 
 /**
- * Every named group repeats DISALLOW_PATHS (368 ruling 1): a crawler that
+ * Every named group repeats DISALLOW_PATHS: a crawler that
  * matches a named group uses ONLY that group, so a bare `Allow: /` would have
  * invited Googlebot, GPTBot and the rest into every path the wildcard excludes.
  * `/e/c/:token` is the one that matters: it records the billable

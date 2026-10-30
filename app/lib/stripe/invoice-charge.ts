@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 
+import { asId } from "./ids";
 import { collectPaginated } from "./reads";
 
 // The latest charge attempted on an invoice. On the pinned API version an
@@ -8,11 +9,6 @@ import { collectPaginated } from "./reads";
 // charge expanded. Read-only. Shared by the expired-card retry guard
 // (engine/card-change.ts), webhook intake and the recovered-fee read
 // (webhooks/lookups.ts).
-
-function idOf(ref: string | { id: string } | null | undefined): string | null {
-  if (!ref) return null;
-  return typeof ref === "string" ? ref : ref.id;
-}
 
 /** The newest payment intent on the invoice and its latest charge, or null
  *  when the invoice has no payment intent or the charge is missing. Stripe
@@ -26,7 +22,7 @@ export async function latestInvoiceCharge(
 ): Promise<{ paymentIntent: Stripe.PaymentIntent; charge: Stripe.Charge } | null> {
   const payments = await collectPaginated(stripe.invoicePayments.list({ invoice: invoiceId }), (p) => ({
     created: p.created,
-    paymentIntentId: idOf(p.payment.payment_intent),
+    paymentIntentId: asId(p.payment.payment_intent),
   }));
   const latest = payments
     .filter((p) => p.paymentIntentId)

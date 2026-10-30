@@ -13,7 +13,6 @@ import {
   hasSessionCookie,
   PRIVATE_DIRECTIVE,
   resolveCacheControl,
-  VARY_HEADER_VALUE,
 } from "~/lib/http/cache-policy";
 
 // SESSION 53 / 345 binding 4: the response cache policy, shipped BEFORE the
@@ -58,7 +57,7 @@ const PUBLIC_ROUTES = [
   ["/llms-full.txt", "files"],
   ["/feed.rss", "files"],
   ["/og/anything", "files"],
-  // Recova's card URL shape (ruling 41, J20): the type rides in the query.
+  // Recova's card URL shape: the type rides in the query.
   ["/og", "files"],
 ] as const;
 
@@ -236,10 +235,6 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
 
     const cased = new Response("x", { headers: { Vary: "cookie" } });
     expect(applyCachePolicy(request("/"), cased).headers.get("Vary")).toBe("cookie");
-  });
-
-  it("the value is the literal Cookie, asserted directly", () => {
-    expect(VARY_HEADER_VALUE).toBe("Cookie");
   });
 });
 

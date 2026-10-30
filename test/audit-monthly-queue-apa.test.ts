@@ -14,7 +14,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // job_97878f0d1fde: THE MONTHLY AUDIT IS ONE ACCOUNT PER QUEUE MESSAGE.
 //
-// Since #123 every Stripe read in the audit pages to the end (RULES.md 3.19), so
+// Since #123 every Stripe read in the audit pages to the end, so
 // one account costs a fixed handful of subrequests plus one per page of its own
 // data, with no upper bound. Auditing every opted-in account inside the one cron
 // invocation put all of them under one subrequest limit: a few hundred small
@@ -410,7 +410,7 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
     expect(alert?.text).toContain("a_on");
     expect(alert?.text).toContain(PERIOD);
     // The run may have died after the send and before the row was marked sent,
-    // so the alert must not claim nothing went out (job_17249e7da871).
+    // so the alert must not claim nothing went out.
     expect(alert?.text).toContain("may not have been sent");
     expect(alert?.text).not.toContain("no email was sent");
     expect((await db.select().from(auditDigestRuns))[0].status).toBe("pending");

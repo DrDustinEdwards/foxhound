@@ -4,7 +4,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J85, rows E4, E5 and E6 (parity/ROWS-E.md): the day 1, day 3 and day 7
 // recovery emails. Recova is the spec for what each one says, carries and when
-// it sends (RULES.md 1.1). The layout is Capsomer's email component (Q3), so
+// it sends. The layout is Capsomer's email component, so
 // nothing here asserts Recova's layout.
 //
 // Recova read whole, at HEAD, through Capsid repo "legacy":
@@ -13,8 +13,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   lib/constants.ts (blob a21b32b8): STEP_TIMING_* hours
 //   lib/email.ts (blob 3f882729): wrapEmailHtml, the footer sentence
 //
-// Left to their own jobs and NOT asserted here: Reply-To (J03) and the timing
-// word gate (J01). The update-link check (J04) and the shell (J02) are merged
+// Left to their own jobs and NOT asserted here: Reply-To and the timing
+// word gate. The update-link check and the shell are merged
 // and are extended to these three emails below.
 
 interface SentMessage {
@@ -71,7 +71,7 @@ const env = {
 // variables: customer_name is `fp.customer_name || 'there'`, sender_name is
 // `merchant.sender_name || 'Support'`, amount is the formatted amount, and
 // update_url is the button. The inline CTA style is Recova's amber layout and
-// gives way to Capsomer's button (Q3); the words are kept exactly, except day
+// gives way to Capsomer's button; the words are kept exactly, except day
 // 3's "will be suspended soon", which became "may be suspended" as a
 // truthfulness fix Dustin approved on 2026-10-15
 // (cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6).
@@ -309,7 +309,7 @@ describe("E4 to E6 end to end: a due step sends to the customer at Recova's offs
 
 
 
-  // ---- a refused send returns its named outcome (RULES.md 3.16) ----
+  // ---- a refused send returns its named outcome ----
 
   function e4Job(over: Partial<EmailJob> = {}): EmailJob {
     return {

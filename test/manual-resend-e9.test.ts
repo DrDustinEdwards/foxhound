@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// E9 (job J87): the merchant's Resend sends the customer the last recovery
+// E9: the merchant's Resend sends the customer the last recovery
 // email again, as Recova's resend route does.
 //
 // Recova is the spec: app/api/payments/[id]/resend/route.ts (blob 35132cb6),
@@ -19,7 +19,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // customer footer (unsubscribe link, postal address, List-Unsubscribe).
 //
 // Every assertion reads the message as it reaches env.EMAIL.send, because the
-// claim is about what leaves (RULES.md 6.1).
+// claim is about what leaves.
 
 interface SentMessage {
   from: string;
@@ -144,7 +144,7 @@ function only(): SentMessage {
 describe("E9: what it says (the stored copy, resent as it was)", () => {
 
   it("every sentence and the button of the stored body are resent, with no regeneration", async () => {
-    // The timing-word gate (J01) and the update-link check (J04) ran when this
+    // The timing-word gate and the update-link check ran when this
     // copy was generated and first sent. Recova resends the stored copy as it
     // is, and so does Foxhound: nothing here regenerates it.
     seed();

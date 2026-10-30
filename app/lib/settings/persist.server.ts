@@ -30,7 +30,7 @@ export function buildEmailSettingsUpdate(
   accountId: string,
   input: EmailSettingsInput,
 ) {
-  // ONE column. `digest_email` was here and is gone (336 binding 3): no legacy
+  // ONE column. `digest_email` was here and is gone: no legacy
   // counterpart, no reader, and the audit digest sends to `notification_email`.
   // Leaving it in the set would keep a write alive for a field no form posts.
   return db
@@ -174,7 +174,7 @@ export interface SenderSettingsInput {
    *  `formData.get('sender_name')?.toString() || null`. Null is a real state,
    *  not a gap: the From header falls back to "Support" and delivers. */
   senderName: string | null;
-  /** `reply_to_email` (J03). UNDEFINED leaves the column alone, which is
+  /** `reply_to_email`. UNDEFINED leaves the column alone, which is
    *  legacy's `if (formData.has('reply_to_email'))`; NULL clears it. */
   replyToEmail?: string | null;
 }

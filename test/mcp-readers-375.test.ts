@@ -15,7 +15,7 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 // approved both readers with the read discipline of 77 and said they ride with
 // the next MCP-adjacent session, which was session 83.
 //
-// THE REGROUP (job_874dc20ea9ac) folded `get_brand_voice` and
+// THE REGROUP folded `get_brand_voice` and
 // `get_intelligence_context` into `foxhound_get_settings`, as its `brand_voice`
 // and `intelligence_context` keys, and the two writers into the matching
 // sections of `foxhound_update_settings`. Every property below is the same
@@ -31,7 +31,7 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 // WITHOUT TESTING ANYTHING: its fixture seeds no stripe connection and no
 // merchant context, so both readers return null for both accounts and an
 // absence assertion over two nulls is satisfied by construction. That is the
-// same vacuum that let three tools leak for six sessions (376 item 7), caught
+// same vacuum that let three tools leak for six sessions, caught
 // here by writing the fixture the assertion needs instead of inheriting one.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));

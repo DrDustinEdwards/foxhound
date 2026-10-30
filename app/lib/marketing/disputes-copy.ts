@@ -2,17 +2,17 @@ import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { DEADLINE_SOON_DAYS, DEADLINE_URGENT_DAYS } from "~/lib/disputes/labels";
 import { formatMoneyShort } from "~/lib/money-format";
 
-// The /product/disputes copy (J57). Recova's spec is
+// The /product/disputes copy. Recova's spec is
 // app/(marketing)/product/disputes/page.tsx (blob c412d54f), read whole, and
 // this is its copy word for word, with three kinds of change only:
 //
-// - Branding: Recova becomes Foxhound (RULES.md 1.2).
+// - Branding: Recova becomes Foxhound.
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
 //   2.1): the fee from DISPUTE_FEE_BPS, the cap from DISPUTE_FEE_CAP_CENTS,
 //   the deadline bands from the dashboard's own DEADLINE_SOON_DAYS and
 //   DEADLINE_URGENT_DAYS.
 // - Truthfulness fixes where Recova's words describe something Foxhound does
-//   not do (RULES.md 1.2). Each is named beside its string below. The ones
+//   not do. Each is named beside its string below. The ones
 //   that recur:
 //   * Every submission stands on a person's approval, enforced by the schema:
 //     their own Approve and submit, or auto-submit, which they turn on in
@@ -79,7 +79,7 @@ export const DISPUTES_BLOCKS = {
     // Smart Disputes (which charges 30% vs Recova's 20%)". Foxhound computes
     // no saving (app/lib/disputes/stats.ts says why Recova's formula is not
     // ported), its fees owed are not a month's, and Stripe's 30% is a
-    // statistic with no source named (RULES.md 2.3).
+    // statistic with no source named.
     title: "Open disputes. At stake. Fees owed.",
     body: "The dashboard surfaces what matters immediately: open disputes, total amount at stake, how many Foxhound has submitted, and fees owed. How much you saved compared to Stripe's Smart Disputes is not built yet.",
   },
@@ -124,7 +124,7 @@ export const DISPUTES_FAQS = [
   },
   {
     q: "What if I want to submit evidence myself?",
-    // Recova's words: evidence files are built (J07).
+    // Recova's words: evidence files are built.
     a: "You can edit any pre-staged evidence before submitting. Add context in the uncategorized text field, attach files, or rewrite the structured evidence. Foxhound's evidence is a starting point, not a constraint.",
   },
   {
@@ -137,6 +137,6 @@ export const DISPUTES_BOTTOM_CTA = {
   title: "Stop losing disputes to missed deadlines.",
   sub: "Connect Stripe and Foxhound starts building evidence on every new dispute automatically.",
   // Truthfulness: Recova reads "Read-only Stripe access" under a /connect
-  // button. /connect asks for read and write (RULES.md 2.2).
+  // button. /connect asks for read and write.
   note: `Read and write Stripe access · ${pct} only when you win`,
 };

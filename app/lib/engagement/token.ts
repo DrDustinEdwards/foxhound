@@ -1,4 +1,5 @@
-import { readSignedToken, signToken } from "~/lib/http/signed-token";
+import { readSignedToken, signToken } from "@dustinedwards/site-runtime/signed-token";
+import { linkKeys } from "~/lib/http/signed-token";
 
 // First-party engagement tokens. The open-pixel and click-redirect URLs carry a
 // signed token instead of any PII (ROUTES.md: "no PII in URL beyond the token").
@@ -20,7 +21,7 @@ export async function signEngagementToken(
   env: Env,
   payload: EngagementTokenPayload,
 ): Promise<string> {
-  return signToken(env, payload);
+  return signToken(linkKeys(env), payload);
 }
 
 /** Verify + parse an engagement token. Returns null on any tamper/format/parse failure. */
@@ -28,7 +29,7 @@ export async function verifyEngagementToken(
   env: Env,
   token: string,
 ): Promise<EngagementTokenPayload | null> {
-  const parsed = (await readSignedToken(env, token)) as EngagementTokenPayload | null;
+  const parsed = (await readSignedToken(linkKeys(env), token)) as EngagementTokenPayload | null;
   if (!parsed) return null;
   if (!parsed.stepId || !parsed.accountId || (parsed.kind !== "open" && parsed.kind !== "click" && parsed.kind !== "honeypot")) {
     return null;

@@ -14,7 +14,7 @@ import { headerLogo } from "./header-logo";
 // WHY IT LIVES HERE: root.tsx cannot be imported in the test environment. It pulls app.css, two
 // `?url` font assets and lib/theme.server, which reaches D1, so an import of it hangs.
 
-// THE LOOK (J21): Capsomer's button, amber, Foxhound's five text sizes. Amber
+// THE LOOK: Capsomer's button, amber, Foxhound's five text sizes. Amber
 // throughout has since landed site-wide, so this page and the rest of
 // the site share the one accent.
 //
@@ -32,7 +32,7 @@ const PRIMARY = { ...BUTTON, "data-variant": "primary" } as const;
 const SECONDARY = BUTTON;
 
 // THE BAR carries only the wordmark linking home, as Recova's did. It is drawn here rather than by
-// Capsomer's SiteHeader (J10): with no sections, switchers or account, SiteHeader still renders its
+// Capsomer's SiteHeader: with no sections, switchers or account, SiteHeader still renders its
 // phone Menu button, which would open a sheet with nothing in it, a control that does nothing. So the
 // bar takes the J10 header's look by tokens instead: Foxhound's dark chrome band in both themes, 56px,
 // 24px sides, and the header's own wordmark (headerLogo) with the x in the band's amber. It reads no
@@ -87,7 +87,7 @@ export function ErrorLinks({ notFound }: { notFound: boolean }) {
   );
 }
 
-// 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog post route (391). It is
+// 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog post route. It is
 // a deliberate editorial act, so it gets neither the error heading nor the error affordances: nothing
 // went wrong, there is nothing to retry, and the page is not coming back at this URL.
 //

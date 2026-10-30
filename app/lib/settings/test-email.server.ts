@@ -18,7 +18,7 @@ import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 //             this."
 //   No unsubscribe, no postal address, no tracking, no retry.
 // Foxhound sends the same, with Foxhound's name in the footer, on Capsomer's
-// email component in Foxhound's amber (Q3) with a text part beside the HTML.
+// email component in Foxhound's amber with a text part beside the HTML.
 //
 // IT IS A REAL SEND. It goes through processEmailJob, as the recovery cron's
 // sends do, so it passes the suppression gate and writes an email_sends row for
@@ -114,7 +114,7 @@ export function buildTestEmailJob(input: {
 }
 
 export interface SendTestEmailResult {
-  /** A named outcome, never null (RULES.md 3.16): sent, suppressed or failed. */
+  /** A named outcome, never null: sent, suppressed or failed. */
   result: EmailJobResult;
   sentTo: string;
 }
@@ -123,7 +123,7 @@ export interface SendTestEmailResult {
  * Send one preview recovery email to the signed-in merchant's own address.
  *
  * `to` is the SESSION user's email and is never taken from the form, so this
- * control cannot be pointed at a third party (RULES.md 4.7). The idempotency
+ * control cannot be pointed at a third party. The idempotency
  * key is new on every click, because Recova sends on every click; it still
  * names the account so the row is recognizable in email_sends.
  */

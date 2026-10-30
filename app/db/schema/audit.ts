@@ -60,7 +60,7 @@ export const auditRuns = sqliteTable(
     stripeBaselineRecoveredCents: integer("stripe_baseline_recovered_cents"),
     stillDyingCents: integer("still_dying_cents"),
     foxhoundAddsCents: integer("foxhound_adds_cents"),
-    // Every money figure per currency (job_ed1c41e4bd95, RULES.md 3.20). The
+    // Every money figure per currency. The
     // single-number columns above hold the figure in `currency` only. NULL on a
     // run stored before this column, which renders its one total as it was.
     moneyByCurrency: json<AuditMoneyByCurrency>("money_by_currency"),
@@ -68,7 +68,7 @@ export const auditRuns = sqliteTable(
   (t) => [index("audit_runs_account_idx").on(t.accountId)],
 );
 
-// The monthly audit digest's per-account-per-month record (S30's cron, 316).
+// The monthly audit digest's per-account-per-month record (S30's cron).
 // It is BOTH the idempotency claim and the comparison's memory.
 //
 // IDEMPOTENCY IS THE DATABASE'S, never the application's. The unique index on

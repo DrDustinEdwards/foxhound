@@ -8,8 +8,8 @@ import { useEffect, useState } from "react";
 //
 // The bar draws ACROSS the header rather than below it, which is legacy's
 // intent, not an oversight: legacy pins top: 0 / z-index: 100 and its own CSS
-// comment describes the bar as "rendered above SiteNav on the post page"
-// (ruling 73c). An earlier version here measured the header with a
+// comment describes the bar as "rendered above SiteNav on the post page".
+// An earlier version here measured the header with a
 // ResizeObserver and offset `top` to sit beneath it, citing a "Phase 6 review
 // finding" that had corrected a non-defect; the measuring effect is gone and
 // the position lives in CSS again, as legacy has it.

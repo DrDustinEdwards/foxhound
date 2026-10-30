@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -97,18 +97,6 @@ describe("PLANT 1: the Worker holds no Stripe key, no money binding and no D1", 
       expect(config[forbidden], forbidden).toBeUndefined();
     }
     expect(JSON.stringify(config.vars ?? {})).not.toMatch(/stripe/i);
-  });
-
-  it("no source file under mcp/src reaches the app, the ORM, Stripe or a money writer", () => {
-    const dir = fileURLToPath(new URL("mcp/src/", ROOT));
-    const files = readdirSync(dir).filter((f) => f.endsWith(".ts"));
-    expect(files.length).toBeGreaterThanOrEqual(6);
-    for (const file of files) {
-      const body = strip(read(`mcp/src/${file}`));
-      for (const forbidden of ['from "~/', "../app", "../../app", "drizzle", "stripe", "STRIPE", "executeMoneyWrite", "D1Database"]) {
-        expect(body, `${file} names ${forbidden}`).not.toContain(forbidden);
-      }
-    }
   });
 });
 

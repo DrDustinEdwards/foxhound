@@ -154,7 +154,7 @@ function storedTotals(perCurrency: unknown, cents: number | null, currency: stri
  * that is NULL exactly when the scope failed and never otherwise, and the whole
  * scope stands or falls on it. The Card Updater's anchor is its EVENT COUNT
  * rather than its advisory, because the advisory is legitimately null when no
- * advisory fires (364 binding 20).
+ * advisory fires.
  */
 export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
   const currency = row.currency ?? "usd";

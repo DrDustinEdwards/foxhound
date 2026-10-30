@@ -1,6 +1,6 @@
 // The write path for blog_posts / blog_post_versions. Its one caller is the
 // Carrel site adapter (app/lib/carrel/adapter.server.ts): Carrel is the blog
-// editor, and Foxhound's own /admin/blog editor is gone (RULES.md 7.4, Q8).
+// editor, and Foxhound's own /admin/blog editor is gone.
 // The editor's list, version and related-post helpers went with it. The public
 // read path (queries.server.ts) is untouched.
 

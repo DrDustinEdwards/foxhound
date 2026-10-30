@@ -74,7 +74,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-// J19 (row M14). Recova's layout, read from tag/[tag]/page.tsx: one
+// J19. Recova's layout, read from tag/[tag]/page.tsx: one
 // left-aligned column at 1100px (px-5, sm:px-8, py-16), the "All posts" back
 // link (mb-8), the tag's label as the h1 (mb-2), the "N articles" count line
 // (mb-10), then the card grid (1, 2, 3 columns, gap-6). Recova's empty line is

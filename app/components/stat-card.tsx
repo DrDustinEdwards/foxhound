@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 // Shared stat-card presentation (built in 5a for the dashboard, reused by the
 // 5b recovery overview). One place for the label/value/subtext layout so
@@ -46,5 +47,22 @@ export function StatCard({
       </p>
       {subtext ? <p className="mt-1 text-label text-text-tertiary">{subtext}</p> : null}
     </div>
+  );
+}
+
+/** The marketing previews' stat card (Recova's disputes and Intelligence
+ *  preview cards): a label over whatever figure the caller puts in. Recova's
+ *  card leads nowhere, so it is a panel with a figure in it, not Capsomer's
+ *  stat tile, which is always a link or a button. */
+export function PreviewStatCard({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <li className="cap-panel">
+      <div className="cap-panel-body">
+        <div>
+          <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{label}</p>
+          {children}
+        </div>
+      </div>
+    </li>
   );
 }

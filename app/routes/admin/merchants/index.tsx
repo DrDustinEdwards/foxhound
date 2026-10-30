@@ -39,7 +39,7 @@ export function meta() {
 }
 
 // This module serves three addresses (routes.ts): every merchant here, and
-// Recova's Paused and Billing exempt lists (J50), whose route modules pass
+// Recova's Paused and Billing exempt lists, whose route modules pass
 // their own list to the same loader and re-export this action and page.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -188,7 +188,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 // script; the result of a post made without script shows in a banner with its
 // Undo as a form.
 //
-// Recova's Paused and Billing exempt lists (J50) are this page filtered, in
+// Recova's Paused and Billing exempt lists are this page filtered, in
 // Capsomer's links form of tabs at Recova's addresses: the same table, the
 // same actions (Recova's Resume and Remove exemption are the row's own
 // buttons), each form posting to the list it is on.

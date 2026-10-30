@@ -42,7 +42,7 @@ export interface SaveAuditRunContext {
 
 /**
  * The row legacy builds, field for field. Pure and exported so a plant can drive
- * the real mapping rather than a reproduction of it (337 binding 4).
+ * the real mapping rather than a reproduction of it.
  */
 function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
   return {
@@ -82,7 +82,7 @@ function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
     voluntaryChurnRateBps: value(result.health, (d) => d.voluntaryChurnRateBps),
     involuntaryChurnRateBps: value(result.health, (d) => d.involuntaryChurnRateBps),
 
-    // Every money figure per currency (job_ed1c41e4bd95). The single-number
+    // Every money figure per currency. The single-number
     // columns above are the figure in `currency` only (engine.ts).
     moneyByCurrency: {
       failedInvoices: value(result.failedInvoices, (d) => d.totals),
@@ -125,7 +125,7 @@ export type AuditRunRow = typeof auditRuns.$inferSelect;
 /**
  * One stored run, scoped to the account.
  *
- * ACCOUNT-SCOPED IN THE PREDICATE, not by the caller (352 binding 4). The id
+ * ACCOUNT-SCOPED IN THE PREDICATE, not by the caller. The id
  * reaches this from a URL on phase (e)'s shareable page, so a run belonging to
  * another merchant must return null rather than another merchant's numbers.
  */

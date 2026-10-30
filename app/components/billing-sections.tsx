@@ -27,7 +27,8 @@ import {
   type RecoveryHistoryRow,
   type SubscriptionView,
 } from "~/lib/billing/page";
-import type { AccountBillingState, CurrencyAmount } from "~/lib/billing/preview.server";
+import type { AccountBillingState } from "~/lib/billing/preview.server";
+import type { CurrencyAmount } from "~/lib/money/totals";
 import {
   BILLING_RUN_DAY_OF_MONTH,
   DISPUTE_FEE_CAP_CENTS,
@@ -35,18 +36,18 @@ import {
 } from "~/lib/constants";
 import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 
-// /billing's five sections (J65, row S3), in Recova's order and with Recova's
+// /billing's five sections, in Recova's order and with Recova's
 // content (app/(app)/billing/page.tsx at blob 34e56833, components/
 // RecoverySection.tsx 047467ef, DisputeFeesSection.tsx 03d26710,
 // SubscriptionsSection.tsx d87f5221, PaymentMethodSection.tsx 0c07cb69). Look is
-// Capsomer's (Q10): each section is a Panel, each list a row list, each status a
+// Capsomer's: each section is a Panel, each list a row list, each status a
 // Pill, each button Capsomer's Button. Every number is Foxhound's own engine:
 // rates from the fee constants, the day from the run's cron fields, amounts
 // from the billing preview and the stored invoices. Read-only, apart from the
 // one existing action the payment method button posts to.
 //
 // Recova lines that would be false of Foxhound are rewritten, each named where
-// it sits. Text is on the five sizes (RULES.md 5.2): Recova's 0.8125rem is
+// it sits. Text is on the five sizes: Recova's 0.8125rem is
 // label, 0.6875rem is micro, and its 0.9375rem amounts are body.
 
 const INVOICE_DAY = ordinal(BILLING_RUN_DAY_OF_MONTH);
@@ -298,7 +299,7 @@ const plainTitle = ({ children }: RowLinkProps) => <span>{children}</span>;
 /** Recova's Subscriptions section; nothing at all when there are none. Recova's
  *  Cancel and Keep subscription buttons, and its past-due banner, are left out:
  *  Foxhound has no merchant cancel or reactivate writer, and nothing writes
- *  past_due (RULES.md 2.7, 3.18). */
+ *  past_due. */
 export function SubscriptionsSection({ subscriptions }: { subscriptions: SubscriptionView[] }) {
   if (subscriptions.length === 0) return null;
   return (

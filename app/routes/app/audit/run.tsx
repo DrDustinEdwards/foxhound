@@ -24,7 +24,7 @@ import type { Route } from "./+types/run";
 import { NOINDEX } from "~/lib/seo/meta";
 import { formatDateShort } from "~/lib/date-format";
 
-// J63 (job_66a3ffa02214), row U4: Recova's saved run, app/audit/results/[id]/
+// J63, row U4: Recova's saved run, app/audit/results/[id]/
 // page.tsx (blob a0dbf6ef, 11,127 bytes), at Recova's own path,
 // /audit/results/:id. The old /audit/runs/:id answers one 301 here
 // (app/routes/audit/runs-redirect.ts). Read whole at HEAD with
@@ -37,7 +37,7 @@ import { formatDateShort } from "~/lib/date-format";
 // another. The sections are the live page's (app/components/audit/
 // sections.tsx), and the look is Capsomer 0.9.0's (Q10 to Q12).
 //
-// PRIVATE (RULES.md 4.14). The run is read through getAuditRun, which pins
+// PRIVATE. The run is read through getAuditRun, which pins
 // the account in the predicate, so another account's id is a 404. Recova's
 // page is the same (`.eq('account_id', accountId)`). Recova's "Copy link"
 // sits between Back to history and Run new audit, as there; the link opens
@@ -51,7 +51,7 @@ import { formatDateShort } from "~/lib/date-format";
 //
 // EVERY FIGURE IS number OR null, NEVER COALESCED. Recova maps this row with
 // `?? 0` on every column, so a run whose disputes call failed renders as a
-// merchant with no open disputes (365 binding 2).
+// merchant with no open disputes.
 
 export function meta() {
   return [{ title: "Audit run - Foxhound" }, NOINDEX];
@@ -66,7 +66,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   if (!row) throw new Response("Not Found", { status: 404 });
   // THE RUN IS THE PAGE; THE LIVE FIGURES ARE EXTRAS. A failed read of
   // them is logged whole and the run renders without them, rather than a
-  // saved run the merchant cannot open (J63 review round 1).
+  // saved run the merchant cannot open.
   let live: { activeSequences: number | null; recoveryRatePct: number | null; foxhoundWinRate: number | null } = {
     activeSequences: null,
     recoveryRatePct: null,

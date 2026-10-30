@@ -54,7 +54,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 //   components/SettingsBackLink.tsx               blob 64d4a153
 //   settings/update/route.ts                      blob 878c0637
 //
-// J39 (job_4b5f4ca4e9ae) rebuilt it from Capsomer 0.9.0's parts under Dustin's
+// J39 rebuilt it from Capsomer 0.9.0's parts under Dustin's
 // Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field parts,
 // Switch, Status and Button, amber throughout. Recova stays the spec for what
 // is here and in what order: the phone-only back link, the title and its line,
@@ -68,7 +68,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // The win-back and expiring-card toggles are NOT here: legacy renders them on
 // its features page (S34).
 //
-// THE NULL MAP IS LEGACY'S OWN, read off its page defaults (RULES.md 3.17):
+// THE NULL MAP IS LEGACY'S OWN, read off its page defaults:
 //   slack_notifications_enabled ?? false            NULL renders OFF
 //   digest_enabled ?? false                         NULL renders OFF
 //   recovery_notifications_enabled ?? true          NULL renders ON
@@ -76,7 +76,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // The engine agrees: the digest cron selects `digest_enabled = true` and the
 // Slack sender gates on a truthy `slack_notifications_enabled`.
 //
-// ONE TRUTHFULNESS FIX (RULES.md 1.2): Recova's help line ends "Defaults to
+// ONE TRUTHFULNESS FIX: Recova's help line ends "Defaults to
 // your account email if blank." That was untrue there and is untrue here: a
 // blank box saves NULL (legacy's `|| null`), the payment recovered and sequence
 // complete notices skip a NULL address as `no_recipient`, and the digest cron

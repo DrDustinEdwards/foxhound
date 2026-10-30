@@ -96,13 +96,13 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (args, nex
   // An admin viewing a merchant ("View as merchant", app/lib/admin/
   // impersonation.server.ts). READ-ONLY FIRST: the cookie alone refuses every
   // non-GET/HEAD with 405, before any session, membership or database work, the
-  // demo firewall's rule (RULES.md 4.12) and its demoBlocksMethod. A stale
+  // demo firewall's rule and its demoBlocksMethod. A stale
   // cookie therefore blocks writes too, until Stop or its own expiry clears it.
   if (demoBlocksMethod(request.method)) {
     throw data(IMPERSONATION_READ_ONLY_MESSAGE, { status: 405 });
   }
 
-  // The account is never read from the cookie (RULES.md 4.6): the cookie is an
+  // The account is never read from the cookie: the cookie is an
   // opaque token, and the account comes from its server-side row, honored only
   // while that row is open and unexpired AND its admin passes Cloudflare Access
   // on this very request. Anything else falls through to the caller's own
@@ -138,8 +138,14 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (args, nex
 
 const resolveSessionOrDemo: MiddlewareFunction<Response> = async ({ request, context }, next) => {
   const { env } = context.get(cloudflareContext);
-  const session = await getSession(env, request);
   const pathname = new URL(request.url).pathname;
+  // Hard rule 10: a demo write is refused before any session or database work.
+  // With the cookie on a non-admin path the demo wins whether or not a session
+  // exists (resolvesToDemo), so the session read is not needed to decide this.
+  if (hasDemoCookie(request) && !isAdminPath(pathname) && demoBlocksMethod(request.method)) {
+    throw data(DEMO_READ_ONLY_MESSAGE, { status: 405 });
+  }
+  const session = await getSession(env, request);
   const useDemo = resolvesToDemo(Boolean(session), hasDemoCookie(request), pathname);
 
   if (session && !useDemo) {

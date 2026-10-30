@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { isPaymentDetailPath, shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 
-// RULING 305: legacy's loading.tsx ported as a capability (292), read at blob
+// RULING 305: legacy's loading.tsx ported as a capability, read at blob
 // 7466b69991de78e58ce75427611240723139bfe4 rather than from any summary.
 //
 // COVERAGE BOUND, stated per 246 because it shapes every assertion below. This

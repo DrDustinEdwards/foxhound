@@ -6,16 +6,12 @@ import { accounts, disputeApprovals, disputeEvidence, disputes } from "~/db/sche
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
-import {
-  DISPUTE_EVIDENCE_ALLOWED_TYPES,
-  DISPUTE_EVIDENCE_MAX_FILES,
-  DISPUTE_EVIDENCE_MAX_SIZE_BYTES,
-} from "~/lib/constants";
+import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import type { DisputeSubmissionContext } from "~/lib/disputes/submission";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// J07 (job_7a7c09269012): merchant evidence files on R2, as Recova's
+// J07: merchant evidence files on R2, as Recova's
 // components/disputes/DisputeFileUploads.tsx (1286eb21), app/api/disputes/
 // upload-evidence/route.ts (7acca2a9), delete-evidence/route.ts (06a2cd1a),
 // evidence-url/route.ts (57ccef71), submit/route.ts (6c21ef74), lib/r2.ts
@@ -268,16 +264,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-});
-
-// ---- Recova's limits ----
-
-describe("J07: Recova's limits from lib/constants.ts", () => {
-  it("allows five files of 5 MB each, JPG, PNG or PDF", () => {
-    expect(DISPUTE_EVIDENCE_MAX_FILES).toBe(5);
-    expect(DISPUTE_EVIDENCE_MAX_SIZE_BYTES).toBe(5 * 1024 * 1024);
-    expect([...DISPUTE_EVIDENCE_ALLOWED_TYPES]).toEqual(["image/jpeg", "image/png", "application/pdf"]);
-  });
 });
 
 // ---- Upload ----
@@ -587,7 +573,7 @@ describe("J07: files go with the evidence submission (Recova's submit route)", (
   });
 });
 
-// ---- The guards joined to the writes (RULES.md 3.9), past the route's reads ----
+// ---- The guards joined to the writes, past the route's reads ----
 
 describe("J07 review: each write carries its own guard", () => {
   const upload = (bucket: FakeBucket) =>

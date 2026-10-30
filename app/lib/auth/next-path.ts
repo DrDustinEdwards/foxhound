@@ -1,6 +1,6 @@
 // Where to land after signing in: Recova's validateRedirect
 // (app/(auth)/login/page.tsx, blob ec09cd24), one of ruling 8's inherited
-// artifacts, for the OAuth authorize page's round trip through /login (J79).
+// artifacts, for the OAuth authorize page's round trip through /login.
 
 /** Where a sign-in lands when next= is absent or refused, as in Recova. */
 export const DEFAULT_NEXT_PATH = "/console";

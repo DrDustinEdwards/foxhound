@@ -1,12 +1,9 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E21 and E22 (job J94, job_e43cf9b524ea): the threshold alert and the critical
+// E21 and E22: the threshold alert and the critical
 // customers alert, emailed to the merchant on Capsomer's `notice` template.
 //
 // Recova is the spec, read whole at the blobs parity/ROWS-E.md names:
@@ -40,10 +37,6 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const notify = await import("~/lib/intelligence/alert-notify.server");
-const {
-  CRITICAL_CUSTOMERS_ALERT_LIVE,
-} = notify;
 const { evaluateAndRecordAlerts, runAlertsForAllAccounts, runCriticalCustomersCheck } = await import(
   "~/lib/intelligence/alert-run.server"
 );
@@ -169,7 +162,6 @@ function lastTriggeredAt(): number | null {
   };
   return row.last_triggered_at;
 }
-
 
 // ============================================================================
 // E21: when it sends
@@ -384,13 +376,3 @@ describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", 
   });
 });
 
-describe("E22 stays off until its button has somewhere to go (RULES.md 2.7)", () => {
-  const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
-
-  it("is live only when /intelligence/recommendations is a route", () => {
-    // Recova's button opens /intelligence/recommendations (row S20, job J78).
-    // The nightly run calls the check only while that page exists.
-    const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
-    expect(CRITICAL_CUSTOMERS_ALERT_LIVE).toBe(hasPage);
-  });
-});

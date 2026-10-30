@@ -25,7 +25,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // FOUR OF THE 394 WALK'S S23 CLAIMS WERE FALSE and are deliberately not
 // actioned: the H1 is "Help" on both sides, the container matches, the real
 // page has no green reassurance banner, and there is no card-geometry
-// divergence (ruling 399, correcting the walk's demo-twin baseline).
+// divergence (correcting the walk's demo-twin baseline).
 //
 // FOUR THINGS ARE DELIBERATELY NOT LEGACY'S, each a truth about Foxhound:
 //   * Q1 rewritten: ruling 80 made recovery silent-retry-first, so legacy's

@@ -1,6 +1,6 @@
 # CLAUDE.md - foxhound
 
-Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscription intelligence for Stripe merchants, the Cloudflare-native rebuild of Recova. React Router 8 on Workers, Drizzle on D1, Durable Objects for money writes, Queues for email, Access for the admin. The legacy Recova app is the separate, frozen repo DrDustinEdwards/recova.
+Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscription intelligence for Stripe merchants, the Cloudflare-native rebuild of Recova. React Router 8 on Workers, Drizzle on D1, Durable Objects for money writes, Queues for email events and audits, Access for the admin. The legacy Recova app is the separate, frozen repo DrDustinEdwards/recova.
 
 ## Rules that come first
 

@@ -8,7 +8,7 @@ import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { HOUR_MS } from "~/lib/constants";
 
-// THE DISPUTE DEADLINE REMINDER (J06, job_4f4c9c2f5383). Recova's spec is
+// THE DISPUTE DEADLINE REMINDER. Recova's spec is
 // app/api/cron/process-disputes/route.ts (blob 1cbd5bd0, 21,298 bytes), "Thing
 // 1", read whole. Its "Thing 2" (the opt-in auto-submit) is
 // app/lib/cron/dispute-auto-submit.ts, on the same tick, and its "Thing 3" (a
@@ -53,7 +53,7 @@ import { HOUR_MS } from "~/lib/constants";
 // than the limit drains over consecutive ticks instead of returning the same
 // rows forever.
 //
-// A REFUSED SEND BACKS OFF (job_2663d92094ab). The send layer keeps a refused
+// A REFUSED SEND BACKS OFF. The send layer keeps a refused
 // claim's row with its error, and its created_at is the time of the last
 // attempt (the claim and every retake write it). The selection skips a dispute
 // whose band claim was refused less than REFUSED_REMINDER_BACKOFF_MS ago, so a

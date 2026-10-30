@@ -5,7 +5,7 @@ import { accounts, engagementEvents, failedPayments, recoverySteps } from "~/db/
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Row F9 (J26, job_652baa37855c): the /e/o/:token open pixel against Recova's
+// Row F9: the /e/o/:token open pixel against Recova's
 // email.opened handler in app/api/webhooks/resend/route.ts (blob f9175569, read
 // whole). Per open Recova sets, on the recovery step:
 //   email_opened_count  += 1 (null read as 0)            on every open

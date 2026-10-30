@@ -1,10 +1,12 @@
+import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { llmsResponse } from "@drdustinedwards/site-helpers/llms";
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
-import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
+import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
+import { AUDIT_ACCESS_ASK, AUDIT_ACCESS_PROMISE, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 
 import type { Route } from "./+types/llms";
 
@@ -31,8 +33,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
 
-  // Only archives that actually carry a published post are advertised
-  // (ruling 88). This file previously listed all eight canonical tags, three
+  // Only archives that actually carry a published post are advertised.
+  // This file previously listed all eight canonical tags, three
   // of which served zero posts, so the highest-authority surface we publish
   // was pointing AI crawlers at empty pages, and an unknown tag returns 200
   // rather than 404, making an empty archive indistinguishable from a garbage
@@ -49,7 +51,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     summary:
       "Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform for Stripe merchants. Outcome-based pricing: it earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered anyway.",
     intro: [
-      "Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. Foxhound asks Stripe for two different OAuth scopes, and which one it asks for depends on what it is doing. The free audit requests READ-ONLY access: it computes a diagnostic and can change nothing. Connecting a merchant account at /connect requests read and write, because retrying a failed invoice is a write. The write half is used for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. Foxhound never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.",
+      `Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. For the free audit, ${AUDIT_ACCESS_ASK} ${AUDIT_ACCESS_PROMISE} Connecting a merchant account at /connect also requests read and write, because retrying a failed invoice is a write. On a connected account the write half is used for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. Foxhound never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.`,
     ],
     sections: [
       {
@@ -64,7 +66,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           {
             title: "Recovery",
             url: `${url}/product/recovery`,
-            description: `AI-drafted dunning email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured 30 days. See ${url}/pricing for the current rate.`,
+            description: `AI-drafted dunning email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, calibrated by decline category. Recoveries Stripe's own tools would have gotten anyway are recorded and shown for free. Priced as a percentage of Foxhound-attributed recoveries only, and only once a recovery has matured ${RECOVERY_MATURITY_DAYS} days. See ${url}/pricing for the current rate.`,
           },
           {
             title: "Disputes",
@@ -74,7 +76,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           {
             title: "Intelligence",
             url: `${url}/product/intelligence`,
-            description: `MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is a flat monthly subscription. See ${url}/pricing for the current rate.`,
+            description: `MRR, movement (new/expansion/contraction/churn), and cohort analytics are part of Intelligence. ${INTELLIGENCE_FREE_SENTENCE}`,
           },
         ],
       },
@@ -83,9 +85,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         body: [
           [
             "- Audit: free, no account required",
-            "- Recovery: a percentage of Foxhound-attributed recoveries, billed only after a 30-day maturity window; baseline recoveries Stripe would have gotten anyway are never billed",
+            `- Recovery: a percentage of Foxhound-attributed recoveries, billed only after a ${RECOVERY_MATURITY_DAYS}-day maturity window; baseline recoveries Stripe would have gotten anyway are never billed`,
             "- Disputes: a percentage of won disputes, capped per dispute, nothing on losses",
-            "- Intelligence: basic MRR/movement/cohort analytics free for Recovery merchants; predictive risk scoring is a flat monthly subscription",
+            `- Intelligence: ${INTELLIGENCE_FREE_SENTENCE}`,
             "- No setup fees, no per-seat charges",
             `- Current rates: ${url}/pricing`,
           ].join("\n"),

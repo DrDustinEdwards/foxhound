@@ -1,5 +1,5 @@
-// The markdown "source" Carrel reads and writes for one blog post
-// (job_cbe1b96107fc). Carrel sees one markdown document per post, so the post's
+// The markdown "source" Carrel reads and writes for one blog post.
+// Carrel sees one markdown document per post, so the post's
 // non-body fields travel as a small front matter block. Every value is a JSON
 // literal on one line, so the round trip is lossless and needs no YAML parser. The reader and
 // writer are site-api's jsonSource, given this field list:

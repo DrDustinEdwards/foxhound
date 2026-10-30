@@ -10,7 +10,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// J50 (job_53a17d86a49e, rows D5 and D6): Recova's two merchant lists,
+// J50: Recova's two merchant lists,
 // app/admin/merchants/billing-exempt/page.tsx (blob a0c4f9da) and
 // app/admin/merchants/paused/page.tsx (blob 43b1cf35), with their one action
 // each through MerchantToggle.tsx (blob 48c57535): "Remove exemption" and
@@ -28,7 +28,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 // Looked up so a missing export fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const pageLib: Record<string, unknown> = await import("~/lib/admin/merchants");
 const pausedRoute: Record<string, unknown> = await import("~/routes/admin/merchants/paused").catch(() => ({}));
 const exemptRoute: Record<string, unknown> = await import("~/routes/admin/merchants/billing-exempt").catch(() => ({}));

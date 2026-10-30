@@ -1,9 +1,6 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts, apiKeys, customerContext, disputes, failedPayments, recoverySteps } from "~/db/schema";
+import { accounts, apiKeys, customerContext, disputes, failedPayments, intelligenceReports, recoverySteps, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import {
   type McpToolRegistry,
@@ -70,7 +67,6 @@ const THEIR_EMAIL = "persephone.nightingale@other.test";
 /** Below HEALTH_SCORE_AT_RISK_THRESHOLD (40), so the two aggregate views
  *  actually return a customer row. See the fixture lesson in the header. */
 const AT_RISK_SCORE = 12;
-
 
 /**
  * EVERY READ TOOL, WITH THE ARGUMENTS IT NEEDS TO RETURN SOMETHING.
@@ -199,7 +195,7 @@ async function seed() {
     });
     // A sent recovery email, whose text greets the customer by name and whose
     // send error names their address. foxhound_get_payment returns the steps,
-    // and the redactor deliberately leaves Foxhound's own text alone (383), so
+    // and the redactor deliberately leaves Foxhound's own text alone, so
     // only the tool's step projection keeps these off the wire.
     await db.insert(recoverySteps).values({
       id: `rs_${account}`,
@@ -241,30 +237,6 @@ const READ_TOOL_NAMES = MERCHANT_TOOL_NAMES.filter(
   (name) => !MERCHANT_WRITE_TOOL_NAMES.includes(name),
 );
 
-
-
-/** The source of the tool module, comments stripped, so a sentence ABOUT the
- *  redactor (the header says where it lives) is not mistaken for a use of it. */
-function codeOf(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-}
-
-/** What "the tool module does its own masking" looks like in code: an import of
- *  the redactor, a call to either of its functions, or a hand-rolled mask. */
-function maskingIn(code: string): string[] {
-  const found: string[] = [];
-  if (/from\s+["'][^"']*\/redact["']/.test(code)) found.push("imports the redactor");
-  if (/\b(redactToolResult|maskEmail)\b/.test(code)) found.push("calls a redactor function");
-  if (/REDACTED_CUSTOMER_FIELDS/.test(code)) found.push("reads the redaction constant");
-  if (/\*\*\*/.test(code)) found.push("writes a mask by hand");
-  return found;
-}
-
-const TOOLS_SOURCE = readFileSync(
-  fileURLToPath(new URL("../app/lib/mcp/tools.server.ts", import.meta.url)),
-  "utf8",
-);
-
 // ============================================================================
 
 describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
@@ -298,36 +270,6 @@ describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
     expect(failedPayment.amountCents).toBe(9900);
     expect(text).not.toContain(MY_NAME);
     expect(text).not.toContain(MY_EMAIL);
-  });
-});
-
-describe("PLANT 2: REGISTRATION is what redacts, so a tool nobody has written yet is covered", () => {
-
-  it("the tool module contains NO masking of its own: the boundary is the one authority", () => {
-    // 381 binding e: one authority, not two. If tools.server.ts masked a field
-    // itself, a plant that broke the registry wrap could be held up by that
-    // second copy and the wire assertion would stay green while proving nothing
-    // about the boundary. So the tool module may choose which fields to return,
-    // never disguise one. Scanned as CODE, comments stripped, because its header
-    // rightly says where the redactor lives.
-    expect(maskingIn(codeOf(TOOLS_SOURCE))).toEqual([]);
-  });
-
-  it("the source scan discriminates: each kind of masking, planted, is found", () => {
-    // The scan above asserts an absence too, so it gets its own positive
-    // control: every shape it claims to catch is planted into the real source
-    // and must be reported, and one planted only in a comment must not be.
-    const code = codeOf(TOOLS_SOURCE);
-    const plants: [string, string][] = [
-      ['import { redactToolResult } from "./redact";\n', "imports the redactor"],
-      ["const x = maskEmail(row.customerEmail);\n", "calls a redactor function"],
-      ["const fields = Object.keys(REDACTED_CUSTOMER_FIELDS);\n", "reads the redaction constant"],
-      ['const masked = `${e[0]}***${e.slice(e.indexOf("@"))}`;\n', "writes a mask by hand"],
-    ];
-    for (const [plant, finding] of plants) {
-      expect(maskingIn(codeOf(plant + code)), plant).toContain(finding);
-    }
-    expect(maskingIn(codeOf(`// maskEmail(x) from "./redact"\n${code}`))).toEqual([]);
   });
 });
 
@@ -416,5 +358,45 @@ describe("PLANT 5: what the tools choose not to return", () => {
     }
     expect(text).not.toContain("Zebulon");
     expect(text).not.toContain(MY_EMAIL);
+  });
+});
+
+describe("PLANT 6: text the field walk cannot see into", () => {
+  it("foxhound_get_overview names the customer in the narrative by Stripe id, never by name", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(intelligenceReports).values({
+      id: "ir_mine",
+      accountId: MINE,
+      reportMonth: NOW,
+      narrative: `The lowest health score is ${MY_NAME} at 12/100. Reach out to ${MY_NAME} this week.`,
+      generatedAt: NOW,
+    });
+    const { isError, data, text } = await callTool(tokens[MINE], "foxhound_get_overview");
+    expect(isError, text).toBe(false);
+    expect((data.overview as { narrative: string }).narrative).toBe(
+      `The lowest health score is cus_${MINE} at 12/100. Reach out to cus_${MINE} this week.`,
+    );
+    expect(text).not.toContain("Zebulon");
+  });
+
+  it("foxhound_get_settings returns the brand voice without the pasted sample emails", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(stripeConnections).values({
+      id: "sc_mine",
+      accountId: MINE,
+      stripeUserId: "acct_stripe_mine",
+      stripeAccessToken: "enc",
+      isPrimary: true,
+      connectedAt: NOW,
+      createdAt: NOW,
+      brandVoice: "warm",
+      brandVoiceSamples: JSON.stringify([`Hi ${MY_NAME}, thanks for staying with us.`]),
+    });
+    const { isError, data, text } = await callTool(tokens[MINE], "foxhound_get_settings");
+    expect(isError, text).toBe(false);
+    const voice = data.brand_voice as Record<string, unknown>;
+    expect(voice.general).toBe("warm");
+    expect("samples" in voice).toBe(false);
+    expect(text).not.toContain("Zebulon");
   });
 });

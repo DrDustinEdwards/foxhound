@@ -3,7 +3,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 
 import type { ProductKey } from "./products";
 
-// The /products hub's card copy (J16, row M5). Recova's spec is
+// The /products hub's card copy. Recova's spec is
 // app/(marketing)/products/page.tsx (blob 1349c46e) for the Audit card and
 // lib/products.ts (blob 6be24574) for the other three, word for word.
 //
@@ -12,10 +12,10 @@ import type { ProductKey } from "./products";
 // Names and hrefs still come from products.ts, the one place J09 moves the
 // spoke links to /product/*.
 //
-// Every number is read from Foxhound's pricing constants, never typed
-// (RULES.md 2.1). Recova's price is one string per card, and so is this.
+// Every number is read from Foxhound's pricing constants, never typed.
+// Recova's price is one string per card, and so is this.
 //
-// Three truthfulness fixes (RULES.md 1.2), each still one short string:
+// Three truthfulness fixes, each still one short string:
 // - Recovery: Recova reads "20% of recoveries", but Foxhound bills only
 //   Foxhound-attributed recoveries; stripe_baseline recoveries are never billed
 //   (PRICING.md, Recovery; app/lib/billing/billable-predicates.ts,

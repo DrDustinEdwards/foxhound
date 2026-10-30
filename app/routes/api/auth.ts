@@ -1,7 +1,7 @@
 import { limitedResponse } from "@dustinedwards/site-runtime/rate-limit";
 
 import { getAuth } from "~/lib/auth";
-import { checkAuthLimit } from "~/lib/auth/rate-limit.server";
+import { checkAuthLimit, checkEmailLimit, signInEmailOf } from "~/lib/auth/rate-limit.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/auth";
@@ -20,13 +20,18 @@ export function loader(args: Route.LoaderArgs) {
 }
 
 // A POST here can test a passkey or send mail (sign-in/magic-link), so it
-// spends the same budget as the pages (J52, site-runtime's limiter). Only POST
+// spends the same budget as the pages (site-runtime's limiter). Only POST
 // is counted, as before: GET serves session reads and sign-in links.
 export async function action(args: Route.ActionArgs) {
   if (args.request.method === "POST") {
     const { env } = args.context.get(cloudflareContext);
     const refusal = await checkAuthLimit(env, args.request, "credential");
     if (refusal) return limitedResponse(refusal);
+    // A link request or a typed code posted here directly spends the address's
+    // budget too, as the pages' forms do (answerSignInForm).
+    const signIn = await signInEmailOf(args.request);
+    const emailRefusal = signIn ? await checkEmailLimit(env, signIn.email, signIn.attempt) : null;
+    if (emailRefusal) return limitedResponse(emailRefusal);
   }
   return handle(args);
 }

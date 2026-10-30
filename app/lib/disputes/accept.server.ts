@@ -11,7 +11,7 @@ import { buildDisputeResolutionUpdate } from "~/lib/webhooks/batches";
 
 import { canApprove } from "./approval";
 
-// ACCEPT DISPUTE (J06, job_4f4c9c2f5383). Recova's spec, read whole:
+// ACCEPT DISPUTE. Recova's spec, read whole:
 //   app/api/disputes/accept/route.ts          blob d85b5761, 5,069 bytes
 //   components/disputes/DisputeActionBar.tsx  blob c73b381a, 2,731 bytes
 //   hooks/useDisputeActions.ts                blob b650cd6d, 9,172 bytes
@@ -31,7 +31,7 @@ import { canApprove } from "./approval";
 // the resolution and its outcome row commit together or not at all, and a
 // second Accept of the same dispute is a no-op. The outcome insert reads its
 // account from the dispute row itself, so an id from another account writes
-// nothing (RULES.md 3.9, 4.6).
+// nothing.
 //
 // A STRIPE FAILURE WRITES NOTHING, AND ONLY STRIPE'S OWN "NO" IS CALLED ONE
 // (PR 149 review). Recova returned stripe_close_failed with Stripe's message
@@ -79,7 +79,7 @@ const ACCEPT_CLOSED_MESSAGE =
   "This dispute is already closed or submitted, so it cannot be accepted.";
 export const ACCEPT_APPROVED_MESSAGE =
   "This dispute's evidence has been approved for submission, so it cannot be accepted here.";
-// STRIPE REPLAYS ITS ANSWER (job_2663d92094ab). The close carries a stable key
+// STRIPE REPLAYS ITS ANSWER. The close carries a stable key
 // (stripeCloseIdempotencyKey), and Stripe returns the stored result of a keyed
 // request for 24 hours, a 500 included (no result is stored for a 409, a 429,
 // a validation failure or a request that never arrived). The key stays stable on purpose: it is
@@ -154,6 +154,11 @@ function buildDisputeAcceptBatch(
           and(
             eq(disputes.id, input.disputeId),
             eq(disputes.accountId, input.accountId),
+            // Joined to the resolution UPDATE above (hard rule 3): only a
+            // dispute that statement just resolved as lost, at this moment,
+            // records "accepted". One already resolved records nothing.
+            eq(disputes.state, "resolved_lost"),
+            eq(disputes.resolvedAt, input.acceptedAt),
           ),
         ),
     ),

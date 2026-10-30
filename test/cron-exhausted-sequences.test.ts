@@ -276,7 +276,7 @@ describe("intake dedupe stays narrow", () => {
           customer: "cus_1",
           customer_email: "payer@example.com",
           collection_method: "charge_automatically",
-          // Stated rather than omitted (377(1)): Stripe has finished with this
+          // Stated rather than omitted: Stripe has finished with this
           // invoice, so the fresh sequence starts on this event.
           next_payment_attempt: null,
         },

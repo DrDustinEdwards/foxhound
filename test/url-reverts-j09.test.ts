@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import routes from "~/routes";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 
-// J09 (job_3f41461a21e4): the URL reverts of rulings 55 and 56. Foxhound serves
+// J09: the URL reverts of rulings 55 and 56. Foxhound serves
 // Recova's paths, so the cutover map is "same path, new domain" (ruling 408
 // binding 3). Recova's paths, read in its source:
 //   app/(app)/console/page.tsx                    -> /console

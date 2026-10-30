@@ -5,10 +5,10 @@ import { healthScoreBand } from "~/lib/intelligence/health-band";
 
 // Ported from legacy components/docs/HealthScoreBadge.tsx (blob f25f29d8): a
 // pill rendering the raw 0-100 score in mono, so it lines up inside a table
-// column. The pill is Capsomer's (Q12), so each band carries its status shape
+// column. The pill is Capsomer's, so each band carries its status shape
 // as well as its color, and the number is never color alone.
 //
-// The BANDS are Foxhound's, not legacy's, and deliberately so (ruling 79).
+// The BANDS are Foxhound's, not legacy's, and deliberately so.
 // Legacy hardcodes red at or below 33, its accent color 34-66, green at or
 // above 67. Foxhound's engine bands at_risk below 40, watch 40-69, healthy at
 // or above 70, guarded by test/intelligence-health-band.test.ts. Carrying

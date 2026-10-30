@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J86, rows E7 and E8 (parity/ROWS-E.md): the day 14 and day 30 recovery
-// emails. Recova is the spec for what each one says, carries and when it sends
-// (RULES.md 1.1). The layout is Capsomer's email component (Q3), so nothing here
+// emails. Recova is the spec for what each one says, carries and when it sends.
+// The layout is Capsomer's email component, so nothing here
 // asserts Recova's layout. Built on J85's per-step fallback and its test
 // (test/recovery-emails-e4-e6.test.ts), which this file follows step for step.
 //
@@ -16,7 +16,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //   lib/email.ts (blob 3f882729): wrapEmailHtml, the footer sentence
 //
 // J01 (the timing word gate) and J04 (the update link check) are merged and are
-// extended to these two emails below. Reply-To (J03) is not merged and is NOT
+// extended to these two emails below. Reply-To is not merged and is NOT
 // asserted here.
 
 interface SentMessage {
@@ -78,7 +78,7 @@ const env = {
 // with applyTemplate's variables: customer_name is `fp.customer_name ||
 // 'there'`, sender_name is `merchant.sender_name || 'Support'`, amount is the
 // formatted amount, and update_url is the button. The inline CTA style is
-// Recova's amber layout and gives way to Capsomer's button (Q3); the words are
+// Recova's amber layout and gives way to Capsomer's button; the words are
 // kept exactly, except two truthfulness fixes Dustin approved on 2026-10-15
 // (cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): day 14's "and
 // restores your account" became "only takes a minute", and day 30's "will be
@@ -295,7 +295,7 @@ describe("E7 and E8 end to end: a due step sends to the customer at Recova's off
     expect(harness.sent[0].text).toContain("Hi there,");
   });
 
-  // ---- a refused send returns its named outcome (RULES.md 3.16) ----
+  // ---- a refused send returns its named outcome ----
 
   function stepJob(stepType: keyof typeof RECOVA, over: Partial<EmailJob> = {}): EmailJob {
     return {

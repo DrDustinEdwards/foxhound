@@ -1,6 +1,6 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 
@@ -14,7 +14,7 @@ import "~/site-header.css";
 
 import { Header } from "~/components/header";
 import { Wordmark } from "~/components/wordmark";
-import { expiringCardAlerts, failedPayments, getDb, stripeConnections, winBackSequences } from "~/db";
+import { expiringCardAlerts, failedPayments, getDb, winBackSequences } from "~/db";
 import { buildCardUpdateSignal, hasCardUpdateSignal } from "~/lib/card-update/signal";
 import {
   createCardUpdateSession,
@@ -26,6 +26,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
 import { isWinbackResubscribable } from "~/lib/recovery/winback";
+import { listActiveConnections } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 import type { Route } from "./+types/card-update";
@@ -64,7 +65,7 @@ type LoaderState =
   // string on the page is unchanged between the two modes.
   | { state: "ready"; amountCents?: number; currency?: string }
   | { state: "done" }
-  // RESUBSCRIBE MODE (343 binding 4). A separate set of states, because
+  // RESUBSCRIBE MODE. A separate set of states, because
   // nothing has failed and no card is being collected: the customer
   // canceled, and the one button restarts the subscription on Stripe.
   | { state: "resubscribe"; planName: string | null }
@@ -107,6 +108,9 @@ interface CardUpdateTarget {
   /** Recovery mode may pin the subscription; an alert has none, and
    *  finalizeCardUpdateSession already updates the CUSTOMER default either way. */
   subscriptionId: string | null;
+  /** The failed invoice, so a payment recorded before its subscription was
+   *  stored can still find the subscription at finalize time. */
+  invoiceId?: string | null;
   connection: ConnectionCandidate | null;
   /** True when there is nothing left to do (a payment already resolved). */
   resolved: boolean;
@@ -138,10 +142,7 @@ async function loadAlertTarget(
       .from(expiringCardAlerts)
       .where(and(eq(expiringCardAlerts.id, alertId), eq(expiringCardAlerts.accountId, accountId)))
       .limit(1),
-    db
-      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+    listActiveConnections(db, accountId),
   ]);
   const alert = alertRows[0];
   if (!alert || alert.deletedAt) return null;
@@ -191,10 +192,7 @@ async function loadResubscribeTarget(
       .from(winBackSequences)
       .where(and(eq(winBackSequences.id, sequenceId), eq(winBackSequences.accountId, accountId)))
       .limit(1),
-    db
-      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+    listActiveConnections(db, accountId),
   ]);
   const sequence = sequenceRows[0];
   if (!sequence) return null;
@@ -217,6 +215,7 @@ async function loadTarget(env: Env, failedPaymentId: string, accountId: string) 
         status: failedPayments.status,
         stripeCustomerId: failedPayments.stripeCustomerId,
         subscriptionId: failedPayments.subscriptionId,
+        stripeInvoiceId: failedPayments.stripeInvoiceId,
         amountCents: failedPayments.amountCents,
         currency: failedPayments.currency,
         stripeConnectionId: failedPayments.stripeConnectionId,
@@ -224,10 +223,7 @@ async function loadTarget(env: Env, failedPaymentId: string, accountId: string) 
       .from(failedPayments)
       .where(and(eq(failedPayments.id, failedPaymentId), eq(failedPayments.accountId, accountId)))
       .limit(1),
-    db
-      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+    listActiveConnections(db, accountId),
   ]);
   const failedPayment = failedPaymentRows[0] ?? null;
   const connection = failedPayment
@@ -256,6 +252,7 @@ async function resolveTarget(
       failedPaymentId: failedPayment.id,
       stripeCustomerId: failedPayment.stripeCustomerId,
       subscriptionId: failedPayment.subscriptionId,
+      invoiceId: failedPayment.stripeInvoiceId,
       connection,
       resolved: failedPayment.status !== "active",
       amountCents: failedPayment.amountCents,
@@ -378,11 +375,12 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
         accessToken,
         sessionId,
         subscriptionId: target.subscriptionId,
+        invoiceId: target.invoiceId ?? null,
       });
       if (!result.ok) {
         return data<LoaderState>({ state: "setup_failed" });
       }
-      // THE ATTRIBUTION SIGNAL IS RECOVERY MODE ONLY (341 binding 2). It writes
+      // THE ATTRIBUTION SIGNAL IS RECOVERY MODE ONLY. It writes
       // a recovery_steps row that findAttributionSignals reads as billable
       // `card_update`, and an alert has no failed payment to attribute to. An
       // alert-mode update therefore triggers no retry and records nothing here;
@@ -455,14 +453,14 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 }
 
 /**
- * The page's frame (J62, row F8): one Capsomer card on its own, in a narrow
+ * The page's frame: one Capsomer card on its own, in a narrow
  * column with a 16px side margin on a phone. The reader is a merchant's
  * customer, not a Foxhound merchant, so the page leaves AuthShell, whose brand
  * panel pitches Foxhound to merchants; the sign-in pages keep it. The
  * coordinator chose this as the recommended default while the question is
  * with Dustin (PR #56).
  *
- * Its parts are Capsomer's (Q12): the card is Capsomer's panel, used through
+ * Its parts are Capsomer's: the card is Capsomer's panel, used through
  * its HTML contract as a body-only panel, because the React Panel always draws
  * an h2 header band and this page's one heading must be its h1 (a Capsomer gap,
  * named in the PR). Inside: a Banner for a state the page lands in, an Alert
@@ -472,7 +470,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
  * the button is amber and the focus ring inside it is the family's amber
  * ring. Capsomer's banner and button text is 13px, the label size, and the
  * heading and line under it keep the title and label sizes, so the page stays
- * on the five sizes (RULES.md 5.2).
+ * on the five sizes.
  *
  * Recova has no page here (its emails link straight to a Stripe billing
  * portal session), so there is no Recova arrangement to follow: the words and

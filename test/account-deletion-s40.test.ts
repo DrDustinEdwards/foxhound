@@ -12,17 +12,17 @@ import type { Db } from "~/db";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// S40: account deletion that keeps fee evidence (job J08, Q14 and Q16).
+// S40: account deletion that keeps fee evidence.
 //
 // Recova's delete_account_cascade destroys recovered_payments, the rows
-// Foxhound's fees are billed on. Dustin ruled (Q14, Q16) that deletion removes
+// Foxhound's fees are billed on. Dustin ruled that deletion removes
 // the merchant's personal data AND their end customers' names, emails and
 // other personal details, while the payments Foxhound recovered survive with
 // only what proves the fee: amounts, currency, dates, Stripe ids and the
 // attribution chain.
 //
 // THE DATABASE ENFORCES FOREIGN KEYS HERE, as D1 does in production. The
-// shared harness leaves them off (RULES.md 3.11), so a delete in the wrong
+// shared harness leaves them off, so a delete in the wrong
 // order would pass there and fail on D1. Every test in this file runs with
 // foreign_keys = ON and ends with a foreign_key_check.
 
@@ -185,7 +185,7 @@ async function seedMerchant(opts: {
     scope: "read",
     createdAt: OLDER,
   });
-  // An external agent connected over OAuth (J79): its client, the code the
+  // An external agent connected over OAuth: its client, the code the
   // owner approved and the grant whose access token is the key above. The
   // grant points at the key, so the key cannot go first.
   await db.insert(schema.oauthClients).values({

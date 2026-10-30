@@ -5,9 +5,9 @@ import { formatMoneyShort, fromMajorUnits } from "~/lib/money-format";
 
 import { mrrMovementAlt, mrrMovementBars, type MovementTotals } from "./console";
 
-// The console's MRR analytics charts, drawn by Enarratio (Q1) in place of the
+// The console's MRR analytics charts, drawn by Enarratio in place of the
 // hand-built SVG of app/components/charts.tsx. The MRR trend reuses the
-// Intelligence dashboard's drawMrrTrend (J67); these two are the console's own
+// Intelligence dashboard's drawMrrTrend; these two are the console's own
 // figures: the latest month's five movements, and the share of each customer
 // cohort still paying. Each returns Enarratio's figure as HTML at a width, with
 // a text equivalent (capsid/conventions-web.md rule 8) and its data table.

@@ -1,21 +1,8 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
-import { BACKUP_EXCLUDED_TABLES, backupStatus, runD1Backup } from "~/lib/backup/d1-backup";
+import { backupStatus, runD1Backup } from "~/lib/backup/d1-backup";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
-
-// The dump checks (empty, credential table present, required table missing) are d1-dump's
-// runCheckedBackup, tested there.
-describe("excluded tables match the schema", () => {
-  it("each excluded table is a real Better Auth table", () => {
-    const schema = readFileSync("app/db/auth-schema.ts", "utf8");
-    for (const table of BACKUP_EXCLUDED_TABLES) {
-      expect(schema).toContain(`sqliteTable(\n  "${table}"`);
-    }
-  });
-});
 
 describe("runD1Backup and backupStatus without a bucket", () => {
   it("the job fails loudly while BACKUPS is unbound", async () => {

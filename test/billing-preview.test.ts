@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The /billing fee preview (ruling 33). The preview is a READ of the same
+// The /billing fee preview. The preview is a READ of the same
 // billable predicates and fee math the monthly run uses, evaluated at the NEXT
 // run instant rather than at now. That is the whole design: a recovery aged 20
 // days is not billable today but will be matured by the time the run fires, so
@@ -290,7 +290,7 @@ describe("getBillingPreview", () => {
   });
 });
 
-// J65 (row S3): Recova's /billing splits the next invoice into its Recovery
+// J65: Recova's /billing splits the next invoice into its Recovery
 // section (recovered this month and the recovery fee) and its Dispute Fees
 // section (the pending dispute fees), and counts only attributed recoveries in
 // "Recovered this month". These are the same reads as above, split, so the

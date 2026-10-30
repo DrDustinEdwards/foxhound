@@ -10,7 +10,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J41 (job_a2651905db4f), row S37, under Dustin's Q10 and Q11 rulings of
+// J41, row S37, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/stripe is Recova's signed-in page, read whole at HEAD:
 //   app/(app)/settings/stripe/page.tsx               blob 338541e6   738 bytes
 //   app/(app)/settings/components/StripeSection.tsx  blob 4068961e 4,410 bytes

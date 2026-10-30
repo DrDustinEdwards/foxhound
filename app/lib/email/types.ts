@@ -22,13 +22,13 @@ import type { EmailNotice, EmailTracking } from "./templates";
  *
  * "preview" is a SAMPLE of customer mail sent to our own signed-in user at
  * their own request: the Send test email control on /settings/email (E3), whose
- * recipient is always the session user's address (RULES.md 4.7). It carries
+ * recipient is always the session user's address. It carries
  * what the customer mail it samples carries from the merchant, the From name
  * and the Reply-To, and its own footer note, but no unsubscribe and no postal
  * address, as Recova's preview carries none (app/(app)/settings/test-email/
  * route.ts, blob dcc3a06f): its reader is our user, not the merchant's
  * customer, and an unsubscribe there would silence that user's address for
- * everything (RULES.md 3.16). It is not held by the live-send gate either; see
+ * everything. It is not held by the live-send gate either; see
  * processEmailJob.
  *
  * "digest" is the WEEKLY DIGEST and nothing else (E23): merchant mail that
@@ -38,7 +38,7 @@ import type { EmailNotice, EmailTracking } from "./templates";
  * Unsubscribe link and the postal address, and the send module holds it to the
  * same two guards as customer mail. Its token is a digest token
  * (`list: "digest"`), which switches off that account's digest rather than
- * suppressing the address. No other merchant notice uses it (RULES.md 3.16); a
+ * suppressing the address. No other merchant notice uses it; a
  * test walking app/ holds the digest's two senders as its only users.
  *
  * The field is OPTIONAL and defaults to "customer" deliberately: an omitted
@@ -72,7 +72,7 @@ interface EmailJobFields {
   /**
    * Recova's footer sentence ("You're receiving this from ..."), first in the
    * footer slot. Customer mail: before the unsubscribe link and the postal
-   * address (J85). Preview mail: the whole footer slot (E3). Merchant mail:
+   * address. Preview mail: the whole footer slot (E3). Merchant mail:
    * before Recova's "Manage email settings" link to /settings, as Recova's
    * wrapEmailHtml writes it for a mail with no unsubscribe (E10); a merchant
    * mail without a note has no footer line of its own.
@@ -102,7 +102,7 @@ interface EmailJobFields {
    * provider said. Both are defensible and they are not interchangeable.
    */
   idempotencyKey: string;
-  /** The cron run that produced this send (313). Null for request-thread sends. */
+  /** The cron run that produced this send. Null for request-thread sends. */
   cronRunId?: string | null;
   /** Defaults to "customer", the CAN-SPAM-bearing case. */
   audience?: EmailAudience;
@@ -116,7 +116,7 @@ interface EmailJobFields {
    */
   liveSendGate?: "skip";
   /**
-   * The open pixel and the scanner trap of a dunning send (J02). Carried beside
+   * The open pixel and the scanner trap of a dunning send. Carried beside
    * the body rather than inside it, so the frame places them in the HTML part
    * only and the text part never shows them. Absent on every other send.
    */

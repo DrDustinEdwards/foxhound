@@ -1,4 +1,5 @@
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
+import { currencyExponent } from "~/lib/money-format";
 
 // The ONE place fee amounts are computed (PRICING.md: 20% of attributed
 // recoveries; 20% of won disputes capped at $500-equivalent). Pure functions,
@@ -31,4 +32,15 @@ export function recoveryFeeCents(recoveredAmountCents: number): number {
 export function disputeFeeCents(disputedAmountCents: number, capMinorUnits: number): number {
   const raw = Math.round((disputedAmountCents * DISPUTE_FEE_BPS) / BPS_DIVISOR);
   return Math.min(raw, capMinorUnits);
+}
+
+/**
+ * A fee as Stripe will accept it in `currency`. Stripe requires amounts in the
+ * three-decimal currencies (KWD, BHD, JOD, OMR, TND) to be a multiple of 10, so
+ * a fee there is rounded to the nearest 10 before it is written to the ledger;
+ * every other currency is unchanged. Applied where a fee is stored, so the
+ * ledger and the Stripe invoice always carry the same number.
+ */
+export function feeForCurrency(feeMinorUnits: number, currency: string): number {
+  return currencyExponent(currency) === 3 ? Math.round(feeMinorUnits / 10) * 10 : feeMinorUnits;
 }

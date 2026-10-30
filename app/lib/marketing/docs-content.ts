@@ -1,9 +1,9 @@
-// The five docs guides behind /docs/:slug (row M18). Recova's guides are the
-// spec for their Parts, their H3s and their order (J73): app/(marketing)/docs/
+// The five docs guides behind /docs/:slug. Recova's guides are the
+// spec for their Parts, their H3s and their order: app/(marketing)/docs/
 // {platform,audit,recovery,disputes,intelligence}/page.tsx at blobs 2b69517b,
 // 3b1153b4, 6166a6be, 598fcbaa and e7f18266, read whole. Every sentence is
 // Foxhound's, true of Foxhound's engine and its built settings pages; Recova's
-// copy described Recova's engine and is never restored verbatim (RULES.md 2.1).
+// copy described Recova's engine and is never restored verbatim.
 // Where Foxhound has not built what a Recova heading describes, the Part says
 // so, and the H3s whose whole content was that feature are cut, each named in
 // test/docs-guides-j73.test.ts.
@@ -21,6 +21,7 @@ import {
   DISPUTE_FEE_BPS,
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
+  EXPIRING_CARD_DAYS_AHEAD,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
   INTELLIGENCE_REPORT_HOURLY_LIMIT,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
@@ -152,7 +153,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Additional features",
         body: [
           { kind: "h3", text: "Expiring card alerts" },
-          "Foxhound checks your active subscriptions nightly and, when a card is inside 30 days of expiring, emails that customer once to ask them to update it. The email comes from your sender name and links to the same hosted card-update page a dunning email uses.",
+          `Foxhound checks your active subscriptions nightly and, when a card is inside ${EXPIRING_CARD_DAYS_AHEAD} days of expiring, emails that customer once to ask them to update it. The email comes from your sender name and links to the same hosted card-update page a dunning email uses.`,
           "It sends once per card and expiry month, never repeatedly, and a card that has already expired is not warned about, because at that point the payment has failed and the recovery sequence has it.",
           { kind: "note", body: "The link in the alert is a Foxhound page, not Stripe's billing portal. The customer updates the card there and Foxhound sets it as the default payment method on the subscription. Foxhound also picks up a card changed in Stripe directly, so a customer who fixes it without the email stops being alerted." },
           "Nothing about this alert is billable. It prevents a failure rather than recovering one, so there is no recovered payment and no fee.",
@@ -404,7 +405,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Date range filter" },
           `The ${RECOVERY_RANGES.slice(0, -1).join(", ")} and ${RECOVERY_RANGES.at(-1)} buttons in the dashboard header change the window the trend charts, the decline breakdown, the win-back panel and the payments preview read from. The recovery timing chart stays on the last 30 days, as the stat cards do. The range starts at 30 days.`,
           "The recovery queue always shows the steps due in the next 48 hours, whatever the range.",
-          "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam. Foxhound does not yet record bounces and spam reports against the account that sent the email, so for now the panel says there is nothing to show. It shows no delivered rate, because Foxhound does not record delivery.",
+          "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam. Foxhound records each bounce and spam report against the account that sent the email, and when there are none in the range the panel says so. It shows no delivered rate, because Foxhound does not record delivery.",
           { kind: "h3", text: "ROI widget" },
           `The Foxhound-attributed revenue panel shows what Foxhound recovered this month and over all time, counting only recoveries where a Foxhound action provably preceded payment, with the ${RECOVERY_FEE} fee on each and what you keep. This month counts every such recovery since the 1st, with the fee it will carry once it has held for ${RECOVERY_MATURITY_DAYS} days; all time counts the ones that have held for ${RECOVERY_MATURITY_DAYS} days, which are the ones Foxhound bills.`,
           "A recovery is billable only when a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged (not just opened), or a card was updated through a Foxhound page. Everything else is Stripe's own baseline recovery, recorded and shown to you, never billed.",

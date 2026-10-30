@@ -7,10 +7,10 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 // S40, the surface half: the Delete account control on /settings/account, the
-// route branch that runs it, and the rule that it never becomes an agent tool
-// (RULES.md 3.6). The deletion itself is proven in account-deletion-s40.test.ts.
+// route branch that runs it, and the rule that it never becomes an agent tool.
+// The deletion itself is proven in account-deletion-s40.test.ts.
 //
-// J32 (/settings/account rebuilt on Capsomer, job_54cb0e7420dc) has not merged,
+// J32 (/settings/account rebuilt on Capsomer) has not merged,
 // so the control sits on Foxhound's current page, in its Danger zone, which is
 // where Recova's AccountSection puts it (blob a154ac8f).
 

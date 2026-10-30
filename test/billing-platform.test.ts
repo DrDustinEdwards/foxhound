@@ -1,11 +1,14 @@
 import { drizzle } from "drizzle-orm/d1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import * as schema from "~/db/schema";
 import {
   buildInvoiceStripeRefUpdate,
   createPlatformInvoice,
 } from "~/lib/billing/stripe-invoice";
+
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
 
 const db = drizzle({} as never, { schema });
 const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();

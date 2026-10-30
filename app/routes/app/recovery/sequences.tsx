@@ -41,12 +41,12 @@ import {
 import type { Route } from "./+types/sequences";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /recovery/sequence (row S9, job J12). Recova is the spec: its page,
+// /recovery/sequence. Recova is the spec: its page,
 // app/(app)/recovery/sequence/page.tsx at blob 953c3f57, with
 // components/SequenceView.tsx 5507b89f, StepPerformanceChart.tsx edf8f83c and
 // lib/sequence-utils.ts 061aba7a, each read whole. Every section, label and
-// their order are Recova's; the parts are Capsomer 0.9.0's (Q10), the chart is
-// Enarratio's (Q1), amber throughout, and the numbers and categories are
+// their order are Recova's; the parts are Capsomer 0.9.0's, the chart is
+// Enarratio's, amber throughout, and the numbers and categories are
 // Foxhound's engine (RECOVERY_SCHEDULES, six categories, silent retry first,
 // ruling 80).
 

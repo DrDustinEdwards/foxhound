@@ -35,7 +35,7 @@ const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offse
 // one page name (the shell's "Users"), a plain sentence with the count, then
 // Capsomer's table, one person per row. Recova's users page is the inventory
 // (email, last sign-in, joined, user id); a person may belong to several
-// accounts (RULES.md 1.6), so every account shows, pending invites marked.
+// accounts, so every account shows, pending invites marked.
 // Read only: the page has no actions.
 export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const { users } = loaderData;

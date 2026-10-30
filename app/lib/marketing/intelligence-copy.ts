@@ -4,11 +4,11 @@ import { countWord, DECLINE_CATEGORY_COUNT } from "~/lib/marketing/decline-categ
 import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 
-// The /product/intelligence copy (J58). Recova's spec is
+// The /product/intelligence copy. Recova's spec is
 // app/(marketing)/product/intelligence/page.tsx (blob 4f258429), read whole,
 // and this is its copy word for word, with three kinds of change only:
 //
-// - Branding: Recova becomes Foxhound (RULES.md 1.2).
+// - Branding: Recova becomes Foxhound.
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
 //   2.1): the score's signals and
 //   baseline from risk.ts, the customer cap from
@@ -16,7 +16,7 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 //   INTELLIGENCE_NARRATIVE_TOP_N, the decline categories from
 //   RECOVERY_SCHEDULES (through decline-categories.ts).
 // - Truthfulness fixes where Recova's words describe something Foxhound does
-//   not do (RULES.md 1.2). Each is named beside its string below. The ones
+//   not do. Each is named beside its string below. The ones
 //   that recur:
 //   * The score. Recova's is three bands (engagement health, recovery history,
 //     customer value). Foxhound's moves from a baseline with six signals

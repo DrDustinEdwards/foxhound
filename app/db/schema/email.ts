@@ -23,7 +23,7 @@ export const emailSends = sqliteTable(
     providerMessageId: text("provider_message_id"),
     error: text("error"),
     sentAt: ts("sent_at"),
-    /** The cron run that produced this send (313). Ruling 311 measured that a
+    /** The cron run that produced this send. Ruling 311 measured that a
      *  send could not be attributed to its run: nothing joined email_sends to
      *  cron_run_history, so "which run sent this" meant correlating timestamps.
      *
@@ -34,7 +34,7 @@ export const emailSends = sqliteTable(
      *  cron-history retention sweeper fail on exactly those rows. This column
      *  records provenance; it is not a live relation. */
     cronRunId: text("cron_run_id"),
-    /** THE SEND CLAIM (385). `EmailJob.idempotencyKey` existed from the start and
+    /** THE SEND CLAIM. `EmailJob.idempotencyKey` existed from the start and
      *  was read by NOTHING, which 376 item 15 recorded: the type promised a
      *  dedupe the code never performed. This column is its first reader.
      *
@@ -60,7 +60,7 @@ export const emailSends = sqliteTable(
   ],
 );
 
-/** Dead-lettered dunning emails (313). Until this table the queue's
+/** Dead-lettered dunning emails. Until this table the queue's
  *  `dead_letter_queue` was a bare NAME with no consumer, and wrangler.jsonc's own
  *  comment recorded the consequence: "a dunning email that keeps failing is
  *  discarded with no trace after max_retries". This is the trace. Writing the row
@@ -86,7 +86,7 @@ export const emailDeadLetters = sqliteTable(
   (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
 );
 
-/** One row per alert actually sent (313), which is ALSO the dedupe key: the
+/** One row per alert actually sent, which is ALSO the dedupe key: the
  *  unique index on (cron_name, kind, alerted_on) means a second alert for the
  *  same cron, same kind, same UTC day is refused by the DATABASE rather than by
  *  application logic that two concurrent cron invocations could race.

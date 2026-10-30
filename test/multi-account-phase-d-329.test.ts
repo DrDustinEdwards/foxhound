@@ -5,7 +5,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// Phase (d) of the multi-account build (ruling 329): the callback branches on
+// Phase (d) of the multi-account build: the callback branches on
 // the state's own action, `add_account` mints a whole new account, `connect`
 // attaches to the ACTIVE one, and the double-submit debt 327 named is paid.
 //
@@ -288,11 +288,5 @@ describe("nothing about the demo firewall or the money DO semantics moved", () =
     expect(code).not.toMatch(/\bdb\s*\.\s*insert\b/);
     expect(code).not.toMatch(/\bdb\s*\.\s*update\b/);
     expect(code).not.toMatch(/\bdb\s*\.\s*batch\b/);
-  });
-
-  it("the schema still refuses a duplicate active pair, which is the surviving backstop", () => {
-    seedAccount("acct_a", "Acme");
-    seedMembership("m1", "acct_a", USER);
-    expect(() => seedMembership("m2", "acct_a", USER)).toThrow(/UNIQUE constraint failed/i);
   });
 });

@@ -63,7 +63,7 @@ describe("RECOVA_REDIRECT_MAP", () => {
         "/disputes/demo",
         "/intelligence/demo",
         "/recovery/demo",
-        // Recova's own next.config.ts redirects (J23), one hop to its destination.
+        // Recova's own next.config.ts redirects, one hop to its destination.
         "/recovery/audit",
         "/recovery/audit/connect",
         "/recovery/audit/results",

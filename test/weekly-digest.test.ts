@@ -37,7 +37,6 @@ const {
   queryDigestAccounts,
   collectDigestNumbers,
   DIGEST_WINDOW_MS,
-  DIGEST_CLAIM_WINDOW_MS,
 } = await import("~/lib/cron/digest");
 const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } = await import(
   "~/lib/recovery/digest-email"
@@ -77,7 +76,7 @@ function seedAccount(accountId: string, digestEnabled: number | null, email = "o
     )
     .run(accountId, digestEnabled, email);
   sqlite
-      // ONE LIVE CONNECTION PER STRIPE ACCOUNT (356). The Stripe account id is
+      // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
       // derived from the Foxhound account rather than hardcoded, because a
       // shared literal made every two-account fixture violate the unique
       // index the moment it shipped, and production could never have had two
@@ -106,16 +105,6 @@ function seedRecovered(id: string, at: Date, cents = 5000, currency = "usd"): vo
 }
 
 
-describe("PLANT 0: the window is seven days, asserted as a literal", () => {
-  it("DIGEST_WINDOW_MS is exactly seven days", () => {
-    // Every fixture below derives INSIDE and OUTSIDE from this constant, so a
-    // mutation to it moved both sides of every comparison and proved nothing.
-    // Legacy's window is `now - 7*24*60*60*1000` and this is that number.
-    expect(DIGEST_WINDOW_MS).toBe(7 * 24 * 60 * 60 * 1000);
-    expect(DIGEST_WINDOW_MS).toBe(604_800_000);
-  });
-});
-
 describe("PLANT 1: the pure copy is legacy's", () => {
   it("recovery rate is a whole percent and ZERO when nothing failed", () => {
     expect(recoveryRate(0, 0)).toBe(0);
@@ -135,14 +124,14 @@ describe("PLANT 1: the pure copy is legacy's", () => {
       personalOutreachCount: 0,
       totalFailed: 1,
       totalRecovered: 0,
-      recoveredRevenueCents: 0,
-      atRiskRevenueCents: 100,
+      recoveredRevenue: [{ currency: "usd", cents: 0 }],
+      atRiskRevenue: [{ currency: "usd", cents: 100 }],
       activeCount: 0,
       emailsSent: 0,
       winBackCount: 0,
       expiringCardCount: 2,
       openDisputeCount: 1,
-      openDisputeCents: 9900,
+      openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
       currency: "usd",
       senderName: null,
       disputesActive: true,
@@ -181,9 +170,9 @@ describe("PLANT 3: the numbers come from the week", () => {
 
     // f_in plus the failed row seedRecovered creates, never f_out.
     expect(n.totalFailed).toBe(2);
-    expect(n.atRiskRevenueCents).toBe(14000);
+    expect(n.atRiskRevenue).toEqual([{ currency: "usd", cents: 14000 }]);
     expect(n.totalRecovered).toBe(1);
-    expect(n.recoveredRevenueCents).toBe(4000);
+    expect(n.recoveredRevenue).toEqual([{ currency: "usd", cents: 4000 }]);
   });
 
   it("ACTIVE SEQUENCES ARE CURRENT STATE, not this week's, as legacy has it", async () => {
@@ -231,12 +220,16 @@ describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
   // TEST. 350's own reversals record a window mutation that proved nothing
   // because the fixtures moved with the constant; these are two real Mondays
   // and a real 90 seconds.
+  it("last Monday's send, written 90 seconds after last Monday's run began, does not claim this Monday", async () => {
+    sqlite
+      .prepare(
+        "INSERT INTO email_sends (id, account_id, template, status, created_at) VALUES ('es_last', ?, 'weekly_digest', 'sent', ?)",
+      )
+      .run(ACCOUNT, new Date("2026-10-26T08:01:30Z").getTime());
 
-  it("CONTROL: the DATA window is untouched, still seven days", () => {
-    // 376 item 13 moved the CLAIM window only. A fix that shortened the data
-    // window would quietly change every figure on the email.
-    expect(DIGEST_WINDOW_MS).toBe(604_800_000);
-    expect(DIGEST_CLAIM_WINDOW_MS).toBe(518_400_000);
-    expect(DIGEST_WINDOW_MS - DIGEST_CLAIM_WINDOW_MS).toBe(86_400_000);
+    const result = await runWeeklyDigest(env, new Date("2026-11-02T08:00:00Z"));
+
+    expect(result.outcomes).toEqual([{ accountId: ACCOUNT, status: "sent" }]);
+    expect(harness.jobs).toHaveLength(1);
   });
 });

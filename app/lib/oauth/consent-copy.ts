@@ -1,12 +1,12 @@
-// What the consent page says a connected client can do (J79, row A9).
+// What the consent page says a connected client can do.
 //
-// RECOVA'S THREE LINES DESCRIBED RECOVA'S MCP, not Foxhound's (RULES.md 2.1).
+// RECOVA'S THREE LINES DESCRIBED RECOVA'S MCP, not Foxhound's.
 // ConsentButtons.tsx (eb31e8e9) listed "Read and manage your recovery
 // sequences and failed payments", "Read and respond to disputes" and "Read
 // your Intelligence data and customer health signals". Foxhound's merchant
 // tools (app/lib/mcp/tools.server.ts) read payments and disputes but change
 // neither, and submitting a dispute is one of the five actions no agent is
-// ever given (RULES.md 3.6). The manifest's own note on that row said the
+// ever given. The manifest's own note on that row said the
 // list "should be re-grounded against what the Foxhound MCP surface actually
 // exposes rather than copied". So each line below names the tools it stands
 // for, and test/oauth-provider-j79.test.ts fails if a tool is added without a

@@ -30,11 +30,11 @@ import { WINBACK_STATUS } from "./winback";
 // webhook claim, and it runs after and independent of the recovery branch's
 // money write, never inside it. No `recovered_payments` row is written and no
 // attribution signal is recorded, because a win-back is not a Foxhound
-// recovery under PRICING rev 3 (343 binding 1).
+// recovery under PRICING rev 3.
 
 /** The statuses a reactivation may claim FROM. `exhausted` is included because
  *  step 3's own send flips the sequence terminal, so the customer who acts on
- *  the last email arrives with the sequence already exhausted (344 binding 4). */
+ *  the last email arrives with the sequence already exhausted. */
 export const WINBACK_REACTIVATABLE_STATUSES: readonly string[] = [
   WINBACK_STATUS.ACTIVE,
   WINBACK_STATUS.EXHAUSTED,
@@ -76,7 +76,7 @@ async function loadReactivatableSequence(
  * `reactivated_at` still being NULL, so a second delivery of either event
  * affects zero rows. Legacy's is `.eq('status','active')` plus a
  * `.is('reactivated_at', null)` on the read; both conditions are on the UPDATE
- * here, which is the stronger placement (340 binding 1).
+ * here, which is the stronger placement.
  *
  * Returns whether this call took the claim.
  */
@@ -119,7 +119,7 @@ export type ReactivationOutcome =
  * Reactivate the named sequence, recording legacy's outcome only when the claim
  * was taken.
  *
- * A DISCRIMINATED OUTCOME, never null (339 binding 5): a deliberate refusal and
+ * A DISCRIMINATED OUTCOME, never null: a deliberate refusal and
  * a swallowed failure must not look alike.
  */
 export async function reactivateWinbackSequence(

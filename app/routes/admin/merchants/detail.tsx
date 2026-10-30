@@ -381,7 +381,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         )}
       </section>
 
-      {/* The Products card was REMOVED with the account_products table (298).
+      {/* The Products card was REMOVED with the account_products table.
           It had ZERO writers, so it rendered "None." for every merchant on every
           visit since the rebuild: a permanently empty card describing a table
           nothing filled. Subscriptions was its grid partner and is now a plain

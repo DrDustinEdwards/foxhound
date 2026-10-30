@@ -2,7 +2,7 @@ import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { formatMoneyShort } from "~/lib/money-format";
 
-// Pure pieces of /disputes/:id (J77, row S14), client-safe: no database, no
+// Pure pieces of /disputes/:id, client-safe: no database, no
 // Stripe. Recova is the spec: app/(app)/disputes/[id]/DisputeDetailClient.tsx
 // (blob 3d56b55d) and components/disputes/formatters.tsx (81bf7f8b).
 
@@ -116,7 +116,7 @@ export function splitEvidence(
   } as Record<(typeof SHIPPING_FIELDS)[number], string>;
   const structured = evidence
     .filter((e) => e.fieldName !== NARRATIVE_FIELD)
-    // A merchant's uploaded file has its own section, Evidence files (J07).
+    // A merchant's uploaded file has its own section, Evidence files.
     .filter((e) => e.fieldName !== EVIDENCE_FILE_FIELD)
     .filter((e) => !(ipEditable && e.fieldName === CUSTOMER_IP_FIELD))
     .filter((e) => !(shippingEditable && (SHIPPING_FIELDS as readonly string[]).includes(e.fieldName)))
@@ -125,14 +125,14 @@ export function splitEvidence(
 }
 
 /** The fee terms on the approve card, read from the billing constants rather
- *  than typed (RULES.md 2.1). */
+ *  than typed. */
 export function disputeFeeTerms(): string {
   const pct = DISPUTE_FEE_BPS / 100;
   return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the disputed amount, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`;
 }
 
 /**
- * Unsaved-edit tracking for the draft (J77 review). Approve submits the SAVED
+ * Unsaved-edit tracking for the draft. Approve submits the SAVED
  * draft, so while the page holds edits the save has not taken, Approve is
  * held back. Counters rather than a flag: an edit typed while a save is in
  * flight is not covered by that save, so it stays unsaved.

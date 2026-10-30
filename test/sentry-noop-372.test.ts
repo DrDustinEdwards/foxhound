@@ -24,7 +24,7 @@ import { sentryOptions } from "~/lib/errors/sentry-options";
 
 describe("PLANT 2: the SDK is still inert without a DSN", () => {
   it("the options callback returns undefined when SENTRY_DSN is unset", async () => {
-    // UPDATED DELIBERATELY IN J05 (job_f1f5ebd7fe50). This plant used to copy
+    // UPDATED DELIBERATELY IN J05. This plant used to copy
     // the inline expression `{ dsn, tracesSampleRate: 1 }` from the worker
     // entry. J05 moved the options into sentryOptions() with sendDefaultPii
     // false, a 0.1 trace rate and a scrubber, so the plant now calls the real

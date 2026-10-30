@@ -139,7 +139,7 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
   it("a pure post-stop payment records stripe_baseline and bills NOTHING", () => {
     const { sqlite, db } = seed();
     seedPayment(sqlite, db, "fp_pure", FAILED_PAYMENT_STATUS_CANCELLED);
-    // Stop recovery resolved every unexecuted step to 'cancelled' (265), so
+    // Stop recovery resolved every unexecuted step to 'cancelled', so
     // there is no Foxhound signal of any kind behind this payment.
     runStatement(
       sqlite,
@@ -211,5 +211,23 @@ describe("284 one: exactly-once, proven at the capability level (265)", () => {
       .get("recovery:fp_dup") as { n: number };
     expect(recCount.n).toBe(1);
     expect(outCount.n).toBe(1);
+  });
+});
+
+describe("hard rule 3: the recovery insert is joined to its status flip", () => {
+  it("a payment the flip cannot claim gets no recovered_payments row", () => {
+    const { sqlite, db } = seed();
+    // Already recovered by another path at a different moment, so the
+    // conditional flip in this batch matches zero rows.
+    seedPayment(sqlite, db, "fp_gone", "recovered");
+    const result = commitBatch(
+      sqlite,
+      buildRecoverBatch(db, recoverInput("fp_gone", resolveAttribution({}), "evt_gone")),
+    );
+    expect(result.applied).toBe(false);
+    const recCount = sqlite
+      .prepare("select count(*) as n from recovered_payments where failed_payment_id = ?")
+      .get("fp_gone") as { n: number };
+    expect(recCount.n).toBe(0);
   });
 });

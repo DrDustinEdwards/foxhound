@@ -4,7 +4,7 @@ import { formatMoney } from "~/lib/money-format";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
 import type { FailedPaymentRow } from "~/lib/recovery/queries.server";
 
-// A TRUTHFULNESS FIX (RULES.md 1.2). Stripe sends every amount in the
+// A TRUTHFULNESS FIX. Stripe sends every amount in the
 // currency's minor unit, and the minor unit is not always a hundredth: for
 // Stripe's zero-decimal currencies the amount IS the whole unit, and for its
 // three-decimal currencies it is a thousandth (https://docs.stripe.com/currencies).

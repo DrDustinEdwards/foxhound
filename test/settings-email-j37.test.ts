@@ -10,7 +10,7 @@ import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J37 (job_49a1f499ce53), row S33, under Dustin's Q10 and Q11 rulings of
+// J37, row S33, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/email is Recova's page (app/(app)/settings/email/
 // page.tsx at blob 62de18af, EmailSectionForm.tsx at blob 57b2fb09,
 // settings/components/EmailSection.tsx at blob 3c89ca41 and the SaveBar at
@@ -101,7 +101,7 @@ describe("J37 email: the card", () => {
     const formId = attr(button, "form") ?? "";
     expect(formId).not.toBe("");
     // That form carries the test-email intent and nothing typed: the address is
-    // the session user's (RULES.md 4.7).
+    // the session user's.
     const form = html.match(new RegExp(`<form[^>]*id="${formId}"[^>]*>[\\s\\S]*?</form>`))?.[0] ?? "";
     expect(form).toContain('name="_action" value="test-email"');
     expect(form).not.toMatch(/name="(to|email|recipient)"/);

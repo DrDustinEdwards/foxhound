@@ -7,7 +7,7 @@ import "capsomer/panel.css";
 // importing it here keeps these pages whole under any layout.
 import "~/site-header.css";
 
-// The legal pages' one chrome kit (J51, rows M20 and M21). Recova's privacy and
+// The legal pages' one chrome kit. Recova's privacy and
 // terms pages share their wrapper, Section, H3, P, contents list, rule and link
 // classes byte for byte (app/(marketing)/privacy/page.tsx and
 // app/(marketing)/terms/page.tsx, read whole at blobs 8f8dfb8e and 88005fad), so
@@ -16,7 +16,7 @@ import "~/site-header.css";
 // Layout is Recova's: the 720px column with 24px sides and 64px below, the
 // numbered h2 at the title size with 48px above, 16px below and an 80px scroll
 // margin, the contents grid, the rule and every margin as Recova writes them.
-// Look is Capsomer's (Q12): the column sits in Capsomer's amber family with
+// Look is Capsomer's: the column sits in Capsomer's amber family with
 // Foxhound's own neutrals (.fh-cap, the same pairing the site header uses),
 // links take Capsomer's link roles (accent text, accent hover), the focus ring
 // is the family's amber ring, and the summary card is Capsomer's Panel.

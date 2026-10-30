@@ -2,10 +2,11 @@
 // (merchants.server.ts split): the local batches and the Stripe deauthorize
 // around them.
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, exists, isNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type Db, accounts, getDb, stripeConnections } from "~/db";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
+import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
 
 interface CancelledConnection {
@@ -29,10 +30,23 @@ function buildCancelMerchantBatch(
   connections: CancelledConnection[],
   now: Date,
 ): CancelBatch {
+  // Each disconnect is joined to the account stamp it depends on (hard rule 3):
+  // it fires only where the account row now carries THIS cancel's stamp, so an
+  // unknown account id disconnects nothing even though D1 runs the rest of a
+  // batch after a zero-row UPDATE.
+  const cancelledNow = exists(
+    db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.id, accountId), eq(accounts.cancelledAt, now))),
+  );
   return [
-    db.update(accounts).set({ cancelledAt: now }).where(eq(accounts.id, accountId)),
+    db.update(accounts).set({ cancelledAt: now }).where(eq(accounts.id, accountId)).returning({ id: accounts.id }),
     ...connections.map((c) =>
-      db.update(stripeConnections).set({ disconnectedAt: now }).where(eq(stripeConnections.id, c.id)),
+      db
+        .update(stripeConnections)
+        .set({ disconnectedAt: now })
+        .where(and(eq(stripeConnections.id, c.id), eq(stripeConnections.accountId, accountId), cancelledNow)),
     ),
   ];
 }
@@ -48,9 +62,13 @@ async function cancelMerchantLocal(db: Db, accountId: string, now: Date): Promis
   const activeConnections = await db
     .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)));
+    .where(activeConnectionWhere(accountId));
 
-  await db.batch(buildCancelMerchantBatch(db, accountId, activeConnections, now));
+  const [stamped] = (await db.batch(buildCancelMerchantBatch(db, accountId, activeConnections, now))) as unknown[];
+  // A zero-row account UPDATE is a failure, not a cancel: no such account.
+  if (!Array.isArray(stamped) || stamped.length === 0) {
+    throw new Error(`cancelMerchant: no account ${accountId} to cancel`);
+  }
 
   return activeConnections;
 }
@@ -97,7 +115,7 @@ export async function cancelMerchant(
 }
 
 // ---------------------------------------------------------------------------
-// S37: disconnect ONE connection from Settings (rulings 40 and 333).
+// S37: disconnect ONE connection from Settings.
 //
 // The same posture as cancelMerchant above, narrowed to a single connection:
 // plain batch, local commit first, Stripe revoke best-effort after. 333 ruled

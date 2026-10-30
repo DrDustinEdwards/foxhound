@@ -1,11 +1,11 @@
 import { AUDIT_HISTORY_EXAMPLE, AUDIT_SCOPES, AUDIT_SUMMARY_EXAMPLE } from "~/lib/marketing/audit-copy";
 
-// The previews on /product/audit (J55), Recova's three feature-block UIs: the
+// The previews on /product/audit, Recova's three feature-block UIs: the
 // scope card (components/docs/AuditScopeCard.tsx, blob dc1d18dd) and the two
 // local previews in app/(marketing)/product/audit/page.tsx (blob 210ce79d),
 // AISummaryPreview and AuditHistoryPreview.
 //
-// Content and layout are Recova's; the parts are Capsomer's (Q12): each scope
+// Content and layout are Recova's; the parts are Capsomer's: each scope
 // is a Capsomer panel, as Recova's is a bordered surface card. Accents are amber
 //, on the glyphs and on "Monthly auto-run on" as on Recova's. Text is
 // at Recova's sizes.

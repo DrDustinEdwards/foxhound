@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J47 (job_60dcf0c5f687): /admin/platform/audit-log on the family admin pattern
+// J47: /admin/platform/audit-log on the family admin pattern
 // (Capsomer's parts, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
 // review, with Recova's audit log (app/admin/platform/audit-log/page.tsx, blob
 // 5003157c) read as the inventory: the Time, Actor, Action, Target and Detail
@@ -23,7 +23,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route: Record<string, unknown> = await import("~/routes/admin/audit-log");
 // Looked up so a missing export fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const describeLib: Record<string, unknown> = await import("~/lib/admin/audit-describe");
 
 interface Entry {

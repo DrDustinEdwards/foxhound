@@ -19,7 +19,7 @@ import {
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import RecoveryDashboard from "~/routes/app/recovery/index";
 
-// J74 (job_a0ac216a43ae), row S5: /recovery/dashboard is Recova's page
+// J74, row S5: /recovery/dashboard is Recova's page
 // (app/(app)/recovery/dashboard/page.tsx at blob 208b0066 and its components,
 // each read whole at the blob the job names) built from Capsomer 0.9.0's parts
 // with its charts drawn by Enarratio 0.3.1, amber throughout. Recova stays the

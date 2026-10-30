@@ -50,7 +50,7 @@ type SitemapEntry = Omit<PrelumEntry, "loc"> & { path: string };
 // class, do not restore a legacy defect.
 //
 // The product pages are Recova's /product/* (singular), served at the same
-// path since J09 (ruling 55). The old /products/<name> addresses this file
+// path since J09. The old /products/<name> addresses this file
 // used to list answer a 301 to them.
 export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", changefreq: "weekly", priority: 1.0 },

@@ -11,7 +11,7 @@ import { computeDisputeStats } from "~/lib/disputes/stats";
 // MISSING-07): how the account is doing NOW, not when the run was taken. J63,
 // row U4.
 //
-// EACH FROM FOXHOUND'S OWN COMPUTATION, never a second one (RULES.md 3.20):
+// EACH FROM FOXHOUND'S OWN COMPUTATION, never a second one:
 // active sequences and the lifetime recovery rate are getRecoveryStats's, the
 // numbers the console and the Recovery dashboard show; the win rate is
 // computeDisputeStats's, over the disputes Foxhound submitted. Recova's own
@@ -21,7 +21,7 @@ import { computeDisputeStats } from "~/lib/disputes/stats";
 // sent (stats.ts), and the rate is won over resolved, so an open dispute is
 // not counted as a loss.
 //
-// Every query takes the account as its first filter (RULES.md 4.6).
+// Every query takes the account as its first filter.
 
 export interface SavedRunLiveFigures {
   activeSequences: number;

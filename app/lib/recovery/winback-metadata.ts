@@ -1,5 +1,5 @@
 // The Checkout Session metadata keys that tie a reactivation back to its
-// sequence (344 binding 1). Kept in their own module, with no Stripe import, so
+// sequence. Kept in their own module, with no Stripe import, so
 // the webhook CLASSIFIER and the Checkout CREATOR read one definition and
 // cannot drift apart. That is 316's shared-predicate rule: the writer and the
 // reader of a gate are the same constant or they will eventually disagree.

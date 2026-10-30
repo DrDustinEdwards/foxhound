@@ -46,7 +46,7 @@ import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format"
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /intelligence/dashboard (row S16, job J67). Recova is the spec: its real
+// /intelligence/dashboard. Recova is the spec: its real
 // page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
 // seven components it mounts, each read whole (MRRStatCards 2920fa3b,
 // MRRTrendChart c7a0da3f, NRRChart b07e9de3, MRRMovementChart 3c94525e,
@@ -56,10 +56,10 @@ import { NOINDEX } from "~/lib/seo/meta";
 // the monthly summary with its month pager and Generate/Regenerate button. With
 // no snapshot yet, Recova's syncing card stands in for all of it.
 //
-// Built from Capsomer 0.9.0's parts (Q10), charts by Enarratio (Q1), amber
+// Built from Capsomer 0.9.0's parts, charts by Enarratio, amber
 // throughout. No Foxhound CSS sits over a Capsomer component: Recova's
 // 12px card radius, its uppercase eyebrow labels and its stat figure colors
-// wait for Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in
+// wait for Capsomer's per-site layer, listed in
 // the J67 pull request.
 //
 // Foxhound's engine, never Recova's (78/79): snapshots come from
@@ -109,7 +109,7 @@ function refused(error: GenerateReportError) {
 }
 
 /** Recova's Generate report button. The account is the session's, never the
- *  form's (RULES.md 4.6); the demo never reaches here (RULES.md 4.12). */
+ *  form's; the demo never reaches here. */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -140,7 +140,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
   const latest = mrrSeries[mrrSeries.length - 1];
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
-  // shell owns the page's one <main> (ruling 146), so this is a plain wrapper.
+  // shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
       <div className="mb-6">
@@ -338,7 +338,7 @@ function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["health
  *
  * The button shows for the current month only. Foxhound's narrative is written
  * from today's facts, so a past month's report cannot be generated honestly,
- * and a control that cannot do its job is left out (RULES.md 2.7). In the demo
+ * and a control that cannot do its job is left out. In the demo
  * the button answers with the demo's read-only sentence instead of posting.
  */
 function MonthlySummary({

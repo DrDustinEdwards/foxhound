@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, stripeConnections } from "~/db";
 import { disconnectConnection } from "~/lib/admin/merchant-cancel.server";
-import { retryFailedDeauthorizations } from "~/lib/stripe/deauthorize-retry.server";
+import { retryFailedDeauthorizations, revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -67,5 +67,11 @@ describe("the Stripe deauthorize retry", () => {
     expect(calls).toEqual([]);
     expect(result).toMatchObject({ revoked: 0, superseded: 1 });
     expect(await pendingOf("sc_a")).toBeNull();
+  });
+
+  it("reports a failed revoke whose retry stamp matched no row as not queued", async () => {
+    const [failure] = await revokeDisconnectedGrants(ENV, [{ id: "sc_missing", stripeUserId: "acct_1Sample" }], CREATED, failing);
+    expect(failure).toMatchObject({ connectionId: "sc_missing", queued: false });
+    expect(failure.error).toMatch(/not queued for retry/);
   });
 });

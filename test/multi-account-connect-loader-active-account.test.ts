@@ -15,7 +15,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // active membership could not differ. They can now, so every one of these reads
 // or writes the wrong account for a merchant who has switched.
 //
-// TWO ACCOUNTS IN EVERY FIXTURE (352 binding 4): an account-scope pin is
+// TWO ACCOUNTS IN EVERY FIXTURE: an account-scope pin is
 // unprovable with one, because every wrong answer is also the right one.
 //
 // The marked account is deliberately the SECOND by createdAt, so no plant here
@@ -106,7 +106,7 @@ function signedInRequest(init?: RequestInit): Request {
 describe("DEFECT 3: /connect's loader described the earliest account, not the active one", () => {
   it("reports the MARKED account name on the page that grants Stripe access", async () => {
     // The action this loader renders starts an OAuth flow whose callback
-    // attaches to the ACTIVE account (connect-callback.ts:223, phase (d)). The
+    // attaches to the ACTIVE account (connect-callback.ts:223). The
     // loader named a different one, so the screen where a merchant grants a
     // live payment processor told them the wrong merchant it was for.
     const result = (await connectLoader({

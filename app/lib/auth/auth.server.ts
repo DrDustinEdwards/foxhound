@@ -30,7 +30,7 @@ async function buildAuth(env: Env) {
     social: true,
     sendMagicLink: async ({ email, url, token, code }) => {
       const sent = await sendSignInLinkEmail(env, { to: email, url, token, code });
-      // A refused send is thrown by name so it is not silent (J82). The message
+      // A refused send is thrown by name so it is not silent. The message
       // carries the reason and the provider's words with the link cut out,
       // never the link. Better Auth answers the form the same way whether or
       // not an address exists.
