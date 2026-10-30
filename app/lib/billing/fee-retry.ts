@@ -22,11 +22,12 @@ import {
 //
 // THE CAPS ARE NOT LEGACY'S NUMBERS, deliberately. Legacy ran this hourly with
 // 4 attempts / 14 days. Foxhound runs it monthly, so a 14-day age cap would fire
-// the age branch before the attempt branch on literally every invoice and the
-// `pay` branch would be unreachable: a faithful transcription would have been a
-// dead machine. The attempt cap carries over as-is and is what actually binds;
-// the age cap is rescaled to stay the backstop it was, catching an invoice that
-// somehow skips runs rather than being the primary limit.
+// before the first retry and the `pay` branch would be unreachable. The age cap
+// is rescaled to 90 days and is what actually ends the retries: at the monthly
+// cadence an invoice ages past 90 days after two or three retries, before the
+// 4-attempt ceiling is reached. The attempt cap only binds if runs come closer
+// together than monthly. See FEE_INVOICE_MAX_RETRY_AGE_DAYS in
+// app/lib/constants.ts for the run-by-run count.
 
 type FeeRetryAction = "pay" | "sync_paid" | "give_up";
 
