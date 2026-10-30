@@ -1,3 +1,4 @@
+import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { llmsDocument } from "@drdustinedwards/site-helpers/llms";
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
@@ -73,7 +74,7 @@ export async function loader({ context }: Route.LoaderArgs) {
           {
             title: "Intelligence",
             url: `${url}/product/intelligence`,
-            description: `MRR, movement (new/expansion/contraction/churn), and cohort analytics are free for every Recovery merchant. The predictive risk-scoring layer is a flat monthly subscription. See ${url}/pricing for the current rate.`,
+            description: `MRR, movement (new/expansion/contraction/churn), and cohort analytics are part of Intelligence. ${INTELLIGENCE_FREE_SENTENCE}`,
           },
         ],
       },
@@ -84,7 +85,7 @@ export async function loader({ context }: Route.LoaderArgs) {
             "- Audit: free, no account required",
             `- Recovery: a percentage of Foxhound-attributed recoveries, billed only after a ${RECOVERY_MATURITY_DAYS}-day maturity window; baseline recoveries Stripe would have gotten anyway are never billed`,
             "- Disputes: a percentage of won disputes, capped per dispute, nothing on losses",
-            "- Intelligence: basic MRR/movement/cohort analytics free for Recovery merchants; predictive risk scoring is a flat monthly subscription",
+            `- Intelligence: ${INTELLIGENCE_FREE_SENTENCE}`,
             "- No setup fees, no per-seat charges",
             `- Current rates: ${url}/pricing`,
           ].join("\n"),

@@ -275,8 +275,7 @@ export default function TermsPage() {
             has been held for {RECOVERY_MATURITY_DAYS} or more days, each monthly billing run charges only
             the prior month&apos;s matured recoveries. Recoveries that Stripe&apos;s own tools would have
             produced without any Foxhound action are recorded and shown to you for free, never billed.
-            Intelligence&apos;s predictive layer is billed as a flat monthly subscription at the rate then
-            in effect; its MRR and churn analytics are free. Audit is free with no billing.
+            Intelligence and Audit are free, with no billing.
           </P>
           <H3>Cancellation</H3>
           <P>

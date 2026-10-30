@@ -1,3 +1,4 @@
+import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -73,13 +74,13 @@ URL: ${url}/product/disputes
 Docs: ${url}/docs/disputes
 Pricing: a percentage of won disputes, capped per dispute. Nothing on losses. Current rate and cap: ${url}/pricing.
 
-### Intelligence (free analytics tier, paid predictive layer)
+### Intelligence (free)
 
-Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. The MRR/movement/cohort analytics tier is free for every Recovery merchant. A predictive risk-scoring layer is a paid add-on billed as a flat monthly subscription.
+Pulls Stripe billing data into MRR movement (new, expansion, contraction, churn), cohort analytics, and customer health signals. ${INTELLIGENCE_FREE_SENTENCE}
 
 URL: ${url}/product/intelligence
 Docs: ${url}/docs/intelligence
-Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: flat monthly subscription, current rate at ${url}/pricing.
+Pricing: free.
 
 ---
 
@@ -90,7 +91,7 @@ Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: f
 | Audit | Free |
 | Recovery | A percentage of Foxhound-attributed recoveries, billed after a ${RECOVERY_MATURITY_DAYS}-day maturity window |
 | Disputes | A percentage of won disputes, capped per dispute |
-| Intelligence | Free basic analytics for Recovery merchants; flat monthly subscription for predictive risk scoring |
+| Intelligence | Free |
 
 No setup fees. No minimum commitments. No per-seat charges. Current rates: ${url}/pricing.
 
