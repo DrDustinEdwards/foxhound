@@ -7,120 +7,84 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J21: the 404 count is written from handleRequest, the one place every
-// document 404 passes through: an unmatched URL and a route that throws a 404
-// both arrive here with responseStatusCode 404, as Recova's not-found.tsx saw
-// both. The write goes through ctx.waitUntil so it never holds or fails the
-// page.
+// J21: the 404 count is written from handleRequest (every document 404) and
+// handleDataRequest (a client navigation whose loader throws a 404). The
+// counting itself is site-runtime's countNotFound, tested there; this proves
+// Foxhound's wiring reaches it and that its upsert fits Foxhound's own
+// migrated page_404_daily table.
 //
 // ServerRouter is swapped for a trivial element: what is under test is the
-// status branch and the scheduling, not React Router's render.
-
-const harness = vi.hoisted(() => ({ db: null as unknown }));
-
-vi.mock("~/db", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("~/db")>()),
-  getDb: () => harness.db,
-}));
+// wiring, not React Router's render.
 
 vi.mock("react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-router")>()),
   ServerRouter: () => createElement("p", null, "page"),
 }));
 
-const { default: handleRequest, handleDataRequest, pageUrlForData } = await import("~/entry.server");
+const { default: handleRequest, handleDataRequest } = await import("~/entry.server");
 
-let db: ReturnType<typeof createInMemoryDb>["db"];
+let memory: ReturnType<typeof createInMemoryDb>;
 let scheduled: Promise<unknown>[];
 
 beforeEach(() => {
-  db = createInMemoryDb().db;
-  harness.db = db;
+  memory = createInMemoryDb();
   scheduled = [];
 });
+
+/** The D1 surface countNotFound uses, over the in-memory SQLite. D1 takes
+ *  `?1`-style numbered parameters; better-sqlite3 binds them as plain `?`, in
+ *  order, which is how the upsert numbers them. */
+function d1() {
+  return {
+    prepare: (sql: string) => ({
+      bind: (...values: unknown[]) => ({
+        run: async () => memory.sqlite.prepare(sql.replace(/\?\d+/g, "?")).run(...values),
+      }),
+    }),
+  };
+}
 
 function loadContext() {
   const ctx = { waitUntil: vi.fn((p: Promise<unknown>) => void scheduled.push(p)) };
   const provider = {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx, nonce: "n" };
+      if (key === cloudflareContext) return { env: { DB: d1() } as unknown as Env, ctx, nonce: "n" };
       throw new Error("unexpected context key");
     },
   } as unknown as RouterContextProvider;
   return { ctx, provider };
 }
 
-async function serve(method: string, status: number, url = "https://example.com/no-such-page?token=x") {
-  const { ctx, provider } = loadContext();
-  const response = await handleRequest(
-    new Request(url, { method }),
-    status,
-    new Headers(),
-    { isSpaMode: false } as EntryContext,
-    provider,
-  );
-  await Promise.all(scheduled);
-  return { ctx, response };
+async function stored() {
+  return memory.db.select({ path: page404Daily.path, hits: page404Daily.hitCount }).from(page404Daily);
 }
 
-describe("handleRequest counts document 404s", () => {
-
-  it("does not count a 200", async () => {
-    const { ctx } = await serve("GET", 200);
-    expect(ctx.waitUntil).not.toHaveBeenCalled();
+describe("404s are counted into page_404_daily", () => {
+  it("a document 404, twice, is one row with two hits and no query", async () => {
+    for (let i = 0; i < 2; i++) {
+      const { provider } = loadContext();
+      const response = await handleRequest(
+        new Request("https://example.com/no-such-page?token=x"),
+        404,
+        new Headers(),
+        { isSpaMode: false } as EntryContext,
+        provider,
+      );
+      expect(response.status).toBe(404);
+      await Promise.all(scheduled);
+    }
+    expect(await stored()).toEqual([{ path: "/no-such-page", hits: 2 }]);
   });
 
-  it("does not count a HEAD 404", async () => {
-    const { ctx } = await serve("HEAD", 404);
-    expect(ctx.waitUntil).not.toHaveBeenCalled();
-  });
-
-  it("still serves the page when the write fails, and logs the failure", async () => {
-    harness.db = {
-      insert: () => {
-        throw new Error("d1 down");
-      },
-    };
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { ctx, response } = await serve("GET", 404);
-    expect(response.status).toBe(404);
-    expect(await response.text()).toContain("page");
-    expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
-    expect(logged).toHaveBeenCalledWith(expect.stringContaining("page_404_daily"), expect.any(Error));
-    logged.mockRestore();
-  });
-});
-
-// Review finding on J21: a client-side navigation whose loader throws a 404 is
-// a single-fetch .data request. It never reaches handleRequest, so without
-// handleDataRequest an in-app link to a deleted post was never counted.
-describe("handleDataRequest counts client-navigation 404s", () => {
-  async function serveData(method: string, status: number, url: string) {
+  it("a GET .data 404 counts against the page it loads", async () => {
     const { ctx, provider } = loadContext();
-    const response = handleDataRequest(new Response("x", { status }), {
-      request: new Request(url, { method }),
+    const response = handleDataRequest(new Response("x", { status: 404 }), {
+      request: new Request("https://example.com/blog/gone.data?_routes=x"),
       context: provider,
     });
     await Promise.all(scheduled);
-    return { ctx, response };
-  }
-
-  it("counts a GET .data 404 against the page it loads", async () => {
-    const { ctx, response } = await serveData("GET", 404, "https://example.com/blog/gone.data?_routes=x");
     expect(response.status).toBe(404);
     expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
-    const stored = await db.select({ path: page404Daily.path, hits: page404Daily.hitCount }).from(page404Daily);
-    expect(stored).toEqual([{ path: "/blog/gone", hits: 1 }]);
-  });
-
-  it("does not count a .data 200", async () => {
-    const { ctx } = await serveData("GET", 200, "https://example.com/blog/here.data");
-    expect(ctx.waitUntil).not.toHaveBeenCalled();
-  });
-
-  it("maps .data URLs the way React Router does", () => {
-    expect(pageUrlForData(new URL("https://example.com/_.data")).pathname).toBe("/");
-    expect(pageUrlForData(new URL("https://example.com/docs/_.data")).pathname).toBe("/docs/");
-    expect(pageUrlForData(new URL("https://example.com/blog/x.data")).pathname).toBe("/blog/x");
+    expect(await stored()).toEqual([{ path: "/blog/gone", hits: 1 }]);
   });
 });

@@ -1,7 +1,7 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
-import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
+import { mountTurnstile, verifyTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { useEffect, useId, useRef } from "react";
 import { data, Form, Link, useNavigation } from "react-router";
 
@@ -25,7 +25,6 @@ import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib
 import { formatMoney } from "~/lib/money-format";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
-import { verifyTurnstileToken } from "~/lib/turnstile/verify.server";
 
 import type { Route } from "./+types/audit";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
@@ -120,12 +119,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data<ActionResult>({ ok: false, error: "Please complete the verification challenge." }, { status: 400 });
   }
 
-  const verification = await verifyTurnstileToken(
-    env,
-    turnstileToken,
-    request.headers.get("CF-Connecting-IP") ?? undefined,
-  );
-  if (!verification.success) {
+  // site-runtime's verifyTurnstile fails closed and never throws: an
+  // unreachable siteverify is a refusal here, not a 500.
+  const verification = await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, {
+    remoteIp: request.headers.get("CF-Connecting-IP"),
+  });
+  if (!verification.ok) {
     return data<ActionResult>({ ok: false, error: "Verification failed. Please try again." }, { status: 400 });
   }
 
