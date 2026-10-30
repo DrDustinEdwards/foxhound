@@ -10,16 +10,17 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { ErrorView } from "./components/error-view";
-import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
-import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
-import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
 import { cloudflareContext } from "./lib/cloudflare-context";
+import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
 export function meta() {
   return [{ title: "Foxhound" }];
 }
+
+// The font preloads, also sent as the Early Hints `Link` header (lib/preloads.ts).
+export const links: Route.LinksFunction = () => PRELOADS.links;
 
 // Theme read once at the root so <html data-theme> is correct on the very
 // first byte (no flash of the wrong mode). resolveThemeForRequest, not the
@@ -83,9 +84,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             element has no env access. Relative resolves identically for every
             feed reader and cannot go stale at the Phase 9 cutover. */}
         <link rel="alternate" type="application/rss+xml" href="/feed.rss" />
-        <link rel="preload" href={dmSansVariable} as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href={dmMono400} as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href={dmMono500} as="font" type="font/woff2" crossOrigin="anonymous" />
         <Meta />
         <Links />
       </head>
