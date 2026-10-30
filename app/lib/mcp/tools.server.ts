@@ -270,7 +270,7 @@ const READ_TOOLS: McpTool[] = [
     annotations: READ,
     execute: async (ctx) => {
       const [overview, payment_status_counts, connections] = await Promise.all([
-        getIntelligenceOverview(ctx.db, ctx.accountId),
+        getIntelligenceOverview(ctx.db, ctx.accountId, { forAgent: true }),
         getGlobalPaymentStatusCounts(ctx.db, ctx.accountId),
         listAccountConnections(ctx.db, ctx.accountId),
       ]);
@@ -499,7 +499,7 @@ const READ_TOOLS: McpTool[] = [
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: READ,
     execute: async (ctx) => {
-      const [account, audit, connections, sender, brand_voice, intelligence_context] = await Promise.all([
+      const [account, audit, connections, sender, voices, intelligence_context] = await Promise.all([
         getAccount(ctx.db, ctx.accountId),
         readAccountAuditSettings(ctx.db, ctx.accountId),
         listAccountConnections(ctx.db, ctx.accountId),
@@ -507,6 +507,20 @@ const READ_TOOLS: McpTool[] = [
         getPrimaryBrandVoices(ctx.db, ctx.accountId),
         getMerchantContext(ctx.db, ctx.accountId),
       ]);
+      // The voice samples are left out: they are the merchant's past emails to
+      // customers, greeting them by name, kept as one JSON string the field
+      // redactor cannot see into, and no writer here takes them back.
+      const brand_voice =
+        voices === null
+          ? null
+          : {
+              id: voices.id,
+              general: voices.general,
+              soft: voices.soft,
+              expired: voices.expired,
+              network: voices.network,
+              fraud: voices.fraud,
+            };
       return {
         audit,
         features: {

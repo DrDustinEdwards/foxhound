@@ -18,6 +18,7 @@ import { groupSumByCurrency } from "~/lib/money/totals";
 import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import type { CustomerActivity } from "./customer-detail";
 import { healthScoreBand } from "./health-band";
+import { narrativeWithCustomerIds } from "./narrative";
 import type { HealthFactor } from "./risk";
 
 // Read models for the Intelligence surfaces (TASK-foxhound-intelligence-ai.md
@@ -49,7 +50,11 @@ export interface IntelligenceOverview {
 
 /** The /intelligence overview: score distribution, MRR-at-risk exposure, and
  *  this month's narrative. Caller must have already checked entitlement. */
-export async function getIntelligenceOverview(db: Db, accountId: string): Promise<IntelligenceOverview> {
+export async function getIntelligenceOverview(
+  db: Db,
+  accountId: string,
+  options: { forAgent?: boolean } = {},
+): Promise<IntelligenceOverview> {
   const [account, customers, latestReport] = await Promise.all([
     db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
     db
@@ -99,6 +104,7 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
       mrrContributionCents: c.mrrContributionCents ?? 0,
     }));
 
+  const narrative = latestReport[0]?.narrative ?? null;
   return {
     currency: account[0]?.currency ?? "usd",
     scoredCustomerCount: scored.length,
@@ -106,7 +112,8 @@ export async function getIntelligenceOverview(db: Db, accountId: string): Promis
     mrrAtRiskCents,
     atRiskCustomerCount,
     topAtRisk,
-    narrative: latestReport[0]?.narrative ?? null,
+    // An agent reads the narrative with Stripe customer ids in place of names.
+    narrative: narrative !== null && options.forAgent ? narrativeWithCustomerIds(narrative, customers) : narrative,
     narrativeGeneratedAt: latestReport[0]?.generatedAt ?? null,
   };
 }

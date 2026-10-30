@@ -85,15 +85,20 @@ beforeEach(() => {
 const routeContext = () =>
   ({ get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }) }) as never;
 
+/** The page's confirm button: the visit that writes (a GET only offers it). */
 const visit = async (token: string) =>
-  route.loader({ params: { token }, request: new Request(`${BASE}/u/${token}`), context: routeContext() } as never);
+  route.action({
+    params: { token },
+    request: new Request(`${BASE}/u/${token}`, { method: "POST", body: new URLSearchParams({ confirm: "1" }) }),
+    context: routeContext(),
+  } as never);
 
 const post = async (token: string) =>
-  route.action({
+  (await route.action({
     params: { token },
     request: new Request(`${BASE}/u/${token}`, { method: "POST" }),
     context: routeContext(),
-  } as never);
+  } as never)) as Response;
 
 const digestOn = (id: string) =>
   (sqlite.prepare("SELECT digest_enabled AS d FROM accounts WHERE id = ?").get(id) as { d: number | null }).d;

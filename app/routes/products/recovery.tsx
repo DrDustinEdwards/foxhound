@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { RefreshCw } from "lucide-react";
 
 import {
@@ -135,7 +136,7 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             speakableWebPageJsonLd(url, {
               name: TITLE,
               path: PATH,

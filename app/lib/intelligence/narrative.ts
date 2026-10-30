@@ -173,3 +173,24 @@ export function writeIntelligenceNarrative(facts: NarrativeFacts): NarrativeResu
     })),
   };
 }
+
+/**
+ * A stored narrative with every customer's name replaced by their Stripe
+ * customer id, for an agent (hard rule 8: agent tools carry no customer name).
+ * The narrative is text, which the field redactor cannot see into, and a stored
+ * one may be an older model-written report naming customers anywhere, so every
+ * name the account holds is replaced, longest first so a name inside a longer
+ * one is not half-replaced. A one-character name is skipped: it identifies
+ * nobody and would mangle the sentence.
+ */
+export function narrativeWithCustomerIds(
+  narrative: string,
+  customers: readonly { stripeCustomerId: string; customerName: string | null }[],
+): string {
+  const named = customers
+    .filter((c): c is { stripeCustomerId: string; customerName: string } => (c.customerName?.trim().length ?? 0) > 1)
+    .sort((a, b) => b.customerName.length - a.customerName.length);
+  let text = narrative;
+  for (const c of named) text = text.split(c.customerName.trim()).join(c.stripeCustomerId);
+  return text;
+}

@@ -455,3 +455,32 @@ describe("the setup session's return leg", () => {
     expect(finalizeCalls.n).toBe(0);
   });
 });
+
+describe("starting billing setup", () => {
+  function contextFor(role: string) {
+    return {
+      get(key: unknown) {
+        if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+        if (key === authContext) return { userId: "u", membership: { accountId: "acct_1", role }, isAdmin: false, isDemo: false };
+        throw new Error("unexpected context key");
+      },
+    };
+  }
+  function setupRequest() {
+    return new Request("https://foxhoundapp.test/billing", { method: "POST", body: new URLSearchParams({ intent: "setup_billing" }) });
+  }
+  type Result = { init: { status: number }; data: { error: string } };
+
+  it("is refused to a member who is not the owner, and an owner's failure never shows the raw error", async () => {
+    const refused = (await billingModule.action({ context: contextFor("member"), request: setupRequest(), params: {} } as never)) as unknown as Result;
+    expect(refused.init.status).toBe(403);
+    expect(refused.data.error).toBe("Only the account owner can set up billing.");
+
+    // env has no DB, so the owner's first read throws a TypeError whose text must stay in the log.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failed = (await billingModule.action({ context: contextFor("owner"), request: setupRequest(), params: {} } as never)) as unknown as Result;
+    expect(failed.data.error).toBe("Could not start billing setup. Please try again.");
+    expect(logged).toHaveBeenCalledWith("billing setup start failed:", expect.stringMatching(/\S/));
+    logged.mockRestore();
+  });
+});

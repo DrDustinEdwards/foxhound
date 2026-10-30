@@ -63,6 +63,11 @@ interface Env {
   // that writer reports nothing left on old keys. The full runbook is in the
   // header of app/lib/stripe/encryption.ts.
   ENCRYPTION_KEYS_OLD?: string;
+  // HMAC key for the links Foxhound emails (/p/, /u/, /e/), 64 hex chars, kept
+  // apart from ENCRYPTION_KEY (app/lib/http/signed-token.ts). OPTIONAL: unset,
+  // links are signed with ENCRYPTION_KEY as before; set, new links use it and
+  // links signed with ENCRYPTION_KEY still verify.
+  EMAIL_TOKEN_KEY?: string;
   // Foxhound's Stripe platform secret key. Used for the
   // Connect OAuth token exchange, account retrieve, and webhook constructEvent.
   STRIPE_SECRET_KEY?: string;

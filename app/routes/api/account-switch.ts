@@ -5,6 +5,7 @@ import { setSessionActiveAccount, safeReturnPath } from "~/lib/auth/active-accou
 import { findActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { DEMO_READ_ONLY_MESSAGE, hasDemoCookie } from "~/lib/demo/session";
 
 import type { Route } from "./+types/account-switch";
 
@@ -22,6 +23,11 @@ import type { Route } from "./+types/account-switch";
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
+  }
+
+  // Hard rule 10: the demo refuses a write before any session or database work.
+  if (hasDemoCookie(request)) {
+    return Response.json({ error: DEMO_READ_ONLY_MESSAGE }, { status: 405 });
   }
 
   const { env } = context.get(cloudflareContext);

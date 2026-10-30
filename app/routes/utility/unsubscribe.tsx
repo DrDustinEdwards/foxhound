@@ -1,5 +1,8 @@
+import { Button } from "capsomer/react/button";
 import { Check, X } from "lucide-react";
+import { Form, useActionData, useNavigation } from "react-router";
 
+import "capsomer/button.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // status tones and the focus ring read. The site header loads the same file;
@@ -42,7 +45,12 @@ export function headers() {
 // a clean "invalid link" state, never a stack trace. A valid link writes an
 // account-scoped email_suppressions row (reason=unsubscribe) that isSuppressed()
 // then gates every future send on. The suppression write is idempotent, so a second
-// visit (or the List-Unsubscribe POST arriving after a preview GET) is a no-op.
+// confirm (or the List-Unsubscribe POST arriving after it) is a no-op.
+//
+// ONLY A POST WRITES. A GET verifies the token and shows a confirm button: mail
+// security scanners and link previews fetch every link in a message, and a write
+// on GET unsubscribed customers who never clicked. The button posts back to this
+// URL; so does a mail client's RFC 8058 one-click request.
 //
 // No auth: the visitor is a merchant's customer, not a Foxhound account holder, so
 // there is no session to thread; the header takes the root loader's theme, as in
@@ -84,6 +92,7 @@ export const middleware: Route.MiddlewareFunction[] = [
 
 type LoaderState =
   | { state: "invalid" }
+  | { state: "confirm" }
   | { state: "changed" }
   | { state: "done" }
   | { state: "already"; email: string };
@@ -102,9 +111,8 @@ async function follow(env: Env, payload: UnsubscribeTokenPayload, token: string)
   return outcome === "already" ? { state: "already", email: payload.email } : { state: "done" };
 }
 
-// GET: render the confirmation page. A mail client's link preview or a human click
-// both land here; both suppress. The first visit reads "unsubscribed", any later
-// one (or one for an address a bounce already suppressed) "already unsubscribed".
+// GET: verify the link and offer the confirm button. Writes nothing, so a
+// scanner or a preview that fetches the link unsubscribes nobody.
 export async function loader({ params, context }: Route.LoaderArgs): Promise<LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
@@ -112,23 +120,25 @@ export async function loader({ params, context }: Route.LoaderArgs): Promise<Loa
   // link.") cannot arise here; an absent token folds into the invalid state.
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
   if (!payload || !token) return { state: "invalid" };
-  return follow(env, payload, token);
+  return { state: "confirm" };
 }
 
-// POST: the RFC 8058 one-click List-Unsubscribe-Post request. Same suppression
-// write, but the mail client only needs a 200; no page is rendered. Idempotent
-// with the GET, so a client that POSTs then also opens the link double-writes to
-// a single row.
-export async function action({ params, context }: Route.ActionArgs): Promise<Response> {
+/** The confirm button's field, which tells the page's own POST from a mail client's. */
+const CONFIRM_FIELD = "confirm";
+
+// POST: the page's confirm button, or the RFC 8058 one-click
+// List-Unsubscribe-Post request. Both write the suppression. The button gets the
+// page's outcome back; a mail client only needs a 200 and no page, whether the
+// token was good or not, so token validity never leaks to it. The first confirm
+// reads "unsubscribed", any later one (or one for an address a bounce already
+// suppressed) "already unsubscribed".
+export async function action({ params, context, request }: Route.ActionArgs): Promise<Response | LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
+  const fromPage = (await request.formData().catch(() => null))?.get(CONFIRM_FIELD) === "1";
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
-  if (payload && token) {
-    await follow(env, payload, token);
-  }
-  // Always 200 for one-click: a bad token is not worth telling a mail client
-  // about, and never leaks token validity.
-  return new Response(null, { status: 200 });
+  const outcome: LoaderState = payload && token ? await follow(env, payload, token) : { state: "invalid" };
+  return fromPage ? outcome : new Response(null, { status: 200 });
 }
 
 function message(data: LoaderState): string {
@@ -138,6 +148,8 @@ function message(data: LoaderState): string {
     case "invalid":
     case "changed":
       return "This unsubscribe link is invalid or has expired.";
+    case "confirm":
+      return "Confirm to stop receiving these emails.";
     case "already":
       return `${data.email} is already unsubscribed.`;
     case "done":
@@ -147,6 +159,7 @@ function message(data: LoaderState): string {
 
 const HEADING: Record<LoaderState["state"], string> = {
   invalid: "Unsubscribe link not valid",
+  confirm: "Unsubscribe",
   changed: "Unsubscribe link not valid",
   already: "Already unsubscribed",
   done: "Unsubscribed",
@@ -172,7 +185,12 @@ const MARK = {
 // title (1.25rem, exact), its 15px sentence body (1rem, the nearest), its 13px
 // link label (0.8125rem, exact).
 export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
-  const tone = loaderData.state === "done" || loaderData.state === "already" ? "ok" : "crit";
+  const posted = useActionData<typeof action>();
+  const busy = useNavigation().state !== "idle";
+  // The confirm's outcome once the button posted, else the link's own state.
+  const state: LoaderState = posted && !(posted instanceof Response) ? posted : loaderData;
+  const confirming = state.state === "confirm";
+  const tone = state.state === "done" || state.state === "already" ? "ok" : "crit";
   const Icon = tone === "ok" ? Check : X;
   return (
     <div className="flex min-h-screen flex-col">
@@ -185,22 +203,32 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
           {/* The page's heading, for screen readers only: Recova's page has none
               visible, and the wordmark is not one. It names the outcome, so the
               result is in the heading as well as the status paragraph. */}
-          <h1 className="sr-only">{HEADING[loaderData.state]}</h1>
+          <h1 className="sr-only">{HEADING[state.state]}</h1>
           <div className="mb-8">
             <Wordmark size="title" />
           </div>
           <div className="cap-panel">
             <div className="px-8 py-10">
-              <div
-                data-status-mark={tone}
-                aria-hidden="true"
-                className={`mx-auto mb-5 flex size-12 items-center justify-center rounded-full border ${MARK[tone]}`}
-              >
-                <Icon className="size-5" strokeWidth={2.5} />
-              </div>
+              {confirming ? null : (
+                <div
+                  data-status-mark={tone}
+                  aria-hidden="true"
+                  className={`mx-auto mb-5 flex size-12 items-center justify-center rounded-full border ${MARK[tone]}`}
+                >
+                  <Icon className="size-5" strokeWidth={2.5} />
+                </div>
+              )}
               <p role="status" className="m-0 mb-6 text-body leading-relaxed text-text">
-                {message(loaderData)}
+                {message(state)}
               </p>
+              {confirming ? (
+                <Form method="post" className="mb-6">
+                  <input type="hidden" name={CONFIRM_FIELD} value="1" />
+                  <Button type="submit" variant="primary" pending={busy}>
+                    Unsubscribe
+                  </Button>
+                </Form>
+              ) : null}
               {/* Recova's small underlined link in the secondary text color. Its
                   box is Capsomer's minimum target height (--target), so the 13px
                   line is still a 24px target (WCAG 2.2, 2.5.8). */}

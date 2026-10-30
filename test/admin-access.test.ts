@@ -75,3 +75,27 @@ describe("getAdminSession (Cloudflare Access)", () => {
     expect(await getAdminSession(dev, request({}, "https://foxhoundapp.com/admin"))).toBeNull();
   });
 });
+
+describe("the /admin gate refuses a cross-site write", () => {
+  it("lets a same-origin POST through and answers a cross-site one 403, for a signed-in admin", async () => {
+    const { middleware } = await import("~/layouts/admin-shell");
+    const dev = env({ ACCESS_DEV_BYPASS: "1", ACCESS_TEAM_DOMAIN: undefined, ACCESS_AUD: undefined });
+    const run = async (headers: Record<string, string>) => {
+      const context = { get: () => ({ env: dev }), set: () => {} };
+      const next = vi.fn(async () => new Response("ran"));
+      const request = new Request("http://localhost:5173/admin/brake", { method: "POST", headers });
+      const outcome = await Promise.resolve(middleware[0]!({ request, context, params: {} } as never, next as never)).catch(
+        (e: unknown) => e,
+      );
+      return { outcome, ran: next.mock.calls.length > 0 };
+    };
+
+    expect((await run({ Origin: "http://localhost:5173" })).ran).toBe(true);
+    const crossSite: Record<string, string>[] = [{ Origin: "https://evil.example" }, { Origin: "null" }];
+    for (const headers of crossSite) {
+      const { outcome, ran } = await run(headers);
+      expect(ran).toBe(false);
+      expect((outcome as Response).status).toBe(403);
+    }
+  });
+});

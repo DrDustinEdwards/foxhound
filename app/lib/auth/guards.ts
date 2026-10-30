@@ -138,8 +138,14 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (args, nex
 
 const resolveSessionOrDemo: MiddlewareFunction<Response> = async ({ request, context }, next) => {
   const { env } = context.get(cloudflareContext);
-  const session = await getSession(env, request);
   const pathname = new URL(request.url).pathname;
+  // Hard rule 10: a demo write is refused before any session or database work.
+  // With the cookie on a non-admin path the demo wins whether or not a session
+  // exists (resolvesToDemo), so the session read is not needed to decide this.
+  if (hasDemoCookie(request) && !isAdminPath(pathname) && demoBlocksMethod(request.method)) {
+    throw data(DEMO_READ_ONLY_MESSAGE, { status: 405 });
+  }
+  const session = await getSession(env, request);
   const useDemo = resolvesToDemo(Boolean(session), hasDemoCookie(request), pathname);
 
   if (session && !useDemo) {

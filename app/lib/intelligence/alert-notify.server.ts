@@ -177,10 +177,13 @@ async function postAlertToSlack(accountId: string, webhookUrl: string, text: str
   const checked = normalizeSlackWebhookUrl(webhookUrl);
   if (!checked.ok || !checked.value) return { status: "refused", reason: "host_not_allowed" };
   try {
+    // A redirect is never followed: a 3xx is not ok, so hooks.slack.com is the
+    // only host this request can reach.
     const res = await fetch(checked.value, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
+      redirect: "manual",
     });
     return res.ok ? { status: "posted" } : { status: "failed", reason: `http_${res.status}` };
   } catch {

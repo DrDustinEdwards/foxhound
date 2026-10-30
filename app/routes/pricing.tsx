@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowRight, Check } from "lucide-react";
 import { Link } from "react-router";
 
@@ -208,7 +209,7 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdText([
             faqPageJsonLd(PRICING_FAQS),
             speakableWebPageJsonLd(url, {
               name: "Pricing - Foxhound",

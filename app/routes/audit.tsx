@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
@@ -345,7 +346,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             breadcrumbListJsonLd(url, [
               { name: "Home", path: "/" },
               { name: "Audit", path: "/audit" },

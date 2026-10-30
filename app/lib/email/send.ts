@@ -30,6 +30,19 @@ function fromDisplayName(name: string | null | undefined): string {
   return cleaned.length > 0 ? cleaned : DEFAULT_FROM_NAME;
 }
 
+/** A Subject header with no line break in it: a CR or LF would start a header
+ *  of the sender's choosing, so each run of them becomes one space. */
+function headerSubject(subject: string): string {
+  return subject.replace(/[\r\n]+/g, " ").trim();
+}
+
+/** The To address, refused outright if it carries a line break (a header
+ *  injection); there is no safe way to guess which address was meant. */
+function headerRecipient(to: string): string {
+  if (/[\r\n]/.test(to)) throw new Error("email blocked: line break in recipient");
+  return to;
+}
+
 /**
  * Build the ready-to-send message from a job. Pure. Enforces CAN-SPAM
  * (ARCHITECTURE.md non-negotiable #8): a merchant-customer send MUST carry a
@@ -94,8 +107,8 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   );
   const message: EmailSendMessage = {
     from: `${fromName} <${EMAIL_FROM_ADDRESS}>`,
-    to: job.to,
-    subject: rendered.subject,
+    to: headerRecipient(job.to),
+    subject: headerSubject(rendered.subject),
     html: rendered.html,
     text: rendered.text,
   };
@@ -192,8 +205,8 @@ function renderTransactional(message: { to: string; subject: string; bodyHtml: s
 function authSenderMessage(to: string, rendered: Rendered, fromName: string): EmailSendMessage {
   return {
     from: `${fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
-    to,
-    subject: rendered.subject,
+    to: headerRecipient(to),
+    subject: headerSubject(rendered.subject),
     html: rendered.html,
     text: rendered.text,
   };
