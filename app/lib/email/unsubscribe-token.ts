@@ -1,4 +1,5 @@
-import { readSignedToken, signToken } from "~/lib/http/signed-token";
+import { readSignedToken, signToken } from "@dustinedwards/site-runtime/signed-token";
+import { linkKeys } from "~/lib/http/signed-token";
 
 // Stateless HMAC-signed token for the CAN-SPAM one-click unsubscribe link
 // (/u/:token, ROUTES.md public-utility). Mirrors the engagement/card-update
@@ -28,7 +29,7 @@ export async function signUnsubscribeToken(
   env: Env,
   payload: UnsubscribeTokenPayload,
 ): Promise<string> {
-  return signToken(env, payload);
+  return signToken(linkKeys(env), payload);
 }
 
 /** Verify + parse an unsubscribe token. Returns null on tamper/format/parse failure. */
@@ -36,7 +37,7 @@ export async function verifyUnsubscribeToken(
   env: Env,
   token: string,
 ): Promise<UnsubscribeTokenPayload | null> {
-  const parsed = (await readSignedToken(env, token)) as UnsubscribeTokenPayload | null;
+  const parsed = (await readSignedToken(linkKeys(env), token)) as UnsubscribeTokenPayload | null;
   if (!parsed) return null;
   if (!parsed.email || !parsed.accountId) return null;
   if (parsed.list !== undefined && parsed.list !== "digest") return null;

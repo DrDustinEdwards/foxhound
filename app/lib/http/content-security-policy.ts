@@ -44,10 +44,8 @@
 //    router then navigates to Stripe, which form-action does not govern; a
 //    native POST made before hydration (or with no JS) is a form navigation, and
 //    Chromium applies form-action to its redirect, so 'self' alone refused it.
-//    The builder writes form-action itself and refuses it in extraDirectives,
-//    so the Stripe origins are appended to its 'self' at module load, like frame-src
-//    below. site-runtime's checkSecurityHeaders grades form-action as 'self' or
-//    'none' only, so that one line of a live header check reports this origin.
+//    The Stripe origins are the builder's `formTargets`; pass the same list to
+//    site-runtime's checkSecurityHeaders, which accepts them after 'self'.
 //  - No external origins except Cloudflare's own: Turnstile
 //    (challenges.cloudflare.com, script and frame) and the Web Analytics beacon,
 //    which Cloudflare injects at the edge and which public sites allow (Dustin's
@@ -73,16 +71,8 @@ import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
 
-// Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
-const STRIPE_FORM_TARGETS = "https://checkout.stripe.com https://connect.stripe.com";
-const FORM_ACTION_SELF = "form-action 'self'";
-
-/** The builder's policy with Stripe's form targets and the Turnstile frame added. */
-function withFoxhoundDirectives(value: string): string {
-  if (value.split(FORM_ACTION_SELF).length !== 2)
-    throw new Error("the builder's form-action is not 'self' exactly once");
-  return `${value.replace(FORM_ACTION_SELF, `${FORM_ACTION_SELF} ${STRIPE_FORM_TARGETS}`)}; frame-src ${TURNSTILE_ORIGIN}`;
-}
+/** Turnstile is framed by itself; the builder writes no frame-src while `sources.frame` is empty. */
+const withTurnstileFrame = (value: string): string => `${value}; frame-src ${TURNSTILE_ORIGIN}`;
 
 /** Where browsers send violation reports: the path Recova used too. */
 export const CSP_REPORT_PATH = "/api/csp-report";
@@ -108,9 +98,11 @@ const SITE = {
   cloudflareWebAnalytics: true,
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
+  // Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
+  formTargets: ["https://checkout.stripe.com", "https://connect.stripe.com"],
 } as const;
 const POLICY = buildContentSecurityPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER });
-const POLICY_VALUE = withFoxhoundDirectives(POLICY.value);
+const POLICY_VALUE = withTurnstileFrame(POLICY.value);
 const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */
@@ -162,7 +154,7 @@ export async function applyHashedSecurityHeaders(response: Response, origin: str
   const page = html === null
     ? response
     : new Response(html, { status: response.status, statusText: response.statusText, headers: response.headers });
-  return withHeaders(page, { name: policy.name, value: withFoxhoundDirectives(policy.value) }, origin);
+  return withHeaders(page, { name: policy.name, value: withTurnstileFrame(policy.value) }, origin);
 }
 
 function withHeaders(response: Response, policy: { name: string; value: string }, origin: string): Response {
