@@ -21,7 +21,10 @@ import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { readDisputeSettings } from "~/lib/disputes/queries.server";
-import { applyDisputeSettings, applyDisputesEnabled } from "~/lib/settings/apply.server";
+import {
+  applyDisputeSettings,
+  applyDisputesEnabled,
+} from "~/lib/settings/apply.server";
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-description";
 
 import type { Route } from "./+types/disputes";
@@ -74,11 +77,16 @@ export const DISPUTES_SETTINGS_LINE =
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const settings = await readDisputeSettings(getDb(env), auth.membership.accountId);
+  const settings = await readDisputeSettings(
+    getDb(env),
+    auth.membership.accountId,
+  );
   return { ...settings, isOwner: auth.membership.role === MEMBER_ROLE.OWNER };
 }
 
-type ActionResult = { ok: true; toggled?: true } | { ok: false; error?: string };
+type ActionResult =
+  | { ok: true; toggled?: true }
+  | { ok: false; error?: string };
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -87,11 +95,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (form.get("_action") === "toggle_disputes") {
     const enabled = form.get("enabled") === "true";
     try {
-      await applyDisputesEnabled(getDb(env), auth.membership.accountId, { enabled });
+      await applyDisputesEnabled(getDb(env), auth.membership.accountId, {
+        enabled,
+      });
     } catch (err) {
       console.error("disputes switch write failed:", err);
       return data<ActionResult>(
-        { ok: false, error: `Could not ${enabled ? "enable" : "disable"} Disputes.` },
+        {
+          ok: false,
+          error: `Could not ${enabled ? "enable" : "disable"} Disputes.`,
+        },
         { status: 500 },
       );
     }
@@ -103,9 +116,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   // only the account owner turns it on or off. A member may still save the
   // other fields, with auto-submit posted as it stands.
   if (auth.membership.role !== MEMBER_ROLE.OWNER) {
-    const current = await readDisputeSettings(getDb(env), auth.membership.accountId);
+    const current = await readDisputeSettings(
+      getDb(env),
+      auth.membership.accountId,
+    );
     if (current.autoSubmit !== autoSubmit) {
-      return data<ActionResult>({ ok: false, error: "Only the account owner can do this." }, { status: 403 });
+      return data<ActionResult>(
+        { ok: false, error: "Only the account owner can do this." },
+        { status: 403 },
+      );
     }
   }
   try {
@@ -121,7 +140,11 @@ export async function action({ request, context }: Route.ActionArgs) {
       // The signed-in user: turning auto-submit on is their standing approval.
       { userId: auth.userId, email: auth.email, now: new Date() },
     );
-    if (!result.ok) return data<ActionResult>({ ok: false, error: result.error }, { status: 400 });
+    if (!result.ok)
+      return data<ActionResult>(
+        { ok: false, error: result.error },
+        { status: 400 },
+      );
   } catch (err) {
     console.error("dispute settings write failed:", err);
     return data<ActionResult>({ ok: false }, { status: 500 });
@@ -129,9 +152,14 @@ export async function action({ request, context }: Route.ActionArgs) {
   return data<ActionResult>({ ok: true });
 }
 
-export default function DisputeSettings({ loaderData, actionData }: Route.ComponentProps) {
+export default function DisputeSettings({
+  loaderData,
+  actionData,
+}: Route.ComponentProps) {
   const navigation = useNavigation();
-  const toggling = navigation.state !== "idle" && navigation.formData?.get("_action") === "toggle_disputes";
+  const toggling =
+    navigation.state !== "idle" &&
+    navigation.formData?.get("_action") === "toggle_disputes";
   const saving = navigation.state === "submitting" && !toggling;
   const result = actionData as ActionResult | undefined;
   const toggleForm = useRef<HTMLFormElement>(null);
@@ -157,7 +185,11 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           a failed write) springs back. */}
       <DemoGuardedForm method="post" ref={toggleForm} id={`${id}-toggle`}>
         <input type="hidden" name="_action" value="toggle_disputes" />
-        <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
+        <input
+          type="hidden"
+          name="enabled"
+          value={enabled ? "false" : "true"}
+        />
       </DemoGuardedForm>
 
       <DemoGuardedForm method="post">
@@ -173,7 +205,9 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                   </div>
                   {enabled ? <Pill tone="ok">Active</Pill> : null}
                 </div>
-                <p className="m-0 text-micro text-text-subtle">{DISPUTES_SETTINGS_LINE}</p>
+                <p className="m-0 text-micro text-text-subtle">
+                  {DISPUTES_SETTINGS_LINE}
+                </p>
               </div>
               <Switch
                 id={`${id}-enabled`}
@@ -190,12 +224,22 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
               <>
                 <div className="flex items-center justify-between gap-4 py-4">
                   <div className="pr-4">
-                    <div id={autoLabelId} className="mb-0.5 text-label text-text">
+                    <div
+                      id={autoLabelId}
+                      className="mb-0.5 text-label text-text"
+                    >
                       Auto-submit disputes
                     </div>
-                    <p id={autoHelpId} className="m-0 text-micro text-text-subtle">
-                      Foxhound will automatically submit your dispute response 24 hours before the deadline if you
-                      haven&apos;t acted. Off by default.
+                    <p
+                      id={autoHelpId}
+                      className="m-0 text-micro text-text-subtle"
+                    >
+                      Foxhound will automatically submit your dispute response
+                      24 hours before the deadline if you haven&apos;t acted.
+                      Off by default.
+                      {loaderData.isOwner
+                        ? null
+                        : " Only the account owner can change this."}
                     </p>
                   </div>
                   {/* A member sees the switch but cannot move it: auto-submit
@@ -203,11 +247,17 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                       is the owner's. The hidden field posts the stored value,
                       so saving the other fields leaves it as it is. */}
                   {loaderData.isOwner ? null : loaderData.autoSubmit ? (
-                    <input type="hidden" name="dispute_auto_submit" value="on" />
+                    <input
+                      type="hidden"
+                      name="dispute_auto_submit"
+                      value="on"
+                    />
                   ) : null}
                   <Switch
                     id={`${id}-auto`}
-                    name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
+                    name={
+                      loaderData.isOwner ? "dispute_auto_submit" : undefined
+                    }
                     label={null}
                     defaultChecked={loaderData.autoSubmit}
                     disabled={!loaderData.isOwner}
@@ -217,11 +267,18 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 </div>
 
                 <div className="border-t border-border py-4">
-                  <label htmlFor={`${id}-description`} className="mb-0.5 block text-label text-text">
+                  <label
+                    htmlFor={`${id}-description`}
+                    className="mb-0.5 block text-label text-text"
+                  >
                     Product description
                   </label>
-                  <p id={descriptionHelpId} className="m-0 mb-2 text-micro text-text-subtle">
-                    Describe what your product or service is. Used in all dispute responses.
+                  <p
+                    id={descriptionHelpId}
+                    className="m-0 mb-2 text-micro text-text-subtle"
+                  >
+                    Describe what your product or service is. Used in all
+                    dispute responses.
                   </p>
                   <textarea
                     id={`${id}-description`}
@@ -237,11 +294,18 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
 
                 <div className="flex items-center justify-between gap-4 border-t border-border py-4">
                   <div className="pr-4">
-                    <div id={shipsLabelId} className="mb-0.5 text-label text-text">
+                    <div
+                      id={shipsLabelId}
+                      className="mb-0.5 text-label text-text"
+                    >
                       Ships physical goods
                     </div>
-                    <p id={shipsHelpId} className="m-0 text-micro text-text-subtle">
-                      Enable if you ship physical products. Adds shipping evidence fields to dispute responses.
+                    <p
+                      id={shipsHelpId}
+                      className="m-0 text-micro text-text-subtle"
+                    >
+                      Enable if you ship physical products. Adds shipping
+                      evidence fields to dispute responses.
                     </p>
                   </div>
                   <Switch
@@ -256,7 +320,8 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
               </>
             ) : (
               <p className="m-0 pt-4 text-micro text-text-subtle">
-                Enable Disputes above to configure auto-submit, product description, and shipping settings.
+                Enable Disputes above to configure auto-submit, product
+                description, and shipping settings.
               </p>
             )}
           </div>
@@ -267,9 +332,13 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
             save, and a save would post them empty. */}
         <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
           <p role="status" className="text-label">
-            {result?.ok === true && !result.toggled ? <Status tone="ok">Saved</Status> : null}
+            {result?.ok === true && !result.toggled ? (
+              <Status tone="ok">Saved</Status>
+            ) : null}
             {result?.ok === false ? (
-              <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
+              <Status tone="crit">
+                {result.error ?? "Failed to save. Please try again."}
+              </Status>
             ) : null}
           </p>
           {enabled ? (
