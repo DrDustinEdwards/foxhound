@@ -62,6 +62,7 @@
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
 import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
+import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
@@ -71,8 +72,6 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 
 /** The Reporting API group name, defined by the Reporting-Endpoints header. */
 export const CSP_REPORT_GROUP = "csp-endpoint";
-
-const TURNSTILE = "https://challenges.cloudflare.com";
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
@@ -84,7 +83,7 @@ const TURNSTILE = "https://challenges.cloudflare.com";
 const NONCE_PLACEHOLDER = "Rk9YSE9VTkROT05DRVBMQUNFSE9MREVS";
 const POLICY = buildContentSecurityPolicy({
   sources: {
-    script: [TURNSTILE],
+    script: [TURNSTILE_ORIGIN],
     img: ["data:"],
   },
   nonce: NONCE_PLACEHOLDER,
@@ -94,7 +93,7 @@ const POLICY = buildContentSecurityPolicy({
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
 });
-const POLICY_VALUE = `${POLICY.value}; frame-src ${TURNSTILE}`;
+const POLICY_VALUE = `${POLICY.value}; frame-src ${TURNSTILE_ORIGIN}`;
 const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */

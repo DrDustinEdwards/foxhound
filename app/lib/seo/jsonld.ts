@@ -1,4 +1,4 @@
-import { article, breadcrumbs, faqPage, website } from "@drdustinedwards/site-helpers/schema";
+import { article, breadcrumbs, faqPage, thing, website } from "@drdustinedwards/site-helpers/schema";
 
 // Single source of truth for the site's public origin and the JSON-LD
 // builders used across marketing pages (TASK-foxhound-phase6.md SITE_URL
@@ -34,9 +34,7 @@ export const SUPPORT_EMAIL = "support@foxhoundapp.com";
 export const GOVERNING_LAW_JURISDICTION = "Texas";
 
 export function organizationJsonLd(url: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
+  return thing("Organization", {
     "@id": `${url}/#organization`,
     name: "Foxhound",
     url,
@@ -57,13 +55,11 @@ export function organizationJsonLd(url: string) {
       "Involuntary churn",
       "SaaS revenue operations",
     ],
-  };
+  });
 }
 
 export function softwareApplicationJsonLd(url: string) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
+  return thing("SoftwareApplication", {
     "@id": `${url}/#software`,
     name: "Foxhound",
     applicationCategory: "BusinessApplication",
@@ -91,7 +87,7 @@ export function softwareApplicationJsonLd(url: string) {
     //
     // The day a fixed-price plan exists with a checkout behind it, an Offer here
     // becomes both truthful and worth having.
-  };
+  });
 }
 
 export interface JsonLdFaq {
@@ -107,16 +103,14 @@ export function speakableWebPageJsonLd(
   url: string,
   opts: { name: string; path: string; selectors: string[] },
 ) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
+  return thing("WebPage", {
     name: opts.name,
     url: `${url}${opts.path}`,
     speakable: {
       "@type": "SpeakableSpecification",
       cssSelector: opts.selectors,
     },
-  };
+  });
 }
 
 // NO sitelinks-searchbox SearchAction here, deliberately. It used to declare
@@ -142,16 +136,15 @@ export function personJsonLd(
   url: string,
   opts: { name: string; jobTitle: string; description: string; sameAs?: string[] },
 ) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Person",
+  // thing() drops an empty sameAs: an empty list claims links the page does not have.
+  return thing("Person", {
     "@id": `${url}/about#person`,
     name: opts.name,
     jobTitle: opts.jobTitle,
     description: opts.description,
     worksFor: { "@id": `${url}/#organization` },
-    sameAs: opts.sameAs ?? [],
-  };
+    sameAs: opts.sameAs,
+  });
 }
 
 // Built for /blog/:slug (Pass 2). @type is BlogPosting (the Article family
@@ -226,9 +219,7 @@ export function techArticleJsonLd(
   url: string,
   opts: { headline: string; description: string; path: string; datePublished: string },
 ) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "TechArticle",
+  return thing("TechArticle", {
     headline: opts.headline,
     description: opts.description,
     url: `${url}${opts.path}`,
@@ -236,19 +227,18 @@ export function techArticleJsonLd(
     inLanguage: "en",
     isPartOf: { "@type": "WebSite", "@id": `${url}/#website` },
     publisher: { "@id": `${url}/#organization` },
-  };
+  });
 }
 
 /** The docs index as an ItemList of its guides, in the order the page renders
  *  them, so a crawler reading the hub gets the set rather than five unrelated
- *  pages it has to discover by link-following. */
+ *  pages it has to discover by link-following. Not Prelum's itemList(): each
+ *  guide carries its description, which itemList's items do not. */
 export function docsItemListJsonLd(
   url: string,
   guides: { title: string; description: string; slug: string }[],
 ) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
+  return thing("ItemList", {
     name: "Foxhound documentation",
     itemListElement: guides.map((guide, i) => ({
       "@type": "ListItem",
@@ -257,5 +247,5 @@ export function docsItemListJsonLd(
       description: guide.description,
       url: `${url}/docs/${guide.slug}`,
     })),
-  };
+  });
 }

@@ -15,6 +15,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /admin/staged (job_21de68b30fc2): the changes the Foxhound Admin API was
 // asked for that start or change money, waiting for a person. Confirming one
@@ -24,7 +25,7 @@ import type { Route } from "./+types/staged";
 export const handle: AdminHandle = { page: "Staged changes" };
 
 export function meta() {
-  return [{ title: "Staged changes - Foxhound admin" }];
+  return [{ title: "Staged changes - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

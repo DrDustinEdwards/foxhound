@@ -64,12 +64,14 @@ import { resolveThemeForRequest } from "~/lib/theme.server";
 import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
 
+import { noindexHeader } from "~/lib/seo/meta";
+
 import type { loader as rootLoader } from "~/root";
 
 import type { Route } from "./+types/app-shell";
 
 // Server guard for the entire authenticated tree (session + account required).
-export const middleware: Route.MiddlewareFunction[] = [appShellMiddleware];
+export const middleware: Route.MiddlewareFunction[] = [noindexHeader, appShellMiddleware];
 
 // This layout's own route match never changes on a same-shell navigation
 // (no params, no path segment of its own), so React Router's default

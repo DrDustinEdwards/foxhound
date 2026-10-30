@@ -1,3 +1,4 @@
+import { base64url, sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -36,23 +37,14 @@ export type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOP
 export const MCP_TOKEN_PREFIX = "fox_mcp_";
 
 /** SHA-256 hex of the presented token; only this is stored. */
-export async function hashMcpToken(token: string): Promise<string> {
-  const bytes = new TextEncoder().encode(token);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+export function hashMcpToken(token: string): Promise<string> {
+  return sha256Hex(token);
 }
 
 /** A fresh 32-byte secret, base64url without padding (43 characters). The
  *  OAuth provider (J79) mints its codes and refresh tokens the same way. */
 export function generateSecret(): string {
-  const raw = crypto.getRandomValues(new Uint8Array(32));
-  // base64url, no padding.
-  return btoa(String.fromCharCode(...raw))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
 export interface IssueMcpTokenInput {

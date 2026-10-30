@@ -36,6 +36,7 @@ import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server"
 import { RecommendationBanner } from "~/components/recommendation-banner";
 
 import type { Route } from "./+types/customer";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/customers/:id (row S18, job J68). Recova is the spec: its real
 // page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
@@ -67,7 +68,7 @@ import type { Route } from "./+types/customer";
 // names the factors list (docs-content.ts).
 
 export function meta() {
-  return [{ title: "Customer health - Foxhound" }];
+  return [{ title: "Customer health - Foxhound" }, NOINDEX];
 }
 
 // Account-scoped by construction: getCustomerHealthDetail's query carries

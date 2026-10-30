@@ -8,6 +8,8 @@ import {
   orientationOf,
   sha256Hex,
   transformFocus,
+  mediaRev,
+  mediaVersion,
   turnsSize,
   type MediaAdapter,
   type MediaItem,
@@ -77,11 +79,6 @@ const TRANSFORMS: Record<MediaTransformOp, { rotate?: 90 | 180 | 270; flip?: "h"
   "flip-v": { flip: "v" },
 };
 
-const mediaVersion = (rev: number) => `r${rev}`;
-
-/** The rev a version names, or -1 (which no row holds) for anything this site never answered. */
-const revOf = (version: string) => (/^r(0|[1-9]\d{0,15})$/.test(version) ? Number(version.slice(1)) : -1);
-
 const iso = (at: Date | null) => (at ? at.toISOString() : null);
 
 function itemOf(row: MediaRow, usedCount?: number): MediaItem {
@@ -138,7 +135,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
 
   /** Moves the version first, in one statement, for a write that must change the object before the index. */
   async function claim(id: string, expectedVersion: string) {
-    return answer(await writeMediaAtRev(db, id, {}, revOf(expectedVersion)));
+    return answer(await writeMediaAtRev(db, id, {}, mediaRev(expectedVersion)));
   }
 
   async function mustHold(id: string): Promise<MediaRow> {
@@ -148,7 +145,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
   }
 
   const field = (fields: MediaFields) => async (id: string, input: { expectedVersion: string }) =>
-    answer(await writeMediaAtRev(db, id, fields, revOf(input.expectedVersion)));
+    answer(await writeMediaAtRev(db, id, fields, mediaRev(input.expectedVersion)));
 
   /** Re-encodes the picture through the Images binding (site-runtime's editImage), in its own type. */
   async function reencode(body: ReadableStream | Uint8Array, edit: { rotate?: 90 | 180 | 270; flip?: "h" | "v"; maxEdge?: number }, type: string, quality: number) {
@@ -330,7 +327,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       if (!REENCODED.has(row.contentType)) {
         throw new RefusedError(`A ${row.contentType} picture is not turned here: a GIF may be animated, and a turn would keep one frame.`);
       }
-      if (row.rev !== revOf(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
+      if (row.rev !== mediaRev(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
       const object = await env.MEDIA.get(id);
       if (!object) throw new NotFoundError("No such media.");
       const bytes = await reencode(object.body, TRANSFORMS[input.op], row.contentType, TRANSFORM_QUALITY);
@@ -373,7 +370,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
 
     async shrink(id, input) {
       const row = await mustHold(id);
-      if (row.rev !== revOf(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
+      if (row.rev !== mediaRev(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
       if (!REENCODED.has(row.contentType) || !oversized(row)) return { resized: false, item: itemOf(row) };
       const object = await env.MEDIA.get(id);
       if (!object) throw new NotFoundError("No such media.");
@@ -410,7 +407,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       const object = await env.MEDIA.get(id);
       if (!object) return null;
       try {
-        return await suggestFor(env, db, id, object.body);
+        return await suggestFor(env, object.body, id);
       } catch (error) {
         throw new RefusedError(`No suggestion was made: ${error instanceof Error ? error.message : String(error)}`);
       }

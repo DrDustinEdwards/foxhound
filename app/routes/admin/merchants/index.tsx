@@ -30,11 +30,12 @@ import type { AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/index";
 import { MerchantsList } from "../../../components/admin-merchants-parts";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Merchants" };
 
 export function meta() {
-  return [{ title: "Merchants - Foxhound admin" }];
+  return [{ title: "Merchants - Foxhound admin" }, NOINDEX];
 }
 
 // This module serves three addresses (routes.ts): every merchant here, and

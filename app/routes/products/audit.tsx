@@ -24,6 +24,7 @@ import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The Audit spoke (J55, row M6). Recova's spec, read whole at HEAD:
 // app/(marketing)/product/audit/page.tsx (blob 210ce79d) and the files it draws
@@ -45,12 +46,25 @@ const TITLE = "Audit - Foxhound";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: TITLE,
-    description: AUDIT_META_DESCRIPTION,
-    path: PATH,
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // SpeakableSpecification, as Recova emits it: the selectors point at
+  // the classes product-sections-cap.tsx puts on the sections.
+  return [
+    ...marketingMeta({
+      title: TITLE,
+      description: AUDIT_META_DESCRIPTION,
+      path: PATH,
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
+            name: TITLE,
+            path: PATH,
+            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+          })),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -58,9 +72,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url } = loaderData;
-
+export default function AuditProductPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals, and the family's focus
     // ring inside the page, as on the other three spokes.
@@ -91,20 +103,6 @@ export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
       />
       <ProductFAQ name="audit-faq" faqs={AUDIT_FAQS} />
       <BottomCTA title={AUDIT_BOTTOM_CTA.title} sub={AUDIT_BOTTOM_CTA.sub} cta={AUDIT} note={AUDIT_BOTTOM_CTA.note} />
-      {/* SpeakableSpecification, as Recova emits it: the selectors point at
-          the classes product-sections-cap.tsx puts on the sections. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            speakableWebPageJsonLd(url, {
-              name: TITLE,
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        }}
-      />
     </div>
   );
 }

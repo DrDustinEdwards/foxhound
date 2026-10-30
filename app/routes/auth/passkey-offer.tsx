@@ -11,6 +11,7 @@ import { safeNextPath } from "~/lib/auth/next-path";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/passkey-offer";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /passkey, where an emailed sign-in link lands (app/lib/auth/sign-in-link.server.ts):
 // it offers a passkey, so the next sign-in has no email to wait for, and goes
@@ -19,7 +20,7 @@ import type { Route } from "./+types/passkey-offer";
 // ./sign-in), in the sign-in card.
 
 export function meta() {
-  return [{ title: "Add a passkey - Foxhound" }];
+  return [{ title: "Add a passkey - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {

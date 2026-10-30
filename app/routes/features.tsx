@@ -31,6 +31,7 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/features";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // /features (J60, row M10). Recova's spec is app/(marketing)/features/page.tsx
 // (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
@@ -96,12 +97,22 @@ function SectionInlineExample({ id }: { id: string }) {
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Features - Foxhound",
-    description: FEATURES_META_DESCRIPTION,
-    path: "/features",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  return [
+    ...marketingMeta({
+      title: "Features - Foxhound",
+      description: FEATURES_META_DESCRIPTION,
+      path: "/features",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+            { name: "Home", path: "/" },
+            { name: "Features", path: "/features" },
+          ])),
+        ]
+      : []),
+  ];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -110,7 +121,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, facts } = loaderData;
+  const { facts } = loaderData;
   const sections = useMemo(() => featureSections(facts), [facts]);
   const [filter, setFilter] = useState<FeatureFilterValue>("All");
   const all = sections.flatMap((s) => s.features);
@@ -184,18 +195,6 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </div>
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Features", path: "/features" },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

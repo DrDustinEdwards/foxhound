@@ -40,6 +40,7 @@ import {
 } from "~/lib/settings/brand-voice-presets";
 
 import type { Route } from "./+types/brand-voice";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S31, /settings/brand-voice.
 //
@@ -86,7 +87,7 @@ import type { Route } from "./+types/brand-voice";
 // divergence 1.
 
 export function meta() {
-  return [{ title: "Brand voice - Foxhound" }];
+  return [{ title: "Brand voice - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

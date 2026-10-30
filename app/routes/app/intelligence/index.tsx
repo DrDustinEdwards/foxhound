@@ -43,6 +43,7 @@ import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/
 import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/dashboard (row S16, job J67). Recova is the spec: its real
 // page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
@@ -72,7 +73,7 @@ import type { Route } from "./+types/index";
 // (TASK-seven-walked-pages.md): it is kept exactly as it was, after the summary.
 
 export function meta() {
-  return [{ title: "Intelligence - Foxhound" }];
+  return [{ title: "Intelligence - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
