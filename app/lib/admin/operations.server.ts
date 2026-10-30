@@ -205,6 +205,14 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // Merchant dispute evidence files (J07). Unset means uploads answer 503
     // uploads_unavailable and a submission goes to Stripe without files.
     ["EVIDENCE", "binding"],
+    // The blog's media library (Carrel uploads, /media/*). Unset means every
+    // media call and every /media file fails.
+    ["MEDIA", "binding"],
+    // Cloudflare Images: the blog pictures' sizes and Carrel's turns and
+    // shrinks. Unset means /media serves originals only.
+    ["IMAGES", "binding"],
+    // Workers AI: the media library's suggested alt text and tags only.
+    ["AI", "binding"],
     ["BETTER_AUTH_URL", "var"],
     ["TURNSTILE_SITE_KEY", "var"],
     ["BETTER_AUTH_SECRET", "secret"],

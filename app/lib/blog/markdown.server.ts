@@ -25,6 +25,8 @@ import type {} from "mdast-util-directive";
 import { visit } from "unist-util-visit";
 
 import type { Db } from "~/db";
+import { images, mediaKeyOf, mediaKeysIn, mediaUrl } from "~/lib/media/images";
+import { mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
 
 import { generateSlug } from "./format";
 import { resolvePostLink } from "./queries.server";
@@ -215,17 +217,50 @@ function foxhoundPack(db: Db): RenderPack {
   };
 }
 
-// The only images a post carries are the diagrams, which name their size
-// (<name>-<width>x<height>.svg) so the page reserves their space.
-async function resolveImage(src: string): Promise<{ width: number; height: number }> {
-  const size = /^\/diagrams\/[a-z0-9-]+-(\d+)x(\d+)\.svg$/.exec(src);
-  if (!size) {
-    throw new ContentError("post", `${src} is not an image this site serves; images live in public/diagrams as <name>-<width>x<height>.svg`);
-  }
-  return { width: Number(size[1]), height: Number(size[2]) };
+// A post's images are the hand-drawn diagrams, which name their size
+// (<name>-<width>x<height>.svg), and the media library's pictures, which the
+// library's index sizes (/media/<key>, app/lib/carrel/media-adapter.server.ts).
+// Either way the page reserves their space. A library picture is written with
+// site-runtime ./image's srcset and AVIF and WebP sources, at the post column's
+// width, and links to its original.
+const DIAGRAM = /^\/diagrams\/[a-z0-9-]+-(\d+)x(\d+)\.svg$/;
+
+type LibraryPicture = Pick<MediaRow, "key" | "width" | "height" | "focus">;
+
+function mediaOptions(pictures: Map<string, LibraryPicture>) {
+  const resolveImage = async (src: string): Promise<{ width: number; height: number }> => {
+    const size = DIAGRAM.exec(src);
+    if (size) return { width: Number(size[1]), height: Number(size[2]) };
+    const key = mediaKeyOf(src);
+    const picture = key ? pictures.get(key) : undefined;
+    if (picture?.width && picture.height) return { width: picture.width, height: picture.height };
+    throw new ContentError(
+      "post",
+      key
+        ? `${src} is not in the media library; upload it there first`
+        : `${src} is not an image this site serves; use a media library picture (/media/...) or a diagram in public/diagrams as <name>-<width>x<height>.svg`,
+    );
+  };
+  const imageProps = (src: string) => {
+    const key = mediaKeyOf(src);
+    const picture = key ? pictures.get(key) : undefined;
+    if (!picture) return null;
+    const attrs = images.attributes({ src: mediaUrl(picture.key), width: picture.width, height: picture.height, focus: picture.focus }, "content");
+    if (!attrs.srcset) return null;
+    return {
+      srcSet: attrs.srcset,
+      sizes: attrs.sizes,
+      href: mediaUrl(picture.key),
+      sources: attrs.sources.map((source) => ({ type: source.type, srcSet: source.srcset })),
+    };
+  };
+  return { resolveImage, media: { keyOf: mediaKeyOf, imageProps } };
 }
 
 export async function renderMarkdown(db: Db, body: string): Promise<{ html: string; toc: TocItem[] }> {
-  const { html, toc } = await render({ file: "post", body, resolveImage, options: { packs: [foxhoundPack(db)] } });
+  const keys = mediaKeysIn(body);
+  const pictures = new Map((keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]));
+  const { resolveImage, media } = mediaOptions(pictures);
+  const { html, toc } = await render({ file: "post", body, resolveImage, options: { packs: [foxhoundPack(db)], media } });
   return { html, toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })) };
 }

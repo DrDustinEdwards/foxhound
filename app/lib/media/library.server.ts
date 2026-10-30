@@ -1,0 +1,189 @@
+import { NotFoundError, RefusedError, sha256Hex } from "@dustinedwards/site-api";
+import { replaceObject, type R2BucketLike } from "@dustinedwards/site-api/r2";
+
+import type { Db } from "~/db";
+import { generateSlug } from "~/lib/blog/format";
+
+import { EXTENSIONS, UPLOAD_KEY } from "./images";
+import {
+  addRevision,
+  deleteMediaRowAtRev,
+  deleteRevisionsOf,
+  insertMediaRow,
+  keepRevision,
+  mediaRow,
+  revisionsOf,
+  writeMediaAtRev,
+  type MediaFields,
+  type MediaRow,
+} from "./store.server";
+
+// The media library's bytes: the one place an object in MEDIA is written or
+// removed, and its index row and byte history with it. A file's current bytes
+// are the object at its key; every earlier set is copied to
+// `revisions/<key>/<revision id>` before it is overwritten, a key the public
+// route never serves (UPLOAD_KEY), so a turn, a replace or a shrink can be taken
+// back. Deleting a file removes its object, its copies and its rows.
+
+export type RevisionReason = "upload" | "import" | "replace" | "transform" | "resize" | "revert";
+
+type MediaEnv = Pick<Env, "MEDIA" | "IMAGES">;
+
+/** The binding's `put` takes a wider `onlyIf` than the helpers' narrow interface names; the shapes they use agree. */
+const bucketOf = (env: MediaEnv) => env.MEDIA as unknown as R2BucketLike;
+
+const copyKeyOf = (key: string, revision: number) => `revisions/${key}/${revision}`;
+
+/** A view's bytes as a fresh ArrayBuffer, not `bytes.buffer`, which may be a larger allocation than the view. */
+function bufferOf(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+/** The picture's size as the Images binding reads it; null for bytes it cannot measure. */
+export async function measure(env: MediaEnv, bytes: Uint8Array): Promise<{ width: number; height: number } | null> {
+  try {
+    const info = await env.IMAGES.info(new Blob([bufferOf(bytes)]).stream());
+    return "width" in info && info.width > 0 && info.height > 0 ? { width: info.width, height: info.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `<year>/<month>/<name>-<first 8 of the hash>.<ext>`, a few more hash characters on a clash. */
+async function freshKey(db: Db, filename: string, sha256: string, contentType: string): Promise<string> {
+  const now = new Date();
+  const month = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const name = generateSlug(filename.replace(/\.[^.]*$/, "")).slice(0, 60).replace(/^-+|-+$/g, "") || "picture";
+  for (const length of [8, 12, 16, 64]) {
+    const key = `${month}/${name}-${sha256.slice(0, length)}.${EXTENSIONS[contentType]}`;
+    if (!UPLOAD_KEY.test(key)) throw new RefusedError(`${filename} cannot be stored under a library address.`);
+    if (!(await mediaRow(db, key))) return key;
+  }
+  throw new RefusedError("A file with these bytes is already stored under every address this upload could take.");
+}
+
+/**
+ * Stores new bytes as a new file: the object first, then its row and its
+ * revisions. `original` is what an upload was before it was shrunk: its copy is
+ * kept as the file's first revision, so the shrink can be reverted.
+ */
+export async function storeFile(
+  env: MediaEnv,
+  db: Db,
+  input: {
+    bytes: Uint8Array;
+    contentType: string;
+    filename: string;
+    reason: "upload" | "import";
+    fields: MediaFields;
+    original?: { bytes: Uint8Array; width: number; height: number; sha256: string };
+  },
+): Promise<MediaRow> {
+  const size = await measure(env, input.bytes);
+  if (!size) throw new RefusedError(`${input.filename} could not be read as a picture.`);
+  const sha256 = await sha256Hex(input.bytes);
+  const key = await freshKey(db, input.filename, sha256, input.contentType);
+  await env.MEDIA.put(key, bufferOf(input.bytes), { httpMetadata: { contentType: input.contentType } });
+  const at = new Date();
+  await insertMediaRow(db, {
+    ...input.fields,
+    key,
+    filename: input.filename.slice(0, 300),
+    contentType: input.contentType,
+    bytes: input.bytes.byteLength,
+    width: size.width,
+    height: size.height,
+    sha256,
+    uploadedAt: at,
+  });
+  const { original } = input;
+  if (original) {
+    const first = await addRevision(db, {
+      mediaKey: key,
+      at,
+      bytes: original.bytes.byteLength,
+      width: original.width,
+      height: original.height,
+      reason: input.reason,
+      sha256: original.sha256,
+    });
+    const copyKey = copyKeyOf(key, first);
+    await env.MEDIA.put(copyKey, bufferOf(original.bytes), { httpMetadata: { contentType: input.contentType } });
+    await keepRevision(db, first, copyKey);
+  }
+  await addRevision(db, { mediaKey: key, at, bytes: input.bytes.byteLength, ...size, reason: original ? "resize" : input.reason, sha256 });
+  const row = await mediaRow(db, key);
+  if (!row) throw new Error(`${key} was stored, but its index row cannot be read`);
+  return row;
+}
+
+/**
+ * Puts new bytes under a file's key as its newest revision, the current ones
+ * copied first. The caller has already claimed the version (writeMediaAtRev at
+ * the version the editor loaded), so a stale writer never reaches here.
+ * `fields` are index columns that follow the bytes (the focal point).
+ */
+export async function swapBytes(
+  env: MediaEnv,
+  db: Db,
+  row: MediaRow,
+  next: { bytes: Uint8Array; contentType: string; width: number | null; height: number | null; reason: RevisionReason },
+  fields: MediaFields = {},
+): Promise<MediaRow> {
+  const current = await env.MEDIA.get(row.key);
+  if (!current) throw new NotFoundError("No such media.");
+  const [latest] = await revisionsOf(db, row.key);
+  const revision =
+    latest?.id ??
+    (await addRevision(db, { mediaKey: row.key, at: row.uploadedAt, bytes: row.bytes, width: row.width, height: row.height, reason: "upload", sha256: row.sha256 }));
+  const copyKey = copyKeyOf(row.key, revision);
+  await env.MEDIA.put(copyKey, await current.arrayBuffer(), { httpMetadata: current.httpMetadata });
+  await keepRevision(db, revision, copyKey);
+
+  await replaceObject(bucketOf(env), row.key, { bytes: next.bytes, contentType: next.contentType });
+  const sha256 = await sha256Hex(next.bytes);
+  await addRevision(db, { mediaKey: row.key, at: new Date(), bytes: next.bytes.byteLength, width: next.width, height: next.height, reason: next.reason, sha256 });
+  await writeMediaAtRev(db, row.key, { bytes: next.bytes.byteLength, width: next.width, height: next.height, sha256, ...fields });
+  const after = await mediaRow(db, row.key);
+  if (!after) throw new Error(`${row.key} was rewritten, but its index row cannot be read`);
+  return after;
+}
+
+/** The history as the contract answers it, newest first, exactly one current. */
+export async function historyOf(db: Db, row: MediaRow) {
+  const revisions = await revisionsOf(db, row.key);
+  return revisions.map((r, n) => ({
+    rev: String(r.id),
+    at: r.at.toISOString(),
+    bytes: r.bytes,
+    width: r.width && r.width > 0 ? r.width : null,
+    height: r.height && r.height > 0 ? r.height : null,
+    reason: r.reason as RevisionReason,
+    current: n === 0,
+  }));
+}
+
+/** The bytes an earlier revision kept, or null for one this file never had or whose copy is gone. */
+export async function revisionBytes(env: MediaEnv, db: Db, key: string, rev: string) {
+  const revision = (await revisionsOf(db, key)).find((r) => String(r.id) === rev);
+  if (!revision?.copyKey) return null;
+  const kept = await env.MEDIA.get(revision.copyKey);
+  if (!kept) return null;
+  return { revision, bytes: new Uint8Array(await kept.arrayBuffer()) };
+}
+
+/**
+ * Deletes a file for good: its row first, and only at the version the
+ * reference check saw, then its object, the copies of its earlier bytes and
+ * their rows. False when the row moved in between, so nothing was deleted.
+ */
+export async function removeFile(env: MediaEnv, db: Db, row: MediaRow): Promise<boolean> {
+  const revisions = await revisionsOf(db, row.key);
+  if (!(await deleteMediaRowAtRev(db, row.key, row.rev))) return false;
+  const copies = revisions.flatMap((r) => (r.copyKey ? [r.copyKey] : []));
+  await env.MEDIA.delete([row.key, ...copies]);
+  await deleteRevisionsOf(db, row.key);
+  return true;
+}

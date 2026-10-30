@@ -120,8 +120,31 @@
       // Bucket created by Dustin 2026-10-18.
       "binding": "EVIDENCE",
       "bucket_name": "foxhound-dispute-evidence"
+    },
+    {
+      // The blog's media library: the pictures Carrel uploads for posts, served
+      // publicly at /media/<key> (app/routes/files/media.ts), plus the earlier
+      // bytes of each one under revisions/, which that route never serves. A
+      // bucket of its own because neither one above may hold public files: the
+      // backups are full D1 dumps and the evidence is merchants' private files.
+      // THE BUCKET MUST EXIST BEFORE THIS DEPLOYS (a merge to main deploys).
+      "binding": "MEDIA",
+      "bucket_name": "foxhound-media"
     }
   ],
+  // Cloudflare Images, through site-runtime ./image only: the blog's responsive
+  // sizes (a closed width set, so every billed transform is one the page links),
+  // and the turns, mirrors and shrinks an editor asks for in Carrel.
+  "images": {
+    "binding": "IMAGES"
+  },
+  // Workers AI, for the media library's suggested alt text and tags only
+  // (app/lib/media/suggest.server.ts): run when an editor opens a picture's
+  // suggestions in Carrel, on the blog pictures Carrel uploaded and nothing
+  // else. No merchant data is ever sent.
+  "ai": {
+    "binding": "AI"
+  },
   // NO KV BINDING, deliberately. The APP_KV binding was REMOVED 2026-08-15 by
   // ruling 310, after `env.APP_KV` measured ZERO consumers across app/ and
   // workers/: it was bound here and enumerated on the env-sanity surface while

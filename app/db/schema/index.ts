@@ -26,3 +26,4 @@ export * from "./intelligence";
 export * from "./audit";
 export * from "./platform";
 export * from "./content";
+export * from "./media";

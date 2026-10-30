@@ -853,6 +853,9 @@ body {
 .blog-prose img {
   border-radius: 10px;
   max-width: 100%;
+  /* A media library picture carries its width and height, so the page keeps
+     its space; auto keeps its shape when the column is narrower. */
+  height: auto;
   margin: 1.5rem 0;
 }
 .blog-prose hr {

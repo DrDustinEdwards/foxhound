@@ -6,6 +6,7 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { indexNow } from "~/lib/seo/indexnow.server";
 
 import { carrelAdapter } from "./adapter.server";
+import { carrelMediaAdapter } from "./media-adapter.server";
 
 // Mounts site-api at /api/carrel/v1 (job_cbe1b96107fc). The guard order is the
 // package's: prefix, rate limit, key, route. CARREL_SITE_KEY is a separate,
@@ -33,8 +34,10 @@ function carrelLimiter(env: Env): RateLimiter {
  *  The IndexNow hook runs after a write that changes a public page and after
  *  each schedule the cron applies (job_b0b24df12155). */
 function carrelSiteApi(env: Env): SiteApi {
+  const db = getDb(env);
   return createSiteApi({
-    adapter: carrelAdapter(getDb(env), d1ScheduledUpdates(env.DB)),
+    // The blog's media library rides beside the posts (media-adapter.server.ts).
+    adapter: { ...carrelAdapter(db, d1ScheduledUpdates(env.DB)), media: carrelMediaAdapter(env, db) },
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
     hooks: [indexNow],

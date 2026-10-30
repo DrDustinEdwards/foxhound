@@ -48,8 +48,9 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 // waiting. The cron calls the package's runSchedules, which
 // lists due rows here and applies each one (app/lib/cron/registry.ts).
 //
-// Media is omitted (Foxhound stores no uploaded images, covers are URLs), so the
-// media routes answer 501.
+// The media group is media-adapter.server.ts (the blog's media library), joined
+// to this adapter in handler.server.ts. Cover addresses stay as they are:
+// Carrel's post source does not carry them.
 
 const CARREL_SITE = {
   id: "foxhound",
