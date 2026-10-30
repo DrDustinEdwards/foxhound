@@ -38,8 +38,8 @@ import { resolveThemePreference, THEME_COOKIE } from "~/lib/theme";
 /** Anything not matched below is PRIVATE. The default is the safe one. */
 export type CacheClass = "marketing" | "docs" | "blog" | "files" | "private";
 
-/**
- * The classes whose pages the edge stores (site-runtime ./edge-cache): every
+/*
+ * The classes whose pages the edge stores: marketing, docs and blog (site-runtime ./edge-cache). Every
  * one is rendered the same for every anonymous reader. Stored a day and served
  * stale a week while it re-renders (publicPageHeaders), tagged "pages". That is
  * safe because every deploy starts cold (`cross_version_cache` stays false, so
@@ -47,7 +47,6 @@ export type CacheClass = "marketing" | "docs" | "blog" | "files" | "private";
  * schedule purges the tag (workers/app.ts, app/lib/carrel/handler.server.ts).
  * The browser keeps nothing (max-age=0), because a purge cannot reach it.
  */
-const EDGE_PAGE_CLASSES: ReadonlySet<CacheClass> = new Set(["marketing", "docs", "blog"]);
 
 /**
  * The directive for a files route that sets none of its own (the card route).
