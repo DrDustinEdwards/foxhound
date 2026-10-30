@@ -510,7 +510,17 @@ const READ_TOOLS: McpTool[] = [
       // The voice samples are left out: they are the merchant's past emails to
       // customers, greeting them by name, kept as one JSON string the field
       // redactor cannot see into, and no writer here takes them back.
-      const brand_voice = voices === null ? null : (({ samples: _samples, ...rest }) => rest)(voices);
+      const brand_voice =
+        voices === null
+          ? null
+          : {
+              id: voices.id,
+              general: voices.general,
+              soft: voices.soft,
+              expired: voices.expired,
+              network: voices.network,
+              fraud: voices.fraud,
+            };
       return {
         audit,
         features: {
