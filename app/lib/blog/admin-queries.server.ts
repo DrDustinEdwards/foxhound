@@ -97,7 +97,7 @@ export interface UpdatePostInput {
  *  saves the PRE-edit state as a version snapshot and prunes versions beyond
  *  BLOG_VERSION_RETENTION. The guard sits in the UPDATE itself, so of two saves
  *  from the same version the second finds nothing to update and returns false
- *  instead of overwriting the first (EmDash 1.4.0, emdash-cms/emdash#4286).
+ *  instead of overwriting the first (EmDash 1.4.0, emdash-cms/emdash PR 4286).
  *  Plain operational writes (not a money write - content editing, no DO),
  *  matching the operational-write precedent (gotcha #25) elsewhere in this codebase. */
 export async function updatePostWithVersion(
