@@ -1,4 +1,5 @@
 import type { CloudflareOptions, Event } from "@sentry/cloudflare";
+import { DROPPED_FIELD, scrubText, scrubUrl } from "@dustinedwards/site-runtime/log";
 
 // J05 (job_f1f5ebd7fe50): the Sentry posture, set before Dustin puts in
 // SENTRY_DSN. With no DSN this returns undefined and the SDK initializes
@@ -19,36 +20,15 @@ import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 //
 // Sentry never wraps the money Durable Object.
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-// DrizzleQueryError's message is "Failed query: <sql>\nparams: <values>".
-const DRIZZLE_PARAMS = /\nparams: [\s\S]*$/;
-// Routes whose last segment is one person's token (app/routes.ts).
+// The scrubbers are site-runtime's, shared with every site's logs; Foxhound adds
+// its token routes (app/routes.ts), whose last segment is one person's token.
 const TOKEN_PATH = /\/(u|p|e\/[och]|invite)\/[^/?#\s'"]+/g;
-// The query string or fragment of a full URL inside free text.
-const TEXT_URL_QUERY = /(https?:\/\/[^\s?#'"]*)[?#][^\s'"]*/g;
-// The query string or fragment of a field that holds only a URL or path.
-const URL_QUERY = /[?#]\S*/g;
-// Stripe secret, restricted and webhook-signing keys, should one reach an error message.
-const STRIPE_KEY = /\b(sk|rk)_(live|test)_[A-Za-z0-9]+|\bwhsec_[A-Za-z0-9]+/g;
-// Data keys that hold a query string, request headers, cookies, or raw console
-// arguments (the Console integration keeps them unformatted beside the message).
-const DROP_KEY = /query|header|cookie|arguments/i;
 
-function scrubText(text: string): string {
-  return text
-    .replace(DRIZZLE_PARAMS, "\nparams: [redacted]")
-    .replace(TEXT_URL_QUERY, "$1")
-    .replace(STRIPE_KEY, "[key]")
-    .replace(EMAIL, "[email]")
-    .replace(TOKEN_PATH, "/$1/[token]");
-}
-
-function scrubUrl(url: string): string {
-  return scrubText(url.replace(URL_QUERY, ""));
-}
+const cutText = (text: string): string => scrubText(text, { tokenPath: TOKEN_PATH });
+const cutUrl = (url: string): string => scrubUrl(url, { tokenPath: TOKEN_PATH });
 
 function scrubValue(key: string, value: unknown): unknown {
-  if (typeof value === "string") return /url|path/i.test(key) ? scrubUrl(value) : scrubText(value);
+  if (typeof value === "string") return /url|path/i.test(key) ? cutUrl(value) : cutText(value);
   if (Array.isArray(value)) return value.map((v) => scrubValue(key, v));
   if (value && typeof value === "object") {
     scrubData(value as Record<string, unknown>);
@@ -60,23 +40,23 @@ function scrubValue(key: string, value: unknown): unknown {
 function scrubData(data: Record<string, unknown> | undefined): void {
   if (!data) return;
   for (const key of Object.keys(data)) {
-    if (DROP_KEY.test(key)) delete data[key];
+    if (DROPPED_FIELD.test(key)) delete data[key];
     else data[key] = scrubValue(key, data[key]);
   }
 }
 
 function scrubEvent<T extends Event>(event: T): T {
-  if (event.message) event.message = scrubText(event.message);
-  if (event.transaction) event.transaction = scrubUrl(event.transaction);
+  if (event.message) event.message = cutText(event.message);
+  if (event.transaction) event.transaction = cutUrl(event.transaction);
   for (const ex of event.exception?.values ?? []) {
-    if (ex.value) ex.value = scrubText(ex.value);
+    if (ex.value) ex.value = cutText(ex.value);
   }
   for (const crumb of event.breadcrumbs ?? []) {
-    if (crumb.message) crumb.message = scrubText(crumb.message);
+    if (crumb.message) crumb.message = cutText(crumb.message);
     scrubData(crumb.data);
   }
   if (event.request) {
-    if (event.request.url) event.request.url = scrubUrl(event.request.url);
+    if (event.request.url) event.request.url = cutUrl(event.request.url);
     delete event.request.query_string;
     delete event.request.cookies;
     delete event.request.headers;
@@ -86,7 +66,7 @@ function scrubEvent<T extends Event>(event: T): T {
   // request header into the trace context, on errors and transactions alike.
   scrubData(event.contexts?.trace?.data as Record<string, unknown> | undefined);
   for (const span of event.spans ?? []) {
-    if (span.description) span.description = scrubUrl(span.description);
+    if (span.description) span.description = cutUrl(span.description);
     scrubData(span.data as Record<string, unknown> | undefined);
   }
   delete event.user;
