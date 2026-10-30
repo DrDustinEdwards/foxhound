@@ -38,7 +38,8 @@ vi.mock("~/lib/email/dispatch", () => ({
 const { buildFeatureSettingsUpdate } = await import("~/lib/settings/persist.server");
 const { runWinbackSends } = await import("~/lib/cron/winback");
 const { sendExpiringCardAlerts } = await import("~/lib/cron/expiring-cards");
-const featuresRoute = await import("~/routes/app/settings/features");
+// The two switches are on /settings/email since 2026-10-29 (once /settings/features).
+const featuresRoute = await import("~/routes/app/settings/email");
 
 const ACCOUNT = "acct_1";
 const NOW = new Date("2026-11-02T12:00:00Z");
@@ -190,11 +191,12 @@ describe("PLANT 6: the PAGE itself, loader and action", () => {
     // A checkbox posts its name only when checked, so this form turns win-back
     // ON and leaves expiring-card OFF.
     const form = new FormData();
+    form.set("_action", "features");
     form.set("winbackNotificationsEnabled", "on");
 
     await featuresRoute.action({
       context: routeContext(),
-      request: new Request("https://foxhoundapp.test/settings/features", {
+      request: new Request("https://foxhoundapp.test/settings/email", {
         method: "POST",
         body: form,
       }),
@@ -206,11 +208,12 @@ describe("PLANT 6: the PAGE itself, loader and action", () => {
 
   it("and the other field alone, so neither name is wired to both", async () => {
     const form = new FormData();
+    form.set("_action", "features");
     form.set("expiringCardNotificationsEnabled", "on");
 
     await featuresRoute.action({
       context: routeContext(),
-      request: new Request("https://foxhoundapp.test/settings/features", {
+      request: new Request("https://foxhoundapp.test/settings/email", {
         method: "POST",
         body: form,
       }),

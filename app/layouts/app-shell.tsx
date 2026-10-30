@@ -10,8 +10,8 @@ import {
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
 import {
+  ArrowLeft,
   BarChart3,
-  Bell,
   CalendarClock,
   CreditCard,
   FileText,
@@ -36,6 +36,7 @@ import "capsomer/button.css";
 import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
+import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
 import { RouteSplash } from "~/components/route-splash";
 import { ACCOUNT_SWITCH_URL, businessSwitcher, DEMO_ACCOUNT_SWITCH_URL } from "~/components/nav/account-switcher";
 import {
@@ -173,11 +174,9 @@ const ICONS: Record<string, LucideIcon> = {
   "/intelligence/customers": Users,
   "/intelligence/recommendations": Lightbulb,
   "/intelligence/churn": TrendingDown,
-  "/intelligence/alerts": Bell,
   "/intelligence/reports": FileText,
   "/settings": Settings,
   "/billing": Receipt,
-  "/settings/team": Users,
 };
 
 function icon(href: string) {
@@ -191,10 +190,6 @@ function productPages(key: ProductKey): ProductNavLink[] {
   const product = PRODUCT_MANIFEST[key];
   return product.links.length > 0 ? product.links : [{ label: "Overview", to: product.href }];
 }
-
-// The menu's Account group: the three account pages the mockup's dashboard
-// lists. Every other settings page stays in the avatar menu, as the gear had it.
-const ACCOUNT_PAGES = ["Settings", "Billing", "Team"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label));
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const {
@@ -222,9 +217,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // bare state check would blank this page during every money action.
   const splash = shouldShowRouteSplash(useNavigation());
 
-  // The menu: the product you are in, its pages; then your account's pages. On
-  // a platform page (settings, billing, help) the product is the last one you
-  // visited, as the switcher already says.
+  // The menu: the product you are in and its pages. On a settings page it is
+  // the settings list instead, under a row back to the product, so a settings
+  // page has one menu and not two side by side (Dustin 2026-10-29). Settings,
+  // Billing and Team are in the avatar menu. On another platform page (billing,
+  // help) the product is the last one you visited, as the switcher already says.
   const pages = productPages(nav.activeProductKey);
   // A one-page product (Disputes) marks its one row on every page under it, as
   // it did when that row's href was the product's prefix (before J09 moved it
@@ -232,25 +229,30 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const currentPage = nav.isPlatformPage
     ? undefined
     : (currentRow(pathname, pages) ?? (pages.length === 1 ? pages[0] : undefined));
-  const currentAccountPage = currentRow(pathname, ACCOUNT_PAGES);
-  const menu: AdminEntry[] = [
-    ...pages.map((l) => ({
-      id: l.to,
-      label: l.label,
-      href: l.to,
-      group: activeProduct.label,
-      icon: icon(l.to),
-      current: l === currentPage,
-    })),
-    ...ACCOUNT_PAGES.map((l) => ({
-      id: l.to,
-      label: l.label,
-      href: l.to,
-      group: "Account",
-      icon: icon(l.to),
-      current: l === currentAccountPage,
-    })),
-  ];
+  const inSettings = pathname === "/settings" || pathname.startsWith("/settings/");
+  const menu: AdminEntry[] = inSettings
+    ? [
+        { id: "back", label: `Back to ${activeProduct.label}`, href: activeProduct.href, icon: <ArrowLeft className="cap-admin-icon" aria-hidden />, group: "Settings" },
+        { id: "/settings", label: "Overview", href: "/settings", icon: <LayoutDashboard className="cap-admin-icon" aria-hidden />, group: "Settings", current: pathname === "/settings" },
+        ...SETTINGS_NAV_GROUPS.flatMap((g) =>
+          g.items.map(({ to, label, icon: Icon }) => ({
+            id: to,
+            label,
+            href: to,
+            group: g.label,
+            icon: <Icon className="cap-admin-icon" aria-hidden />,
+            current: isSettingsItemActive(pathname, to),
+          })),
+        ),
+      ]
+    : pages.map((l) => ({
+        id: l.to,
+        label: l.label,
+        href: l.to,
+        group: activeProduct.label,
+        icon: icon(l.to),
+        current: l === currentPage,
+      }));
 
   // The page bar's name: the page you are on, said once. A page that sits under
   // a menu row without being that row's page (one dispute, under Disputes)

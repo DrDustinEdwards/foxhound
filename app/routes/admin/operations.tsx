@@ -6,6 +6,7 @@ import { Spinner } from "capsomer/react/skeleton";
 import { Status } from "capsomer/react/status";
 import "capsomer/meter.css";
 
+import { AdminMcpPanels } from "~/components/admin-mcp-panels";
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -17,6 +18,7 @@ import {
   OPERATIONS_PATH,
   settingKindWord,
 } from "~/lib/admin/operations";
+import { loadMcpOverview } from "~/lib/admin/mcps.server";
 import { plural } from "~/lib/admin/overview";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import {
@@ -43,12 +45,13 @@ export async function loader({ context }: Route.LoaderArgs) {
   // One clock for the queue's due steps and the locks' leases.
   const now = Date.now();
 
-  const [queue, locks, sizeBytes, migrations, growthTables] = await Promise.all([
+  const [queue, locks, sizeBytes, migrations, growthTables, mcp] = await Promise.all([
     getRecoveryQueueDepth(db, now),
     readCronLocks(env, now),
     getD1SizeBytes(env),
     getMigrationStatus(env),
     getGrowthTableCounts(db),
+    loadMcpOverview(db),
   ]);
 
   return {
@@ -58,6 +61,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     migrations,
     growthTables,
     envSanity: getEnvSanity(env),
+    mcp,
   };
 }
 
@@ -78,9 +82,10 @@ const figure = (n: number) => n.toLocaleString("en-US");
 // Its global pause is the Brake page and is not repeated (ruling 406 binding 3);
 // its run-now panel stays out (ruling 406 binding 5); its Vercel redeploy hook
 // has no Cloudflare counterpart. Foxhound's own four panels follow: database
-// size, table growth, migrations and settings. Read only.
+// size, table growth, migrations and settings, then the MCP servers (once
+// /admin/mcps). Read only.
 export default function AdminOperations({ loaderData }: Route.ComponentProps) {
-  const { queue, locks, sizeBytes, migrations, growthTables, envSanity } = loaderData;
+  const { queue, locks, sizeBytes, migrations, growthTables, envSanity, mcp } = loaderData;
   const pending = pagePending(useNavigation(), useRevalidator().state, OPERATIONS_PATH);
   const spinner = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
   const share = sizeBytes / D1_CAP_BYTES;
@@ -298,6 +303,10 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
           </table>
         </div>
       </Panel>
+
+      {/* Once /admin/mcps, folded in here (Dustin, 2026-10-29). */}
+      <h2 className="m-0 mt-4 text-heading font-semibold text-text">MCP servers</h2>
+      <AdminMcpPanels data={mcp} spinner={spinner} />
     </div>
   );
 }

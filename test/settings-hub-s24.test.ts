@@ -13,7 +13,7 @@ import { SETTINGS_HUB_ENTRIES } from "~/routes/app/settings/hub";
 // under 336 binding 2.
 //
 // THE ASSERTION THAT MATTERS IS "NO DEAD LINK". Legacy has twelve entries and
-// Foxhound has eleven targets (J69 added /settings/intelligence); an entry to a route that 404s is a false promise,
+// Foxhound has nine (three were combined into others, 2026-10-29); an entry to a route that 404s is a false promise,
 // so the hub and the sub-nav are both checked against the ROUTE TABLE rather
 // than against a list in this file.
 
@@ -74,13 +74,11 @@ describe("PLANT 4: every settings path the docs name resolves", () => {
     // as URLs, so the check is that each named destination has a route.
     const named: [string, string][] = [
       ["Settings and Notifications", "/settings/notifications"],
-      ["Settings and Alerts", "/settings/alerts"],
       ["Settings and API keys", "/settings/api-keys"],
       ["Settings and Team", "/settings/team"],
       ["Settings and Brand voice", "/settings/brand-voice"],
       ["Settings and Email", "/settings/email"],
       ["Settings and My account", "/settings/account"],
-      ["features page", "/settings/features"],
       ["notifications page", "/settings/notifications"],
     ];
     for (const [phrase, path] of named) {

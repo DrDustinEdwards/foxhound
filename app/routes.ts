@@ -129,7 +129,6 @@ export default [
       route("customers/:id", "./routes/app/intelligence/customer.tsx"),
       route("recommendations", "./routes/app/intelligence/recommendations.tsx"),
       route("churn", "./routes/app/intelligence/churn.tsx"),
-      route("alerts", "./routes/app/intelligence/alerts.tsx"),
       route("reports", "./routes/app/intelligence/reports.tsx"),
     ]),
     ...prefix("billing", [
@@ -145,12 +144,9 @@ export default [
         route("stripe", "./routes/app/settings/stripe.tsx"),
         route("email", "./routes/app/settings/email.tsx"),
         route("brand-voice", "./routes/app/settings/brand-voice.tsx"),
-        route("features", "./routes/app/settings/features.tsx"),
         route("disputes", "./routes/app/settings/disputes.tsx"),
-        route("intelligence", "./routes/app/settings/intelligence.tsx"),
         route("audit", "./routes/app/settings/audit.tsx"),
         route("notifications", "./routes/app/settings/notifications.tsx"),
-        route("alerts", "./routes/app/settings/alerts.tsx"),
         route("team", "./routes/app/settings/team.tsx"),
         route("api-keys", "./routes/app/settings/api-keys.tsx"),
         route("account", "./routes/app/settings/account.tsx"),
@@ -205,7 +201,6 @@ export default [
       // (RULES.md 7.4, Q7 and Q8). It writes posts through the Carrel site
       // adapter (app/lib/carrel/adapter.server.ts); /blog still reads them.
       route("staged", "./routes/admin/staged.tsx"),
-      route("mcps", "./routes/admin/mcps.tsx"),
       // "View as merchant" (Recova's Impersonate, read-only): POST starts a
       // 30-minute view and lands in the merchant's app; Stop, linked from the
       // app's banner, ends it. Both behind Access like every /admin route.
@@ -275,6 +270,12 @@ export default [
   route("user-guides", "./routes/redirects/recova-config.ts", { id: "recova-redirect-user-guides" }),
   route("user-guides/*", "./routes/redirects/recova-config.ts", { id: "recova-redirect-user-guides-splat" }),
   route("sitemap_index.xml", "./routes/redirects/recova-config.ts", { id: "recova-redirect-sitemap-index" }),
+  // Pages combined into others (Dustin, 2026-10-29): the old addresses redirect.
+  route("settings/alerts", "./routes/redirects/moved-page.ts", { id: "moved-settings-alerts" }),
+  route("settings/intelligence", "./routes/redirects/moved-page.ts", { id: "moved-settings-intelligence" }),
+  route("settings/features", "./routes/redirects/moved-page.ts", { id: "moved-settings-features" }),
+  route("intelligence/alerts", "./routes/redirects/moved-page.ts", { id: "moved-intelligence-alerts" }),
+  route("admin/mcps", "./routes/redirects/moved-page.ts", { id: "moved-admin-mcps" }),
 
   // Auth callback (resource route, no shell)
   route("auth/google/callback", "./routes/auth/google-callback.ts"),

@@ -3,7 +3,6 @@ import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
-import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -15,13 +14,21 @@ import "capsomer/switch.css";
 // page whole under any layout, as /settings/api-keys does.
 import "~/site-header.css";
 
+import { AlertsSection } from "~/components/alerts-section";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { ToggleRow } from "~/components/settings-toggle-row";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { syncPlatformCustomerEmail } from "~/lib/billing/platform-customer";
+import {
+  ALERT_INTENTS,
+  answerAlertsAction,
+  loadAlertsSection,
+  type AlertActionResult,
+} from "~/lib/settings/alerts-section.server";
 import { applyNotificationSettings } from "~/lib/settings/apply.server";
 import {
   SLACK_WEBHOOK_ERROR,
@@ -101,6 +108,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
+  const alertsSection = loadAlertsSection(db, auth.membership.accountId);
   const [row] = await db
     .select({
       notificationEmail: accounts.notificationEmail,
@@ -125,6 +133,9 @@ export async function loader({ context }: Route.LoaderArgs) {
     recoveryNotificationsEnabled: row?.recoveryNotificationsEnabled ?? NULL_IS_ON,
     sequenceCompleteNotificationsEnabled:
       row?.sequenceCompleteNotificationsEnabled ?? NULL_IS_ON,
+    // The alerts, once /settings/alerts, under the delivery settings
+    // (Dustin, 2026-10-29).
+    alerts: await alertsSection,
   };
 }
 
@@ -146,6 +157,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const form = await request.formData();
+
+  // The alerts' own forms carry an intent; the delivery form carries none.
+  const intent = String(form.get("_action") ?? "");
+  if ((ALERT_INTENTS as readonly string[]).includes(intent)) {
+    return answerAlertsAction(getDb(env), auth.membership.accountId, form, intent);
+  }
 
   // THE WEBHOOK RULE AND THE SIX COLUMNS live in apply.server.ts, shared with
   // the MCP `set_notification_settings` tool, so an agent sees the same
@@ -252,49 +269,13 @@ function TextField({
   );
 }
 
-/** One of Recova's toggle rows: the label and its line on the left, the
- *  switch on the right, a rule above. The switch is named by the row's label
- *  and described by its line. */
-function ToggleRow({
-  name,
-  label,
-  help,
-  defaultChecked,
-}: {
-  name: string;
-  label: string;
-  help: string;
-  defaultChecked: boolean;
-}) {
-  const base = useId();
-  const labelId = `${base}-label`;
-  const helpId = `${base}-help`;
-  return (
-    <div className="border-t border-border py-4">
-      <div className="cap-field" data-orientation="horizontal">
-        <div className="cap-field-content">
-          <span className="cap-field-title" id={labelId}>
-            {label}
-          </span>
-          <p className="cap-field-description" id={helpId}>
-            {help}
-          </p>
-        </div>
-        <Switch
-          name={name}
-          label={null}
-          defaultChecked={defaultChecked}
-          aria-labelledby={labelId}
-          aria-describedby={helpId}
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function NotificationSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const busy = useNavigation().state !== "idle";
-  const result = actionData as ActionResult | undefined;
+  const navigation = useNavigation();
+  // An alert's toggle or delete is not a save of this form.
+  const busy = navigation.state !== "idle" && !navigation.formData?.has("_action");
+  const posted = actionData as (ActionResult & { action?: string }) | undefined;
+  const alertResult = posted?.action ? (posted as AlertActionResult) : undefined;
+  const result = posted?.action ? undefined : posted;
   const webhookError = result?.field === "slackWebhookUrl" ? result.error : undefined;
   const otherError = result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
@@ -304,7 +285,7 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
       {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
           keeps that space without styling Capsomer's head. */}
       <div className="mb-8">
-        <PageHead title="Notifications" lead="Email, Slack, and digest delivery preferences." />
+        <PageHead title="Notifications" lead="Email, Slack, and digest delivery preferences, and alerts on your metrics." />
       </div>
 
       <DemoGuardedForm method="post">
@@ -372,6 +353,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
           </Button>
         </div>
       </DemoGuardedForm>
+
+      <AlertsSection data={loaderData.alerts} result={alertResult} />
     </>
   );
 }

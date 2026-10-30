@@ -76,17 +76,10 @@ function isOn(pathname: string, to: string, end = false): boolean {
  *  (Dustin's answer 3), each on the route the gear linked to. The gear's other
  *  rows (Notifications, Features, Stripe connections, My account) are each one
  *  row of the Settings hub, so no page loses its way in. */
-const BUSINESS_ROW_LABELS = [
-  "Settings",
-  "Billing",
-  "Team",
-  "Audit settings",
-  "Audit history",
-  "Email settings",
-  "Alerts",
-  "API keys",
-  "Brand voice",
-] as const;
+// Recova's GearMenu rows. Every settings page is in the settings sidebar, so
+// the avatar menu stays short (Dustin 2026-10-29: "why is the drop down menu
+// so huge").
+const BUSINESS_ROW_LABELS = ["Settings", "Billing"] as const;
 
 export function businessRows(hasAccount: boolean) {
   return BUSINESS_ROW_LABELS.flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)).filter(
