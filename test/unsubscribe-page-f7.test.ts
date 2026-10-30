@@ -59,6 +59,17 @@ const callLoader = async (env: Env, token: string | undefined): Promise<LoaderDa
     context: context(env),
   } as never);
 
+/** The page's confirm button, the one visit that writes. */
+const confirm = async (env: Env, token: string | undefined) =>
+  route.action({
+    params: { token },
+    request: new Request(`https://foxhoundapp.test/u/${token ?? ""}`, {
+      method: "POST",
+      body: new URLSearchParams({ confirm: "1" }),
+    }),
+    context: context(env),
+  } as never);
+
 const suppressionRows = async (db: Awaited<ReturnType<typeof seed>>) =>
   db.select().from(emailSuppressions).where(eq(emailSuppressions.email, EMAIL));
 
@@ -82,7 +93,7 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     expect(await isSuppressed(env, EMAIL)).toBe(false);
     const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
 
-    expect(await callLoader(env, token)).toEqual({ state: "done" });
+    expect(await confirm(env, token)).toEqual({ state: "done" });
     const rows = await suppressionRows(db);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.suppressedAt).not.toBeNull();
@@ -90,7 +101,16 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     expect(rows[0]?.token).toBe(token);
     expect(rows[0]?.accountId).toBe(ACCOUNT);
     expect(await isSuppressed(env, EMAIL)).toBe(true);
-    expect(await callLoader(env, token)).toEqual({ state: "already", email: EMAIL });
+    expect(await confirm(env, token)).toEqual({ state: "already", email: EMAIL });
+  });
+
+  it("opening the link writes nothing: a scanner's GET only gets the confirm button", async () => {
+    const db = await seed();
+    const env = makeEnv();
+    const token = await signUnsubscribeToken(env, { email: EMAIL, accountId: ACCOUNT });
+    expect(await callLoader(env, token)).toEqual({ state: "confirm" });
+    expect(await suppressionRows(db)).toHaveLength(0);
+    expect(await isSuppressed(env, EMAIL)).toBe(false);
   });
 
   it("a tampered or unknown token is the invalid state and writes nothing", async () => {
@@ -98,6 +118,7 @@ describe("F7 loader: Recova's four states on Foxhound's engine", () => {
     const env = makeEnv();
     expect(await callLoader(env, "not-a-token")).toEqual({ state: "invalid" });
     expect(await callLoader(env, " ")).toEqual({ state: "invalid" });
+    expect(await confirm(env, "not-a-token")).toEqual({ state: "invalid" });
     expect(await suppressionRows(db)).toHaveLength(0);
   });
 });
