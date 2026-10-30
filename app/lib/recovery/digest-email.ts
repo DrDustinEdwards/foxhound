@@ -77,7 +77,7 @@ const DIGEST_FROM_NAME = "Foxhound";
  * returns with it. A test holds this equal to whether routes.ts
  * serves the page.
  */
-export const DIGEST_RECOMMENDATIONS_LIVE = true;
+const DIGEST_RECOMMENDATIONS_LIVE = true;
 
 /** Legacy's `recoveryRate`: whole percent, and ZERO when nothing failed, never
  *  a division by zero and never "n/a". */

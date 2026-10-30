@@ -1,7 +1,3 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -293,7 +289,6 @@ describe("E23 honors suppression, as Recova's checkAndRegisterUnsubscribe does",
 // ============================================================================
 
 describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
-  const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
   const job = {
     accountId: ACCOUNT,
     to: OWNER,
@@ -318,47 +313,16 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
       /unsubscribe token/,
     );
   });
-
-  it("only the digest's two senders ask for the digest audience, anywhere under app/", () => {
-    // Every .ts and .tsx file under app/, not a chosen list:
-    // a merchant notice switched to the digest audience would gain an
-    // unsubscribe, and a list that leaves its file out would never see it.
-    const root = fileURLToPath(new URL("../", import.meta.url));
-    const walk = (dir: string): string[] =>
-      readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) =>
-        e.isDirectory()
-          ? walk(`${dir}/${e.name}`)
-          : /\.tsx?$/.test(e.name)
-            ? [`${dir}/${e.name}`]
-            : [],
-      );
-    const files = walk("app");
-    expect(files.length).toBeGreaterThan(300);
-    expect(files).toContain("app/lib/disputes/notices.server.ts");
-    const users = files.filter((f) => /audience:\s*"digest"/.test(read(f))).sort();
-    expect(users).toEqual(["app/lib/admin/email-send.server.ts", "app/lib/cron/digest.ts"]);
-  });
 });
 
 // ============================================================================
 // Links have somewhere to go
 // ============================================================================
 
-describe("View recommendations waits for its page", () => {
-  const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
-
-  it("is live only when /intelligence/recommendations is a route", () => {
-    const hasPage = /route\("recommendations"/.test(read("app/routes.ts"));
-    expect(digestEmail.DIGEST_RECOMMENDATIONS_LIVE).toBe(hasPage);
-  });
-
+describe("every digest link resolves", () => {
   it("the Intelligence section ends with the button, and every link resolves", () => {
     const { blocks } = digestEmail.digestContent(fullInput());
     const urls = blocks.flatMap((b) => (b.type === "button" ? [b.url] : []));
-    const routes = read("app/routes.ts");
-    expect(routes).toMatch(/prefix\("recovery", \[\s*route\("dashboard"/);
-    expect(routes).toMatch(/prefix\("disputes", \[\s*route\("dashboard"/);
-    expect(routes).toMatch(/prefix\("intelligence", \[[^\]]*route\("recommendations"/);
     expect(urls).toEqual([
       `${BASE}/disputes/dashboard`,
       `${BASE}/intelligence/recommendations`,

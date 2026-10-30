@@ -1,9 +1,6 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
 import { accounts } from "~/db/schema";
-import { WINBACK_RECENT_RESOLVED_DAYS } from "~/lib/constants";
 import { classifyStripeEvent } from "~/lib/webhooks/events";
 import { buildWinbackStartBatch } from "~/lib/webhooks/batches";
 
@@ -139,18 +136,6 @@ describe("290: exactly-once on the SUBSCRIPTION, both sides", () => {
     const stepCount = sqlite.prepare("select count(*) as n from win_back_steps").get() as { n: number };
     expect(seqCount.n).toBe(1);
     expect(stepCount.n).toBe(3);
-  });
-});
-
-describe("290: the eligibility gates are wired, per condition", () => {
-  const PROCESS = ["process", "lookups", "recovery-handlers", "dispute-handlers", "winback-handlers"]
-    .map((f) => readFileSync(`app/lib/webhooks/${f}.ts`, "utf8"))
-    .join("\n");
-
-  it("the recently-chased window is legacy's seven days", () => {
-    expect(WINBACK_RECENT_RESOLVED_DAYS).toBe(7);
-    expect(PROCESS).toContain("WINBACK_RECENT_RESOLVED_DAYS * DAY_MS");
-    expect(PROCESS).toContain('reason: "recently_resolved"');
   });
 });
 

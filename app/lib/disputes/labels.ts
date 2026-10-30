@@ -19,12 +19,6 @@ export const DISPUTE_STATE_LABELS: Record<DisputeState, string> = {
   inquiry_closed: "Inquiry closed",
 };
 
-export function disputeStateTone(state: DisputeState): Tone {
-  if (state === "resolved_won") return "success";
-  if (state === "resolved_lost") return "failure";
-  return "neutral";
-}
-
 export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = ["resolved_won", "resolved_lost", "inquiry_closed"];
 
 /**

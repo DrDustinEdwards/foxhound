@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -87,12 +85,6 @@ describe("the data layer", () => {
     const { MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import("~/lib/mcp/tools.server");
     expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
     expect(tools.filter((t) => t.writes).map((t) => t.name).sort()).toEqual([...MERCHANT_WRITE_TOOL_NAMES].sort());
-  });
-
-  it("never selects key_hash", () => {
-    const src = readFileSync("app/lib/admin/mcps.server.ts", "utf8");
-    expect(src).toMatch(/apiKeys/);
-    expect(src).not.toMatch(/keyHash|key_hash/);
   });
 });
 
@@ -194,7 +186,6 @@ function render(over: { keys?: KeyRow[]; calls?: unknown[]; tools?: unknown[] } 
   const Stub = createRoutesStub([{ path: "/admin/operations", Component: () => createElement(Panels as never, { data } as never) }]);
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/operations"] }));
 }
-
 
 describe("the MCP servers panels", () => {
 

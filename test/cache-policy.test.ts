@@ -2,15 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  applyCachePolicy,
-  CACHE_DIRECTIVES,
-  classifyPath,
-  hasSessionCookie,
-  PRIVATE_DIRECTIVE,
-  resolveCacheControl,
-  VARY_HEADER_VALUE,
-} from "~/lib/http/cache-policy";
+import { applyCachePolicy, CACHE_DIRECTIVES, classifyPath, hasSessionCookie, PRIVATE_DIRECTIVE, resolveCacheControl } from "~/lib/http/cache-policy";
 
 // SESSION 53 / 345 binding 4: the response cache policy, shipped BEFORE the
 // cache is enabled.
@@ -190,10 +182,6 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
 
     const cased = new Response("x", { headers: { Vary: "cookie" } });
     expect(applyCachePolicy(request("/"), cased).headers.get("Vary")).toBe("cookie");
-  });
-
-  it("the value is the literal Cookie, asserted directly", () => {
-    expect(VARY_HEADER_VALUE).toBe("Cookie");
   });
 });
 

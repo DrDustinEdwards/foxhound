@@ -876,5 +876,3 @@ export const MERCHANT_TOOL_NAMES = [...READ_TOOLS, ...WRITE_TOOLS].map((t) => t.
 /** The write half, named so a plant can assert exactly these carry a trace. */
 export const MERCHANT_WRITE_TOOL_NAMES = WRITE_TOOLS.map((t) => t.name);
 
-export { ToolInputError };
-export type { McpToolContext };

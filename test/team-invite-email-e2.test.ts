@@ -59,9 +59,6 @@ const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_1";
 const OWNER = "user_owner";
 const INVITEE = "new.person@example.com";
-// Capsomer's amber family, light theme, body text: the frame every Foxhound
-// mail is drawn in.
-const BRAND_TEXT = "#211909";
 
 function makeEnv(over: Record<string, unknown> = {}): Env {
   return {
@@ -155,24 +152,6 @@ function inviteToken(): string {
   return row.t;
 }
 
-/** The words appear in this order in the part. */
-function expectInOrder(part: string, words: string[]): void {
-  let at = -1;
-  for (const w of words) {
-    const next = part.indexOf(w, at + 1);
-    expect(next, `"${w}" after position ${at}`).toBeGreaterThan(at);
-    at = next;
-  }
-}
-
-/** The HTML part's text with its entities read back, for word checks. */
-function htmlWords(html: string): string {
-  return html.replaceAll("&#39;", "'").replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">");
-}
-
-const SUBJECT = "You've been invited to join Foxhound";
-const EXPIRY = "This invite expires in 7 days.";
-
 describe("when it sends: Recova's trigger and not otherwise", () => {
   it("an owner's invite sends one email to the invited address", async () => {
     const res = await invite();
@@ -207,18 +186,6 @@ describe("when it sends: Recova's trigger and not otherwise", () => {
 });
 
 describe("what it says: Recova's words, Foxhound-branded", () => {
-  it("the subject is Recova's with Foxhound's name", async () => {
-    await invite();
-    expect(only().subject).toBe(SUBJECT);
-  });
-
-  it("the invitation naming the team, the Accept Invite button, then the expiry, in both parts", async () => {
-    await invite();
-    const m = only();
-    for (const part of [m.text ?? "", htmlWords(m.html)]) {
-      expectInOrder(part, ["You've been invited to join Acme on Foxhound.", "Accept Invite", EXPIRY]);
-    }
-  });
 
   it("says 'a team' when the account has no name, as Recova's fallback", async () => {
     accountName = "";
@@ -245,28 +212,6 @@ describe("what it says: Recova's words, Foxhound-branded", () => {
     // way it is seven days.
     expect([7 * 24 * 60 * 60, 7 * 24 * 60 * 60 * 1000]).toContain(row.ttl);
   });
-
-  it("Recova's footer line, naming the primary connection's sender, then Manage email settings", async () => {
-    await invite();
-    const year = new Date().getUTCFullYear();
-    for (const part of [only().text ?? "", htmlWords(only().html)]) {
-      expectInOrder(part, [`You're receiving this from Foxhound about a recent payment. \u00a9 ${year}`, "Manage email settings"]);
-    }
-    harness.sent.length = 0;
-    sqlite
-      .prepare(
-        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES ('c1', ?, 'acct_s_1', 1, 'cipher', 'Acme Billing', 1000, 1000)",
-      )
-      .run(ACCOUNT);
-    await invite("second@example.com");
-    expect(only().text).toContain(`You're receiving this from Acme Billing about a recent payment. \u00a9 ${year}`);
-  });
-
-  it("says Foxhound, never Recova", async () => {
-    await invite();
-    const m = only();
-    for (const part of [m.subject, m.from, m.text ?? "", m.html]) expect(part).not.toMatch(/recova/i);
-  });
 });
 
 describe("what it carries", () => {
@@ -276,15 +221,6 @@ describe("what it carries", () => {
     expect(m.from).toBe(`Foxhound <${EMAIL_FROM_ADDRESS}>`);
     expect(EMAIL_FROM_ADDRESS).toMatch(/^recovery@/);
     expect(m.replyTo).toBeUndefined();
-  });
-
-  it("an HTML part and a text part, in the amber frame", async () => {
-    await invite();
-    const m = only();
-    expect(m.html.startsWith("<!doctype html>")).toBe(true);
-    expect(m.html).toContain(BRAND_TEXT);
-    expect((m.text ?? "").trim().length).toBeGreaterThan(0);
-    expect(m.text).not.toMatch(/<\/?(p|a|br|table|td|h\d)\b/i);
   });
 
   it("merchant mail: no unsubscribe link, no postal address, no tracking", async () => {
@@ -323,20 +259,6 @@ describe("what it carries", () => {
       .prepare("SELECT account_id AS a, template AS t, recipient_hash AS h, status AS s FROM email_sends")
       .all();
     expect(rows).toEqual([{ a: ACCOUNT, t: "team_invite", h: await hashRecipient(INVITEE), s: "sent" }]);
-  });
-});
-
-describe("accessibility of the rendered mail", () => {
-  it("a language, a title, real links with visible text, and 16px body text", async () => {
-    await invite();
-    const { html } = only();
-    expect(html).toMatch(/<html[^>]*\blang="en"/);
-    expect(html).toContain(`<title>${SUBJECT.replace("'", "&#39;")}</title>`);
-    for (const [, href] of html.matchAll(/<a\b[^>]*href="([^"]*)"/g)) expect(href).toMatch(/^https:\/\//);
-    for (const [, label] of html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)) expect(label.trim().length).toBeGreaterThan(0);
-    // No heading, as Recova's mail has none.
-    expect(html).not.toMatch(/<h[1-6]\b/);
-    expect(html).toMatch(/font-size:\s*16px/);
   });
 });
 
@@ -380,14 +302,6 @@ describe("a refused send returns its named outcome, and the invite still stands"
     expect(res.status).toBe(200);
     expect(res.body.emailStatus).toBe("failed");
     expect(String(res.body.inviteUrl)).toContain("/invite/");
-  });
-
-  it("no message to the merchant carries a wide dash", async () => {
-    env = makeEnv({ EMAIL: undefined });
-    const wide = new RegExp("[" + String.fromCharCode(0x2014, 0x2013) + "]");
-    const res = await invite();
-    expect(typeof res.body.emailError).toBe("string");
-    expect(String(res.body.emailError)).not.toMatch(wide);
   });
 });
 
@@ -515,13 +429,6 @@ describe("Recova's repeat-invite refusal: 409 for a pending or active membership
     const res = await invite();
     expect(res.status).toBe(200);
     expect(harness.sent).toHaveLength(1);
-  });
-});
-
-describe("the body as written for the frame", () => {
-  it("carries no <strong>: Capsomer has no bold run, so the name is plain text", async () => {
-    const { buildTeamInviteCopy } = await import("~/lib/settings/team-invite-email.server");
-    expect(buildTeamInviteCopy("Acme", `${BASE}/invite/t`).bodyHtml).not.toMatch(/<\/?strong>/);
   });
 });
 

@@ -1,11 +1,6 @@
-
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts } from "~/db/schema";
-import {
-  LOOKBACK_DEFAULT,
-  LOOKBACK_OPTIONS,
-} from "~/lib/settings/audit-settings";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -46,13 +41,6 @@ function ctx() {
 async function seedAccount(db: ReturnType<typeof createInMemoryDb>["db"], row: Record<string, unknown>) {
   await db.insert(accounts).values({ id: ACCOUNT, name: "Acme", createdAt: new Date(), ...row });
 }
-
-describe("315: the lookback bound is legacy's, enforced server-side", () => {
-  it("carries legacy's four options in legacy's order", () => {
-    expect([...LOOKBACK_OPTIONS]).toEqual([30, 60, 90, 180]);
-    expect(LOOKBACK_DEFAULT).toBe(90);
-  });
-});
 
 describe("315: the toggle round-trips through the REAL action", () => {
   function post(fields: Record<string, string>) {

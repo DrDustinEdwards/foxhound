@@ -180,7 +180,7 @@ export function resolveCacheControl(request: Request): string {
  * a second; `theme=light` a third. That is fragmentation, not a leak, and the
  * variants are all the same anonymous body.
  */
-export const VARY_HEADER_VALUE = "Cookie";
+const VARY_HEADER_VALUE = "Cookie";
 
 function appendVary(headers: Headers, value: string): void {
   const existing = headers.get("Vary");

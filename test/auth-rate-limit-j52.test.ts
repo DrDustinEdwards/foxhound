@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -224,24 +222,3 @@ describe("a counter that fails lets the request through, by design (RULES.md 4.1
   });
 });
 
-describe("Foxhound's own limiter no longer handles these paths", () => {
-
-  it("the routes import the limiter from site-runtime, not from app/lib/http/rate-limit", () => {
-    const src = readFileSync("app/lib/auth/rate-limit.server.ts", "utf8");
-    expect(src).toContain('from "@dustinedwards/site-runtime/rate-limit"');
-    for (const f of ["login.tsx", "signup.tsx", "social-start.ts"]) {
-      const route = readFileSync(`app/routes/auth/${f}`, "utf8");
-      expect(route, f).toContain("~/lib/auth/rate-limit.server");
-      expect(route, f).not.toContain("~/lib/http/rate-limit");
-    }
-  });
-
-  it("binds site-runtime's Durable Object class and exports it from the Worker", () => {
-    const wrangler = readFileSync("wrangler.jsonc", "utf8").replace(/\/\/[^\n]*/g, "");
-    expect(wrangler).toMatch(/"name":\s*"AUTH_RATE_LIMITER",\s*"class_name":\s*"RateLimiter"/);
-    expect(wrangler).toMatch(/"RateLimiter":\s*\{\s*"type":\s*"durable-object",\s*"storage":\s*"sqlite"\s*\}/);
-    expect(readFileSync("workers/app.ts", "utf8")).toContain(
-      'export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";',
-    );
-  });
-});

@@ -76,7 +76,18 @@ describe("getAdminSession (Cloudflare Access)", () => {
   });
 });
 
-describe("the /admin gate refuses a cross-site write", () => {
+describe("the /admin gate (admin-shell middleware)", () => {
+  it("answers 404 and runs nothing when there is no admin session", async () => {
+    const { middleware } = await import("~/layouts/admin-shell");
+    const context = { get: () => ({ env: env() }), set: () => {} };
+    const next = vi.fn(async () => new Response("ran"));
+    const outcome = await Promise.resolve(
+      middleware[0]!({ request: request(), context, params: {} } as never, next as never),
+    ).catch((e: unknown) => e);
+    expect(next).not.toHaveBeenCalled();
+    expect((outcome as Response).status).toBe(404);
+  });
+
   it("lets a same-origin POST through and answers a cross-site one 403, for a signed-in admin", async () => {
     const { middleware } = await import("~/layouts/admin-shell");
     const dev = env({ ACCESS_DEV_BYPASS: "1", ACCESS_TEAM_DOMAIN: undefined, ACCESS_AUD: undefined });

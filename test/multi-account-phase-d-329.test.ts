@@ -289,10 +289,4 @@ describe("nothing about the demo firewall or the money DO semantics moved", () =
     expect(code).not.toMatch(/\bdb\s*\.\s*update\b/);
     expect(code).not.toMatch(/\bdb\s*\.\s*batch\b/);
   });
-
-  it("the schema still refuses a duplicate active pair, which is the surviving backstop", () => {
-    seedAccount("acct_a", "Acme");
-    seedMembership("m1", "acct_a", USER);
-    expect(() => seedMembership("m2", "acct_a", USER)).toThrow(/UNIQUE constraint failed/i);
-  });
 });

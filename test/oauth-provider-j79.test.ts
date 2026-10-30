@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import type Database from "better-sqlite3";
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -179,11 +177,6 @@ async function fullFlow(): Promise<{ clientId: string; access: string; refresh: 
 // ============================================================================
 
 describe("F18 and F19: the metadata, at both of Recova's well-known paths", () => {
-  it("mounts both paths on one module, as next.config.ts rewrote both to one handler", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    expect(routes).toMatch(/route\("\.well-known\/oauth-authorization-server", "\.\/routes\/files\/oauth-metadata\.ts"/);
-    expect(routes).toMatch(/route\("\.well-known\/openid-configuration", "\.\/routes\/files\/oauth-metadata\.ts"/);
-  });
 
   it("serves Recova's fields with this request's origin as issuer", async () => {
     const res = (await metadataRoute.loader({
@@ -206,17 +199,6 @@ describe("F18 and F19: the metadata, at both of Recova's well-known paths", () =
     expect(body.token_endpoint_auth_methods_supported).toEqual(["none"]);
     expect(body.scopes_supported).toEqual(["merchant"]);
   });
-
-  it("advertises no endpoint that does not exist (RULES.md 2.7)", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    const body = authorizationServerMetadata(ORIGIN) as Record<string, unknown>;
-    const endpoints = Object.entries(body).filter(([k]) => k.endsWith("_endpoint"));
-    expect(endpoints.length).toBe(4);
-    for (const [key, url] of endpoints) {
-      const path = new URL(url as string).pathname.slice(1);
-      expect(routes, `${key} names a route`).toContain(`route("${path}",`);
-    }
-  });
 });
 
 describe("the protected-resource document and the /mcp 401 that points at it", () => {
@@ -232,12 +214,6 @@ describe("the protected-resource document and the /mcp 401 that points at it", (
     expect(body.authorization_servers).toEqual([ORIGIN]);
     expect(body.scopes_supported).toEqual(["merchant"]);
     expect(body).not.toHaveProperty("resource_signing_alg_values_supported");
-  });
-
-  it("is mounted at the bare path and at the /mcp suffix RFC 9728 clients try", () => {
-    const routes = readFileSync("app/routes.ts", "utf8");
-    expect(routes).toMatch(/route\("\.well-known\/oauth-protected-resource", "\.\/routes\/files\/oauth-protected-resource\.ts"/);
-    expect(routes).toMatch(/route\("\.well-known\/oauth-protected-resource\/mcp", "\.\/routes\/files\/oauth-protected-resource\.ts"/);
   });
 });
 

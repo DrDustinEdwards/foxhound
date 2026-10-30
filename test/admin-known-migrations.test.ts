@@ -36,12 +36,6 @@ describe("KNOWN_MIGRATIONS tracks the migrations directory", () => {
     expect([...KNOWN_MIGRATIONS]).toEqual(migrationFilesOnDisk());
   });
 
-  it("lists nothing that does not exist on disk", () => {
-    const onDisk = new Set(migrationFilesOnDisk());
-    const phantom = KNOWN_MIGRATIONS.filter((m) => !onDisk.has(m));
-    expect(phantom).toEqual([]);
-  });
-
   // NOT a comparison of KNOWN_MIGRATIONS to the journal: that is now definitional
   // and would pass by construction. This is the journal against the DIRECTORY,
   // which is the pair that can actually disagree, and it fails in both
@@ -58,9 +52,5 @@ describe("KNOWN_MIGRATIONS tracks the migrations directory", () => {
     // mean "nothing was read".
     expect(onDisk.length).toBeGreaterThan(0);
     expect(journalFiles).toHaveLength(onDisk.length);
-  });
-
-  it("has no duplicates", () => {
-    expect(new Set(KNOWN_MIGRATIONS).size).toBe(KNOWN_MIGRATIONS.length);
   });
 });

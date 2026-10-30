@@ -74,7 +74,7 @@ export const DIGEST_WINDOW_MS = 7 * DAY_MS;
  * meanings of "week", and would change a shipped behavior (a digest sent last
  * Friday no longer blocks Monday's) that no ruling has asked to change.
  */
-export const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
+const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
 
 /** Legacy takes the top three at-risk customers. */
 const DIGEST_HIGH_RISK_LIMIT = 3;

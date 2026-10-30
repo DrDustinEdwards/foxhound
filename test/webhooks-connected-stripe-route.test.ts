@@ -190,6 +190,16 @@ describe("connected webhook: the signature rung, against a real HMAC", () => {
     expect(res.status).toBe(400);
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
   });
+
+  it("rejects a correctly signed POST older than Stripe's default 300s replay window", async () => {
+    // Ruling 308: the replay tolerance stays Stripe's default. A widened window
+    // would accept this captured request again.
+    const db = await seed();
+    const stale = signedRequest(connectedEvent("evt_stale"), WEBHOOK_SECRET, nowSec() - 301);
+    const res = await call(stale, WEBHOOK_SECRET);
+    expect(res.status).toBe(400);
+    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
+  });
 });
 
 describe("connected webhook: the processing rung", () => {

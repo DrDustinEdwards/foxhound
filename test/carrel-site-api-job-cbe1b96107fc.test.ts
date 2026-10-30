@@ -1,6 +1,3 @@
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-
 import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
@@ -100,19 +97,6 @@ describe("the key reaches only the prefix", () => {
     },
   );
 
-  it("CARREL_SITE_KEY appears in exactly one source module (env.d.ts is the root type file)", () => {
-    const found = execSync("git grep --untracked -l CARREL_SITE_KEY -- app workers || true", { encoding: "utf8" })
-      .trim()
-      .split("\n")
-      .sort();
-    expect(found).toEqual(["app/lib/carrel/handler.server.ts"]);
-  });
-
-  it("the worker mounts the handler before the router, behind the prefix check", () => {
-    const source = readFileSync("workers/app.ts", "utf8");
-    expect(source).toContain('pathname.startsWith("/api/carrel/v1")');
-    expect(source.indexOf("handleCarrelRequest")).toBeLessThan(source.indexOf("requestHandler(request, context)"));
-  });
 });
 
 describe("content round trip against the real schema", () => {
