@@ -4,7 +4,8 @@ import "capsomer/row-list.css";
 import "capsomer/status.css";
 import { Panel } from "capsomer/react/panel";
 import { and, eq } from "drizzle-orm";
-import { Link, redirect } from "react-router";
+import { redirect } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { ChecklistStatus, StaticRow } from "~/components/recovery-dashboard-panels";
 import { accounts, getDb, stripeConnections } from "~/db";

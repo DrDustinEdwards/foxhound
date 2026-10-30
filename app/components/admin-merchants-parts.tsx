@@ -2,7 +2,8 @@
 // the merchant list and rows, platform figures, undo posts and the posted result.
 
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
-import { Form, Link, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
+import { Form, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ExternalLink } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
 import { useMessage } from "capsomer/react/message";

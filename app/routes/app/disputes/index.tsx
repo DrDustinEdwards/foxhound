@@ -1,4 +1,5 @@
-import { data, Link } from "react-router";
+import { data } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Pill, type Tone as PillTone } from "capsomer/react/status";

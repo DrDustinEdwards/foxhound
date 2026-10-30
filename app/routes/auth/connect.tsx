@@ -3,7 +3,8 @@ import { Button } from "capsomer/react/button";
 import { and, eq, isNull } from "drizzle-orm";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { data, Form, Link, redirect, useNavigation } from "react-router";
+import { data, Form, redirect, useNavigation } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";

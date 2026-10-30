@@ -1,4 +1,5 @@
-import { Link, useNavigation, useRevalidator } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { AttentionList, type AttentionLinkProps } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";

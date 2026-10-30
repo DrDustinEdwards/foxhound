@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/breadcrumb.css";

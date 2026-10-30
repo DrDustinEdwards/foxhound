@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { Badge } from "~/components/badge";
 import { MarketingPageHeader } from "~/components/marketing-page-header";

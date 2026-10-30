@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
-import { Form, Link, useNavigation, useRevalidator } from "react-router";
+import { Form, useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ChevronRight } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
 import { Pagination } from "capsomer/react/pagination";

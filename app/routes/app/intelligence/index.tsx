@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { data, Link, useFetcher } from "react-router";
+import { data, useFetcher } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";

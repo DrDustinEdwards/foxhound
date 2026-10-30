@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content";
 

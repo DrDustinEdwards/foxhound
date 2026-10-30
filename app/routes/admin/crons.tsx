@@ -1,4 +1,5 @@
-import { data, Form, Link, useNavigation, useRevalidator } from "react-router";
+import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";

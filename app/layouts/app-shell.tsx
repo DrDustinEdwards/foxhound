@@ -1,5 +1,4 @@
 import {
-  Link,
   Outlet,
   useLocation,
   useMatches,
@@ -9,6 +8,7 @@ import {
   useSubmit,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
+import { Link } from "capsomer/react/link";
 import {
   ArrowLeft,
   BarChart3,

@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";

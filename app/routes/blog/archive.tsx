@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";

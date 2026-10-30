@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Form, Link, useNavigation, useSearchParams } from "react-router";
+import { Form, useNavigation, useSearchParams } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";

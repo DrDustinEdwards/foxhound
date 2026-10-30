@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { formatTagChip } from "~/lib/blog/format";
 import type { BlogPostSummary } from "~/lib/blog/queries.server";

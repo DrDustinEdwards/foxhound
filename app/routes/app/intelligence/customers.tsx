@@ -1,5 +1,6 @@
 import { Scale } from "lucide-react";
-import { Form, Link } from "react-router";
+import { Form } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";

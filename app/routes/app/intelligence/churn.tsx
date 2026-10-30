@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { lineChart } from "enarratio/lite/line";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
