@@ -29,8 +29,9 @@
 -- These are ROUNDED, DIRECTIONAL figures, not a Foxhound-run study; the
 -- sample_size column is stored for schema completeness but is intentionally
 -- NOT surfaced to users as a specific N (there is no controlled sample size
--- behind a directional industry range), only the percentile spread is shown,
--- with an explicit confidence caveat in the UI.
+-- behind a directional industry range). Since 2026-10-30 the percentile
+-- spread is not shown either: /audit applies p50 to the visitor's MRR and
+-- names it as an assumption, never as what comparable accounts show.
 
 DELETE FROM benchmark_data
   WHERE cohort_dimension = 'mrr_band' AND metric_name = 'monthly_failed_payment_leakage_pct_of_mrr';

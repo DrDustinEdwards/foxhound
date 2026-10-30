@@ -1,7 +1,8 @@
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
+import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
+import { AUDIT_ACCESS_ASK, AUDIT_ACCESS_PROMISE, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
@@ -50,7 +51,7 @@ Contact: ${SUPPORT_EMAIL}
 
 ### Audit (free)
 
-A Stripe diagnostic that starts without creating an account. The free estimate connects to Stripe not at all: it runs on figures the merchant enters. The full report against a real Stripe account needs no Foxhound account either: it connects with its own READ-ONLY OAuth grant, which is a different and narrower scope than the read-and-write one a merchant grants at onboarding, and which is held in a short-lived cookie rather than stored. It produces a structured report: failed invoices, expiring cards, open disputes, and business health signals, split into what Stripe's own tools already recovered, what is still failing, and what Foxhound would add.
+A Stripe diagnostic that starts without creating an account. The free estimate connects to Stripe not at all: it runs on figures the merchant enters. The full report against a real Stripe account needs no Foxhound account either. ${AUDIT_ACCESS_ASK} ${AUDIT_ACCESS_PROMISE} The grant is held in a short-lived cookie rather than stored. It produces a structured report: failed invoices, expiring cards, open disputes, and business health signals, split into what Stripe's own tools already recovered, what is still failing, and what Foxhound would add.
 
 URL: ${url}/product/audit
 Docs: ${url}/docs/audit
@@ -58,11 +59,11 @@ Pricing: Free.
 
 ### Recovery (a percentage of Foxhound-attributed recoveries)
 
-When a Stripe payment fails, Foxhound classifies the decline into a category and, wherever the decline can be retried, runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If there is no silent retry or it doesn't clear the payment, an AI-drafted dunning sequence runs across ${RECOVERY_SEQUENCE_DAYS} days, unless the customer has revoked authorization, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for 30 days (absorbing the refund window).
+When a Stripe payment fails, Foxhound classifies the decline into a category and, wherever the decline can be retried, runs a silent retry before any customer-facing email, so a payment that recovers on its own is never billed. If there is no silent retry or it doesn't clear the payment, an AI-drafted dunning sequence runs across ${RECOVERY_SEQUENCE_DAYS} days, unless the customer has revoked authorization, with a hosted card-update link on every email. Recoveries Stripe's own tools (like Smart Retries) would have produced anyway are recorded and shown to the merchant for free; only recoveries attributable to a Foxhound action are billable, and only once that recovery has matured for ${RECOVERY_MATURITY_DAYS} days (absorbing the refund window).
 
 URL: ${url}/product/recovery
 Docs: ${url}/docs/recovery
-Pricing: a percentage of Foxhound-attributed recoveries. No flat fee. Nothing billed until a recovery has matured 30 days. Current rate: ${url}/pricing.
+Pricing: a percentage of Foxhound-attributed recoveries. No flat fee. Nothing billed until a recovery has matured ${RECOVERY_MATURITY_DAYS} days. Current rate: ${url}/pricing.
 
 ### Disputes (a percentage of won disputes, capped per dispute)
 
@@ -87,7 +88,7 @@ Pricing: Basic analytics free for Recovery merchants. Predictive risk scoring: f
 | Product | Pricing model |
 |---|---|
 | Audit | Free |
-| Recovery | A percentage of Foxhound-attributed recoveries, billed after a 30-day maturity window |
+| Recovery | A percentage of Foxhound-attributed recoveries, billed after a ${RECOVERY_MATURITY_DAYS}-day maturity window |
 | Disputes | A percentage of won disputes, capped per dispute |
 | Intelligence | Free basic analytics for Recovery merchants; flat monthly subscription for predictive risk scoring |
 

@@ -22,6 +22,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -237,7 +238,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>
           <p className="m-0 text-copy leading-relaxed text-text-secondary">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
-            intelligence. 20% of Foxhound-attributed recoveries only, nothing until then.
+            intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing until then.
           </p>
         </div>
       </div>
