@@ -81,16 +81,21 @@ export async function resolveDisputeCap(
 
   let quote: FxQuoteResponse;
   try {
+    // Stripe's shape: ONE `to_currency` and a list of `from_currencies`, with
+    // `rates` keyed by the SOURCE currency, where rates[from].exchange_rate is
+    // units of to_currency per one unit of from. So USD is the source and the
+    // dispute's currency the target, and the rate is read at rates.usd.
     quote = (await getStripe(env).rawRequest("POST", "/v1/fx_quotes", {
-      from_currency: "usd",
-      "to_currencies[0]": code,
+      to_currency: code,
+      "from_currencies[0]": "usd",
       lock_duration: "none",
     })) as FxQuoteResponse;
   } catch (err) {
     throw new DisputeCapQuoteError(code, err);
   }
 
-  const rate = quote.rates?.[code]?.exchange_rate;
+  // Dispute-currency units per one USD.
+  const rate = quote.rates?.usd?.exchange_rate;
   if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
     throw new DisputeCapQuoteError(code, new Error("quote carried no usable exchange rate"));
   }

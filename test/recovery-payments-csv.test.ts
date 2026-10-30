@@ -56,6 +56,7 @@ function fakeRow(overrides: Partial<FailedPaymentRow> = {}): FailedPaymentRow {
     stripeConnectionId: null,
     isRenewalNoise: false,
     refundSignalAt: null,
+    disputeSignalAt: null,
     ...overrides,
   };
 }

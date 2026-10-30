@@ -379,12 +379,22 @@ export function buildRefundStampBatch(
  *  buildDisputeIntakeBatch (dispute intake also excludes the underlying
  *  recovery from billing when the disputed charge is resolved to one). */
 function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
-  return db
-    .update(recoveredPayments)
-    .set({ disputedAt: at })
-    .where(
-      and(eq(recoveredPayments.failedPaymentId, failedPaymentId), isNull(recoveredPayments.disputedAt)),
-    );
+  return [
+    // The order-independent half, as refund_signal_at is for refunds: a dispute
+    // that lands BEFORE the recovery row exists stamps the failed payment, and
+    // buildRecoveryBatch reads it so the recovery is born disputed. First
+    // dispute wins.
+    db
+      .update(failedPayments)
+      .set({ disputeSignalAt: at })
+      .where(and(eq(failedPayments.id, failedPaymentId), isNull(failedPayments.disputeSignalAt))),
+    db
+      .update(recoveredPayments)
+      .set({ disputedAt: at })
+      .where(
+        and(eq(recoveredPayments.failedPaymentId, failedPaymentId), isNull(recoveredPayments.disputedAt)),
+      ),
+  ] as const;
 }
 
 /** charge.dispute.created: claim + stamp recovered_payments.disputed_at (feeds the billable predicate). */
@@ -392,7 +402,7 @@ export function buildDisputeStampBatch(
   db: Db,
   input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
-  return [buildWebhookClaim(db, input.claim), buildDisputedAtStamp(db, input.failedPaymentId, input.at)];
+  return [buildWebhookClaim(db, input.claim), ...buildDisputedAtStamp(db, input.failedPaymentId, input.at)];
 }
 
 export interface DisputeIntakeInput {
@@ -473,7 +483,7 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     }),
   );
   const stamp = input.linkedFailedPaymentId
-    ? [buildDisputedAtStamp(db, input.linkedFailedPaymentId, input.createdAt)]
+    ? buildDisputedAtStamp(db, input.linkedFailedPaymentId, input.createdAt)
     : [];
   return [claim, disputeInsert, ...evidenceInserts, ...stamp];
 }

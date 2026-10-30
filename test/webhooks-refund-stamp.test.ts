@@ -275,6 +275,50 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
       expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
     });
   }
+
+  it("records the recovery already disputed when the dispute intake landed first", async () => {
+    const db = await seedAwaitingRecovery();
+    const { buildDisputeIntakeBatch } = await import("~/lib/webhooks/batches");
+    const DISPUTED_AT = REFUND_BEFORE_AT;
+
+    // 1. Dispute intake for this payment's charge, with no recovery row yet.
+    await db.batch(
+      buildDisputeIntakeBatch(db, {
+        claim: {
+          stripeEventId: "evt_dispute_early",
+          eventType: "charge.dispute.created",
+          accountId: ACCOUNT_ID,
+          receivedAt: DISPUTED_AT,
+          payload: {},
+        },
+        disputeId: "dp_1",
+        accountId: ACCOUNT_ID,
+        stripeConnectionId: CONNECTION_ID,
+        stripeDisputeId: "dp_stripe_1",
+        stripeChargeId: "ch_1",
+        stripeCustomerId: "cus_1",
+        customerEmail: null,
+        customerName: null,
+        amountCents: 10_000,
+        currency: "usd",
+        reason: "fraudulent",
+        status: "needs_response",
+        evidenceDeadline: null,
+        createdAt: DISPUTED_AT,
+        linkedFailedPaymentId: "fp_1",
+        evidence: [],
+      }),
+    );
+
+    // 2. The recovery lands afterwards and is born disputed, so it never bills.
+    expect(
+      await processConnectedWebhook({} as Env, paymentSucceeded("evt_late_disputed"), RECOVERED_AT),
+    ).toEqual({ status: "applied" });
+
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.disputedAt).toEqual(DISPUTED_AT);
+    expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
+  });
 });
 
 describe("refund resolution failure semantics", () => {

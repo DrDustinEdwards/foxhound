@@ -242,6 +242,7 @@ async function creditFeeLine(
 
 export const REFUND_CREDIT_DESCRIPTION = "Refunded recovery: fee credited";
 export const DISPUTE_CREDIT_DESCRIPTION = "Dispute lost after billing: fee credited";
+export const CHARGEBACK_CREDIT_DESCRIPTION = "Disputed recovery: fee credited";
 
 /** Fee lines handled per sweep. Each costs a Stripe list and a create, so this
  *  keeps one run well inside a Worker's subrequest budget; anything past it is
@@ -251,14 +252,17 @@ const CREDIT_SWEEP_LIMIT = 50;
 /**
  * Every charged fee line the ledger says is owed back and that has no credit
  * yet. THE OWED STATE IS DERIVED, NOT STORED: a recovery fee whose recovery is
- * stamped refunded, or a dispute fee whose dispute resolved lost, on an invoice
+ * stamped refunded or disputed, or a dispute fee whose dispute resolved lost, on an invoice
  * that reached Stripe, with no credit line pointing at it. Those are the same
  * facts the webhook path acts on, so a failed Stripe call, a Worker that died
  * between the stamp and the note, and a redelivery that skipped the clawback
  * all leave the line here until it is credited. No second table can drift from
  * the ledger, because there is no second table.
  */
-async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<CreditableFeeLine[]> {
+async function findOwedFeeLines(
+  env: Env,
+  limit = CREDIT_SWEEP_LIMIT,
+): Promise<(CreditableFeeLine & { disputedRecovery: boolean })[]> {
   const db = getDb(env);
   const credit = alias(billingLineItems, "credit");
   const rows = await db
@@ -271,6 +275,7 @@ async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<C
       stripeInvoiceId: billingInvoices.stripeInvoiceId,
       recoveredPaymentId: billingLineItems.recoveredPaymentId,
       disputeId: billingLineItems.disputeId,
+      recoveryRefundedAt: recoveredPayments.refundedAt,
     })
     .from(billingLineItems)
     .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
@@ -283,7 +288,10 @@ async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<C
         or(
           and(
             eq(billingLineItems.type, "recovery_fee"),
-            isNotNull(recoveredPayments.refundedAt),
+            // Refunded, or charged back: a dispute on the recovered payment
+            // takes the money back just as a refund does, and its fee is
+            // credited on the same fee-line key.
+            or(isNotNull(recoveredPayments.refundedAt), isNotNull(recoveredPayments.disputedAt)),
             isNull(recoveredPayments.deletedAt),
           ),
           and(eq(billingLineItems.type, "dispute_fee"), eq(disputes.state, "resolved_lost")),
@@ -295,7 +303,11 @@ async function findOwedFeeLines(env: Env, limit = CREDIT_SWEEP_LIMIT): Promise<C
     )
     .orderBy(billingLineItems.createdAt)
     .limit(limit);
-  return rows.map((row) => ({ ...row, stripeInvoiceId: row.stripeInvoiceId as string }));
+  return rows.map(({ recoveryRefundedAt, ...row }) => ({
+    ...row,
+    stripeInvoiceId: row.stripeInvoiceId as string,
+    disputedRecovery: row.recoveredPaymentId != null && recoveryRefundedAt == null,
+  }));
 }
 
 export interface CreditSweepResult {
@@ -312,7 +324,11 @@ export async function creditOwedFeeLines(env: Env, now: Date): Promise<CreditSwe
   const result: CreditSweepResult = { credited: 0, failed: [], full: owed.length === CREDIT_SWEEP_LIMIT };
   for (const line of owed) {
     try {
-      const description = line.disputeId ? DISPUTE_CREDIT_DESCRIPTION : REFUND_CREDIT_DESCRIPTION;
+      const description = line.disputeId
+        ? DISPUTE_CREDIT_DESCRIPTION
+        : line.disputedRecovery
+          ? CHARGEBACK_CREDIT_DESCRIPTION
+          : REFUND_CREDIT_DESCRIPTION;
       const outcome = await creditFeeLine(env, line, { now, description });
       if (outcome.credited) result.credited += 1;
     } catch (err) {
@@ -332,6 +348,26 @@ export function creditSweepFailureError(result: CreditSweepResult): string | nul
   if (result.failed.length === 0) return null;
   const detail = result.failed.map((f) => `${f.lineItemId}: ${f.error}`).join("; ");
   return `${result.failed.length} fee credit note(s) still owed after retry: ${detail}`;
+}
+
+/** Every recovery stamped disputed for one failed payment, the chargeback twin
+ *  of refundedRecoveryIdsFor. */
+export async function disputedRecoveryIdsFor(
+  env: Env,
+  failedPaymentId: string,
+): Promise<string[]> {
+  const db = getDb(env);
+  const rows = await db
+    .select({ id: recoveredPayments.id })
+    .from(recoveredPayments)
+    .where(
+      and(
+        eq(recoveredPayments.failedPaymentId, failedPaymentId),
+        isNotNull(recoveredPayments.disputedAt),
+        isNull(recoveredPayments.deletedAt),
+      ),
+    );
+  return rows.map((r) => r.id);
 }
 
 /** Every recovery stamped refunded for one failed payment. The refund stamp is

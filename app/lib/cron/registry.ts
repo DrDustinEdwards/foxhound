@@ -18,6 +18,7 @@ import { seedDemoAccount } from "~/lib/demo/seed";
 import { runIntelligenceAiForAllAccounts } from "~/lib/intelligence/ai-run.server";
 import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
+import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
 import { runD1Backup } from "~/lib/backup/d1-backup";
 import {
@@ -244,15 +245,35 @@ const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
  *  failure there used to be a console line and a fee kept for good: the
  *  redelivery is a duplicate and skips the clawback. This sweep credits every
  *  fee the ledger says is owed, daily, until it is. A fee still owed after the
- *  sweep alerts, as billing-monthly's per-account failures do. */
+ *  sweep alerts, as billing-monthly's per-account failures do.
+ *
+ *  It also runs the retry-attribution sweep first (upgradeMissedRetryAttributions):
+ *  a recovery the webhook recorded as stripe_baseline after the retry's short
+ *  reconcile window had closed is upgraded to foxhound_retry, daily and before
+ *  the 04:00 billing run on the 1st, so the ledger's attribution is right
+ *  before anything reads it for billing. */
 const creditNoteRetry: CronHandler = async (env, ctx) => {
   const now = new Date();
+  const attribution = await upgradeMissedRetryAttributions(env, now);
   const result = await creditOwedFeeLines(env, now);
-  const failure = creditSweepFailureError(result);
-  if (failure) {
-    await alertCronFailure(env, getDb(env), { cronName: "credit-note-retry", runId: ctx?.runId ?? null, error: failure }, now);
+  const failures = [
+    creditSweepFailureError(result),
+    attribution.failed.length > 0
+      ? `${attribution.failed.length} retry attribution upgrade(s) failed: ${attribution.failed.map((f) => `${f.failedPaymentId}: ${f.error}`).join("; ")}`
+      : null,
+  ].filter((f): f is string => f !== null);
+  if (failures.length > 0) {
+    await alertCronFailure(
+      env,
+      getDb(env),
+      { cronName: "credit-note-retry", runId: ctx?.runId ?? null, error: failures.join(" | ") },
+      now,
+    );
   }
-  return { rowsProcessed: result.credited, message: describeCreditSweep(result) };
+  return {
+    rowsProcessed: result.credited + attribution.upgraded,
+    message: `${describeCreditSweep(result)}; ${attribution.upgraded} retry attribution(s) upgraded`,
+  };
 };
 
 /** The dispute fee pricing retry ("Skip until priced", Dustin 2026-10-25). A

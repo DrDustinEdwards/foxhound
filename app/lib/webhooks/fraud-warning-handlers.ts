@@ -88,7 +88,19 @@ export async function handleEarlyFraudWarning(
     }));
   }
 
-  const warningId = existing ?? (await findWarningId(env, accountId, intent.stripeWarningId).catch(() => null));
+  // A failed lookup after the commit must not read as done: the merchant's
+  // notice would be lost, since a 200 means Stripe never redelivers. Answer an
+  // error instead, so the route 500s and Stripe retries; the redelivery is a
+  // duplicate claim that still reaches this send, whose own claim keeps it to
+  // one email.
+  let warningId = existing;
+  if (!warningId) {
+    try {
+      warningId = await findWarningId(env, accountId, intent.stripeWarningId);
+    } catch (err) {
+      return { status: "error", message: `early fraud warning lookup failed: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
   if (warningId) await sendEarlyFraudWarningNotice(env, { accountId, warningId });
   return applied ? { status: "applied" } : { status: "duplicate" };
 }
