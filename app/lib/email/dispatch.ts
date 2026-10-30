@@ -1,3 +1,4 @@
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { and, eq, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -56,10 +57,8 @@ export interface EmailJobResult {
 }
 
 /** SHA-256 hex of a recipient address; email_sends stores this, never the raw address. */
-export async function hashRecipient(email: string): Promise<string> {
-  const data = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+export function hashRecipient(email: string): Promise<string> {
+  return sha256Hex(email.trim().toLowerCase());
 }
 
 /** The email_sends log row for a completed job. Pure; compile-tested. */

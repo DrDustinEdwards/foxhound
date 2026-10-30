@@ -1,6 +1,6 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 
@@ -14,7 +14,7 @@ import "~/site-header.css";
 
 import { Header } from "~/components/header";
 import { Wordmark } from "~/components/wordmark";
-import { expiringCardAlerts, failedPayments, getDb, stripeConnections, winBackSequences } from "~/db";
+import { expiringCardAlerts, failedPayments, getDb, winBackSequences } from "~/db";
 import { buildCardUpdateSignal, hasCardUpdateSignal } from "~/lib/card-update/signal";
 import {
   createCardUpdateSession,
@@ -26,6 +26,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { formatMoney } from "~/lib/money-format";
 import { isWinbackResubscribable } from "~/lib/recovery/winback";
+import { listActiveConnections } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 import type { Route } from "./+types/card-update";
@@ -141,10 +142,7 @@ async function loadAlertTarget(
       .from(expiringCardAlerts)
       .where(and(eq(expiringCardAlerts.id, alertId), eq(expiringCardAlerts.accountId, accountId)))
       .limit(1),
-    db
-      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+    listActiveConnections(db, accountId),
   ]);
   const alert = alertRows[0];
   if (!alert || alert.deletedAt) return null;
@@ -194,10 +192,7 @@ async function loadResubscribeTarget(
       .from(winBackSequences)
       .where(and(eq(winBackSequences.id, sequenceId), eq(winBackSequences.accountId, accountId)))
       .limit(1),
-    db
-      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+    listActiveConnections(db, accountId),
   ]);
   const sequence = sequenceRows[0];
   if (!sequence) return null;
@@ -228,10 +223,7 @@ async function loadTarget(env: Env, failedPaymentId: string, accountId: string) 
       .from(failedPayments)
       .where(and(eq(failedPayments.id, failedPaymentId), eq(failedPayments.accountId, accountId)))
       .limit(1),
-    db
-      .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt))),
+    listActiveConnections(db, accountId),
   ]);
   const failedPayment = failedPaymentRows[0] ?? null;
   const connection = failedPayment

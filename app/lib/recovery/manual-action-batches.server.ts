@@ -2,6 +2,7 @@
 // (manual-actions.server.ts): note, resend, mark recovered and stop recovery.
 // Pure builders; the dispatcher commits each through the money-write DO.
 
+import { toHex } from "@dustinedwards/site-runtime/encoding";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { MoneyWriteBatch } from "~/db/money-write";
 import { type Db, failedPayments, recoverySteps } from "~/db";
@@ -25,9 +26,7 @@ import { buildRecoveryBatch } from "./record-recovery";
  */
 export async function noteContentToken(note: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(note));
-  return Array.from(new Uint8Array(digest).slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return toHex(new Uint8Array(digest).slice(0, 8));
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { AUDIT_SUMMARY_STRUCTURE } from "~/lib/audit/summary";
+import { ordinal } from "~/lib/billing/page";
 import {
   AUDIT_LOOKBACK_DAYS,
   AUDIT_RECOVERY_ESTIMATE_PCT,
@@ -55,12 +56,6 @@ import { countWord } from "~/lib/marketing/decline-categories";
 //
 // Every one of these is listed in the J55 PR notes for the seat to read.
 
-/** The day of the month the monthly audit fires, as "1st". */
-function ordinal(n: number): string {
-  const tens = n % 100;
-  if (tens >= 11 && tens <= 13) return `${n}th`;
-  return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
-}
 /** The cron's day-of-month field. */
 const AUDIT_AUTO_RUN_DAY = Number(CRON_SCHEDULE_MONTHLY_AUDIT.trim().split(/\s+/)[2]);
 const autoRunDay = ordinal(AUDIT_AUTO_RUN_DAY);

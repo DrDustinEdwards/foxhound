@@ -39,7 +39,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         RATE_LIMIT_CSP_REPORT.windowMs,
       ),
     log: (line) =>
-      console.log(
+      console.info(
         JSON.stringify({
           event: "csp_violation",
           directive: line.directive ?? "unknown",

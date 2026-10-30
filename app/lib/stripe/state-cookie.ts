@@ -5,6 +5,7 @@ import {
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
 } from "~/lib/constants";
+import { readCookie } from "~/lib/http/cookies";
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 
 // CSRF state cookie for the Stripe Connect OAuth flow (legacy rule: a state
@@ -27,16 +28,6 @@ export function setStateCookie(
 
 export function clearStateCookie(name: string = STRIPE_OAUTH_STATE_COOKIE): string {
   return `${name}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
-}
-
-function readCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("Cookie") ?? "";
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
-  }
-  return null;
 }
 
 export function readStateCookie(

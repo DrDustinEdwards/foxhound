@@ -16,6 +16,7 @@ import {
   WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
 import { cronWeekdayIndex } from "~/lib/admin/crons";
+import { ordinal } from "~/lib/billing/page";
 import { recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 import { DEMO_BUSINESSES } from "~/lib/demo/constants";
@@ -132,12 +133,6 @@ function cronWeekday(expr: string): string {
   const day = m ? cronWeekdayIndex(m[1]) : null;
   if (day === null) throw new Error(`not a weekly schedule: ${expr}`);
   return WEEKDAYS[day];
-}
-
-function ordinal(n: number): string {
-  const tens = n % 100;
-  if (tens >= 11 && tens <= 13) return `${n}th`;
-  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 }
 
 function plural(n: number, unit: string): string {

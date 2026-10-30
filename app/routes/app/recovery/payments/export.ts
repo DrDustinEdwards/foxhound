@@ -2,14 +2,19 @@ import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
-import { parsePaymentsPage, parsePaymentsPageSize } from "~/lib/recovery/payments-list";
+import {
+  parsePaymentsAmount,
+  parsePaymentsPage,
+  parsePaymentsPageSize,
+  parsePaymentsSort,
+  parsePaymentsTimeRange,
+} from "~/lib/recovery/payments-list";
 import {
   countStepsForFailedPayments,
   getAmountBounds,
   listFilteredFailedPayments,
-  type FailedPaymentSort,
 } from "~/lib/recovery/queries.server";
-import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
+import { resolvePaymentTimeRangeCutoff } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/export";
 
@@ -19,21 +24,6 @@ import type { Route } from "./+types/export";
 // scoped to the signed-in account. "All" as the page size exports every
 // matching row, as it shows every row. The 13 columns are Recova's
 // (lib/csv.ts); see app/lib/recovery/payments-csv.ts.
-
-function parseSort(value: string | null): FailedPaymentSort {
-  return value === "oldest" || value === "amount_desc" || value === "amount_asc" ? value : "newest";
-}
-
-function parseTimeRange(value: string | null): PaymentTimeRange {
-  return value && isPaymentTimeRange(value) ? value : "all";
-}
-
-function parseAmountParam(value: string | null, floorCents: number, ceilingCents: number): number | null {
-  if (!value) return null;
-  const n = Math.round(Number(value));
-  if (!Number.isFinite(n)) return null;
-  return Math.min(Math.max(n, floorCents), ceilingCents);
-}
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -46,14 +36,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const search = params.get("q")?.trim() || null;
   const status = params.get("status") || null;
   const declineCategory = params.get("category") || null;
-  const sort = parseSort(params.get("sort"));
-  const time = parseTimeRange(params.get("time"));
+  const sort = parsePaymentsSort(params.get("sort"));
+  const time = parsePaymentsTimeRange(params.get("time"));
   const page = parsePaymentsPage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
-  const amountMinParsed = parseAmountParam(params.get("amountMin"), bounds.minCents, bounds.maxCents);
-  const amountMaxParsed = parseAmountParam(params.get("amountMax"), bounds.minCents, bounds.maxCents);
+  const amountMinParsed = parsePaymentsAmount(params.get("amountMin"), bounds.minCents, bounds.maxCents);
+  const amountMaxParsed = parsePaymentsAmount(params.get("amountMax"), bounds.minCents, bounds.maxCents);
   const amountMinCents = amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
   const amountMaxCents = amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
   const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);

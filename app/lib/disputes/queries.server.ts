@@ -3,6 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import {
+  changedRows,
   accounts,
   customerContext,
   disputeApprovals,
@@ -198,15 +199,6 @@ export async function saveDisputeDraft(
   if (!first) return true;
   const results = await db.batch([first, ...rest]);
   return results.every((r) => changedRows(r) > 0);
-}
-
-/** Rows a run statement changed: D1 reports meta.changes; the test suite's
- *  better-sqlite3 driver reports changes. Anything else reads as none, so an
- *  unreadable result is never taken for a write. */
-function changedRows(result: unknown): number {
-  const r = result as { meta?: { changes?: unknown }; changes?: unknown } | null;
-  const n = r?.meta?.changes ?? r?.changes;
-  return typeof n === "number" ? n : 0;
 }
 
 /** The connected Stripe account's access token for a dispute's connection, or

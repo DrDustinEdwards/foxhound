@@ -13,7 +13,7 @@
     "gen:recova-map": "vitest run test/redirect-map.test.ts --update",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "auth:generate": "better-auth generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
+    "auth:generate": "npx auth@1.7.12 generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/db-migrate.mjs",
     "check-gates": "node scripts/check-gates.mjs",
@@ -59,13 +59,14 @@
     "workers-og": "0.0.27"
   },
   "devDependencies": {
-    "@better-auth/cli": "1.4.21",
     "@cloudflare/vite-plugin": "1.65.0",
     "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.17.0",
     "@eslint/js": "9.39.5",
     "@react-router/dev": "8.5.1",
     "@tailwindcss/vite": "4.3.2",
     "@types/better-sqlite3": "7.6.13",
+    "@types/hast": "3.0.5",
+    "@types/mdast": "4.0.4",
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -77,13 +78,14 @@
     "globals": "17.7.0",
     "jose": "6.2.3",
     "knip": "6.41.0",
+    "mdast-util-directive": "3.1.1",
     "playwright": "1.62.1",
+    "sharp": "0.35.5",
     "tailwindcss": "4.3.2",
     "typescript": "5.9.3",
     "typescript-eslint": "8.63.0",
     "vite": "8.3.5",
     "vitest": "3.2.7",
-    "wrangler": "4.152.0",
-    "yaml": "2.9.1"
+    "wrangler": "4.152.0"
   }
 }

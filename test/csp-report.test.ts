@@ -47,7 +47,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/csp-report", () => {
   it("logs the directive and the blocked origin only, never a token path or the page", async () => {
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
     const { response, calls } = call(post(TOKEN_REPORT, "198.51.100.9"));
     expect((await response).status).toBe(204);
     expect(calls).toEqual([{ name: "csp-report:198.51.100.9", rules: [{ limit: 20, windowSeconds: 60 }] }]);

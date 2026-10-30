@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
 import { accounts, alerts, mcpWrites, stripeConnections } from "~/db";
@@ -87,12 +88,13 @@ async function commit(
   db: Db,
   accountId: string,
   fields: string[],
-  statement: unknown | unknown[],
+  statement: BatchItem<"sqlite"> | [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
   trace: WriteTrace | undefined,
 ) {
-  const writes = Array.isArray(statement) ? statement : [statement];
-  const statements = trace ? [...writes, traceInsert(db, accountId, fields, trace)] : writes;
-  await (db as unknown as { batch: (s: unknown[]) => Promise<unknown> }).batch(statements);
+  type Statements = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
+  const writes: Statements = Array.isArray(statement) ? statement : [statement];
+  const statements: Statements = trace ? [...writes, traceInsert(db, accountId, fields, trace)] : writes;
+  await db.batch(statements);
 }
 
 /** Coerce a JSON or form boolean. Accepts a real boolean and the "true" string
@@ -575,7 +577,7 @@ export async function applyIntelligenceContext(
     merchantMrrSelfReported?: unknown;
   },
   trace?: WriteTrace,
-  alongside: unknown[] = [],
+  alongside: BatchItem<"sqlite">[] = [],
 ): Promise<ApplyResult<IntelligenceContextState>> {
   const found = await db
     .select({

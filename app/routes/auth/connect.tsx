@@ -1,6 +1,5 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { and, eq, isNull } from "drizzle-orm";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
@@ -26,6 +25,7 @@ import {
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
+import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { setStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
@@ -65,12 +65,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const rows = await db
       .select({ id: stripeConnections.id })
       .from(stripeConnections)
-      .where(
-        and(
-          eq(stripeConnections.accountId, membership.accountId),
-          isNull(stripeConnections.disconnectedAt),
-        ),
-      )
+      .where(activeConnectionWhere(membership.accountId))
       .limit(1);
     hasConnection = rows.length > 0;
   }

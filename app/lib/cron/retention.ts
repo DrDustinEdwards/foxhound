@@ -29,6 +29,7 @@ import {
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
 import { computeAiCallCostCents } from "~/lib/ai/cost";
+import { monthKeyUTC } from "~/lib/date-format";
 
 import type { CronJobResult } from "./run";
 
@@ -43,11 +44,6 @@ import type { CronJobResult } from "./run";
 /** The oldest-allowed timestamp for a window; rows strictly older are swept. Pure. */
 export function cutoffFor(days: number, nowMs: number): Date {
   return new Date(nowMs - days * DAY_MS);
-}
-
-/** UTC YYYY-MM bucket for a timestamp. Pure. */
-export function monthKeyUTC(when: Date): string {
-  return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 /** Split an id list into chunks that fit under D1's bound-parameter ceiling.

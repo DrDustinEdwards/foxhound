@@ -13,6 +13,7 @@ import { detectSubscriptionChanges, type SubscriptionChange } from "~/lib/intell
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
+import { asId } from "~/lib/stripe/ids";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
 // verified event to the intent the processor acts on and pulls the refs it needs
@@ -213,11 +214,6 @@ export type WebhookIntent =
       kind: "connection_deauthorized";
     }
   | { kind: "ignore"; reason: string };
-
-function asId(ref: string | { id?: string } | null | undefined): string | null {
-  if (!ref) return null;
-  return typeof ref === "string" ? ref : ref.id ?? null;
-}
 
 /** Classify a verified Stripe event into the processor intent. Pure. */
 /** Stripe's card updater replaced the card details (a new expiry or number

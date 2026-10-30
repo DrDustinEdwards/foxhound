@@ -13,6 +13,7 @@ import "capsomer/stat-tile.css";
 import "~/site-header.css";
 
 import { disputes, failedPayments, getDb, stripeConnections } from "~/db";
+import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
@@ -87,9 +88,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     db
       .select({ stripeUserId: stripeConnections.stripeUserId })
       .from(stripeConnections)
-      .where(
-        and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)),
-      ),
+      .where(activeConnectionWhere(accountId)),
     db
       .select({ n: count() })
       .from(failedPayments)

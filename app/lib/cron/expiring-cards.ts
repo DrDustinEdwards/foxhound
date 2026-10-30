@@ -6,6 +6,7 @@ import { DAY_MS, EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
+import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -358,7 +359,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           // CUSTOMER audience: the CAN-SPAM footer, the unsubscribe headers and
           // the suppression gate all apply, because this is commercial mail sent
           // on the merchant's behalf.
-          unsubscribeToken: await signUnsubscribeFor(env, alert.customerEmail, alert.accountId),
+          unsubscribeToken: await signUnsubscribeToken(env, { email: alert.customerEmail, accountId: alert.accountId }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `expiring-card:${alert.id}`,
           cronRunId: null,
@@ -418,11 +419,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
     }
   }
   return result;
-}
-
-async function signUnsubscribeFor(env: Env, email: string, accountId: string): Promise<string> {
-  const { signUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
-  return signUnsubscribeToken(env, { email, accountId });
 }
 
 /** Stamp without claiming: used for refusals, where nothing was sent and there

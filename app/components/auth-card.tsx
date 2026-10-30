@@ -2,7 +2,7 @@ import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Form, Link } from "react-router";
 
 import { authClient } from "~/lib/auth/client";
@@ -174,13 +174,17 @@ export function PasskeyContinue({ next }: { next: string }) {
     }
   }
 
+  // An effect event reads the latest `next` without making the effect rerun.
+  const offerAutofill = useEffectEvent(() => {
+    void signInWithPasskey(true);
+  });
+
   // Once per page: the browser holds one pending autofill request.
   useEffect(() => {
     if (typeof PublicKeyCredential === "undefined") return;
     void PublicKeyCredential.isConditionalMediationAvailable?.().then((ok) => {
-      if (ok) void signInWithPasskey(true);
+      if (ok) offerAutofill();
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
