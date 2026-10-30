@@ -1,3 +1,4 @@
+import { buildRecoverBatch } from "~/lib/webhooks/batches";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -9,7 +10,6 @@ import { accounts, failedPayments, recoveredPayments, recoverySteps } from "~/db
 import { MANUAL_ATTRIBUTION_KIND } from "~/lib/constants";
 import { SerialMoneyCommitter } from "~/lib/money/serializer";
 import { buildMarkRecoveredBatch } from "~/lib/recovery/manual-action-batches.server";
-import { buildRecoveryBatch } from "~/lib/recovery/record-recovery";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -98,12 +98,20 @@ const markRecoveredBatch = (db: Db) =>
     now,
   });
 
-/** The webhook's own recording of the same payment, for the both-orders race. */
+/** The webhook's own recording of the same payment, for the both-orders race:
+ *  its real batch, claim and conditional status flip included. */
 const webhookRecoveryBatch = (db: Db) =>
-  buildRecoveryBatch(db, {
+  buildRecoverBatch(db, {
+    claim: {
+      stripeEventId: "evt_fp_1",
+      eventType: "invoice.payment_succeeded",
+      receivedAt: now,
+      accountId: "acc_1",
+      payload: { id: "evt_fp_1" },
+    },
     accountId: "acc_1",
     failedPaymentId: "fp_1",
-    amountCents: 4200,
+    amountPaidCents: 4200,
     currency: "usd",
     recoveredAt: now,
     attribution: { kind: "foxhound_retry", ref: "step_x" },

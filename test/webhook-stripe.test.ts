@@ -203,8 +203,9 @@ describe("webhook batch builders (compile against schema)", () => {
     const flip = sqlOf(batch[1]);
     expect(flip.sql).toMatch(/update .*failed_payments/i);
     expect(flip.params).toContain("recovered");
-    expect(sqlOf(batch[2]).sql).toMatch(/recovered_payments/i);
-    expect(sqlOf(batch[3]).sql).toMatch(/outcomes/i);
+    // The outcomes key first, so a second recorder reads as a replay.
+    expect(sqlOf(batch[2]).sql).toMatch(/insert into "outcomes"/i);
+    expect(sqlOf(batch[3]).sql).toMatch(/insert into "recovered_payments"/i);
   });
 
   it("refund stamp batch = claim + failed_payments marker + conditional recovered_payments update", () => {

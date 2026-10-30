@@ -97,7 +97,26 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
         eq(failedPayments.resolvedAt, input.recoveredAt),
       ),
     )})`;
+  // The outcomes row goes FIRST. Its key is the exactly-once backstop, so a
+  // second recorder (webhook vs merchant) collides on it and reads as a replay
+  // (applied=false) before the guarded insert below can refuse with an error.
   return [
+    db.insert(outcomes).values({
+      accountId: input.accountId,
+      product: "recovery",
+      eventType: "payment_recovered",
+      outcome: attributed ? "recovered_attributed" : "recovered_baseline",
+      outcomeAt: input.recoveredAt,
+      createdAt: input.recoveredAt,
+      idempotencyKey: key,
+      attributionKind: input.attribution.kind,
+      attributedRef: input.attribution.ref,
+      eventData: {
+        amountCents: input.amountCents,
+        currency: input.currency,
+        method: input.recoveryMethod,
+      },
+    }),
     db.insert(recoveredPayments).values({
       accountId: accountIdIfFlipped,
       failedPaymentId: input.failedPaymentId,
@@ -115,22 +134,6 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
       stripeFeeCents: input.chargeFee?.stripeFeeCents ?? null,
       netAmountCents: input.chargeFee?.netAmountCents ?? null,
       netCurrency: input.chargeFee?.netCurrency ?? null,
-    }),
-    db.insert(outcomes).values({
-      accountId: input.accountId,
-      product: "recovery",
-      eventType: "payment_recovered",
-      outcome: attributed ? "recovered_attributed" : "recovered_baseline",
-      outcomeAt: input.recoveredAt,
-      createdAt: input.recoveredAt,
-      idempotencyKey: key,
-      attributionKind: input.attribution.kind,
-      attributedRef: input.attribution.ref,
-      eventData: {
-        amountCents: input.amountCents,
-        currency: input.currency,
-        method: input.recoveryMethod,
-      },
     }),
   ];
 }
