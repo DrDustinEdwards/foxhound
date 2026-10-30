@@ -24,6 +24,7 @@ import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { disconnectFeedback, type DisconnectResult } from "~/lib/settings/stripe-disconnect-feedback";
 
 import type { Route } from "./+types/stripe";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
@@ -49,7 +50,7 @@ import type { Route } from "./+types/stripe";
 // path (disconnectConnection, RULES.md 3.2), never an agent tool (3.6).
 
 export function meta() {
-  return [{ title: "Stripe connections - Foxhound" }];
+  return [{ title: "Stripe connections - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

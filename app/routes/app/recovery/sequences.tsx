@@ -39,6 +39,7 @@ import {
 } from "~/lib/recovery/sequence-performance";
 
 import type { Route } from "./+types/sequences";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/sequence (row S9, job J12). Recova is the spec: its page,
 // app/(app)/recovery/sequence/page.tsx at blob 953c3f57, with
@@ -50,7 +51,7 @@ import type { Route } from "./+types/sequences";
 // ruling 80).
 
 export function meta() {
-  return [{ title: "Sequences - Foxhound" }];
+  return [{ title: "Sequences - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

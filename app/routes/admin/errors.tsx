@@ -19,11 +19,12 @@ import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/errors";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Errors" };
 
 export function meta() {
-  return [{ title: "Errors - Foxhound admin" }];
+  return [{ title: "Errors - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

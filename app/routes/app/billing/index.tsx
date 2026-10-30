@@ -30,6 +30,7 @@ import { getBillingLedger, listAccountSubscriptions, listBillingInvoices } from 
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /billing (J65, row S3): Recova's billing page on Foxhound's billing engine.
 // Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
@@ -46,7 +47,7 @@ import type { Route } from "./+types/index";
 // write is the existing billing-setup action below, unchanged.
 
 export function meta() {
-  return [{ title: "Billing - Foxhound" }];
+  return [{ title: "Billing - Foxhound" }, NOINDEX];
 }
 
 async function loadAccountBillingRow(env: Env, accountId: string) {

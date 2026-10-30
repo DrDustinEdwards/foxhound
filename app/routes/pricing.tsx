@@ -18,6 +18,7 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/pricing";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // /pricing (J54, row M4). Recova's spec is app/(marketing)/pricing/page.tsx
 // (blob 8e91e160), read whole.
@@ -45,12 +46,28 @@ import type { Route } from "./+types/pricing";
 // engine constants, are in lib/marketing/pricing-copy.ts.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Pricing - Foxhound",
-    description: PRICING_META_DESCRIPTION,
-    path: "/pricing",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // JSON-LD, as Recova emits it: an array of the FAQPage, sourced from the
+  // exact list rendered above, and a WebPage whose SpeakableSpecification
+  // points at the cards and FAQ sections by the classes on them. Every URL
+  // comes from the loader's siteUrl.
+  return [
+    ...marketingMeta({
+      title: "Pricing - Foxhound",
+      description: PRICING_META_DESCRIPTION,
+      path: "/pricing",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(faqPageJsonLd(PRICING_FAQS)),
+          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
+            name: "Pricing - Foxhound",
+            path: "/pricing",
+            selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
+          })),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -58,9 +75,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function PricingPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url } = loaderData;
-
+export default function PricingPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
@@ -200,24 +215,6 @@ export default function PricingPage({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </section>
-
-      {/* JSON-LD, as Recova emits it: an array of the FAQPage, sourced from the
-          exact list rendered above, and a WebPage whose SpeakableSpecification
-          points at the cards and FAQ sections by the classes on them. Every URL
-          comes from the loader's siteUrl. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
-            faqPageJsonLd(PRICING_FAQS),
-            speakableWebPageJsonLd(url, {
-              name: "Pricing - Foxhound",
-              path: "/pricing",
-              selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
-            }),
-          ]),
-        }}
-      />
     </div>
   );
 }

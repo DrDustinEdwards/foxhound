@@ -35,6 +35,8 @@ import {
 import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
 
 import type { Route } from "./+types/api-keys";
+import { NOINDEX } from "~/lib/seo/meta";
+import { formatDateShort } from "~/lib/date-format";
 
 // S29, /settings/api-keys. Legacy: api-keys/page.tsx (blob b50fb228, 624 bytes)
 // and api-keys/ApiKeysClient.tsx (blob 338db3db, 10,371 bytes), with its API at
@@ -71,7 +73,7 @@ import type { Route } from "./+types/api-keys";
 // hash is, in issueMcpToken).
 
 export function meta() {
-  return [{ title: "API keys - Foxhound" }];
+  return [{ title: "API keys - Foxhound" }, NOINDEX];
 }
 
 function isOwner(auth: { membership: { role: string } }): boolean {
@@ -191,12 +193,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 function formatDate(at: Date | null): string {
-  if (!at) return "Never";
-  return new Date(at).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return at ? formatDateShort(new Date(at)) : "Never";
 }
 
 /** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):

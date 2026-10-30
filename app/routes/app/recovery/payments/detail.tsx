@@ -57,9 +57,10 @@ import type { AttributionKind } from "~/lib/constants";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 
 import type { Route } from "./+types/detail";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Payment detail - Foxhound" }];
+  return [{ title: "Payment detail - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {

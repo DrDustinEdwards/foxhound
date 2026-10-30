@@ -13,6 +13,7 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/welcome";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // Row A8, /welcome (J28). Recova's app/welcome/page.tsx (blob f0181a74) and
 // WelcomeClient.tsx (blob a9489188), read whole. The landing after a NEW Stripe
@@ -30,7 +31,7 @@ import type { Route } from "./+types/welcome";
 // account_products table it writes was dropped (ruling 298).
 
 export function meta() {
-  return [{ title: "Welcome - Foxhound" }];
+  return [{ title: "Welcome - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {

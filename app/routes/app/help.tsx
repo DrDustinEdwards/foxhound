@@ -23,6 +23,7 @@ import {
 } from "~/lib/help/platform-status.server";
 
 import type { Route } from "./+types/help";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /help, ported toward legacy app/(app)/help/page.tsx (row S23).
 //
@@ -55,7 +56,7 @@ import type { Route } from "./+types/help";
 // difference waits for Capsomer's per-site style layer and is listed with J13.
 
 export function meta() {
-  return [{ title: "Help - Foxhound" }];
+  return [{ title: "Help - Foxhound" }, NOINDEX];
 }
 
 /**

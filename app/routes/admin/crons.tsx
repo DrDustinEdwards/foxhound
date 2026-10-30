@@ -28,11 +28,12 @@ import {
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/crons";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Crons" };
 
 export function meta() {
-  return [{ title: "Crons - Foxhound admin" }];
+  return [{ title: "Crons - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {

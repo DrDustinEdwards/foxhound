@@ -7,9 +7,10 @@ import { listWinbackSequences } from "~/lib/recovery/queries.server";
 import { WINBACK_STATUS } from "~/lib/recovery/winback";
 
 import type { Route } from "./+types/winback";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Win-back - Foxhound" }];
+  return [{ title: "Win-back - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

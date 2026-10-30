@@ -84,6 +84,7 @@ import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { isPaymentTimeRange, resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/payments (row S6, job J75). Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
@@ -117,7 +118,7 @@ import type { Route } from "./+types/index";
 // on Enter.
 
 export function meta() {
-  return [{ title: "Payments - Foxhound" }];
+  return [{ title: "Payments - Foxhound" }, NOINDEX];
 }
 
 function parseSort(value: string | null): FailedPaymentSort {

@@ -28,6 +28,7 @@ import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { sendTestEmail } from "~/lib/settings/test-email.server";
 
 import type { Route } from "./+types/email";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S33, /settings/email, a named launch blocker in core.md: with no writer for
 // `sender_name`, `toEmailContext` fell back to "your subscription" and that
@@ -91,7 +92,7 @@ import type { Route } from "./+types/email";
 // pair (337 binding 3): a merchant who never touched it has both on.
 
 export function meta() {
-  return [{ title: "Email settings - Foxhound" }];
+  return [{ title: "Email settings - Foxhound" }, NOINDEX];
 }
 
 const NULL_IS_ON = true;

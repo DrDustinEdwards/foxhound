@@ -31,6 +31,8 @@ import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
 
 import type { Route } from "./+types/dashboard";
+import { NOINDEX } from "~/lib/seo/meta";
+import { formatDateShort } from "~/lib/date-format";
 
 // J43 (job_3b8776847895), row U2: Recova's /audit/dashboard, at Recova's path.
 // Read whole at HEAD: app/audit/dashboard/page.tsx (blob 988c190a, 9,206 bytes)
@@ -77,7 +79,7 @@ import type { Route } from "./+types/dashboard";
 // it shows what it stored and no change is drawn against it.
 
 export function meta() {
-  return [{ title: "Audit history - Foxhound" }];
+  return [{ title: "Audit history - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -142,14 +144,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 type RunView = Route.ComponentProps["loaderData"]["runs"][number];
-
-function formatDate(value: Date): string {
-  return value.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 /** A stored figure, one line per currency, or "Not read" when the scope was
  *  not read on that run. Recova prints a zero here; a zero that means unknown
@@ -413,7 +407,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
       <div className="mb-6">
         <PageHead
           title="Audit history"
-          lead={`Last run ${formatDate(last.runAt)}`}
+          lead={`Last run ${formatDateShort(last.runAt)}`}
           actions={<RunNewAudit>Run new audit</RunNewAudit>}
         />
       </div>
@@ -469,7 +463,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
               <tbody>
                 {runs.map((run) => (
                   <tr key={run.id}>
-                    <th scope="row">{formatDate(run.runAt)}</th>
+                    <th scope="row">{formatDateShort(run.runAt)}</th>
                     <td data-num="" className="font-mono">
                       <Amount totals={run.failedInvoices} currency={run.currency} />
                     </td>
@@ -482,7 +476,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                     <td data-num="">
                       <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
                         View
-                        <span className="sr-only"> the run of {formatDate(run.runAt)}</span>
+                        <span className="sr-only"> the run of {formatDateShort(run.runAt)}</span>
                       </Link>
                     </td>
                   </tr>

@@ -13,6 +13,7 @@ import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/archive";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
 // back-link, an H1 that names the active filter, an article count, a row of
@@ -36,14 +37,25 @@ import type { Route } from "./+types/archive";
 // described the unfiltered page even when ?tag= narrowed it.
 export function meta({ loaderData }: Route.MetaArgs) {
   const label = loaderData?.activeTag ? labelForTag(loaderData.activeTag) : null;
-  return marketingMeta({
-    title: label ? `${label} - Foxhound Blog` : "All articles - Foxhound Blog",
-    description: label
-      ? `All Foxhound articles on ${label}.`
-      : "Every published guide on Stripe payment recovery, dispute handling, and subscription intelligence.",
-    path: loaderData?.activeTag ? `/blog/archive?tag=${loaderData.activeTag}` : "/blog/archive",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  return [
+    ...marketingMeta({
+      title: label ? `${label} - Foxhound Blog` : "All articles - Foxhound Blog",
+      description: label
+        ? `All Foxhound articles on ${label}.`
+        : "Every published guide on Stripe payment recovery, dispute handling, and subscription intelligence.",
+      path: loaderData?.activeTag ? `/blog/archive?tag=${loaderData.activeTag}` : "/blog/archive",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+            { name: "Home", path: "/" },
+            { name: "Blog", path: "/blog" },
+            { name: "All articles", path: "/blog/archive" },
+          ])),
+        ]
+      : []),
+  ];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -68,7 +80,7 @@ function pillClassName(active: boolean): string {
 }
 
 export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, posts, activeTag, visibleTags } = loaderData;
+  const { posts, activeTag, visibleTags } = loaderData;
   const activeLabel = activeTag ? labelForTag(activeTag) : "All articles";
 
   return (
@@ -125,19 +137,6 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
           ))}
         </div>
       )}
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Blog", path: "/blog" },
-              { name: "All articles", path: "/blog/archive" },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

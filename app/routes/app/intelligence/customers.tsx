@@ -38,6 +38,7 @@ import { formatMoney } from "~/lib/money-format";
 import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/customers (row S17, job J30). Recova is the spec: its real
 // page, app/(app)/intelligence/customers/page.tsx at blob 0413f035, with
@@ -60,7 +61,7 @@ import type { Route } from "./+types/customers";
 // action the nightly scoring stores (J78).
 
 export function meta() {
-  return [{ title: "Customers - Foxhound" }];
+  return [{ title: "Customers - Foxhound" }, NOINDEX];
 }
 
 const HEALTH_BANDS: HealthScoreBand[] = ["healthy", "watch", "at_risk"];

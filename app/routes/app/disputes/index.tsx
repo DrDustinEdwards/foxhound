@@ -39,6 +39,7 @@ import type { Tone } from "~/lib/recovery/labels";
 import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /disputes (J66, row S13): Recova's disputes dashboard on Foxhound's engine.
 // Recova is the spec: app/(app)/disputes/dashboard/page.tsx (blob c97c3e93),
@@ -62,7 +63,7 @@ import type { Route } from "./+types/index";
 // account that has had a warning, below the disputes table.
 
 export function meta() {
-  return [{ title: "Disputes - Foxhound" }];
+  return [{ title: "Disputes - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

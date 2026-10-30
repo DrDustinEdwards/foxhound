@@ -19,6 +19,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/page";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The five docs guides on one :slug route (row M18, J73). Recova's spec is
 // app/(marketing)/docs/{platform,audit,recovery,disputes,intelligence}/page.tsx
@@ -50,19 +51,33 @@ export function loader({ params, context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Docs - Foxhound" }];
   const { guide, siteUrl: url } = loaderData;
-  return marketingMeta({
-    title: `${guide.title} - Foxhound docs`,
-    description: guide.description,
-    path: `/docs/${guide.slug}`,
-    siteUrl: url,
-  });
+  // JSON-LD (368 roadmap item 2): one block, an array of two. The headline
+  // is the same value the h1 renders, so the two cannot drift.
+  return [
+    ...marketingMeta({
+      title: `${guide.title} - Foxhound docs`,
+      description: guide.description,
+      path: `/docs/${guide.slug}`,
+      siteUrl: url,
+    }),
+    jsonLd(techArticleJsonLd(url, {
+      headline: guide.heading,
+      description: guide.description,
+      path: `/docs/${guide.slug}`,
+      datePublished: guide.datePublished,
+    })),
+    jsonLd(breadcrumbListJsonLd(url, [
+      { name: "Docs", path: "/docs" },
+      { name: guide.title, path: `/docs/${guide.slug}` },
+    ])),
+  ];
 }
 
 /** Recova's RelLink and TOC link: amber, underlined. */
 const LINK = "text-accent-text underline underline-offset-2 hover:opacity-80";
 
 export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
-  const { guide, siteUrl: url } = loaderData;
+  const { guide } = loaderData;
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
@@ -113,26 +128,6 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
           <DocBlocks blocks={section.body} />
         </section>
       ))}
-
-      {/* JSON-LD (368 roadmap item 2): one block, an array of two. The headline
-          is the same value the h1 renders, so the two cannot drift. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
-            techArticleJsonLd(url, {
-              headline: guide.heading,
-              description: guide.description,
-              path: `/docs/${guide.slug}`,
-              datePublished: guide.datePublished,
-            }),
-            breadcrumbListJsonLd(url, [
-              { name: "Docs", path: "/docs" },
-              { name: guide.title, path: `/docs/${guide.slug}` },
-            ]),
-          ]),
-        }}
-      />
     </div>
   );
 }

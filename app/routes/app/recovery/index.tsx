@@ -63,6 +63,7 @@ import {
   DeliverabilityPanel,
   PaymentsTable,
 } from "../../../components/recovery-dashboard-panels";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/dashboard (row S5, job J74). Recova is the spec: its page,
 // app/(app)/recovery/dashboard/page.tsx at blob 208b0066, and every component
@@ -107,7 +108,7 @@ import {
 // recomputes it on every load, so clearing the sender name brings it back.
 
 export function meta() {
-  return [{ title: "Recovery - Foxhound" }];
+  return [{ title: "Recovery - Foxhound" }, NOINDEX];
 }
 
 function parseRange(value: string | null): RecoveryRange {

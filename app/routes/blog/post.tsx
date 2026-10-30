@@ -23,6 +23,8 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { formatDateShort } from "~/lib/date-format";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -97,30 +99,68 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
   const image = post.coverImageUrl ?? ogImageUrl(url, title, post.ogDescription ?? post.excerpt);
 
-  return marketingMeta({
-    title,
-    suffix: " - Foxhound Blog",
-    description,
-    path: `/blog/${post.slug}`,
-    siteUrl: url,
-    canonical,
-    image,
-    ogTitle: title,
-    ogType: "article",
-    imageAlt: title,
-  });
-}
-
-function formatDate(d: Date | null): string {
-  if (!d) return "";
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  // JSON-LD goes through meta, which React Router escapes, because the title,
+  // excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>`
+  // as it is. organizationJsonLd (and personJsonLd, when the author is Dustin)
+  // render the full node the Article's publisher/author @id references point
+  // at. Rich Results parsers combine every JSON-LD block on ONE page into a
+  // single graph, but do NOT fetch other pages to resolve an @id, so a bare
+  // {"@id": ...} reference with no matching node on THIS page would not
+  // actually resolve.
+  const byDustin = post.author.trim().toLowerCase() === "dustin edwards";
+  return [
+    ...marketingMeta({
+      title,
+      suffix: " - Foxhound Blog",
+      description,
+      path: `/blog/${post.slug}`,
+      siteUrl: url,
+      canonical,
+      image,
+      ogTitle: title,
+      ogType: "article",
+      imageAlt: title,
+    }),
+    jsonLd(organizationJsonLd(url)),
+    ...(byDustin
+      ? [
+          jsonLd(
+            personJsonLd(url, {
+              name: "Dustin Edwards",
+              jobTitle: "Founder",
+              description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
+            }),
+          ),
+        ]
+      : []),
+    jsonLd(
+      articleJsonLd(url, {
+        headline: title,
+        description,
+        path: `/blog/${post.slug}`,
+        imageUrl: image,
+        datePublished: post.publishedAt?.toISOString() ?? null,
+        dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
+        authorName: post.author,
+      }),
+    ),
+    jsonLd(
+      breadcrumbListJsonLd(url, [
+        { name: "Home", path: "/" },
+        { name: "Blog", path: "/blog" },
+        { name: post.title, path: `/blog/${post.slug}` },
+      ]),
+    ),
+    ...(loaderData.faqPairs.length > 0
+      ? [jsonLd(faqPageJsonLd(loaderData.faqPairs.map((f) => ({ question: f.question, answer: f.answer }))))]
+      : []),
+  ];
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, html, toc, previous, next, related, faqPairs } = loaderData;
+  const { siteUrl: url, post, html, toc, previous, next, related } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
-  const image = post.coverImageUrl ?? ogImageUrl(url, post.ogTitle ?? post.title, post.ogDescription ?? post.excerpt);
 
   const showUpdated =
     post.showUpdatedAt &&
@@ -173,11 +213,11 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           ) : null}
 
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
-            {showPublished ? <time dateTime={post.publishedAt!.toISOString()}>{formatDate(post.publishedAt)}</time> : null}
+            {showPublished ? <time dateTime={post.publishedAt!.toISOString()}>{formatDateShort(post.publishedAt)}</time> : null}
             {showPublished && showUpdated ? <span aria-hidden="true"> &middot; </span> : null}
             {showUpdated ? (
               <>
-                Updated <time dateTime={post.updatedAt!.toISOString()}>{formatDate(post.updatedAt)}</time>
+                Updated <time dateTime={post.updatedAt!.toISOString()}>{formatDateShort(post.updatedAt)}</time>
               </>
             ) : null}
             {showPublished || showUpdated ? (
@@ -315,62 +355,6 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           @id, so a bare {"@id": ...} reference with no matching node on
           THIS page would not actually resolve; home.tsx is the only other
           place organizationJsonLd renders. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd(url)) }}
-      />
-      {post.author.trim().toLowerCase() === "dustin edwards" ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
-              personJsonLd(url, {
-                name: "Dustin Edwards",
-                jobTitle: "Founder",
-                description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
-              }),
-            ),
-          }}
-        />
-      ) : null}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            articleJsonLd(url, {
-              headline: post.ogTitle ?? post.title,
-              description: post.ogDescription ?? post.excerpt,
-              path: `/blog/${post.slug}`,
-              imageUrl: image,
-              datePublished: post.publishedAt?.toISOString() ?? null,
-              dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
-              authorName: post.author,
-            }),
-          ),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Blog", path: "/blog" },
-              { name: post.title, path: `/blog/${post.slug}` },
-            ]),
-          ),
-        }}
-      />
-      {faqPairs.length > 0 ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
-              faqPageJsonLd(faqPairs.map((f) => ({ question: f.question, answer: f.answer }))),
-            ),
-          }}
-        />
-      ) : null}
     </div>
   );
 }

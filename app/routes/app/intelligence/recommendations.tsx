@@ -27,6 +27,7 @@ import {
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/recommendations";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/recommendations (row S20, job J78). Recova is the spec: its
 // page, app/(app)/intelligence/recommendations/page.tsx at blob 4f03c7d6, and
@@ -58,7 +59,7 @@ import type { Route } from "./+types/recommendations";
 // radius wait for Capsomer's per-site layer, as on the other Intelligence pages.
 
 export function meta() {
-  return [{ title: "Recommendations - Foxhound" }];
+  return [{ title: "Recommendations - Foxhound" }, NOINDEX];
 }
 
 interface Section {

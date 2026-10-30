@@ -1,4 +1,5 @@
 import { headTags, searchTitle } from "@drdustinedwards/site-helpers/head";
+import type { MiddlewareFunction } from "react-router";
 
 // Shared meta-tag builder (TASK-foxhound-seo-remediation.md, fixing
 // foxhound-audit-seo.md H1/M1/L1): every marketing route now emits the same
@@ -9,6 +10,18 @@ import { headTags, searchTitle } from "@drdustinedwards/site-helpers/head";
 // callers with per-entity art (blog posts) pass `image` to override it. Width
 // and height are always 1200x630 (og.ts's ImageResponse call is hardcoded to
 // that size for every card type), so they are not caller-configurable here.
+/** For pages a search engine has no business indexing: the sign-in pages, the
+ *  signed-in app and the admin. Their layouts also send `X-Robots-Tag`. */
+export const NOINDEX = { name: "robots", content: "noindex" } as const;
+
+/** The header form of NOINDEX, for a layout's middleware: it covers every
+ *  response under the layout, the ones with no `<head>` as well. */
+export const noindexHeader: MiddlewareFunction<Response> = async (_args, next) => {
+  const response = await next();
+  response.headers.set("X-Robots-Tag", "noindex");
+  return response;
+};
+
 export interface MarketingMetaInput {
   title: string;
   /** The site's suffix, such as " - Foxhound Blog". A title too long for a
