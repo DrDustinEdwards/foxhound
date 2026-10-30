@@ -25,11 +25,12 @@ import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Emergency brake" };
 
 export function meta() {
-  return [{ title: "Emergency brake - Foxhound admin" }];
+  return [{ title: "Emergency brake - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

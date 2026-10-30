@@ -4,9 +4,10 @@ import { authContext } from "~/lib/auth/context";
 import { getReportsArchive } from "~/lib/intelligence/views.server";
 
 import type { Route } from "./+types/reports";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Intelligence reports - Foxhound" }];
+  return [{ title: "Intelligence reports - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

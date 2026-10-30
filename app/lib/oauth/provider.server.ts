@@ -1,4 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
+import { safeEqual } from "@dustinedwards/site-runtime/compare";
+import { base64url } from "@dustinedwards/site-runtime/encoding";
 
 import type { Db } from "~/db";
 import { findActiveMembership } from "~/lib/auth/account";
@@ -120,12 +122,8 @@ export async function parseOAuthBody(request: Request): Promise<URLSearchParams 
  *  does not depend on where they first differ. */
 async function verifyPkceS256(verifier: string, challenge: string): Promise<boolean> {
   if (!VERIFIER_SHAPE.test(verifier)) return false;
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  const computed = btoa(String.fromCharCode(...digest)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  if (computed.length !== challenge.length) return false;
-  let diff = 0;
-  for (let i = 0; i < computed.length; i += 1) diff |= computed.charCodeAt(i) ^ challenge.charCodeAt(i);
-  return diff === 0;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  return safeEqual(base64url(digest), challenge);
 }
 
 // ============================================================================

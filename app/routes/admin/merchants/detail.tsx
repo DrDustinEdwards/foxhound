@@ -19,6 +19,7 @@ import { parseDollarsToCents } from "~/lib/settings/dollars";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle<{ account: { name: string | null; id: string } }> = {
   page: (data: { account: { name: string | null; id: string } }) => data.account.name ?? data.account.id,
@@ -26,7 +27,7 @@ export const handle: AdminHandle<{ account: { name: string | null; id: string } 
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const name = loaderData ? (loaderData.account.name ?? loaderData.account.id) : "Merchant";
-  return [{ title: `${name} - Foxhound admin` }];
+  return [{ title: `${name} - Foxhound admin` }, NOINDEX];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {

@@ -25,6 +25,7 @@ import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // Row A2, /login (J52): Recova's app/(auth)/login/page.tsx (blob ec09cd24),
 // read whole, for the frame: one card, "Welcome back", the line under it, the
@@ -36,7 +37,7 @@ import type { Route } from "./+types/login";
 // Supabase client calls.
 
 export function meta() {
-  return [{ title: "Log in - Foxhound" }];
+  return [{ title: "Log in - Foxhound" }, NOINDEX];
 }
 
 /** The ?error= codes something sends here: the limiter's, and Better Auth's

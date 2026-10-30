@@ -15,6 +15,7 @@
 //   - Start, Stop and expiry each write admin_audit_log (impersonation_start /
 //     impersonation_stop, Recova's codes), naming the admin and the account.
 
+import { base64url, sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -56,14 +57,12 @@ export function clearImpersonationCookieHeader(): string {
   return `${IMPERSONATION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 }
 
-async function hashToken(token: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+function hashToken(token: string): Promise<string> {
+  return sha256Hex(token);
 }
 
 function newToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
 /**

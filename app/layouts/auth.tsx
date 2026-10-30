@@ -1,6 +1,9 @@
 import { Outlet } from "react-router";
 
 import { Footer } from "~/components/footer";
+import { noindexHeader } from "~/lib/seo/meta";
+
+import type { Route } from "./+types/auth";
 
 // Recova's auth layout (app/(auth)/layout.tsx, blob 17a22006), row A1, ruled
 // toward Recova by 403 (Dustin "yes", 2026-09-19): the four sign-in pages
@@ -19,6 +22,9 @@ import { Footer } from "~/components/footer";
 // No loader: an anonymous visitor costs no database read. The theme is the
 // root loader's (<html data-theme>), and with no header there is no toggle,
 // as in Recova.
+// The sign-in pages are not for search results (each page's meta says so too).
+export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
+
 export default function AuthLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-text">

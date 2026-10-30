@@ -44,6 +44,7 @@ import { chooseTheme } from "~/lib/settings/theme-choice";
 import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S27, /settings/account, legacy's hub entry 12, "My account".
 //
@@ -85,7 +86,7 @@ import type { Route } from "./+types/account";
 // "Sign-in and invites", 2026-10-24).
 
 export function meta() {
-  return [{ title: "My account - Foxhound" }];
+  return [{ title: "My account - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

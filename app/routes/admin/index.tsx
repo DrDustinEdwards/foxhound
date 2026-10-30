@@ -18,11 +18,12 @@ import type { AdminHandle } from "~/lib/admin/page";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Overview" };
 
 export function meta() {
-  return [{ title: "Overview - Foxhound admin" }];
+  return [{ title: "Overview - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

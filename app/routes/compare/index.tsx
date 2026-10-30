@@ -8,6 +8,7 @@ import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 3 (net-new). /compare hub: a card grid linking to each
 // of the six named competitor pages (ROUTES.md Rev 2). Honest by
@@ -15,13 +16,23 @@ import type { Route } from "./+types/index";
 // data module, not marketing spin written separately here.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Compare Foxhound - Foxhound",
-    description:
-      "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover and Stunning, with honest pros and cons.",
-    path: "/compare",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  return [
+    ...marketingMeta({
+      title: "Compare Foxhound - Foxhound",
+      description:
+        "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover and Stunning, with honest pros and cons.",
+      path: "/compare",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+            { name: "Home", path: "/" },
+            { name: "Compare", path: "/compare" },
+          ])),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -29,9 +40,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function CompareIndex({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url } = loaderData;
-
+export default function CompareIndex() {
   return (
     <div>
       <MarketingPageHeader
@@ -67,18 +76,6 @@ export default function CompareIndex({ loaderData }: Route.ComponentProps) {
           })}
         </div>
       </div>
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Compare", path: "/compare" },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

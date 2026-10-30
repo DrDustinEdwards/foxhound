@@ -21,6 +21,8 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/run";
+import { NOINDEX } from "~/lib/seo/meta";
+import { formatDateShort } from "~/lib/date-format";
 
 // J63 (job_66a3ffa02214), row U4: Recova's saved run, app/audit/results/[id]/
 // page.tsx (blob a0dbf6ef, 11,127 bytes), at Recova's own path,
@@ -52,7 +54,7 @@ import type { Route } from "./+types/run";
 // merchant with no open disputes (365 binding 2).
 
 export function meta() {
-  return [{ title: "Audit run - Foxhound" }];
+  return [{ title: "Audit run - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -76,10 +78,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     console.error(`audit run ${params.id}: live figures could not be read`, err);
   }
   return { run: toStoredAuditRun(row), url: `${siteUrl(env)}/audit/results/${row.id}`, ...live };
-}
-
-function formatDate(value: Date): string {
-  return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Recova's AuditResultsReveal: each section fades in over 200ms, 80ms after
@@ -121,7 +119,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
       <div className="mb-5">
         <PageHead
-          title={`This audit was run on ${formatDate(run.runAt)}.`}
+          title={`This audit was run on ${formatDateShort(run.runAt)}.`}
           lead="Data reflects your Stripe account at that point in time."
           actions={
             <>
