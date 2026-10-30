@@ -15,6 +15,7 @@ import "~/site-header.css";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { listAccountConnections, listConnectionHealth } from "~/lib/settings/queries.server";
@@ -52,6 +53,10 @@ export function meta() {
   return [{ title: "Stripe connections - Foxhound" }];
 }
 
+// OWNERS ONLY disconnect: it revokes Foxhound's Stripe access for the whole
+// account, as only an owner revokes an API key (/settings/api-keys).
+const OWNER_ONLY = "Only the account owner can do this.";
+
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -78,6 +83,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     connections: connections
       .filter((c) => !c.disconnectedAt)
       .map((c) => ({ ...c, healthWarning: warnings.get(c.id) ?? [] })),
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
   };
 }
 
@@ -87,6 +93,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const accountId = auth.membership.accountId;
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
+
+  if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+    return data<DisconnectResult>({ action: intent, ok: false, error: OWNER_ONLY }, { status: 403 });
+  }
 
   if (intent !== "disconnect-stripe") {
     return data<DisconnectResult>({ action: intent, ok: false, error: "Unknown settings action." }, { status: 400 });
@@ -182,7 +192,15 @@ type Connection = {
  * Keep connected withdraws the question and hands focus back to the button.
  * While the disconnect runs, the button says so and Keep is withdrawn.
  */
-function StripeSection({ connections, result }: { connections: Connection[]; result?: DisconnectResult }) {
+function StripeSection({
+  connections,
+  result,
+  isOwner,
+}: {
+  connections: Connection[];
+  result?: DisconnectResult;
+  isOwner: boolean;
+}) {
   const navigation = useNavigation();
   const runningId =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "disconnect-stripe"
@@ -240,6 +258,7 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
                         <div className="mb-0.5 text-label text-text">{label}</div>
                         {connected ? <div className="text-micro text-text-subtle">{connected}</div> : null}
                       </div>
+                      {isOwner ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <DemoGuardedForm method="post">
                           <input type="hidden" name="_action" value="disconnect-stripe" />
@@ -271,6 +290,7 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
                           <Button onClick={() => keep(conn.id)}>Keep connected</Button>
                         ) : null}
                       </div>
+                      ) : null}
                     </div>
                     {conn.healthWarning?.length ? (
                       <div className="mt-3">
@@ -304,7 +324,7 @@ function StripeSection({ connections, result }: { connections: Connection[]; res
 }
 
 export default function StripeSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { connections } = loaderData;
+  const { connections, isOwner } = loaderData;
   const result = actionData as DisconnectResult | undefined;
 
   return (
@@ -318,7 +338,7 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
           lead="Connected Stripe accounts. Add additional accounts or disconnect existing ones."
         />
       </div>
-      <StripeSection connections={connections} result={result} />
+      <StripeSection connections={connections} result={result} isOwner={isOwner} />
     </>
   );
 }

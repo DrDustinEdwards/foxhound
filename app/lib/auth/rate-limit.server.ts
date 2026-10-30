@@ -1,4 +1,6 @@
-import { ipKey, limit, mustStop } from "@dustinedwards/site-runtime/rate-limit";
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
+import { ipKey, limit, mustStop, normalizePath } from "@dustinedwards/site-runtime/rate-limit";
+import { SIGN_IN_CODE_PATH } from "@dustinedwards/site-runtime/sign-in";
 import { data } from "react-router";
 
 // The sign-in and signup limiter, from site-runtime (Q5, Dustin "yes",
@@ -67,6 +69,57 @@ export async function checkAuthLimit(
   });
   if (mustStop(signup, ON_UNAVAILABLE)) return signup;
   return null;
+}
+
+// PER EMAIL, AS WELL AS PER IP. The IP buckets above do nothing against
+// someone spread over many addresses aiming at one inbox: mail-bombing it with
+// sign-in links, or guessing its six-digit code (Better Auth spends a code after
+// three wrong tries, but each new link brings a new code). So the link request
+// and the typed code each spend a bucket keyed on the address as well, lower
+// cased and trimmed, and hashed so the counter's name never holds the address.
+// A code attempt is counted whether or not it is right; ten a day is far above
+// the one or two a real person types.
+
+/** 5 sign-in links an hour per email address. */
+const LINK_EMAIL_RULES = [{ limit: 5, windowSeconds: 60 * 60 }];
+/** 10 typed sign-in codes a day per email address. */
+const CODE_EMAIL_RULES = [{ limit: 10, windowSeconds: 24 * 60 * 60 }];
+
+export type EmailAttempt = "link" | "code";
+
+/**
+ * Spends one use of the address's link or code budget. Returns the refusal
+ * when it is spent, or null to go on. Fails open, as checkAuthLimit does.
+ */
+export async function checkEmailLimit(
+  env: Env,
+  email: string,
+  attempt: EmailAttempt,
+): Promise<AuthLimitRefusal | null> {
+  const address = email.trim().toLowerCase();
+  if (!address) return null;
+  const key = `${attempt === "link" ? "link-email" : "code-email"}:${await sha256Hex(address)}`;
+  const verdict = await limit(env.AUTH_RATE_LIMITER, key, attempt === "link" ? LINK_EMAIL_RULES : CODE_EMAIL_RULES, {
+    onUnavailable: ON_UNAVAILABLE,
+  });
+  return mustStop(verdict, ON_UNAVAILABLE) ? verdict : null;
+}
+
+/**
+ * For a POST straight to Better Auth (/api/auth/*): the address a link request
+ * or a typed code names, so those spend the same per-email budget as the
+ * pages' forms. Null for every other path, or a body with no email.
+ */
+export async function signInEmailOf(request: Request): Promise<{ email: string; attempt: EmailAttempt } | null> {
+  const path = normalizePath(new URL(request.url).pathname);
+  const attempt: EmailAttempt | null =
+    path === "/api/auth/sign-in/magic-link" ? "link" : path === `/api/auth${SIGN_IN_CODE_PATH}` ? "code" : null;
+  if (!attempt) return null;
+  const body = (await request
+    .clone()
+    .json()
+    .catch(() => null)) as { email?: unknown } | null;
+  return body && typeof body.email === "string" && body.email.trim() ? { email: body.email, attempt } : null;
 }
 
 /** Where a refused Google start sends the browser: back to the login page,

@@ -431,6 +431,26 @@ describe("A9: consent", () => {
     expect(row.accountId).toBe(ACCOUNT_B);
   });
 
+  it("a member, not the owner, is refused on the card and on Allow, and nothing is minted", async () => {
+    sqlite.prepare("UPDATE account_members SET role = 'member' WHERE account_id = ?").run(ACCOUNT_B);
+    const clientId = await registered();
+    const { challenge } = await pkcePair();
+    const loaded = (await authorizeRoute.loader({
+      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams(clientId, challenge)}`),
+      context: context(),
+      params: {},
+    } as never)) as { ok: boolean };
+    expect(loaded.ok).toBe(false);
+    const form = authorizeParams(clientId, challenge, { intent: "allow", account_id: ACCOUNT_B });
+    const res = (await authorizeRoute.action({
+      request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+      context: context(),
+      params: {},
+    } as never)) as { init?: { status?: number } } | Response;
+    expect(res instanceof Response ? res.status : res.init?.status).toBe(403);
+    expect(await db.select().from(oauthAuthorizationCodes)).toHaveLength(0);
+  });
+
   it("a post from another origin is refused before anything is minted", async () => {
     const clientId = await registered();
     const { challenge } = await pkcePair();
@@ -646,17 +666,18 @@ describe("the authorize page stays out of caches, analytics and crawls", () => {
 
 async function makeMember(): Promise<void> {
   // USER owns ACCOUNT_B in the fixture; removeMember refuses an owner, so the
-  // consenting person is made an ordinary member here.
+  // consenting person is made an ordinary member after consenting (only an
+  // owner may consent; a grant a member made before that rule still exists).
   sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = ?").run(`m_${ACCOUNT_B}`);
 }
 
 describe("a grant ends when the person who approved it leaves the account", () => {
 
   it("removed between consent and exchange: the code is refused and mints nothing", async () => {
-    await makeMember();
     const clientId = await registered();
     const { verifier, challenge } = await pkcePair();
     const code = (await consent(clientId, challenge)).searchParams.get("code")!;
+    await makeMember();
     expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
     const res = await tokenCall({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: clientId });
     expect(res.status).toBe(400);
@@ -666,14 +687,21 @@ describe("a grant ends when the person who approved it leaves the account", () =
   });
 
   it("removeMember ends their grant and its key at once, and refresh cannot revive it", async () => {
-    await makeMember();
     const { clientId, access, refresh } = await fullFlow();
+    await makeMember();
     expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
     expect(await verifyMcpToken(db, access)).toBeNull();
     const [grant] = await db.select().from(oauthGrants);
     expect(grant.revokedAt).not.toBeNull();
     const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
     expect(res.body.error).toBe("invalid_grant");
+  });
+
+  it("a cancelled account's access token stops working", async () => {
+    const { access } = await fullFlow();
+    expect(await verifyMcpToken(db, access)).not.toBeNull();
+    sqlite.prepare("UPDATE accounts SET cancelled_at = ? WHERE id = ?").run(NOW.getTime(), ACCOUNT_B);
+    expect(await verifyMcpToken(db, access)).toBeNull();
   });
 
   it("a membership gone by any other path: the next refresh refuses and revokes", async () => {
@@ -693,10 +721,12 @@ describe("a grant ends when the person who approved it leaves the account", () =
       .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)")
       .run();
     sqlite
-      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'member', 'active', 3000)")
+      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'owner', 'active', 3000)")
       .run(ACCOUNT_B);
     harness.session = { user: { id: "user_2", name: "Eli", email: "eli@acme.test" }, session: { id: "s2", activeAccountId: ACCOUNT_B } };
     const elis = await fullFlow();
+    // Eli consented as an owner and is an ordinary member when deleted.
+    sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = 'm_eli'").run();
     const result = await deleteUserAccountLocal(db, "user_2", new Date());
     expect(result.status).toBe("deleted");
     expect(await verifyMcpToken(db, elis.access)).toBeNull();

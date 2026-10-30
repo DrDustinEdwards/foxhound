@@ -8,6 +8,7 @@ import { data, redirect } from "react-router";
 import { SYNC_RESULT_MESSAGES } from "~/components/sync-dispute-link";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { ACCEPT_APPROVED_MESSAGE, acceptDispute } from "~/lib/disputes/accept.server";
 import { canApprove } from "~/lib/disputes/approval";
@@ -53,6 +54,12 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
 
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
+
+  // Approving submits evidence to Stripe and accepting concedes the dispute;
+  // neither can be undone, so only the account owner does either.
+  if ((intent === "approve" || intent === "accept") && auth.membership.role !== MEMBER_ROLE.OWNER) {
+    return data({ error: "Only the account owner can do this.", intent }, { status: 403 });
+  }
 
   if (intent === "save") {
     if (!canApprove(detail.dispute.state as DisputeState)) {

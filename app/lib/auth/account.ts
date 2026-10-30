@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { type Db, accountMembers, accounts, apiKeys, oauthGrants, user } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 
 // Resolves the Better Auth user -> business account relationship, and owns the
@@ -332,12 +333,6 @@ export async function findActiveMembership(
     )
     .limit(1);
   return rows[0] ?? null;
-}
-
-/** True for a SQLite/D1 UNIQUE-constraint violation, however the driver wraps it. */
-export function isUniqueConstraintError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return /unique constraint/i.test(message);
 }
 
 /**

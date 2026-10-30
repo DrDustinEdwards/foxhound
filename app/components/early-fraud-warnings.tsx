@@ -56,12 +56,15 @@ export function EarlyFraudWarnings({
   result,
   confirmId,
   readOnly,
+  canRefund = true,
 }: {
   warnings: WarningView[];
   result: WarningActionResult | undefined;
   /** The warning a no-script Refund asked to confirm. */
   confirmId: string | null;
   readOnly: boolean;
+  /** False for a member: a refund is the account owner's, so Refund is left out. */
+  canRefund?: boolean;
 }) {
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -161,6 +164,7 @@ export function EarlyFraudWarnings({
                           </div>
                         ) : (
                           <div className="flex flex-wrap justify-end gap-2">
+                            {canRefund ? (
                             <Form method="post">
                               <input type="hidden" name="intent" value="refund_warning_confirm" />
                               <input type="hidden" name="warning_id" value={w.id} />
@@ -178,6 +182,7 @@ export function EarlyFraudWarnings({
                                 Refund this charge<span className="sr-only"> from {label}</span>
                               </button>
                             </Form>
+                            ) : null}
                             <Form method="post">
                               <input type="hidden" name="intent" value="dismiss_warning" />
                               <input type="hidden" name="warning_id" value={w.id} />

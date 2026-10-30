@@ -72,6 +72,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // as the expected owner; a foreign session never mutates a customer.
   const sessionId = new URL(request.url).searchParams.get("session_id");
   if (sessionId) {
+    // The demo never calls Stripe (hard rule 10), and an admin viewing as a
+    // merchant does not finalize the merchant's card for them: both just land
+    // on the clean URL.
+    if (auth.isDemo || auth.viewingAs) throw redirect("/billing");
     const accountRow = await loadAccountBillingRow(env, accountId);
     await finalizeBillingSetupSession(env, {
       sessionId,

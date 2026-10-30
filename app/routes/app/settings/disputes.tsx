@@ -17,6 +17,7 @@ import "~/site-header.css";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { readDisputeSettings } from "~/lib/disputes/queries.server";
@@ -73,7 +74,8 @@ export const DISPUTES_SETTINGS_LINE =
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  return readDisputeSettings(getDb(env), auth.membership.accountId);
+  const settings = await readDisputeSettings(getDb(env), auth.membership.accountId);
+  return { ...settings, isOwner: auth.membership.role === MEMBER_ROLE.OWNER };
 }
 
 type ActionResult = { ok: true; toggled?: true } | { ok: false; error?: string };
@@ -96,6 +98,16 @@ export async function action({ request, context }: Route.ActionArgs) {
     // No "Saved" for the switch: Recova's toggle showed only its new state.
     return data<ActionResult>({ ok: true, toggled: true });
   }
+  const autoSubmit = form.get("dispute_auto_submit") === "on";
+  // Auto-submit sends responses to Stripe without anyone pressing Approve, so
+  // only the account owner turns it on or off. A member may still save the
+  // other fields, with auto-submit posted as it stands.
+  if (auth.membership.role !== MEMBER_ROLE.OWNER) {
+    const current = await readDisputeSettings(getDb(env), auth.membership.accountId);
+    if (current.autoSubmit !== autoSubmit) {
+      return data<ActionResult>({ ok: false, error: "Only the account owner can do this." }, { status: 403 });
+    }
+  }
   try {
     const result = await applyDisputeSettings(
       getDb(env),
@@ -104,7 +116,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         productDescription: form.get("dispute_product_description"),
         // A checkbox posts its name only when checked, so an absent key is OFF.
         shipsPhysical: form.get("dispute_ships_physical") === "on",
-        autoSubmit: form.get("dispute_auto_submit") === "on",
+        autoSubmit,
       },
       // The signed-in user: turning auto-submit on is their standing approval.
       { userId: auth.userId, email: auth.email, now: new Date() },
@@ -186,11 +198,19 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                       haven&apos;t acted. Off by default.
                     </p>
                   </div>
+                  {/* A member sees the switch but cannot move it: auto-submit
+                      sends responses to Stripe on the account's behalf, so it
+                      is the owner's. The hidden field posts the stored value,
+                      so saving the other fields leaves it as it is. */}
+                  {loaderData.isOwner ? null : loaderData.autoSubmit ? (
+                    <input type="hidden" name="dispute_auto_submit" value="on" />
+                  ) : null}
                   <Switch
                     id={`${id}-auto`}
-                    name="dispute_auto_submit"
+                    name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
                     label={null}
                     defaultChecked={loaderData.autoSubmit}
+                    disabled={!loaderData.isOwner}
                     aria-labelledby={autoLabelId}
                     aria-describedby={autoHelpId}
                   />

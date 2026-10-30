@@ -16,6 +16,7 @@ import { Pill, Status } from "capsomer/react/status";
 import { SYNC_DETAIL_COPY, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { canApprove } from "~/lib/disputes/approval";
@@ -134,6 +135,8 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     shipsPhysical: settings.shipsPhysical,
     filesAvailable: Boolean(env.EVIDENCE),
     isDemo: auth.isDemo,
+    // Approve and accept are the owner's (detail.action.server.ts).
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
     nowMs,
     // Recova's IntegrityLayerBanner reads the customer's recommendation. A
     // read failure leaves the banner out rather than failing the page.
@@ -147,7 +150,8 @@ export async function action(args: Route.ActionArgs) {
 }
 
 export default function DisputeDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { dispute, evidence, approval, funds, findings, shipsPhysical, filesAvailable, isDemo, nowMs, prediction } = loaderData;
+  const { dispute, evidence, approval, funds, findings, shipsPhysical, filesAvailable, isDemo, isOwner, nowMs, prediction } =
+    loaderData;
   const navigation = useNavigation();
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
@@ -619,6 +623,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   <Banner tone="crit">{approveError}</Banner>
                 </div>
               ) : null}
+              {!isOwner ? (
+                <p className="m-0 mt-4 text-text-secondary">Only the account owner can approve or accept a dispute.</p>
+              ) : (
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Form method="post">
                   <input type="hidden" name="intent" value="approve" />
@@ -646,6 +653,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   />
                 )}
               </div>
+              )}
             </div>
           </Panel>
         </div>

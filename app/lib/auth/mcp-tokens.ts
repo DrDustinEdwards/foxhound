@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { apiKeys } from "~/db";
+import { accounts, apiKeys } from "~/db";
 
 // MCP token model (Phase 3 designs it; Phase 7's Foxhound MCP consumes it).
 //
@@ -125,13 +125,18 @@ export async function verifyMcpToken(
       scope: apiKeys.scope,
       revokedAt: apiKeys.revokedAt,
       expiresAt: apiKeys.expiresAt,
+      accountCancelledAt: accounts.cancelledAt,
     })
     .from(apiKeys)
+    // Left, because an admin key has no account.
+    .leftJoin(accounts, eq(accounts.id, apiKeys.accountId))
     .where(eq(apiKeys.keyHash, keyHash))
     .limit(1);
 
   const row = rows[0];
   if (!row || row.revokedAt) return null;
+  // A cancelled account's keys and OAuth access tokens stop working with it.
+  if (row.accountId && row.accountCancelledAt) return null;
   // An OAuth access token carries an expiry (J79); a key made in Settings does
   // not, and lives until it is revoked.
   if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return null;

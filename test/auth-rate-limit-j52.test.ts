@@ -123,7 +123,8 @@ afterEach(() => {
 describe("sign-in: 10 a minute per IP, through the login action", () => {
   it("lets ten link requests reach Better Auth and refuses the eleventh before it does", async () => {
     for (let i = 0; i < 10; i++) {
-      const r = await run(login, loginForm());
+      // A different address each time, so only the IP bucket can refuse.
+      const r = await run(login, form("/login", { email: `a${i}@example.com` }));
       expect(r.status, `attempt ${i + 1}`).toBe(200);
     }
     expect(harness.calls.handler).toBe(10);
@@ -182,10 +183,33 @@ describe("the shared auth bucket: every signed-out POST that tests a passkey or 
     expect(harness.calls).toEqual(before);
   });
 
-  it("keys on the client address, never on the email or the password", async () => {
+  it("keys on the client address, and never puts the email in a counter's name", async () => {
     await run(login, loginForm());
     await run(signup, signupForm());
-    expect(namespace.names).toEqual(["auth:203.0.113.7", "auth:203.0.113.7", "signup:203.0.113.7"]);
+    expect(namespace.names.filter((n) => !n.startsWith("link-email:"))).toEqual([
+      "auth:203.0.113.7",
+      "auth:203.0.113.7",
+      "signup:203.0.113.7",
+    ]);
+    expect(namespace.names.some((n) => n.includes("example.com"))).toBe(false);
+  });
+});
+
+describe("per email: 5 links an hour and 10 typed codes a day, from any address", () => {
+  it("refuses the sixth link and the eleventh code for one inbox, though each comes from a new IP", async () => {
+    for (let i = 0; i < 5; i++) {
+      // The same inbox in a different case, from a fresh IP each time.
+      expect((await run(login, form("/login", { email: " A@Example.com " }, `198.51.100.${i}`))).status).toBe(200);
+    }
+    const sixth = await run(login, form("/login", { email: "a@example.com" }, "198.51.100.99"));
+    expect(sixth.status).toBe(429);
+    expect(harness.calls.handler).toBe(5);
+
+    const code = (ip: string) => form("/login?code", { email: "a@example.com", code: "000000" }, ip);
+    for (let i = 0; i < 10; i++) await run(login, code(`192.0.2.${i}`));
+    expect(harness.calls.handler).toBe(15);
+    expect((await run(login, code("192.0.2.99"))).status).toBe(429);
+    expect(harness.calls.handler).toBe(15);
   });
 });
 

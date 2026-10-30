@@ -13,6 +13,7 @@ import "~/site-header.css";
 
 import { Wordmark } from "~/components/wordmark";
 import { getDb } from "~/db";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -103,6 +104,11 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     session.session.activeAccountId ?? null,
   );
   if (!membership) throw redirect("/connect");
+  // The grant carries write tools, so only the account owner approves one, as
+  // only an owner creates an API key (/settings/api-keys).
+  if (membership.role !== MEMBER_ROLE.OWNER) {
+    return { ok: false, title: "Owner approval needed", message: OWNER_ONLY };
+  }
 
   return {
     ok: true,
@@ -123,7 +129,8 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
 const EXPIRED_REQUEST = "This request is no longer valid. Start again from the app you are connecting.";
 const TOO_MANY = "Too many attempts. Wait a minute and try again.";
 const DEMO_REFUSED = "The demo account cannot be connected.";
-const ACCOUNT_CHANGED = "Your active account changed in another tab. Check the account above and approve again.";
+const OWNER_ONLY = "Only the account owner can connect an app to this account.";
+const ACCOUNT_CHANGED ="Your active account changed in another tab. Check the account above and approve again.";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -172,6 +179,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     session.session.activeAccountId ?? null,
   );
   if (!membership) throw redirect("/connect");
+  if (membership.role !== MEMBER_ROLE.OWNER) return data({ error: OWNER_ONLY }, { status: 403 });
 
   // THE ACCOUNT THE CARD SHOWED MUST BE THE ONE APPROVED. The session's active
   // account is still the only authority (RULES.md 4.6); the posted id can only

@@ -18,6 +18,7 @@ import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import {
   daysUntilDeadline,
@@ -126,6 +127,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     withEvidence,
     nowMs,
     isDemo: auth.isDemo,
+    isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
     warnings: warnings.any ? warnings.open : null,
   };
 }
@@ -153,6 +155,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   if (isWarningIntent(intent)) {
+    // A refund cannot be undone, so only the account owner makes one.
+    if (intent !== "dismiss_warning" && auth.membership.role !== MEMBER_ROLE.OWNER) {
+      return data({ efw: { ok: false, message: "Only the account owner can do this." } }, { status: 403 });
+    }
     const result = await runWarningAction(env, auth.membership.accountId, intent, String(form.get("warning_id") ?? ""));
     return data(result.data, { status: result.status });
   }
@@ -176,7 +182,7 @@ const PILL_TONE: Record<Tone, PillTone | undefined> = {
 };
 
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
-  const { disputes, stats, health, withEvidence, nowMs, isDemo, warnings } = loaderData;
+  const { disputes, stats, health, withEvidence, nowMs, isDemo, isOwner, warnings } = loaderData;
   const hasEvidence = new Set(withEvidence);
 
   return (
@@ -284,6 +290,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
           result={actionData && "efw" in actionData ? actionData.efw : undefined}
           confirmId={actionData && "efwConfirm" in actionData ? actionData.efwConfirm : null}
           readOnly={isDemo}
+          canRefund={isOwner}
         />
       ) : null}
 

@@ -278,6 +278,35 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
     expect(active).toHaveLength(2);
     expect(active.map((m) => m.accountId).sort()).toEqual(["acc_A", "acc_B"]);
   });
+
+  it("an invite whose token changed between the read and the write is refused and activates nothing", async () => {
+    const { sqlite, db } = seedTwoInvites();
+    // The owner resends (a new token) after acceptInvite has read the old one.
+    let injected = false;
+    const racingDb = new Proxy(db as object, {
+      get(target, prop, receiver) {
+        if (prop === "update") {
+          return (...args: unknown[]) => {
+            if (!injected) {
+              injected = true;
+              runStatement(
+                sqlite,
+                db.update(accountMembers).set({ inviteToken: "tok_A_new" }).where(eq(accountMembers.id, "mem_A")),
+              );
+            }
+            return (db.update as (...a: unknown[]) => unknown)(...args);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+
+    const result = await acceptInvite(racingDb, "tok_A", USER, EMAIL);
+
+    expect(result).toEqual({ ok: false, reason: "invalid" });
+    expect(await activeMemberships(db)).toHaveLength(0);
+  });
 });
 
 describe("MEDIUM #4 sibling: concurrent account creation cannot land two active memberships", () => {

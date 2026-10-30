@@ -4,7 +4,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { type Db, accountMembers, accounts } from "~/db";
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
-import { type Membership, findActiveMembership, isUniqueConstraintError } from "./account";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
+import { type Membership, findActiveMembership } from "./account";
 
 export interface InviteView {
   memberId: string;
@@ -184,7 +185,11 @@ export async function acceptInvite(
   if (!result.ok || !invite || result.alreadyMember) return result;
 
   try {
-    await db
+    // The guard is in the write itself: the row must still be this pending
+    // invite, with this token. A revoke, a resend that changed the token, or
+    // another accept between the read and here matches nothing, and a write
+    // that matched nothing is the same refusal as an invite that is not valid.
+    const written = await db
       .update(accountMembers)
       .set({
         userId,
@@ -192,7 +197,15 @@ export async function acceptInvite(
         inviteToken: null,
         inviteExpiresAt: null,
       })
-      .where(eq(accountMembers.id, invite.memberId));
+      .where(
+        and(
+          eq(accountMembers.id, invite.memberId),
+          eq(accountMembers.status, MEMBER_STATUS.PENDING),
+          eq(accountMembers.inviteToken, token),
+        ),
+      )
+      .returning({ id: accountMembers.id });
+    if (written.length === 0) return { ok: false, reason: "invalid" };
   } catch (err) {
     if (isUniqueConstraintError(err)) {
       return { ok: true, accountId: invite.accountId, alreadyMember: true };

@@ -187,6 +187,29 @@ describe("PLANT 2: disconnect refuses what the active account does not own", () 
     expect(res.status).toBe(400);
     expect(connectionRow("c_active").disconnectedAt).toBeNull();
   });
+
+  it("403 and NO write when a member, not the owner, disconnects", async () => {
+    seedConnection({ id: "c_active", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
+    const memberCtx = {
+      get(key: unknown) {
+        const v = ctx.get(key as never) as Record<string, unknown>;
+        if (key !== authContext) return v;
+        return { ...v, membership: { ...(v.membership as object), role: "member" } };
+      },
+    } as unknown as typeof ctx;
+    const form = new FormData();
+    form.append("_action", "disconnect-stripe");
+    form.append("connectionId", "c_active");
+
+    const res = (await stripeAction({
+      context: memberCtx,
+      request: new Request("https://foxhoundapp.test/settings/stripe", { method: "POST", body: form }),
+      params: {},
+    } as never)) as unknown as { init?: { status?: number } };
+
+    expect(res.init?.status).toBe(403);
+    expect(connectionRow("c_active").disconnectedAt).toBeNull();
+  });
 });
 
 describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the readers stop seeing it", () => {
