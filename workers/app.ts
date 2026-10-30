@@ -13,6 +13,7 @@ import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
+import { PRELOADS } from "~/lib/preloads";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
@@ -30,6 +31,17 @@ export class RateLimiterDurableObject extends RateLimiter {}
 // The admin API, served only to a service binding that names this entrypoint
 // (FH-20); the public fetch below does not route it.
 export { AdminApi } from "./admin-api";
+
+// The preloads root.tsx links, on every HTML page as the `Link` header
+// Cloudflare Early Hints reads. Appended, so a route's own Link stays. It runs
+// after applySecurityHeaders, which always returns a response on a fresh,
+// writable Headers (applyCachePolicy keeps that one or builds another).
+function withPreloads(response: Response): Response {
+  if ((response.headers.get("Content-Type") ?? "").startsWith("text/html")) {
+    response.headers.append("Link", PRELOADS.header);
+  }
+  return response;
+}
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -93,7 +105,7 @@ export default withSentry<Env>(
       // passes through (345 binding 4). A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
-      return applyCachePolicy(request, applySecurityHeaders(response, nonce, origin));
+      return withPreloads(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)));
     },
     // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
     // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
