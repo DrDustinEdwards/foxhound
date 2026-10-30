@@ -27,14 +27,14 @@ const DEFAULT_ASSUMED_FAILURE_SHARE = 8;
 // whole: pure client math, unchanged multipliers, Recova's rows in Recova's
 // order. The changes: the second slider (approved 2026-08-26 and 2026-09-19),
 // the attribution and maturity labels (sanctioned, M3 divergences 31 and 32),
-// and the look (J59), which is Capsomer's: the card is a panel and the call to
+// and the look, which is Capsomer's: the card is a panel and the call to
 // action its primary button, at Recova's sizes and padding (p-6, p-8 from sm).
 // The sliders are Capsomer's Range: a 4px track filled in amber up to a round
 // amber thumb, as Recova's were.
 export function RecoveryCalculator() {
   const [mrr, setMrr] = useState(25000);
-  // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM
-  // (377(9)). It used to be a hardcoded share with a footnote calling it
+  // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM.
+  // It used to be a hardcoded share with a footnote calling it
   // illustrative, which is a Foxhound recovery rate in everything but name:
   // every visitor saw the same number and it was ours. Foxhound has no ledger to
   // draw a rate from and the docs refuse to project one, so the only honest
@@ -197,8 +197,7 @@ export function RecoveryCalculator() {
               <span className="text-caption font-normal text-text-tertiary">/yr</span>
             </p>
             {/* Recova dims this line to 70%, which takes it and its "/mo" under
-                4.5:1 in both themes (measured 3.02 and 3.29). Full strength here
-                (RULES.md 1.5). */}
+                4.5:1 in both themes (measured 3.02 and 3.29). Full strength here. */}
             <p className="mt-0.5 font-mono text-subhead font-medium text-success-text">
               +{fmt(netGain)}
               <span className="text-micro font-normal text-text-tertiary">/mo</span>

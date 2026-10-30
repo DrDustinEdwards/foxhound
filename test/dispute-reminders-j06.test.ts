@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J06 (job_4f4c9c2f5383): the dispute deadline reminder. Recova's spec is
+// J06: the dispute deadline reminder. Recova's spec is
 // app/api/cron/process-disputes/route.ts (blob 1cbd5bd0), "Thing 1": an open,
 // unsubmitted dispute is reminded once in the 72 to 96 hour band before its
 // evidence deadline ("3 days") and once in the 24 to 48 hour band ("1 day"),

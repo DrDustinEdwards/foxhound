@@ -28,7 +28,7 @@ import {
 
 import type { Route } from "./+types/authorize";
 
-// /oauth/authorize (J79, row A9; ruling 8): the page where a signed-in merchant
+// /oauth/authorize: the page where a signed-in merchant
 // lets an external agent connect to one Foxhound account.
 //
 // Recova is the spec for the content and layout: app/oauth/authorize/page.tsx
@@ -37,8 +37,8 @@ import type { Route } from "./+types/authorize";
 // none): the wordmark, the h1 naming the client, the line under it, the
 // account box, what the client can do, the error, Allow access and Deny side
 // by side, and the closing line. A refused request is the same card holding
-// Recova's title and message. The parts are Capsomer's (Q12), amber, on
-// the five text sizes (RULES.md 5.2).
+// Recova's title and message. The parts are Capsomer's, amber, on
+// the five text sizes.
 //
 // The engine is Foxhound's (app/lib/oauth/provider.server.ts). Ruling 8's
 // inherited artifacts, each where it lands:
@@ -56,7 +56,7 @@ import type { Route } from "./+types/authorize";
 //     choice at all; Recova's admin-only selector is not built (see the PR).
 //
 // The account is the session's active one, resolved again in the action from
-// the session (RULES.md 4.6). The form posts back the id the card showed only
+// the session. The form posts back the id the card showed only
 // so that a switch in another tab is refused rather than silently approved.
 
 export function meta() {
@@ -124,8 +124,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
 }
 
 /** The words for a refusal on the card. Recova showed its raw error codes
- *  (authorize_failed, unknown_client); a raw code is a Recova bug not copied
- *  (RULES.md 1.5). */
+ *  (authorize_failed, unknown_client); a raw code is a Recova bug not copied. */
 const EXPIRED_REQUEST = "This request is no longer valid. Start again from the app you are connecting.";
 const TOO_MANY = "Too many attempts. Wait a minute and try again.";
 const DEMO_REFUSED = "The demo account cannot be connected.";
@@ -182,7 +181,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (membership.role !== MEMBER_ROLE.OWNER) return data({ error: OWNER_ONLY }, { status: 403 });
 
   // THE ACCOUNT THE CARD SHOWED MUST BE THE ONE APPROVED. The session's active
-  // account is still the only authority (RULES.md 4.6); the posted id can only
+  // account is still the only authority; the posted id can only
   // refuse, never choose. A merchant who switched account in another tab after
   // the card rendered is stopped here, and the revalidated card shows the
   // account they would now be approving for.

@@ -1,9 +1,9 @@
-// The five docs guides behind /docs/:slug (row M18). Recova's guides are the
-// spec for their Parts, their H3s and their order (J73): app/(marketing)/docs/
+// The five docs guides behind /docs/:slug. Recova's guides are the
+// spec for their Parts, their H3s and their order: app/(marketing)/docs/
 // {platform,audit,recovery,disputes,intelligence}/page.tsx at blobs 2b69517b,
 // 3b1153b4, 6166a6be, 598fcbaa and e7f18266, read whole. Every sentence is
 // Foxhound's, true of Foxhound's engine and its built settings pages; Recova's
-// copy described Recova's engine and is never restored verbatim (RULES.md 2.1).
+// copy described Recova's engine and is never restored verbatim.
 // Where Foxhound has not built what a Recova heading describes, the Part says
 // so, and the H3s whose whole content was that feature are cut, each named in
 // test/docs-guides-j73.test.ts.

@@ -40,9 +40,9 @@ import type { Route } from "./+types/audit";
 // assumption applied to the visitor's MRR. It never claims to describe other
 // accounts, and the seed's percentile spread is not shown.
 //
-// J18 (row M22), the visual walk: Recova's app/audit/page.tsx (blob 054edf70)
+// J18, the visual walk: Recova's app/audit/page.tsx (blob 054edf70)
 // and app/audit/layout.tsx (blob 0544e53b), read whole, stay the spec for the
-// content, order and width. The look is Capsomer's (RULES.md 1.1, Q12): the
+// content, order and width. The look is Capsomer's: the
 // pill is its badge, every card its panel, the form its field, select and
 // button, the unavailable notice its alert, each call to action its primary
 // button. Amber throughout, text at Recova's sizes: the hero h1 clamp, the
@@ -190,7 +190,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       </div>
 
       {/* Recova's clamp(28px,5vw,44px) h1, in rem. The words are Recova's,
-          drift fixed on sight (RULES.md 2.2): they describe the audit, not the
+          drift fixed on sight: they describe the audit, not the
           estimator, so they hold in every state of the form below. */}
       <h1 className="m-0 mb-5 text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-[1.15] tracking-[-1px] text-text">
         See everything leaking from your Stripe account
@@ -202,7 +202,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       </p>
 
       {/* The estimator: Foxhound's own working surface, which Recova has no
-          counterpart for (ruling 86). */}
+          counterpart for. */}
       <div className="mb-10 grid">
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -279,7 +279,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </section>
       </div>
 
-      {/* Recova's two figure cards, restored as treatment (ruling 87). The
+      {/* Recova's two figure cards, restored as treatment. The
           figures are product facts read from Foxhound's constants, not Recova's
           "2 to 3%" industry benchmark, which Recova's own comment calls
           marketing copy and which no source supports.

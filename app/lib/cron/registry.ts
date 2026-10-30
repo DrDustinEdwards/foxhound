@@ -117,7 +117,7 @@ const intelligenceSync: CronHandler = async (env) => {
   };
 };
 
-/** The recovery tick (Phase 4e): sweeps due recovery_steps and runs each through
+/** The recovery tick: sweeps due recovery_steps and runs each through
  *  its executor. High cadence (every 5 minutes) because it drives real-time
  *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
 const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.runId ?? null);
@@ -172,7 +172,7 @@ const demoReset: CronHandler = async (env) => {
   return { rowsProcessed: DEMO_BUSINESSES.length, message: `${DEMO_BUSINESSES.length} demo accounts reseeded` };
 };
 
-/** The never-executed and overdue detector (313). Ruling 311 measured that a cron
+/** The never-executed and overdue detector. Ruling 311 measured that a cron
  *  which fails, or never runs at all, notifies nobody: billing-monthly has never
  *  executed once in any environment and nothing would have said so.
  *
@@ -180,7 +180,7 @@ const demoReset: CronHandler = async (env) => {
  *  makes the self-reference below safe: the array is fully constructed long
  *  before any cron fires. Expectations are therefore DERIVED from the registry,
  *  so a job added tomorrow is watched automatically instead of being forgotten. */
-/** The daily expiring-card alert (341). Two passes in one job, like legacy:
+/** The daily expiring-card alert. Two passes in one job, like legacy:
  *  scan every connected account's active subscriptions for cards inside the
  *  30-day lead window and record a candidate, then send one customer-facing
  *  warning per unsent candidate. CRON_SCHEDULE_EXPIRING_CARDS is legacy's
@@ -188,7 +188,7 @@ const demoReset: CronHandler = async (env) => {
  *  daily sweep until parity gap 11, which landed the email in the middle of
  *  the US night. The CronLockDurableObject lease in run.ts is what stops two
  *  ticks scanning at once. */
-/** The win-back send pass (343, 344). Legacy's own header says it "Runs hourly
+/** The win-back send pass. Legacy's own header says it "Runs hourly
  *  via Vercel Cron (piggybacking on process-recovery schedule)", so its cadence
  *  IS the recovery cron's cadence, and CRON_SCHEDULE_RECOVERY_TICK is that
  *  cadence here. Reusing it needs no new wrangler.jsonc trigger, which is the
@@ -199,7 +199,7 @@ const demoReset: CronHandler = async (env) => {
  *  after cancellation" and hourly polling delivers it up to two hours late. The
  *  CronLockDurableObject lease in run.ts is what stops two ticks sending at
  *  once, and the per-step claim is what stops a double send if one ever did. */
-/** The weekly merchant digest (337 binding 2, session 55). Legacy runs it
+/** The weekly merchant digest. Legacy runs it
  *  Monday 08:00 UTC and this matches, which needed the FIRST new wrangler cron
  *  expression this repo has added: every other job reuses the five-minute
  *  tick, daily or monthly. NULL is OFF on digest_enabled, the one toggle with
@@ -214,7 +214,7 @@ const winbackSend: CronHandler = async (env) => {
   return { rowsProcessed: result.sent, message: describeWinbackRun(result) };
 };
 
-/** The dispute deadline reminder (J06). Recova's process-disputes ran hourly
+/** The dispute deadline reminder. Recova's process-disputes ran hourly
  *  ("0 * * * *"); this rides the five-minute tick instead, as winback-send does,
  *  because a new cron expression needs cron-health's period table too and the
  *  bands are a day wide, so a finer tick only reminds sooner within the band.
@@ -236,7 +236,7 @@ const expiringCards: CronHandler = async (env) => {
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
 };
 
-/** The nightly D1 dump into R2 (job_f7f35d4b7ac7). Reuses the daily schedule, so no
+/** The nightly D1 dump into R2. Reuses the daily schedule, so no
  *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
 
@@ -319,7 +319,7 @@ const stripeMissedEvents: CronHandler = async (env) => {
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
-/** THE MERGED MONTHLY AUDIT (362 ruling 3, phase (g)). It runs the real audit
+/** THE MERGED MONTHLY AUDIT. It runs the real audit
  *  against each opted-in merchant's live Stripe account, records the run, and
  *  sends the ONE monthly email.
  *
@@ -336,7 +336,7 @@ const cronHealth: CronHandler = async (env) =>
  *  self-inflicted collision. See the constant for the three sites a new
  *  expression has to land in.
  *
- *  IT ONLY ENQUEUES (job_97878f0d1fde): one AUDIT_QUEUE message per opted-in
+ *  IT ONLY ENQUEUES: one AUDIT_QUEUE message per opted-in
  *  account, audited one per invocation by the queue consumer, so one large
  *  account's Stripe pages cannot exhaust the subrequests every other account
  *  needs. rowsProcessed is the number queued; each account's own result is its

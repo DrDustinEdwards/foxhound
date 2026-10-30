@@ -385,7 +385,7 @@ export async function flipExhaustedSequences(env: Env, now: Date): Promise<Claim
  * flip run back to back on one thread, so a mutation that returns all
  * candidates cannot be caught through the public function. Reached directly, a
  * row that is in `ids` but carries a different `resolved_at` shows the
- * difference (337 binding 4).
+ * difference.
  *
  * This is what the sequence-complete notification hangs off: it must fire once
  * per real transition, the same discipline the recovery notification takes from
@@ -413,7 +413,7 @@ function readClaimedSequences(
 export async function runRecoveryTick(
   env: Env,
   deps: Partial<RecoveryTickDeps> = {},
-  /** The cron run this tick belongs to (313), stamped onto every email_sends row
+  /** The cron run this tick belongs to, stamped onto every email_sends row
    *  it produces. Null when the tick is driven from a test or any non-cron
    *  caller, which is exactly what the nullable column records. */
   cronRunId: string | null = null,

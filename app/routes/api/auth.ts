@@ -20,7 +20,7 @@ export function loader(args: Route.LoaderArgs) {
 }
 
 // A POST here can test a passkey or send mail (sign-in/magic-link), so it
-// spends the same budget as the pages (J52, site-runtime's limiter). Only POST
+// spends the same budget as the pages (site-runtime's limiter). Only POST
 // is counted, as before: GET serves session reads and sign-in links.
 export async function action(args: Route.ActionArgs) {
   if (args.request.method === "POST") {

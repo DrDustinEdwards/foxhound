@@ -21,7 +21,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 //
 // The two WIRED intents (note, cancel) commit through an injected
 // ManualActionCommit. In production that is the per-account money-write Durable
-// Object (262 decision four); here it runs the EXACT compiled statements against
+// Object; here it runs the EXACT compiled statements against
 // a real in-memory SQLite with the committed migrations applied, inside one
 // transaction, so what is proven is the real SQL against the real schema.
 

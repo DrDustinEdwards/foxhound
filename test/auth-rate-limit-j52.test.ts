@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
-// J52 (job_674e728b50a3), row A3 and the sign-in limiter (Q5, Dustin "yes",
+// J52, row A3 and the sign-in limiter (Q5, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQLC6A6GvHRyQ6YQF4rboRtgK):
 // sign-in and signup are limited by site-runtime's limiter, with the limits
 // the ledger set. Recova's own numbers, read at lib/constants.ts lines 108 and

@@ -3,7 +3,7 @@
 // hoc toFixed/concatenation (DESIGN.md: numbers render in DM Mono; the value
 // string itself is centralized here).
 //
-// THE MINOR UNIT IS NOT ALWAYS A HUNDREDTH (RULES.md 1.2, a truthfulness fix).
+// THE MINOR UNIT IS NOT ALWAYS A HUNDREDTH (a truthfulness fix).
 // Stripe sends every amount in the currency's minor unit
 // (https://docs.stripe.com/currencies, "Specify amounts in API requests"). For
 // Stripe's zero-decimal currencies the amount IS the whole unit, so 5000 JPY is
@@ -12,7 +12,7 @@
 // one place the exponent is decided; every display path below goes through it,
 // and so does the dispute fee cap.
 //
-// Nothing here writes a fee or sends an amount to Stripe (RULES.md 3.2, 3.8).
+// Nothing here writes a fee or sends an amount to Stripe.
 // billing/dispute-cap.ts reads currencyExponent to express the converted cap in
 // the dispute's Stripe amount, so the cap and the display share one table.
 
@@ -89,7 +89,7 @@ export function formatMoney(minor: number, currency: string): string {
 }
 
 /** Per-currency totals side by side, each in its own currency; none at all
- *  reads as zero. A total across currencies is meaningless (RULES.md 3.20), so
+ *  reads as zero. A total across currencies is meaningless, so
  *  the parts are never added together. The /disputes cards use it, and so does
  *  the /product/disputes preview of them. */
 export function formatAmounts(rows: readonly { currency: string; cents: number }[]): string {

@@ -21,11 +21,11 @@ export { CronLockDurableObject } from "./cron-lock";
 // keep running when Cloudflare stops firing that trigger (~/lib/cron/ticker.ts).
 export { CronTickerDurableObject } from "./cron-ticker";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
-// signup limiter (Q5; app/lib/auth/rate-limit.server.ts).
+// signup limiter (app/lib/auth/rate-limit.server.ts).
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 // RATE_LIMITER (app/lib/http/rate-limit.ts) counts with the same class under
 // its old name, which keeps its namespace: retiring the name would delete a
-// Durable Object namespace, which waits for Dustin (RULES.md 3.13).
+// Durable Object namespace, which waits for Dustin.
 export class RateLimiterDurableObject extends RateLimiter {}
 // The admin API, served only to a service binding that names this entrypoint
 // (FH-20); the public fetch below does not route it.
@@ -50,12 +50,12 @@ export default withSentry<Env>(
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
-      // limited inside their actions by site-runtime's limiter (J52), where a
+      // limited inside their actions by site-runtime's limiter, where a
       // ".data" spelling of the path cannot slip past it.
       const limited = await enforceRateLimit(request, env);
       if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin));
 
-      // CARREL'S SITE API (job_cbe1b96107fc), before the router. Null for any path
+      // CARREL'S SITE API, before the router. Null for any path
       // outside /api/carrel/v1; inside it the package enforces rate limit, key and
       // route in that order. The path is checked before the import so the adapter
       // graph stays off every page render, as the MCP mount below does.
@@ -90,7 +90,7 @@ export default withSentry<Env>(
       context.set(cloudflareContext, { env, ctx, nonce });
       const response = await requestHandler(request, context);
       // THE CACHE POLICY, applied in the one place every response already
-      // passes through (345 binding 4). A route's own `headers` export would be
+      // passes through. A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
       return applyCachePolicy(request, applySecurityHeaders(response, nonce, origin));
@@ -105,7 +105,7 @@ export default withSentry<Env>(
       // this arms the ticker soon after a deploy rather than at the next 03:00
       // UTC daily run. Off the batch's path: it never throws and is not awaited.
       ctx.waitUntil(ensureCronTickerArmed(env));
-      // TWO QUEUES, ONE HANDLER (313). The dead-letter queue routes here too, so
+      // TWO QUEUES, ONE HANDLER. The dead-letter queue routes here too, so
       // the branch is on the queue NAME. Before this, foxhound-email-dlq had ZERO
       // consumers (measured) and a repeatedly-failing dunning email was discarded
       // with no trace after max_retries; this branch writes the row that ends
@@ -124,7 +124,7 @@ export default withSentry<Env>(
       }
       await handleQueueBatch(batch, env);
     },
-    // Cron Triggers (Phase 4e). Dispatch every registered job on the fired
+    // Cron Triggers. Dispatch every registered job on the fired
     // schedule; each runs through runCronJob (config + interval + DO-lock gates,
     // cron_run_history logging). Jobs are independent, run sequentially to keep
     // D1 load bounded.
@@ -140,7 +140,7 @@ export default withSentry<Env>(
       // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
       // runCronJob, which is total: it returns a failed outcome rather than
       // throwing, including for infrastructure failures outside the handler. A
-      // second guard here would be two guards for one rule (381 binding e), and
+      // second guard here would be two guards for one rule, and
       // the one that a plant can drive directly is the one that keeps it.
       for (const job of jobsForSchedule(controller.cron)) {
         await runCronJob(env, job.name, job.handler);

@@ -4,7 +4,7 @@ import { serializePostSource } from "~/lib/carrel/source";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// IndexNow (job_b0b24df12155, row F20). Recova is the spec: it publishes a key
+// IndexNow. Recova is the spec: it publishes a key
 // file at /<key>.txt and, on every save that leaves a blog post published, POSTs
 // that post's one URL to api.indexnow.org without waiting and without ever
 // failing the save. Foxhound does the same with its OWN key (Dustin, Q15,

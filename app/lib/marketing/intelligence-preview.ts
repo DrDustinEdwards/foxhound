@@ -2,10 +2,10 @@ import type { PlanPillTone } from "~/lib/intelligence/customer-directory";
 import type { PlanRow } from "~/lib/intelligence/dashboard";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 
-// The shape of the /product/intelligence preview data (J58), shared by the
+// The shape of the /product/intelligence preview data, shared by the
 // server module that builds it (intelligence-preview.server.ts) and the
 // components that draw it (app/components/intelligence-previews.tsx), so no
-// client module imports from a .server file (RULES.md 4.5). Every value is a
+// client module imports from a .server file. Every value is a
 // plain string, number or array of them: it crosses the loader as JSON.
 
 export interface PreviewCustomerRow {

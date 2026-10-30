@@ -15,7 +15,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // pays the other's ordinary renewal is credited as a win-back. The
 // two-subscription fixture below is what proves Foxhound does not.
 //
-// AND NOTHING ABOUT IT IS BILLABLE (343 binding 1): no recovered_payments row,
+// AND NOTHING ABOUT IT IS BILLABLE: no recovered_payments row,
 // no attribution signal, and the fee base is asserted unchanged across a
 // reactivation.
 
@@ -209,7 +209,7 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
 
   it("A NEW EVENT ID FOR THE SAME SEQUENCE ALSO RECORDS NOTHING, reaching the STATUS claim alone", async () => {
     // The webhook claim cannot refuse this one, so only the status condition
-    // on the flip can (340 binding 3).
+    // on the flip can.
     seedSequence();
     await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }, "evt_c1"), RECEIVED);
 

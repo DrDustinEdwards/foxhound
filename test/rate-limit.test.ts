@@ -154,10 +154,10 @@ describe("resolveRateLimitBinding", () => {
       expect(resolveRateLimitBinding(post("/demos%"))).toBeNull();
     });
 
-    // THE FIXTURE THE PRODUCTION PATH CANNOT PRODUCE (ruling 371 binding 5).
+    // THE FIXTURE THE PRODUCTION PATH CANNOT PRODUCE.
     // It resolves to the public bucket only if decoding, case folding and
     // slash folding ALL run. The auth spellings this used to carry (/%4COGIN///)
-    // are the actions' to refuse now (J52), which no spelling can avoid.
+    // are the actions' to refuse now, which no spelling can avoid.
     it("throttles a spelling only an attacker would send: /%44EMOS///", () => {
       expect(resolveRateLimitBinding(post("/%44EMOS///"))).toEqual(PUBLIC_RULE);
     });

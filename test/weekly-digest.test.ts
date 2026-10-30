@@ -77,7 +77,7 @@ function seedAccount(accountId: string, digestEnabled: number | null, email = "o
     )
     .run(accountId, digestEnabled, email);
   sqlite
-      // ONE LIVE CONNECTION PER STRIPE ACCOUNT (356). The Stripe account id is
+      // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
       // derived from the Foxhound account rather than hardcoded, because a
       // shared literal made every two-account fixture violate the unique
       // index the moment it shipped, and production could never have had two

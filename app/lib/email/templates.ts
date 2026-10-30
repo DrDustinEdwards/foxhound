@@ -12,7 +12,7 @@ import {
   type Template,
 } from "capsomer/email";
 
-// THE ONE EMAIL TEMPLATES MODULE (J02). Every mail Foxhound sends is rendered
+// THE ONE EMAIL TEMPLATES MODULE. Every mail Foxhound sends is rendered
 // here, on Capsomer's shared email component (RULES.md 3.16; Q3, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQL1VeHhPyiYfFgdd86VozbJD).
 // send.ts calls renderFoxhoundEmail for both sendEmail and sendTransactionalEmail,
@@ -42,7 +42,7 @@ import {
 // into processEmailJob, which records it on the email_sends claim like any other
 // send failure.
 
-/** Foxhound's family in Capsomer: amber throughout (RULES.md 1.1). */
+/** Foxhound's family in Capsomer: amber throughout. */
 const FOXHOUND_EMAIL_FAMILY = "amber" as const;
 
 /** The first-party engagement links a dunning send carries (PRICING.md: the
@@ -139,13 +139,13 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
 // in every footer: "You're receiving this from {senderName} about a recent
 // payment. &copy; {year}". Under it, a mail with an unsubscribe token gets the
 // Unsubscribe link and the postal address; a mail without one gets "Manage
-// email settings" linking to APP_URL/settings. Recovery mail carries the first
-// (J85); the merchant notices that went through wrapEmailHtml carry the second
+// email settings" linking to APP_URL/settings. Recovery mail carries the first;
+// the merchant notices that went through wrapEmailHtml carry the second
 // (E10, with 'Recova' as the sender name). Capsomer's footer slot holds both.
 
 /**
  * Recova's footer sentence, with the sender name as Recova's From has it
- * (`sender_name || 'Support'`). Rows E4 to E6 carry it (J85), E10 with
+ * (`sender_name || 'Support'`). Rows E4 to E6 carry it, E10 with
  * "Foxhound". Pure.
  */
 export function recoveryFooterNote(senderName: string | null | undefined, year: number): string {
@@ -254,7 +254,7 @@ export function appendOpenPixel(html: string, openUrl: string): string {
 }
 
 /**
- * Append the invisible honeypot link (ruling 377(4) phase one). Pure.
+ * Append the invisible honeypot link. Pure.
  *
  * A person cannot see it, reach it with a keyboard, or hear it: it is
  * display:none, aria-hidden and tabindex -1 together, because any one of those
@@ -290,7 +290,7 @@ function appendHoneypotLink(html: string, honeypotUrl: string): string {
 //     http:, "#", a relative path, an unfilled {{placeholder}}, javascript:,
 //     data:): its words stay as text and no button is made. A generated body is
 //     cached and reused on every retry, so a throw here would fail the step on
-//     every attempt and never reach the template fallback (RULES.md 3.15).
+//     every attempt and never reach the template fallback.
 //     Links Foxhound supplies outside the body (the unsubscribe link, the
 //     tracking URLs) still throw when refused.
 //   - <small> around a whole block: fine print.

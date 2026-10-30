@@ -5,7 +5,7 @@ import { accounts, auditRuns, stripeConnections } from "~/db/schema";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J35 (job_9ad6ef3e08f6), row S30, DO step 3 and RULES.md 3.18: the lookback
+// J35, row S30, DO step 3 and RULES.md 3.18: the lookback
 // control on /settings/audit has a reader, and the reader is the monthly audit
 // cron's content scope. Before this file nothing proved it: every run in
 // audit-monthly-362.test.ts seeds a NULL lookback, so a cron that always used

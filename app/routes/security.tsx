@@ -16,7 +16,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/security";
 
-// /security (377 item 11).
+// /security.
 //
 // WHAT THIS PAGE IS, and the constraint is the whole design: it states what
 // Foxhound actually does and nothing else. 377 item 11 is explicit that no
@@ -28,7 +28,7 @@ import type { Route } from "./+types/security";
 // EVERY FACTUAL CLAIM IS DERIVED FROM THE THING THAT MAKES IT TRUE. The OAuth
 // scopes come from the constants the OAuth calls send, and the retention windows
 // from the constants the sweepers delete on, so this page cannot drift away from
-// the code the way marketing copy did (376 item 18). The subprocessor list is
+// the code the way marketing copy did. The subprocessor list is
 // pinned to /privacy's, because two pages naming different subprocessors is a
 // worse failure than either naming none.
 //

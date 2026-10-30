@@ -13,7 +13,7 @@ export const DISPUTE_FEE_BPS = 2000;
  *  ~$2,500 disputed amount, the percentage governs below that).
  *
  *  USD MINOR UNITS, always, and it is not the cap a non-USD dispute is charged
- *  under (rev 5 item 2, ruling 377(7)). That one is this number converted at
+ *  under (rev 5 item 2). That one is this number converted at
  *  Stripe's rate on the resolution day; see dispute-cap.ts. Reading this as
  *  "50,000 of whatever currency" is the defect rev 5 removed. */
 export const DISPUTE_FEE_CAP_CENTS = 50_000;
@@ -23,7 +23,7 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
  *  two fields the derivation actually uses so a cron change is a one-line edit
  *  here rather than arithmetic buried in a function body. The day is also what
  *  /billing says ("Invoiced on the 1st"), so the page cannot drift from the run.
- *  Moved here from app/lib/billing/preview.server.ts (J65) so the page, which
+ *  Moved here from app/lib/billing/preview.server.ts so the page, which
  *  is client code, can read it without importing a .server module. */
 export const BILLING_RUN_DAY_OF_MONTH = 1;
 export const BILLING_RUN_HOUR_UTC = 4;
@@ -71,7 +71,7 @@ export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
 /** A recovery is billable only once it is at least this old (refund window absorption). */
 /**
  * How long before a recovery a click can have happened and still be its cause
- * (PRICING.md rev 5 item 4, ruling 377(2)).
+ * (PRICING.md rev 5 item 4).
  *
  * `email_engaged` used to mean "any step on this payment has clicked_at set",
  * with no window and no ordering, which is legacy's rule
@@ -120,7 +120,7 @@ export const FAILED_PAYMENT_STATUS_CANCELLED = "cancelled";
 /**
  * STRIPE STILL OWNS THIS PAYMENT. The invoice has failed at least once and
  * Stripe's own Smart Retries are still scheduled, so Foxhound has recorded the
- * payment and planned NOTHING (ruling 377(1)).
+ * payment and planned NOTHING.
  *
  * The split exists because the docs' promise, "Foxhound starts after Stripe's
  * own Smart Retries have run and failed", was false at HEAD: intake spawned the
@@ -243,7 +243,7 @@ export type AttributionKind = (typeof ATTRIBUTION_KINDS)[number];
 
 /** The merchant-asserted attribution kind. Named so no call site spells the
  *  string, since it is simultaneously an attribution kind and a recovery_method
- *  value and the two must not drift apart. NEVER billable (262 decision one). */
+ *  value and the two must not drift apart. NEVER billable. */
 export const MANUAL_ATTRIBUTION_KIND = "manual";
 
 /** Attribution kinds that make a recovery billable (everything except the free baseline). */
@@ -264,7 +264,7 @@ export type DisputeState =
   // with no ruling and nothing billable.
   | "inquiry_closed";
 
-// ---- Dispute evidence files (J07) ----
+// ---- Dispute evidence files ----
 // Recova's lib/constants.ts DISPUTE_EVIDENCE_* limits, as its upload route,
 // its client hook and its "Evidence files" section read them. The page's
 // limits line is built from these, never typed.
@@ -303,7 +303,7 @@ export const AUDIT_SUMMARY_MAX_TOKENS = 300;
 // passive channel on every email rather than a separate step.
 export const STEP_TIMING_RETRY_EARLY_HOURS = 4;
 export const STEP_TIMING_RETRY_4HR_HOURS = 4;
-// Recova's offsets for the day 1 and day 3 emails (J85, rows E4 and E5):
+// Recova's offsets for the day 1 and day 3 emails:
 // lib/constants.ts (blob a21b32b8) sets email_day1 at 1 hour, and
 // lib/recovery-schedules.ts (blob 88f4e97a) writes network's retry_day2 at 24
 // and email_day3 at 48 as literals in its network row. Foxhound had 24 for day 1
@@ -365,7 +365,7 @@ export const WINBACK_STEP3_HOURS = 336;
  * RESOLVED (canceled or recovered) within this many days before canceling.
  * Ported verbatim from legacy's WINBACK_RECENT_RESOLVED_DAYS = 7 with legacy's
  * own reason: it keeps Foxhound from chasing a customer it has just chased.
- * Added 2026-08-14 with the win-back creation path (290); it had no Foxhound
+ * Added 2026-08-14 with the win-back creation path; it had no Foxhound
  * counterpart because nothing created a sequence to gate. Moved below the step
  * trio 2026-08-14 so the three timing values read together.
  */
@@ -382,7 +382,7 @@ export const WINBACK_UNFLAGGED_STEP1_HOURS = 4;
 
 /**
  * The `customer_context.health_factors.recommended_action` value legacy compares
- * against for the win-back gate (291). Ported verbatim. It has NO producer in
+ * against for the win-back gate. Ported verbatim. It has NO producer in
  * Foxhound today and does not appear in the demo seed's vocabulary either, which
  * is the bound M9 records; the constant exists so the comparison is legacy's
  * string rather than a literal invented at the call site.
@@ -448,13 +448,12 @@ export const CARD_UPDATE_PATH = "/p";
 /** Engagement tracking path bases (first-party open pixel + click redirect). */
 export const ENGAGEMENT_OPEN_PATH = "/e/o";
 export const ENGAGEMENT_CLICK_PATH = "/e/c";
-/** The honeypot link's route (ruling 377(4) phase one). Deliberately shaped
+/** The honeypot link's route. Deliberately shaped
  *  like its siblings so it is indistinguishable in the markup. */
 export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
 
 /**
- * A click landing sooner than this after the email was sent is `too_fast`
- * (ruling 377(4) phase one).
+ * A click landing sooner than this after the email was sent is `too_fast`.
  *
  * The walk that produced 377(4) found the click guard reads four things and
  * none of them separates a scanner from a person: IP is persisted nowhere,
@@ -488,7 +487,7 @@ export const EMAIL_QUEUE_NAME = "foxhound-email";
  *  exhausted its retries was discarded with no trace. */
 export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
-/** The monthly audit queue (job_97878f0d1fde). The monthly-audit cron sends one
+/** The monthly audit queue. The monthly-audit cron sends one
  *  message per opted-in account and the consumer audits the one account a
  *  message names, so each account's Stripe pages are spent inside its own
  *  invocation's subrequest budget instead of one shared one. */
@@ -511,7 +510,7 @@ export const CARD_UPDATE_TOKEN_MAX_AGE_MS = 30 * DAY_MS;
 /**
  * Max time a single run may hold a per-cron DO lock before the lease lapses.
  *
- * SIXTEEN MINUTES, AND THE NUMBER IS DERIVED (376 item 14). It was five, which
+ * SIXTEEN MINUTES, AND THE NUMBER IS DERIVED. It was five, which
  * is EXACTLY the recovery tick's period (CRON_SCHEDULE_RECOVERY_TICK, every five
  * minutes), so a tick that ran a second long had its lease expire at the instant
  * its successor fired. The lease
@@ -551,7 +550,7 @@ export const EXPIRING_CARD_DAYS_AHEAD = 30;
 
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
-// Monday 08:00 UTC, legacy's weekly-digest cadence verbatim (session 55). The
+// Monday 08:00 UTC, legacy's weekly-digest cadence verbatim. The
 // FIRST new cron expression this repo has needed: every other job reuses the
 // tick, daily or monthly schedules.
 // MON, not 1: Cloudflare numbers weekdays 1 = Sunday to 7 = Saturday, so the
@@ -664,7 +663,7 @@ export const RECOVERY_TICK_LIMIT = 100;
 /**
  * Above this many payments, a bulk MONEY submission requires a confirmation
  * naming the exact count and the action. Below it, the click stands on its own.
- * The number is the seat's (274 decision four); no repo convention governed it
+ * The number is the seat's; no repo convention governed it
  * and none conflicts with it.
  */
 export const BULK_ACTION_CONFIRM_THRESHOLD = 25;
@@ -672,7 +671,7 @@ export const BULK_ACTION_CONFIRM_THRESHOLD = 25;
 /**
  * Hard ceiling per bulk submission. Over this the submission is REFUSED whole
  * and its own count reported; it is never trimmed to the first hundred, which
- * would mutate a set the merchant never chose (274 decision four).
+ * would mutate a set the merchant never chose.
  *
  * It coincides with RECOVERY_TICK_LIMIT above, and the coincidence is load
  * bearing rather than cosmetic: that constant exists to keep ONE invocation
@@ -879,21 +878,21 @@ export const AUDIT_TOKEN_TTL_SECONDS = 300;
 /**
  * The audit OAuth pair's IP rate limit: legacy's RATE_LIMIT_AUDIT
  * (lib/constants.ts:111), 10 per hour, applied to the start and the callback.
- * Spent through the EXISTING limiter (311) with no change to it.
+ * Spent through the EXISTING limiter with no change to it.
  */
 export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
 /**
  * The team invite's IP rate limit (E2): legacy's app/api/invite/route.ts (blob
  * 960aefc6) spends RATE_LIMIT_SIGNUP, 5 per hour, on `invite:{ip}`. Spent
- * through the EXISTING limiter (311) with no change to it.
+ * through the EXISTING limiter with no change to it.
  */
 export const RATE_LIMIT_INVITE = { max: 5, windowMs: 60 * 60 * 1000 } as const;
 
 /**
- * The unsubscribe page's IP rate limit (row F7): Recova's
+ * The unsubscribe page's IP rate limit: Recova's
  * app/api/unsubscribe/route.ts allows 10 requests per 60 seconds per IP and
  * answers the rest 429 "Too many requests". Spent through the EXISTING limiter
- * (311) on its own bucket, from the route's middleware, with no change to it.
+ * on its own bucket, from the route's middleware, with no change to it.
  */
 export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
 
@@ -928,7 +927,7 @@ export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
 export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;
 
 // ============================================================================
-// OAuth provider for external agents (J79, rows A9, F18, F19; ruling 8)
+// OAuth provider for external agents
 // ============================================================================
 
 /** An access token lives one hour, as Recova's token route said

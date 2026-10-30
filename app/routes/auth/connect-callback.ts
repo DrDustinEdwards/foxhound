@@ -163,7 +163,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // guard was right. 356's tests import the predicate from its module.
 
 /**
- * Where a merchant lands, as Recova's callback decides it (J28, row A8): a NEW
+ * Where a merchant lands, as Recova's callback decides it: a NEW
  * connection goes to /welcome?connection=<its id>, anything else (a reconnect,
  * or a Stripe account the caller already holds) to /console. The welcome page
  * needs the id and goes to /console without it, as Recova's does.

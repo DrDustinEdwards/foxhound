@@ -71,7 +71,7 @@ import {
   EvidenceFiles,
 } from "../../../components/dispute-detail-parts";
 
-// /disputes/:id (J77, row S14): Recova's dispute page on Foxhound's engine.
+// /disputes/:id: Recova's dispute page on Foxhound's engine.
 // Recova is the spec, read whole at HEAD: app/(app)/disputes/[id]/page.tsx
 // (a9452f59), DisputeDetailClient.tsx (3d56b55d), and components/disputes/
 // DisputeActionBar (c73b381a), DisputeEvidenceSummary (96ba82d4),
@@ -79,22 +79,22 @@ import {
 // (81bf7f8b), timeline (04fbe976) and types (9ffb7b8e). In Recova's order: the
 // back link, the header, the timeline, what Foxhound found, the staged
 // evidence, the additional evidence, the sync form, and the approve card where
-// Recova's action bar sits. Look is Capsomer's (Q10), amber.
+// Recova's action bar sits. Look is Capsomer's, amber.
 //
-// Built with the recommendations port (J78):
+// Built with the recommendations port:
 // - Recova's IntegrityLayerBanner after the triage banner, worked out when the
 //   page loads (recommendOneCustomer), as Recova's score-ssr did.
 // Built with the dispute context port (app/lib/disputes/triage.ts):
 // - Recova's triage banner under the header, and in What Foxhound found the
 //   billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior
 //   charge history and subscription, all read from Stripe at intake.
-// Built by J07 (job_7a7c09269012):
+// Built by J07:
 // - Evidence files: Recova's DisputeFileUploads section between Staged evidence
 //   and Additional evidence, over the EVIDENCE R2 bucket
 //   (app/lib/disputes/evidence-files.server.ts) and the account-scoped view at
 //   /disputes/:id/files/:fileId. Until Dustin binds the bucket the section says
 //   uploads are not available yet, in the upload control's place.
-// Built by J06 (job_4f4c9c2f5383):
+// Built by J06:
 // - Shipping fields: Recova shows them in Additional evidence when the account
 //   ships physical goods, which /settings/disputes (S32) now writes. They save
 //   with the draft as Stripe's shipping evidence fields.
@@ -191,7 +191,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   // Recova's gate: editable while the dispute awaits a response and nobody has
   // submitted, and never in the demo.
   const editable = !isDemo && canApprove(state);
-  // The draft locks once an approval row exists (J77 review): the approval's
+  // The draft locks once an approval row exists: the approval's
   // hash attests the saved evidence, so it is not edited after.
   const draftEditable = editable && !approval;
   const [draft, dispatchDraft] = useReducer(draftAfter, { edits: 0, submitted: 0, saved: 0 });
@@ -207,7 +207,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
   const shippingEditable = draftEditable && shipsPhysical;
   const { structured, narrative, customerIp, shipping } = splitEvidence(evidence, draftEditable, shippingEditable);
-  // The merchant's uploaded files have their own section (J07); "drafted" is
+  // The merchant's uploaded files have their own section; "drafted" is
   // everything else, which is what Staged evidence speaks of.
   const files = evidence.filter((e) => e.fieldName === EVIDENCE_FILE_FIELD);
   const priorCharges = readPriorCharges(dispute.priorChargesJson);
@@ -503,7 +503,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           </Panel>
         </div>
 
-        {/* 6. Recova's Evidence files (J07). Its controls belong to the upload
+        {/* 6. Recova's Evidence files. Its controls belong to the upload
             and remove forms below, through the form attribute. */}
         <div className="mb-6">
           <EvidenceFiles

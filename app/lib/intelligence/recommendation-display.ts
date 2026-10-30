@@ -6,7 +6,7 @@
 // are here (recommend.ts says why the other three are not ported).
 //
 // CLIENT-SAFE BY CONSTRUCTION: the routes render these, so this module imports
-// nothing from a `.server` file (RULES.md 4.5).
+// nothing from a `.server` file.
 
 import { formatMoney } from "~/lib/money-format";
 
@@ -95,7 +95,7 @@ export function valueEvidence(v: CustomerRecommendation["value"], currency: stri
 /**
  * Recova's mrrAtRiskText. Recova printed twelve months of MRR as "$X MRR at
  * risk", which overstated it twelvefold as a monthly figure, so the line names
- * it as a year (RULES.md 1.2).
+ * it as a year.
  */
 export function atRiskText(r: CustomerRecommendation["recommendation"], currency: string): string | null {
   if (r.annualizedMrrAtRiskCents === null) return null;

@@ -148,7 +148,7 @@ export const MANUAL_ACTION_REQUIRES_ACTIVE: Record<ManualIntent, boolean> = {
 };
 
 // ---------------------------------------------------------------------------
-// Money-write routing (262 decision four)
+// Money-write routing
 // ---------------------------------------------------------------------------
 
 /** Commit a manual action's atomic batch, serialized on the account. */
@@ -253,7 +253,7 @@ export async function dispatchManualAction(
 
   // Every member of ManualIntent is handled above, so `intent` is `never` here.
   // This used to return a runtime `not_wired` that nothing could reach: it dates
-  // from Session A, when the dispatcher was built DELIBERATELY unwired (260),
+  // from Session A, when the dispatcher was built DELIBERATELY unwired,
   // and it was left standing after 272 wired all five. The type system enforces
   // the same intent strictly better. A SIXTH intent added to MANUAL_INTENTS
   // without a branch here is now a COMPILE error, where the old string would
@@ -325,7 +325,7 @@ async function markRecovered(
  * through processEmailJob, which gates suppression, applies the live-send flag,
  * sends through the one send module and logs to email_sends.
  *
- * SEND-PRECEDES-PERSIST (268) APPLIES HERE TOO, and is stated rather than solved.
+ * SEND-PRECEDES-PERSIST APPLIES HERE TOO, and is stated rather than solved.
  * The idempotency key protects the ROW, not the send: two submits racing inside
  * the same second both reach processEmailJob before either persists, so both can
  * mail. That is the same shared defect 268 named and parked with a design owed,
@@ -356,7 +356,7 @@ async function resendLastEmail(
   }
 
   // A suppressed recipient is an HONEST REFUSAL to the merchant, never a silent
-  // success (262 decision three). Nothing is inserted: no mail left, so there is
+  // success. Nothing is inserted: no mail left, so there is
   // no send to record on the timeline.
   if (result.status === "suppressed") {
     return { ok: false, reason: "customer_unsubscribed" };
@@ -368,7 +368,7 @@ async function resendLastEmail(
     return { ok: false, reason: "resend_failed", detail: result.error };
   }
 
-  // The timeline row, through the per-account money-write DO (262 decision four).
+  // The timeline row, through the per-account money-write DO.
   // This is a mutation this session AUTHORS, so it rides the DO regardless of the
   // row not being fee-bearing: the DO is what serializes an account's writes.
   try {
@@ -452,7 +452,7 @@ async function triggerNextStep(
   // void. Foxhound's return the result directly, so this read is not needed to
   // learn what was DECIDED. It is kept because it answers a different and
   // better question: what is actually STORED. The email patch is claim-guarded
-  // (WHERE executed_at IS NULL, ruling 260), so a caller that loses the claim
+  // (WHERE executed_at IS NULL), so a caller that loses the claim
   // decided one thing while the database holds the winner's. Reporting the
   // stored row is the only honest answer under that race.
   const [after] = await req.db

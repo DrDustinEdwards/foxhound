@@ -1,11 +1,11 @@
 // The weekly digest's copy, ported from Recova's `buildDigestEmail` in
 // app/api/cron/weekly-digest/route.ts (blob `b6ff2a8c`, 22,247 bytes).
 // Pure: no env, no database, no clock. Extracted so a plant reads the real
-// assembly rather than a hand-built copy of it (337 binding 4).
+// assembly rather than a hand-built copy of it.
 //
-// ON CAPSOMER'S BLOCKS (E23, job J95). The digest is written as Capsomer's
+// ON CAPSOMER'S BLOCKS (E23). The digest is written as Capsomer's
 // typed blocks, Recova's words in Recova's order, and the send module renders
-// both parts from them (RULES.md 3.16, Q3). Capsomer escapes every value, so a
+// both parts from them. Capsomer escapes every value, so a
 // customer name carrying markup is shown as written.
 //
 // WHAT CAPSOMER CANNOT YET SAY, named in the PR as Capsomer jobs rather than
@@ -18,8 +18,8 @@
 // IT CARRIES RECOVA'S UNSUBSCRIBE (E23). Recova suppression-checks the digest
 // and wraps it with an unsubscribe token, so its footer carries Unsubscribe and
 // the postal address. The cron sends it on the "digest" audience, which is that
-// footer on this one merchant mail; every other merchant notice keeps none
-// (RULES.md 3.16). Its link is a digest token: following it switches off this
+// footer on this one merchant mail; every other merchant notice keeps none.
+// Its link is a digest token: following it switches off this
 // account's digest and suppresses no address (PR 158 review round 1).
 
 import type { Block } from "capsomer/email";
@@ -72,9 +72,9 @@ const DIGEST_FROM_NAME = "Foxhound";
 
 /**
  * Recova's Intelligence section ends with "View recommendations", to
- * APP_URL/intelligence/recommendations (row S20). The button waited for that
+ * APP_URL/intelligence/recommendations. The button waited for that
  * page (RULES.md 2.7: an email ships after its link has somewhere to go), and
- * returns with it (job J78). A test holds this equal to whether routes.ts
+ * returns with it. A test holds this equal to whether routes.ts
  * serves the page.
  */
 export const DIGEST_RECOMMENDATIONS_LIVE = true;
@@ -124,7 +124,7 @@ function formatAmounts(amounts: CurrencyAmount[], fallbackCurrency: string): str
  *
  * The date is formatted in UTC. Legacy's `toLocaleDateString` runs in the
  * server's zone; both platforms run UTC in production, and pinning it here
- * makes the render independent of where the test runs (342 binding 2).
+ * makes the render independent of where the test runs.
  */
 function digestSubject(input: { now: Date }): string {
   const date = input.now.toLocaleDateString("en-US", {

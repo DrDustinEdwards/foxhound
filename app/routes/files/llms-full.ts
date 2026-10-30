@@ -26,7 +26,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const url = siteUrl(env);
 
   // Only archives carrying a published post are listed, and the count claim
-  // ("8 canonical tags") is gone with them (ruling 88). Three of the eight
+  // ("8 canonical tags") is gone with them. Three of the eight
   // served zero posts, so this file asserted content that does not exist on
   // the highest-authority surface we publish.
   const tagLines = (await getPublishedTagSet(getDb(env)))

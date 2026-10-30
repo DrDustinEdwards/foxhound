@@ -266,7 +266,7 @@ export interface GuardedRecoveryLineInput {
  * A recovery-fee line item that RE-CHECKS THE BILLABLE PREDICATE AS IT WRITES.
  *
  * The billing run reads the billable set outside the Durable Object and then
- * inserted from that in-memory list (ruling 376(3)). The per-account DO
+ * inserted from that in-memory list. The per-account DO
  * serializes the WRITES, not the read, so a refund landing in the gap between
  * the two was invoiced: the row was billable when it was read and was not when
  * it was written, and nothing looked again.

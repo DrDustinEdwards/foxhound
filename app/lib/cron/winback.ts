@@ -58,7 +58,7 @@ export interface DueWinbackStep {
   amountCents: number | null;
   notificationsEnabled: boolean | null;
   senderName: string | null;
-  /** The primary connection's `reply_to_email`, for the Reply-To (J03). Recova's
+  /** The primary connection's `reply_to_email`, for the Reply-To. Recova's
    *  win-back reads it from the same primary row as the sender name. */
   replyToEmail: string | null;
   /** Legacy feeds the cancellation reason into the prompt. */
@@ -74,7 +74,7 @@ export interface DueWinbackStep {
   cachedSubject: string | null;
   cachedBodyHtml: string | null;
   /** When this step was scheduled, and when its sequence began (the
-   *  cancellation): the prompt states the delay between them (J91). */
+   *  cancellation): the prompt states the delay between them. */
   scheduledAt: Date;
   sequenceCreatedAt: Date;
 }
@@ -224,7 +224,7 @@ async function claimSequenceExhausted(
 
 /** What went out, and which of legacy's two result strings records it. The
  *  template is Capsomer's blocks; generated and cached copy is the model's HTML,
- *  which the send seam reads onto the same component (J02, J91). */
+ *  which the send seam reads onto the same component. */
 export type WinbackCopy = {
   subject: string;
   /** Legacy's `aiUsed ? 'email_sent_ai' : 'email_sent_fallback'`. */
@@ -343,7 +343,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
   const due = await queryDueWinbackSteps(db, now);
 
   for (const step of due) {
-    // NULL is ON (337 binding 3). A disabled account's step is stamped with
+    // NULL is ON. A disabled account's step is stamped with
     // legacy's own result string so it is never reconsidered.
     if (step.notificationsEnabled === false) {
       await stampStep(db, step.stepId, "skipped_notifications_disabled", now);
@@ -370,7 +370,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           ...(copy.blocks ? { blocks: copy.blocks } : { bodyHtml: copy.bodyHtml }),
           // Recova's footer sentence (lib/email.ts wrapEmailHtml, which its
           // win-back wraps with the merchant's sender name), before the
-          // unsubscribe link and the postal address (J91, as E12).
+          // unsubscribe link and the postal address (as E12).
           footerNote: recoveryFooterNote(step.senderName, now.getUTCFullYear()),
           template: WINBACK_TEMPLATE,
           // CUSTOMER audience: footer, unsubscribe headers and the suppression
@@ -412,7 +412,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
       // THE SEND OUTCOME, at legacy's fields, recorded only by the tick that
       // took the claim. A MOAT row, never a billing row: billable.ts keys on
       // recovered_payments and findAttributionSignals reads recovery_steps,
-      // and a win-back touches neither (343 binding 1).
+      // and a win-back touches neither.
       await recordOutcome(env, {
         accountId: step.accountId,
         product: "recovery",

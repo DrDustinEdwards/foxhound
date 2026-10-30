@@ -23,10 +23,10 @@ import type { EmailJob } from "~/lib/email/types";
 //             recent payment. (c) {year}", then "Manage email settings"
 //   No heading, no unsubscribe, no postal address, no tracking.
 // Foxhound sends the same words with Foxhound's name, on Capsomer's email
-// component in amber with a text part beside the HTML (J02), to the approved
+// component in amber with a text part beside the HTML, to the approved
 // /invite/:token link (APPROVED-DIFFERENCES, Sign-in and invites, 2026-09-19).
 //
-// IT IS MERCHANT MAIL (RULES.md 3.16): our own user's teammate, not a
+// IT IS MERCHANT MAIL: our own user's teammate, not a
 // merchant's customer, so no unsubscribe and no postal footer. Its footer note
 // is Recova's sentence, which the merchant audience writes with "Manage email
 // settings" after it, as wrapEmailHtml does (E10). It goes through
@@ -107,7 +107,7 @@ export function buildTeamInviteJob(input: {
 
 /**
  * Email one invite. Never throws: a refusal, and a database error on the way,
- * come back as a named outcome (RULES.md 3.16), because the invite is already
+ * come back as a named outcome, because the invite is already
  * written and the merchant still has its link on the page.
  */
 export async function sendTeamInviteEmail(

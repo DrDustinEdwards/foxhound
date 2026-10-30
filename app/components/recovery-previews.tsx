@@ -11,13 +11,13 @@ import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "~/lib/market
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
-// The three previews on /product/recovery (J56), Recova's three feature-block
+// The three previews on /product/recovery, Recova's three feature-block
 // UIs: the category sequences (page.tsx's CategorySequencePreview with
 // CategoryPill and SequenceTimeline), the dashboard (RecoveryDashboardPreview:
 // StatCards' primary row and ROIWidget) and the payments table
 // (RecoveryPaymentsPreview: PaymentsTable and PaymentRow's preview row).
 //
-// Content and layout are Recova's; the parts are Capsomer's (Q12). The
+// Content and layout are Recova's; the parts are Capsomer's. The
 // sequences are read from RECOVERY_SCHEDULES and every figure from the demo
 // seed (app/lib/marketing/recovery-preview.server.ts), never a merchant's rows.
 // Recova draws no chart in any of the three, so neither does this page.

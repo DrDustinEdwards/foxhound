@@ -41,12 +41,12 @@ import type { Route } from "./+types/index";
 // curated slugs resolve. Reverted to legacy's condition, keeping only the
 // posts.length > 0 floor so a zero-card section still cannot render.
 //
-// J19 (job_deffd581af37, row M11). Recova's spec, read whole: page.tsx (blob
+// J19. Recova's spec, read whole: page.tsx (blob
 // d2d4dbfd), BlogHeaderIntro.tsx (a8ba9e72), BlogPostCard.tsx (48ba6d39),
 // lib/blog.ts (55a92d1a). Recova stays the spec for content, layout and
 // features: the header row, the featured hero, the four SECTIONS in order with
 // label, description and See all, the Latest strip, at Recova's widths (1080px
-// header, 1280px bands). The parts are Capsomer's (Q12): post cards are the
+// header, 1280px bands). The parts are Capsomer's: post cards are the
 // panel, the tag is the outline pill, Read the guide the primary button. Accents
 // are amber, text at Recova's sizes, and every text link a 24px target.
 //

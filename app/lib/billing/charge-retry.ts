@@ -354,7 +354,7 @@ export async function retryInvoiceCharge(
 
   let platformCustomerId = invoice.platformCustomerId;
   if (!platformCustomerId) {
-    // E25 (J97): Recova made every account's billing customer at connect, so
+    // E25: Recova made every account's billing customer at connect, so
     // no fee waited on one. An invoice stranded before its account had a
     // platform customer gets one here, stored through the existing
     // platform-customer write, exactly as runAccountBilling does. If it cannot
@@ -417,7 +417,7 @@ export async function retryInvoiceCharge(
         // Passed explicitly, and asserted by a plant. Stripe bills a
         // multi-currency customer in a second currency only when `currency` is
         // set on the invoice AND on every invoice item, and this is the value
-        // that reaches both (ruling 377(6)).
+        // that reaches both.
         currency: invoice.currency,
         lines,
         billingInvoiceId: invoice.id,
@@ -425,7 +425,7 @@ export async function retryInvoiceCharge(
         billingEmail: () => lookupPlatformBillingEmail(env, invoice.accountId),
       });
     } catch (err) {
-      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED (ruling 377(6)).
+      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED.
       //
       // The pay path below has always done this; the CREATE path did not, so a
       // throw here propagated to the sweep's per-invoice catch with nothing

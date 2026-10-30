@@ -2,9 +2,9 @@ import { formatCurrencyTotalsShort } from "~/lib/dashboard/console";
 import type { FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { isPaymentTimeRange, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
-// /recovery/payments (row S6, job J75): the page's pure, client-safe pieces.
+// /recovery/payments: the page's pure, client-safe pieces.
 // The route component imports these, so nothing here may import a .server
-// module (RULES.md 4.5).
+// module.
 
 /** Recova's rows-per-page choices and its default, lib/payments-data.ts
  *  (VALID_PER_PAGE, DEFAULT_PER_PAGE = 25). */
@@ -105,7 +105,7 @@ export const BULK_RESULT_DISMISS_MS = 3000;
  *  when every payment took the action: a report with a failure, or a refused
  *  submission, stays until the merchant dismisses it, since a failure list
  *  that vanishes on a timer fails WCAG 2.2.1 (Timing Adjustable). Pending
- *  Dustin's ruling (J75 review). */
+ *  Dustin's ruling. */
 export function bulkResultClearsItself(
   bulk: { results?: readonly { ok: boolean }[]; refused?: unknown } | null | undefined,
 ): boolean {

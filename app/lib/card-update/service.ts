@@ -111,7 +111,7 @@ export async function finalizeCardUpdateSession(input: {
   return { ok: true };
 }
 
-// ── Resubscribe (343 binding 4) ──────────────────────────────────────────────
+// ── Resubscribe ──────────────────────────────────────────────
 // Legacy's win-back email links to a Stripe billing portal session created at
 // SEND time, once per step, on the merchant's account. Foxhound creates nothing
 // at send time: the email carries a signed token, and the Stripe object is
@@ -121,7 +121,7 @@ export async function finalizeCardUpdateSession(input: {
 
 // The metadata keys the created Checkout Session and its subscription carry.
 // They live in ~/lib/recovery/winback-metadata so the webhook classifier that
-// READS them and this creator that WRITES them share one definition (316).
+// READS them and this creator that WRITES them share one definition.
 ;
 
 interface ResubscribeSessionParamsInput {

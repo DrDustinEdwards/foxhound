@@ -5,7 +5,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/health";
 
-// Unauthenticated health (job_f7f35d4b7ac7) through site-runtime's healthResponse: whether D1 answers and the age of
+// Unauthenticated health through site-runtime's healthResponse: whether D1 answers and the age of
 // the newest complete dump (d1-dump's backupHealth, warning past 26 hours). No counts, no ids, no merchant data. The
 // backup read is held per isolate for five minutes there (job_7bbec6ab48d1: an R2 list is a billed Class A operation on
 // a public route). The cache policy, not this route, sets Cache-Control, so the helper's own is removed.

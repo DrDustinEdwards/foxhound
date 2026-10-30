@@ -77,7 +77,7 @@ const RESEND_STEP_TYPE = "email_resend";
  * genuinely new send carries a new id and applies.
  *
  * This is also why the token is NOT derived from the submit: because the send
- * precedes the persist (268), a double-click produces TWO real sends, and
+ * precedes the persist, a double-click produces TWO real sends, and
  * collapsing their rows would hide mail that actually reached the customer. The
  * row should record what happened, not what was clicked.
  *
@@ -151,7 +151,7 @@ export interface MarkRecoveredInput {
 /**
  * Mark as recovered, as ONE atomic batch through the per-account money-write DO.
  *
- * ENTERS THROUGH THE SPINE'S OWN RECORDER (262 decision five). Statement two is
+ * ENTERS THROUGH THE SPINE'S OWN RECORDER. Statement two is
  * `buildRecoveryBatch`, the exact builder the invoice.payment_succeeded webhook
  * uses, not a parallel insert. "No second writer of recovered_payments" is
  * satisfied by one BUILDER, and the fee row and the moat row stay a single
@@ -173,7 +173,7 @@ export interface MarkRecoveredInput {
  * than asserting it. Legacy's recover route explains why in its own comment: the
  * webhook can resolve the payment between the read and the write.
  *
- * NEVER BILLABLE (262 decision one): the attribution kind is `manual`, which is
+ * NEVER BILLABLE: the attribution kind is `manual`, which is
  * absent from BILLABLE_ATTRIBUTION_KINDS, so `buildRecoveryBatch` stamps
  * `attributed_at` NULL and every billing predicate skips the row while the moat
  * keeps it.

@@ -90,7 +90,7 @@ export async function handleIntake(
   const { env, event, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
   // Per-invoice dedupe: Stripe emits one payment_failed per collection
   // attempt. The FIRST creates the row; a later one either promotes it out
-  // of stripe_retrying or is a no-op claim (377(1)).
+  // of stripe_retrying or is a no-op claim.
   const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
   if (existing && existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
     return claimOnly(ctx, "duplicate_attempt");
@@ -158,7 +158,7 @@ export async function handleIntake(
 }
 
 // invoice.marked_uncollectible: Stripe has written the invoice off, which is
-// the other way it can be finished with a payment (377(1)). Same promotion,
+// the other way it can be finished with a payment. Same promotion,
 // same conditional flip, so an uncollectible arriving after a final
 // payment_failed plans no second sequence.
 //
@@ -318,7 +318,7 @@ export async function handleRecordExpiringCard(
   intent: IntentOf<"record_expiring_card">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
-  // WRITER TWO (341 binding 4). It RECORDS and never sends: legacy's
+  // WRITER TWO. It RECORDS and never sends: legacy's
   // handleCustomerUpdated writes the candidate row and the nightly cron
   // owns every send, so a card update cannot email a customer directly.
   //
@@ -419,7 +419,7 @@ export async function handleStampRefund(
       }),
   });
 
-  // THE CLAWBACK, AFTER THE STAMP COMMITS (ruling 377(5)). It depends on a
+  // THE CLAWBACK, AFTER THE STAMP COMMITS. It depends on a
   // Stripe call, so it cannot ride the batch above, and it must not be able
   // to unwind it: the refund is a fact whether or not Stripe answers.
   //

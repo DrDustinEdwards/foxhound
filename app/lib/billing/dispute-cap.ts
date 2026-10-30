@@ -66,7 +66,7 @@ interface FxQuoteResponse {
 /**
  * The USD 500 cap expressed in one dispute's currency, at today's rate.
  *
- * FAILS CLOSED, and that is the whole design (377(7)). A quote that cannot be
+ * FAILS CLOSED, and that is the whole design. A quote that cannot be
  * fetched throws, the caller does not snapshot a fee, and the dispute stays
  * unresolved for billing with the error recorded. It NEVER falls back to the
  * flat 50,000, because that fallback is the defect being removed and a silent

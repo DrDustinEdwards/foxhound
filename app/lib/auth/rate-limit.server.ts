@@ -16,7 +16,7 @@ import { data } from "react-router";
 // around, and a refusal can be shown in the page's own alert in Recova's words
 // instead of a bare 429.
 //
-// THE LIMITS, unchanged (RULES.md 4.10, "limits as the ledger set them"):
+// THE LIMITS, unchanged ("limits as the ledger set them"):
 // - every signed-out POST that can test a passkey or send mail shares one
 //   bucket of 10 a minute per IP, as Foxhound's auth bucket did. Recova's
 //   RATE_LIMIT_LOGIN is the same 10 a minute (lib/constants.ts line 109).

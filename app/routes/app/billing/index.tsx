@@ -32,7 +32,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
 
-// /billing (J65, row S3): Recova's billing page on Foxhound's billing engine.
+// /billing: Recova's billing page on Foxhound's billing engine.
 // Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
 // head, then Recovery, Dispute Fees, Subscriptions and Payment method, in a
 // 720px column (Recova's Intelligence offer is gone: Intelligence is free,

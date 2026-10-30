@@ -74,7 +74,7 @@ export function allVisibleSelected(
 /**
  * Legacy's `toggleAll`, ported including its replace-not-merge behavior: when
  * not everything visible is selected, the set becomes EXACTLY the visible page
- * (274 decision four, select-all selects the visible page), and when everything
+ * (select-all selects the visible page), and when everything
  * visible is already selected, it clears.
  *
  * Replacing rather than merging is legacy's own choice and it is kept, because

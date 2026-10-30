@@ -57,7 +57,7 @@ export function headers() {
 // card-update.tsx. Account scope comes from the signed token
 // payload, never from a query param.
 //
-// ROW F7 (J26). Recova's app/api/unsubscribe/route.ts (blob 31de4bc5, read whole)
+// ROW F7. Recova's app/api/unsubscribe/route.ts (blob 31de4bc5, read whole)
 // is the spec for the page: its four states and their words, its per-IP limit and
 // its layout. Foxhound's engine above stays; Recova's Supabase token lookup is not
 // copied.
@@ -101,7 +101,7 @@ type LoaderState =
  * Follow one valid link. A customer token suppresses the address, as Recova's
  * route does. A digest token (E23) switches off that account's weekly digest
  * and writes no suppression row, so the merchant's notices and every other
- * account sharing the address carry on (RULES.md 3.16); "changed" when the
+ * account sharing the address carry on; "changed" when the
  * account no longer mails the digest to that address.
  */
 async function follow(env: Env, payload: UnsubscribeTokenPayload, token: string): Promise<LoaderState> {
@@ -178,10 +178,10 @@ const MARK = {
 // Layout is Recova's: the page centered both ways under the site header, a 480px
 // column with 40px by 24px padding and centered text, the wordmark 32px above the
 // card, the card at 40px by 32px, the 48px mark 20px above the sentence, the
-// sentence 24px above the link. Look is Capsomer's (Q12): the column sits in the
+// sentence 24px above the link. Look is Capsomer's: the column sits in the
 // amber family with Foxhound's neutrals (.fh-cap, as the legal pages), the card is
 // Capsomer's panel (its body-only state), and the focus ring is the family's
-// amber. Text is on the five sizes (RULES.md 5.2): Recova's 20px wordmark is
+// amber. Text is on the five sizes: Recova's 20px wordmark is
 // title (1.25rem, exact), its 15px sentence body (1rem, the nearest), its 13px
 // link label (0.8125rem, exact).
 export default function Unsubscribe({ loaderData }: Route.ComponentProps) {

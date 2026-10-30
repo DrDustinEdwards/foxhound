@@ -69,8 +69,8 @@ const figure = (n: number) => n.toLocaleString("en-US");
 // Recova's errors page (app/admin/platform/errors/page.tsx, blob 9cca8956) is
 // the inventory: the last 50 audit entries naming an error or a failure, with
 // Time, Action, Actor, Target and Detail in that order, and Sentry wired in once it exists.
-// Sentry is listed only when Foxhound sends to it and can read it back
-// (RULES.md 3.18); until then the page says so plainly. Read only.
+// Sentry is listed only when Foxhound sends to it and can read it back;
+// until then the page says so plainly. Read only.
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
   const { sentry, failed } = loaderData;
   const pending = pagePending(useNavigation(), useRevalidator().state, ERRORS_PATH);

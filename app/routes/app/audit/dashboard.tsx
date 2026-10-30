@@ -31,7 +31,7 @@ import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settin
 
 import type { Route } from "./+types/dashboard";
 
-// J43 (job_3b8776847895), row U2: Recova's /audit/dashboard, at Recova's path.
+// J43, row U2: Recova's /audit/dashboard, at Recova's path.
 // Read whole at HEAD: app/audit/dashboard/page.tsx (blob 988c190a, 9,206 bytes)
 // and app/audit/dashboard/AuditSettingsForm.tsx (blob 9016a436, 3,634 bytes),
 // with components/audit/AuditAISummary.tsx (5ba213df) and components/Toggle.tsx
@@ -45,8 +45,8 @@ import type { Route } from "./+types/dashboard";
 // page keeps Recova's 1280px column and padding. The look is Capsomer 0.9.0's
 // (Q10 to Q12): PageHead, Panel, the table, the empty state's markup, the
 // segmented control, the switch and the button, amber throughout, and
-// text on the five sizes (RULES.md 5.2). What Recova's look still needs is
-// listed for Capsomer's per-site layer (capsomer job_ec5ec0754626) in the J43
+// text on the five sizes. What Recova's look still needs is
+// listed for Capsomer's per-site layer in the J43
 // pull request; no Foxhound class sits on a Capsomer element.
 //
 // THE SETTINGS CARD IS RECOVA'S, AND IT IS NOT A SECOND WRITER. Recova renders
@@ -58,13 +58,13 @@ import type { Route } from "./+types/dashboard";
 // changes, with no save button, and says Saving, Saved. or Save failed. beside
 // it. The controls stay enabled during a save, with aria-busy on the group
 // and Capsomer's busy state on the switch, and a change made mid-save is
-// queued (J43 review). Recova appends its raw error code to the failure line ("save_failed");
-// that is a raw value shown to a merchant (RULES.md 1.5), so it is left off.
+// queued. Recova appends its raw error code to the failure line ("save_failed");
+// that is a raw value shown to a merchant, so it is left off.
 //
 // TWO TRUTHFULNESS FIXES, both class (c). The digest description drops
 // "written by AI", as /settings/audit already does on Dustin's word in 316's
 // session. And a figure that could not be read on a run says so instead of
-// Recova's `?? 0` (365 binding 2), in the table and in Since last run, which
+// Recova's `?? 0`, in the table and in Since last run, which
 // shows no comparison when either side is unread (app/lib/audit/trend.ts).
 //
 // ONE LINE PER CURRENCY (Dustin, 2026-10-25, parity/APPROVED-DIFFERENCES.md).

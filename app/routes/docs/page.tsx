@@ -21,14 +21,14 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/page";
 
-// The five docs guides on one :slug route (row M18, J73). Recova's spec is
+// The five docs guides on one :slug route. Recova's spec is
 // app/(marketing)/docs/{platform,audit,recovery,disputes,intelligence}/page.tsx
 // (blobs 2b69517b, 3b1153b4, 6166a6be, 598fcbaa, e7f18266), read whole.
 //
 // LAYOUT IS RECOVA'S: the 760px column with px-6 and py-16, the breadcrumb, the
 // "User Guide" eyebrow, the page heading and lead, the Contents card with
 // "Part N." links in two columns from sm, and each Part's amber eyebrow over its
-// h2. LOOK IS CAPSOMER'S (Q12): the breadcrumb, the Contents card (a body-only
+// h2. LOOK IS CAPSOMER'S: the breadcrumb, the Contents card (a body-only
 // panel), the tables, callouts and pills, in the amber family, with text
 // at Recova's sizes. CONTENT is app/lib/marketing/docs-content.ts.
 //

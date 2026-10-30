@@ -5,9 +5,9 @@ import { customerContext, failedPayments, recoverySteps } from "~/db";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { isEmailStep } from "~/lib/recovery/schedule";
 
-// "What Foxhound found" on /disputes/:id (J77, row S14): the parts of Recova's
-// DisputeEvidenceSummary (blob 96ba82d4) that read something Foxhound writes
-// (RULES.md 3.18). Recova read three sources for the disputed customer, and each
+// "What Foxhound found" on /disputes/:id: the parts of Recova's
+// DisputeEvidenceSummary (blob 96ba82d4) that read something Foxhound writes.
+// Recova read three sources for the disputed customer, and each
 // is read here from Foxhound's own writer of the same fact:
 //
 // - Dispute history: Recova's customer_context.dispute_signals won and lost
@@ -21,7 +21,7 @@ import { isEmailStep } from "~/lib/recovery/schedule";
 //   failed_payment for the customer with its recovery_steps (page.tsx a9452f59),
 //   and the recovery emails it sent. Foxhound has both tables.
 //
-// Every query takes the account first and scopes on it (RULES.md 4.6). Nothing
+// Every query takes the account first and scopes on it. Nothing
 // here writes.
 
 interface DisputeRecoveryEmail {

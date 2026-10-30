@@ -28,22 +28,22 @@ import type { Route } from "./+types/audit";
 // AuditForm.tsx (5bf81c10), settings/components/AuditSection.tsx (58c5abce),
 // components/Toggle.tsx (0ebdd395) and settings/SaveBar.tsx (f1d6eb23).
 //
-// J35 (job_9ad6ef3e08f6) rebuilt the page on Capsomer 0.9.0's parts (Q10),
+// J35 rebuilt the page on Capsomer 0.9.0's parts,
 // amber throughout. Recova is the spec for what is on
 // it and in what order: the phone-only Settings link, the head, one card with
 // the lookback period and then the monthly digest, and the save bar. The
 // settings layout gives the page Recova's 800px column and padding, so the
 // page adds no width of its own. No Foxhound class sits on a Capsomer element;
 // what Recova's look still needs is listed for Capsomer's per-site layer
-// (capsomer job_ec5ec0754626) in the J35 pull request.
+// in the J35 pull request.
 //
-// THE LOOKBACK HAS A READER (RULES.md 3.18): the monthly audit cron reads the
+// THE LOOKBACK HAS A READER: the monthly audit cron reads the
 // stored value through readAuditSettings and audits that window
 // (app/lib/audit/monthly.server.ts), and so does the signed-in results page.
 // test/audit-lookback-reader-j35.test.ts proves the window follows the setting.
 //
-// THE WRITE PATH. Legacy's form POSTs to a shared `/settings/update` handler
-// (row S38). This uses the route's own action instead, which writes through
+// THE WRITE PATH. Legacy's form POSTs to a shared `/settings/update` handler.
+// This uses the route's own action instead, which writes through
 // applyAuditSettings, the same core the MCP `set_audit_settings` tool uses.
 // Class (a), invisible to the merchant.
 //

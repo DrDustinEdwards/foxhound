@@ -87,7 +87,7 @@ import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/reco
 
 import type { Route } from "./+types/index";
 
-// /recovery/payments (row S6, job J75). Recova is the spec: its page,
+// /recovery/payments. Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
 // 94043896, components/PaymentsHeader.tsx 27cd8e4a, PaymentsStats.tsx
 // b386c660, PaymentsFilters.tsx b6612faf, PaymentsTable.tsx 95a10450,
@@ -99,12 +99,12 @@ import type { Route } from "./+types/index";
 // Clear filters), the rows-per-page links, the table, the pager, and the bulk
 // bar while something is selected.
 //
-// Built from Capsomer 0.9.0's parts (Q10), amber throughout. No Foxhound
+// Built from Capsomer 0.9.0's parts, amber throughout. No Foxhound
 // class sits on a Capsomer element: Recova's mono figures, its sizes and its
 // spacing go on elements of the page's own inside or around them. Recova's
 // per-status colors on the status filter and the row pills, its filled (now
 // amber) Next button in the pager, and its 12px radius wait for Capsomer's
-// per-site layer (capsomer job_ec5ec0754626), listed in the J75 pull request.
+// per-site layer, listed in the J75 pull request.
 //
 // Approved differences kept (APPROVED-DIFFERENCES): status pills say the tab
 // word (2026-08-14); "Stop recovery" (2026-08-10); bulk actions submit exactly
@@ -112,7 +112,7 @@ import type { Route } from "./+types/index";
 // (2026-08-13); they report per payment and keep the failures selected, and
 // ask above 25 and refuse above 100 (2026-09-19); "Payments - Foxhound"
 // (2026-08-28). Recova's personal-outreach mark after a name reads the action
-// the nightly scoring stores (J78).
+// the nightly scoring stores.
 //
 // Every filter is in the URL and runs in the loader. Script applies a filter
 // on change, as Recova's controls do; without script the form still submits
@@ -224,7 +224,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
  *
  * Nothing the browser sends is trusted: every id is re-derived through
  * dispatchManualAction's own account-scoped read and per-intent preconditions,
- * one payment and one key at a time (RULES.md 3.2), so an unowned id answers
+ * one payment and one key at a time, so an unowned id answers
  * not_found exactly as it would singly. A submission over the ceiling is
  * refused whole.
  */
@@ -541,7 +541,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
-    // the page's one <main> (ruling 146), so this is a plain wrapper.
+    // the page's one <main>, so this is a plain wrapper.
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
       <div className="mb-6">
         <PageHead

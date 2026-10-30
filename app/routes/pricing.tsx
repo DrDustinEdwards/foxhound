@@ -20,14 +20,14 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/pricing";
 
-// /pricing (J54, row M4). Recova's spec is app/(marketing)/pricing/page.tsx
+// /pricing. Recova's spec is app/(marketing)/pricing/page.tsx
 // (blob 8e91e160), read whole.
 //
 // Layout is Recova's: the shared page header, the 1200px card container on a
 // 1/2/4 column grid with gap-4, each card's order (name, price, price label or
 // a blank line, description, check list, Learn more), the 760px FAQ under its
 // "Questions" h2, and the 760px closing block with its 560px line. Look is
-// Capsomer's (RULES.md 1.1): the page sits in Capsomer's amber family with
+// Capsomer's: the page sits in Capsomer's amber family with
 // Foxhound's own neutrals (.fh-cap, as the site header, the legal pages and the
 // /products hub), each card and FAQ item is Capsomer's panel, and the closing
 // link is Capsomer's primary button.

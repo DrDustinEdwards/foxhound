@@ -1,4 +1,4 @@
-/** Audit settings: the lookback period and the monthly-digest opt-in (S30, 315).
+/** Audit settings: the lookback period and the monthly-digest opt-in (S30).
  *
  *  LEGACY IS THE SPEC, read WHOLE at blob shas per 260:
  *    app/(app)/settings/audit/page.tsx        18e6a384, 1,068 bytes

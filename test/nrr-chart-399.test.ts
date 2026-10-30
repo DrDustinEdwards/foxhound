@@ -36,7 +36,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // sampling has nothing to thin, and legacy's sentence would be a false claim
 // about our own data. The card says twelve months and means it.
 
-// J67 (Q1, Dustin "yes", 2026-10-14) moved this chart from the hand-built SVG
+// J67 (Dustin "yes", 2026-10-14) moved this chart from the hand-built SVG
 // to Enarratio, so the assertions below read Enarratio's figure: its legend,
 // its labeled rule, its data table. What each one guards is unchanged. The
 // J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.

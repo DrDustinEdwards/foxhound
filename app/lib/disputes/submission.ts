@@ -97,7 +97,7 @@ async function uploadEvidenceFilesToStripe(
  *  submission to the bank (`submit: true`; never staged-only). Isolated so a
  *  fake Stripe client can drive it in tests without a live call, mirroring
  *  app/lib/engine/execute-step.ts's payInvoiceWithClient. The merchant's files
- *  (J07) go up first and take their slots; as in Recova's submit route, a file
+ *  go up first and take their slots; as in Recova's submit route, a file
  *  outranks a text field of the same name. */
 export async function submitDisputeEvidenceWithClient(
   stripe: Stripe,
@@ -118,7 +118,7 @@ export interface DisputeSubmissionContext {
   /** Encrypted stripe_connections.stripe_access_token for the connected account. */
   connectionAccessToken: string;
   evidence: Stripe.DisputeUpdateParams.Evidence;
-  /** The merchant's evidence files, read from the EVIDENCE bucket (J07). */
+  /** The merchant's evidence files, read from the EVIDENCE bucket. */
   files?: EvidenceFileUpload[];
 }
 

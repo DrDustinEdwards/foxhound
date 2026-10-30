@@ -30,7 +30,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // ends (test/audit-grant-revoke.test.ts). The plant that pinned the old
 // "Read-only" copy against the scope went with it.
 //
-// PLANTS DRIVE THE REAL LOADERS AND ACTIONS (352), against a real in-memory
+// PLANTS DRIVE THE REAL LOADERS AND ACTIONS, against a real in-memory
 // SQLite with the committed migrations applied, with two accounts and two Stripe
 // accounts in the fixture so a cross-tenant answer cannot pass by having nothing
 // to be wrong about.
@@ -272,7 +272,7 @@ describe("PLANT 1: THE SCOPE PARAMETER", () => {
       "app/lib/stripe/connect.ts",
       // /security DESCRIBES the two scopes to a reader and interpolates the
       // constants rather than typing "read_write", so it is a documentation
-      // reference and not a request site (377 item 11). It is listed here rather
+      // reference and not a request site. It is listed here rather
       // than excused by loosening the grep, and the assertion below keeps the
       // ruling's real subject intact: a prose page may name the scope, and may
       // never build an authorize URL.
@@ -478,7 +478,7 @@ describe("PLANT 6b: the audited account is the one STRIPE named, never the query
   // edit, while the token in the cookie still read the account that granted it.
   // A merchant signed in on ACCOUNT_A who authorized a STRANGER's Stripe account
   // could change the id to STRIPE_A, and the stranger's numbers were filed into
-  // ACCOUNT_A's history under STRIPE_A (RULES.md 4.14).
+  // ACCOUNT_A's history under STRIPE_A.
   const load = (account: string, grant: string) =>
     resultsRoute.loader({
       request: new Request(`${ORIGIN}/audit/results?account=${account}`, {
@@ -560,7 +560,7 @@ describe("PLANT 7: 311's rate limiter is USED, and UNCHANGED", () => {
     const post = (path: string) =>
       resolveRateLimitBinding(new Request(`${ORIGIN}${path}`, { method: "POST" }));
     // The auth bucket left this matcher for site-runtime's limiter inside the
-    // auth actions (J52); the public bucket is what remains, unchanged.
+    // auth actions; the public bucket is what remains, unchanged.
     expect(post("/api/auth/x")).toBeNull();
     expect(post("/audit")).toEqual({ bucket: "public", limit: 20, periodMs: 60_000 });
     expect(post("/demos")).toEqual({ bucket: "public", limit: 20, periodMs: 60_000 });

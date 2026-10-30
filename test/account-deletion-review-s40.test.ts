@@ -6,7 +6,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // Review fixes on PR #63 (second-model review, F1 and F2).
 //
 // F1: after deletion nobody is signed in to see a failed Stripe revoke, and the
-// alert inbox reaches nobody (RULES.md 7.6), so each failure must leave a
+// alert inbox reaches nobody, so each failure must leave a
 // durable admin_audit_log row an admin can find and retry from.
 //
 // F2: the confirmation must say what will actually happen to THIS person: a
@@ -90,7 +90,7 @@ describe("F2: the confirmation says what will happen to this person", () => {
   it("names the accounts the person owns, and only those, from the session's memberships", async () => {
     // The session's active memberships, which the shell's switcher already
     // shows, carry the same owner and active predicate the deletion plan acts
-    // on, so the loader reads no other account's rows (ruling 326).
+    // on, so the loader reads no other account's rows.
     expect(ownedAccountNames(await listMemberships(db, "u1"))).toEqual(["Acme", "Beta Co"]);
   });
 

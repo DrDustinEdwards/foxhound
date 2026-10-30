@@ -313,7 +313,7 @@ async function failedFeeInvoices(db: Db, nowMs: number): Promise<{ count: number
 
 async function recoveredThisMonth(db: Db, nowMs: number): Promise<AdminOverview["recoveredThisMonth"]> {
   // Summed and counted per currency in SQL; the per-currency rows still pass
-  // through groupSumByCurrency, the one money-total path (RULES.md 3.20).
+  // through groupSumByCurrency, the one money-total path.
   const rows = await db
     .select({
       currency: recoveredPayments.currency,

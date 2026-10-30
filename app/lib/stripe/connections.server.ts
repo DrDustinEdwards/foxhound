@@ -68,7 +68,7 @@ export async function findActiveConnection(
 }
 
 /**
- * A DISCRIMINATED OUTCOME, never a bare id or null (339 binding 5): "nobody
+ * A DISCRIMINATED OUTCOME, never a bare id or null: "nobody
  * holds it", "the caller holds it here" and "somebody else holds it" are three
  * different answers with three different responses, and collapsing the last two
  * into a nullable id is what made the old call sites easy to get wrong.

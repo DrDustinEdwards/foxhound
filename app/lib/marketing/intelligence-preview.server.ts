@@ -20,7 +20,7 @@ import { formatMoney, formatMoneyShort } from "~/lib/money-format";
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
 import { HOUR_MS } from "~/lib/constants";
 
-// The data behind the /product/intelligence previews (J58): the demo account's
+// The data behind the /product/intelligence previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hand-written numbers
 // (IntelligenceDashboardPreview.tsx, blob 11972333; IntelligenceCustomerTable.tsx,
 // blob 6ae7c73f; ChurnRiskSummary.tsx, blob ba1fbb51). Foxhound builds the
@@ -35,7 +35,7 @@ import { HOUR_MS } from "~/lib/constants";
 // - Customers: listCustomerDirectory's default order, health ascending, with
 //   its plan pill (planTierPill) and its MRR cell ("-" with none).
 // - Bands: getChurnBands, per healthScoreBand (the engine's 40/70 cutoffs),
-//   totaled with groupSumByCurrency (RULES.md 3.20).
+//   totaled with groupSumByCurrency.
 //
 // Strings are formatted here, on the server, so the page renders the same
 // text on the server and in the browser.

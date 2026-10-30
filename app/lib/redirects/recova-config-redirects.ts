@@ -4,7 +4,7 @@
 // (DrDustinEdwards/recova, blob 8cf9b0c72fe9bdfa26340dd65283a3a7a9fceb8d,
 // 5541 bytes), in Recova's order, with Recova's source and destination
 // patterns unchanged. This is the spec, not the redirect map: the map in
-// recova-map.ts is still generated (RULES.md 7.3), and its generator reads
+// recova-map.ts is still generated, and its generator reads
 // this table so that recovamrr.com/user-guides goes to foxhoundapp.com/docs in
 // ONE hop instead of landing on a Foxhound path that redirects again.
 //

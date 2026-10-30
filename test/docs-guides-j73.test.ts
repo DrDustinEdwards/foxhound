@@ -15,7 +15,7 @@ import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 // "legacy": app/(marketing)/docs/platform/page.tsx 2b69517b, audit 3b1153b4,
 // recovery 6166a6be, disputes 598fcbaa, intelligence e7f18266. The Part lists
 // below are their TOC arrays, word for word, with "Recova" read as "Foxhound"
-// (branding, RULES.md 1.2). The H3 lists are their H3 children in order.
+// (branding). The H3 lists are their H3 children in order.
 
 
 

@@ -8,7 +8,7 @@ import { indexNow } from "~/lib/seo/indexnow.server";
 import { carrelAdapter } from "./adapter.server";
 import { carrelMediaAdapter } from "./media-adapter.server";
 
-// Mounts site-api at /api/carrel/v1 (job_cbe1b96107fc). The guard order is the
+// Mounts site-api at /api/carrel/v1. The guard order is the
 // package's: prefix, rate limit, key, route. CARREL_SITE_KEY is a separate,
 // revocable secret that is read ONLY here and reaches ONLY that prefix; every
 // other route (admin, merchant, billing, webhooks) authenticates by session or
@@ -32,7 +32,7 @@ function carrelLimiter(env: Env): RateLimiter {
 
 /** One site-api over the blog, for a Carrel request and for the cron alike.
  *  The IndexNow hook runs after a write that changes a public page and after
- *  each schedule the cron applies (job_b0b24df12155). */
+ *  each schedule the cron applies. */
 function carrelSiteApi(env: Env): SiteApi {
   const db = getDb(env);
   return createSiteApi({

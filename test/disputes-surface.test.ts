@@ -50,7 +50,7 @@ describe("deadline urgency", () => {
   });
 });
 
-// computeDisputeStats is pinned in test/disputes-list-j66.test.ts (J66): its
+// computeDisputeStats is pinned in test/disputes-list-j66.test.ts: its
 // totals are per currency, and the Win rate card it feeds stays, Dustin's
 // approved difference (PR #75 question 4, "yes ro all", 2026-10-15).
 

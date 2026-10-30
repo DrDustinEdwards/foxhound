@@ -16,7 +16,7 @@ import type { Route } from "./+types/social-start";
 // drawn then, but guard anyway).
 export async function action({ request, context, params }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  // The shared auth bucket (J52, site-runtime's limiter): a signed-out caller
+  // The shared auth bucket (site-runtime's limiter): a signed-out caller
   // can start sign-ins here. A form post, so a refusal goes back to the page.
   if (await checkAuthLimit(env, request, "credential")) {
     return redirect(`/login?error=${RATE_LIMITED_ERROR}`, { status: 303 });
@@ -27,7 +27,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     return redirect("/login");
   }
 
-  // Where to land afterwards (J79; ruling 8). Recova's login set a
+  // Where to land afterwards. Recova's login set a
   // pending_redirect cookie and its callback validated it and burned it even
   // when refused. Better Auth carries callbackURL inside its own one-time OAuth
   // state, which is spent on the callback, so the validated path goes there

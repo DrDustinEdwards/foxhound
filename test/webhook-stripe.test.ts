@@ -41,7 +41,7 @@ describe("classifyStripeEvent", () => {
         customer_email: "a@b.com",
         collection_method: "charge_automatically",
         last_finalization_error: { decline_code: "expired_card" },
-        // STATED, NOT OMITTED (377(1)). An absent next_payment_attempt reads as
+        // STATED, NOT OMITTED. An absent next_payment_attempt reads as
         // null, which is "Stripe gave up", so a fixture that leaves it out
         // cannot tell a working gate from a missing one.
         next_payment_attempt: null,
@@ -300,7 +300,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
@@ -326,7 +326,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 10_000_00,
       currency: "usd",
       foxhoundSubmitted: true,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
@@ -341,7 +341,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: true,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,
@@ -361,7 +361,7 @@ describe("webhook batch builders (compile against schema)", () => {
       amountCents: 50_000,
       currency: "usd",
       foxhoundSubmitted: false,
-      // A USD dispute: the cap needs no conversion (377(7)).
+      // A USD dispute: the cap needs no conversion.
       cap: { capMinorUnits: DISPUTE_FEE_CAP_CENTS, rate: null, quoteId: null, quotedAt: null },
       capError: null,
       resolvedAt: now,

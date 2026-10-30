@@ -244,7 +244,7 @@ const byCurrency = (rows: readonly { currency: string; cents: number }[]) =>
 
 /**
  * What Foxhound has on record for one customer of one account: the customer
- * detail page's three signal cards (row S18, job J68). Read from Foxhound's own
+ * detail page's three signal cards. Read from Foxhound's own
  * tables rather than customer_context's signal JSON, because the nightly sync
  * writes only counts there (signals.ts), with no amounts, dates or 30-day
  * window, and the demo seeds a different shape. Every query carries both the
@@ -404,7 +404,7 @@ export async function getAlertsView(
       })
       .from(alerts)
       .where(eq(alerts.accountId, accountId))
-      // Newest first, as Recova's alerts page orders them (J33). Unordered,
+      // Newest first, as Recova's alerts page orders them. Unordered,
       // SQLite returned insertion order, so a new alert sank to the bottom.
       // The id breaks a tie on the same millisecond (seeds, batch inserts).
       .orderBy(desc(alerts.createdAt), desc(alerts.id)),

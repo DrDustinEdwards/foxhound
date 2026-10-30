@@ -10,8 +10,8 @@ import { monthKeyOf, type GenerateReportError } from "./dashboard";
 import { narrativeFactsFor, writeIntelligenceNarrative, type NarrativeCustomer } from "./narrative";
 import type { HealthFactor } from "./risk";
 
-// The Intelligence dashboard's "Generate report" / "Regenerate report" button
-// (row S16, job J67). Recova's button posted a month to
+// The Intelligence dashboard's "Generate report" / "Regenerate report" button.
+// Recova's button posted a month to
 // app/api/intelligence/generate-report/route.ts (blob 45732914), which wrote
 // its own prompt from its own facts. This hooks the button into Foxhound's
 // engine instead: the same facts and the same writer the nightly run uses

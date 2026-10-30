@@ -61,7 +61,7 @@ export interface AdminMerchantRow extends MerchantListRow {
   /** Recova's rate: recoveries over failures, both with deleted rows left
    *  out, rounded to a whole percent. Null when nothing has failed. */
   recoveryRatePct: number | null;
-  /** Everything recovered for this merchant, per currency (RULES.md 3.20). */
+  /** Everything recovered for this merchant, per currency. */
   recovered: CurrencyAmount[];
 }
 

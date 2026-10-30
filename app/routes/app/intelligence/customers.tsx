@@ -38,25 +38,25 @@ import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";
 
-// /intelligence/customers (row S17, job J30). Recova is the spec: its real
+// /intelligence/customers. Recova is the spec: its real
 // page, app/(app)/intelligence/customers/page.tsx at blob 0413f035, with
 // lib/intelligence-display.ts at blob 379635a7, both read whole. In Recova's
 // order and width: the head (the account's name, the count line, the lead),
 // then the table or Recova's "No customer data yet" card, then the pager, in a
 // 1280px column.
 //
-// Built from Capsomer 0.9.0's parts (Q10), amber throughout.
+// Built from Capsomer 0.9.0's parts, amber throughout.
 // No Foxhound class sits on a Capsomer element: where the page needs Recova's
 // mono figures, its label size or its spacing, the class goes on an element of
 // the page's own inside or around the Capsomer part. Recova's mono uppercase
 // column heads, its plan colors on the pill's edge and its 12px radius wait
-// for Capsomer's per-site layer (capsomer job_ec5ec0754626), listed in the J30
+// for Capsomer's per-site layer, listed in the J30
 // notes.
 //
 // One Foxhound addition, approved: the filter bar ("The customers page has a
 // filter bar. "confirm", 2026-08-28", APPROVED-DIFFERENCES). The
 // recommended-action chip after the name is Recova's chipLabelFor over the
-// action the nightly scoring stores (J78).
+// action the nightly scoring stores.
 
 export function meta() {
   return [{ title: "Customers - Foxhound" }];
@@ -160,12 +160,12 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
 
   // Recova's H1 is `{accountName} customers` (page.tsx:71). Recova computes
   // `membership.account.name ?? 'Customers'` first, so an account with no name
-  // gets "Customers customers", a defect not copied (ruling 39): with no name
+  // gets "Customers customers", a defect not copied: with no name
   // the heading is "Customers".
   const heading = accountName ? `${accountName} customers` : "Customers";
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell
-  // owns the page's one <main> (ruling 146), so this is a plain wrapper.
+  // owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
       <div className="mb-6">

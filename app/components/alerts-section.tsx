@@ -33,14 +33,14 @@ import type { AlertActionResult, loadAlertsSection } from "~/lib/settings/alerts
 // /settings/alerts; combined on Dustin's word of 2026-10-29). Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
 // and alerts/AlertsClient.tsx (blob ee8dac99, 20,909 bytes).
 //
-// J33 (job_947a0b8bbe06) rebuilt the page on Capsomer 0.9.0's parts (Q10),
+// J33 rebuilt the page on Capsomer 0.9.0's parts,
 // amber throughout. Recova is the spec for what is on it and
 // in what order: the phone-only Settings link, the head, a card with the count
 // line, Create alert, the alerts table and the create form, then a Recent
 // triggers card. The settings layout gives the page Recova's 800px column and
 // padding, so the page adds no width of its own. No Foxhound class sits on a
 // Capsomer element; what Recova's look still needs is listed for Capsomer's
-// per-site layer (capsomer job_ec5ec0754626) in the J33 pull request.
+// per-site layer in the J33 pull request.
 //
 // THE READER CAME FIRST HERE, which is the inverse of 315's usual failure. The
 // nightly evaluator (`evaluateAlerts`) has been reading `alerts` and writing

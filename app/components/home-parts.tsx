@@ -45,7 +45,7 @@ export function SourceArrow() {
 export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
   {
     title: "Connect Stripe",
-    // Recova: "Read-only OAuth." The connection is read and write (ruling 20d),
+    // Recova: "Read-only OAuth." The connection is read and write,
     // so "Read-only" goes and Recova's OAuth link stays.
     body: (
       <>

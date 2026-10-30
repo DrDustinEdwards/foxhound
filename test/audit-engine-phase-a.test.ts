@@ -123,7 +123,7 @@ describe("SCOPE 2: expiring cards", () => {
 
   it("AN ALREADY-EXPIRED CARD COUNTS, which is the opposite of the expiring-card cron", () => {
     // Both are right. The cron skips them because an alert about a card that has
-    // already failed is late (342 binding 1); the audit counts them because a
+    // already failed is late; the audit counts them because a
     // diagnostic of what is wrong now must include them.
     const result = audit({
       subscriptions: ok<Stripe.Subscription>([

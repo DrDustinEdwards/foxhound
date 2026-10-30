@@ -27,7 +27,7 @@ import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 //
 // IT NEVER THROWS INTO THE CALLER, and it never blocks the email. Legacy wraps
 // the whole thing in try/catch and logs. Foxhound returns a DISCRIMINATED
-// outcome instead of legacy's silence (339 binding 5), so a deliberate refusal
+// outcome instead of legacy's silence, so a deliberate refusal
 // and a swallowed failure are distinguishable, but the caller still cannot be
 // broken by Slack being down.
 
@@ -54,7 +54,7 @@ export type SlackOutcome =
  * Legacy's payload, byte for byte.
  *
  * Pure and exported so a plant reads the real assembly rather than a hand-built
- * copy (337 binding 4). The emoji are legacy's own literals.
+ * copy. The emoji are legacy's own literals.
  */
 export function buildSlackPayload(event: SlackEvent): { text: string } {
   const emoji = event.type === "payment_recovered" ? "✅" : "📧";
@@ -73,7 +73,7 @@ export function buildSlackPayload(event: SlackEvent): { text: string } {
  * Split so a caller can refuse BEFORE loading anything the payload needs: the
  * retry site has to read the failed payment for the customer name and email,
  * and doing that on every recovered retry when Slack is off would be a query
- * for nothing. Splitting also makes each layer reachable on its own (340).
+ * for nothing. Splitting also makes each layer reachable on its own.
  */
 export async function resolveSlackTarget(
   env: Env,

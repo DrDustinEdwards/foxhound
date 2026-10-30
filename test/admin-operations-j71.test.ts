@@ -7,7 +7,7 @@ import { CRON_JOBS } from "~/lib/cron/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J71 (job_77e09916862e): /admin/operations on the family admin pattern
+// J71: /admin/operations on the family admin pattern
 // (Capsomer's parts, Dustin's Q9 of 2026-10-14) and his 2026-10-11 review.
 // Recova's page (app/admin/operations/OperationsClient.tsx, blob 419a51ac) is
 // the inventory: the global pause (which is /admin/brake here and is not
@@ -24,7 +24,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 // Looked up so a missing module or export fails the assertion that names it,
-// not the whole file (RULES.md 6.5).
+// not the whole file.
 const route: Record<string, unknown> = await import("~/routes/admin/operations").catch(() => ({}));
 const lib: Record<string, unknown> = await import("~/lib/admin/operations.server").catch(() => ({}));
 const lockState: Record<string, unknown> = await import("~/lib/cron/lock-state").catch(() => ({}));

@@ -1,6 +1,6 @@
 import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
 
-// THE RESPONSE CACHE POLICY (345 binding 4).
+// THE RESPONSE CACHE POLICY.
 //
 // This decides one header, `Cache-Control`, from two inputs: the route class and
 // whether the request carries a session cookie. It is applied in ONE place, the
@@ -101,23 +101,23 @@ const MARKETING_EXACT = new Set([
 ]);
 
 /** Prefixes that are PUBLIC marketing, with their own index covered above. */
-// "/product/" is Recova's product pages (J09); "/products/" stays for the four
+// "/product/" is Recova's product pages; "/products/" stays for the four
 // old spoke addresses, which now answer a 301 to them.
 const MARKETING_PREFIXES = ["/product/", "/products/", "/compare/", "/decline-codes/"];
 
 /** Files routes. `/og/` and `/og` are included: the card route sets no
  *  Cache-Control of its own today and its output is a pure function of the
- *  URL (path params, or Recova's query form on `/og`, ruling 41). */
+ *  URL (path params, or Recova's query form on `/og`). */
 const FILES_EXACT = new Set([
   "/sitemap.xml",
   "/robots.txt",
   "/llms.txt",
   "/llms-full.txt",
   "/feed.rss",
-  // RFC 9116 (377 item 11). A static text file whose only variable is the
+  // RFC 9116. A static text file whose only variable is the
   // request clock, so it caches exactly like the other files routes.
   "/.well-known/security.txt",
-  // The IndexNow key file (job_b0b24df12155). Its body is a constant that only
+  // The IndexNow key file. Its body is a constant that only
   // a deploy changes, so it caches like the other files routes.
   INDEXNOW_KEY_PATH,
 ]);
@@ -158,7 +158,7 @@ export function resolveCacheControl(request: Request): string {
 }
 
 /**
- * `Vary: Cookie` on every PUBLIC-class response (348).
+ * `Vary: Cookie` on every PUBLIC-class response.
  *
  * THIS IS WHAT THE CACHE-CONTROL POLICY ALONE COULD NOT DO, and session 53's
  * first attempt proved it: THE WORKER DOES NOT RUN ON A CACHE HIT
@@ -195,7 +195,7 @@ function appendVary(headers: Headers, value: string): void {
 
 /**
  * KEEP CLOUDFLARE WEB ANALYTICS OFF SIGNED-IN AND TOKEN PAGES
- * (job_0927572db276, Dustin's ruling 2026-10-04: count public pages only).
+ * (Dustin's ruling 2026-10-04: count public pages only).
  *
  * Automatic beacon injection is zone-wide and path rules need the Pro plan, so
  * the exclusion has to come from the Worker. Cloudflare's Web Analytics FAQ says
@@ -229,7 +229,7 @@ export const NO_TRANSFORM_PREFIXES = [
   "/invite/",
   // Where the emailed sign-in link lands, carrying a signed-in session.
   "/passkey",
-  // The OAuth consent page (J79): its query carries a client's id and state.
+  // The OAuth consent page: its query carries a client's id and state.
   "/oauth/",
 ];
 

@@ -7,7 +7,7 @@
 //
 // Two cases Recova never meets are refused rather than guessed. Recova reads
 // every column with `?? 0`, so a figure that could not be read compared as a
-// zero; Foxhound stores it as NULL (365 binding 2) and a comparison with it
+// zero; Foxhound stores it as NULL and a comparison with it
 // would be a claim about a number nobody read. And two runs can be in
 // different currencies (or one with no stored currency), where a percentage
 // between the amounts means nothing. All of these return "none", and the row shows the figures with no comparison.

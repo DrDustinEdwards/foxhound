@@ -42,7 +42,7 @@ import type { Route } from "./+types/connect";
 // never do", because with a read_write grant those lines are what Foxhound
 // does not do, not what it cannot.
 //
-// LEGACY'S PROGRESS TICKER KEEPS ONLY ITS TRUE STEP (J42). Its button fakes a
+// LEGACY'S PROGRESS TICKER KEEPS ONLY ITS TRUE STEP. Its button fakes a
 // four-step sequence ("Connecting to Stripe...", "Reading invoices...",
 // "Analyzing decline codes...", "Building summary...") on an 1800ms interval
 // while navigating away after 400ms, so every step after the first describes
@@ -177,7 +177,7 @@ function AccessList({
  * Foxhound's neutrals (.fh-cap), so the button and its focus ring are amber
  *. The inner div adds 36px by 32px to the panel body's 12px by 16px,
  * which is Recova's 48px on every side at every width, as the sign-in card
- * does (RULES.md 5.1).
+ * does.
  */
 function AuditConnectFrame({ children }: { children: ReactNode }) {
   return (
@@ -251,7 +251,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
                 page's own label, not the button: Capsomer's button never wraps,
                 so Recova's 33-character label is clipped below about 400px,
                 where Recova's own button wraps to two lines. Named in the PR
-                for the per-site layer (capsomer job_ec5ec0754626). */}
+                for the per-site layer. */}
             <span className="whitespace-normal">
               Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
             </span>

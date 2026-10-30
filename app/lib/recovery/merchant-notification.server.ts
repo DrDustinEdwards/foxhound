@@ -31,7 +31,7 @@ import { formatMoney } from "~/lib/money-format";
 // one (lib/email.ts wrapEmailHtml with no unsubscribe token): the "You're
 // receiving this from" sentence and a "Manage email settings" link (E10).
 //
-// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E10, job J88; RULES.md 3.16):
+// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E10):
 // title, sentence, View payment button, in Foxhound's amber family.
 
 const RECOVERY_NOTIFY_TEMPLATE = "merchant_recovery_notify";
@@ -74,7 +74,7 @@ interface NotificationData {
  * `Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'usd' })`
  * over `amount_cents / 100`. Note the falsy-currency coercion, which is legacy's.
  * The division is now the currency's own (money-format.ts), so a yen amount is
- * not shown a hundred times too small (RULES.md 1.2).
+ * not shown a hundred times too small.
  */
 export function formatNotifyAmount(amountCents: number, currency: string): string {
   return formatMoney(amountCents, currency || "usd");
@@ -96,7 +96,7 @@ function recoveryNotifySubject(data: {
  * and its "View payment" button is the action. Foxhound's name where legacy
  * says Recova. The one other change is the link target: legacy points at
  * `${APP_URL}/payments/${id}`, Foxhound's route for the same page is
- * `/recovery/payments/:id` until the URL reverts (J09) land.
+ * `/recovery/payments/:id` until the URL reverts land.
  *
  * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
  * from Stripe is shown exactly as written; before this it was put into HTML
@@ -214,7 +214,7 @@ async function loadNotificationData(
  * NEVER THROWS. Legacy wraps this whole block in a try/catch that logs to
  * Sentry and continues, because the recovery and its fee are already committed
  * and a mail failure must not unwind them or fail the webhook. Returns the
- * a named outcome for the caller to log, never null (RULES.md 3.16).
+ * a named outcome for the caller to log, never null.
  */
 export async function sendRecoveryNotification(
   env: Env,

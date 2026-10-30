@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import * as risk from "~/lib/intelligence/risk";
 import IntelligenceProductPage, { loader } from "~/routes/products/intelligence";
 
-// J58 (job_b091fc0d979e), the Intelligence spoke, row M9. Recova's spec, read
+// J58, the Intelligence spoke, row M9. Recova's spec, read
 // whole at HEAD: app/(marketing)/product/intelligence/page.tsx (blob
 // 4f258429), components/product/ProductSections.tsx (ba3aed7c),
 // ProductFAQ.tsx (7c08a5a2), IntelligenceDashboardPreview.tsx (11972333) with

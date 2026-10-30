@@ -49,8 +49,7 @@ async function thrownFrom(slug: string): Promise<unknown> {
 
 describe("PLANT 1: a withdrawn slug answers 410", () => {
   it("BOTH WITHDRAWN POSTS RETURN 410, driven through the real loader", async () => {
-    // The reader, mutated: an empty list would make this loop assert nothing
-    // (379 binding 3).
+    // The reader, mutated: an empty list would make this loop assert nothing.
     expect(WITHDRAWN_BLOG_SLUGS).toHaveLength(2);
     expect(WITHDRAWN_BLOG_SLUGS).toContain("net-revenue-retention-guide");
     expect(WITHDRAWN_BLOG_SLUGS).toContain("subscription-intelligence-churn-prediction");

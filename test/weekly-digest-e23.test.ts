@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E23 (job J95, job_c42d1a6d1869): the weekly digest on Capsomer's email
+// E23: the weekly digest on Capsomer's email
 // component, with Recova's words, From, footer, unsubscribe and suppression.
 //
 // Recova is the spec, read whole at the blobs parity/ROWS-E.md names:
@@ -320,7 +320,7 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
   });
 
   it("only the digest's two senders ask for the digest audience, anywhere under app/", () => {
-    // Every .ts and .tsx file under app/, not a chosen list (RULES.md 6.5):
+    // Every .ts and .tsx file under app/, not a chosen list:
     // a merchant notice switched to the digest audience would gain an
     // unsubscribe, and a list that leaves its file out would never see it.
     const root = fileURLToPath(new URL("../", import.meta.url));
@@ -341,7 +341,7 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
 });
 
 // ============================================================================
-// Links have somewhere to go (RULES.md 2.7)
+// Links have somewhere to go
 // ============================================================================
 
 describe("View recommendations waits for its page", () => {

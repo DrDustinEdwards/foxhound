@@ -59,7 +59,7 @@ const TIMING_TELL_PATTERNS: readonly RegExp[] = [
   /\b(?:since|after)\s+\d+\s+(?:hours?|days?)\b/i,
 ];
 
-// ---- Timing words (job J01) ----
+// ---- Timing words ----
 //
 // The customer may read the email hours or days after it was sent, so no
 // recovery or win-back email may say WHEN it is being read ("today", "tonight").
@@ -153,7 +153,7 @@ export function hardStripTimingWords(text: string): string {
  * whatever still leaks is hard-stripped, subject and body separately.
  *
  * A first-call failure is not handled here: it throws out of the seam, and the
- * caller sends the template (RULES.md 3.15).
+ * caller sends the template.
  */
 export async function applyTimingWordGuard(
   first: EmailCopy,
@@ -530,7 +530,7 @@ export function buildUserPrompt(input: GenerateEmailInput): string {
  * output, then sanitizes the result. The caller is responsible for the quality
  * gate and for `applyCustomBody`. Throws if ANTHROPIC_API_KEY is unset.
  *
- * NOTE (Phase 4b): not live-verified this pass; ANTHROPIC_API_KEY is Dustin-gated
+ * NOTE: not live-verified this pass; ANTHROPIC_API_KEY is Dustin-gated
  * and the end-to-end send path lands in Phase 4c. The pure helpers above are the
  * tested surface.
  */

@@ -13,11 +13,11 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "~/site-header.css";
 
-// The parts the sign-in pages share (J52, rows A2 and A3). Recova is the spec
+// The parts the sign-in pages share. Recova is the spec
 // for the frame: each of its pages (app/(auth)/login and signup page.tsx) is
 // one 400px card, centered in a full-height column, holding a centered heading,
-// a line under it, the form and a line of links. The parts are Capsomer's
-// (Q12), amber, at Recova's sizes: p-12, the 1.5rem heading, 13px labels,
+// a line under it, the form and a line of links. The parts are Capsomer's,
+// amber, at Recova's sizes: p-12, the 1.5rem heading, 13px labels,
 // 42px fields and a 47px button at 0.9375rem.
 //
 // The ways in are the family's one sign-in (site-runtime ./sign-in; Dustin's
@@ -34,7 +34,7 @@ import "~/site-header.css";
  * puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap,
  * the pairing /connect and the site header use), so the button and its focus
  * ring are amber. The inner div carries Recova's 48px inset on top of the
- * panel's own, less the panel's: the padding is Recova's (RULES.md 5.1).
+ * panel's own, less the panel's: the padding is Recova's.
  */
 export function AuthCard({ children }: { children: ReactNode }) {
   return (
@@ -225,7 +225,7 @@ function AppleMark() {
  * client-side provider call. Google's mark is a static file because its four
  * brand colors are Google's, not Foxhound tokens.
  *
- * `next` is the page to land on afterwards, when /login was given one (J79).
+ * `next` is the page to land on afterwards, when /login was given one.
  */
 export function SocialContinue({
   methods,
@@ -245,7 +245,7 @@ export function SocialContinue({
     <>
       {providers.map((p) => (
         <Form key={p.id} method="post" action={`/auth/${p.id}`} className="mb-3 grid">
-          {/* Where to land afterwards (J79), validated again by the start
+          {/* Where to land afterwards, validated again by the start
               route. Recova carried it in a pending_redirect cookie. */}
           {next ? <input type="hidden" name="next" value={next} /> : null}
           <Button type="submit" size="lg">

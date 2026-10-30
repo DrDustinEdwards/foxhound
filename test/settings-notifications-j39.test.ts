@@ -7,7 +7,7 @@ import { SLACK_WEBHOOK_ERROR } from "~/lib/settings/slack-webhook";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J39 (job_4b5f4ca4e9ae), row S36, under Dustin's Q10 and Q11 rulings of
+// J39, row S36, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/notifications is Recova's page
 // (app/(app)/settings/notifications/page.tsx at blob 93126fd2,
 // NotificationsForm.tsx at blob 316c15cf and

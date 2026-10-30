@@ -27,7 +27,7 @@ import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments
 //     label and the value mechanism are both real, and there is a THIRD part it
 //     did not name: Foxhound carried a `subtext="all filters"` that legacy has
 //     no counterpart for. Removing it restores legacy, which is a repair and
-//     never a ratified divergence (252).
+//     never a ratified divergence.
 
 
 

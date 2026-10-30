@@ -411,7 +411,7 @@ export interface CreditNoteInput {
 
 /**
  * Credit a fee line back on the platform invoice it was charged on
- * (ruling 377(5), PRICING.md rev 5 item 1).
+ * (PRICING.md rev 5 item 1).
  *
  * `credit_amount` is Stripe's "apply this to the customer's balance" mode, as
  * opposed to `refund_amount`, which moves cash. That is the whole point of the

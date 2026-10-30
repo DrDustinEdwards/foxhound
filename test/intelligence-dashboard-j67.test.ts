@@ -19,8 +19,8 @@ import { rollUpByMonth } from "~/lib/intelligence/mrr";
 // Recova's order inside a 1280px column: the head ("Dashboard", "MRR trends and
 // customer health"), four stat cards, MRR trend, NRR, MRR movement, MRR by
 // plan, customer health distribution, then the monthly summary with its month
-// pager and Generate/Regenerate button. Charts are Enarratio's (Q1), parts are
-// Capsomer's (Q10), amber throughout. Foxhound's own at-risk table is held
+// pager and Generate/Regenerate button. Charts are Enarratio's, parts are
+// Capsomer's, amber throughout. Foxhound's own at-risk table is held
 // for Dustin and stays exactly as it was, after the summary.
 //
 // Two of Recova's four stats are numbers Foxhound's engine does not compute

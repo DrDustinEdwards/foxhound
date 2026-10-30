@@ -33,8 +33,8 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
 
-  // Only archives that actually carry a published post are advertised
-  // (ruling 88). This file previously listed all eight canonical tags, three
+  // Only archives that actually carry a published post are advertised.
+  // This file previously listed all eight canonical tags, three
   // of which served zero posts, so the highest-authority surface we publish
   // was pointing AI crawlers at empty pages, and an unknown tag returns 200
   // rather than 404, making an empty archive indistinguishable from a garbage

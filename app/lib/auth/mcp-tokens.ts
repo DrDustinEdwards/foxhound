@@ -23,7 +23,7 @@ import { accounts, apiKeys } from "~/db";
 //   - Issuance: Settings, API keys (createAccountApiKey) and the OAuth provider
 //     (app/lib/oauth/provider.server.ts). See docs/auth/mcp-tokens.md.
 //   - Revocation is a timestamp (api_keys.revoked_at); verification rejects it.
-//   - Expiry (J79): api_keys.expires_at is null for a key made in Settings and
+//   - Expiry: api_keys.expires_at is null for a key made in Settings and
 //     set on the one-hour access token an OAuth grant issues (app/lib/oauth);
 //     verification rejects a key once it has passed.
 
@@ -42,7 +42,7 @@ export function hashMcpToken(token: string): Promise<string> {
 }
 
 /** A fresh 32-byte secret, base64url without padding (43 characters). The
- *  OAuth provider (J79) mints its codes and refresh tokens the same way. */
+ *  OAuth provider mints its codes and refresh tokens the same way. */
 export function generateSecret(): string {
   return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
@@ -129,7 +129,7 @@ export async function verifyMcpToken(
   if (!row || row.revokedAt) return null;
   // An account's keys and OAuth access tokens stop working once it is closed.
   if (row.accountId && row.accountCancelledAt) return null;
-  // An OAuth access token carries an expiry (J79); a key made in Settings does
+  // An OAuth access token carries an expiry; a key made in Settings does
   // not, and lives until it is revoked.
   if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return null;
   if (row.scope !== MCP_TOKEN_SCOPE.MERCHANT && row.scope !== MCP_TOKEN_SCOPE.ADMIN) {

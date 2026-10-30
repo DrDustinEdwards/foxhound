@@ -5,7 +5,7 @@ import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/security-txt";
 
-// /.well-known/security.txt, RFC 9116 (377 item 11), from site-runtime: it tells somebody who has found a vulnerability
+// /.well-known/security.txt, RFC 9116, from site-runtime: it tells somebody who has found a vulnerability
 // where to send it, before they decide a public post is the only channel. The family's one security address (Dustin,
 // 2026-10-25) and a fixed Expires, as on every family site: a date that renews itself would keep vouching for an
 // address nobody has checked.

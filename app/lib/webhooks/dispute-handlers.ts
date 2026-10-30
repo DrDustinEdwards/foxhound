@@ -31,7 +31,7 @@ import { findDisputeByStripeId, resolveDisputedRecovery } from "./lookups";
  * sent." Recova stamped it after its send too. The stamp is its own small batch
  * through the money-write Durable Object, keyed on the dispute and guarded on
  * the column still being empty, so it is written once and never moves; the
- * notice module itself writes nothing (RULES.md 3.2). Never throws.
+ * notice module itself writes nothing. Never throws.
  */
 async function notifyDisputeOutcome(env: Env, accountId: string, disputeId: string): Promise<void> {
   const notice = await sendDisputeOutcomeNotice(env, { accountId, disputeId });
@@ -123,7 +123,7 @@ export async function handleStampDispute(
         contextColumns: stripeContext.columns,
       }),
   });
-  // THE NEW-DISPUTE NOTICE (J06), after the intake has committed and
+  // THE NEW-DISPUTE NOTICE, after the intake has committed and
   // changing nothing about it, as the recovery notification above. Recova
   // sends it at the end of handleDisputeCreated. It never throws.
   //
@@ -191,7 +191,7 @@ export async function handleDisputeResolved(
     if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
     return applied ? { status: "ignored", reason: "already_resolved" } : { status: "duplicate" };
   }
-  // THE CAP IS CONVERTED HERE, BEFORE THE BATCH (ruling 377(7)). It needs a
+  // THE CAP IS CONVERTED HERE, BEFORE THE BATCH. It needs a
   // Stripe FX quote and an external call cannot ride the money batch. A
   // failure is recorded and the fee is left unsnapshotted, which is the
   // fail-closed shape: the dispute resolves either way, and an unpriced win
@@ -229,7 +229,7 @@ export async function handleDisputeResolved(
       }),
   });
 
-  // A lost dispute credits any fee line it carries (377(5)), after the commit,
+  // A lost dispute credits any fee line it carries, after the commit,
   // never unwinding it, keyed on the fee line. Stripe does not move a dispute
   // from won to lost: an issuer that re-files opens a NEW dispute object with
   // its own charge.dispute.created (Stripe's "Receiving multiple disputes per
@@ -245,7 +245,7 @@ export async function handleDisputeResolved(
       { now: receivedAt, description: DISPUTE_CREDIT_DESCRIPTION },
     );
   }
-  // THE WON OR LOST NOTICE (J06), after the resolution has committed.
+  // THE WON OR LOST NOTICE, after the resolution has committed.
   if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
   return applied ? { status: "applied" } : { status: "duplicate" };
 }

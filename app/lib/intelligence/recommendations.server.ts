@@ -10,7 +10,7 @@ import {
   type RecommendedAction,
 } from "./recommend";
 
-// Recova's three recommendation inputs, read from Foxhound's own tables (J78),
+// Recova's three recommendation inputs, read from Foxhound's own tables,
 // and the list /intelligence/recommendations shows.
 //
 // Engagement is Recova's: recovery emails sent in the last 30 days (Recova

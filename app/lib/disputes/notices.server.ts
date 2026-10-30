@@ -22,7 +22,7 @@ import {
   type ReminderBucket,
 } from "./notices";
 
-// THE SENDERS for the merchant's dispute notices (J06). The words and rules are
+// THE SENDERS for the merchant's dispute notices. The words and rules are
 // in ./notices.ts; this reads the rows and hands each notice to processEmailJob,
 // the one send path, so suppression, the per-account live-send gate and the
 // email_sends claim all apply.
@@ -38,13 +38,13 @@ import {
 // rows. A redelivered webhook or a second cron tick finds the claim and sends
 // nothing.
 //
-// THIS MODULE WRITES NOTHING (RULES.md 3.2): no outcome, no stamp. The callers
+// THIS MODULE WRITES NOTHING: no outcome, no stamp. The callers
 // write those after a send, through the money-write Durable Object.
 //
 // NEVER THROWS. A notice is sent after the money write has committed, and a mail
 // failure must not unwind a dispute or fail a webhook, as Recova's try/catch
-// around every one of these. A refusal names itself and an error names itself
-// (RULES.md 3.16), never a null.
+// around every one of these. A refusal names itself and an error names itself,
+// never a null.
 
 type DisputeNoticeSkip = "not_found" | "no_recipient" | "paused" | "not_resolved";
 
@@ -109,7 +109,7 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
     .from(disputes)
     .innerJoin(accounts, eq(accounts.id, disputes.accountId))
     // Recova reads sender_name from the account's primary connection, its only
-    // one; Foxhound has several per account (RULES.md 1.6), so the connection
+    // one; Foxhound has several per account, so the connection
     // the dispute arrived on speaks, as E9 pins the payment's own connection.
     .leftJoin(stripeConnections, eq(stripeConnections.id, disputes.stripeConnectionId))
     .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId)))
@@ -141,7 +141,7 @@ export async function send(
     subject: content.subject,
     template,
     // Platform-to-merchant mail: no unsubscribe, no postal footer
-    // (RULES.md 3.16; see EmailAudience).
+    // (see EmailAudience).
     audience: "merchant" as const,
     unsubscribeToken: "",
     physicalAddress: "",
@@ -255,7 +255,7 @@ export async function sendDisputeOutcomeNotice(
 }
 
 /**
- * The won notice again, once a fee priced late is stored (job_a7020c40c211).
+ * The won notice again, once a fee priced late is stored.
  * The first won notice went out without a fee sentence because the cap could
  * not be converted at resolution, and a fee the merchant was never told is
  * never billed. So the pricing retry sends Recova's won notice a second time,
@@ -306,7 +306,7 @@ export async function sendDisputeFeeNotice(
 
 /** A dispute_approvals row exists for the dispute, pinned to the account. The
  *  cron selects only unsubmitted disputes, so a row here is an approval Stripe
- *  has not confirmed (job_2663d92094ab). */
+ *  has not confirmed. */
 async function hasStandingApproval(env: Env, accountId: string, disputeId: string): Promise<boolean> {
   const rows = await getDb(env)
     .select({ id: disputeApprovals.id })

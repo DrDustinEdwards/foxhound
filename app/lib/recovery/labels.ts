@@ -38,7 +38,7 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   // OPEN since the contents walk.
   //
   // LEGACY DISAGREES WITH ITSELF HERE and the disagreement is recorded rather
-  // than harmonised (275). Its status TABS say "Failed", but its list-row badge
+  // than harmonised. Its status TABS say "Failed", but its list-row badge
   // (PaymentRow.tsx) and its detail badge (PaymentDetailClient.tsx) both render
   // `{payment.status}` raw under CSS `capitalize`, so legacy's badges show the
   // column value and read "Failed_unrecovered". This table gives every surface
@@ -136,7 +136,7 @@ export function formatStepResult(result: string): string {
     .join(" ");
 }
 
-/** Merchant-facing words for why a click was not counted (ruling 377(4)).
+/** Merchant-facing words for why a click was not counted.
  *  Plain description, never a vendor name or an accusation: the merchant needs
  *  to know the click was not billed and why, not to adjudicate it. */
 const CLICK_SUSPECT_LABELS: Record<string, string> = {

@@ -12,7 +12,7 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 
-// The /billing fee preview (ruling 33): what the next monthly run will invoice,
+// The /billing fee preview: what the next monthly run will invoice,
 // shown to the merchant before the invoice exists. Strictly read-only.
 //
 // This module computes NO money of its own. The billable sets come from

@@ -74,7 +74,7 @@ const COLOR_BG = "#111210";
 const COLOR_WORDMARK = "#f5f5f3";
 // Legacy's card text color (#f0ede8 on both of its cards), which app.css keeps
 // as --chrome-text, legacy's value for text on the dark band. The blog title
-// uses it; the wordmark keeps --wordmark, which is Foxhound branding (J20).
+// uses it; the wordmark keeps --wordmark, which is Foxhound branding.
 const COLOR_TEXT = "#f0ede8";
 const COLOR_BRAND = "#f0b429";
 const COLOR_TEXT_SECONDARY = "#a8a49e";
@@ -98,7 +98,7 @@ function wordmarkHtml(fontSize: number, extraStyle = ""): string {
 // 24px below it, tagline 28px at letter-spacing -0.01em with 24px below it,
 // then an 18px amber line at weight 500 with 8px above it. The margins are
 // legacy's, placed where legacy places them, so the amber line sits 32px under
-// the tagline (24 + 8), not 8px as this card had it (J20). The COPY is
+// the tagline (24 + 8), not 8px as this card had it. The COPY is
 // Foxhound's and stays 20d-frozen (legacy's "20% of recovered revenue" is a
 // pricing claim, Foxhound's attribution wording is the accurate one).
 // Legacy sets no max-width or text-align here; the centered container does it.
@@ -160,7 +160,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const type = requested === "blog" ? "blog" : "default";
   const title = url.searchParams.get("title") ?? "Foxhound";
   // `description` is legacy's parameter name and legacy's content: the post
-  // excerpt. It replaced `tag`, which legacy's card never carried (ruling 96).
+  // excerpt. It replaced `tag`, which legacy's card never carried.
   const description = url.searchParams.get("description") ?? "";
   // Derived from SITE_URL (site URL discipline, TASK-foxhound-phase6.md),
   // never hardcoded: previously this card always showed "foxhoundapp.com"

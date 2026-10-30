@@ -56,7 +56,7 @@ const PUBLIC_ROUTES = [
   ["/llms-full.txt", "files"],
   ["/feed.rss", "files"],
   ["/og/anything", "files"],
-  // Recova's card URL shape (ruling 41, J20): the type rides in the query.
+  // Recova's card URL shape: the type rides in the query.
   ["/og", "files"],
 ] as const;
 

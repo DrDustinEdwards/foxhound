@@ -30,7 +30,7 @@ import {
 // loop. Its flip is conditional on `status='active'`, so it lands exactly once,
 // and it now reports WHICH sequences it claimed. This fires once per claim.
 //
-// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E11, job J89; RULES.md 3.16), as
+// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E11), as
 // E10 put the recovery notice on it: title, sentence, View payment button, in
 // Foxhound's amber family. Its footer is legacy's: wrapEmailHtml(notifyBody,
 // 'Recova', undefined) writes the "You're receiving this from" sentence and a
@@ -72,7 +72,7 @@ function sequenceCompleteSubject(data: {
  * was written. Dropping the number is a class (c) truthfulness fix, which the
  * PRIME DIRECTIVE exempts from per-item ratification. Every other word is
  * legacy's. The link target is Foxhound's `/recovery/payments/:id` where
- * legacy's is `/payments/:id`, until the URL reverts (J09) land.
+ * legacy's is `/payments/:id`, until the URL reverts land.
  *
  * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
  * from Stripe is shown exactly as written; legacy put it into HTML unescaped.
@@ -167,7 +167,7 @@ async function loadSequenceCompleteData(
  * gate and the `email_sends` row all apply, and a demo account refuses at the
  * gate every other send meets.
  *
- * NEVER THROWS, and returns a discriminated outcome (339): a refusal names
+ * NEVER THROWS, and returns a discriminated outcome: a refusal names
  * itself so it cannot be confused with a swallowed crash.
  */
 export async function sendSequenceCompleteNotification(

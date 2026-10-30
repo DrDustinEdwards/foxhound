@@ -170,7 +170,7 @@ describe("PLANT 2: a replayed deletion records none", () => {
   it("AND THE OUTCOME KEY IS THE SECOND LAYER, reached on its own", async () => {
     // With the sequence row deleted the pre-check cannot refuse, so only the
     // outcome's own idempotency key can stop a second started row. Each layer
-    // proven alone (340 binding 3).
+    // proven alone.
     await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
     sqlite.prepare("DELETE FROM win_back_steps").run();
     sqlite.prepare("DELETE FROM win_back_sequences").run();

@@ -6,7 +6,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E2 (parity/ROWS-E.md, job J83): inviting a teammate on /settings/team emails
+// E2 (parity/ROWS-E.md): inviting a teammate on /settings/team emails
 // the invitee Recova's invite.
 //
 // Recova is the spec: app/api/invite/route.ts (blob 960aefc6, 3735 bytes), read
@@ -26,7 +26,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // Foxhound sends the same words with Foxhound's name, on Capsomer's email
 // component in amber, with a text part, to the approved /invite/:token link, and
-// says so on the page when the email did not go (RULES.md 3.16). Every
+// says so on the page when the email did not go. Every
 // assertion reads the message as it reaches env.EMAIL.send.
 
 interface SentMessage {
@@ -60,7 +60,7 @@ const ACCOUNT = "acct_1";
 const OWNER = "user_owner";
 const INVITEE = "new.person@example.com";
 // Capsomer's amber family, light theme, body text: the frame every Foxhound
-// mail is drawn in (J02).
+// mail is drawn in.
 const BRAND_TEXT = "#211909";
 
 function makeEnv(over: Record<string, unknown> = {}): Env {

@@ -5,7 +5,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// Phase (d) of the multi-account build (ruling 329): the callback branches on
+// Phase (d) of the multi-account build: the callback branches on
 // the state's own action, `add_account` mints a whole new account, `connect`
 // attaches to the ACTIVE one, and the double-submit debt 327 named is paid.
 //

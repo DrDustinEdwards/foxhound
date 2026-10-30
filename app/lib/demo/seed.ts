@@ -290,7 +290,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     recovery.expiringCardAlerts.map((row) => db.insert(expiringCardAlerts).values(row)),
   );
 
-  // 4b) Recommended actions (J78), by the same rules the nightly run uses, over
+  // 4b) Recommended actions, by the same rules the nightly run uses, over
   //     the rows just written: the demo is firewalled out of the nightly run,
   //     so without this /intelligence/recommendations would have nothing to read.
   const subjects = intelligence.customerContext.map((c) => ({
@@ -431,7 +431,7 @@ async function demoAccountExists(db: Db): Promise<boolean> {
 }
 
 interface DemoResetLock {
-  /** The holder's token, or null when the lock is held (376 item 14). */
+  /** The holder's token, or null when the lock is held. */
   acquire(leaseMs: number): Promise<string | null>;
   release(token: string): Promise<void>;
 }

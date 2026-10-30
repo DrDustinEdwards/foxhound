@@ -23,7 +23,7 @@ import { formatDateShort } from "~/lib/date-format";
 import type { action } from "~/routes/app/disputes/detail";
 
 /**
- * The Approve button (J77 review). Approve submits the SAVED draft, so while
+ * The Approve button. Approve submits the SAVED draft, so while
  * the page holds unsaved edits it is held back, focusable, with the reason in
  * visible text beside it, never a silent drop of the merchant's edits.
  */
@@ -137,12 +137,12 @@ export function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** The fetcher keys the evidence file section and its forms share (J07). */
+/** The fetcher keys the evidence file section and its forms share. */
 const UPLOAD_FETCHER_KEY = "dispute-evidence-upload";
 const DELETE_FETCHER_KEY = "dispute-evidence-delete";
 
 /**
- * The upload and remove forms (J07), rendered after the draft form because
+ * The upload and remove forms, rendered after the draft form because
  * forms cannot nest. The section's file input and Remove file buttons belong
  * to them through the form attribute, so they sit where Recova shows them.
  */

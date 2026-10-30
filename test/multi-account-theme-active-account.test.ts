@@ -15,7 +15,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // active membership could not differ. They can now, so every one of these reads
 // or writes the wrong account for a merchant who has switched.
 //
-// TWO ACCOUNTS IN EVERY FIXTURE (352 binding 4): an account-scope pin is
+// TWO ACCOUNTS IN EVERY FIXTURE: an account-scope pin is
 // unprovable with one, because every wrong answer is also the right one.
 //
 // The marked account is deliberately the SECOND by createdAt, so no plant here

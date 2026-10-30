@@ -89,7 +89,7 @@ export const billingLineItems = sqliteTable(
       "billing_line_items_type_ck",
       sql`${t.type} in ('recovery_fee', 'dispute_fee', 'subscription', 'adjustment', 'credit')`,
     ),
-    // ONE CREDIT NOTE PER FEE LINE (ruling 377(5)), enforced by the database
+    // ONE CREDIT NOTE PER FEE LINE, enforced by the database
     // rather than by the caller remembering. A redelivered refund event, or two
     // events racing, cannot produce a second credit against the same fee: the
     // insert violates this index and the whole money batch rolls back.

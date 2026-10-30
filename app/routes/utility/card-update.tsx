@@ -65,7 +65,7 @@ type LoaderState =
   // string on the page is unchanged between the two modes.
   | { state: "ready"; amountCents?: number; currency?: string }
   | { state: "done" }
-  // RESUBSCRIBE MODE (343 binding 4). A separate set of states, because
+  // RESUBSCRIBE MODE. A separate set of states, because
   // nothing has failed and no card is being collected: the customer
   // canceled, and the one button restarts the subscription on Stripe.
   | { state: "resubscribe"; planName: string | null }
@@ -380,7 +380,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       if (!result.ok) {
         return data<LoaderState>({ state: "setup_failed" });
       }
-      // THE ATTRIBUTION SIGNAL IS RECOVERY MODE ONLY (341 binding 2). It writes
+      // THE ATTRIBUTION SIGNAL IS RECOVERY MODE ONLY. It writes
       // a recovery_steps row that findAttributionSignals reads as billable
       // `card_update`, and an alert has no failed payment to attribute to. An
       // alert-mode update therefore triggers no retry and records nothing here;
@@ -453,14 +453,14 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 }
 
 /**
- * The page's frame (J62, row F8): one Capsomer card on its own, in a narrow
+ * The page's frame: one Capsomer card on its own, in a narrow
  * column with a 16px side margin on a phone. The reader is a merchant's
  * customer, not a Foxhound merchant, so the page leaves AuthShell, whose brand
  * panel pitches Foxhound to merchants; the sign-in pages keep it. The
  * coordinator chose this as the recommended default while the question is
  * with Dustin (PR #56).
  *
- * Its parts are Capsomer's (Q12): the card is Capsomer's panel, used through
+ * Its parts are Capsomer's: the card is Capsomer's panel, used through
  * its HTML contract as a body-only panel, because the React Panel always draws
  * an h2 header band and this page's one heading must be its h1 (a Capsomer gap,
  * named in the PR). Inside: a Banner for a state the page lands in, an Alert
@@ -470,7 +470,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
  * the button is amber and the focus ring inside it is the family's amber
  * ring. Capsomer's banner and button text is 13px, the label size, and the
  * heading and line under it keep the title and label sizes, so the page stays
- * on the five sizes (RULES.md 5.2).
+ * on the five sizes.
  *
  * Recova has no page here (its emails link straight to a Stripe billing
  * portal session), so there is no Recova arrangement to follow: the words and

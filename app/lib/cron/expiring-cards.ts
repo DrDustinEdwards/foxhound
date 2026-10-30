@@ -78,7 +78,7 @@ async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
 }
 
 /**
- * Legacy's band guard, ported as found (341 binding 6).
+ * Legacy's band guard, ported as found.
  *
  * `cardExpiry > now + lead` skips a card too far out; `cardExpiry < now` skips
  * one that has ALREADY EXPIRED. The window is a band, not a deadline, so a
@@ -136,7 +136,7 @@ export interface CandidateInput {
  * Record one candidate, or do nothing if this card-month is already recorded.
  *
  * THE UPSERT IS THE DEDUPE and it is enforced by the database, not by a
- * preceding SELECT (314). Legacy's cron reads-then-inserts, which races its own
+ * preceding SELECT. Legacy's cron reads-then-inserts, which races its own
  * webhook writer; migration 0019's unique index makes the conflict a no-op
  * instead. Shared by BOTH writers so they cannot disagree.
  */
@@ -171,7 +171,7 @@ export interface ScanResult {
   scanned: number;
   recorded: number;
   /** Accounts whose subscription list crossed the soft ceiling, so the seat can
-   *  see it rather than infer it (341 binding 5). */
+   *  see it rather than infer it. */
   overLimit: string[];
 }
 
@@ -283,7 +283,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           and ${stripeConnections.disconnectedAt} is null
         limit 1
       )`,
-      // The Reply-To (J03), from the same primary row as the sender name.
+      // The Reply-To, from the same primary row as the sender name.
       replyToEmail: sql<string | null>`(
         select ${stripeConnections.replyToEmail} from ${stripeConnections}
         where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
@@ -303,7 +303,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         // connection and leaves it unstamped, so the customer is still warned
         // if the merchant reconnects inside the window (E12). Filtered here,
         // not in the loop, so unsendable rows never fill the 100-row page and
-        // starve other merchants' alerts (RULES.md 1.5).
+        // starve other merchants' alerts.
         sql`exists (
           select 1 from ${stripeConnections}
           where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
@@ -388,7 +388,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         continue;
       }
 
-      // THE OUTCOME, at legacy's fields (341 binding 1), recorded only by the
+      // THE OUTCOME, at legacy's fields, recorded only by the
       // tick that took the claim, exactly as legacy records only after its own
       // conditional claim returns rows.
       //

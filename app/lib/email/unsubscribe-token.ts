@@ -17,7 +17,7 @@ export interface UnsubscribeTokenPayload {
    * customer mail carries. "digest": the weekly digest only (E23), which
    * switches off that account's digest and suppresses nothing, because an
    * address-wide row would also silence the merchant's notices and every other
-   * account sharing the address (RULES.md 3.16). Signed with the rest, so a
+   * account sharing the address. Signed with the rest, so a
    * customer token can never be read as a digest token or the reverse.
    */
   list?: "digest";

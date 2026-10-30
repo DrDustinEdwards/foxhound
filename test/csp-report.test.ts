@@ -8,7 +8,7 @@ import { action } from "~/routes/api/csp-report";
 
 // The CSP report sink. Reading and answering are site-runtime's (tested there);
 // what is Foxhound's is what it logs: never a path or a page, because /u/, /p/
-// and /e/c/ paths carry one person's token (RULES.md 3.5), and the per-IP bucket.
+// and /e/c/ paths carry one person's token, and the per-IP bucket.
 
 function post(body: string, ip = "203.0.113.7"): Request {
   return new Request(`https://foxhoundapp.com${CSP_REPORT_PATH}`, {

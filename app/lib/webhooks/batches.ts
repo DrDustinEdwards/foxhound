@@ -185,7 +185,7 @@ export interface SequenceStartBatchInput {
 
 /**
  * Stripe has stopped retrying: flip a `stripe_retrying` row to `active` and plan
- * its sequence, atomically with the claim (ruling 377(1)).
+ * its sequence, atomically with the claim.
  *
  * THE UPDATE IS CONDITIONAL ON THE ROW STILL BEING `stripe_retrying`, so a
  * second promotion flips nothing. That alone is NOT what stops a second
@@ -324,7 +324,7 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
 
 /**
  * charge.refunded: claim + the refund MARKER on failed_payments + the
- * recovered_payments stamp. Fires on ANY refund, full or partial (ruling 29).
+ * recovered_payments stamp. Fires on ANY refund, full or partial.
  * All three in one atomic batch, so a claim without its marker is impossible.
  *
  * TWO writes, not one, because the stamp alone is order-dependent. The stamp is
@@ -502,8 +502,8 @@ export interface DisputeResolutionInput {
   /** The disputed amount, read from the existing dispute row (the fee base). */
   amountCents: number;
   currency: string;
-  /** The USD 500 cap in THIS dispute's currency, converted at resolution
-   *  (ruling 377(7)). Null when the quote failed, which is the fail-closed
+  /** The USD 500 cap in THIS dispute's currency, converted at resolution.
+   * Null when the quote failed, which is the fail-closed
    *  case: no fee is snapshotted. */
   cap: ResolvedDisputeCap | null;
   /** Why the cap could not be resolved, stored on the row so the dispute's
@@ -535,7 +535,7 @@ export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInpu
 /**
  * The resolution UPDATE itself, the one writer of a dispute's resolved state
  * and fee snapshot. buildDisputeResolutionBatch rides it behind the webhook
- * claim, unchanged; the merchant's Accept (J06, app/lib/disputes/accept.server.ts)
+ * claim, unchanged; the merchant's Accept (app/lib/disputes/accept.server.ts)
  * rides it as a loss Foxhound did not submit, so an accepted dispute is resolved
  * by the same statement Stripe's closing event would have used, with no fee.
  */
@@ -546,7 +546,7 @@ export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResoluti
     .set({
       state: input.won ? "resolved_won" : "resolved_lost",
       resolvedAt: input.resolvedAt,
-      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT (ruling 377(7)). It
+      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT. It
       // needs a Stripe FX quote, and an external call cannot live inside the
       // money batch, so process.ts fetches it and hands the result in. A
       // quote that failed arrives as a null cap and the fee is NOT
@@ -630,13 +630,13 @@ export interface WinbackStartInput {
   currency: string | null;
   cancelReason: string | null;
   canceledAt: Date;
-  /** Step-1 override from the Intelligence gate (291). Undefined = the default. */
+  /** Step-1 override from the Intelligence gate. Undefined = the default. */
   step1OffsetHours?: number;
 }
 
 /**
  * customer.subscription.deleted: claim + the win-back sequence + its steps, all
- * atomic. Ported from legacy's handleSubscriptionDeleted (290); this is
+ * atomic. Ported from legacy's handleSubscriptionDeleted; this is
  * planWinbackSteps' FIRST production caller, the planner having existed since
  * the rebuild with only the demo seeder and its own test calling it.
  *

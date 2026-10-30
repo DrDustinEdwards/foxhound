@@ -29,7 +29,7 @@ import type { Route } from "./+types/terms";
 // review-and-sign disputes, maturity-window billing); every other section
 // is boilerplate legal structure carried over unchanged in substance.
 //
-// J51 (job_615a012e7035, row M21): the chrome kit (column, contents, rule,
+// J51: the chrome kit (column, contents, rule,
 // section, h3, paragraph, lists, links) is shared with /privacy in
 // ~/components/legal-page, as Recova's two pages share one (blob 88005fad).
 // Links are Capsomer amber, text is on the five sizes. Copy waits for Dustin.

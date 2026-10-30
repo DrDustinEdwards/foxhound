@@ -10,7 +10,7 @@ import { MEMBER_ROLE } from "./roles";
 /** The names of the accounts a deletion clears: the person's active
  *  memberships (the session's, the list the switcher shows) where they are the
  *  owner, the predicate readDeletionPlan acts on. Taken from the session so the
- *  settings loader reads no other account's rows (ruling 326). */
+ *  settings loader reads no other account's rows. */
 export function ownedAccountNames(memberships: Array<{ accountName: string | null; role: string }>): Array<string | null> {
   return memberships.filter((m) => m.role === MEMBER_ROLE.OWNER).map((m) => m.accountName);
 }

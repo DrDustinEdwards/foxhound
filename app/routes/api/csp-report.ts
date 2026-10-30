@@ -13,7 +13,7 @@ import type { Route } from "./+types/csp-report";
 // WHAT IS LOGGED: the directive, the disposition, and the blocked resource as
 // its ORIGIN only, or a CSP keyword. Never a path, never the page: for
 // frame-ancestors and navigation violations the blocked URL is a Foxhound
-// page, and /u/, /p/ and /e/c/ paths carry one person's token (RULES.md 3.5).
+// page, and /u/, /p/ and /e/c/ paths carry one person's token.
 //
 // The per-IP `csp-report` bucket fails open: a limiter outage costs only log lines.
 

@@ -19,8 +19,8 @@ import "capsomer/status.css";
 import "capsomer/stat-tile.css";
 import "capsomer/table.css";
 
-// The docs preview widgets: Recova's components/docs/* illustrations (J73), on
-// Capsomer's parts (Q12).
+// The docs preview widgets: Recova's components/docs/* illustrations, on
+// Capsomer's parts.
 //
 // STATIC MARKUP, NO LOADER, NO DB. Where a widget shows a set Foxhound already
 // defines (the decline categories, the payment statuses, the dispute states, the

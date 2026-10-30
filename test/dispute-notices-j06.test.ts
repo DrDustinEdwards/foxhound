@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J06 (job_4f4c9c2f5383): the merchant's dispute notices, driven through the
+// J06: the merchant's dispute notices, driven through the
 // real webhook processor. Recova sends them from lib/dispute-handlers.ts (blob
 // e2bb8de8): sendDisputeCreatedEmail at the end of handleDisputeCreated and
 // sendDisputeOutcomeEmail in handleDisputeClosed, once per dispute
@@ -178,7 +178,7 @@ describe("NOTICE 1: a new dispute notifies the merchant", () => {
     // The account never turned auto-submit on, so Recova's off sentence.
     expect(mail.html).toContain("Auto-submit is off. We will remind you 3 days before the deadline.");
     expect(mail.html).toContain(`https://foxhoundapp.test/disputes/${disputeRowId()}`);
-    // A merchant notice: no unsubscribe link (RULES.md 3.16).
+    // A merchant notice: no unsubscribe link.
     expect(mail.html.toLowerCase()).not.toContain("unsubscribe");
     expect(sendRows()).toEqual([{ status: "sent", template: DISPUTE_CREATED_TEMPLATE }]);
   });

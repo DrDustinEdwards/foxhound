@@ -72,7 +72,7 @@ beforeEach(() => {
 
 describe("importDisputeFromStripe", () => {
   it("imports a dispute on this account and keys the write on the dispute id", async () => {
-    // The positive control (383): without one, every "did not write" assertion
+    // The positive control: without one, every "did not write" assertion
     // below would be green on a function that never writes at all.
     const env = await envWithConnection(true);
     disputesRetrieve.mockResolvedValue({

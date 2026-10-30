@@ -7,7 +7,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // RULING 356 BINDING 3, DEFECT 4, LAYER 2 OF TWO: the reader that routes money
 // only looks at LIVE connections.
 //
-// WHY THIS IS ITS OWN LAYER (340 binding 3). The unique index shipped in the
+// WHY THIS IS ITS OWN LAYER. The unique index shipped in the
 // same session stops a SECOND live row being written. It does nothing about a
 // row that is already DISCONNECTED, and S37's disconnect leaves exactly those
 // behind by design. So a Stripe account disconnected from account A and then

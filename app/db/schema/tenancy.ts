@@ -72,7 +72,7 @@ export const accounts = sqliteTable("accounts", {
   // app/db/billable.ts's accountBillingEligibleCondition deliberately does not
   // reference this column.
   cancelledAt: ts("cancelled_at"),
-  // When the owner deleted their account (row S40, Q14 and Q16). The row itself
+  // When the owner deleted their account. The row itself
   // survives, emptied of personal data, because billing joins it and its fee
   // evidence (recovered_payments, billing rows) hangs from its id; this stamp
   // says why it is empty. Written only by app/lib/auth/delete-account.server.ts.
@@ -110,7 +110,7 @@ export const accountMembers = sqliteTable(
   {
     id: id(),
     accountId: text("account_id").notNull().references(() => accounts.id),
-    // soft ref to Better Auth user.id (Phase 3); no enforced FK yet
+    // soft ref to Better Auth user.id; no enforced FK yet
     userId: text("user_id"),
     role: text("role").notNull(),
     invitedEmail: text("invited_email"),
@@ -278,7 +278,7 @@ export const apiKeys = sqliteTable(
     lastUsedAt: ts("last_used_at"),
     revokedAt: ts("revoked_at"),
     /** Null for a key made in Settings, which lives until revoked. Set on the
-     *  one-hour access token an OAuth grant issues (J79); verifyMcpToken
+     *  one-hour access token an OAuth grant issues; verifyMcpToken
      *  refuses the key once it has passed. */
     expiresAt: ts("expires_at"),
   },

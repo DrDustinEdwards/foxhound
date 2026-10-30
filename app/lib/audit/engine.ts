@@ -27,10 +27,10 @@ import { classifyDecline } from "~/lib/recovery/decline";
 // answers `{ ok: true, data }` or `{ ok: false, reason }`, so a zero always means
 // zero. A zero that means unknown is a lie with digits.
 //
-// EVERY MONEY FIGURE IS KEPT PER CURRENCY (job_ed1c41e4bd95). Legacy adds every
+// EVERY MONEY FIGURE IS KEPT PER CURRENCY. Legacy adds every
 // amount into one number and labels it with whichever currency it met first, so
 // $1,240 and EUR 310 read "$1,550". Each figure here carries its totals per
-// currency through groupSumByCurrency (RULES.md 3.20), ordered by currency
+// currency through groupSumByCurrency, ordered by currency
 // code as /intelligence orders its totals (byCurrencyCode), and the surfaces
 // show one line per currency (Dustin, 2026-10-25,
 // parity/APPROVED-DIFFERENCES.md). The plain `...Cents` numbers beside them are
@@ -40,7 +40,7 @@ import { classifyDecline } from "~/lib/recovery/decline";
 // number either way.
 
 /** One scope's answer. Never a bare value, so a caller cannot read a failure as
- *  data (339 binding 5, one subsystem over). */
+ *  data (one subsystem over). */
 export type ScopeOutcome<T> = { ok: true; data: T } | { ok: false; reason: string };
 
 /** A read that phase (b) performs, in the shape this module consumes. */
@@ -251,7 +251,7 @@ function amountOf(cents: number, currency: string | null | undefined, runCurrenc
   return { currency: (currency ?? runCurrency).toLowerCase(), cents };
 }
 
-/** Totals per currency, through the one money-total path (RULES.md 3.20), in
+/** Totals per currency, through the one money-total path, in
  *  currency-code order. A currency whose total is zero adds no line. */
 function totalsOf(amounts: Amount[]): MoneyTotals {
   return groupSumByCurrency(amounts)
@@ -351,7 +351,7 @@ function computeExpiringCards(
 
     // ALREADY-EXPIRED CARDS COUNT HERE, which is the opposite of the expiring-card
     // CRON, and both are right. The cron skips them because an alert about a card
-    // that has already failed is late (342 binding 1); the audit counts them
+    // that has already failed is late; the audit counts them
     // because a diagnostic of what is wrong right now must include them.
     const isExpiring =
       expYear < currentYear ||

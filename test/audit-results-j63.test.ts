@@ -14,7 +14,7 @@ import { readDisputes } from "~/lib/stripe/reads";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J63 (job_66a3ffa02214), rows U3 and U4: the live audit results page and a
+// J63, rows U3 and U4: the live audit results page and a
 // saved run, against Recova's app/audit/results/page.tsx (blob 9aad7745),
 // app/audit/results/[id]/page.tsx (a0dbf6ef) and the four section components
 // (AuditRecoverySection ab6ec2c5, AuditDisputesSection 6db9c3bc,

@@ -30,15 +30,15 @@ import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 
-// /features content (J60, row M10). Recova's spec is
+// /features content. Recova's spec is
 // app/(marketing)/features/features-data.ts (blob a0a5dd20), read whole.
 //
 // RECOVA'S SECTIONS, IN RECOVA'S ORDER, WITH RECOVA'S IDS, AND RECOVA'S ENTRIES
 // IN RECOVA'S ORDER. Each Recova entry is kept where Foxhound ships it and the
 // words are true, rewritten to Foxhound's own fact where it ships the thing
-// differently, and left out where Foxhound has not built it (RULES.md 2.7).
+// differently, and left out where Foxhound has not built it.
 //
-// EVERY NUMBER IS READ FROM THE ENGINE, never typed (RULES.md 2.1): cadences
+// EVERY NUMBER IS READ FROM THE ENGINE, never typed: cadences
 // from the cron schedule constants, the fee and maturity from the pricing
 // constants, the bands from the functions that color them. Two counts live
 // only on the server (the cron registry and the MCP tool list); the route's

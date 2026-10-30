@@ -16,7 +16,7 @@ import {
   type EvidenceFileUpload,
 } from "~/lib/disputes/evidence-files";
 
-// Merchant evidence files on R2 (J07), the bucket half. Recova is the spec:
+// Merchant evidence files on R2, the bucket half. Recova is the spec:
 // lib/r2.ts (3997617f) and app/api/disputes/upload-evidence (7acca2a9),
 // delete-evidence (06a2cd1a), evidence-url (57ccef71) and submit (6c21ef74),
 // read whole. Recova reached a private bucket over the S3 API with a key pair;
@@ -28,7 +28,7 @@ import {
 // a submission goes ahead without files.
 //
 // Every read and write is scoped by account AND dispute, and the writes carry
-// their guards inside the statement (RULES.md 3.9): no file is added or removed
+// their guards inside the statement: no file is added or removed
 // once an approval exists or the dispute is submitted or resolved, because the
 // approval's evidence hash covers the file rows; an upload past the fifth file
 // matches nothing. None of this is a money write: a file is evidence the

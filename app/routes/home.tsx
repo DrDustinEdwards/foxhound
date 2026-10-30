@@ -55,7 +55,7 @@ import {
   BILLING_ANSWER,
 } from "../components/home-parts";
 
-// The marketing home page (J59, row M3). Recova's spec, read whole at HEAD:
+// The marketing home page. Recova's spec, read whole at HEAD:
 // app/(marketing)/page.tsx (blob c10db7d5), components/hero/RecoveryDemo.tsx
 // (453261b6), components/marketing/EmailGenerator.tsx (c4592a56),
 // components/marketing/RecoveryCalculator.tsx (1a4374f5),
@@ -65,7 +65,7 @@ import {
 // sections, 760px FAQ and closing block, 600px calculator and generator,
 // px-5 sm:px-8, py-24 on the stats, calculator and closing block).
 //
-// Look is Capsomer's (RULES.md 1.1, Q12) with Recova's sizes (Dustin,
+// Look is Capsomer's with Recova's sizes (Dustin,
 // 2026-10-25: "there is still so much wrong with foxhound... as compared to
 // recova"): cards are Capsomer panels, linked ones lifting 4px with an amber
 // edge under the pointer (the foxhound site layer), calls to action Capsomer

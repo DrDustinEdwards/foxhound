@@ -100,7 +100,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
               interval: "day",
               y: "amount",
               // One series per currency, only when there is more than one,
-              // because a sum across currencies is meaningless (RULES.md 3.20).
+              // because a sum across currencies is meaningless.
               ...(single ? {} : { series: "currency" as const, layout: "grouped" as const }),
               colors: single ? { Recovered: "var(--green)" } : undefined,
               xLabel: null,

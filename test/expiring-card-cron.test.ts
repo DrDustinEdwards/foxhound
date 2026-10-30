@@ -287,7 +287,7 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
   it("THE CLAIM IS CONDITIONAL: an already-stamped alert is not re-stamped", async () => {
     // Reached directly. Inside the send pass the query already excludes sent
     // candidates, so that filter alone hides whether the claim is conditional,
-    // and a mutation to either layer looks harmless (340 binding 3).
+    // and a mutation to either layer looks harmless.
     seedAccount({ enabled: null });
     await seedStamped(4000);
 

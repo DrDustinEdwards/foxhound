@@ -26,7 +26,7 @@ import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-d
 
 import type { Route } from "./+types/disputes";
 
-// S32, /settings/disputes (J06, job_4f4c9c2f5383).
+// S32, /settings/disputes.
 //
 // LEGACY IS THE SPEC, read whole:
 //   settings/disputes/page.tsx            blob 9d927c62  1,550 bytes
@@ -59,7 +59,7 @@ import type { Route } from "./+types/disputes";
 // pill shows only while it is on, and while it is off Recova's "Enable Disputes
 // above to configure ..." line takes the place of the other settings.
 //
-// LOOK FROM CAPSOMER (Q10): PageHead, one panel card with Recova's rows,
+// LOOK FROM CAPSOMER: PageHead, one panel card with Recova's rows,
 // Switch, a cap-input textarea, Button and Status, amber throughout. Recova's
 // content, order and arrangement stay, as /settings/features does.
 

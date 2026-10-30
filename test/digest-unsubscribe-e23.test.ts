@@ -9,7 +9,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // address-wide suppression, but Recova's merchant notices never read it, so a
 // Recova merchant who leaves the digest keeps every notice. Foxhound's
 // suppression gate stops every audience, so an address-wide row here would
-// silence dispute deadlines and alerts too (RULES.md 3.16), could be tripped by
+// silence dispute deadlines and alerts too, could be tripped by
 // a link scanner's GET (3.4), and would hit every account sharing the address
 // (1.6). The seat's call: the digest token carries `list: "digest"`, and /u/
 // sets digest_enabled false for that account when the address still matches.

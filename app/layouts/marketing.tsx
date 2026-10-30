@@ -21,7 +21,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   // Same resolver the root loader uses, so the toggle's icon and
   // <html data-theme> cannot disagree for a merchant whose stored theme
-  // differs from this device's cookie (ruling 59).
+  // differs from this device's cookie.
   const theme = await resolveThemeForRequest(env, request);
   const session = await getSession(env, request);
 
@@ -32,7 +32,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       isAdmin: false,
       accountLabel: "",
       hasAccount: false,
-      // Anonymous visitors stay ZERO-DB (ruling 59): an empty list is a
+      // Anonymous visitors stay ZERO-DB: an empty list is a
       // constant, not a query, and the header renders no switcher for them.
       accounts: [],
       activeAccountId: null,
@@ -42,7 +42,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   const db = getDb(env);
-  // MOVED OFF THE NULL-MARKER SHIM (ruling 326 phase (e)). This called
+  // MOVED OFF THE NULL-MARKER SHIM. This called
   // `resolveMembership`, which always resolves the EARLIEST membership, so a
   // merchant who switched accounts and then opened /pricing saw the header
   // reporting the account they had switched away from. Legacy has no such split:

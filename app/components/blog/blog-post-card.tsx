@@ -8,10 +8,10 @@ import type { BlogPostSummary } from "~/lib/blog/queries.server";
 // /blog (both the topic sections and the latest strip) and on /blog/tag/:tag,
 // and NOWHERE else. The home page is deliberately NOT a consumer on either
 // side; legacy hand-rolls a different card inline there and Foxhound now does
-// the same (ruling 63, M3 divergence 35).
+// the same (M3 divergence 35).
 //
-// Look is Capsomer's (J19, Q12): the card is Capsomer's panel, body only, as
-// the whole-card link (the /products and /docs cards, J16 and J17), and the
+// Look is Capsomer's: the card is Capsomer's panel, body only, as
+// the whole-card link (the /products and /docs cards), and the
 // tag is Capsomer's outline pill. Recova's content and order stay: the first
 // tag, the title (two lines), the excerpt (three lines), the reading time.
 // Sizes are Recova's: p-5, the 0.875rem title, the 0.75rem excerpt and the

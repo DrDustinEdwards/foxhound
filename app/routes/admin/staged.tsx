@@ -16,7 +16,7 @@ import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
 
-// /admin/staged (job_21de68b30fc2): the changes the Foxhound Admin API was
+// /admin/staged: the changes the Foxhound Admin API was
 // asked for that start or change money, waiting for a person. Confirming one
 // applies it under the SIGNED-IN admin, through the same helper the matching
 // screen uses, and asks for the same typed phrase where that screen does.

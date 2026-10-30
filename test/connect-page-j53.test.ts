@@ -8,18 +8,18 @@ import { describe, expect, it } from "vitest";
 
 const { default: Connect } = await import("~/routes/auth/connect");
 
-// J53 (job_9bdc85a1ab9d), row A6: /connect, the Stripe consent page.
+// J53, row A6: /connect, the Stripe consent page.
 //
 // Recova is the spec for the page's content, layout and features: its
 // app/connect/page.tsx (blob a79ee373, 4984 bytes), read whole. One 480px card
 // centered on the page, holding the h1 "Connect your Stripe account", the line
 // under it, the error notice, the access-disclosure panel ruling 20(d) owes,
 // the full-width "Connect Stripe" button, "Not ready? See a demo first" and
-// "Manage account". Its parts are Capsomer's (Q12), amber, on the five
-// text sizes (RULES.md 5.2).
+// "Manage account". Its parts are Capsomer's, amber, on the five
+// text sizes.
 //
 // The Stripe scope is never narrowed to fit the copy: the copy is fixed to fit
-// the scope (RULES.md 2.2). Recova's own lines are kept word for word where
+// the scope. Recova's own lines are kept word for word where
 // they are true of Foxhound; the three that are not are named in the tests
 // below with the reason.
 //

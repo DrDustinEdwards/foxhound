@@ -23,7 +23,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// J70 (job_fe19adcaaf19, row D3): /admin/merchants on the family admin pattern
+// J70: /admin/merchants on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
 // review, with Recova's merchants page read as the inventory
 // (app/admin/merchants/page.tsx blob 21bd4e21, app/admin/AdminClient.tsx blob
@@ -50,7 +50,7 @@ vi.mock("~/lib/stripe/connect", async (importOriginal) => ({
 }));
 
 // Looked up so a missing export fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const serverLib: Record<string, unknown> = await import("~/lib/admin/merchants.server");
 const pageLib: Record<string, unknown> = await import("~/lib/admin/merchants").catch(() => ({}));
 const route: Record<string, unknown> = await import("~/routes/admin/merchants/index");

@@ -21,7 +21,7 @@ vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 // Proven against a REAL in-memory SQLite with the committed migrations applied,
 // so the index (not a SQL-shape assertion) is what stops the second membership.
 //
-// REAIMED AT PHASE (a) OF THE MULTI-ACCOUNT BUILD (rulings 324 and 326). The
+// REAIMED AT PHASE (a) OF THE MULTI-ACCOUNT BUILD. The
 // guard used to be `account_members_one_active_per_user_uq`, unique on `user_id`
 // alone, and this file asserted that a user could never hold two active
 // memberships. That is the constraint 324 STRUCK: many accounts per user is the
@@ -85,8 +85,8 @@ function activeMemberships(db: Db) {
     );
 }
 
-// createAccountForUser now commits through the money-write Durable Object
-// (ruling 329 phase (d)), which the better-sqlite3 harness has no binding for.
+// createAccountForUser now commits through the money-write Durable Object,
+// which the better-sqlite3 harness has no binding for.
 // This models the DO faithfully in the two ways the assertions depend on:
 // sqlite.transaction gives the batch D1's all-or-nothing semantics, and the seen
 // set gives it the idempotency that makes a re-delivered key a no-op. Without

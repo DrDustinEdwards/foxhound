@@ -1,7 +1,7 @@
 import { barChart } from "enarratio/lite/bar";
 
 // Recova's ExpiringCardsTimeline (components/audit/ExpiringCardsTimeline.tsx,
-// blob 33537a84), drawn by Enarratio (Q1) in place of recharts. Pure and
+// blob 33537a84), drawn by Enarratio in place of recharts. Pure and
 // client-safe: the audit sections draw it on the server and redraw it at the
 // measured width in the browser (app/components/enarratio-figure.tsx).
 //

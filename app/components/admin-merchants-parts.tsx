@@ -36,7 +36,7 @@ const HEADING_ID = "admin-merchants-heading";
 // Capsomer's cap-table-open stretches the merchant link over the row and lifts
 // only links, buttons and checkboxes above it. The times are tooltip triggers
 // (hover and focus show the exact time), so my own wrapper lifts them too,
-// until Capsomer lifts every focusable element (capsomer job_ea794ed5e851);
+// until Capsomer lifts every focusable element;
 // then this wrapper goes.
 const ABOVE_ROW_LINK = "relative z-[1]";
 

@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-// J54 (row M4): /pricing's numbers are READ from Foxhound's engine constants,
-// never typed (RULES.md 2.1). A string that merely equals today's value passes
+// J54: /pricing's numbers are READ from Foxhound's engine constants,
+// never typed. A string that merely equals today's value passes
 // a copy test; this moves every constant the page states to a value nothing on
 // the page holds today, and expects the rendered page and its meta to move with
 // them. The sequence length moves through the schedule's own last step

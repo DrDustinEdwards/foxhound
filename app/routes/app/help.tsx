@@ -25,7 +25,7 @@ import {
 
 import type { Route } from "./+types/help";
 
-// /help, ported toward legacy app/(app)/help/page.tsx (row S23).
+// /help, ported toward legacy app/(app)/help/page.tsx.
 //
 // Ruling 399 re-measured the 394 walk's claims against that REAL file, after
 // 398 found the walk had compared against app/recovery/demo/help/page.tsx. Four
@@ -51,7 +51,7 @@ import type { Route } from "./+types/help";
 // shows in full; row-list's detail line would cut it), Panel around each
 // status list, Capsomer's table for the job and connector rows, and Status for each
 // cron's state as a glyph, a word and a color. The page also stops rendering
-// a second <main> inside the shell's (ruling 146). Where Capsomer's defaults
+// a second <main> inside the shell's. Where Capsomer's defaults
 // differ from legacy's look (radius, hover, type, the status word), the
 // difference waits for Capsomer's per-site style layer and is listed with J13.
 
@@ -74,7 +74,7 @@ export function meta() {
  *   Q6 legacy: "On any pending email step in a payment timeline, you can also
  *   edit the body directly before it sends." False of Foxhound, and
  *   deliberately so: ruling 304 records Dustin declining to reproduce legacy's
- *   custom-body editor, whose own save path 404s in legacy (row S8). The brand
+ *   custom-body editor, whose own save path 404s in legacy. The brand
  *   voice half of the answer IS true and is kept, including per-category tone,
  *   which app/routes/app/settings/brand-voice.tsx renders.
  *
@@ -173,7 +173,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
   const { crons, nowMs } = loaderData;
 
   // A div, not a main: the shell's AdminShell owns the page's one main
-  // landmark (ruling 146), and every other app page renders inside it the same
+  // landmark, and every other app page renders inside it the same
   // way. The 720px column and its padding are legacy's page layout.
   return (
     <div className="mx-auto max-w-[720px] px-5 py-10 sm:px-8">

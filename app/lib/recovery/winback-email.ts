@@ -28,7 +28,7 @@ export interface WinbackCopyInput {
   customerName: string | null;
   planName: string | null;
   senderName: string | null;
-  /** The reactivation link: /p/:token in resubscribe mode (344). Legacy's is a
+  /** The reactivation link: /p/:token in resubscribe mode. Legacy's is a
    *  Stripe billing portal session created at send time. */
   resubscribeUrl: string;
 }
@@ -43,8 +43,8 @@ interface WinbackTemplate {
 
 /**
  * Legacy's three templates, keyed by step number, wording and order verbatim.
- * The labels are legacy's; the button itself is Capsomer's, in Foxhound's amber
- * (Q3), because legacy's `CTA_BUTTON_STYLE` is its own inline style.
+ * The labels are legacy's; the button itself is Capsomer's, in Foxhound's amber,
+ * because legacy's `CTA_BUTTON_STYLE` is its own inline style.
  */
 const WINBACK_TEMPLATES: Record<number, WinbackTemplate> = {
   1: {
@@ -106,8 +106,8 @@ function applyWinbackTemplate(source: string, vars: Record<string, string>): str
  * name such as "Ann <Admin>" lost "<Admin>" on the way through the reader.)
  *
  * WHAT CAPSOMER'S BLOCKS CANNOT YET CARRY, kept as words: legacy's
- * "{signOff}<br>{sender_name}" line break. A paragraph has no line break
- * (capsomer job_0c6621539448), so the sign-off is two paragraphs, same words.
+ * "{signOff}<br>{sender_name}" line break. A paragraph has no line break,
+ * so the sign-off is two paragraphs, same words.
  *
  * THE BUTTON'S TARGET is Foxhound's /p/:token resubscribe page, which opens
  * Stripe Checkout, rather than a billing portal session (APPROVED-DIFFERENCES,

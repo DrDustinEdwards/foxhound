@@ -40,7 +40,7 @@ import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  // THE RENAMED COMPARISON SLUGS (376 item 21), checked BEFORE the lookup.
+  // THE RENAMED COMPARISON SLUGS, checked BEFORE the lookup.
   //
   // Before the lookup rather than in the 404 branch, deliberately: an old slug
   // must redirect whether or not a post happens to still answer to it, so the
@@ -52,7 +52,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw redirect(`/blog/${renamed}`, 301);
   }
 
-  // WITHDRAWN POSTS ANSWER 410, NOT 404 (391). The row is unpublished, so the
+  // WITHDRAWN POSTS ANSWER 410, NOT 404. The row is unpublished, so the
   // lookup below would return null and this route would 404, which says "we have
   // nothing here" and is indistinguishable from a typo. 410 says the page existed
   // and is deliberately gone. Checked before the lookup for the same reason the

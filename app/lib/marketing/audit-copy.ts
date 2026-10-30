@@ -13,19 +13,19 @@ import {
 } from "~/lib/marketing/audit-access";
 import { countWord } from "~/lib/marketing/decline-categories";
 
-// The /product/audit copy (J55). Recova's spec is
+// The /product/audit copy. Recova's spec is
 // app/(marketing)/product/audit/page.tsx (blob 210ce79d) and
 // components/docs/AuditScopeCard.tsx (blob dc1d18dd), read whole, and this is
 // their copy word for word, with three kinds of change only:
 //
-// - Branding: Recova becomes Foxhound (RULES.md 1.2).
+// - Branding: Recova becomes Foxhound.
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
 //   2.1): the lookback from AUDIT_LOOKBACK_DAYS, the scope and the anonymous
 //   window from audit-access.ts (STRIPE_AUDIT_SCOPE, AUDIT_TOKEN_TTL_SECONDS),
 //   the auto-run day from CRON_SCHEDULE_MONTHLY_AUDIT, and the summary's sentences
 //   from the prompt's own plan (AUDIT_SUMMARY_STRUCTURE).
 // - Truthfulness fixes where Recova's words describe something the audit does
-//   not do (RULES.md 1.2). Each is named beside its string below. The ones that
+//   not do. Each is named beside its string below. The ones that
 //   recur:
 //   * The recovery estimate is an assumption. Recova's results show a
 //     "Recoverable estimate" at a fixed 30% baseline and its FAQ cites a
@@ -141,7 +141,7 @@ export const AUDIT_BLOCKS = {
     // Truthfulness: Recova reads "Without an account, results are accessible
     // at the URL for 30 days." and "every audit run saves permanently". An
     // anonymous run is not saved, and a signed-in run is saved only when the
-    // audited Stripe account is connected to the account (RULES.md 4.14).
+    // audited Stripe account is connected to the account.
     body: `Without an account, results are not saved: they show while the ${AUDIT_GRANT_MINUTES}-minute session lasts. With a Foxhound account, every audit of your connected Stripe account saves permanently at /audit/dashboard. Enable monthly auto-run and Foxhound re-runs the diagnostic on the ${autoRunDay} of each month and emails you results.`,
   },
 };
@@ -173,7 +173,7 @@ export const AUDIT_FAQS = [
     q: "How accurate is the recovery estimate?",
     // Truthfulness: Recova's answer is a 30% baseline and a 32.26% platform
     // rate. Foxhound keeps the baseline, read from the constant the results
-    // page uses, and has no platform rate (RULES.md 2.3).
+    // page uses, and has no platform rate.
     a: `It is an assumption, not a measurement. The estimate is ${AUDIT_RECOVERY_ESTIMATE_PCT}% of your unrecovered failed invoices. Foxhound does not yet have a recovery rate of its own to base it on, so your real result may be higher or lower. The other figures in the audit are what your account actually shows.`,
   },
 ];

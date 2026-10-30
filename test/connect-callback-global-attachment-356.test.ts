@@ -15,7 +15,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // payments and billing line items to whichever row came first. `addAccount`'s
 // equivalent check was already global, so the two branches disagreed.
 //
-// TWO USERS, NOT TWO MEMBERSHIPS (356 binding 5). The reproduction needs two
+// TWO USERS, NOT TWO MEMBERSHIPS. The reproduction needs two
 // PEOPLE who both hold Stripe access to one connected account; a fixture with
 // one user holding two accounts exercises the case the old scoped query already
 // caught, and would have gone green against the defect.
@@ -308,7 +308,7 @@ describe("PLANT 5: the cases that must still SUCCEED", () => {
     const response = await callback(ADD_ACCOUNT_ACTION);
 
     expect(errorParam(response)).toBeNull();
-    // Nothing new was connected, so not the welcome page (J28, row A8).
+    // Nothing new was connected, so not the welcome page.
     expect(response.headers.get("location")).toBe("/console");
     expect(harness.writes).toEqual([]);
     expect(connections()).toHaveLength(1);

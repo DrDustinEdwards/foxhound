@@ -59,7 +59,7 @@ function rowLink({ href, children, ...rest }: RowLinkProps | AttentionLinkProps)
   );
 }
 
-/** Amounts in several currencies are never added together (RULES.md 3.20):
+/** Amounts in several currencies are never added together:
  *  each currency is said once, joined with a plus. */
 function moneyFigure(amounts: ReadonlyArray<{ cents: number; currency: string }>): string {
   return amounts.length === 0 ? "$0.00" : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");

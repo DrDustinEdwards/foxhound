@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SKIP UNTIL PRICED (Dustin, 2026-10-25, job_a7020c40c211).
+// SKIP UNTIL PRICED (Dustin, 2026-10-25).
 //
 // A won dispute whose $500 cap could not be converted at resolution has no
-// stored fee (ruling 377(7)), and its won notice carried no fee sentence. The
+// stored fee, and its won notice carried no fee sentence. The
 // billing run used to bill it anyway at disputeFeeCents(amount, 50,000): the
 // flat cap in the dispute's own minor units, which 377(7) says is never used,
 // and a fee the merchant was never told. Now the run leaves it out, the daily

@@ -46,7 +46,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   if (!detail) throw new Response("Not Found", { status: 404 });
 
   // No post to this page is near one evidence file's size except an upload, so
-  // a body far past it is refused before it is read into memory (J07).
+  // a body far past it is refused before it is read into memory.
   const declaredLength = Number(request.headers.get("content-length") ?? "0");
   if (declaredLength > DISPUTE_EVIDENCE_MAX_SIZE_BYTES + UPLOAD_BODY_SLACK_BYTES) {
     return fileResult("upload_file", "file_too_large", 413);
@@ -100,7 +100,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     }
     // A guarded write that changed nothing (an approval or another session's
     // save got there between this read and the write) is reported, never
-    // "Saved." (RULES.md 3.9). The result is not ok, so the page keeps the
+    // "Saved.". The result is not ok, so the page keeps the
     // draft unsaved and Approve held.
     if (!written) {
       return data(
@@ -115,7 +115,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
 
   if (intent === "upload_file" || intent === "delete_file") {
-    // Recova's upload-evidence and delete-evidence (J07). The dispute was read
+    // Recova's upload-evidence and delete-evidence. The dispute was read
     // under the signed-in account above, so another account's dispute is
     // already a 404. With no bucket bound, the answer says so first.
     if (!env.EVIDENCE) return fileResult(intent, "uploads_unavailable");
@@ -274,7 +274,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
 const UPLOAD_BODY_SLACK_BYTES = 64 * 1024;
 
 /** A file path's answer: its named outcome, the merchant's line, and the
- *  outcome's status (J07). */
+ *  outcome's status. */
 function fileResult(intent: "upload_file" | "delete_file", outcome: EvidenceFileOutcome, status?: number) {
   const message = EVIDENCE_FILE_MESSAGES[outcome];
   return data(

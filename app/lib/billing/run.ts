@@ -158,7 +158,7 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
     const fee = feeForCurrency(recoveryFeeCents(r.amountCents), input.currency);
     total += fee;
     // GUARDED: the predicate is re-evaluated by the database as this row is
-    // written, inside the batch (ruling 376(3)). A refund landing between the
+    // written, inside the batch. A refund landing between the
     // billable read and this write selects zero rows and bills nothing.
     lineItems.push(
       buildGuardedRecoveryLineInsert(db, {

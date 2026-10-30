@@ -16,7 +16,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 
 import type { ProductKey } from "./products";
 
-// /pricing's card, FAQ and meta copy (J54, row M4), out of the route so tests
+// /pricing's card, FAQ and meta copy, out of the route so tests
 // can import it. Recova's spec is app/(marketing)/pricing/page.tsx (blob
 // 8e91e160), read whole.
 //
@@ -24,7 +24,7 @@ import type { ProductKey } from "./products";
 // labels, header subtext, CTA microcopy, every feature bullet, card
 // descriptions, FAQ answers and the meta description). Only the mechanism
 // changed in J54: every number is read from Foxhound's engine constants, never
-// typed (RULES.md 2.1), so the rendered text is what it was except where the
+// typed, so the rendered text is what it was except where the
 // constant said otherwise. One place did: the Recovery bullet read "across 4
 // decline categories" against an engine that schedules six; it now reads
 // DECLINE_CATEGORY_COUNT, as the card description above it already did (376

@@ -79,7 +79,7 @@ const AUDIT_GRANT_CLOCK_SKEW_MS = 60_000;
  * from `?account=` on the results page. The visitor can edit the query but not
  * the token, so a merchant who authorized somebody else's Stripe account could
  * put their own id in the URL and have the other account's numbers filed into
- * their own history under their own id (RULES.md 4.14). The results page now
+ * their own history under their own id. The results page now
  * takes the account id from here, never from the URL.
  *
  * SEALED WITH AES-GCM under ENCRYPTION_KEY (the same keyring as stored

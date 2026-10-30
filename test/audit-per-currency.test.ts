@@ -22,7 +22,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // amounts together and labeled the sum with the first currency it saw, so
 // $1,240 and EUR 310 read "$1,550". Dustin approved one line per currency on
 // 2026-10-25 (parity/APPROVED-DIFFERENCES.md). Each money figure is kept per
-// currency (RULES.md 3.20) on the live page, a saved run and the monthly email.
+// currency on the live page, a saved run and the monthly email.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 

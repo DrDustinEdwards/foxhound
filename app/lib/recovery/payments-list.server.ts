@@ -4,13 +4,13 @@ import { sequenceStepLabel } from "~/lib/recovery/sequence-performance";
 
 import type { PaymentsHeaderStats } from "./payments-list";
 
-// /recovery/payments (row S6, job J75): the loader's own arithmetic.
+// /recovery/payments: the loader's own arithmetic.
 
 /**
  * Recova's head figures (PaymentsClient.tsx filteredStats): at risk is the
  * active rows' amounts, recovered the recovered rows', and the rate recovered
  * rows over all rows, each over the rows on screen. Totals go through
- * groupSumByCurrency (RULES.md 3.20), so two currencies are never added.
+ * groupSumByCurrency, so two currencies are never added.
  */
 export function paymentHeaderStats(
   rows: readonly { status: string; amountCents: number; currency: string }[],

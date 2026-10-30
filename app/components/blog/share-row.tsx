@@ -14,7 +14,7 @@ import { CopyLinkButton } from "~/components/copy-link-button";
 // An earlier comment here justified a text-only row on the claim that
 // lucide ships no X/LinkedIn brand marks. That reason was beside the point:
 // legacy never used an icon set for them, so no icon-set dependency was ever
-// required and the marks port directly (ruling 73d).
+// required and the marks port directly.
 export function ShareRow({ url, title }: { url: string; title: string }) {
   const tweetHref = `https://x.com/intent/tweet?${new URLSearchParams({ text: title, url }).toString()}`;
   const linkedinHref = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url }).toString()}`;

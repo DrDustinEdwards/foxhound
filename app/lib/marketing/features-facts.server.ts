@@ -1,6 +1,6 @@
 import type { FeatureFacts } from "~/lib/marketing/features-content";
 
-// The two /features counts only the server can read (J60). Both are imported
+// The two /features counts only the server can read. Both are imported
 // dynamically, as workers/app.ts imports them, so the cron graph and the MCP
 // tool graph stay off every other page's render; a module import is cached per
 // isolate after the first /features request.

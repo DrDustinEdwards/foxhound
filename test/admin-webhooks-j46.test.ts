@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J46 (job_3a2f6b48fb65): /admin/webhooks on the family admin pattern
+// J46: /admin/webhooks on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
 // review, with Recova's webhook log (app/admin/platform/webhooks/page.tsx and
 // WebhookLogClient.tsx, blobs b0aaed26 and b0fcce84) read as the inventory:
@@ -24,7 +24,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route: Record<string, unknown> = await import("~/routes/admin/webhooks");
 // Looked up so a missing export fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const serverLib: Record<string, unknown> = await import("~/lib/admin/webhooks.server");
 const pageLib: Record<string, unknown> = await import("~/lib/admin/webhooks").catch(() => ({}));
 

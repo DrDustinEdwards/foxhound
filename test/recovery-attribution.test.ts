@@ -47,7 +47,7 @@ describe("resolveAttribution", () => {
 // a card_update signal actually reaches resolveAttribution as cardUpdateRef,
 // and that it does not override a signal earlier in precedence.
 // The recovery instant these signals are resolved against. Inside the 14-day
-// engagement window of the one click fixture below (377(2)), so the window
+// engagement window of the one click fixture below, so the window
 // never silently decides an assertion that is about precedence.
 const RECOVERED_AT = new Date("2026-07-05T00:00:00.000Z");
 

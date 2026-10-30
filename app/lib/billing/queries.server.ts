@@ -155,7 +155,7 @@ export async function getBillingInvoiceDetail(
 }
 
 /** The account's subscriptions, oldest first, as Recova's Subscriptions section
- *  lists them (J65, row S3). Read-only. */
+ *  lists them. Read-only. */
 export async function listAccountSubscriptions(db: Db, accountId: string) {
   return db
     .select({

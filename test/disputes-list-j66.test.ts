@@ -10,7 +10,7 @@ import { authContext } from "~/lib/auth/context";
 // The page is a 1280px column headed "Dashboard"; a row of stat cards that
 // shows on the empty state too; then either the empty card or the table
 // (Customer with the email beneath, Amount, Reason, status, Deadline as "18d",
-// View); then the sync control. Look is Capsomer's (Q10), amber.
+// View); then the sync control. Look is Capsomer's, amber.
 //
 // Dustin answered PR #75's five questions "yes ro all" (2026-10-15,
 // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): Recova's status labels,

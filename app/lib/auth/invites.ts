@@ -99,7 +99,7 @@ export type AcceptInviteResult =
   | { ok: false; reason: "invalid" | "email_mismatch" };
 
 /**
- * `already_member` IS GONE AS A REFUSAL (ruling 327), and the shape above is
+ * `already_member` IS GONE AS A REFUSAL, and the shape above is
  * the whole of the change. It used to be the third rejection reason, and it was
  * enforcement layer 2 of the three that made Foxhound single-account: an
  * application refusal that survived 324's strike of the index and would still

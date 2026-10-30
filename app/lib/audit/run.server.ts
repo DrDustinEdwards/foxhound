@@ -31,7 +31,7 @@ import { generateAuditSummary, type AuditSummaryOutcome } from "./summary.server
 // THE FIVE READS RUN CONCURRENTLY AND DEGRADE INDEPENDENTLY. `Promise.all` is
 // safe here only because `read()` never rejects: every reader returns a
 // ScopeOutcome, so one Stripe failure yields `{ok:false, reason}` for that read
-// and the engine turns it into a per-scope status (362 ruling 2). Legacy's
+// and the engine turns it into a per-scope status. Legacy's
 // `allSettled` reached the same shape and then threw the information away by
 // zeroing the scope.
 

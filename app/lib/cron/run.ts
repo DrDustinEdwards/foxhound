@@ -19,7 +19,7 @@ export interface CronJobResult {
   rowsProcessed: number;
   message?: string;
 }
-/** What a handler learns about the run it is executing inside (313). Optional
+/** What a handler learns about the run it is executing inside. Optional
  *  so the twelve handlers that do not send email are untouched: only the paths
  *  that WRITE an email_sends row need to attribute it. */
 interface CronRunContext {
@@ -33,10 +33,10 @@ export interface CronRunOutcome {
   status: CronRunStatus;
   rowsProcessed: number;
   message?: string;
-  /** The cron_run_history id, on runs that executed (313). Absent on skips,
+  /** The cron_run_history id, on runs that executed. Absent on skips,
    *  which write no history row. */
   runId?: string;
-  /** What the failure alert did, on failed runs (313). Carried rather than
+  /** What the failure alert did, on failed runs. Carried rather than
    *  thrown: the alert path is fail-open by design, so its outcome is data. */
   alert?: AlertOutcome;
 }
@@ -45,7 +45,7 @@ export interface CronRunOutcome {
 function buildCronRunInsert(
   db: Db,
   input: {
-    /** Minted by the CALLER (313) rather than defaulted by the schema, so the
+    /** Minted by the CALLER rather than defaulted by the schema, so the
      *  run can be named in a failure alert. A row whose id nothing knows cannot
      *  be referenced by the thing that reports on it. */
     id: string;
@@ -115,7 +115,7 @@ export async function runCronJob(
     // ONE AUTHORITY, HERE. `runCronJob` is now total: it either returns an
     // outcome or returns a failed outcome, and never throws. The loop in
     // `scheduled()` is therefore safe without a second try/catch of its own,
-    // which would be two guards for one rule (381 binding e).
+    // which would be two guards for one rule.
     const message = err instanceof Error ? err.message : "cron infrastructure error";
     return {
       cronName,
@@ -153,7 +153,7 @@ async function recordInfrastructureFailure(
     return {};
   }
   try {
-    // The same alert a handler failure raises (313). An infrastructure failure
+    // The same alert a handler failure raises. An infrastructure failure
     // that recorded a row and told nobody would be exactly the silence 313 was
     // built to end.
     const alert = await alertCronFailure(env, getDb(env), { cronName, runId, error: message }, new Date());
@@ -195,7 +195,7 @@ async function executeCronJob(
 
   const lockNs = env.CRON_LOCK;
   const lock = lockNs.get(lockNs.idFromName(cronName));
-  // THE TOKEN IS THE FENCE (376 item 14). `acquire` hands back the holder's
+  // THE TOKEN IS THE FENCE. `acquire` hands back the holder's
   // token, and the `finally` below hands that same token to `release`, so this
   // run can only ever free ITS OWN lease. An overrunning run whose lease has
   // already lapsed releases nothing, rather than freeing the lease of the run
@@ -214,7 +214,7 @@ async function executeCronJob(
   } catch (err) {
     const message = err instanceof Error ? err.message : "cron error";
     await recordRun(env, runId, cronName, startedAt, "failed", 0, message);
-    // THE ALERT (313). Deliberately AFTER the history write, so the run is on the
+    // THE ALERT. Deliberately AFTER the history write, so the run is on the
     // record even if alerting is broken, and deliberately FAIL-OPEN: alertCronFailure
     // never throws, and its outcome is carried on the result rather than raised.
     // An observability tool that can fail a money job is worse than none.

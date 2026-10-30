@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import routes from "~/routes";
 import DocsIndexPage from "~/routes/docs/index";
 
-// J17 (job_a6208d2d8478), row M17: the /docs index. The spec is Recova's
+// J17, row M17: the /docs index. The spec is Recova's
 // app/(marketing)/docs/page.tsx (blob 4562a1ed) and
 // components/MarketingPageHeader.tsx (blob 118a5104), read whole. This file
 // pins the layout, the links and the look (Capsomer's parts, amber, the five

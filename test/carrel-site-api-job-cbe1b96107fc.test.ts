@@ -16,7 +16,7 @@ import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 const KEY = "k".repeat(40);
 const ORIGIN = "https://foxhoundapp.com";
 const BASE = `${ORIGIN}/api/carrel/v1`;
-/** The handler takes the request's ExecutionContext (job_b0b24df12155). */
+/** The handler takes the request's ExecutionContext. */
 const CTX = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
 
 function setup(limit = () => true) {

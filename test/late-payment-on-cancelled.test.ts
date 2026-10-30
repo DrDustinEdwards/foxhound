@@ -139,7 +139,7 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
   it("a pure post-stop payment records stripe_baseline and bills NOTHING", () => {
     const { sqlite, db } = seed();
     seedPayment(sqlite, db, "fp_pure", FAILED_PAYMENT_STATUS_CANCELLED);
-    // Stop recovery resolved every unexecuted step to 'cancelled' (265), so
+    // Stop recovery resolved every unexecuted step to 'cancelled', so
     // there is no Foxhound signal of any kind behind this payment.
     runStatement(
       sqlite,

@@ -4,7 +4,7 @@ import type { Db } from "~/db";
 import { page404Daily } from "~/db/schema";
 import { DAY_MS } from "~/lib/constants";
 
-// The writer for page_404_daily (ruling 37, job J21). The table had three
+// The writer for page_404_daily. The table had three
 // readers and no writer: the admin API's /health top_404s_7d, the operations
 // table count and the 365-day retention sweep all read an empty table while the
 // site served 404s.

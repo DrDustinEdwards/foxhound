@@ -9,7 +9,7 @@ import { isTheme } from "~/lib/theme";
 import type { Route } from "./+types/theme";
 
 // Persist an authenticated merchant's theme to accounts.theme so it follows
-// them across devices (ruling 59). Legacy's equivalent is
+// them across devices. Legacy's equivalent is
 // app/api/account/theme/route.ts, a POST that updates the account row.
 //
 // ACTION ONLY, deliberately: this route exports no loader. Loaders must not

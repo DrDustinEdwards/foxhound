@@ -42,7 +42,7 @@ interface ScoredCustomer {
   mrrContributionCents: number;
   score: number;
   factors: HealthFactor[];
-  /** Recova's recommendation rules' result (J78). */
+  /** Recova's recommendation rules' result. */
   recommendation: CustomerRecommendation;
 }
 

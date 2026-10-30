@@ -28,7 +28,7 @@ import type { Route } from "./+types/stripe";
 
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
-// LEGACY IS THE SPEC, read whole at HEAD (J41, job_a2651905db4f):
+// LEGACY IS THE SPEC, read whole at HEAD:
 //   app/(app)/settings/stripe/page.tsx              blob 338541e6   738 bytes
 //   app/(app)/settings/components/StripeSection.tsx blob 4068961e 4,410 bytes
 //   app/api/stripe/disconnect/route.ts              blob 01252285 2,656 bytes
@@ -44,10 +44,10 @@ import type { Route } from "./+types/stripe";
 //
 // THE ENGINE IS FOXHOUND'S. Recova's client POSTs /api/stripe/disconnect with
 // no id at a route exporting only DELETE, which picks the account's primary
-// itself (325), so its per-connection buttons are decorative. That request is
+// itself, so its per-connection buttons are decorative. That request is
 // not ported: each row's form names its connection, the action refuses one the
 // ACTIVE account does not hold, and the write is cancelMerchant's plain batch
-// path (disconnectConnection, RULES.md 3.2), never an agent tool (3.6).
+// path (disconnectConnection), never an agent tool (3.6).
 
 export function meta() {
   return [{ title: "Stripe connections - Foxhound" }];

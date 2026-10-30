@@ -38,7 +38,7 @@ import {
 //
 // THE WEEK IS A ROLLING SEVEN DAYS, not a calendar week. Legacy computes
 // `now - 7*24h` and every windowed query is `>= that`. Ported as written; the
-// arithmetic is UTC-safe because it is pure milliseconds (342 binding 2).
+// arithmetic is UTC-safe because it is pure milliseconds.
 //
 // NULL IS OFF. `digest_enabled` is the ONE toggle with that semantic (337
 // binding 3): legacy selects `.eq('digest_enabled', true)`, so an account that
@@ -175,7 +175,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
  * running at once; the two are independent layers and each is reached alone in
  * the plants.
  *
- * THE CALLER PASSES THE CLAIM WINDOW, NOT THE DATA WINDOW (376 item 13). This
+ * THE CALLER PASSES THE CLAIM WINDOW, NOT THE DATA WINDOW. This
  * function takes whatever start it is given and has no opinion, which is why the
  * defect lived in the caller rather than here; see DIGEST_CLAIM_WINDOW_MS.
  */
@@ -344,8 +344,8 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
     else result.skipped += 1;
   };
   const windowStart = new Date(now.getTime() - DIGEST_WINDOW_MS);
-  // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix
-  // (376 item 13). The DATA window stays legacy's seven days; the CLAIM window
+  // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix.
+  // The DATA window stays legacy's seven days; the CLAIM window
   // is a day shorter so last week's send row, written moments after last week's
   // run started, falls OUTSIDE it and this week's digest is not skipped by its
   // own predecessor.
@@ -386,7 +386,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           // marked `list: "digest"`: following it switches off THIS account's
           // digest and suppresses nothing, so the merchant's notices and any
           // other account on the address carry on, as a Recova merchant sees
-          // (PR 158 review round 1, RULES.md 3.16). processEmailJob's
+          // (PR 158 review round 1). processEmailJob's
           // suppression gate still runs, so bounces, complaints and migrated
           // opt-outs stop the digest as Recova's check does.
           unsubscribeToken: await signUnsubscribeToken(env, {
@@ -399,7 +399,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           // digest is for, so a redelivery within one run cannot double-send.
           idempotencyKey: `weekly-digest:${account.accountId}:${windowStart.toISOString().slice(0, 10)}`,
           // The DIGEST audience: Recova's footer with Unsubscribe and the postal
-          // address, on this merchant mail only (RULES.md 3.16). A missing
+          // address, on this merchant mail only. A missing
           // address refuses the send, as on customer mail.
           audience: "digest",
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",

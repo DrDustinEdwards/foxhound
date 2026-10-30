@@ -162,7 +162,7 @@ export function daysUntilDeadline(deadline: Date | null, nowMs: number): number 
 export type DeadlineUrgency = "overdue" | "urgent" | "soon" | "normal";
 
 /** The two deadline bands, named so the /product/disputes copy states the
- *  numbers the dashboard colors by rather than retyping them (RULES.md 2.1). */
+ *  numbers the dashboard colors by rather than retyping them. */
 export const DEADLINE_URGENT_DAYS = 3;
 export const DEADLINE_SOON_DAYS = 7;
 

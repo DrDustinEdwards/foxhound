@@ -18,7 +18,7 @@ export type SignInLinkResult = "sent" | "limited" | "check_failed" | "failed";
  *  away for someone who already has a passkey). Absolute on Foxhound's own
  *  origin, as /auth/google makes its callback, because Better Auth's
  *  relative-path check refuses a query that carries an encoded URL, which an
- *  OAuth authorize `next` always does (J79). */
+ *  OAuth authorize `next` always does. */
 function afterLinkURL(env: Env, next: string): string {
   return new URL(`/passkey?next=${encodeURIComponent(safeNextPath(next))}`, env.BETTER_AUTH_URL).toString();
 }

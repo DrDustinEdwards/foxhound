@@ -27,7 +27,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/intelligence";
 
-// The Intelligence spoke (J58, row M9). Recova's spec, read whole at HEAD:
+// The Intelligence spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/intelligence/page.tsx (blob 4f258429) and the files
 // it draws from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2),
 // IntelligenceDashboardPreview.tsx (11972333) with the MRRStatCards (2920fa3b)
@@ -50,7 +50,7 @@ import type { Route } from "./+types/intelligence";
 // The FAQ says the one timing it does change: the first win-back email waits
 // longer on an account with Intelligence (winback-copy.ts, process.ts).
 //
-// The path is Recova's own /product/intelligence since J09 (rulings 55 and 56).
+// The path is Recova's own /product/intelligence since J09.
 
 const PATH = "/product/intelligence";
 const TITLE = "Intelligence - Foxhound";

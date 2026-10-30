@@ -80,7 +80,7 @@ export async function listConnectionHealth(db: Db, accountId: string) {
 export interface SenderSettingsConnection {
   id: string;
   senderName: string | null;
-  /** `reply_to_email`, the Reply-To on customer mail (J03). */
+  /** `reply_to_email`, the Reply-To on customer mail. */
   replyToEmail: string | null;
 }
 

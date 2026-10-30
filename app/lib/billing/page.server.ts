@@ -5,7 +5,7 @@ import { type PendingDisputeFee } from "~/lib/billing/preview.server";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.server";
 
-// The rows of /billing's Recovery and Dispute Fees sections (J65, row S3), built
+// The rows of /billing's Recovery and Dispute Fees sections, built
 // from what the billing engine already stored. Read-only and computes no fee:
 // every amount is a stored line item, a stored recovery or dispute, or a fee the
 // preview took from fees.ts. The one derivation is whether the cap bound, which
@@ -41,7 +41,7 @@ function invoiceStatus(invoice: BillingInvoiceRow): { statusLabel: string; statu
  * Recova's recovery assessments, one per month: here one per Foxhound invoice
  * that billed at least one recovery fee, newest period first. An invoice is one
  * currency by construction (the run invoices per currency), and its totals still
- * go through groupSumByCurrency (RULES.md 3.20). Dispute, subscription and
+ * go through groupSumByCurrency. Dispute, subscription and
  * adjustment lines on the same invoice are not part of this row, as Recova's
  * recovery assessment held recovery fees only.
  */

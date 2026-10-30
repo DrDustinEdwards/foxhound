@@ -40,12 +40,12 @@ import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
 
-// /disputes (J66, row S13): Recova's disputes dashboard on Foxhound's engine.
+// /disputes: Recova's disputes dashboard on Foxhound's engine.
 // Recova is the spec: app/(app)/disputes/dashboard/page.tsx (blob c97c3e93),
 // DisputesDashboardView.tsx (3c1b7a98) and SyncDisputeLink.tsx (d2c2a744). In
 // Recova's order: the "Dashboard" head, the stat cards (shown on the empty
 // state too), then the empty card or the table, then the sync control, in a
-// 1280px column. Look is Capsomer's (Q10), amber.
+// 1280px column. Look is Capsomer's, amber.
 //
 // Dustin answered PR #75's five questions "yes ro all" (2026-10-15,
 // cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): the status column uses

@@ -10,10 +10,10 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendDisputeFeeNotice } from "./notices.server";
 
 // THE PRICING RETRY for a won dispute whose fee could not be priced at
-// resolution (Dustin, 2026-10-25, "Skip until priced"; job_a7020c40c211).
+// resolution (Dustin, 2026-10-25, "Skip until priced").
 //
 // Resolution converts the USD 500 cap into the dispute's currency with a Stripe
-// FX quote (ruling 377(7)). When that quote fails the win resolves with no
+// FX quote. When that quote fails the win resolves with no
 // stored fee, and the billing run skips it (billableDisputeRowConditions). This
 // is what prices it later: daily, before the monthly run on the 1st, every such
 // win gets a fresh quote. A quote that works stores the fee exactly as the

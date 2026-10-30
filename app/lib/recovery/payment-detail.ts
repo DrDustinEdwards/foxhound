@@ -1,10 +1,10 @@
 /**
  * Recova's payment detail words and value colors, ported from
  * app/(app)/recovery/payments/[id]/PaymentDetailClient.tsx (blob 7f54aa45) and
- * lib/ui-display.ts (blob 35c4d676), both read whole (J76).
+ * lib/ui-display.ts (blob 35c4d676), both read whole.
  *
  * CLIENT-SAFE BY CONSTRUCTION: the route component calls these, so this module
- * imports nothing from a `.server` file (RULES.md 4.5).
+ * imports nothing from a `.server` file.
  */
 
 import type { Tone as StatusTone } from "capsomer/react/status";
@@ -25,8 +25,7 @@ export const PILL_TONE: Record<Tone, StatusTone | undefined> = {
  * recovery engine writes. Recova splits a sent email into "(AI)" and
  * "(template)"; the recovery engine stores one value, `email_sent` (labels.ts
  * STEP_RESULT_TONE), so it takes the plain "Email sent". A value Recova has no
- * word for is shown in words (formatStepResult), never as the raw column value
- * (RULES.md 1.5).
+ * word for is shown in words (formatStepResult), never as the raw column value.
  */
 const STEP_RESULT_WORDS: Record<string, string> = {
   email_sent: "Email sent",

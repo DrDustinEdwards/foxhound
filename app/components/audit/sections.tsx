@@ -39,20 +39,20 @@ import { formatMoneyShort } from "~/lib/money-format";
 // 0.9.0's (Q10 to Q12): each section is a Panel with its description, the
 // calls to action sit in the panel's footer as Capsomer buttons, the Card
 // Updater advisory is a Capsomer banner, and the expiring-cards timeline is an
-// Enarratio chart (Q1). Amber throughout. Text is on the five sizes
-// (RULES.md 5.2). What Recova's look still needs (the summary's accent rail,
+// Enarratio chart. Amber throughout. Text is on the five sizes.
+// What Recova's look still needs (the summary's accent rail,
 // the mono figures, the stat-row layout) is listed for Capsomer's per-site
 // layer, capsomer job_ec5ec0754626, in the J63 pull request; no Foxhound class
 // sits on a Capsomer element.
 //
-// ONE LINE PER CURRENCY. Each money figure is its totals per currency
-// (RULES.md 3.20), stacked one under another as /billing stacks its totals.
+// ONE LINE PER CURRENCY. Each money figure is its totals per currency,
+// stacked one under another as /billing stacks its totals.
 // Recova added the currencies into one number under the first one's label;
 // Dustin approved the lines on 2026-10-25 (parity/APPROVED-DIFFERENCES.md).
 // A single-currency run shows one line, as before.
 //
 // THE NULL. Every figure is `number | null` and says "could not be read"
-// rather than printing a zero (365 binding 2). Recova's `?? 0` is where a
+// rather than printing a zero. Recova's `?? 0` is where a
 // failed Stripe read becomes a merchant with no disputes.
 //
 // THE RECOVERABLE ESTIMATE is Recova's, a fixed share of the failed invoices
@@ -91,7 +91,7 @@ export function showDisputesSection(run: AuditRunView): boolean {
 }
 
 /** The one treatment for a scope that was not read, named so a merchant
- *  knows which figure is missing (J63 review round 1). */
+ *  knows which figure is missing. */
 function Unread({ label }: { label: string }) {
   return (
     <div className="py-2">
@@ -216,7 +216,7 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
 }
 
 /** Recova's ExpiringCardsTimeline (33537a84): up to four months of cards
- *  expiring, the peak month marked. Drawn by Enarratio (Q1). */
+ *  expiring, the peak month marked. Drawn by Enarratio. */
 function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<string, number> }) {
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
@@ -528,7 +528,7 @@ function DisputeFigures({
           />
           {/* Truthfulness fix: Recova's line says it "submits structured
               evidence automatically". Foxhound builds the evidence on its own
-              and the merchant approves it before it is sent (RULES.md 5.6). */}
+              and the merchant approves it before it is sent. */}
           <p className="m-0 text-micro text-text-subtle">
             Disputes you lost without submitting evidence. Foxhound builds structured evidence automatically,
             and you approve it before it is submitted.

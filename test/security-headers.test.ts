@@ -17,7 +17,7 @@ import {
 import { SECURITY_HEADER_OVERRIDES, SECURITY_HEADERS, withClipboardWriteSelf } from "~/lib/http/header-set";
 
 // audit finding H-1 (foxhound-audit-security.md): the Worker shipped zero
-// security headers on any route. Since J22 (F16, RULES.md 4.2, Q4) the set is
+// security headers on any route. Since J22 (F16) the set is
 // site-runtime's OWASP standard with Foxhound's overrides, and the CSP comes from
 // site-runtime's builder with the nonce still made in the Worker.
 //

@@ -11,14 +11,14 @@ import type {
 // Phase (b) of the audit port, ruled by 362 ruling 4. The Stripe half the pure
 // engine takes as injected input.
 //
-// EVERY LIST HERE IS PAGINATED TO THE END (RULES.md 3.19), and that is the
+// EVERY LIST HERE IS PAGINATED TO THE END, and that is the
 // whole reason this module exists. Legacy's audit issues five `limit: 100`
 // calls and reads exactly one page of each, so a merchant past their first
 // hundred subscriptions gets an audit of their first hundred and no sign that
 // anything was left out. 341 found the same defect in the expiring-card scan
 // and fixed it there with `for await`; this is that fix generalized.
 //
-// EVERY ROW IS NARROWED AS IT IS READ (J63 review round 1). Paging to the end
+// EVERY ROW IS NARROWED AS IT IS READ. Paging to the end
 // with whole Stripe objects held in memory puts a large merchant's audit at
 // the mercy of the Worker's 128 MB: an expanded subscription carries its
 // customer, its payment method and its items, and none of that is read. So
@@ -30,7 +30,7 @@ import type {
 //
 // A FAILED READ IS DATA, NOT A THROW. Each read answers `{ ok: false, reason }`,
 // which the engine turns into that scope's failed status, so a Stripe outage
-// renders as "we could not read this" instead of as a zero (362 ruling 2).
+// renders as "we could not read this" instead of as a zero.
 
 /**
  * Walk an auto-paginating Stripe list to the end, keeping only what `narrow`

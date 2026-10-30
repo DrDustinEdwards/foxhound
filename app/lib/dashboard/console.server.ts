@@ -56,7 +56,7 @@ import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 //    nothing for Audit (legacy had no inactive state there either).
 
 // Money is a CurrencyAmount[] everywhere on this view, one entry per currency,
-// built by groupSumByCurrency (RULES.md 3.20). The console used to keep one
+// built by groupSumByCurrency. The console used to keep one
 // figure and one currency per card, which summed EUR into USD on two cards and
 // dropped every currency but the first on the third.
 
@@ -123,7 +123,7 @@ function subjectLabel(name: string | null, email: string | null): string {
 
 /**
  * The audit tile's leak: the run's failed invoices plus its open disputes,
- * added within each currency only (RULES.md 3.20) and shown one per currency
+ * added within each currency only and shown one per currency
  * (Dustin, 2026-10-25). A run stored before money_by_currency has one figure
  * per scope in its one currency, and shows that as it always did; one that
  * recorded no currency reads as USD, the engine's own fallback. No money at

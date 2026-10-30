@@ -90,7 +90,7 @@ describe("a generation failure sends the template instead of nothing", () => {
     expect(captured.jobs[0].bodyHtml).toContain("Merchant wrote this.");
   });
 
-  // Every dunning step now has Recova's own words in every category (J85, J86);
+  // Every dunning step now has Recova's own words in every category;
   // the revoked notice is the one step Recova has no template for, so it keeps
   // the category's framing.
   it("uses the category's template framing, not a generic one", async () => {

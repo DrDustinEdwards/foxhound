@@ -99,8 +99,8 @@ describe("cron registry", () => {
   it("dispatches the recovery tick, the win-back send, alerts and the dispute reminder on the high-cadence schedule", () => {
     // Kept STRICT rather than relaxed to toContain, so a fourth job arriving on
     // the highest-cadence schedule still trips this. win-back shares it because
-    // legacy's own cron piggybacks on the recovery schedule (343, 344); the
-    // dispute reminder (J06) because legacy's process-disputes ran hourly and a
+    // legacy's own cron piggybacks on the recovery schedule; the
+    // dispute reminder because legacy's process-disputes ran hourly and a
     // new expression would need its own cron-health period.
     const tick = jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK);
     // Alerts too: Recova evaluated them at the tail of its recovery cron.

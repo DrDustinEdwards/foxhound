@@ -20,7 +20,7 @@ import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
 
-// The data behind the /product/recovery previews (J56): the demo account's
+// The data behind the /product/recovery previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hardcoded Teamflow
 // numbers (RecoveryDashboardPreview.tsx, blob 565b772c) and a hand-written
 // eight-payment array (RecoveryPaymentsPreview.tsx, blob da19edf0). Foxhound
@@ -46,7 +46,7 @@ import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-p
 const PREVIEW_PAYMENT_ROWS = 8;
 
 function money(rows: { amountCents: number; currency: string }[]): string {
-  // One computation for a money total (RULES.md 3.20). The demo bills in one
+  // One computation for a money total. The demo bills in one
   // currency; a second one would be a seed change, and this shows the first.
   const [first] = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
   return formatMoney(first?.cents ?? 0, first?.currency ?? "usd");

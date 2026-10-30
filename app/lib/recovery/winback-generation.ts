@@ -37,7 +37,7 @@ import { voiceSampleLines } from "./voice-samples";
 /** Legacy's per-step descriptions, in its words and with the tone each carries.
  *  Step 3 is the "last chance, no pressure" line the brief asks about.
  *
- *  THE DELAY IS THE STEP'S OWN, not a typed literal (J91, a truthfulness fix).
+ *  THE DELAY IS THE STEP'S OWN, not a typed literal (a truthfulness fix).
  *  Legacy writes "1 hour", "4 days" and "14 days" into the prompt, which are its
  *  WIN_BACK_SCHEDULE offsets; but on an account with Intelligence step 1 goes
  *  at WINBACK_UNFLAGGED_STEP1_HOURS (4) unless the customer is flagged, and
@@ -79,7 +79,7 @@ const WINBACK_VOICE_FALLBACK = "friendly and conversational";
 export interface WinbackPromptInput {
   stepNumber: number;
   /** Hours from the cancellation to this step's send, as scheduled. Required,
-   *  so every caller states the real delay rather than a default (J91). */
+   *  so every caller states the real delay rather than a default. */
   offsetHours: number;
   customerName: string;
   planName: string;
@@ -112,8 +112,7 @@ export interface WinbackPromptInput {
  * as the detector. The step's delay is the real one (STEP_DESCRIPTIONS, J91).
  * Every other line is legacy's.
  *
- * Pure, so a plant reads the real prompt bytes rather than a rebuilt copy
- * (337 binding 4).
+ * Pure, so a plant reads the real prompt bytes rather than a rebuilt copy.
  */
 export function buildWinbackPrompt(input: WinbackPromptInput): string {
   const description = describeStep(input.stepNumber, input.offsetHours);
@@ -159,7 +158,7 @@ const OUTPUT_SCHEMA = {
 /**
  * Generate one win-back email.
  *
- * THE CLIENT COMES FROM THE FACTORY (347). This is the FIFTH call site, and it
+ * THE CLIENT COMES FROM THE FACTORY. This is the FIFTH call site, and it
  * constructs nothing of its own, so the gateway base URL and the
  * no-body-log header apply here exactly as they do to the other four.
  *

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J93 (job_2fb4eb342e8a), parity rows E19 and E20: the dispute won and lost
+// J93, parity rows E19 and E20: the dispute won and lost
 // notices say and carry what Recova's say, on Capsomer's `notice` template, as
 // E16 and E17 do (PR 162). Recova's spec, read whole at HEAD:
 //   lib/disputes-email.ts     blob 156719f1 (sendDisputeOutcomeEmail, lines 196 to 245)
@@ -21,7 +21,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // on the next monthly run (04:00 UTC on the 1st), and adds the $500 cap, which
 // Recova did not have (lib/dispute-fees.ts, blob 00b58c14). The sentence is
 // Recova's while the percentage governs, and names the cap only when the cap
-// is what set the fee, so it is never untrue (RULES.md 1.2, 2.1).
+// is what set the fee, so it is never untrue.
 
 interface SentMessage {
   from: string;

@@ -12,7 +12,7 @@ import { formatMoney, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
 
 import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
 
-// The /recovery/dashboard page's display arithmetic (J74, row S5): pure, no
+// The /recovery/dashboard page's display arithmetic: pure, no
 // database, safe in the browser bundle. Recova is the spec for what each panel
 // shows (app/(app)/recovery/dashboard at the blob shas named in the route);
 // every number here is computed from Foxhound's own read model and constants.
@@ -66,7 +66,7 @@ export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
  * Recova's "N% of MRR" under Currently at risk: one decimal, shown only when
  * the account has an MRR figure. Only an at-risk total in a single currency is
  * divided, because an MRR estimate is one number in one currency and a sum
- * across currencies is meaningless (RULES.md 3.20).
+ * across currencies is meaningless.
  */
 export function atRiskPctOfMrr(atRisk: readonly CurrencyCents[], mrrEstimateCents: number | null): number | null {
   if (!mrrEstimateCents || mrrEstimateCents <= 0 || atRisk.length !== 1) return null;
@@ -119,8 +119,8 @@ export interface DailyRecoveredRow {
 /**
  * Recovered amounts per UTC day over the last `days` days (oldest first),
  * zero-filled, one row per day per currency. Recova's buildDailyChart summed
- * amount_cents across currencies; a cross-currency sum is meaningless
- * (RULES.md 3.20), so each currency keeps its own bars.
+ * amount_cents across currencies; a cross-currency sum is meaningless,
+ * so each currency keeps its own bars.
  */
 export function dailyRecoveredRows(
   payments: readonly { recoveredAt: Date; amountCents: number; currency: string }[],

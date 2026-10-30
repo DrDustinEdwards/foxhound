@@ -18,12 +18,12 @@ import {
   buildMonthlyAuditEmail,
 } from "./monthly-email";
 
-// THE MERGED MONTHLY AUDIT (362 ruling 3, phase (g)). One cron, one email.
+// THE MERGED MONTHLY AUDIT. One cron, one email.
 //
 // WHAT THIS REPLACES, AND WHY THE MERGE WAS A RULING RATHER THAN A CLEANUP.
 // Session 67's walk found two monthly emails on a collision course: legacy's
 // `run-scheduled-audits` (blob `be1ed2ca`, 17,054 bytes) runs the audit and
-// mails the result, and Foxhound's own `audit-digest` (316) mails
+// mails the result, and Foxhound's own `audit-digest` mails
 // `computeFoxhoundAddsCents`. Both are monthly, both gate on `audit_auto_run`,
 // both send to `notification_email`. Shipping the port naively would have given
 // one merchant two emails off one toggle. 362 ruling 3: ONE email, legacy's
@@ -164,7 +164,7 @@ type MonthClaim = { claimed: true; id: string } | { claimed: false; heldStatus: 
  * same month does nothing. Application-side "select then insert" could
  * interleave between the two statements; an index cannot.
  *
- * A FAILED CLAIM IS RETAKEN, AND ONLY A FAILED ONE (job_97878f0d1fde). The audit
+ * A FAILED CLAIM IS RETAKEN, AND ONLY A FAILED ONE. The audit
  * now runs from a queue message and a failure asks the queue to retry, so the
  * retry has to be able to run. The retake is one conditional UPDATE from
  * "failed" to "pending": two deliveries racing for it cannot both win, because
@@ -251,8 +251,8 @@ export interface MonthlyAuditEnqueueResult {
 /**
  * The cron half: one queue message per opted-in, processing-eligible account.
  *
- * WHY A QUEUE (job_97878f0d1fde). Since PR 123 the audit's Stripe reads page to
- * the end (RULES.md 3.19), so one account costs a fixed handful of subrequests
+ * WHY A QUEUE. Since PR 123 the audit's Stripe reads page to
+ * the end, so one account costs a fixed handful of subrequests
  * plus one per page of its own data, with no upper bound. Auditing every account
  * in this one invocation put all of them under one subrequest limit, and one
  * large account could starve every account after it. Each message is consumed
@@ -343,7 +343,7 @@ export interface MonthlyAuditAccountOutcome {
  *
  * THE MERCHANT NOTICE PATH, NOT THE AUTH SENDER (E24). Recova sends this from
  * FROM_HELLO, and the auth sender's domain is kept for sign-in mail
- * (constants.ts, EMAIL_AUTH_DOMAIN; RULES.md 4.13). So it goes through
+ * (constants.ts, EMAIL_AUTH_DOMAIN). So it goes through
  * processEmailJob on the merchant audience, as E10 and E21 do: From "Foxhound"
  * at Foxhound's merchant-facing address, Recova's footer sentence and its
  * "Manage email settings" link, no unsubscribe, no Reply-To, the email_sends
@@ -445,7 +445,7 @@ export async function auditAccountForMonth(
         // Platform-to-merchant mail. See EmailAudience.
         audience: "merchant",
         // Not held by the live-send switch, which Recova does not have and which
-        // is off for every real merchant (RULES.md 3.21). Demo and ineligible
+        // is off for every real merchant. Demo and ineligible
         // accounts were already refused by eligibleAccount above.
         liveSendGate: "skip",
         unsubscribeToken: "",
@@ -494,11 +494,11 @@ export async function auditAccountForMonth(
 /**
  * One delivered message, start to finish, and what the queue should do with it.
  *
- * FAILURE POSTURE (job_97878f0d1fde). The whole err is logged and the message is
+ * FAILURE POSTURE. The whole err is logged and the message is
  * retried; one account's failure never touches another's message. The delivery
  * whose attempts exceed AUDIT_QUEUE_MAX_RETRIES is the last one Cloudflare will
  * make, so that one also raises the monthly-audit failure alert, the same
- * machinery a failed cron run uses (313). A body this producer did not write is
+ * machinery a failed cron run uses. A body this producer did not write is
  * acked, because retrying it cannot make it parse.
  */
 export async function processMonthlyAuditMessage(
@@ -550,7 +550,7 @@ export async function processMonthlyAuditMessage(
     if (attempts > 1 && outcome.heldStatus === "pending") {
       if (!lastAttempt) return "retry";
       // "May not", never "was not": the run may have died after the send and
-      // before the row was marked sent (job_17249e7da871).
+      // before the row was marked sent.
       await alert(
         "claim still pending after the last attempt; this month's email may not have been sent",
       );

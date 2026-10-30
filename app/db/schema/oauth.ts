@@ -4,7 +4,7 @@ import { id, ts, json } from "./columns";
 import { accounts, apiKeys } from "./tenancy";
 
 // ============================================================================
-// OAuth provider for external agents (J79, rows A9, F18, F19; ruling 8)
+// OAuth provider for external agents
 // ============================================================================
 //
 // Recova kept oauth_clients, oauth_authorization_codes and oauth_tokens in

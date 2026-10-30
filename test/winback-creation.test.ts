@@ -9,7 +9,7 @@ import { buildWinbackStartBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// THE WIN-BACK CREATION PATH (290), ported from legacy's handleSubscriptionDeleted.
+// THE WIN-BACK CREATION PATH, ported from legacy's handleSubscriptionDeleted.
 // Session 5 measured that Foxhound created win-back sequences NOWHERE in
 // production: every insert was the demo seeder and planWinbackSteps had two
 // callers, the seeder and its own test. This is the port, and these assertions

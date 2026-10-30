@@ -18,15 +18,14 @@ import { DISALLOW_PATHS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J79 (job_1579cff098bf), rows A9, F18 and F19: the OAuth provider external
+// J79, rows A9, F18 and F19: the OAuth provider external
 // agents connect through, ruling 8's build. Recova is the spec for what the
 // flow allows: app/oauth/authorize/page.tsx (63884241), ConsentButtons.tsx
 // (eb31e8e9), app/api/oauth/{authorize,token,register,revoke,metadata}, and
 // lib/oauth.ts (e3a404cd), read whole. The engine is Foxhound's: the access
 // token is a fox_mcp_ key the /mcp door already verifies, so an OAuth caller
-// reaches the merchant tools and nothing else (RULES.md 3.6), and the account
-// is the one the signed-in person had active at consent, never an argument
-// (RULES.md 4.6).
+// reaches the merchant tools and nothing else, and the account
+// is the one the signed-in person had active at consent, never an argument.
 //
 // Every assertion drives the real functions against the committed migrations.
 

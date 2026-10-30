@@ -5,7 +5,7 @@ import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content"
 import { DocWidget } from "./doc-widgets";
 import { HealthScoreBadge } from "./health-score-badge";
 
-// Recova's docs block vocabulary, on Capsomer's parts (J73, Q12).
+// Recova's docs block vocabulary, on Capsomer's parts.
 //
 // WHERE IT CAME FROM. Recova defines its prose vocabulary INLINE at the bottom
 // of each guide page (`app/(marketing)/docs/platform/page.tsx`, blob `2b69517b`,

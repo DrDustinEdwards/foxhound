@@ -46,7 +46,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   if (!payload || payload.kind !== "click" || !payload.url || !isSafeUrl(payload.url)) {
     return noStoreRedirect(fallback);
   }
-  // THE REDIRECT IS IDENTICAL EITHER WAY (368 ruling 1). The guard decides
+  // THE REDIRECT IS IDENTICAL EITHER WAY. The guard decides
   // whether the billable signal is WRITTEN, never what the caller receives: a
   // bot and a customer get the same 302 to the same destination, so nothing here
   // is a challenge, a fingerprint or a cost to a real click.

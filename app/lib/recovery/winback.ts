@@ -59,7 +59,7 @@ export interface PlannedWinbackStep {
  *
  * `step1OffsetHours` overrides step ONE only, which is legacy's exact shape:
  * `step.stepNumber === 1 ? step1OffsetHours : step.offsetHours`. It exists for
- * the Intelligence gate (291): on an account running Intelligence, a customer
+ * the Intelligence gate: on an account running Intelligence, a customer
  * NOT flagged `winback_priority` is DELAYED from the 1h default to 4h, to cut
  * noise on lower-value churners. Steps 2 and 3 are never touched, in legacy or
  * here. Omitted, the schedule is used as written.

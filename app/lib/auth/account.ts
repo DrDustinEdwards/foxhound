@@ -417,7 +417,7 @@ export async function removeMember(
     return { ok: true };
   }
 
-  // THE AGENTS THEY CONNECTED LEAVE WITH THEM (J79). Each OAuth grant is this
+  // THE AGENTS THEY CONNECTED LEAVE WITH THEM. Each OAuth grant is this
   // person's delegation on this account, so in the same batch as the removal
   // its access key and the grant are revoked: the key first, found through the
   // grant, then the grant. Keys made in Settings belong to the account and stay.

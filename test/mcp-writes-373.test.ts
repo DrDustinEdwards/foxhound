@@ -27,7 +27,7 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 //   3. EVERY WRITE LEAVES A TRACE naming the key, in the same batch as the write.
 //   4. THE MONEY TOOLS STILL DO NOT EXIST.
 //
-// THE 2026-10-10 REGROUP (job_874dc20ea9ac) folded the four tools into SECTIONS
+// THE 2026-10-10 REGROUP folded the four tools into SECTIONS
 // of one tool, foxhound_update_settings: `audit`, `features`, `notifications`
 // and `sender_name`. Every property above is unchanged and is now proven through
 // that tool; the trace names it rather than the old per-setting tool. The regroup

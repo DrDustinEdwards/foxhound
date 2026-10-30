@@ -368,7 +368,7 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     expect((await db.select().from(schema.billingInvoices))[0].status).toBe("gave_up");
   });
 
-  // E25 (J97): a stranded send_invoice draft must be finalized the way the
+  // E25: a stranded send_invoice draft must be finalized the way the
   // first attempt would have finalized it, or Stripe never emails it.
   it("finalizes a stranded send_invoice draft so Stripe emails it, and never pays it", async () => {
     const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
@@ -427,7 +427,7 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 });
 
 describe("guards", () => {
-  // E25 (J97): an invoice stranded before its account had a platform customer
+  // E25: an invoice stranded before its account had a platform customer
   // gets one, through the same platform-customer write the run uses.
   it("creates and stores a platform customer for an account with none, then bills against it", async () => {
     const db = await seed({ platformCustomerId: null });

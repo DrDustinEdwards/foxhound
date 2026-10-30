@@ -17,18 +17,18 @@ import {
   RECOVERY_SEQUENCE_DAYS,
 } from "./decline-categories";
 
-// The /product/recovery copy (J56). Recova's spec is
+// The /product/recovery copy. Recova's spec is
 // app/(marketing)/product/recovery/page.tsx (blob ec4aded8), read whole, and
 // this is its copy word for word, with three kinds of change only:
 //
-// - Branding: Recova becomes Foxhound (RULES.md 1.2).
+// - Branding: Recova becomes Foxhound.
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
 //   2.1): the category count and names from RECOVERY_SCHEDULES, the sequence
 //   length from its longest schedule, the fee from RECOVERY_FEE_BPS, the
 //   win-back steps and span from WIN_BACK_SCHEDULE, the expiring-card window
 //   from EXPIRING_CARD_DAYS_AHEAD.
 // - Truthfulness fixes where Recova's words describe something Foxhound does
-//   not do (RULES.md 1.2). Each is named beside its string below.
+//   not do. Each is named beside its string below.
 //
 // Every one of these is listed in the J56 PR notes for the seat to read.
 

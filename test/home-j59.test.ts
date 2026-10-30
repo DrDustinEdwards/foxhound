@@ -7,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import Home, { loader } from "~/routes/home";
 import { action as generateEmailSample } from "~/routes/marketing/generate-email-sample";
 
-// J59 (job_0a1ab5766050), row M3: the home page's frozen copy, the closing
+// J59, row M3: the home page's frozen copy, the closing
 // links, and the page built from Capsomer's parts. Recova's spec, read whole at
 // HEAD through Capsid repo "legacy": app/(marketing)/page.tsx (blob c10db7d5),
 // components/hero/RecoveryDemo.tsx (453261b6), components/marketing/

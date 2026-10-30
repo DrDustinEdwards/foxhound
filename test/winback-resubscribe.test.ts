@@ -38,8 +38,7 @@ vi.mock("~/lib/stripe/encryption", () => ({
 }));
 
 // The REAL service runs against a stubbed SDK, so the plants read the exact
-// arguments that would go to Stripe rather than a hand-built copy of them
-// (337 binding 4).
+// arguments that would go to Stripe rather than a hand-built copy of them.
 vi.mock("~/lib/stripe/client", () => {
   const stripe = {
     checkout: {
@@ -108,7 +107,7 @@ beforeEach(() => {
 function seedAccount(accountId: string, connectionId = "c1"): void {
   sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(accountId);
   sqlite
-      // ONE LIVE CONNECTION PER STRIPE ACCOUNT (356). The Stripe account id is
+      // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
       // derived from the Foxhound account rather than hardcoded, because a
       // shared literal made every two-account fixture violate the unique
       // index the moment it shipped, and production could never have had two
@@ -208,7 +207,7 @@ describe("PLANT 2: the page renders one button and calls no Stripe", () => {
   });
 
   it("AND STAYS INVALID WHEN EVERY OTHER LAYER IS SATISFIED", async () => {
-    // Reaching the sequence lookup's account scope ALONE (340 binding 3).
+    // Reaching the sequence lookup's account scope ALONE.
     // THREE layers refuse a cross-account read: the sequence query's own
     // account filter, the connection query's account filter, and
     // resolveConnectionForFailedPayment's pin on the sequence's recorded

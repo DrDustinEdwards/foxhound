@@ -9,7 +9,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J31 (job_8d030f93c15f), row S26: /settings/team against Recova's page.
+// J31, row S26: /settings/team against Recova's page.
 //
 // Recova is the spec for content, layout and features: app/(app)/settings/team/page.tsx
 // (blob 09983bed, 1765 bytes) and app/(app)/settings/components/TeamSection.tsx
@@ -17,8 +17,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // "Settings" back link, the heading "Team" and its line, then ONE card with
 // the member rows (owner first) and, for an owner, the invite form under a
 // rule: "Invite a team member", the email input and "Send invite" on one row,
-// the result line under them. The parts are Capsomer's (Q10, Q12), amber,
-// on the five text sizes (RULES.md 5.2).
+// the result line under them. The parts are Capsomer's, amber,
+// on the five text sizes.
 //
 // The server rules (owner only, same account, owner never removable) are
 // test/settings-team-s26.test.ts. These read the RENDERED page.
@@ -303,7 +303,7 @@ describe("J31: sizes and color", () => {
 describe("J31: the remove result, where Recova shows it", () => {
   // Recova's TeamSection has ONE error line, under the invite row, and a
   // refused remove lands there (setError). Showing it at the row would be a
-  // visible difference with no approval (RULES.md 1.3); that placement is a
+  // visible difference with no approval; that placement is a
   // question for Dustin in the J31 notes.
   for (const memberId of ["m_sam", "m_gone"]) {
     it(`a refused remove (row ${memberId}) shows under the invite row, as an alert, never in the list`, () => {

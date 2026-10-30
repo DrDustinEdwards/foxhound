@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J35 (job_9ad6ef3e08f6), row S30, under Dustin's Q10 and Q11 rulings of
+// J35, row S30, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/audit is Recova's page (app/(app)/settings/audit/page.tsx
 // at blob 18e6a384, AuditForm.tsx at 5bf81c10, settings/components/AuditSection.tsx
 // at 58c5abce, components/Toggle.tsx at 0ebdd395, and settings/SaveBar.tsx at

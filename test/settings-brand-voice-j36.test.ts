@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
-// J36 (job_36eb888192d0), row S31, under Dustin's Q10 and Q11 rulings of
+// J36, row S31, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/brand-voice is Recova's page
 // (app/(app)/settings/brand-voice/page.tsx at blob 81435702,
 // BrandVoiceForm.tsx at blob 8dd126bf and components/BrandVoiceSection.tsx at

@@ -34,10 +34,10 @@ import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode }
 //     bound to one account, with a one-hour expires_at. The /mcp door verifies
 //     it exactly as it verifies a key made in Settings, so an OAuth caller gets
 //     the merchant tools and nothing else: the five human-only actions have no
-//     tool to reach (RULES.md 3.6), and the admin MCP is another Worker.
+//     tool to reach, and the admin MCP is another Worker.
 //   - THE ACCOUNT IS FIXED AT CONSENT, from the session's active membership,
 //     and travels inside the code. No endpoint here reads an account from a
-//     request (RULES.md 4.6).
+//     request.
 //   - EVERY SECRET IS STORED AS ITS SHA-256 HASH: the code, the refresh token
 //     and the access token. Recova stored all three in plain text.
 //   - A REFRESH ROTATES THE GRANT'S ONE KEY ROW IN PLACE, so Settings lists one
@@ -48,7 +48,7 @@ import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode }
 //
 // Plain account-state writes, not money writes. Every guarded UPDATE reads its
 // RETURNING rows, because one that matches nothing is a failure to report,
-// never a success (RULES.md 3.9).
+// never a success.
 
 /** Prefix on refresh tokens, so a leaked one is recognizable in a scan. */
 const OAUTH_REFRESH_TOKEN_PREFIX = "fox_rt_";

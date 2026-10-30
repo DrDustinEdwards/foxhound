@@ -22,7 +22,7 @@ import type { EngagementTokenPayload } from "./token";
 // account's money Durable Object (Dustin, 2026-10-25: "Yes, treat it as money";
 // RULES.md 3.4). The open feeds no bill and stays a plain db.batch().
 //
-// THE SOURCE ARGUMENT IS REQUIRED, AND THAT IS THE GUARD (368 ruling 1). Both
+// THE SOURCE ARGUMENT IS REQUIRED, AND THAT IS THE GUARD. Both
 // recorders take an `EngagementSource` and write NOTHING when it is automated.
 // Required rather than optional-defaulting-to-human, because a new caller that
 // forgets it must fail to COMPILE rather than quietly resume fabricating clicks.
@@ -63,7 +63,7 @@ export function buildEngagementInsert(
 }
 
 /**
- * The open stamp, written on EVERY human open (row F9). Open feeds Intelligence
+ * The open stamp, written on EVERY human open. Open feeds Intelligence
  * only, no attribution. Recova's email.opened handler (webhooks/resend/route.ts)
  * is the spec for what one open does to the step:
  *
@@ -106,7 +106,7 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
 }
 
 /**
- * The click stamp, written on EVERY human click (row F10). Recova's
+ * The click stamp, written on EVERY human click. Recova's
  * email.clicked handler (webhooks/resend/route.ts) is the spec for what one
  * click does to the step:
  *
@@ -115,7 +115,7 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
  *   clicked_at           now                      first click only
  *
  * clicked_at is the email_engaged attribution signal and click_suspect_reason
- * decides whether it may bill (RULES.md 3.4), so BOTH STAY FIRST-CLICK ONLY:
+ * decides whether it may bill, so BOTH STAY FIRST-CLICK ONLY:
  * they change exactly as they did when this stamp matched only a step with no
  * click yet. A repeat click moves the counter and the last-click time, which
  * nothing in attribution or billing reads. One UPDATE, so SQLite evaluates
@@ -126,7 +126,7 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
  * money Durable Object commits it, not from a read taken earlier in the Worker.
  * A first click is too_fast when it lands under CLICK_SUSPECT_MIN_MS after
  * executed_at, OR WHEN executed_at IS NOT WRITTEN YET. Emails send first and
- * claim second (RULES.md 3.8), so a click on a step with no executed_at is a
+ * claim second, so a click on a step with no executed_at is a
  * click in the seconds between the send and its claim: exactly the scanner
  * fetch this test exists for. Reading a missing executed_at as "not too fast"
  * let that fetch bill. The cost of reading it as too fast falls the safe way: a
@@ -157,7 +157,7 @@ export function buildClickStamp(db: Db, stepId: string, now: Date) {
 
 /**
  * Mark a step's click suspect because the invisible honeypot link in its email
- * was fetched (ruling 377(4) phase one).
+ * was fetched.
  *
  * Unconditional on clicked_at: the fetch order is not ours to control, so this
  * marks the step whether the real click has already landed or has not arrived
@@ -199,7 +199,7 @@ export async function recordOpen(
  * neither the engagement_events row nor the stamp is written and no attribution
  * can arise from the request.
  *
- * A MONEY WRITE (RULES.md 3.4): the event row and the stamp commit as one
+ * A MONEY WRITE: the event row and the stamp commit as one
  * atomic batch through this account's money Durable Object, in that order, so a
  * click is serialized with every other money write for the account. The event
  * row keeps its own exactly-once key, `click:<stepId>`, which collapses re-hits
@@ -217,7 +217,7 @@ export async function recordClick(
   const db = getDb(env);
   const now = new Date();
 
-  // A ZERO-ROW STAMP IS NOT A RECORDED CLICK (RULES.md 3.9). With no step the
+  // A ZERO-ROW STAMP IS NOT A RECORDED CLICK. With no step the
   // stamp would match nothing (and the event row's foreign key would refuse
   // the insert), so the outcome is named here, before the batch, rather than
   // reported as recorded or left to surface as a thrown constraint error.

@@ -7,7 +7,7 @@
 // intake, the notice and the dispute page share.
 //
 // CLIENT-SAFE BY CONSTRUCTION: the dispute page calls the formatters, so this
-// module imports nothing from a `.server` file (RULES.md 4.5).
+// module imports nothing from a `.server` file.
 
 export interface PriorCharge {
   date: string;

@@ -9,13 +9,13 @@ import { accounts, apiKeys, mcpCalls } from "~/db";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J49 (job_4f27c866fb97, row D15): the MCP servers panels (once /admin/mcps, now on /admin/operations) on the family admin pattern
+// J49: the MCP servers panels (once /admin/mcps, now on /admin/operations) on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
 // review. Recova's page (app/admin/mcps/page.tsx, blob d0381e5f) is the
 // inventory: the API keys table (label, scope, account, status, created, last
 // used, with a total and an active count) and the tool coverage. Its static
 // claims about its own server and its hand-written list of workspace
-// connectors are not copied (ruling 406 binding 6): the tools come from
+// connectors are not copied: the tools come from
 // Foxhound's live registry, and the merchant MCP call log is added.
 // The api_keys table holds key material: the page never reads key_hash.
 
@@ -26,7 +26,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 // Looked up so a missing module fails the assertion that names it, not the
-// whole file (RULES.md 6.5).
+// whole file.
 const panels: Record<string, unknown> = await import("~/components/admin-mcp-panels").catch(() => ({}));
 const serverLib: Record<string, unknown> = await import("~/lib/admin/mcps.server").catch(() => ({}));
 const pageLib: Record<string, unknown> = await import("~/lib/admin/mcps").catch(() => ({}));

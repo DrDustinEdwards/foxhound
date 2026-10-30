@@ -212,7 +212,7 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
         sub={atRiskPct !== null ? `${atRiskPct}% of MRR` : undefined}
       />
       {/* A rate with nothing failed is no rate: Foxhound shows "-" and says
-          why, where Recova printed 0% (RULES.md 2.1). */}
+          why, where Recova printed 0%. */}
       <StatCard
         primary
         icon={Percent}

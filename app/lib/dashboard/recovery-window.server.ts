@@ -77,7 +77,7 @@ export interface RecoveryDashboardWindow {
   clickRatePct: number;
   /** The same engagement, counted over email steps executed inside this
    *  call's range: the "Emails sent" stat card reads it from the 30-day
-   *  window, as every stat card does (J74 review). */
+   *  window, as every stat card does. */
   emailsSentInRange: { sent: number; openRatePct: number; clickRatePct: number };
 
   // Win-back reactivation, scoped to this call's range.

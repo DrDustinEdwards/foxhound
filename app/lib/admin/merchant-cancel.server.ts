@@ -115,7 +115,7 @@ export async function cancelMerchant(
 }
 
 // ---------------------------------------------------------------------------
-// S37: disconnect ONE connection from Settings (rulings 40 and 333).
+// S37: disconnect ONE connection from Settings.
 //
 // The same posture as cancelMerchant above, narrowed to a single connection:
 // plain batch, local commit first, Stripe revoke best-effort after. 333 ruled

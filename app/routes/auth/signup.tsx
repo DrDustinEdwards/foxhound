@@ -21,7 +21,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/signup";
 
-// Row A3, /signup (J52): Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
+// Row A3, /signup: Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
 // read whole, for the frame: one card, "Connect Stripe once", the fee line,
 // the providers, the "or" rule, Email, the error, then "Already have an
 // account? Log in". The ways in are the family's one sign-in (site-runtime
@@ -31,9 +31,9 @@ import type { Route } from "./+types/signup";
 // button: a new merchant has none yet, and the link offers one.
 //
 // Two things are Foxhound's own and stay:
-// - the fee is read from RECOVERY_FEE_BPS (RULES.md 2.1), never retyped;
+// - the fee is read from RECOVERY_FEE_BPS, never retyped;
 // - Recova's line opened with "We start recovering immediately.", which is
-//   untrue here: a soft failure waits for Stripe's own retries (RULES.md 3.3),
+//   untrue here: a soft failure waits for Stripe's own retries,
 //   while a hard decline, or any failure for a merchant with Smart Retries
 //   off, starts at once. No single timing clause is true, so it is dropped.
 // Recova has no Name field, so there is none; Better Auth's name is empty, as
@@ -50,7 +50,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // hides its "Already have an account?" line from a signed-in visitor; here
   // that visitor never sees the page.
   //
-  // next= is where to land once signed up (J28, row A7): the invite page sends
+  // next= is where to land once signed up: the invite page sends
   // a signed-out "Accept invite" here with next=/invite/:token, as Recova's
   // sent it to /signup?invite=true, so the invite is accepted on the way back.
   // Validated the way /login validates it (app/lib/auth/next-path.ts).
@@ -63,7 +63,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   // First, before the form is read: the shared auth bucket, then ruling 24's
-  // five signups an hour (J52). A typed code (the query says so) sends no mail
+  // five signups an hour. A typed code (the query says so) sends no mail
   // and spends only the shared bucket, as a sign-in does.
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
   const refusal = await checkAuthLimit(env, request, isCode ? "credential" : "signup");

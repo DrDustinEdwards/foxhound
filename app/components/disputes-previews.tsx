@@ -4,14 +4,14 @@ import { PreviewStatCard } from "~/components/stat-card";
 import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
-// The previews on /product/disputes (J57), Recova's three feature-block UIs:
+// The previews on /product/disputes, Recova's three feature-block UIs:
 // the disputes dashboard (DisputesDashboardPreview.tsx, blob dcde195e, which
 // renders the real DisputesDashboardView, blob 3c1b7a98: five stat cards and
 // the disputes table), the stat cards on their own (page.tsx's
 // DisputesStatCardsPreview, blob c412d54f) and the dispute table
 // (components/docs/DisputesTablePreview.tsx, blob ed33fa95).
 //
-// Content and layout are Recova's; the parts are Capsomer's (Q12). Every
+// Content and layout are Recova's; the parts are Capsomer's. Every
 // figure and row is the demo seed read through Foxhound's own dispute code
 // (app/lib/marketing/disputes-preview.server.ts), never a merchant's rows.
 // Recova draws no chart in any of the three, so neither does this page.

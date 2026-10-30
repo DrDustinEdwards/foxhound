@@ -1,5 +1,5 @@
 // Recova's recommendation rules, ported as rules onto Foxhound's own inputs
-// (job J78, row S20; Dustin 2026-10-25: "Port now, measure, improve later").
+// (Dustin 2026-10-25: "Port now, measure, improve later").
 //
 // Recova is the spec, read whole at these blobs:
 //   lib/intelligence/bands.ts      119bec74 (the three bands and their cut points)
@@ -18,7 +18,7 @@
 // actually ran its 48 hour deprioritize delay, which Foxhound does not have.
 //
 // The rationale is Recova's word for word, except five lines that claimed more
-// than the data can show (RULES.md 1.2). Each is marked below with Recova's text.
+// than the data can show. Each is marked below with Recova's text.
 
 export type EngagementBand = "green" | "yellow" | "red" | "unknown";
 export type RecoveryBand = "green" | "yellow" | "red" | "unknown";

@@ -7,7 +7,7 @@ import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 
-// The previews on /product/intelligence (J58), Recova's three feature-block
+// The previews on /product/intelligence, Recova's three feature-block
 // UIs: the Intelligence dashboard (IntelligenceDashboardPreview.tsx, blob
 // 11972333, which mounts the dashboard's MRRStatCards, 2920fa3b, and
 // PlanBreakdown, 65b5674f, over a narrative card), the customer table
@@ -15,8 +15,8 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 // HealthScoreBadge, f25f29d8) and the churn bands
 // (components/docs/ChurnRiskSummary.tsx, ba1fbb51).
 //
-// Content and layout are Recova's; the parts are Capsomer's (Q12) and the one
-// chart is Enarratio's (Q1), drawn by the dashboard's own drawPlans. Every
+// Content and layout are Recova's; the parts are Capsomer's and the one
+// chart is Enarratio's, drawn by the dashboard's own drawPlans. Every
 // figure and row is the demo seed read through Foxhound's own Intelligence
 // code (app/lib/marketing/intelligence-preview.server.ts), never a merchant's
 // rows.

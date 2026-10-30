@@ -18,7 +18,7 @@ import { headerLogo } from "./header-logo";
 // the component renders in a plain node test under MemoryRouter, so the plants
 // read what a reader reads.
 
-// THE LOOK (J21): Capsomer's button, amber, Foxhound's five text sizes. Amber
+// THE LOOK: Capsomer's button, amber, Foxhound's five text sizes. Amber
 // throughout has since landed site-wide, so this page and the rest of
 // the site share the one accent.
 //
@@ -43,7 +43,7 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
   const isNotFound = routeError?.status === 404;
 
   // 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog
-  // post route (391). It is a deliberate editorial act, so it gets neither the
+  // post route. It is a deliberate editorial act, so it gets neither the
   // error heading nor the error affordances: nothing went wrong, there is
   // nothing to retry, and the page is not coming back at this URL.
   const isWithdrawn = routeError?.status === 410;
@@ -80,11 +80,11 @@ export function ErrorView({ error, isDev = false }: { error: unknown; isDev?: bo
   // Legacy runs ONE chrome kit across not-found.tsx and error.tsx: the same
   // absolute nav, the same centered block, the same footer, differing only in the
   // numeral, its color, the copy and the CTA set. Ported as one boundary with
-  // two states, the M20/M21 shared-legal-kit shape (ruling 82). The withdrawal
+  // two states, the M20/M21 shared-legal-kit shape. The withdrawal
   // is a third state on the same kit.
   //
   // THE BAR carries only the wordmark linking home, as Recova's did. It is
-  // drawn here rather than by Capsomer's SiteHeader (J10): with no sections,
+  // drawn here rather than by Capsomer's SiteHeader: with no sections,
   // switchers or account, SiteHeader still renders its phone Menu button,
   // which would open a sheet with nothing in it, a control that does nothing.
   // So the bar takes the J10 header's look by tokens instead: Foxhound's dark

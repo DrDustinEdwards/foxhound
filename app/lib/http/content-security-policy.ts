@@ -1,6 +1,6 @@
 // THE CONTENT-SECURITY-POLICY AND THE ONE PLACE THE HEADERS ARE APPLIED
 // (audit finding H-1, foxhound-audit-security.md: the site once shipped zero
-// security headers). Since J22 (row F16; RULES.md 4.2; Q4) the header set comes
+// security headers). Since J22 the header set comes
 // from site-runtime through header-set.ts and the policy from site-runtime's
 // builder; what stays here is Foxhound's own list of what it loads and the
 // Worker-side merge. The single call site is workers/app.ts's fetch handler,

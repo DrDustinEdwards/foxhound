@@ -199,7 +199,7 @@ async function seed() {
     });
     // A sent recovery email, whose text greets the customer by name and whose
     // send error names their address. foxhound_get_payment returns the steps,
-    // and the redactor deliberately leaves Foxhound's own text alone (383), so
+    // and the redactor deliberately leaves Foxhound's own text alone, so
     // only the tool's step projection keeps these off the wire.
     await db.insert(recoverySteps).values({
       id: `rs_${account}`,

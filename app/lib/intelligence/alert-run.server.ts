@@ -192,12 +192,12 @@ export type CriticalCustomersOutcome =
  * customer_context health score of 33 or less, and an open dispute, for the
  * same Stripe customer on the same account. One query with joins rather than
  * Recova's three reads with growing id lists, because D1 caps bound
- * parameters (RULES.md 3.11).
+ * parameters.
  *
  * "OPEN" IS FOXHOUND'S. Recova reads disputes.status in (needs_response,
  * under_review); Foxhound stores Stripe's status at intake and never updates
  * it, and keeps the dispute's life in `state`, so open is a state not yet
- * resolved, the same predicate the digest counts (RULES.md 3.20). The dispute's
+ * resolved, the same predicate the digest counts. The dispute's
  * customer is stripe_customer_id, which Foxhound writes at intake; Recova's
  * customer_id is a provenance column here.
  */
@@ -235,7 +235,7 @@ async function findCriticalCustomerIds(db: Db, accountId: string): Promise<strin
  * Recova's order: the cooldown on the account's last cross_product_critical
  * row, the customers, the notification (notifyCriticalCustomers: email first,
  * Slack without an address), then one alert_history row with whether it went.
- * The row is written here, not in the notification module (RULES.md 3.2), as
+ * The row is written here, not in the notification module, as
  * evaluateAndRecordAlerts does for E21. Never throws.
  */
 export async function runCriticalCustomersCheck(

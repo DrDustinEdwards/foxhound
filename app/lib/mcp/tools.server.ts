@@ -42,7 +42,7 @@ import {
   ToolInputError,
 } from "./registry";
 
-// THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING (job_874dc20ea9ac).
+// THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING.
 //
 // Twenty-three one-endpoint tools became twelve whole-job ones (rule 3: 5 to 15
 // per server; rule 4: outcomes, not API mirrors), each named
@@ -73,7 +73,7 @@ import {
 // `executeMoneyWrite`, `recordOutcome`, a billing writer or a dispute writer.
 //
 // REDACTION IS DEFAULT-ON FOR EVERY TOOL, AND NOT ONE LINE OF IT IS IN THIS
-// FILE (376 item 7). Registering a tool is what redacts it; see ./redact.ts. A
+// FILE. Registering a tool is what redacts it; see ./redact.ts. A
 // tool's job is to choose WHICH fields to return, never to disguise one.
 
 type ToolArgs = Record<string, unknown>;

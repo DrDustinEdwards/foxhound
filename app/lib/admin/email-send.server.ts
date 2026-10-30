@@ -72,7 +72,7 @@ import type { Rendered } from "capsomer/email";
 // Stripe connection, and SAMPLE customer data: no customer row is ever read, so
 // no customer's name or address can reach a preview or an inbox. The copy is the
 // deterministic template, which is what a send uses whenever generation is not
-// used or fails (RULES.md 3.15); brand voice only shapes model-written copy, and
+// used or fails; brand voice only shapes model-written copy, and
 // this module never calls the model, so the voice is returned beside the preview
 // rather than applied to it.
 //

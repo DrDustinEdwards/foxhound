@@ -8,7 +8,7 @@
 // stripe-deauthorize-retry cron retries it until Stripe accepts.
 //
 // Plain writes, not executeMoneyWrite: this is account state on
-// stripe_connections, cancelMerchant's posture (RULES.md 3.2).
+// stripe_connections, cancelMerchant's posture.
 
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 

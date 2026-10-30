@@ -38,7 +38,7 @@ import { getConnectionAccessToken } from "./queries.server";
 // nothing, so the only write is the warning's own refunded_at and refund id.
 // When the refunded charge was a Foxhound recovery, Stripe's charge.refunded
 // event unbills that recovery through the existing refund stamp, as any refund
-// does (ruling 29).
+// does.
 
 export type WarningRow = typeof earlyFraudWarnings.$inferSelect;
 

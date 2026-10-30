@@ -6,7 +6,7 @@ import { accounts, emailSuppressions } from "~/db/schema";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
-// Row F7 (J26, job_652baa37855c): the /u/:token page against Recova's
+// Row F7: the /u/:token page against Recova's
 // app/api/unsubscribe/route.ts (blob 31de4bc5, read whole). Recova is the spec
 // for the states, their copy, the per-IP limit and the layout; Foxhound's engine
 // stays (the HMAC token, suppression keyed by address, the RFC 8058 POST, no-store).

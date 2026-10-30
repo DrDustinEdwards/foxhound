@@ -48,7 +48,7 @@ export function breachesThreshold(direction: string, actualValue: number, thresh
  * Recova's inCooldown, on the alert's own last_triggered_at. A missing or
  * unreadable stamp is no cooldown.
  *
- * THIS REPLACES THE EDGE TRIGGER (J94). Foxhound fired an alert once per
+ * THIS REPLACES THE EDGE TRIGGER. Foxhound fired an alert once per
  * crossing, judged from the previous firing's actual value; Recova fires
  * whenever the metric is past its threshold and the alert is outside its 24
  * hour cooldown, so a metric that stays past it is mailed again each day. The

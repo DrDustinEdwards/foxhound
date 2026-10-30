@@ -3,7 +3,7 @@
 // from legacy lib/encryption.ts, moved from Node `crypto` to Web Crypto
 // (crypto.subtle) so it runs natively on the Workers runtime.
 //
-// ---- KEY ROTATION (ruling 312) ----
+// ---- KEY ROTATION ----
 //
 // FORMAT: `v1:<keyId>:<ivHex>:<cipherHex>`, where cipherHex is the AES-GCM
 // ciphertext WITH the 16-byte auth tag appended (Web Crypto's convention, which

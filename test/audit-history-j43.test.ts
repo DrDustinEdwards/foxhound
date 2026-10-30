@@ -8,10 +8,10 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J43 (job_3b8776847895), row U2: the signed-in audit history is Recova's
+// J43, row U2: the signed-in audit history is Recova's
 // /audit/dashboard (app/audit/dashboard/page.tsx at blob 988c190a and
 // AuditSettingsForm.tsx at blob 9016a436, both read whole), built from Capsomer
-// 0.9.0's parts and amber throughout (Q10, Q11, Q12). Recova is the spec for the
+// 0.9.0's parts and amber throughout. Recova is the spec for the
 // path, every section and its order: the header with Run new audit, the AI
 // summary, Since last run, History, and the Settings card with the lookback
 // period and the monthly digest, saving as they change.
