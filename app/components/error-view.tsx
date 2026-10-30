@@ -1,4 +1,7 @@
+import { isRouteErrorResponse } from "react-router";
+
 import { WITHDRAWN_BLOG_HEADING, WITHDRAWN_BLOG_REASON } from "~/lib/blog/withdrawn";
+import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
 import "~/error-page.css";
 
 import { headerLogo } from "./header-logo";
@@ -55,8 +58,20 @@ export function ErrorFooter({ overlay = false }: { overlay?: boolean }) {
   );
 }
 
+// Recova's words (its not-found.tsx and error.tsx), passed to ErrorPage in place of Capsomer's: a 404
+// is "Page not found" with Recova's sentence, anything else "Something went wrong" with the message a
+// route threw with data() (the demo's read-only 405, DEMO_READ_ONLY_MESSAGE), else the status text,
+// else "An unexpected error occurred." (lib/errors/boundary-message). The home link is "Go home".
+export const HOME_LABEL = "Go home";
+export function recovaWords(error: unknown, isDev: boolean): { title: string; text: string } {
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return { title: "Page not found", text: "The page you're looking for doesn't exist or has been moved." };
+  }
+  return { title: "Something went wrong", text: resolveErrorBoundaryDetails(error, isDev).details };
+}
+
 // Recova's ways out beyond home (its not-found.tsx and error.tsx): the dashboard, and on a 404 the
-// demo. ErrorPage draws Go to the home page (and Try again on a server error) itself.
+// demo. ErrorPage draws Go home (and Try again on a server error) itself.
 export function ErrorLinks({ notFound }: { notFound: boolean }) {
   return (
     <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
