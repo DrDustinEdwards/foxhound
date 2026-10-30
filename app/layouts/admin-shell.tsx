@@ -16,7 +16,7 @@ import { AdminShell, FAMILY_APPS, type AdminApp, type AdminEntry } from "capsome
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
-import { renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "~/components/site-header";
+import { personInitials, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
@@ -115,10 +115,10 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
       <AdminShell
         variant="owner"
         app="foxhound"
-        // The family letterhead, as dustinedwards.info and Carrel have it: the
-        // family mark with "Dustin Edwards" over "Foxhound" and "Admin", and
-        // the owner's name and initials on the avatar (Dustin, 2026-10-30, on
-        // screenshots of the two admins side by side).
+        // The family letterhead, as dustinedwards.info and Carrel have it, but
+        // standalone: "Foxhound Admin" with no "Dustin Edwards" over it and no
+        // family stripe, because Foxhound is a commercial app apart from the
+        // Dustin Edwards network (Dustin, 2026-10-30).
         letterhead
         title="Foxhound admin"
         // Each admin route's meta title stays the browser title.
@@ -136,10 +136,11 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         // session, so its Help opens the public docs.
         onHelp={() => void navigate("/docs")}
         account={{
-          // The name and initials default to the family owner's, as on every
-          // family admin; the email says which Access login this is.
+          // The Access login, not the family owner's name: Foxhound stands
+          // apart from the Dustin Edwards network.
+          name: email,
+          initials: personInitials(null, email),
           role: "Admin",
-          email,
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
           onSignOut: () => {
