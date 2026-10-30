@@ -1,3 +1,5 @@
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
+
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 import type { DisputeState } from "~/lib/constants";
 import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
@@ -54,11 +56,7 @@ export async function hashEvidence(fields: { fieldName: string; fieldValue: stri
     .sort((a, b) => a.fieldName.localeCompare(b.fieldName))
     .map((f) => `${f.fieldName}=${f.fieldValue}`)
     .join("\n");
-  const bytes = new TextEncoder().encode(canonical);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return sha256Hex(canonical);
 }
 
 /**
