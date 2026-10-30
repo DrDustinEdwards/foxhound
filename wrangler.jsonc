@@ -21,34 +21,32 @@
     "traces": { "enabled": true, "head_sampling_rate": 0.1 }
   },
 
-  // WORKERS CACHE (345 binding 4, enabled session 53). Enabled only AFTER the
-  // response policy in app/lib/http/cache-policy.ts shipped and was proven in
-  // production, because two documented facts make a blind enable a data leak:
+  // WORKERS CACHE (345 binding 4; the gateway and Renderer since site-runtime
+  // 0.33.0's ./edge-cache). The default export has the cache DISABLED, so it
+  // runs on every request, hits included; the Renderer entrypoint has it on,
+  // and the gateway sends it only an anonymous GET of a public page or files
+  // route (app/lib/http/cache-policy.ts, edgeCacheable), keyed by path, query
+  // and theme. A request with a session cookie never reaches it.
   //
-  //   1. Bypass is triggered by Set-Cookie on the RESPONSE and Authorization on
-  //      the REQUEST, and NOT by a request Cookie header. The marketing layout
-  //      renders the signed-in account switcher on the same URLs anonymous
-  //      visitors fetch, so without the policy a cached signed-in render of /
-  //      would be served to a stranger.
-  //   2. Responses with no Cache-Control are eligible for RFC 9111 heuristic
-  //      freshness, so "we set no header" never meant "it will not be cached".
-  //      Every response now leaves the fetch entry with an explicit directive.
+  // WHY THE FIRST TWO ENABLES WERE NOT ENOUGH, kept because the lesson is the
+  // design: with the whole Worker cached, the Worker does not run on a hit, so
+  // nothing computed inside it can govern what is SERVED. Session 53's enable
+  // returned a stored anonymous `/` to a signed-in request and was reverted;
+  // 348 re-enabled it behind `Vary: Cookie`, which keys the cache by cookie.
+  // The gateway now makes that decision in code that runs on every request,
+  // and Vary stays as the second lock (CLAUDE.md hard rule 9).
+  //
+  // A stored page carries no CSP nonce (its inline scripts are trusted by
+  // hash), sets no cookie, and is purged by its "pages" tag on every Carrel
+  // write and applied blog schedule. The purge runs inside the Renderer,
+  // because a purge reaches only its own entrypoint's cache.
   //
   // COST, accepted knowingly: with caching on, every request is billed at the
   // standard Workers request rate INCLUDING static asset requests, which are
   // normally free (developers.cloudflare.com/workers/cache/).
   //
   // cross_version_cache is left at its default of false, so the Worker version
-  // is part of the cache key and every deploy resets the cache. That is what a
-  // repo-authored site wants and it is why the marketing TTL can be 300s.
-  //
-  // ENABLED THE SECOND TIME UNDER 348, AFTER `Vary: Cookie`. The first enable
-  // was reverted the same session because a signed-in request returned HIT: the
-  // Cache-Control policy governs what is STORED, and the Worker does not run on
-  // a hit, so nothing computed inside it can govern what is SERVED. Vary moves
-  // that decision into the CACHE KEY, which is the only layer that runs on a
-  // hit, so a request carrying a session cookie cannot match the variant stored
-  // for a request carrying none. Do not enable this without that header.
+  // is part of the cache key and every deploy resets the cache.
   "cache": {
     "enabled": true
   },
@@ -359,6 +357,9 @@
   // lifecycle changes (delete, rename, transfer) happen by editing this map;
   // do not reintroduce a migrations array, the two are mutually exclusive.
   "exports": {
+    // The edge page cache's two entrypoints (see "cache" above).
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "Renderer": { "type": "worker", "cache": { "enabled": true } },
     "MoneyWriteDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronTickerDurableObject": { "type": "durable-object", "storage": "sqlite" },

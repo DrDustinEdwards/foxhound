@@ -16,9 +16,7 @@ import DocsIndexPage from "~/routes/docs/index";
 // M29), so a class on a helper that never reaches a reader cannot pass.
 
 function render(): string {
-  const page = createElement(DocsIndexPage, {
-    loaderData: { siteUrl: "https://example.com" },
-  } as unknown as Parameters<typeof DocsIndexPage>[0]);
+  const page = createElement(DocsIndexPage);
   const router = createMemoryRouter([{ path: "*", element: page }], { initialEntries: ["/docs"] });
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
@@ -28,7 +26,7 @@ function column(html: string): string {
   const col = html.indexOf("max-w-[720px]");
   expect(col, "the 720px docs column is on the page").toBeGreaterThan(-1);
   const body = html.slice(html.lastIndexOf("<div", col));
-  return body.slice(0, body.indexOf("<script"));
+  return body;
 }
 
 /** Every link in the column, opening tag through close, in page order. */

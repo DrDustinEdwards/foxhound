@@ -2,7 +2,8 @@ import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { data, Form, Link, redirect, useNavigation } from "react-router";
+import { data, Form, redirect, useNavigation } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";

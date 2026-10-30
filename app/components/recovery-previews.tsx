@@ -1,7 +1,7 @@
 import { AlertCircle, Percent, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill, Status, type Tone } from "capsomer/react/status";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { CategoryPill, StepChip } from "~/components/tone-pills";
 import { timingLabel } from "~/components/docs/sequence-timeline";

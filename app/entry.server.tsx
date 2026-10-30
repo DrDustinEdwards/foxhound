@@ -3,9 +3,8 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 
-import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { recordPage404 } from "~/lib/errors/page-404.server";
+import { countNotFound } from "@dustinedwards/site-runtime/not-found";
 
 export const streamTimeout = 5_000;
 
@@ -44,37 +43,21 @@ export const streamTimeout = 5_000;
 // GET only: a POST that 404s is a form aimed at a missing route, not a page
 // someone went looking for.
 //
-// waitUntil, so the write never holds or fails the response; the catch logs
-// rather than swallowing (capsid conventions-web rule 5), since a count that
-// silently stops is how this table sat empty. getDb runs inside the promise so
-// a missing binding is logged the same way instead of throwing here.
-function countPage404(url: URL, loadContext: RouterContextProvider) {
+// site-runtime's countNotFound does the counting: GET only, the .data URL
+// counted as its page, the write in waitUntil so it never holds or fails the
+// response, and a failed write logged (not_found_count_failed) rather than
+// swallowed, since a count that silently stops is how this table sat empty.
+// The binding is read inside its promise, so a missing one is logged the same way.
+function countPage404(request: Request, status: number, loadContext: RouterContextProvider) {
   const { env, ctx } = loadContext.get(cloudflareContext);
-  ctx.waitUntil(
-    Promise.resolve()
-      .then(() => recordPage404(getDb(env), url, new Date()))
-      .catch((error: unknown) => console.error("page_404_daily write failed", error)),
-  );
-}
-
-/** A .data URL back to the page it loads, the way React Router reads it
- *  (getNormalizedPath): "/_.data" is the home page, "/blog/x.data" is
- *  "/blog/x". */
-export function pageUrlForData(url: URL): URL {
-  const page = new URL(url);
-  page.pathname = page.pathname.endsWith("/_.data")
-    ? page.pathname.replace(/_\.data$/, "")
-    : page.pathname.replace(/\.data$/, "");
-  return page;
+  countNotFound(() => env.DB, request, { status }, ctx);
 }
 
 export function handleDataRequest(
   response: Response,
   { request, context }: { request: Request; context: RouterContextProvider },
 ) {
-  if (response.status === 404 && request.method === "GET") {
-    countPage404(pageUrlForData(new URL(request.url)), context);
-  }
+  countPage404(request, response.status, context);
   return response;
 }
 
@@ -117,9 +100,7 @@ export default async function handleRequest(
 
   // Counted once the shell has rendered: a shell that throws makes React
   // Router call this again with 500, and that visitor saw a 500, not a 404.
-  if (responseStatusCode === 404 && request.method === "GET") {
-    countPage404(new URL(request.url), loadContext);
-  }
+  countPage404(request, responseStatusCode, loadContext);
 
   // Ensure requests from bots and SPA Mode renders wait for all content to load before responding
   // https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation

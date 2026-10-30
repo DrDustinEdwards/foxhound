@@ -1,6 +1,5 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -15,6 +14,7 @@ import "capsomer/panel.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The /docs index. Recova's spec is app/(marketing)/docs/page.tsx
 // (blob 4562a1ed) and components/MarketingPageHeader.tsx (blob 118a5104), read
@@ -28,12 +28,23 @@ import type { Route } from "./+types/index";
 // app/lib/marketing/docs-content.ts and stay 20d-frozen.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Docs - Foxhound",
-    description: "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
-    path: "/docs",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // The hub as a LIST, so a crawler reading /docs gets the set rather than
+  // five pages it has to discover by link-following. Derived from
+  // DOC_GUIDES in render order, so a sixth guide joins it by construction.
+  return [
+    ...marketingMeta({
+      title: "Docs - Foxhound",
+      description: "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
+      path: "/docs",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(docsItemListJsonLd(loaderData.siteUrl, DOC_GUIDES)),
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [{ name: "Docs", path: "/docs" }])),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -41,8 +52,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
-  const url = loaderData.siteUrl;
+export default function DocsIndexPage() {
   const platform = DOC_GUIDES.find((g) => g.slug === "platform")!;
   const productGuides = DOC_GUIDES.filter((g) => g.slug !== "platform");
 
@@ -77,19 +87,6 @@ export default function DocsIndexPage({ loaderData }: Route.ComponentProps) {
           </Link>
         </div>
       </div>
-
-      {/* The hub as a LIST, so a crawler reading /docs gets the set rather than
-          five pages it has to discover by link-following. Derived from
-          DOC_GUIDES in render order, so a sixth guide joins it by construction. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText([
-            docsItemListJsonLd(url, DOC_GUIDES),
-            breadcrumbListJsonLd(url, [{ name: "Docs", path: "/docs" }]),
-          ]),
-        }}
-      />
     </>
   );
 }

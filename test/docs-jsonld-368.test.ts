@@ -47,11 +47,12 @@ describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
 describe("PLANT 2: the docs index emits its list", () => {
   it("an ItemList carrying every guide, in render order", () => {
     const list = docsItemListJsonLd(URL_BASE, DOC_GUIDES);
+    const items = list.itemListElement as { name: string; position: number; url: string }[];
     expect(list["@type"]).toBe("ItemList");
-    expect(list.itemListElement).toHaveLength(DOC_GUIDES.length);
-    expect(list.itemListElement.map((i) => i.name)).toEqual(DOC_GUIDES.map((g) => g.title));
-    expect(list.itemListElement.map((i) => i.position)).toEqual([1, 2, 3, 4, 5]);
-    for (const item of list.itemListElement) {
+    expect(items).toHaveLength(DOC_GUIDES.length);
+    expect(items.map((i) => i.name)).toEqual(DOC_GUIDES.map((g) => g.title));
+    expect(items.map((i) => i.position)).toEqual([1, 2, 3, 4, 5]);
+    for (const item of items) {
       expect(item.url.startsWith(`${URL_BASE}/docs/`)).toBe(true);
     }
   });

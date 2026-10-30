@@ -1,5 +1,4 @@
 import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
-
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 import type { DisputeState } from "~/lib/constants";
 import type { DisputeSubmissionResult } from "~/lib/disputes/submission";

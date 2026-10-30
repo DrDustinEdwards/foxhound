@@ -23,6 +23,7 @@ import { isCohortRows } from "~/lib/intelligence/mrr";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/dashboard";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /console. Recova is the spec: app/(app)/console/page.tsx
 // at blob 3b8a736e, lib/console-data.tsx at 234791c4 and lib/products.ts at
@@ -48,7 +49,7 @@ import type { Route } from "./+types/dashboard";
 // for Dustin's word.
 
 export function meta() {
-  return [{ title: "Console - Foxhound" }];
+  return [{ title: "Console - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

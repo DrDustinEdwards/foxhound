@@ -1,7 +1,7 @@
+import { scrubText as scrubSharedText, scrubUrl as scrubSharedUrl } from "@dustinedwards/site-runtime/log";
 import type { CloudflareOptions, Event } from "@sentry/cloudflare";
-import { DROPPED_FIELD, scrubText, scrubUrl } from "@dustinedwards/site-runtime/log";
 
-// J05: the Sentry posture, set before Dustin puts in
+// J05 (job_f1f5ebd7fe50): the Sentry posture, set before Dustin puts in
 // SENTRY_DSN. With no DSN this returns undefined and the SDK initializes
 // nothing, exactly as before. With a DSN:
 //
@@ -20,15 +20,19 @@ import { DROPPED_FIELD, scrubText, scrubUrl } from "@dustinedwards/site-runtime/
 //
 // Sentry never wraps the money Durable Object.
 
-// The scrubbers are site-runtime's, shared with every site's logs; Foxhound adds
-// its token routes (app/routes.ts), whose last segment is one person's token.
+// Routes whose last segment is one person's token (app/routes.ts).
 const TOKEN_PATH = /\/(u|p|e\/[och]|invite)\/[^/?#\s'"]+/g;
+// Data keys that hold a query string, request headers, cookies, or raw console
+// arguments (the Console integration keeps them unformatted beside the message).
+const DROP_KEY = /query|header|cookie|arguments/i;
 
-const cutText = (text: string): string => scrubText(text, { tokenPath: TOKEN_PATH });
-const cutUrl = (url: string): string => scrubUrl(url, { tokenPath: TOKEN_PATH });
+// The text and URL scrubbers are site-runtime's ./log (emails, URL queries,
+// Stripe keys, Drizzle params), with Foxhound's token routes.
+const scrubText = (text: string) => scrubSharedText(text, { tokenPath: TOKEN_PATH });
+const scrubUrl = (url: string) => scrubSharedUrl(url, { tokenPath: TOKEN_PATH });
 
 function scrubValue(key: string, value: unknown): unknown {
-  if (typeof value === "string") return /url|path/i.test(key) ? cutUrl(value) : cutText(value);
+  if (typeof value === "string") return /url|path/i.test(key) ? scrubUrl(value) : scrubText(value);
   if (Array.isArray(value)) return value.map((v) => scrubValue(key, v));
   if (value && typeof value === "object") {
     scrubData(value as Record<string, unknown>);
@@ -40,23 +44,23 @@ function scrubValue(key: string, value: unknown): unknown {
 function scrubData(data: Record<string, unknown> | undefined): void {
   if (!data) return;
   for (const key of Object.keys(data)) {
-    if (DROPPED_FIELD.test(key)) delete data[key];
+    if (DROP_KEY.test(key)) delete data[key];
     else data[key] = scrubValue(key, data[key]);
   }
 }
 
 function scrubEvent<T extends Event>(event: T): T {
-  if (event.message) event.message = cutText(event.message);
-  if (event.transaction) event.transaction = cutUrl(event.transaction);
+  if (event.message) event.message = scrubText(event.message);
+  if (event.transaction) event.transaction = scrubUrl(event.transaction);
   for (const ex of event.exception?.values ?? []) {
-    if (ex.value) ex.value = cutText(ex.value);
+    if (ex.value) ex.value = scrubText(ex.value);
   }
   for (const crumb of event.breadcrumbs ?? []) {
-    if (crumb.message) crumb.message = cutText(crumb.message);
+    if (crumb.message) crumb.message = scrubText(crumb.message);
     scrubData(crumb.data);
   }
   if (event.request) {
-    if (event.request.url) event.request.url = cutUrl(event.request.url);
+    if (event.request.url) event.request.url = scrubUrl(event.request.url);
     delete event.request.query_string;
     delete event.request.cookies;
     delete event.request.headers;
@@ -66,7 +70,7 @@ function scrubEvent<T extends Event>(event: T): T {
   // request header into the trace context, on errors and transactions alike.
   scrubData(event.contexts?.trace?.data as Record<string, unknown> | undefined);
   for (const span of event.spans ?? []) {
-    if (span.description) span.description = cutUrl(span.description);
+    if (span.description) span.description = scrubUrl(span.description);
     scrubData(span.data as Record<string, unknown> | undefined);
   }
   delete event.user;

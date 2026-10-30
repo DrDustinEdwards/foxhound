@@ -1,6 +1,5 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
@@ -28,6 +27,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Ported from legacy app/(marketing)/blog/page.tsx: a featured-post hero, four
 // curated topic sections, and a "latest" strip of non-featured posts.
@@ -56,12 +56,22 @@ import type { Route } from "./+types/index";
 // all never leads to an empty or missing tag page.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Blog - Foxhound",
-    description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
-    path: "/blog",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  return [
+    ...marketingMeta({
+      title: "Blog - Foxhound",
+      description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
+      path: "/blog",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+            { name: "Home", path: "/" },
+            { name: "Blog", path: "/blog" },
+          ])),
+        ]
+      : []),
+  ];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -97,7 +107,7 @@ function sectionTag(section: BlogSectionConfig): string {
 }
 
 export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, featured, sections, latest } = loaderData;
+  const { featured, sections, latest } = loaderData;
   const hasAnyContent = Boolean(featured) || sections.length > 0 || latest.length > 0;
 
   return (
@@ -140,18 +150,6 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
           </Link>
         </div>
       ) : null}
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Blog", path: "/blog" },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

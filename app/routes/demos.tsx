@@ -1,5 +1,5 @@
 import { RefreshCw, Shield, TrendingUp, LayoutDashboard } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { FadeUp } from "~/components/fade-up";
 import { MarketingPageHeader } from "~/components/marketing-page-header";

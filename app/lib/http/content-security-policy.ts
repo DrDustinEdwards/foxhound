@@ -1,6 +1,6 @@
 // THE CONTENT-SECURITY-POLICY AND THE ONE PLACE THE HEADERS ARE APPLIED
 // (audit finding H-1, foxhound-audit-security.md: the site once shipped zero
-// security headers). Since J22 the header set comes
+// security headers). Since J22 (row F16; RULES.md 4.2; Q4) the header set comes
 // from site-runtime through header-set.ts and the policy from site-runtime's
 // builder; what stays here is Foxhound's own list of what it loads and the
 // Worker-side merge. The single call site is workers/app.ts's fetch handler,
@@ -24,11 +24,13 @@
 //    this. Since J22 the policy also has a report sink (/api/csp-report), so a
 //    blocked script is heard about.
 //  - site-runtime's rule is a nonce only on a response that is never
-//    shared-cached. A Worker's own response is not stored by Cloudflare's edge
-//    unless the Worker puts it in the Cache API, which Foxhound does not;
-//    cache-policy.ts's `public, max-age=300` on marketing pages lets the
-//    reader's own browser keep one page with its own nonce, which is the same
-//    reader. A cache rule that stored HTML at the edge would break this.
+//    shared-cached. Since the edge page cache (site-runtime ./edge-cache), a
+//    public page rendered by the Renderer entrypoint IS stored and handed to
+//    every reader, so it carries no nonce: it is rendered without one and its
+//    inline scripts (React Router's hydration data and module bootstrap, and
+//    the JSON-LD) are trusted by hash, computed from the page as rendered
+//    (applyHashedSecurityHeaders). Every page the gateway renders, signed-in or
+//    private, keeps its per-request nonce.
 //  - style-src has NO 'unsafe-inline' for elements since J22, which is stricter
 //    than the pre-J22 policy. Inline style={{}} attributes (charts.tsx,
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
@@ -65,24 +67,28 @@
 //    its own while `sources.frame` is empty, so there is still exactly one.
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
-import {
-  buildContentSecurityPolicy,
-  reportingEndpoints,
-} from "@dustinedwards/site-runtime/csp";
+import { buildContentSecurityPolicy, reportingEndpoints, scriptHash } from "@dustinedwards/site-runtime/csp";
+import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
+
+// Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
+const STRIPE_FORM_TARGETS = "https://checkout.stripe.com https://connect.stripe.com";
+const FORM_ACTION_SELF = "form-action 'self'";
+
+/** The builder's policy with Stripe's form targets and the Turnstile frame added. */
+function withFoxhoundDirectives(value: string): string {
+  if (value.split(FORM_ACTION_SELF).length !== 2)
+    throw new Error("the builder's form-action is not 'self' exactly once");
+  return `${value.replace(FORM_ACTION_SELF, `${FORM_ACTION_SELF} ${STRIPE_FORM_TARGETS}`)}; frame-src ${TURNSTILE_ORIGIN}`;
+}
 
 /** Where browsers send violation reports: the path Recova used too. */
 export const CSP_REPORT_PATH = "/api/csp-report";
 
 /** The Reporting API group name, defined by the Reporting-Endpoints header. */
 export const CSP_REPORT_GROUP = "csp-endpoint";
-
-const TURNSTILE = "https://challenges.cloudflare.com";
-// Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
-const STRIPE_FORM_TARGETS =
-  "https://checkout.stripe.com https://connect.stripe.com";
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
@@ -92,22 +98,19 @@ const STRIPE_FORM_TARGETS =
 // and generateNonce cannot produce (24 base64 characters always end in "==",
 // this one has none), so the substitution can only hit the nonce sources.
 const NONCE_PLACEHOLDER = "Rk9YSE9VTkROT05DRVBMQUNFSE9MREVS";
-const POLICY = buildContentSecurityPolicy({
+const SITE = {
   sources: {
-    script: [TURNSTILE],
+    script: [TURNSTILE_ORIGIN],
     img: ["data:"],
   },
-  nonce: NONCE_PLACEHOLDER,
   styleHashes: INLINE_STYLE_HASHES,
   styleAttributesInline: true,
   cloudflareWebAnalytics: true,
   reportUri: CSP_REPORT_PATH,
   reportTo: CSP_REPORT_GROUP,
-});
-const FORM_ACTION_SELF = "form-action 'self'";
-if (POLICY.value.split(FORM_ACTION_SELF).length !== 2)
-  throw new Error("the builder's form-action is not 'self' exactly once");
-const POLICY_VALUE = `${POLICY.value.replace(FORM_ACTION_SELF, `${FORM_ACTION_SELF} ${STRIPE_FORM_TARGETS}`)}; frame-src ${TURNSTILE}`;
+} as const;
+const POLICY = buildContentSecurityPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER });
+const POLICY_VALUE = withFoxhoundDirectives(POLICY.value);
 const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */
@@ -129,21 +132,46 @@ function contentSecurityPolicy(nonce: string) {
  * report-to group needs this origin's absolute URL (until site-runtime v0.12.0
  * the header named the bare path and no report-to report was ever sent).
  */
-export function applySecurityHeaders(
-  response: Response,
-  nonce: string,
-  origin: string,
-): Response {
+export function applySecurityHeaders(response: Response, nonce: string, origin: string): Response {
+  return withHeaders(response, contentSecurityPolicy(nonce), origin);
+}
+
+// An inline <script> (no src) and its text. React Router escapes "</" inside
+// what it writes inline, so the first closing tag ends each one.
+const INLINE_SCRIPT = /<script\b(?![^>]*\ssrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi;
+
+/** The `sha256-...` source of every distinct inline script in a rendered page. */
+async function inlineScriptHashes(html: string): Promise<string[]> {
+  const texts = new Set<string>();
+  for (const match of html.matchAll(INLINE_SCRIPT)) texts.add(match[1] ?? "");
+  return Promise.all([...texts].map((text) => scriptHash(text)));
+}
+
+/**
+ * The same header set for a page the edge stores: rendered with no nonce, its
+ * inline scripts trusted by hash. An HTML body is read whole to hash it (a
+ * miss only; a hit is served from the cache), then sent on as that text. The
+ * builder runs per response here, which is every check it makes, on a path
+ * that runs once per page per deploy or purge.
+ */
+export async function applyHashedSecurityHeaders(response: Response, origin: string): Promise<Response> {
+  const isHtml = (response.headers.get("Content-Type") ?? "").startsWith("text/html");
+  const html = isHtml ? await response.text() : null;
+  const scriptHashes = html === null ? [] : await inlineScriptHashes(html);
+  const policy = buildContentSecurityPolicy({ ...SITE, scriptHashes });
+  const page = html === null
+    ? response
+    : new Response(html, { status: response.status, statusText: response.statusText, headers: response.headers });
+  return withHeaders(page, { name: policy.name, value: withFoxhoundDirectives(policy.value) }, origin);
+}
+
+function withHeaders(response: Response, policy: { name: string; value: string }, origin: string): Response {
   const headers = new Headers(response.headers);
   applyHeaderSet(headers, SECURITY_HEADERS, { overwrite: false });
   if (!headers.has("Content-Security-Policy")) {
-    const policy = contentSecurityPolicy(nonce);
     headers.set(policy.name, policy.value);
     try {
-      headers.set(
-        "Reporting-Endpoints",
-        reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)),
-      );
+      headers.set("Reporting-Endpoints", reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)));
     } catch {
       // A plain-http origin, which reportingEndpoints refuses and a browser
       // would ignore: the page is still served, with report-uri as its sink.

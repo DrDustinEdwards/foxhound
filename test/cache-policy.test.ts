@@ -2,7 +2,18 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { applyCachePolicy, CACHE_DIRECTIVES, classifyPath, hasSessionCookie, PRIVATE_DIRECTIVE, resolveCacheControl } from "~/lib/http/cache-policy";
+import { SHARED_CACHE_CONTROL } from "@dustinedwards/site-runtime/edge-cache";
+
+import {
+  applyCachePolicy,
+  CACHE_DIRECTIVES,
+  classifyPath,
+  edgeCacheable,
+  edgeRequest,
+  hasSessionCookie,
+  PRIVATE_DIRECTIVE,
+  resolveCacheControl,
+} from "~/lib/http/cache-policy";
 
 // SESSION 53 / 345 binding 4: the response cache policy, shipped BEFORE the
 // cache is enabled.
@@ -27,7 +38,6 @@ const PUBLIC_ROUTES = [
   ["/about", "marketing"],
   ["/privacy", "marketing"],
   ["/terms", "marketing"],
-  ["/audit", "marketing"],
   ["/products", "marketing"],
   ["/product/recovery", "marketing"],
   ["/products/recovery", "marketing"],
@@ -35,7 +45,6 @@ const PUBLIC_ROUTES = [
   ["/compare/chargeflow", "marketing"],
   ["/decline-codes", "marketing"],
   ["/decline-codes/card_declined", "marketing"],
-  ["/demos", "marketing"],
   ["/docs", "docs"],
   ["/docs/recovery", "docs"],
   ["/blog", "blog"],
@@ -104,6 +113,9 @@ const PRIVATE_ROUTES = [
   "/e/c/tok",
   "/webhooks/stripe",
   "/marketing/generate-email-sample",
+  // Under the marketing layout, but the estimator and the demo's door.
+  "/audit",
+  "/demos",
   "/demos/dashboard",
   "/recovery/payments/export.csv",
 ];
@@ -114,33 +126,74 @@ function request(path: string, cookie?: string): Request {
   });
 }
 
-describe("PLANT 1: an anonymous request gets the public directive", () => {
+describe("PLANT 1: an anonymous page is shared only as the Renderer rendered it", () => {
   it.each(PUBLIC_ROUTES)("%s is %s", (path, expected) => {
     expect(classifyPath(path)).toBe(expected);
-    expect(resolveCacheControl(request(path))).toBe(
-      CACHE_DIRECTIVES[expected as keyof typeof CACHE_DIRECTIVES],
-    );
+    const directive = expected === "files" ? CACHE_DIRECTIVES.files : SHARED_CACHE_CONTROL;
+    expect(resolveCacheControl(request(path), true)).toBe(directive);
   });
 
-  it("blog is SHORTER than marketing, because posts change without a deploy", () => {
-    expect(CACHE_DIRECTIVES.blog).toBe("public, max-age=60, stale-while-revalidate=600");
-    expect(CACHE_DIRECTIVES.marketing).toBe("public, max-age=300, stale-while-revalidate=3600");
+  it("a page the gateway rendered (with its nonce) is never shared", () => {
+    expect(resolveCacheControl(request("/pricing"))).toBe(PRIVATE_DIRECTIVE);
+  });
+
+  it("a shared page carries the edge lifetime and the purge tag; one that sets a cookie does not", () => {
+    const shared = applyCachePolicy(request("/pricing"), new Response("x"), true);
+    expect(shared.headers.get("Cloudflare-CDN-Cache-Control")).toMatch(/^max-age=\d+/);
+    expect(shared.headers.get("Cache-Tag")).toBe("pages");
+    const cookied = applyCachePolicy(request("/pricing"), new Response("x", { headers: { "Set-Cookie": "a=1" } }), true);
+    expect(cookied.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+    expect(cookied.headers.get("Cache-Tag")).toBeNull();
   });
 });
 
 describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
-  it.each(PUBLIC_ROUTES)("%s is private with a PRODUCTION session cookie", (path) => {
-    expect(resolveCacheControl(request(path, PROD_COOKIE))).toBe(PRIVATE_DIRECTIVE);
+  const PAGES = PUBLIC_ROUTES.filter(([, c]) => c !== "files");
+
+  it.each(PAGES)("%s is private with a PRODUCTION session cookie", (path) => {
+    expect(resolveCacheControl(request(path, PROD_COOKIE), true)).toBe(PRIVATE_DIRECTIVE);
   });
 
-  it.each(PUBLIC_ROUTES)("%s is private with a LOCAL session cookie", (path) => {
-    expect(resolveCacheControl(request(path, LOCAL_COOKIE))).toBe(PRIVATE_DIRECTIVE);
+  it.each(PAGES)("%s is private with a LOCAL session cookie", (path) => {
+    expect(resolveCacheControl(request(path, LOCAL_COOKIE), true)).toBe(PRIVATE_DIRECTIVE);
   });
 
   it("it is found among OTHER cookies, not only when it is alone", () => {
     expect(
       hasSessionCookie(request("/", `theme=dark; ${PROD_COOKIE}; demo=1`)),
     ).toBe(true);
+  });
+});
+
+describe("PLANT 8: the gateway sends only an anonymous GET of a public page to the cache", () => {
+  it.each(PUBLIC_ROUTES)("%s goes to the Renderer when anonymous", (path) => {
+    expect(edgeCacheable(request(path))).toBe(true);
+    expect(edgeCacheable(request(path, "fh_theme=light"))).toBe(true);
+  });
+
+  it.each(PUBLIC_ROUTES)("%s stays in the gateway with a session cookie, or any other cookie", (path) => {
+    expect(edgeCacheable(request(path, PROD_COOKIE))).toBe(false);
+    expect(edgeCacheable(request(path, `fh_theme=dark; ${LOCAL_COOKIE}`))).toBe(false);
+    expect(edgeCacheable(request(path, "fh_demo=1"))).toBe(false);
+  });
+
+  it.each(PRIVATE_ROUTES)("%s stays in the gateway", (path) => {
+    expect(edgeCacheable(request(path))).toBe(false);
+  });
+
+  it("writes, HEAD and the media library stay in the gateway", () => {
+    expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "POST" }))).toBe(false);
+    expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "HEAD" }))).toBe(false);
+    expect(edgeCacheable(request("/media/a.png"))).toBe(false);
+  });
+
+  it("the Renderer sees only the theme, and the theme is in the key", () => {
+    const dark = edgeRequest(request("/pricing"), "/pricing");
+    const light = edgeRequest(request("/pricing?x=1", "fh_theme=light"), "/pricing?x=1");
+    expect(dark.request.headers.get("cookie")).toBe("fh_theme=dark");
+    expect(dark.cacheKey).toBe("/pricing?fh-theme-key=dark");
+    expect(light.request.headers.get("cookie")).toBe("fh_theme=light");
+    expect(light.cacheKey).toBe("/pricing?x=1&fh-theme-key=light");
   });
 });
 
@@ -186,9 +239,10 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
 });
 
 describe("PLANT 7: the policy is applied at the one choke point", () => {
-  it("the fetch entry applies it to both the rate-limited and the handled response", () => {
+  it("the fetch entry applies it to the rate-limited, the handled and the Renderer's response", () => {
     const source = readFileSync("workers/app.ts", "utf8");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))");
+    expect(source).toContain("settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)))");
   });
 });

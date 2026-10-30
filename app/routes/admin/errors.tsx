@@ -1,4 +1,5 @@
-import { Link, useNavigation, useRevalidator } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ExternalLink } from "lucide-react";
 import { Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
@@ -18,11 +19,12 @@ import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/errors";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Errors" };
 
 export function meta() {
-  return [{ title: "Errors - Foxhound admin" }];
+  return [{ title: "Errors - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

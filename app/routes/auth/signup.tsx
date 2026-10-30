@@ -20,6 +20,7 @@ import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/signup";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // Row A3, /signup: Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
 // read whole, for the frame: one card, "Connect Stripe once", the fee line,
@@ -40,7 +41,7 @@ import type { Route } from "./+types/signup";
 // Recova stored no name for an email signup.
 
 export function meta() {
-  return [{ title: "Sign up - Foxhound" }];
+  return [{ title: "Sign up - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {

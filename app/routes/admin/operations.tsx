@@ -32,11 +32,12 @@ import {
 } from "~/lib/admin/operations.server";
 
 import type { Route } from "./+types/operations";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Operations" };
 
 export function meta() {
-  return [{ title: "Operations - Foxhound admin" }];
+  return [{ title: "Operations - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
-import { Form, Link, useNavigation, useRevalidator } from "react-router";
+import { Form, useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ChevronRight } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
 import { Pagination } from "capsomer/react/pagination";
@@ -27,11 +28,12 @@ import { getWebhookHealthSummary, listWebhookEvents, type WebhookEventRow } from
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/webhooks";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Webhooks" };
 
 export function meta() {
-  return [{ title: "Webhooks - Foxhound admin" }];
+  return [{ title: "Webhooks - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {

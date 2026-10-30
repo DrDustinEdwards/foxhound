@@ -1,4 +1,3 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
@@ -7,7 +6,7 @@ import "capsomer/disclosure.css";
 // keeps the page whole under any layout.
 import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
@@ -54,6 +53,7 @@ import {
   HOW_IT_WORKS,
   BILLING_ANSWER,
 } from "../components/home-parts";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The marketing home page. Recova's spec, read whole at HEAD:
 // app/(marketing)/page.tsx (blob c10db7d5), components/hero/RecoveryDemo.tsx
@@ -79,12 +79,31 @@ import {
 const H2 = "m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg";
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: HOME_TITLE,
-    description: HOME_META_DESCRIPTION,
-    path: "/",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // JSON-LD, as Recova emits it: Organization, SoftwareApplication, the
+  // FAQPage from the plain answers above, the Speakable WebPage and the
+  // WebSite. Every URL comes from the loader's siteUrl.
+  const url = loaderData?.siteUrl ?? "";
+  return [
+    ...marketingMeta({
+      title: HOME_TITLE,
+      description: HOME_META_DESCRIPTION,
+      path: "/",
+      siteUrl: url,
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(organizationJsonLd(url)),
+          jsonLd(softwareApplicationJsonLd(url)),
+          jsonLd(faqPageJsonLd(FAQS)),
+          jsonLd(speakableWebPageJsonLd(url, {
+            name: HOME_WEBPAGE_NAME,
+            path: "/",
+            selectors: [".speakable-hero", ".speakable-how-it-works", ".speakable-faq"],
+          })),
+          jsonLd(websiteJsonLd(url)),
+        ]
+      : []),
+  ];
 }
 
 // Recova's blog strip: the featured post first, then the two most recent that
@@ -106,7 +125,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, blogPosts } = loaderData;
+  const { blogPosts } = loaderData;
 
   return (
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
@@ -530,26 +549,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </section>
-
-      {/* JSON-LD, as Recova emits it: Organization, SoftwareApplication, the
-          FAQPage from the plain answers above, the Speakable WebPage and the
-          WebSite. Every URL comes from the loader's siteUrl. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText([
-            organizationJsonLd(url),
-            softwareApplicationJsonLd(url),
-            faqPageJsonLd(FAQS),
-            speakableWebPageJsonLd(url, {
-              name: HOME_WEBPAGE_NAME,
-              path: "/",
-              selectors: [".speakable-hero", ".speakable-how-it-works", ".speakable-faq"],
-            }),
-            websiteJsonLd(url),
-          ]),
-        }}
-      />
     </div>
   );
 }

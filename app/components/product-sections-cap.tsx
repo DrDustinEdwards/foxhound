@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill } from "capsomer/react/status";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";

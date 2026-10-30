@@ -1,6 +1,6 @@
 import { and, count, eq, isNull, notInArray } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
 import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
@@ -19,6 +19,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 import type { Route } from "./+types/hub";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S24, the settings hub. Ported from Recova's settings/page.tsx (blob
 // `55b1445a`, 6,911 bytes).
@@ -54,7 +55,7 @@ import type { Route } from "./+types/hub";
 // (or a RowList column count) is where that belongs, named in the J40 PR.
 
 export function meta() {
-  return [{ title: "Settings - Foxhound" }];
+  return [{ title: "Settings - Foxhound" }, NOINDEX];
 }
 
 export interface SettingsHubEntry {

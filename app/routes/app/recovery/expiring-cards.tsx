@@ -6,9 +6,10 @@ import { isCardExpired, isCardExpiringSoon } from "~/lib/recovery/expiring-card"
 import { listExpiringCardAlerts } from "~/lib/recovery/queries.server";
 
 import type { Route } from "./+types/expiring-cards";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Expiring cards - Foxhound" }];
+  return [{ title: "Expiring cards - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

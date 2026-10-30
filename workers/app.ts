@@ -1,4 +1,7 @@
+// aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
+import { WorkerEntrypoint } from "cloudflare:workers";
 import { generateNonce } from "@dustinedwards/site-runtime/csp";
+import { cacheKey, forReader, PAGES_CACHE_TAG, purgeTags, settleCacheHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider } from "react-router";
@@ -8,11 +11,12 @@ import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runCronJob } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
-import { applyCachePolicy } from "~/lib/http/cache-policy";
-import { applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
+import { applyHashedSecurityHeaders, applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
+import { PRELOADS } from "~/lib/preloads";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
@@ -30,6 +34,17 @@ export class RateLimiterDurableObject extends RateLimiter {}
 // The admin API, served only to a service binding that names this entrypoint
 // (FH-20); the public fetch below does not route it.
 export { AdminApi } from "./admin-api";
+
+// The preloads root.tsx links, on every HTML page as the `Link` header
+// Cloudflare Early Hints reads. Appended, so a route's own Link stays. It runs
+// after applySecurityHeaders, which always returns a response on a fresh,
+// writable Headers (applyCachePolicy keeps that one or builds another).
+function withPreloads(response: Response): Response {
+  if ((response.headers.get("Content-Type") ?? "").startsWith("text/html")) {
+    response.headers.append("Link", PRELOADS.header);
+  }
+  return response;
+}
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -62,7 +77,15 @@ export default withSentry<Env>(
       if (new URL(request.url).pathname.startsWith("/api/carrel/v1")) {
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
         const carrel = await handleCarrelRequest(request, env, ctx);
-        if (carrel) return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
+        if (carrel) {
+          // Any write Carrel makes (a post, its schedule, a media library
+          // picture a post shows) can change a stored page, so they are all
+          // dropped. Never awaited, never throws.
+          if (request.method !== "GET" && request.method !== "HEAD" && carrel.ok) {
+            ctx.waitUntil(ctx.exports.Renderer.purgePages(`carrel ${request.method} ${new URL(request.url).pathname}`));
+          }
+          return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
+        }
       }
 
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
@@ -86,6 +109,20 @@ export default withSentry<Env>(
         if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce, origin));
       }
 
+      // THE EDGE PAGE CACHE (site-runtime ./edge-cache). This default export
+      // has the Workers cache disabled, so it runs on every request, hits
+      // included, and decides here, before the cache is consulted, what may be
+      // served from it: only an anonymous GET of a public page (cache-policy.ts,
+      // edgeCacheable). A request carrying a session cookie, or any cookie but
+      // the theme, never reaches the Renderer and is rendered below with its own
+      // nonce, stored nowhere. forReader tells the browser no-store when the
+      // request carried a cookie at all.
+      if (edgeCacheable(request)) {
+        const edge = edgeRequest(request, cacheKey(request.url));
+        const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: edge.cacheKey } });
+        return forReader(page, request);
+      }
+
       const context = new RouterContextProvider();
       context.set(cloudflareContext, { env, ctx, nonce });
       const response = await requestHandler(request, context);
@@ -93,7 +130,7 @@ export default withSentry<Env>(
       // passes through. A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
-      return applyCachePolicy(request, applySecurityHeaders(response, nonce, origin));
+      return withPreloads(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)));
     },
     // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
     // foxhound-email (no producer; live sends are synchronous in the recovery
@@ -148,3 +185,30 @@ export default withSentry<Env>(
     },
   } satisfies ExportedHandler<Env>,
 );
+
+/**
+ * THE CACHEABLE ENTRYPOINT (site-runtime ./edge-cache; wrangler.jsonc
+ * `exports`). The gateway below sends it only what edgeCacheable() allows: a
+ * GET of a public page or files route whose one cookie, if any, is the theme.
+ * Its responses are stored by the Workers cache under the key the gateway
+ * names, so every header a stored page leaves with is set here, or it is
+ * missing from every hit. The page is rendered with no nonce and its inline
+ * scripts trusted by hash, since every reader of a stored page would share one.
+ * settleCacheHeaders runs last: anything but a shared 200 leaves
+ * `private, no-store` and is stored nowhere.
+ */
+export class Renderer extends WorkerEntrypoint<Env> {
+  override async fetch(request: Request): Promise<Response> {
+    const context = new RouterContextProvider();
+    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined });
+    const response = await requestHandler(request, context);
+    const secured = await applyHashedSecurityHeaders(response, new URL(request.url).origin);
+    return settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)));
+  }
+
+  /** Drops every stored page. Here, not in the gateway, because a purge only
+   *  reaches the cache of the entrypoint that calls it. Never throws. */
+  async purgePages(why: string): Promise<boolean | null> {
+    return purgeTags(this.ctx.cache, [PAGES_CACHE_TAG], why);
+  }
+}

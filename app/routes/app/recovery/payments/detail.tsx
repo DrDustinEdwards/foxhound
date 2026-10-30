@@ -2,7 +2,8 @@ import { useEffect, useId, useState } from "react";
 
 import { ArrowRight, ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
-import { Form, Link, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
+import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status } from "capsomer/react/status";
@@ -56,9 +57,10 @@ import type { AttributionKind } from "~/lib/constants";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 
 import type { Route } from "./+types/detail";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export function meta() {
-  return [{ title: "Payment detail - Foxhound" }];
+  return [{ title: "Payment detail - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {

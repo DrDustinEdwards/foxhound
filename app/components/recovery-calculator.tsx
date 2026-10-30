@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";

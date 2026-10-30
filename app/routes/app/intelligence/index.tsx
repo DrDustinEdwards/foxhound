@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { data, Link, useFetcher } from "react-router";
+import { data, useFetcher } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -43,6 +44,7 @@ import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/
 import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/dashboard. Recova is the spec: its real
 // page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
@@ -72,7 +74,7 @@ import type { Route } from "./+types/index";
 // (TASK-seven-walked-pages.md): it is kept exactly as it was, after the summary.
 
 export function meta() {
-  return [{ title: "Intelligence - Foxhound" }];
+  return [{ title: "Intelligence - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

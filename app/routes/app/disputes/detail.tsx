@@ -9,7 +9,8 @@ import "capsomer/status.css";
 import "~/site-header.css";
 import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
 import { useEffect, useReducer, useState } from "react";
-import { Form, Link, useFetcher, useNavigation } from "react-router";
+import { Form, useFetcher, useNavigation } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status } from "capsomer/react/status";
@@ -70,6 +71,7 @@ import {
   EvidenceFileForms,
   EvidenceFiles,
 } from "../../../components/dispute-detail-parts";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /disputes/:id: Recova's dispute page on Foxhound's engine.
 // Recova is the spec, read whole at HEAD: app/(app)/disputes/[id]/page.tsx
@@ -110,7 +112,7 @@ import {
 //   2026-08-28).
 
 export function meta() {
-  return [{ title: "Dispute detail - Foxhound" }];
+  return [{ title: "Dispute detail - Foxhound" }, NOINDEX];
 }
 
 // The page bar's name (app-shell.tsx). Recova had no page bar, so it is the

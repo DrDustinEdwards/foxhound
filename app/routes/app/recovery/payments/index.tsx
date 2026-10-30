@@ -1,6 +1,7 @@
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Form, Link, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import { Form, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import { Link } from "capsomer/react/link";
 import { dismissBanner } from "capsomer/behavior/banner";
 import { Banner } from "capsomer/react/banner";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
@@ -86,6 +87,7 @@ import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/payments. Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
@@ -119,7 +121,7 @@ import type { Route } from "./+types/index";
 // on Enter.
 
 export function meta() {
-  return [{ title: "Payments - Foxhound" }];
+  return [{ title: "Payments - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {

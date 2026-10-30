@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { lineChart } from "enarratio/lite/line";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -31,6 +31,7 @@ import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/churn";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/churn. Recova is the spec: its real page,
 // app/(app)/intelligence/churn/page.tsx at blob 718cd7f5, and its chart,
@@ -47,7 +48,7 @@ import type { Route } from "./+types/churn";
 // from the constants below, never Recova's 33/66.
 
 export function meta() {
-  return [{ title: "Churn Risk - Foxhound" }];
+  return [{ title: "Churn Risk - Foxhound" }, NOINDEX];
 }
 
 const BAND_ORDER: HealthScoreBand[] = ["at_risk", "watch", "healthy"];

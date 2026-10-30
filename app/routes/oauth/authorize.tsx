@@ -27,6 +27,7 @@ import {
 } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/authorize";
+import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
 
 // /oauth/authorize: the page where a signed-in merchant
 // lets an external agent connect to one Foxhound account.
@@ -60,8 +61,10 @@ import type { Route } from "./+types/authorize";
 // so that a switch in another tab is refused rather than silently approved.
 
 export function meta() {
-  return [{ title: "Authorize access - Foxhound" }];
+  return [{ title: "Authorize access - Foxhound" }, NOINDEX];
 }
+
+export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
 
 type Refusal = { ok: false; title: string; message: string };
 type Consent = {

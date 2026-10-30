@@ -28,6 +28,7 @@ import {
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-description";
 
 import type { Route } from "./+types/disputes";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S32, /settings/disputes.
 //
@@ -67,7 +68,7 @@ import type { Route } from "./+types/disputes";
 // content, order and arrangement stay, as /settings/features does.
 
 export function meta() {
-  return [{ title: "Dispute settings - Foxhound" }];
+  return [{ title: "Dispute settings - Foxhound" }, NOINDEX];
 }
 
 /** The page's line and the Disputes row's line, Recova's. */

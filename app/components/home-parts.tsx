@@ -2,7 +2,7 @@
 // how-it-works steps and the billing answer.
 
 import { ArrowRight, ArrowUpRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import {
   BILLING_FAQ_PARTS,
   MATURITY_DAYS,

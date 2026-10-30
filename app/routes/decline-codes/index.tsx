@@ -1,6 +1,5 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { Badge } from "~/components/badge";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -11,6 +10,7 @@ import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 3 (net-new, no legacy equivalent): the decline-code
 // reference library hub. Cards are grouped by classification category
@@ -20,13 +20,23 @@ import type { Route } from "./+types/index";
 // the page than an alphabetical list would be.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Stripe Decline Code Library - Foxhound",
-    description:
-      "What every major Stripe decline code means, why it happens, and how it gets recovered. Grouped by soft, network, expired, and fraud classifications.",
-    path: "/decline-codes",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  return [
+    ...marketingMeta({
+      title: "Stripe Decline Code Library - Foxhound",
+      description:
+        "What every major Stripe decline code means, why it happens, and how it gets recovered. Grouped by soft, network, expired, and fraud classifications.",
+      path: "/decline-codes",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+            { name: "Home", path: "/" },
+            { name: "Decline codes", path: "/decline-codes" },
+          ])),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -34,8 +44,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function DeclineCodesIndex({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url } = loaderData;
+export default function DeclineCodesIndex() {
   const views = listDeclineCodeViews();
   const byCategory = CATEGORY_ORDER.map((category) => ({
     category,
@@ -83,18 +92,6 @@ export default function DeclineCodesIndex({ loaderData }: Route.ComponentProps) 
           </section>
         ))}
       </div>
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Decline codes", path: "/decline-codes" },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { RefreshCw } from "lucide-react";
 
 import {
@@ -26,6 +25,7 @@ import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/recovery";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The Recovery spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/recovery/page.tsx (blob ec4aded8) and the files it
@@ -48,12 +48,25 @@ const TITLE = "Recovery - Foxhound";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: TITLE,
-    description: RECOVERY_META_DESCRIPTION,
-    path: PATH,
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // SpeakableSpecification, as Recova emits it: the selectors point at
+  // the classes product-sections-cap.tsx puts on the sections.
+  return [
+    ...marketingMeta({
+      title: TITLE,
+      description: RECOVERY_META_DESCRIPTION,
+      path: PATH,
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
+            name: TITLE,
+            path: PATH,
+            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+          })),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -62,7 +75,7 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function RecoveryProductPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, preview } = loaderData;
+  const { preview } = loaderData;
   const { categories, dashboard, payments } = RECOVERY_BLOCKS;
 
   return (
@@ -130,20 +143,6 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
         sub={RECOVERY_BOTTOM_CTA.sub}
         cta={AUDIT}
         note={RECOVERY_BOTTOM_CTA.note}
-      />
-      {/* SpeakableSpecification, as Recova emits it: the selectors point at
-          the classes product-sections-cap.tsx puts on the sections. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            speakableWebPageJsonLd(url, {
-              name: TITLE,
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        }}
       />
     </div>
   );

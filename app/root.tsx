@@ -8,18 +8,20 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
 import { ErrorView } from "./components/error-view";
-import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
-import dmMono400 from "./assets/fonts/dm-mono-400.woff2?url";
-import dmMono500 from "./assets/fonts/dm-mono-500.woff2?url";
 import { cloudflareContext } from "./lib/cloudflare-context";
+import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
 export function meta() {
   return [{ title: "Foxhound" }];
 }
+
+// The font preloads, also sent as the Early Hints `Link` header (lib/preloads.ts).
+export const links: Route.LinksFunction = () => PRELOADS.links;
 
 // Theme read once at the root so <html data-theme> is correct on the very
 // first byte (no flash of the wrong mode). resolveThemeForRequest, not the
@@ -37,6 +39,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, nonce } = context.get(cloudflareContext);
   return { theme: await resolveThemeForRequest(env, request), nonce };
 }
+
+// Paths that act on a GET, so a hovered link never prefetches them (a prefetch runs the loader),
+// beyond the family's NEVER_PREFETCH that capsomer/react/link already skips: the demo entries
+// seed the demo and set its cookie, /demo/exit clears it, the token routes unsubscribe, finish a
+// card update, record an engagement or accept an invite, the OAuth returns exchange a code, and
+// /connect/additional mints the state cookie. /admin/view-as/stop ends a view-as session.
+const NO_PREFETCH = [
+  "/demos/:product",
+  "/demo/exit",
+  "/u/:token",
+  "/p/:token",
+  "/e",
+  "/invite/:token",
+  "/connect/callback",
+  "/connect/additional",
+  "/audit/callback",
+  "/admin/view-as",
+];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   // useRouteLoaderData (not useLoaderData) so an error boundary rendered
@@ -83,14 +103,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             element has no env access. Relative resolves identically for every
             feed reader and cannot go stale at the Phase 9 cutover. */}
         <link rel="alternate" type="application/rss+xml" href="/feed.rss" />
-        <link rel="preload" href={dmSansVariable} as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href={dmMono400} as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href={dmMono500} as="font" type="font/woff2" crossOrigin="anonymous" />
         <Meta />
         <Links />
       </head>
       <body className="min-h-full">
-        {children}
+        <LinkPrefetch exclude={NO_PREFETCH}>{children}</LinkPrefetch>
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
       </body>

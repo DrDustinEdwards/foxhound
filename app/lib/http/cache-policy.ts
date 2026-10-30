@@ -1,24 +1,35 @@
-import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { readThemeCookie } from "capsomer/theme-server";
 
-// THE RESPONSE CACHE POLICY.
+import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
+import { resolveThemePreference, THEME_COOKIE } from "~/lib/theme";
+
+// THE RESPONSE CACHE POLICY (345 binding 4; the edge page cache since
+// site-runtime 0.33.0's ./edge-cache).
 //
-// This decides one header, `Cache-Control`, from two inputs: the route class and
-// whether the request carries a session cookie. It is applied in ONE place, the
-// Worker fetch entry, beside applySecurityHeaders, which is already the single
-// choke point every response passes through. React Router 8's `headers` export
-// is PER ROUTE, so expressing this there would mean the same directive copied
-// into ~60 route modules and a new route defaulting to nothing; the fetch entry
-// needs no framework feature and cannot be forgotten by a new route.
+// This decides `Cache-Control` from the route class, whether the request
+// carries a session cookie, and which entrypoint rendered it. It is applied in
+// ONE place, workers/app.ts, beside applySecurityHeaders, which is already the
+// single choke point every response passes through. React Router 8's `headers`
+// export is PER ROUTE, so expressing this there would mean the same directive
+// copied into ~60 route modules and a new route defaulting to nothing; the
+// fetch entry needs no framework feature and cannot be forgotten by a new route.
 //
-// WHY THE COOKIE CHECK IS LOAD BEARING, and it is the whole reason this module
-// exists rather than a one-line wrangler change:
+// HOW A PAGE IS STORED. The Worker's default export is a gateway with the
+// Workers cache disabled, so it runs on EVERY request, hits included. It sends
+// a request to the cacheable Renderer entrypoint only when edgeCacheable()
+// below says so: a GET of a public page whose only cookie, if any, is
+// the theme. Everything else, and above all every request carrying a session
+// cookie, is rendered by the gateway itself and stored nowhere. That is what
+// the first enable (session 53) lacked: the Worker did not run on a hit, so
+// nothing it computed could stop a signed-in request being served a stored
+// page. Now the gateway decides before the cache is consulted.
 //
-// Cloudflare's documented bypass conditions are a `Set-Cookie` header on the
-// RESPONSE and an `Authorization` header on the REQUEST
-// (developers.cloudflare.com/workers/cache/). A request `Cookie` header triggers
-// nothing. Foxhound's marketing layout renders the signed-in account switcher on
-// the same URLs anonymous visitors fetch (app/layouts/marketing.tsx), so without
-// this a signed-in render of `/` could be stored and served to a stranger.
+// WHY THE COOKIE CHECK IS STILL LOAD BEARING: the marketing layout renders the
+// signed-in account switcher on the same URLs anonymous visitors fetch
+// (app/layouts/marketing.tsx), so a signed-in render must never reach the
+// Renderer. CLAUDE.md hard rule 9: one signed-in cache HIT means turn page
+// caching off.
 //
 // And responses with NO Cache-Control are eligible for heuristic freshness under
 // RFC 9111, so "we set no header" is not the same as "it will not be cached".
@@ -27,23 +38,21 @@ import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
 /** Anything not matched below is PRIVATE. The default is the safe one. */
 export type CacheClass = "marketing" | "docs" | "blog" | "files" | "private";
 
-/**
- * The directive per class.
- *
- * marketing and docs are authored in the repo and change only on deploy, and
- * `cross_version_cache` defaults false so the Worker version is part of the
- * cache key and every deploy already resets it. 300 seconds bounds how long a
- * stale edge copy can outlive a rollback.
- *
- * BLOG IS DELIBERATELY SHORTER. It is the only public class whose content can
- * change WITHOUT a deploy: posts are edited in Carrel and written into D1, so there
- * is no version bump to clear the cache, and a long TTL would leave a published
- * edit invisible.
+/*
+ * The classes whose pages the edge stores: marketing, docs and blog (site-runtime ./edge-cache). Every
+ * one is rendered the same for every anonymous reader. Stored a day and served
+ * stale a week while it re-renders (publicPageHeaders), tagged "pages". That is
+ * safe because every deploy starts cold (`cross_version_cache` stays false, so
+ * the Worker version is in the key) and every Carrel write and applied blog
+ * schedule purges the tag (workers/app.ts, app/lib/carrel/handler.server.ts).
+ * The browser keeps nothing (max-age=0), because a purge cannot reach it.
  */
-export const CACHE_DIRECTIVES: Record<Exclude<CacheClass, "private">, string> = {
-  marketing: "public, max-age=300, stale-while-revalidate=3600",
-  docs: "public, max-age=300, stale-while-revalidate=3600",
-  blog: "public, max-age=60, stale-while-revalidate=600",
+
+/**
+ * The directive for a files route that sets none of its own (the card route).
+ * Its output is a pure function of the URL and changes only on deploy.
+ */
+export const CACHE_DIRECTIVES: Record<"files", string> = {
   files: "public, max-age=86400, stale-while-revalidate=86400",
 };
 
@@ -93,12 +102,14 @@ const MARKETING_EXACT = new Set([
   "/privacy",
   "/terms",
   "/security",
-  "/audit",
   "/products",
   "/compare",
   "/decline-codes",
-  "/demos",
 ]);
+// NOT /audit and NOT /demos, though both sit under the marketing layout: /audit
+// is the estimator, whose form posts to a Turnstile-gated action and whose page
+// leads into the Stripe audit flow, and /demos is where the demo begins (its
+// entries set the demo cookie). Both stay private, rendered per request.
 
 /** Prefixes that are PUBLIC marketing, with their own index covered above. */
 // "/product/" is Recova's product pages; "/products/" stays for the four
@@ -144,17 +155,64 @@ export function classifyPath(pathname: string): CacheClass {
 }
 
 /**
- * The directive for this request.
+ * The directive for a response that set none of its own. `edge` is true only in
+ * the Renderer, the one entrypoint whose responses are stored.
  *
- * A PUBLIC-class route is public ONLY on a request with no session cookie. With
- * one, the render carries that user's account switcher and is per-user, so it
- * is `private, no-store` like any app page.
+ * A page class is shared ONLY when the Renderer rendered it for a request with
+ * no session cookie. Rendered by the gateway (a request with a cookie other
+ * than the theme, or a write), it is `private, no-store`: that render carries a
+ * per-request nonce and possibly the reader's account switcher.
  */
-export function resolveCacheControl(request: Request): string {
+export function resolveCacheControl(request: Request, edge = false): string {
   const cacheClass = classifyPath(new URL(request.url).pathname);
   if (cacheClass === "private") return PRIVATE_DIRECTIVE;
-  if (hasSessionCookie(request)) return PRIVATE_DIRECTIVE;
-  return CACHE_DIRECTIVES[cacheClass];
+  if (cacheClass === "files") return CACHE_DIRECTIVES.files;
+  if (!edge || hasSessionCookie(request)) return PRIVATE_DIRECTIVE;
+  return publicPageHeaders()["Cache-Control"];
+}
+
+/**
+ * Should the gateway send this request through the cacheable Renderer?
+ *
+ * Only a GET of a public page or files route (a HEAD is answered with an
+ * empty body by app/entry.server.tsx, which must never be stored), never /media (its own
+ * route keeps each size in caches.default), and only when every cookie the
+ * request carries is the theme cookie. A session cookie, the demo cookie, the
+ * audit cookie, an OAuth state cookie or anything else sends it to the gateway's
+ * own render, which nothing stores. Fails closed: an unknown cookie is a miss,
+ * never a leak.
+ */
+export function edgeCacheable(request: Request): boolean {
+  if (request.method !== "GET") return false;
+  const pathname = new URL(request.url).pathname;
+  const cacheClass = classifyPath(pathname);
+  if (cacheClass === "private" || pathname.startsWith("/media/")) return false;
+  return cookieNames(request).every((name) => name === THEME_COOKIE);
+}
+
+function cookieNames(request: Request): string[] {
+  const header = request.headers.get("cookie");
+  if (!header) return [];
+  return header
+    .split(";")
+    .map((pair) => pair.trim().split("=")[0]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+/**
+ * The request the Renderer sees, and its cache key. The theme is the one
+ * cookie a public page reads (<html data-theme> and the toggle), so it is
+ * resolved here, handed on as the only cookie, and written into the key: one
+ * stored copy per theme, and a stored dark page can never answer a light
+ * reader. The suffix is appended, never set, so a query that already holds the
+ * same name still keys apart.
+ */
+export function edgeRequest(request: Request, key: string): { request: Request; cacheKey: string } {
+  const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
+  const forwarded = new Request(request);
+  forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
+  const separator = key.includes("?") ? "&" : "?";
+  return { request: forwarded, cacheKey: `${key}${separator}fh-theme-key=${theme}` };
 }
 
 /**
@@ -173,12 +231,12 @@ export function resolveCacheControl(request: Request): string {
  * combination of the listed request header values", so a request carrying a
  * session cookie cannot match the variant stored for a request carrying none.
  *
- * THE COST, stated because it shapes the hit rate rather than being a footnote:
- * values are compared VERBATIM with no normalization, so every distinct Cookie
- * header is its own variant. A cookie-less visitor, which is most first-time
- * and crawler traffic, shares one variant; a visitor carrying `theme=dark` gets
- * a second; `theme=light` a third. That is fragmentation, not a leak, and the
- * variants are all the same anonymous body.
+ * SINCE THE GATEWAY, VARY IS THE SECOND LOCK, NOT THE FIRST. The gateway now
+ * runs on every request and never sends a session cookie to the Renderer, and
+ * the Renderer only ever sees `fh_theme=<theme>`, which is also in its key. The
+ * header stays (CLAUDE.md hard rule 9) so that any cache that does read it,
+ * the Workers cache or one between the reader and the edge, keys a cookie-less
+ * copy apart from a signed-in one.
  */
 const VARY_HEADER_VALUE = "Cookie";
 
@@ -270,8 +328,12 @@ function addNoTransform(headers: Headers): void {
  * Only GET and HEAD are cacheable at all, but the headers are set on every
  * method anyway: it costs nothing and it means a POST response can never be
  * stored by an intermediary either.
+ *
+ * `edge` is true only in the Renderer (workers/app.ts), where a page class
+ * rendered for an anonymous reader gets site-runtime's publicPageHeaders: the
+ * shared directive, the edge lifetime and the "pages" purge tag.
  */
-export function applyCachePolicy(request: Request, response: Response): Response {
+export function applyCachePolicy(request: Request, response: Response, edge = false): Response {
   const pathname = new URL(request.url).pathname;
   const isPublicClass = classifyPath(pathname) !== "private";
   const wantsNoTransform = needsNoTransform(pathname, response);
@@ -279,7 +341,15 @@ export function applyCachePolicy(request: Request, response: Response): Response
 
   const headers = new Headers(response.headers);
   if (!headers.has("Cache-Control")) {
-    headers.set("Cache-Control", resolveCacheControl(request));
+    const directive = resolveCacheControl(request, edge);
+    // A shared page takes the edge header and the purge tag with it. One that
+    // sets a cookie is never shared, whatever its class.
+    const shared = publicPageHeaders();
+    if (directive === shared["Cache-Control"] && !headers.has("Set-Cookie")) {
+      for (const [name, value] of Object.entries(shared)) headers.set(name, value);
+    } else {
+      headers.set("Cache-Control", directive === shared["Cache-Control"] ? PRIVATE_DIRECTIVE : directive);
+    }
   }
   if (wantsNoTransform) addNoTransform(headers);
   if (isPublicClass) {

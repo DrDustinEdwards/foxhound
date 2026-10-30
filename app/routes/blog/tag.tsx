@@ -1,6 +1,5 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
@@ -18,6 +17,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/tag";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
 // 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5.
@@ -59,12 +59,19 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Blog - Foxhound" }];
   const label = labelForTag(loaderData.tag);
-  return marketingMeta({
-    title: `${label} - Foxhound Blog`,
-    description: `Guides on ${label.toLowerCase()} from the Foxhound blog.`,
-    path: `/blog/tag/${loaderData.tag}`,
-    siteUrl: loaderData.siteUrl,
-  });
+  return [
+    ...marketingMeta({
+      title: `${label} - Foxhound Blog`,
+      description: `Guides on ${label.toLowerCase()} from the Foxhound blog.`,
+      path: `/blog/tag/${loaderData.tag}`,
+      siteUrl: loaderData.siteUrl,
+    }),
+    jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+      { name: "Home", path: "/" },
+      { name: "Blog", path: "/blog" },
+      { name: label, path: `/blog/tag/${loaderData.tag}` },
+    ])),
+  ];
 }
 
 // J19. Recova's layout, read from tag/[tag]/page.tsx: one
@@ -76,7 +83,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 // Recova's sizes: the 1.75rem h1, the 0.8125rem back link and count line. Cards are Capsomer's panel (BlogPostCard),
 // the color amber, and the back link a 24px target.
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, tag, posts } = loaderData;
+  const { tag, posts } = loaderData;
   const label = labelForTag(tag);
 
   return (
@@ -111,19 +118,6 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </div>
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Blog", path: "/blog" },
-              { name: label, path: `/blog/tag/${tag}` },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

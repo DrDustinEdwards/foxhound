@@ -3,7 +3,8 @@ import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
-import { Form, Link } from "react-router";
+import { Form } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { authClient } from "~/lib/auth/client";
 

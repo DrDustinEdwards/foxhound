@@ -1,5 +1,5 @@
 import { fromBase64 } from "@dustinedwards/site-runtime/encoding";
-import { cardText, renderShareCard } from "@dustinedwards/site-runtime/share-card";
+import { cardText, shareCardResponse } from "@dustinedwards/site-runtime/share-card";
 import { ImageResponse } from "workers-og";
 
 // Satori (workers-og's layout engine) parses fonts with opentype.js, which:
@@ -170,13 +170,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   const html = type === "blog" ? blogCardHtml(title, description, host) : defaultCardHtml();
 
-  // site-runtime's renderShareCard removes the whitespace between tags (a text child of the flex box: on the blog card
+  // site-runtime's shareCardResponse (renderShareCard underneath) removes the whitespace between tags (a text child of the flex box: on the blog card
   // it pulled the footer's host and pill in from the edges and the footer up off Recova's 72px bottom padding, J20) and
   // reads the whole PNG, so a failed render is a 503 rather than an empty image. A card is an image other sites show
   // (og:image previews, embeds), so it sends Cross-Origin-Resource-Policy: cross-origin; the Worker's default is
   // same-origin, and its merge keeps this route-set value (header-set.ts, EMBEDDABLE_RESOURCE_HEADERS).
-  const card = await renderShareCard(ImageResponse, html, {
-    fonts: [
+  return shareCardResponse(ImageResponse, {
+    html,
+    fonts: () => [
       { name: FONT, data: fontBytes(dmMono500), weight: 500, style: "normal" },
       { name: FONT_SANS, data: fontBytes(dmSans400), weight: 400, style: "normal" },
       { name: FONT_SANS, data: fontBytes(dmSans500), weight: 500, style: "normal" },
@@ -184,5 +185,4 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     ],
     headers: EMBEDDABLE_RESOURCE_HEADERS,
   });
-  return card ?? new Response("Card unavailable", { status: 503, headers: { "Retry-After": "300" } });
 }

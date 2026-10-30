@@ -1,6 +1,5 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
@@ -11,6 +10,7 @@ import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
 // each of the six named competitors (ROUTES.md Rev 2). Neither Capsid
@@ -32,16 +32,23 @@ export function loader({ params, context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Compare - Foxhound" }];
   const { competitor, siteUrl: url } = loaderData;
-  return marketingMeta({
-    title: `Foxhound vs ${competitor.name} - Foxhound`,
-    description: `How Foxhound compares to ${competitor.name}: pricing model, what each product does, and honest tradeoffs.`,
-    path: `/compare/${competitor.slug}`,
-    siteUrl: url,
-  });
+  return [
+    ...marketingMeta({
+      title: `Foxhound vs ${competitor.name} - Foxhound`,
+      description: `How Foxhound compares to ${competitor.name}: pricing model, what each product does, and honest tradeoffs.`,
+      path: `/compare/${competitor.slug}`,
+      siteUrl: url,
+    }),
+    jsonLd(breadcrumbListJsonLd(url, [
+      { name: "Home", path: "/" },
+      { name: "Compare", path: "/compare" },
+      { name: competitor.name, path: `/compare/${competitor.slug}` },
+    ])),
+  ];
 }
 
 export default function ComparePage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, competitor } = loaderData;
+  const { competitor } = loaderData;
 
   return (
     <div>
@@ -156,19 +163,6 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           </Link>
         </div>
       </div>
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Compare", path: "/compare" },
-              { name: competitor.name, path: `/compare/${competitor.slug}` },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }

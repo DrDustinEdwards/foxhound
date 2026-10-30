@@ -37,3 +37,21 @@ describe("the policy is validated once and only the nonce varies per request", a
     }
   });
 });
+
+describe("a page the edge stores trusts its inline scripts by hash, never a nonce", async () => {
+  const { scriptHash } = await vi.importActual<typeof import("@dustinedwards/site-runtime/csp")>("@dustinedwards/site-runtime/csp");
+  const { applyHashedSecurityHeaders } = await import("~/lib/http/content-security-policy");
+
+  it("hashes each inline script as rendered and keeps the body", async () => {
+    const html = '<html><script>window.__reactRouterContext = {"a":1};</script><script type="module" async>import "/x.js";</script><script src="/y.js"></script></html>';
+    const page = await applyHashedSecurityHeaders(
+      new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } }),
+      "https://foxhound.example.com",
+    );
+    const policy = page.headers.get("Content-Security-Policy") ?? "";
+    expect(policy).toContain(`'${await scriptHash('window.__reactRouterContext = {"a":1};')}'`);
+    expect(policy).toContain(`'${await scriptHash('import "/x.js";')}'`);
+    expect(policy).not.toContain("'nonce-");
+    expect(await page.text()).toBe(html);
+  });
+});

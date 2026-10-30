@@ -6,6 +6,7 @@
 //                    team permissions within a single merchant account.
 
 import { adminEmails } from "@dustinedwards/site-runtime/access";
+
 import { DAY_MS } from "~/lib/constants";
 
 export const MEMBER_ROLE = {
@@ -33,10 +34,8 @@ export const MEMBER_STATUS = {
 /** Team invites expire after 7 days. */
 export const INVITE_TTL_MS = 7 * DAY_MS;
 
-/** The ADMIN_EMAIL allowlist, parsed by site-runtime (comma-separated). Empty => none. */
-export { adminEmails };
-
-/** True when the email holds the platform admin role. */
+/** True when the email holds the platform admin role: on the ADMIN_EMAIL
+ *  allowlist, as site-runtime's adminEmails reads it. */
 export function isAdminEmail(env: Env, email: string | null | undefined): boolean {
   if (!email) return false;
   return adminEmails(env).includes(email.trim().toLowerCase());

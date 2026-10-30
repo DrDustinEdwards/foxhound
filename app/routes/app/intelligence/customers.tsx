@@ -1,5 +1,6 @@
 import { Scale } from "lucide-react";
-import { Form, Link } from "react-router";
+import { Form } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
@@ -37,6 +38,7 @@ import { formatMoney } from "~/lib/money-format";
 import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/customers. Recova is the spec: its real
 // page, app/(app)/intelligence/customers/page.tsx at blob 0413f035, with
@@ -59,7 +61,7 @@ import type { Route } from "./+types/customers";
 // action the nightly scoring stores.
 
 export function meta() {
-  return [{ title: "Customers - Foxhound" }];
+  return [{ title: "Customers - Foxhound" }, NOINDEX];
 }
 
 const HEALTH_BANDS: HealthScoreBand[] = ["healthy", "watch", "at_risk"];

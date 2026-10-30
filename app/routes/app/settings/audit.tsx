@@ -23,6 +23,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
 
 import type { Route } from "./+types/audit";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S30, /settings/audit. Legacy, read whole at HEAD: page.tsx (blob 18e6a384),
 // AuditForm.tsx (5bf81c10), settings/components/AuditSection.tsx (58c5abce),
@@ -58,7 +59,7 @@ import type { Route } from "./+types/audit";
 // 3.17). See app/lib/settings/audit-settings.ts.
 
 export function meta() {
-  return [{ title: "Audit settings - Foxhound" }];
+  return [{ title: "Audit settings - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

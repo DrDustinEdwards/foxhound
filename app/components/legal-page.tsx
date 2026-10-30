@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the Panel, the

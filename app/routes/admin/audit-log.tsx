@@ -1,4 +1,5 @@
-import { Link, useNavigation, useRevalidator } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Spinner } from "capsomer/react/skeleton";
@@ -13,11 +14,12 @@ import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/audit-log";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Audit log" };
 
 export function meta() {
-  return [{ title: "Audit log - Foxhound admin" }];
+  return [{ title: "Audit log - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {

@@ -1,22 +1,38 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { organizationJsonLd, personJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/about";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 1 (no legacy equivalent, per TASK-foxhound-phase6.md).
 // Founder/company bio plus Person JSON-LD for E-E-A-T. Linked from the
 // footer (required) and the header nav.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "About - Foxhound",
-    description: "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
-    path: "/about",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // personJsonLd's worksFor references the Organization node by @id
+  // (jsonld.ts); that node must actually be emitted on this page or
+  // the reference dangles. Render both here, same pattern as
+  // blog/post.tsx.
+  return [
+    ...marketingMeta({
+      title: "About - Foxhound",
+      description: "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
+      path: "/about",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(organizationJsonLd(loaderData.siteUrl)),
+          jsonLd(personJsonLd(loaderData.siteUrl, {
+            name: "Dustin Edwards",
+            jobTitle: "Founder",
+            description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
+          })),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -24,7 +40,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env) };
 }
 
-export default function AboutPage({ loaderData }: Route.ComponentProps) {
+export default function AboutPage() {
   return (
     <div>
       <MarketingPageHeader
@@ -62,27 +78,6 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
       </div>
-
-      {/* personJsonLd's worksFor references the Organization node by @id
-          (jsonld.ts); that node must actually be emitted on this page or
-          the reference dangles. Render both here, same pattern as
-          blog/post.tsx. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdText(organizationJsonLd(loaderData.siteUrl)) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            personJsonLd(loaderData.siteUrl, {
-              name: "Dustin Edwards",
-              jobTitle: "Founder",
-              description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
-            }),
-          ),
-        }}
-      />
     </div>
   );
 }

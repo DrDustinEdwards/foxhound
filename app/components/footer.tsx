@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router";
+import { useLocation } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { Wordmark } from "./wordmark";
 

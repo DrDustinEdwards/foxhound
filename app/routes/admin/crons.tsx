@@ -1,4 +1,5 @@
-import { data, Form, Link, useNavigation, useRevalidator } from "react-router";
+import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -27,11 +28,12 @@ import {
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/crons";
+import { NOINDEX } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Crons" };
 
 export function meta() {
-  return [{ title: "Crons - Foxhound admin" }];
+  return [{ title: "Crons - Foxhound admin" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {

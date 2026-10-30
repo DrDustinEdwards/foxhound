@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";

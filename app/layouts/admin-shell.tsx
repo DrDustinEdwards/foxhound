@@ -25,6 +25,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
 import { DEFAULT_THEME, type Theme } from "~/lib/theme";
+import { noindexHeader } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/admin-shell";
 import type { loader as rootLoader } from "~/root";
@@ -37,6 +38,7 @@ import type { loader as rootLoader } from "~/root";
 // disclosed. /admin no longer sits under the merchant app shell: no Better Auth
 // session, no account, no demo cookie are involved.
 export const middleware: Route.MiddlewareFunction[] = [
+  noindexHeader,
   async ({ request, context }, next) => {
     const { env } = context.get(cloudflareContext);
     const session = await getAdminSession(env, request);

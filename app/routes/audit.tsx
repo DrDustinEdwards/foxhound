@@ -1,9 +1,10 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
-import { useId } from "react";
-import { data, Form, Link, useNavigation } from "react-router";
+import { mountTurnstile, verifyTurnstile } from "@dustinedwards/site-runtime/turnstile";
+import { useEffect, useId, useRef } from "react";
+import { data, Form, useNavigation } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -25,9 +26,9 @@ import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib
 import { formatMoney } from "~/lib/money-format";
 import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
-import { verifyTurnstileToken } from "~/lib/turnstile/verify.server";
 
 import type { Route } from "./+types/audit";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Real no-auth estimator + audit marketing page (Phase 6 Pass 3). Ported the
 // legacy app/audit/page.tsx marketing structure (Capsid read_repo_file,
@@ -50,13 +51,23 @@ import type { Route } from "./+types/audit";
 // parts' own variables.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Free Stripe Revenue Leakage Audit - Foxhound",
-    description:
-      "Estimate in 30 seconds what your Stripe account loses to failed payments, with no signup or credit card. Connect Stripe afterward to see your real numbers.",
-    path: "/audit",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  return [
+    ...marketingMeta({
+      title: "Free Stripe Revenue Leakage Audit - Foxhound",
+      description:
+        "Estimate in 30 seconds what your Stripe account loses to failed payments, with no signup or credit card. Connect Stripe afterward to see your real numbers.",
+      path: "/audit",
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
+            { name: "Home", path: "/" },
+            { name: "Audit", path: "/audit" },
+          ])),
+        ]
+      : []),
+  ];
 }
 
 type ActionResult =
@@ -111,12 +122,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data<ActionResult>({ ok: false, error: "Please complete the verification challenge." }, { status: 400 });
   }
 
-  const verification = await verifyTurnstileToken(
-    env,
-    turnstileToken,
-    request.headers.get("CF-Connecting-IP") ?? undefined,
-  );
-  if (!verification.success) {
+  // site-runtime's verifyTurnstile fails closed and never throws: an
+  // unreachable siteverify is a refusal here, not a 500.
+  const verification = await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, {
+    remoteIp: request.headers.get("CF-Connecting-IP"),
+  });
+  if (!verification.ok) {
     return data<ActionResult>({ ok: false, error: "Verification failed. Please try again." }, { status: 400 });
   }
 
@@ -166,7 +177,7 @@ const COVERS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 export default function AuditPage({ loaderData, actionData }: Route.ComponentProps) {
-  const { siteUrl: url, turnstileAvailable, turnstileSiteKey } = loaderData;
+  const { turnstileAvailable, turnstileSiteKey } = loaderData;
   const busy = useNavigation().state !== "idle";
 
   return (
@@ -225,7 +236,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                   {actionData?.ok ? (
                     <EstimatorResultCard result={actionData.result} currency={actionData.currency} />
                   ) : (
-                    <EstimatorForm busy={busy} siteKey={turnstileSiteKey} />
+                    <EstimatorForm busy={busy} siteKey={turnstileSiteKey} attempt={actionData} />
                   )}
                 </>
               )}
@@ -338,29 +349,20 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           </div>
         </div>
       </div>
-
-      {turnstileAvailable ? (
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
-      ) : null}
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Audit", path: "/audit" },
-            ]),
-          ),
-        }}
-      />
     </div>
   );
 }
 
-/** The estimator's form: Capsomer's field, select and primary button. */
-function EstimatorForm({ busy, siteKey }: { busy: boolean; siteKey: string }) {
+/** The estimator's form: Capsomer's field, select and primary button. The
+ *  Turnstile widget is site-runtime's, drawn again after each answer from the
+ *  action because a token is good for one verify. */
+function EstimatorForm({ busy, siteKey, attempt }: { busy: boolean; siteKey: string; attempt: unknown }) {
   const currencyId = useId();
+  const widget = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!siteKey || !widget.current) return;
+    return mountTurnstile(widget.current, siteKey);
+  }, [siteKey, attempt]);
   return (
     <Form method="post" className="flex flex-col gap-4">
       <Field label="Monthly recurring revenue (MRR)">
@@ -384,7 +386,7 @@ function EstimatorForm({ busy, siteKey }: { busy: boolean; siteKey: string }) {
         </div>
       </div>
 
-      <div className="cf-turnstile" data-sitekey={siteKey} />
+      <div ref={widget} />
 
       {/* Full width, as the form's own submit was: the grid stretches it. */}
       <div className="grid">

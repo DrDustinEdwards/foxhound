@@ -38,6 +38,7 @@ import {
 } from "~/lib/settings/stripe-disconnect-feedback";
 
 import type { Route } from "./+types/stripe";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
@@ -63,7 +64,7 @@ import type { Route } from "./+types/stripe";
 // path (disconnectConnection), never an agent tool (3.6).
 
 export function meta() {
-  return [{ title: "Stripe connections - Foxhound" }];
+  return [{ title: "Stripe connections - Foxhound" }, NOINDEX];
 }
 
 // OWNERS ONLY disconnect: it revokes Foxhound's Stripe access for the whole

@@ -10,7 +10,7 @@ import "capsomer/table.css";
 import "capsomer/tabs.css";
 import "./dashboard.css";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
@@ -63,6 +63,7 @@ import {
   DeliverabilityPanel,
   PaymentsTable,
 } from "../../../components/recovery-dashboard-panels";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/dashboard. Recova is the spec: its page,
 // app/(app)/recovery/dashboard/page.tsx at blob 208b0066, and every component
@@ -107,7 +108,7 @@ import {
 // recomputes it on every load, so clearing the sender name brings it back.
 
 export function meta() {
-  return [{ title: "Recovery - Foxhound" }];
+  return [{ title: "Recovery - Foxhound" }, NOINDEX];
 }
 
 function parseRange(value: string | null): RecoveryRange {

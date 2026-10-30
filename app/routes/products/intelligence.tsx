@@ -1,4 +1,3 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { TrendingUp } from "lucide-react";
 
 import { ChurnBandsPreview, CustomerTablePreview, DashboardPreview } from "~/components/intelligence-previews";
@@ -26,6 +25,7 @@ import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/intelligence";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The Intelligence spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/intelligence/page.tsx (blob 4f258429) and the files
@@ -57,12 +57,25 @@ const TITLE = "Intelligence - Foxhound";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: TITLE,
-    description: INTELLIGENCE_META_DESCRIPTION,
-    path: PATH,
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
+  // SpeakableSpecification, as Recova emits it: the selectors point at
+  // the classes product-sections-cap.tsx puts on the sections.
+  return [
+    ...marketingMeta({
+      title: TITLE,
+      description: INTELLIGENCE_META_DESCRIPTION,
+      path: PATH,
+      siteUrl: loaderData?.siteUrl ?? "",
+    }),
+    ...(loaderData
+      ? [
+          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
+            name: TITLE,
+            path: PATH,
+            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+          })),
+        ]
+      : []),
+  ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -71,7 +84,7 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function IntelligenceProductPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, preview } = loaderData;
+  const { preview } = loaderData;
   const { dashboard, score, churn } = intelligenceBlocks(preview.dashboard.activeCustomers);
 
   return (
@@ -109,20 +122,6 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
         sub={INTELLIGENCE_BOTTOM_CTA.sub}
         cta={AUDIT}
         note={INTELLIGENCE_BOTTOM_CTA.note}
-      />
-      {/* SpeakableSpecification, as Recova emits it: the selectors point at
-          the classes product-sections-cap.tsx puts on the sections. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            speakableWebPageJsonLd(url, {
-              name: TITLE,
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        }}
       />
     </div>
   );

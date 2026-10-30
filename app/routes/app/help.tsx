@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
@@ -24,6 +24,7 @@ import {
 } from "~/lib/help/platform-status.server";
 
 import type { Route } from "./+types/help";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /help, ported toward legacy app/(app)/help/page.tsx.
 //
@@ -56,7 +57,7 @@ import type { Route } from "./+types/help";
 // difference waits for Capsomer's per-site style layer and is listed with J13.
 
 export function meta() {
-  return [{ title: "Help - Foxhound" }];
+  return [{ title: "Help - Foxhound" }, NOINDEX];
 }
 
 /**

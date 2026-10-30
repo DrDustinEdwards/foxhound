@@ -1,6 +1,5 @@
-import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { Badge } from "~/components/badge";
 import { FaqAccordion } from "~/components/faq-accordion";
@@ -13,6 +12,7 @@ import { breadcrumbListJsonLd, faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
 // Category, retryability, and whether the code rides classifyDecline()'s
@@ -33,17 +33,25 @@ export function loader({ params, context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Decline code - Foxhound" }];
   const { view, siteUrl: url } = loaderData;
-  return marketingMeta({
-    title: `${view.displayName} (${view.code}) decline code`,
-    suffix: " - Foxhound",
-    description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
-    path: `/decline-codes/${view.code}`,
-    siteUrl: url,
-  });
+  return [
+    ...marketingMeta({
+      title: `${view.displayName} (${view.code}) decline code`,
+      suffix: " - Foxhound",
+      description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
+      path: `/decline-codes/${view.code}`,
+      siteUrl: url,
+    }),
+    jsonLd(breadcrumbListJsonLd(url, [
+      { name: "Home", path: "/" },
+      { name: "Decline codes", path: "/decline-codes" },
+      { name: view.displayName, path: `/decline-codes/${view.code}` },
+    ])),
+    jsonLd(faqPageJsonLd(loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer })))),
+  ];
 }
 
 export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, view, content } = loaderData;
+  const { view, content } = loaderData;
 
   return (
     <div>
@@ -102,27 +110,6 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           </Link>
         </div>
       </div>
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            breadcrumbListJsonLd(url, [
-              { name: "Home", path: "/" },
-              { name: "Decline codes", path: "/decline-codes" },
-              { name: view.displayName, path: `/decline-codes/${view.code}` },
-            ]),
-          ),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdText(
-            faqPageJsonLd(content.faqs.map((f) => ({ question: f.question, answer: f.answer }))),
-          ),
-        }}
-      />
     </div>
   );
 }

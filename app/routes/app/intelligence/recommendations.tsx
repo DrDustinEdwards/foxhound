@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
@@ -27,6 +27,7 @@ import {
 import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/recommendations";
+import { NOINDEX } from "~/lib/seo/meta";
 
 // /intelligence/recommendations. Recova is the spec: its
 // page, app/(app)/intelligence/recommendations/page.tsx at blob 4f03c7d6, and
@@ -58,7 +59,7 @@ import type { Route } from "./+types/recommendations";
 // radius wait for Capsomer's per-site layer, as on the other Intelligence pages.
 
 export function meta() {
-  return [{ title: "Recommendations - Foxhound" }];
+  return [{ title: "Recommendations - Foxhound" }, NOINDEX];
 }
 
 interface Section {
