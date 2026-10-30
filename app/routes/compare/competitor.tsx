@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 
@@ -112,7 +113,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             breadcrumbListJsonLd(url, [
               { name: "Home", path: "/" },
               { name: "Compare", path: "/compare" },

@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ScanSearch } from "lucide-react";
 
 import { AISummaryPreview, AuditHistoryPreview, AuditScopeCard } from "~/components/audit-previews";
@@ -96,7 +97,7 @@ export default function AuditProductPage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             speakableWebPageJsonLd(url, {
               name: TITLE,
               path: PATH,

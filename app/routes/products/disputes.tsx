@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { Shield } from "lucide-react";
 
 import { DashboardPreview, DisputeTablePreview, NumbersPreview } from "~/components/disputes-previews";
@@ -125,7 +126,7 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             speakableWebPageJsonLd(url, {
               name: TITLE,
               path: PATH,

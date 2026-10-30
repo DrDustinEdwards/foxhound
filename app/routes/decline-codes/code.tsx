@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 
@@ -116,7 +117,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             breadcrumbListJsonLd(url, [
               { name: "Home", path: "/" },
               { name: "Decline codes", path: "/decline-codes" },
@@ -128,7 +129,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             faqPageJsonLd(content.faqs.map((f) => ({ question: f.question, answer: f.answer }))),
           ),
         }}

@@ -75,3 +75,40 @@ describe("PLANT 2: the withdrawal does not catch anything else", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("a post's JSON-LD cannot close its own script element", () => {
+  it("a title carrying </script> renders escaped inside the ld+json block", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { createRoutesStub } = await import("react-router");
+    const { blogPosts } = await import("~/db/schema");
+    const route = await import("~/routes/blog/post");
+
+    const args = loaderArgs("escape-check");
+    const at = new Date("2026-09-01T00:00:00.000Z");
+    await (harness.db as ReturnType<typeof createInMemoryDb>["db"]).insert(blogPosts).values({
+      id: "escape-check",
+      slug: "escape-check",
+      title: "Dunning </script><script>alert(1)</script>",
+      excerpt: "Excerpt.",
+      body: "word ".repeat(50),
+      published: true,
+      publishedAt: at,
+      createdAt: at,
+      updatedAt: at,
+      author: "Foxhound",
+      tags: [],
+      featured: false,
+      readingMinutes: 1,
+    });
+    const data = await loader(args);
+    const Page = route.default as unknown as (props: { loaderData: typeof data }) => ReturnType<typeof createElement>;
+    const Stub = createRoutesStub([
+      { path: "/blog/:slug", Component: () => createElement(Page, { loaderData: data }) },
+    ]);
+    const html = renderToStaticMarkup(createElement(Stub, { initialEntries: ["/blog/escape-check"] }));
+    expect(html).toContain("application/ld+json");
+    expect(html).not.toContain("<script>alert(1)");
+    expect(html).toContain("Dunning \\u003c/script\\u003e");
+  });
+});

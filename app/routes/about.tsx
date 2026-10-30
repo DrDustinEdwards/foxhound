@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { organizationJsonLd, personJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -68,12 +69,12 @@ export default function AboutPage({ loaderData }: Route.ComponentProps) {
           blog/post.tsx. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd(loaderData.siteUrl)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdText(organizationJsonLd(loaderData.siteUrl)) }}
       />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             personJsonLd(loaderData.siteUrl, {
               name: "Dustin Edwards",
               jobTitle: "Founder",

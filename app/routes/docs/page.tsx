@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { slugify } from "@drdustinedwards/site-helpers/slug";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
 import { Link } from "react-router";
@@ -119,7 +120,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdText([
             techArticleJsonLd(url, {
               headline: guide.heading,
               description: guide.description,

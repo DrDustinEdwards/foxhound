@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { TrendingUp } from "lucide-react";
 
 import { ChurnBandsPreview, CustomerTablePreview, DashboardPreview } from "~/components/intelligence-previews";
@@ -114,7 +115,7 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             speakableWebPageJsonLd(url, {
               name: TITLE,
               path: PATH,

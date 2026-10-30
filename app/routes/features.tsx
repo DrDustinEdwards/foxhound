@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
@@ -188,7 +189,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             breadcrumbListJsonLd(url, [
               { name: "Home", path: "/" },
               { name: "Features", path: "/features" },

@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, redirect } from "react-router";
 
@@ -316,13 +317,13 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           place organizationJsonLd renders. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd(url)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdText(organizationJsonLd(url)) }}
       />
       {post.author.trim().toLowerCase() === "dustin edwards" ? (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
+            __html: jsonLdText(
               personJsonLd(url, {
                 name: "Dustin Edwards",
                 jobTitle: "Founder",
@@ -335,7 +336,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             articleJsonLd(url, {
               headline: post.ogTitle ?? post.title,
               description: post.ogDescription ?? post.excerpt,
@@ -351,7 +352,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdText(
             breadcrumbListJsonLd(url, [
               { name: "Home", path: "/" },
               { name: "Blog", path: "/blog" },
@@ -364,7 +365,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(
+            __html: jsonLdText(
               faqPageJsonLd(faqPairs.map((f) => ({ question: f.question, answer: f.answer }))),
             ),
           }}

@@ -1,3 +1,4 @@
+import { jsonLdText } from "@drdustinedwards/site-helpers/xml";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
@@ -536,7 +537,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([
+          __html: jsonLdText([
             organizationJsonLd(url),
             softwareApplicationJsonLd(url),
             faqPageJsonLd(FAQS),
