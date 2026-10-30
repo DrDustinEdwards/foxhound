@@ -156,13 +156,13 @@ export const DOC_GUIDES: DocGuide[] = [
           "It sends once per card and expiry month, never repeatedly, and a card that has already expired is not warned about, because at that point the payment has failed and the recovery sequence has it.",
           { kind: "note", body: "The link in the alert is a Foxhound page, not Stripe's billing portal. The customer updates the card there and Foxhound sets it as the default payment method on the subscription. Foxhound also picks up a card changed in Stripe directly, so a customer who fixes it without the email stops being alerted." },
           "Nothing about this alert is billable. It prevents a failure rather than recovering one, so there is no recovered payment and no fee.",
-          "Expiring card alerts are on unless you turn them off on the features page.",
+          "Expiring card alerts are on unless you turn them off in Settings and Email.",
           { kind: "h3", text: "Win-back sequences" },
           `When a subscription is canceled voluntarily, Foxhound starts a win-back sequence: three emails, the first an hour after the cancellation, then one at four days and a last one at fourteen. ${INTELLIGENCE_WINBACK_SENTENCE} Each is written in your brand voice for the step it is, warmer at the first and lighter at the last, and each links to a page where that customer can restart the same plan through Stripe.`,
           "It does not start for a subscription that ended because payments were failing, because that is a recovery and the recovery sequence already has it, and it does not start for a customer you chased in the last seven days. The sequence stops as soon as they come back.",
           { kind: "note", body: "A customer who comes back is matched to their sequence by the identifier Foxhound put on the checkout, never by guessing from the customer. Matching on the customer alone would credit an ordinary renewal as a win-back." },
           "A reactivation is not billed. Win-back brings back a customer who chose to leave, which is not the recovery of a failed payment, so there is no recovered payment and no fee.",
-          "Win-back sequences are on unless you turn them off on the features page.",
+          "Win-back sequences are on unless you turn them off in Settings and Email.",
           { kind: "h3", text: "Weekly digest" },
           "The weekly digest is a Monday morning summary of the previous seven days: revenue recovered, recovery rate, payments failed and recovered, revenue still at risk, active sequences, emails sent, and win-back sequences running. It is off until you enable it on the notifications page, it goes to the same notification email, and it arrives once a week even in a quiet week, so a week with nothing in it still tells you that.",
           { kind: "h3", text: "Slack notifications" },
@@ -182,7 +182,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Settings reference",
         body: [
-          "Settings is a hub: Stripe connections, Email, Brand voice, Features, Disputes, Intelligence, Audit, Notifications, Alerts, Team, API keys, and My account, each on its own page with a sub-nav down the side.",
+          "Settings is a hub: Stripe connections, Email, Brand voice, Disputes, Audit, Notifications and alerts, Team, API keys, and My account, each on its own page, listed in the menu down the side.",
           { kind: "h3", text: "Email settings" },
           "Found in Settings and Email.",
           { kind: "table", label: "Email settings", columns: ["Setting", "What it does"], rows: [
@@ -211,9 +211,9 @@ export const DOC_GUIDES: DocGuide[] = [
             [{ strong: "Monthly audit report." }, " One email on the 1st, switched on under Settings and Audit, carrying a fresh audit of your Stripe account and what Foxhound recovered for you."],
           ] },
           "It sends once per recovery: a repeated webhook from Stripe does not produce a second email. A payment that recovers gets the recovery email and never the sequence-complete one, so you never get both for one payment.",
-          { kind: "note", body: "Win-back and expiring-card alerts are switches on the features page rather than the notifications page, because they turn the engine off rather than changing who hears about it." },
+          { kind: "note", body: "Win-back and expiring-card emails are switches in Settings and Email rather than with your notifications, because they turn the engine off rather than changing who hears about it." },
           { kind: "h3", text: "Alerts" },
-          "Settings and Alerts lets you set a threshold on any of eleven metrics: recovery rate, MRR at risk, active sequences, emails sent in the last 7 days, open disputes, disputes due in 48 hours, dispute amount at stake, high-risk customers, MRR at risk from Intelligence, audit revenue leaking, and the change in leaking since the prior audit. Choose whether the metric dropping below or rising above your number counts, and whether the alert goes by email or to Slack.",
+          "The Alerts section of Settings and Notifications lets you set a threshold on any of eleven metrics: recovery rate, MRR at risk, active sequences, emails sent in the last 7 days, open disputes, disputes due in 48 hours, dispute amount at stake, high-risk customers, MRR at risk from Intelligence, audit revenue leaking, and the change in leaking since the prior audit. Choose whether the metric dropping below or rising above your number counts, and whether the alert goes by email or to Slack.",
           "Foxhound checks your alerts after each recovery run. Every breach is recorded and shown under Recent triggers on that page, and sent to the alert's channel no more than once a day for each alert: email goes to your notification address, Slack to the webhook on the notifications page.",
           { kind: "h3", text: "API keys" },
           "Settings and API keys issues credentials for external AI agents. A key is shown once, when you generate it, and only its hash is stored, so Foxhound cannot show it to you again. Name each key so you can tell them apart, and revoke any key from the same page. A revoked key stops working immediately.",
@@ -626,9 +626,8 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Settings",
         body: [
-          "With Intelligence active, Settings and Intelligence lists what Intelligence would deliver to you and marks it not built: there is no weekly narrative email or Slack post yet, so there is nothing to set there.",
           { kind: "h3", text: "Health alert" },
-          "Settings and Alerts lets you set a threshold on the number of high-risk customers, those with a health score of 33 or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.",
+          "The Alerts section of Settings and Notifications lets you set a threshold on the number of high-risk customers, those with a health score of 33 or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.",
         ],
       },
     ],

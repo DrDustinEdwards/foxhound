@@ -3,14 +3,14 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "09f228a",
+    "measured_at": "c1c3cd6",
     "knip": {
       "Unlisted dependencies": 2,
       "Unused exports": 2
     },
     "jscpd": {
-      "clones": 136,
-      "percentage": 1.42
+      "clones": 129,
+      "percentage": 1.36
     }
   }
 }

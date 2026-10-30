@@ -128,3 +128,9 @@ export interface MerchantToolRow {
 export function merchantToolCoverage(): MerchantToolRow[] {
   return MERCHANT_TOOLS.list().map((t) => ({ name: t.name, title: t.title, writes: !t.annotations.readOnlyHint }));
 }
+
+/** Everything /admin/operations shows about the MCP servers. */
+export async function loadMcpOverview(db: Db) {
+  const [summary, keys, calls] = await Promise.all([getMcpSummary(db), listAdminApiKeys(db), listRecentMcpCalls(db)]);
+  return { summary, keys, calls, tools: merchantToolCoverage() };
+}

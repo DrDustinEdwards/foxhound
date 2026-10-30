@@ -8,7 +8,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J33 (job_947a0b8bbe06), row S28, under Dustin's Q10 and Q11 rulings of
-// 2026-10-14: /settings/alerts is Recova's page
+// 2026-10-14: the alerts (now on /settings/notifications) are Recova's page
 // (app/(app)/settings/alerts/page.tsx at blob 3c1d6bb0 and AlertsClient.tsx at
 // blob ee8dac99, both read whole) built from Capsomer 0.9.0's components, amber
 // throughout. Recova stays the spec for every section, column, control and
@@ -30,7 +30,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const route = await import("~/routes/app/settings/alerts");
+// The alerts are on /settings/notifications since 2026-10-29 (once /settings/alerts).
+const route = await import("~/routes/app/settings/notifications");
 const { ALERT_THRESHOLD_ERROR } = await import("~/lib/settings/apply.server");
 
 
@@ -72,11 +73,12 @@ beforeEach(() => {
 });
 
 async function load(): Promise<{ alerts: { id: string }[]; history: { id: string }[] }> {
-  return (await route.loader({
+  const page = (await route.loader({
     context: ctx,
-    request: new Request("https://x/settings/alerts"),
+    request: new Request("https://x/settings/notifications"),
     params: {},
-  } as never)) as never;
+  } as never)) as unknown as { alerts: never };
+  return page.alerts;
 }
 
 describe("J33 alerts: the loader reads as Recova's page does", () => {
@@ -101,7 +103,7 @@ describe("J33 alerts: the loader reads as Recova's page does", () => {
 });
 
 describe("J33 review: a successful create closes the form, as Recova's dismissPanel does", () => {
-  async function post(fields: Record<string, string>, url = "https://x/settings/alerts?new=1"): Promise<unknown> {
+  async function post(fields: Record<string, string>, url = "https://x/settings/notifications?new=1"): Promise<unknown> {
     const form = new FormData();
     for (const [k, v] of Object.entries(fields)) form.append(k, v);
     return route.action({
@@ -116,7 +118,7 @@ describe("J33 review: a successful create closes the form, as Recova's dismissPa
     expect(res).toBeInstanceOf(Response);
     const response = res as Response;
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/settings/alerts");
+    expect(response.headers.get("Location")).toBe("/settings/notifications");
     const { alerts } = await load();
     expect(alerts).toHaveLength(1);
   });

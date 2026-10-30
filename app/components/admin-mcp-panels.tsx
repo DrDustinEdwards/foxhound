@@ -1,41 +1,17 @@
-import { Link, useNavigation, useRevalidator } from "react-router";
+import { Link } from "react-router";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import { Status } from "capsomer/react/status";
+import type { ReactNode } from "react";
 import "capsomer/table.css";
 
 import { AdminTime } from "~/components/admin-time";
-import { getDb } from "~/db";
-import { MCP_CALLS_SHOWN, MCPS_PATH, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
-import {
-  getMcpSummary,
-  listAdminApiKeys,
-  listRecentMcpCalls,
-  merchantToolCoverage,
-  type AdminApiKeyRow,
-  type AdminMcpCallRow,
-} from "~/lib/admin/mcps.server";
+import { MCP_CALLS_SHOWN, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
+import type { AdminApiKeyRow, AdminMcpCallRow, loadMcpOverview } from "~/lib/admin/mcps.server";
 import { plural } from "~/lib/admin/overview";
-import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
+import { merchantHref } from "~/lib/admin/page";
 import { MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { cloudflareContext } from "~/lib/cloudflare-context";
-
-import type { Route } from "./+types/mcps";
-
-export const handle: AdminHandle = { page: "MCP servers" };
-
-export function meta() {
-  return [{ title: "MCP servers - Foxhound admin" }];
-}
-
-export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const db = getDb(env);
-  const [summary, keys, calls] = await Promise.all([getMcpSummary(db), listAdminApiKeys(db), listRecentMcpCalls(db)]);
-  return { summary, keys, calls, tools: merchantToolCoverage() };
-}
 
 const KEYS_HEADING_ID = "admin-mcps-keys-heading";
 const TOOLS_HEADING_ID = "admin-mcps-tools-heading";
@@ -43,9 +19,10 @@ const CALLS_HEADING_ID = "admin-mcps-calls-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offset-2 hover:text-brand-text";
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
-// and his review of 2026-10-11: one page name (the shell's "MCP servers"), the
-// figures first, then Capsomer tables with plain sentence-case words, relative
+// The MCP part of /admin/operations. It was its own page, /admin/mcps (J49),
+// with no row in the admin menu; Dustin had it folded into Operations on
+// 2026-10-29. The family admin pattern (Capsomer patterns.md, Dustin's Q9 of
+// 2026-10-14) and his review of 2026-10-11: the figures first, then Capsomer tables with plain sentence-case words, relative
 // times with the exact time on hover, and a pending and an empty state on
 // every list. Recova's page (app/admin/mcps/page.tsx, blob d0381e5f) is the
 // inventory: the API keys table with its total and active count, and the tool
@@ -54,10 +31,13 @@ const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offse
 // from the merchant MCP's live registry, and the merchant MCP call log is
 // Foxhound's own. Read only: nothing here issues or revokes a key, and no key
 // material is read (app/lib/admin/mcps.server.ts).
-export default function AdminMcps({ loaderData }: Route.ComponentProps) {
-  const { summary, keys, calls, tools } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, MCPS_PATH);
-  const spinner = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
+export function AdminMcpPanels({
+  data: { summary, keys, calls, tools },
+  spinner,
+}: {
+  data: Awaited<ReturnType<typeof loadMcpOverview>>;
+  spinner?: ReactNode;
+}) {
   const writes = tools.filter((t) => t.writes).length;
 
   return (
@@ -74,7 +54,7 @@ export default function AdminMcps({ loaderData }: Route.ComponentProps) {
         />
       </StatTiles>
 
-      <div aria-busy={pending || undefined} className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <Panel
           title="API keys"
           headingId={KEYS_HEADING_ID}

@@ -56,13 +56,10 @@ const settingsBrandVoice = await import("~/routes/app/settings/brand-voice");
 const settingsEmail = await import("~/routes/app/settings/email");
 const settingsAccount = await import("~/routes/app/settings/account");
 const settingsAudit = await import("~/routes/app/settings/audit");
-const settingsAlerts = await import("~/routes/app/settings/alerts");
-const settingsFeatures = await import("~/routes/app/settings/features");
 const settingsStripe = await import("~/routes/app/settings/stripe");
 const intelligenceIndex = await import("~/routes/app/intelligence/index");
 const intelligenceCustomers = await import("~/routes/app/intelligence/customers");
 const intelligenceChurn = await import("~/routes/app/intelligence/churn");
-const intelligenceAlerts = await import("~/routes/app/intelligence/alerts");
 const intelligenceReports = await import("~/routes/app/intelligence/reports");
 
 let sqlite: Database.Database;
@@ -103,8 +100,6 @@ const SURFACES: { name: string; run: (ctx: unknown, url: string) => Promise<unkn
   { name: "settings/email", run: (c) => call(settingsEmail.loader, c, "/settings/email") },
   { name: "settings/account", run: (c) => call(settingsAccount.loader, c, "/settings/account") },
   { name: "settings/audit", run: (c) => call(settingsAudit.loader, c, "/settings/audit") },
-  { name: "settings/alerts", run: (c) => call(settingsAlerts.loader, c, "/settings/alerts") },
-  { name: "settings/features", run: (c) => call(settingsFeatures.loader, c, "/settings/features") },
   { name: "settings/stripe", run: (c) => call(settingsStripe.loader, c, "/settings/stripe") },
   { name: "intelligence/index", run: (c) => call(intelligenceIndex.loader, c, "/intelligence") },
   {
@@ -112,10 +107,6 @@ const SURFACES: { name: string; run: (ctx: unknown, url: string) => Promise<unkn
     run: (c) => call(intelligenceCustomers.loader, c, "/intelligence/customers"),
   },
   { name: "intelligence/churn", run: (c) => call(intelligenceChurn.loader, c, "/intelligence/churn") },
-  {
-    name: "intelligence/alerts",
-    run: (c) => call(intelligenceAlerts.loader, c, "/intelligence/alerts"),
-  },
   {
     name: "intelligence/reports",
     run: (c) => call(intelligenceReports.loader, c, "/intelligence/reports"),
