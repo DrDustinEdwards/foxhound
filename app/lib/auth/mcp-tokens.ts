@@ -135,7 +135,7 @@ export async function verifyMcpToken(
 
   const row = rows[0];
   if (!row || row.revokedAt) return null;
-  // A cancelled account's keys and OAuth access tokens stop working with it.
+  // An account's keys and OAuth access tokens stop working once it is closed.
   if (row.accountId && row.accountCancelledAt) return null;
   // An OAuth access token carries an expiry (J79); a key made in Settings does
   // not, and lives until it is revoked.

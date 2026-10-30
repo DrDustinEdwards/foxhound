@@ -82,7 +82,7 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
   const refundedAtFromMarker = sql`(select ${failedPayments.refundSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
   // THE GUARD IS JOINED TO THE WRITE (hard rule 3). Every caller flips the
   // failed payment to recovered at `recoveredAt` in the statement before this
-  // one, conditionally. If that flip matched nothing (the merchant cancelled
+  // one, conditionally. If that flip matched nothing (the merchant canceled
   // recovery a moment earlier), this subquery is NULL, the NOT NULL account_id
   // refuses the insert and the whole batch rolls back, so no billable row is
   // ever written against a payment that is not recovered.
