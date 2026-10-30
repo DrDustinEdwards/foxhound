@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts, apiKeys, customerContext, disputes, failedPayments, recoverySteps } from "~/db/schema";
+import { accounts, apiKeys, customerContext, disputes, failedPayments, intelligenceReports, recoverySteps, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import {
   type McpToolRegistry,
@@ -416,5 +416,45 @@ describe("PLANT 5: what the tools choose not to return", () => {
     }
     expect(text).not.toContain("Zebulon");
     expect(text).not.toContain(MY_EMAIL);
+  });
+});
+
+describe("PLANT 6: text the field walk cannot see into", () => {
+  it("foxhound_get_overview names the customer in the narrative by Stripe id, never by name", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(intelligenceReports).values({
+      id: "ir_mine",
+      accountId: MINE,
+      reportMonth: NOW,
+      narrative: `The lowest health score is ${MY_NAME} at 12/100. Reach out to ${MY_NAME} this week.`,
+      generatedAt: NOW,
+    });
+    const { isError, data, text } = await callTool(tokens[MINE], "foxhound_get_overview");
+    expect(isError, text).toBe(false);
+    expect((data.overview as { narrative: string }).narrative).toBe(
+      `The lowest health score is cus_${MINE} at 12/100. Reach out to cus_${MINE} this week.`,
+    );
+    expect(text).not.toContain("Zebulon");
+  });
+
+  it("foxhound_get_settings returns the brand voice without the pasted sample emails", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(stripeConnections).values({
+      id: "sc_mine",
+      accountId: MINE,
+      stripeUserId: "acct_stripe_mine",
+      stripeAccessToken: "enc",
+      isPrimary: true,
+      connectedAt: NOW,
+      createdAt: NOW,
+      brandVoice: "warm",
+      brandVoiceSamples: JSON.stringify([`Hi ${MY_NAME}, thanks for staying with us.`]),
+    });
+    const { isError, data, text } = await callTool(tokens[MINE], "foxhound_get_settings");
+    expect(isError, text).toBe(false);
+    const voice = data.brand_voice as Record<string, unknown>;
+    expect(voice.general).toBe("warm");
+    expect("samples" in voice).toBe(false);
+    expect(text).not.toContain("Zebulon");
   });
 });
