@@ -19,9 +19,7 @@ import type { Route } from "./+types/account-switch";
 // route exports no loader, so the method check below is for the other non-POST
 // verbs that DO reach the action.
 //
-// NO SWITCHER UI EXISTS YET. The control that calls this is phase (e), in both
-// the marketing header (M1) and the app shell (S1). This route is the half that
-// can ship without moving a pixel.
+// The account switcher in app/components/site-header.tsx posts here.
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });

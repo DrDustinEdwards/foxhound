@@ -1,5 +1,8 @@
 // Competitor comparison data for /compare (Phase 6 Pass 3, net-new).
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { DECLINE_CATEGORY_COUNT_WORD_LOWER, RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
+import { formatMoneyShort } from "~/lib/money-format";
 //
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
 // stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side
@@ -14,11 +17,22 @@ import { DECLINE_CATEGORY_COUNT_WORD_LOWER, RECOVERY_SEQUENCE_DAYS } from "~/lib
 // with no support in the sourced facts; see recova/foxhound-phase6-review.md
 // finding 11.
 //
+// EVERY COMPETITOR PRICE CARRIES ITS PAGE AND THE DAY IT WAS READ
+// (priceSource, shown under the table), as the marketing statistics do
+// (app/lib/marketing/statistics.ts). All four were re-read on 2026-10-30.
+// Two had drifted and were corrected to what the page said that day: Churn
+// Buster's "from $149/month" (the page now says $269/month for one product,
+// and states no ROI guarantee, so that claim came out) and Baremetrics'
+// "$499/month at $300,000 MRR" (the page now prices Recover as a $129/month
+// add-on). Stunning's "$120/month" example is now the page's own slider
+// reading, $60/month at $8k MRR. A price that cannot be re-read on the
+// vendor's page comes out rather than being guessed.
+//
 // Foxhound's real cons are included deliberately (task: "don't oversell"):
 // newer/less proven than every incumbent here, no prevention/pre-dispute
-// alerts layer yet (PRICING.md's stated V1 deferral), and Foxhound uses one
-// brand-voice field for dunning copy rather than a per-category voice
-// system some incumbents offer.
+// alerts layer yet (PRICING.md's stated V1 deferral). Foxhound's brand voice
+// is per decline category (brandVoiceSoft, brandVoiceExpired,
+// brandVoiceNetwork, brandVoiceFraud), so that is no longer listed as a con.
 
 interface ComparisonRow {
   dimension: string;
@@ -36,11 +50,21 @@ export interface CompetitorDef {
   foxhoundCons: string[];
   /** Any competitor-side claim deliberately omitted, and why (shown in copy). */
   omittedNote?: string;
+  /** The vendor page a competitor price was read from, and the day it was
+   *  read. Required wherever the competitor's pricing row names a figure. */
+  priceSource?: { url: string; checked: string };
 }
+
+/** The day the competitor pricing pages were last read. One date for all of
+ *  them: they are re-read together, as STAT_AS_OF is. */
+const COMPETITOR_PRICES_CHECKED = "2026-10-30";
+
+const recoveryFee = `${RECOVERY_FEE_PERCENT}%`;
+const disputeCap = formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd");
 
 const FOXHOUND_PRICING_ROW: ComparisonRow = {
   dimension: "Pricing model",
-  foxhound: "20% of Foxhound-attributed recoveries only. Baseline recoveries Stripe would have gotten anyway are free. Nothing billed until a recovery has matured 30 days.",
+  foxhound: `${recoveryFee} of Foxhound-attributed recoveries only. Baseline recoveries Stripe would have gotten anyway are free. Nothing billed until a recovery has matured ${RECOVERY_MATURITY_DAYS} days.`,
   competitor: "",
 };
 
@@ -67,7 +91,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "Subscription intelligence",
-        foxhound: "Free MRR, movements, churn, and cohort analytics for every Recovery merchant. Paid predictive risk scoring on top.",
+        foxhound: "Free for every account: MRR, movements, churn, and cohort analytics, with churn prediction and customer health scoring.",
         competitor: "Not offered as part of this feature.",
       },
       {
@@ -113,6 +137,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       "Foxhound is newer and has no comparable public track record yet.",
     ],
     omittedNote: "Churnkey's Core, Intelligence, and Enterprise tier pricing is not published as a simple public rate, so it is stated as custom-quoted here rather than estimated.",
+    priceSource: { url: "https://churnkey.co/pricing/", checked: COMPETITOR_PRICES_CHECKED },
   },
 
   "churn-buster": {
@@ -123,7 +148,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Plans start from $149/month, scaled to MRR rather than a flat rate, and billed regardless of how much gets recovered. Churn Buster backs this with its own ROI guarantee: if the tool doesn't cover its cost, the merchant doesn't pay.",
+        competitor: "Dunning on its own starts at $269/month, scaled to MRR (about 0.1% of MRR, per its pricing page), and billed regardless of how much gets recovered.",
       },
       {
         dimension: "What it does",
@@ -138,13 +163,14 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       {
         dimension: "Cost when nothing is recovered",
         foxhound: "Zero. The fee only applies to attributed recoveries.",
-        competitor: "The MRR-scaled subscription still applies in a low-recovery month, offset by Churn Buster's own ROI guarantee: if the tool doesn't cover its cost, the merchant doesn't pay.",
+        competitor: "The MRR-scaled subscription still applies in a low-recovery month.",
       },
     ],
     foxhoundCons: [
       "Foxhound is a newer entrant against a product with a long operating history in this specific niche.",
-      "Foxhound's dunning copy comes from one brand-voice field per merchant; a team-supported service can hand-tune messaging more directly if that level of white-glove attention matters more than automation.",
+      "Foxhound's dunning copy is AI-drafted from the merchant's brand voice, set per decline category; a team-supported service can hand-tune messaging more directly if that level of white-glove attention matters more than automation.",
     ],
+    priceSource: { url: "https://churnbuster.io/pricing", checked: COMPETITOR_PRICES_CHECKED },
   },
 
   "paddle-retain": {
@@ -169,7 +195,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "Disputes",
-        foxhound: "Evidence drafted automatically, human-approved, 20% of wins capped at $500.",
+        foxhound: `Evidence drafted automatically, human-approved, ${DISPUTE_FEE_PERCENT}% of wins capped at ${disputeCap}.`,
         competitor: "Not the product's primary focus.",
       },
     ],
@@ -187,7 +213,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Sold as part of Baremetrics' tiered subscription analytics plans, not a standalone percentage-of-recovery fee. Baremetrics states a company at $300,000 MRR pays about $499/month for Recover, as a public benchmark.",
+        competitor: "An add-on at $129/month on top of a Baremetrics analytics plan, not a percentage-of-recovery fee. Baremetrics offers a guarantee: recover more than your Baremetrics cost or your next month is free.",
       },
       {
         dimension: "What it does",
@@ -201,7 +227,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       },
       {
         dimension: "Standalone MRR analytics",
-        foxhound: "Free MRR, movements, churn, and cohort analytics bundled with every Recovery account; paid predictive risk scoring on top.",
+        foxhound: "Free for every account: MRR, movements, churn, and cohort analytics, with churn prediction and customer health scoring.",
         competitor: "A comprehensive, mature analytics suite is the core product, with Recover as one add-on module inside it.",
       },
     ],
@@ -209,6 +235,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       "Foxhound's free analytics tier is newer and narrower in scope than Baremetrics' full, long-established analytics suite.",
       "Foxhound is unproven relative to an established analytics vendor most merchants already know by name.",
     ],
+    priceSource: { url: "https://baremetrics.com/pricing", checked: COMPETITOR_PRICES_CHECKED },
   },
 
   stunning: {
@@ -219,7 +246,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "A fixed monthly fee scaled to the merchant's MRR, not a percentage of what gets recovered. Stunning's own pricing page illustrates an example rate around $120/month at a specific MRR tier.",
+        competitor: "A flat monthly fee based on the merchant's MRR, not a percentage of what gets recovered. Stunning's pricing slider shows $60/month at $8k MRR.",
       },
       {
         dimension: "What it does",
@@ -246,6 +273,7 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       "Foxhound is newer than one of the category's original entrants.",
       "A flat monthly fee is simpler to budget for than an outcome-based percentage, if predictability matters more than paying only for results.",
     ],
+    priceSource: { url: "https://stunning.co/software", checked: COMPETITOR_PRICES_CHECKED },
   },
 };
 

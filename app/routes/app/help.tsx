@@ -15,6 +15,7 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatTimeAgo } from "~/lib/date-format";
+import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
   getVisibleCronStatus,
@@ -86,7 +87,7 @@ export function meta() {
 export const QUICK_ANSWERS = [
   {
     q: "Why hasn't my payment recovered yet?",
-    a: "Recovery sequences run over 30 days. For a soft or network decline Foxhound retries the card quietly first, before your customer is emailed at all, so a payment that would have gone through on its own never turns into a dunning email. An expired card or a suspected fraud block cannot be retried that way, so those lead with the email and its card-update link. Check the payment detail page to see exactly when the next step is scheduled.",
+    a: `Recovery sequences run over ${RECOVERY_SEQUENCE_DAYS} days. For a soft or network decline Foxhound retries the card quietly first, before your customer is emailed at all, so a payment that would have gone through on its own never turns into a dunning email. An expired card or a suspected fraud block cannot be retried that way, so those lead with the email and its card-update link. Check the payment detail page to see exactly when the next step is scheduled.`,
   },
   {
     q: "How do I know if a sequence is running?",

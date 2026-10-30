@@ -1,6 +1,7 @@
 import { AUDIT_SUMMARY_STRUCTURE } from "~/lib/audit/summary";
 import {
   AUDIT_LOOKBACK_DAYS,
+  AUDIT_RECOVERY_ESTIMATE_PCT,
   CRON_SCHEDULE_MONTHLY_AUDIT,
 } from "~/lib/constants";
 import {
@@ -25,10 +26,11 @@ import { countWord } from "~/lib/marketing/decline-categories";
 // - Truthfulness fixes where Recova's words describe something the audit does
 //   not do (RULES.md 1.2). Each is named beside its string below. The ones that
 //   recur:
-//   * No recovery estimate. Recova's results show a "Recoverable estimate" at a
-//     fixed 30% baseline and its FAQ cites a 32.26% platform rate. Foxhound's
-//     results show neither (app/components/audit/sections.tsx, "WHAT IS NOT
-//     RENDERED"), and RULES.md 2.3 forbids a recovery-rate promise.
+//   * The recovery estimate is an assumption. Recova's results show a
+//     "Recoverable estimate" at a fixed 30% baseline and its FAQ cites a
+//     32.26% platform rate. Foxhound's results show the 30% estimate, named as
+//     an assumption (AUDIT_RECOVERY_ESTIMATE_PCT, Dustin 2026-10-29), and no
+//     platform rate, which RULES.md 2.3 forbids.
 //   * No dispute deadlines. The audit's dispute read keeps status, amount,
 //     currency and submission count (narrowDispute in app/lib/stripe/reads.ts).
 //   * The expiring-card window is this month and next, already-expired cards
@@ -175,8 +177,9 @@ export const AUDIT_FAQS = [
   {
     q: "How accurate is the recovery estimate?",
     // Truthfulness: Recova's answer is a 30% baseline and a 32.26% platform
-    // rate. Foxhound shows no estimate and has no platform rate (RULES.md 2.3).
-    a: "The audit does not show one. A recovery estimate needs a recovery rate, and Foxhound does not yet have a platform recovery rate of its own to base one on. The audit reports what your account actually shows: what is unrecovered now and what is at risk.",
+    // rate. Foxhound keeps the baseline, read from the constant the results
+    // page uses, and has no platform rate (RULES.md 2.3).
+    a: `It is an assumption, not a measurement. The estimate is ${AUDIT_RECOVERY_ESTIMATE_PCT}% of your unrecovered failed invoices. Foxhound does not yet have a recovery rate of its own to base it on, so your real result may be higher or lower. The other figures in the audit are what your account actually shows.`,
   },
 ];
 

@@ -60,7 +60,12 @@ deleted the old password rows.
   email to be on the `ADMIN_EMAIL` allowlist (`isAdminEmail`). Not stored per
   account, and independent of the merchant session.
 - **Account role** - owner vs member, stored on `account_members.role`. Governs
-  team permissions within one merchant account (only owners invite).
+  team permissions within one merchant account. Owner-only, refused with 403 on
+  the server and hidden or disabled for members: connecting Stripe, disconnecting
+  Stripe, early fraud warning refunds, dispute Approve and Accept, the dispute
+  auto-submit switch, API keys, OAuth consent, inviting and removing members, and
+  cancelling the account. Deleting your own login deletes only the accounts you
+  own. Billing setup (`/billing`) has no role check today.
 
 ## Guard matrix (route tree -> requirement)
 
@@ -82,15 +87,29 @@ flag on `authContext`; app loaders/actions read it instead of re-querying.
 
 ## Account-resolution flow
 
-1. `getSession(env, request)` -> the Better Auth user (or null -> `/login`).
-2. `resolveMembership(db, userId)` -> the user's active `account_members` row
-   joined to its account, or null.
-3. Null membership -> redirect to `/connect`, where the account is created.
-4. `createAccountForUser` writes the `accounts` row + the owner `account_members`
-   row as one atomic D1 batch (not a money write; batch is just the atomicity
-   primitive). An idempotency guard prevents a second account per user.
+A user can hold many accounts: one active `account_members` row per account
+(unique on user and account, migration 0018).
 
-Single account per user (legacy model); multi-account switching is out of scope.
+1. `getSession(env, request)` -> the Better Auth user (or null -> `/login`).
+2. `resolveActiveMembershipFrom` (`app/lib/auth/account.ts`) picks the account:
+   the session row's `active_account_id` marker if the user still holds it, else
+   the earliest account with a remembered last-visited page, else the earliest
+   membership.
+3. No membership -> redirect to `/connect`, where the account is created.
+4. `createAccountForUser` writes the `accounts` row + the owner `account_members`
+   row through the money-write Durable Object, partitioned by user, so a
+   double-submitted first connect makes one account, not two.
+
+- **Switching.** The header's account switcher posts to `/api/account/switch`,
+  which checks an active membership and then moves the marker
+  (`setSessionActiveAccount`). The marker is per session row, so two browsers can
+  sit on different accounts.
+- **Adding an account.** The connect callback's add-account branch (`addAccount`
+  in `app/routes/auth/connect-callback.ts`) creates a new account, its Stripe
+  connection and the caller's owner membership in one write, and moves the marker
+  to it. Attaching Stripe to the active account is owner-only.
+- One live Foxhound account per Stripe account: a Stripe account already
+  connected elsewhere is refused (`stripe_account_already_connected`).
 
 ## Invite flow
 
@@ -103,8 +122,8 @@ Single account per user (legacy model); multi-account switching is out of scope.
    flips status to active, and clears the token.
 3. Expired or already-accepted tokens are treated as invalid.
 
-Phase 4 also emails the invite link through the send module; Phase 5 builds the
-full team UI. Phase 3 seeds the create + accept paths.
+The invite is emailed to the invitee, and the page also shows the link to share.
+Owners can remove members (not the owner) at `/settings/team`.
 
 ## Google and Apple
 

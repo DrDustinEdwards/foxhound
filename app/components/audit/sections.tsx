@@ -59,7 +59,8 @@ import { formatMoneyShort } from "~/lib/money-format";
 // with its count-up, restored on Dustin's ruling of 2026-10-29 ("30%, with its
 // basis shown"). Truthfulness fix: Recova called the 30% a "platform average
 // recovery rate", which it never measured, so the line under the figure names
-// it as an assumption and gives the published range.
+// it as an assumption. It quotes no outside range: "30 to 70%" had no source
+// with a page and a date (CLAUDE.md hard rule 1), so it came out on 2026-10-30.
 //
 // WHAT IS NOT RENDERED, and why. Recova's two "Platform median" churn figures
 // are statistics with no source and no Foxhound ledger behind them (RULES.md
@@ -391,8 +392,8 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
         </div>
       </div>
       <p className="m-0 text-micro text-text-subtle">
-        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. Full recovery programs
-        typically recover 30 to 70%.
+        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. This is an assumption,
+        not a measured rate.
       </p>
     </>
   );
