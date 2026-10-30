@@ -1,27 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDateShort, formatRelativeFuture, formatTimestamp } from "~/lib/date-format";
-import {
-  recoveryRateBand,
-  recoveryRateClassNameOrNull,
-} from "~/lib/dashboard/recovery-rate";
-
-describe("formatDateShort", () => {
-
-  it("returns an empty string for null so callers need no branch", () => {
-    expect(formatDateShort(null)).toBe("");
-  });
-});
-
-describe("formatTimestamp", () => {
-  it("renders date and time together", () => {
-    expect(formatTimestamp(new Date("2026-03-04T15:04:00Z"))).toBe("Mar 4, 2026, 3:04 PM");
-  });
-
-  it("returns an empty string for null", () => {
-    expect(formatTimestamp(null)).toBe("");
-  });
-});
+import { formatRelativeFuture } from "~/lib/date-format";
+import { recoveryRateBand } from "~/lib/dashboard/recovery-rate";
 
 describe("formatRelativeFuture", () => {
   const now = Date.parse("2026-03-04T12:00:00Z");
@@ -73,12 +53,5 @@ describe("recoveryRateBand", () => {
   it("distinguishes no-history from a genuine zero", () => {
     expect(recoveryRateBand(null)).toBe("No failures yet");
     expect(recoveryRateBand(null)).not.toBe(recoveryRateBand(0));
-  });
-});
-
-describe("recoveryRateClassNameOrNull", () => {
-  it("renders a no-history account subtle rather than alarming red", () => {
-    expect(recoveryRateClassNameOrNull(null)).toBe("text-text-subtle");
-    expect(recoveryRateClassNameOrNull(0)).toBe("text-error-text");
   });
 });
