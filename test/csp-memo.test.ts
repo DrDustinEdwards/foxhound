@@ -33,7 +33,7 @@ describe("the policy is validated once and only the nonce varies per request", a
       const nonce = generateNonce();
       const expected = buildContentSecurityPolicy({ ...site, nonce });
       expect(applySecurityHeaders(new Response(null), nonce, "https://foxhound.example.com").headers.get(expected.name))
-        .toBe(`${expected.value.replace("form-action 'self'", "form-action 'self' https://checkout.stripe.com")}; frame-src https://challenges.cloudflare.com`);
+        .toBe(`${expected.value.replace("form-action 'self'", "form-action 'self' https://checkout.stripe.com https://connect.stripe.com")}; frame-src https://challenges.cloudflare.com`);
     }
   });
 });

@@ -34,7 +34,7 @@
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
 //    allowed by style-src-attr 'unsafe-inline', which runs no code. The two
 //    inline <style> elements are trusted by hash (inline-styles.ts).
-//  - form-action is 'self' plus Stripe Checkout. Checkout starts through a
+//  - form-action is 'self' plus Stripe Checkout and Connect. Checkout starts through a
 //    React Router <Form method="post"> (DemoGuardedForm on
 //    app/routes/app/billing/index.tsx, the card-update and win-back forms on
 //    app/routes/utility/card-update.tsx) whose action returns
@@ -43,7 +43,7 @@
 //    native POST made before hydration (or with no JS) is a form navigation, and
 //    Chromium applies form-action to its redirect, so 'self' alone refused it.
 //    The builder writes form-action itself and refuses it in extraDirectives,
-//    so the one origin is appended to its 'self' at module load, like frame-src
+//    so the Stripe origins are appended to its 'self' at module load, like frame-src
 //    below. site-runtime's checkSecurityHeaders grades form-action as 'self' or
 //    'none' only, so that one line of a live header check reports this origin.
 //  - No external origins except Cloudflare's own: Turnstile
@@ -65,7 +65,10 @@
 //    its own while `sources.frame` is empty, so there is still exactly one.
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
-import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
+import {
+  buildContentSecurityPolicy,
+  reportingEndpoints,
+} from "@dustinedwards/site-runtime/csp";
 
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
@@ -77,7 +80,9 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 export const CSP_REPORT_GROUP = "csp-endpoint";
 
 const TURNSTILE = "https://challenges.cloudflare.com";
-const STRIPE_CHECKOUT = "https://checkout.stripe.com";
+// Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
+const STRIPE_FORM_TARGETS =
+  "https://checkout.stripe.com https://connect.stripe.com";
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
@@ -100,8 +105,9 @@ const POLICY = buildContentSecurityPolicy({
   reportTo: CSP_REPORT_GROUP,
 });
 const FORM_ACTION_SELF = "form-action 'self'";
-if (POLICY.value.split(FORM_ACTION_SELF).length !== 2) throw new Error("the builder's form-action is not 'self' exactly once");
-const POLICY_VALUE = `${POLICY.value.replace(FORM_ACTION_SELF, `${FORM_ACTION_SELF} ${STRIPE_CHECKOUT}`)}; frame-src ${TURNSTILE}`;
+if (POLICY.value.split(FORM_ACTION_SELF).length !== 2)
+  throw new Error("the builder's form-action is not 'self' exactly once");
+const POLICY_VALUE = `${POLICY.value.replace(FORM_ACTION_SELF, `${FORM_ACTION_SELF} ${STRIPE_FORM_TARGETS}`)}; frame-src ${TURNSTILE}`;
 const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */
@@ -123,14 +129,21 @@ function contentSecurityPolicy(nonce: string) {
  * report-to group needs this origin's absolute URL (until site-runtime v0.12.0
  * the header named the bare path and no report-to report was ever sent).
  */
-export function applySecurityHeaders(response: Response, nonce: string, origin: string): Response {
+export function applySecurityHeaders(
+  response: Response,
+  nonce: string,
+  origin: string,
+): Response {
   const headers = new Headers(response.headers);
   applyHeaderSet(headers, SECURITY_HEADERS, { overwrite: false });
   if (!headers.has("Content-Security-Policy")) {
     const policy = contentSecurityPolicy(nonce);
     headers.set(policy.name, policy.value);
     try {
-      headers.set("Reporting-Endpoints", reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)));
+      headers.set(
+        "Reporting-Endpoints",
+        reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)),
+      );
     } catch {
       // A plain-http origin, which reportingEndpoints refuses and a browser
       // would ignore: the page is still served, with report-uri as its sink.
