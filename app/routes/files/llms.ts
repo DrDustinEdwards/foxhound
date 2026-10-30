@@ -1,5 +1,5 @@
 import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
-import { llmsDocument } from "@drdustinedwards/site-helpers/llms";
+import { llmsResponse } from "@drdustinedwards/site-helpers/llms";
 import { getDb } from "~/db";
 import { getPublishedTagSet } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -29,7 +29,7 @@ import type { Route } from "./+types/llms";
 // here would either be empty noise or a stale/aspirational claim. Pointing
 // at /blog and /blog/tag/* is honest today and needs no follow-up edit
 // once the import lands.
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
 
@@ -44,7 +44,9 @@ export async function loader({ context }: Route.LoaderArgs) {
     .map((tag) => `${url}/blog/tag/${tag}`)
     .join(", ");
 
-  const content = llmsDocument({
+  return llmsResponse({
+    origin: url,
+    request,
     title: "Foxhound",
     summary:
       "Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform for Stripe merchants. Outcome-based pricing: it earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered anyway.",
@@ -148,12 +150,5 @@ export async function loader({ context }: Route.LoaderArgs) {
         ],
       },
     ],
-  });
-
-  return new Response(content, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=86400",
-    },
   });
 }

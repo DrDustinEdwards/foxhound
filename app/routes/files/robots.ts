@@ -4,6 +4,7 @@ import {
   DENIED_BOTS,
   SEARCH_ENGINE_BOTS,
   robotsDocument,
+  robotsResponse,
 } from "@drdustinedwards/site-helpers/robots";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -85,16 +86,20 @@ export { DENIED_BOTS };
  * ROBOTS.TXT IS THE ADVISORY HALF: the enforcing half is the server-side guard
  * at the click recorder, app/lib/engagement/agents.ts.
  */
+const POLICY = { disallow: DISALLOW_PATHS, allowBots: ALLOWED_BOTS, denyBots: DENIED_BOTS, notes: [] };
+
 export function buildRobotsTxt(url: string): string {
-  return robotsDocument({ origin: url, disallow: DISALLOW_PATHS, allowBots: ALLOWED_BOTS, denyBots: DENIED_BOTS });
+  return robotsDocument({ origin: url, ...POLICY });
 }
 
-export function loader({ context }: Route.LoaderArgs) {
+// Prelum's robotsResponse: buildRobotsTxt's document, with the family's plain-text headers (the
+// TDMRep header, an hour's cache, no-store on a preview) and `Disallow: /` for every crawler on a
+// preview origin.
+export function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  return new Response(buildRobotsTxt(siteUrl(env)), {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "public, max-age=86400",
-    },
+  return robotsResponse({
+    origin: siteUrl(env),
+    request,
+    ...POLICY,
   });
 }
