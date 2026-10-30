@@ -13,6 +13,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { AdminShell, FAMILY_APPS, type AdminApp, type AdminEntry } from "capsomer/react/admin-shell";
+import { refuseCrossOrigin } from "@dustinedwards/site-runtime/origin";
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
@@ -44,21 +45,14 @@ export const middleware: Route.MiddlewareFunction[] = [
     // on a POST from any site the admin has open, so every admin action (the
     // brake, merchant pauses, staged confirms, crons) would otherwise run on a
     // cross-site form. Checked after the session, so the 404 still hides
-    // /admin from everyone else.
-    if (request.method !== "GET" && request.method !== "HEAD" && !isSameOriginWrite(request)) {
-      throw new Response("Forbidden", { status: 403 });
-    }
+    // /admin from everyone else. site-runtime's shared check: a write whose
+    // Origin is another site (or "null") gets its 403.
+    const refusal = refuseCrossOrigin(request);
+    if (refusal) throw refusal;
     context.set(adminContext, { email: session.email });
     return next();
   },
 ];
-
-/** A write the browser says came from this origin: its Origin header is this
- *  origin, or Sec-Fetch-Site says same-origin. A request with neither is refused. */
-function isSameOriginWrite(request: Request): boolean {
-  if (request.headers.get("origin") === new URL(request.url).origin) return true;
-  return request.headers.get("sec-fetch-site") === "same-origin";
-}
 
 export function loader({ context }: Route.LoaderArgs) {
   return { email: context.get(adminContext).email, readAt: Date.now() };

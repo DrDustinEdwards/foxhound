@@ -91,8 +91,7 @@ describe("the /admin gate refuses a cross-site write", () => {
     };
 
     expect((await run({ Origin: "http://localhost:5173" })).ran).toBe(true);
-    expect((await run({ "Sec-Fetch-Site": "same-origin" })).ran).toBe(true);
-    const crossSite: Record<string, string>[] = [{ Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" }, {}];
+    const crossSite: Record<string, string>[] = [{ Origin: "https://evil.example" }, { Origin: "null" }];
     for (const headers of crossSite) {
       const { outcome, ran } = await run(headers);
       expect(ran).toBe(false);
