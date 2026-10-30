@@ -16,7 +16,7 @@ import { AdminShell, FAMILY_APPS, type AdminApp, type AdminEntry } from "capsome
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
-import { headerLogo, personInitials, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "~/components/site-header";
+import { renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
@@ -106,8 +106,8 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
 
   // Your admin (Capsomer's owner variant): the strip of the family's apps,
   // Foxhound marked with its PLACEHOLDER hound head (STRIP_APPS), then the
-  // grouped menu. The header is the site's own: the wordmark, the theme button
-  // and the avatar menu last. Search and Inbox are left out: the Foxhound admin
+  // grouped menu. The header is the family letterhead: the mark and names, the
+  // theme button and the avatar menu last. Search and Inbox are left out: the Foxhound admin
   // has no search and no inbox for them to open, and a control that does
   // nothing is worse than none.
   return (
@@ -115,6 +115,11 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
       <AdminShell
         variant="owner"
         app="foxhound"
+        // The family letterhead, as dustinedwards.info and Carrel have it: the
+        // family mark with "Dustin Edwards" over "Foxhound" and "Admin", and
+        // the owner's name and initials on the avatar (Dustin, 2026-10-30, on
+        // screenshots of the two admins side by side).
+        letterhead
         title="Foxhound admin"
         // Each admin route's meta title stays the browser title.
         documentTitle={false}
@@ -122,8 +127,6 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         nav={nav}
         apps={STRIP_APPS}
         prefKey="foxhound-admin"
-        logo={headerLogo("/admin")}
-        band="dark"
         themePrefKey={THEME_PREF_KEY}
         renderLink={renderHeaderLink}
         updated={{ at: readAt }}
@@ -133,11 +136,10 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         // session, so its Help opens the public docs.
         onHelp={() => void navigate("/docs")}
         account={{
-          name: email,
-          initials: personInitials(null, email),
-          // Who you are: the email is the name, so the line under it is the
-          // role alone.
-          role: "Administrator",
+          // The name and initials default to the family owner's, as on every
+          // family admin; the email says which Access login this is.
+          role: "Admin",
+          email,
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
           onSignOut: () => {
