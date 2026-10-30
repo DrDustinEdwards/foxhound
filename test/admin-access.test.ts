@@ -84,13 +84,16 @@ describe("the /admin gate refuses a cross-site write", () => {
       const context = { get: () => ({ env: dev }), set: () => {} };
       const next = vi.fn(async () => new Response("ran"));
       const request = new Request("http://localhost:5173/admin/brake", { method: "POST", headers });
-      const outcome = await middleware[0]!({ request, context, params: {} } as never, next as never).catch((e: unknown) => e);
+      const outcome = await Promise.resolve(middleware[0]!({ request, context, params: {} } as never, next as never)).catch(
+        (e: unknown) => e,
+      );
       return { outcome, ran: next.mock.calls.length > 0 };
     };
 
     expect((await run({ Origin: "http://localhost:5173" })).ran).toBe(true);
     expect((await run({ "Sec-Fetch-Site": "same-origin" })).ran).toBe(true);
-    for (const headers of [{ Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" }, {}]) {
+    const crossSite: Record<string, string>[] = [{ Origin: "https://evil.example", "Sec-Fetch-Site": "cross-site" }, {}];
+    for (const headers of crossSite) {
       const { outcome, ran } = await run(headers);
       expect(ran).toBe(false);
       expect((outcome as Response).status).toBe(403);
