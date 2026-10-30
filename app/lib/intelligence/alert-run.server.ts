@@ -47,7 +47,7 @@ import { accountProcessingEligible } from "./sync.server";
  *  words differ, each because Foxhound already has one definition:
  *  the recovery rate is the dashboard's (getRecoveryStats), "open" for a
  *  dispute is a state not yet resolved (the digest's), and the high-risk band
- *  is Recova's health score of 33 or less. Amounts are totalled per currency,
+ *  is Recova's health score of 33 or less. Amounts are summed per currency,
  *  never across currencies. */
 async function computeAlertMetrics(
   db: Db,

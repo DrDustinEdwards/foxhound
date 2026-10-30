@@ -697,7 +697,7 @@ describe("a grant ends when the person who approved it leaves the account", () =
     expect(res.body.error).toBe("invalid_grant");
   });
 
-  it("a cancelled account's access token stops working", async () => {
+  it("a closed account's access token stops working", async () => {
     const { access } = await fullFlow();
     expect(await verifyMcpToken(db, access)).not.toBeNull();
     sqlite.prepare("UPDATE accounts SET cancelled_at = ? WHERE id = ?").run(NOW.getTime(), ACCOUNT_B);
