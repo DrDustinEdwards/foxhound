@@ -498,7 +498,7 @@ export function PaymentsTable({
           </ul>
 
           <div className="hidden sm:block">
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Failed payments" tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Failed payments" tabIndex={0}>
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -531,29 +531,29 @@ export function PaymentsTable({
                             <span className="block text-micro font-normal text-text-subtle">{p.planName}</span>
                           ) : null}
                         </th>
-                        <td className="whitespace-nowrap font-mono">{formatMoney(p.amountCents, p.currency)}</td>
-                        <td>
+                        <td data-label="Amount" className="whitespace-nowrap font-mono">{formatMoney(p.amountCents, p.currency)}</td>
+                        <td data-label="Decline">
                           <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
                           {p.declineCode ? (
                             <span className="block font-mono text-micro text-text-subtle">{p.declineCode}</span>
                           ) : null}
                         </td>
-                        <td>
+                        <td data-label="Steps">
                           <span className={`font-mono text-micro ${s.completed > 0 ? "text-text" : "text-text-subtle"}`}>
                             {s.completed}/{s.total}
                           </span>
                           {s.next ? <span className="block text-micro text-brand-text">Next: {s.next}</span> : null}
                         </td>
-                        <td>
+                        <td data-label="Status">
                           <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
                             {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                           </Pill>
                         </td>
-                        <td className="whitespace-nowrap text-micro text-text-subtle">
+                        <td data-label="Detected" className="whitespace-nowrap text-micro text-text-subtle">
                           <span className="block">{formatRelativeTime(p.detectedAt, nowMs)}</span>
                           <span className="block">{formatLongDate(p.detectedAt)}</span>
                         </td>
-                        <td>
+                        <td data-label="Actions">
                           <Link
                             to={`/recovery/payments/${p.id}`}
                             aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}

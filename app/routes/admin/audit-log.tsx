@@ -73,7 +73,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
             Every admin action that changes how Foxhound runs writes an entry here.
           </Empty>
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
             <table className="cap-table">
               <caption className="cap-sr-only">The audit log, newest first.</caption>
               <thead>
@@ -91,9 +91,9 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                     <td>
                       <AdminTime at={e.createdAt} />
                     </td>
-                    <td className="break-all">{e.actor}</td>
-                    <td>{e.action}</td>
-                    <td data-wrap="">
+                    <td data-label="Actor" className="break-all">{e.actor}</td>
+                    <td data-label="Action">{e.action}</td>
+                    <td data-label="Target" data-wrap="">
                       {e.target === null ? (
                         <span className="text-text-tertiary">None</span>
                       ) : e.target.href ? (
@@ -104,7 +104,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                         <span className="break-all">{e.target.label}</span>
                       )}
                     </td>
-                    <td data-wrap="" className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}>
+                    <td data-label="Detail" data-wrap="" className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}>
                       {e.detail ?? "None"}
                     </td>
                   </tr>

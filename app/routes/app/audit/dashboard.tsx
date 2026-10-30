@@ -441,7 +441,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
       <div className="mb-5">
         <Panel title="History" flush>
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Audit runs" tabIndex={0}>
+          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Audit runs" tabIndex={0}>
             <table className="cap-table">
               <thead>
                 <tr>
@@ -464,16 +464,16 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                 {runs.map((run) => (
                   <tr key={run.id}>
                     <th scope="row">{formatDateShort(run.runAt)}</th>
-                    <td data-num="" className="font-mono">
+                    <td data-label="Failed" data-num="" className="font-mono">
                       <Amount totals={run.failedInvoices} currency={run.currency} />
                     </td>
-                    <td data-num="" className="font-mono">
+                    <td data-label="Disputes" data-num="" className="font-mono">
                       <Amount totals={run.openDisputes} currency={run.currency} />
                     </td>
-                    <td data-num="" className="font-mono">
+                    <td data-label="MRR" data-num="" className="font-mono">
                       <Amount totals={run.mrr} currency={run.currency} />
                     </td>
-                    <td data-num="">
+                    <td data-label="View" data-num="">
                       <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
                         View
                         <span className="sr-only"> the run of {formatDateShort(run.runAt)}</span>

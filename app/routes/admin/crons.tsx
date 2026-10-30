@@ -178,7 +178,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
               Every job in Foxhound&apos;s cron registry appears here.
             </Empty>
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">
                   Scheduled jobs, in the order the registry runs them, with each one&apos;s last run.
@@ -219,11 +219,11 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
           {words ? <span className="ml-2 font-mono text-text-subtle">{c.schedule}</span> : null}
         </span>
       </th>
-      <td>
+      <td data-label="State">
         <Status tone={c.enabled ? "ok" : "nodata"}>{c.enabled ? "On" : "Switched off"}</Status>
         {c.configured ? null : <span className="block text-text-secondary">On by default</span>}
       </td>
-      <td>
+      <td data-label="Last run">
         {c.lastRun && status ? (
           <>
             <Status tone={status.tone}>{status.word}</Status>
@@ -248,13 +248,13 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
           </div>
         ) : null}
       </td>
-      <td>
+      <td data-label="Last succeeded">
         <AdminTime at={c.lastSucceededAt} empty="Never" />
       </td>
-      <td data-wrap="" className={c.lastRun?.message ? "text-text" : "text-text-tertiary"}>
+      <td data-label="Last message" data-wrap="" className={c.lastRun?.message ? "text-text" : "text-text-tertiary"}>
         {c.lastRun?.message ?? "None"}
       </td>
-      <td>
+      <td data-label="Change">
         {c.enabled ? (
           <Form method="post" action={CRONS_PATH}>
             <input type="hidden" name="cronName" value={c.name} />

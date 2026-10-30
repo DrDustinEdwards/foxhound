@@ -37,6 +37,7 @@ import { RecommendationBanner } from "~/components/recommendation-banner";
 
 import type { Route } from "./+types/customer";
 import { NOINDEX } from "~/lib/seo/meta";
+import "capsomer/table.css";
 
 // /intelligence/customers/:id (row S18, job J68). Recova is the spec: its real
 // page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
@@ -396,23 +397,30 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
       {customer.predictions.length > 0 ? (
         <section className="mt-8">
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Predictions</p>
-          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-label">
+          <div
+            className="mt-3 cap-table-wrap rounded-lg border border-border"
+            data-cap="table"
+            data-reflow=""
+            role="region"
+            aria-label="Churn predictions"
+            tabIndex={0}
+          >
+            <table className="cap-table">
               <thead>
-                <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                  <th className="px-4 py-3 font-normal">Predicted</th>
-                  <th className="px-4 py-3 font-normal">Score</th>
-                  <th className="px-4 py-3 font-normal">Horizon</th>
-                  <th className="px-4 py-3 font-normal">Outcome</th>
+                <tr>
+                  <th scope="col">Predicted</th>
+                  <th scope="col">Score</th>
+                  <th scope="col">Horizon</th>
+                  <th scope="col">Outcome</th>
                 </tr>
               </thead>
               <tbody>
                 {customer.predictions.map((p, i) => (
-                  <tr key={i} className="border-b border-border-sub last:border-0">
-                    <td className="px-4 py-3 text-text-tertiary">{p.predictedAt.toLocaleDateString()}</td>
-                    <td className="px-4 py-3 font-mono text-text">{p.score}</td>
-                    <td className="px-4 py-3 text-text-tertiary">{p.horizonDays}d</td>
-                    <td className="px-4 py-3 text-text-tertiary">{p.realizedOutcome ?? "pending"}</td>
+                  <tr key={i}>
+                    <td className="text-text-tertiary">{p.predictedAt.toLocaleDateString()}</td>
+                    <td data-label="Score" className="font-mono text-text">{p.score}</td>
+                    <td data-label="Horizon" className="text-text-tertiary">{p.horizonDays}d</td>
+                    <td data-label="Outcome" className="text-text-tertiary">{p.realizedOutcome ?? "pending"}</td>
                   </tr>
                 ))}
               </tbody>

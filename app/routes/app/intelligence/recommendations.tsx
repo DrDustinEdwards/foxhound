@@ -160,7 +160,7 @@ function NothingToDo() {
 function SectionTable({ section, rows }: { section: Section; rows: RecommendationRow[] }) {
   return (
     <Panel title={section.title} description={section.subtitle} flush>
-      <div className="cap-table-wrap" data-cap="table" role="region" aria-label={section.title} tabIndex={0}>
+      <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label={section.title} tabIndex={0}>
         <table className="cap-table">
           <thead>
             <tr>
@@ -185,15 +185,15 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                   {/* Recova's second line under the name: the Stripe id, micro and mono. */}
                   <span className="block font-mono text-micro text-text-subtle">{c.stripeCustomerId}</span>
                 </th>
-                <td>
+                <td data-label="Plan">
                   <Pill variant="outline">{c.planName ?? "-"}</Pill>
                 </td>
-                <td data-num="">
+                <td data-label="MRR" data-num="">
                   <span className="font-mono">
                     {c.mrrContributionCents > 0 ? formatMoney(c.mrrContributionCents, c.currency) : "-"}
                   </span>
                 </td>
-                <td data-num="">
+                <td data-label="Health" data-num="">
                   {c.healthScore == null ? (
                     <span className="font-mono text-text-tertiary">-</span>
                   ) : (
@@ -202,7 +202,7 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                     </span>
                   )}
                 </td>
-                <td>
+                <td data-label="Recommendation">
                   <span className="text-micro text-text-subtle">
                     {ACTION_LABEL[c.recommendedAction] ?? c.recommendedAction}
                   </span>

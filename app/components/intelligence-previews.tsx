@@ -117,7 +117,7 @@ const TABLE_CAPTION = "preview-intelligence-customers";
 export function CustomerTablePreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="p-5">
-      <div className="cap-table-wrap" role="region" aria-labelledby={TABLE_CAPTION} tabIndex={0}>
+      <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={TABLE_CAPTION} tabIndex={0}>
         <table className="cap-table">
           <caption id={TABLE_CAPTION} className="sr-only">
             Customers by health score, lowest first
@@ -136,7 +136,7 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
                 <th scope="row">
                   <span className="text-label font-normal text-text">{row.name}</span>
                 </th>
-                <td>
+                <td data-label="Plan">
                   {/* Capsomer's pill markup rather than its Pill component,
                       which adds a status glyph to any toned pill; a plan is
                       not a status. The same choice as the directory. */}
@@ -144,10 +144,10 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
                     {row.planLabel}
                   </span>
                 </td>
-                <td>
+                <td data-label="Health">
                   <Pill tone={BAND_TONE[row.band]}>{row.healthScore}</Pill>
                 </td>
-                <td className="whitespace-nowrap">
+                <td data-label="MRR" className="whitespace-nowrap">
                   <span className="font-mono text-label text-text">{row.mrr}</span>
                 </td>
               </tr>

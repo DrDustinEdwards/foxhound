@@ -34,8 +34,8 @@ export function SequenceTimeline({ category }: { category: DeclineCategory }) {
       <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
         {DECLINE_CATEGORY_LABELS[category]}: {steps.length} {steps.length === 1 ? "step" : "steps"}
       </div>
-      <div className="overflow-x-auto pb-2">
-        <div className="flex min-w-max items-center gap-1">
+      <div className="pb-2">
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
           {steps.map((step, i) => (
             <div key={step.stepType} className="flex items-center gap-1">
               <div

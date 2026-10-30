@@ -104,7 +104,14 @@ export function EarlyFraudWarnings({
         {warnings.length === 0 ? (
           <p className="m-0 px-4 py-6 text-label text-text-secondary">No open early fraud warnings.</p>
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Early fraud warnings" tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-cap="table"
+            data-reflow="medium"
+            role="region"
+            aria-label="Early fraud warnings"
+            tabIndex={0}
+          >
             <table className="cap-table">
               <thead>
                 <tr>
@@ -131,11 +138,11 @@ export function EarlyFraudWarnings({
                           <div className="text-micro text-text-subtle">{w.customerEmail}</div>
                         ) : null}
                       </td>
-                      <td data-num="">{formatMoney(w.amountCents, w.currency)}</td>
-                      <td className="text-label text-text-secondary">{fraudTypeWords(w.fraudType)}</td>
-                      <td className="font-mono text-label">{formatDateShort(toDate(w.createdAt))}</td>
-                      <td className="font-mono text-micro text-text-secondary">{w.stripeChargeId}</td>
-                      <td>
+                      <td data-label="Amount" data-num="">{formatMoney(w.amountCents, w.currency)}</td>
+                      <td data-label="Fraud type" className="text-label text-text-secondary">{fraudTypeWords(w.fraudType)}</td>
+                      <td data-label="Date" className="font-mono text-label">{formatDateShort(toDate(w.createdAt))}</td>
+                      <td data-label="Charge" className="font-mono text-micro break-all text-text-secondary">{w.stripeChargeId}</td>
+                      <td data-label="Actions" className="[grid-column:1/-1]">
                         {readOnly ? (
                           <div className="flex flex-wrap justify-end gap-2">
                             <button

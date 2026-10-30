@@ -462,6 +462,7 @@ export default function ApiKeySettings({
           {keys && keys.length > 0 ? (
             <div
               className="cap-table-wrap"
+              data-reflow=""
               data-cap="table"
               role="region"
               aria-label="API keys"
@@ -482,9 +483,9 @@ export default function ApiKeySettings({
                   {keys.map((k) => (
                     <tr key={k.id}>
                       <th scope="row">{k.label}</th>
-                      <td>{formatDate(k.createdAt)}</td>
-                      <td>{formatDate(k.lastUsedAt)}</td>
-                      <td data-num>
+                      <td data-label="Created">{formatDate(k.createdAt)}</td>
+                      <td data-label="Last used">{formatDate(k.lastUsedAt)}</td>
+                      <td data-label="Actions" data-num>
                         {owner ? (
                           <DemoGuardedForm method="post">
                             <input type="hidden" name="_action" value="revoke" />

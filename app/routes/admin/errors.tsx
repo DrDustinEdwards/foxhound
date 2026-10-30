@@ -123,7 +123,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
             here.
           </Empty>
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={FAILED_HEADING_ID} tabIndex={0}>
+          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={FAILED_HEADING_ID} tabIndex={0}>
             <table className="cap-table">
               <caption className="cap-sr-only">Failed actions from the audit log, newest first.</caption>
               <thead>
@@ -141,9 +141,9 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                     <td>
                       <AdminTime at={e.createdAt} />
                     </td>
-                    <td>{e.action}</td>
-                    <td className="break-all">{e.actor}</td>
-                    <td data-wrap="">
+                    <td data-label="Action">{e.action}</td>
+                    <td data-label="Actor" className="break-all">{e.actor}</td>
+                    <td data-label="Target" data-wrap="">
                       {e.target === null ? (
                         <span className="text-text-tertiary">None</span>
                       ) : e.target.href ? (
@@ -154,7 +154,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                         <span className="break-all">{e.target.label}</span>
                       )}
                     </td>
-                    <td data-wrap="" className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}>
+                    <td data-label="Detail" data-wrap="" className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}>
                       {e.detail ?? "None"}
                     </td>
                   </tr>
@@ -196,7 +196,7 @@ function SentryNotice({ sentry }: { sentry: SentryState }) {
 
 function IssuesTable({ issues }: { issues: SentryIssue[] }) {
   return (
-    <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={ISSUES_HEADING_ID} tabIndex={0}>
+    <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={ISSUES_HEADING_ID} tabIndex={0}>
       <table className="cap-table">
         <caption className="cap-sr-only">Unresolved errors from Sentry, most recent first.</caption>
         <thead>
@@ -228,15 +228,15 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
                     {issue.culprit ? `${issue.shortId}, ${issue.culprit}` : issue.shortId}
                   </span>
                 </td>
-                <td>
+                <td data-label="Level">
                   <Status tone={level.tone}>{level.word}</Status>
                 </td>
-                <td className="tabular-nums">{figure(issue.count)}</td>
-                <td className="tabular-nums">{figure(issue.userCount)}</td>
-                <td>
+                <td data-label="Events" className="tabular-nums">{figure(issue.count)}</td>
+                <td data-label="Users" className="tabular-nums">{figure(issue.userCount)}</td>
+                <td data-label="Last seen">
                   <AdminTime at={issue.lastSeen} empty="Not known" />
                 </td>
-                <td>
+                <td data-label="First seen">
                   <AdminTime at={issue.firstSeen} empty="Not known" />
                 </td>
               </tr>

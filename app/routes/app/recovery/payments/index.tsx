@@ -812,7 +812,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Payments" tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Payments" tabIndex={0}>
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -876,7 +876,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             {p.hasNote ? <Pill>note</Pill> : null}
                           </span>
                           {p.customerName ? (
-                            <span className="mt-0.5 block text-micro font-normal text-text-subtle">
+                            <span className="mt-0.5 block text-micro font-normal break-all text-text-subtle">
                               {p.customerEmail}
                             </span>
                           ) : null}
@@ -884,18 +884,18 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             <span className="mt-0.5 block text-micro font-normal text-text-subtle">{p.planName}</span>
                           ) : null}
                         </th>
-                        <td>
+                        <td data-label="Amount">
                           <span className="whitespace-nowrap font-mono text-label text-brand-text">
                             {formatMoney(p.amountCents, p.currency)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Decline">
                           <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
                           {p.declineCode ? (
-                            <span className="mt-0.5 block font-mono text-micro text-text-subtle">{p.declineCode}</span>
+                            <span className="mt-0.5 block font-mono text-micro break-all text-text-subtle">{p.declineCode}</span>
                           ) : null}
                         </td>
-                        <td>
+                        <td data-label="Steps">
                           <span
                             className={`font-mono text-micro ${p.steps.completed > 0 ? "text-text" : "text-text-subtle"}`}
                           >
@@ -905,12 +905,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             <span className="mt-0.5 block text-micro text-brand-text">Next: {p.steps.next}</span>
                           ) : null}
                         </td>
-                        <td>
+                        <td data-label="Status">
                           <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
                             {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                           </Pill>
                         </td>
-                        <td>
+                        <td data-label="Detected">
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-micro text-text-subtle">
                               <span className="block whitespace-nowrap">{formatTimeAgo(p.detectedAt, nowMs)}</span>
