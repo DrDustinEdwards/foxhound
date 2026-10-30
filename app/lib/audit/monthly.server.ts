@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { type Db, accounts, auditDigestRuns, getDb, stripeConnections } from "~/db";
 import { computeFoxhoundAddsCents, type CurrencyCents } from "~/lib/audit/full-audit.server";
 import { saveAuditRun } from "~/lib/audit/persist.server";
@@ -9,6 +9,7 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
 import { isDigestEnabled, readAuditSettings } from "~/lib/settings/audit-settings";
+import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
 import {
   compareTotals,
@@ -118,13 +119,7 @@ async function primaryConnection(
       encryptedAccessToken: stripeConnections.stripeAccessToken,
     })
     .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.accountId, accountId),
-        eq(stripeConnections.isPrimary, true),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
+    .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
 
   if (!row?.encryptedAccessToken) return null;

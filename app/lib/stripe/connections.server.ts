@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, type SQL } from "drizzle-orm";
 
 import { stripeConnections } from "~/db";
 import type { Db } from "~/db";
@@ -20,6 +20,34 @@ import type { Db } from "~/db";
 // implementation: both connect-callback branches and the audit results page,
 // which uses it to decide whether a run may be filed into a merchant's history.
 
+/** account_id = :accountId AND disconnected_at IS NULL: the account's live
+ *  connections. The one spelling of "active connection" for an account. */
+export function activeConnectionWhere(accountId: string): SQL {
+  // and() of two defined conditions is always defined
+  return and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)) as SQL;
+}
+
+/** The account's live primary connection: activeConnectionWhere plus
+ *  is_primary, the row sender settings and brand voice are read from. */
+export function activePrimaryConnectionWhere(accountId: string): SQL {
+  return and(
+    eq(stripeConnections.accountId, accountId),
+    eq(stripeConnections.isPrimary, true),
+    isNull(stripeConnections.disconnectedAt),
+  ) as SQL;
+}
+
+/** Every live connection of the account, with its encrypted access token. */
+export function listActiveConnections(
+  db: Db,
+  accountId: string,
+): Promise<{ id: string; stripeAccessToken: string | null }[]> {
+  return db
+    .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
+    .from(stripeConnections)
+    .where(activeConnectionWhere(accountId));
+}
+
 /**
  * The account's Stripe connection to read from: the earliest-connected
  * still-active one (gotcha #22). For callers with no per-row hint to tell
@@ -33,7 +61,7 @@ export async function findActiveConnection(
   const rows = await db
     .select({ id: stripeConnections.id, stripeAccessToken: stripeConnections.stripeAccessToken })
     .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
+    .where(activeConnectionWhere(accountId))
     .orderBy(stripeConnections.connectedAt)
     .limit(1);
   return rows[0] ?? null;

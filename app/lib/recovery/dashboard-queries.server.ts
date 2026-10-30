@@ -20,6 +20,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { byAccountActive } from "~/db/scope";
+import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { billableRecoveryRowConditions, exemptionForgaveRecovery } from "~/db/billable";
 import {
   type Db,
@@ -286,13 +287,7 @@ export async function getDashboardOnboardingProfile(db: Db, accountId: string): 
     db
       .select({ senderName: stripeConnections.senderName })
       .from(stripeConnections)
-      .where(
-        and(
-          eq(stripeConnections.accountId, accountId),
-          eq(stripeConnections.isPrimary, true),
-          isNull(stripeConnections.disconnectedAt),
-        ),
-      )
+      .where(activePrimaryConnectionWhere(accountId))
       .limit(1),
   ]);
   return {
@@ -315,13 +310,7 @@ export async function getConnectionSummary(db: Db, accountId: string): Promise<C
       lastWebhookAt: stripeConnections.lastWebhookAt,
     })
     .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.accountId, accountId),
-        eq(stripeConnections.isPrimary, true),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
+    .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
   if (!connection) return null;
   return {

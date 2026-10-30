@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type Db, accounts, getDb, stripeConnections } from "~/db";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
+import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
 
 interface CancelledConnection {
@@ -48,7 +49,7 @@ async function cancelMerchantLocal(db: Db, accountId: string, now: Date): Promis
   const activeConnections = await db
     .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)));
+    .where(activeConnectionWhere(accountId));
 
   await db.batch(buildCancelMerchantBatch(db, accountId, activeConnections, now));
 

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db/schema";
@@ -44,6 +44,7 @@ import {
   noPaymentMethodSubject,
 } from "~/lib/recovery/expiring-card-email";
 import { resendFooterNote } from "~/lib/recovery/manual-action-deps.server";
+import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { recoveryNotifyContent } from "~/lib/recovery/merchant-notification.server";
 import { sequenceCompleteContent } from "~/lib/recovery/sequence-complete-notification.server";
 import { buildWinbackEmail, winbackSubject } from "~/lib/recovery/winback-email";
@@ -322,13 +323,7 @@ export async function loadMerchantEmailSettings(db: Db, accountId: string): Prom
       fraud: stripeConnections.brandVoiceFraud,
     })
     .from(stripeConnections)
-    .where(
-      and(
-        eq(stripeConnections.accountId, accountId),
-        eq(stripeConnections.isPrimary, true),
-        isNull(stripeConnections.disconnectedAt),
-      ),
-    )
+    .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
   return {
     accountId: account.id,
