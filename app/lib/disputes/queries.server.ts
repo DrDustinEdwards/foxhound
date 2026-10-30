@@ -307,7 +307,7 @@ export async function approveAndSubmitDispute(
         files: await readEvidenceFilesForSubmission(env.EVIDENCE, evidence),
       }),
     confirmSubmission: async () => {
-      await db.batch(
+      const [result] = await db.batch(
         buildSubmissionConfirmationBatch(db, {
           disputeId: input.disputeId,
           accountId: input.accountId,
@@ -315,6 +315,13 @@ export async function approveAndSubmitDispute(
           submittedAt: input.approvedAt,
         }),
       );
+      // Stripe has the evidence, so a zero-row write means billing will never
+      // see this submission. It cannot be retried from here; say so loudly.
+      if (changedRows(result) === 0) {
+        console.error(
+          `dispute submission not recorded: dispute ${input.disputeId} account ${input.accountId} was accepted by Stripe but already carried a submitted marker or no longer exists`,
+        );
+      }
     },
   });
 }

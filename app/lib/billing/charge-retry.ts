@@ -1,10 +1,11 @@
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { accountBillingEligibleCondition } from "~/db/billable";
+import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee-retry";
 import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
 import {
@@ -13,6 +14,8 @@ import {
   findPlatformInvoiceByBillingId,
   lineItemIdempotencyKey,
   payPlatformInvoice,
+  STRIPE_CHARGEABLE_TYPES,
+  STRIPE_SETTLED_STATUSES,
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 
@@ -109,6 +112,9 @@ export async function queryStrandedInvoices(env: Env, limit: number): Promise<St
         // A zero-total invoice has nothing chargeable and would only ever make
         // createPlatformInvoice throw its no-chargeable-lines guard.
         sql`${billingInvoices.totalCents} > 0`,
+        // An invoice holding only adjustments (an admin's manual entry) has no
+        // line Stripe is ever sent; sweeping it would only fail it monthly.
+        sql`exists (select 1 from ${billingLineItems} where ${billingLineItems.invoiceId} = ${billingInvoices.id} and ${billingLineItems.amountCents} > 0 and ${inArray(billingLineItems.type, [...STRIPE_CHARGEABLE_TYPES])})`,
       ),
     )
     .limit(limit);
@@ -200,7 +206,12 @@ function buildChargeAttemptUpdate(
         chargeAttemptCount: input.attemptCount,
         lastChargeAttemptAt: input.now,
       })
-      .where(eq(billingInvoices.id, input.billingInvoiceId)),
+      .where(
+        and(
+          eq(billingInvoices.id, input.billingInvoiceId),
+          notInArray(billingInvoices.status, STRIPE_SETTLED_STATUSES),
+        ),
+      ),
   ];
 }
 
@@ -649,6 +660,7 @@ export async function runChargeRetrySweep(
   nowMs: number,
   opts: { limit?: number; deps?: Partial<ChargeRetryDeps> } = {},
 ): Promise<SweepResult[]> {
+  if (!PLATFORM_CHARGES_ENABLED) return [];
   const stranded = await queryStrandedInvoices(env, opts.limit ?? 200);
   const checkGuard = opts.deps?.checkGuard ?? checkChargeGuard;
   const results: SweepResult[] = [];

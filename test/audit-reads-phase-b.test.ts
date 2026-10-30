@@ -101,7 +101,7 @@ describe("PLANT 3: the arguments legacy sends", () => {
     expect(calls.subscriptions).toEqual({
       status: "all",
       limit: 100,
-      expand: ["data.default_payment_method"],
+      expand: ["data.default_payment_method", "data.customer.invoice_settings.default_payment_method"],
     });
 
     await readCardUpdaterEvents(stripe, 1_700_000_000);

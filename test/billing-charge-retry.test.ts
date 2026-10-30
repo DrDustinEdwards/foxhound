@@ -5,6 +5,9 @@ import { FEE_INVOICE_MAX_RETRY_ATTEMPTS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
+
 // The stranded-invoice failure mode, end to end. runAccountBilling commits the
 // ledger atomically and THEN charges Stripe, so a failure in the second half
 // leaves a committed billing_invoices row whose money never moved, and the
@@ -460,14 +463,11 @@ describe("guards", () => {
     expect(calls).toEqual([]); // Stripe never touched for the invoice
   });
 
-  it("skips an invoice whose line items are missing rather than creating an empty one", async () => {
+  it("never sweeps an invoice with no line Stripe would be sent", async () => {
+    // Covers a missing ledger and an admin adjustment alike: neither has a
+    // chargeable line, so retrying could only fail it month after month.
     await seed({ withLineItem: false });
-    const { calls, deps } = stripeDeps(null);
-    const [invoice] = await queryStrandedInvoices({} as Env, 100);
-
-    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result.reason).toBe("no_line_items");
-    expect(calls).toEqual(["findExisting"]);
+    expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
   });
 
   it("isolates a per-invoice failure so the sweep completes", async () => {

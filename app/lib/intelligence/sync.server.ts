@@ -628,6 +628,12 @@ export async function runIntelligenceSyncForAccount(
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
     return { accountId, customersProcessed: 0, snapshotWritten: false, truncated };
   }
+  // A scan cut off at the cap saw only part of the customers, so its MRR row
+  // would chart a drop that never happened. The run reports it truncated and
+  // the charts keep the last complete day.
+  if (truncated) {
+    return { accountId, customersProcessed: currentPoints.length, snapshotWritten: false, truncated };
+  }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
   await db.insert(mrrSnapshots).values({
@@ -655,13 +661,11 @@ export async function runIntelligenceSyncForAccount(
 
   // Recova's compute-daily-metrics wrote accounts.mrr_estimate nightly from the
   // active subscriptions, normalized to a month; this total is the same
-  // measure. A truncated scan would understate it, so it is left as it was.
-  if (!truncated) {
-    await db
-      .update(accounts)
-      .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
-      .where(eq(accounts.id, accountId));
-  }
+  // measure (a truncated scan returned above, before understating it).
+  await db
+    .update(accounts)
+    .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
+    .where(eq(accounts.id, accountId));
 
   return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
 }

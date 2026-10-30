@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { billingInvoices } from "~/db";
 import { getStripe } from "~/lib/stripe/client";
+import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 
 // Platform billing: turn a computed billing_invoices row into a real Stripe
 // invoice on Foxhound's OWN Stripe account (the merchant is a Customer there).
@@ -68,7 +69,7 @@ export interface PlatformInvoiceResult {
 }
 
 /** Line-item types charged through Stripe. adjustment lines are internal only. */
-const STRIPE_CHARGEABLE_TYPES = new Set(["recovery_fee", "dispute_fee", "subscription"]);
+export const STRIPE_CHARGEABLE_TYPES = new Set(["recovery_fee", "dispute_fee", "subscription"]);
 
 /** The subset of line items that become Stripe invoice items (chargeable, positive). Pure. */
 export function chargeableLines(lines: PlatformInvoiceLineInput[]): PlatformInvoiceLineInput[] {
@@ -197,6 +198,7 @@ export async function createPlatformInvoice(
   env: Env,
   input: CreatePlatformInvoiceInput,
 ): Promise<PlatformInvoiceResult> {
+  if (!PLATFORM_CHARGES_ENABLED) throw new Error("platform charges are switched off");
   const lines = chargeableLines(input.lines);
   if (lines.length === 0) {
     throw new Error("no chargeable line items for platform invoice");
@@ -343,6 +345,7 @@ export async function payPlatformInvoice(
   stripeInvoiceId: string,
   attemptNumber: number,
 ): Promise<Stripe.Invoice> {
+  if (!PLATFORM_CHARGES_ENABLED) throw new Error("platform charges are switched off");
   const stripe = getStripe(env);
   return stripe.invoices.pay(
     stripeInvoiceId,
@@ -356,6 +359,11 @@ export async function payPlatformInvoice(
 /** The money-write that stamps the Stripe invoice reference + status onto our
  *  billing_invoices row. Rides the per-account money-write DO like every other
  *  billing write. */
+/** Statuses Stripe itself settled. A later write from our side (an attempt
+ *  that raced a payment, an eventually consistent search) never moves an
+ *  invoice out of one; only the platform webhook moves invoice status forward. */
+export const STRIPE_SETTLED_STATUSES = ["paid", "void", "uncollectible"];
+
 export function buildInvoiceStripeRefUpdate(
   db: Db,
   input: {
@@ -375,7 +383,12 @@ export function buildInvoiceStripeRefUpdate(
         status: input.status,
         finalizedAt: input.now,
       })
-      .where(eq(billingInvoices.id, input.billingInvoiceId)),
+      .where(
+        and(
+          eq(billingInvoices.id, input.billingInvoiceId),
+          notInArray(billingInvoices.status, STRIPE_SETTLED_STATUSES),
+        ),
+      ),
   ];
 }
 

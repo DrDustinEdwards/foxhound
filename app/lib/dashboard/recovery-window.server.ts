@@ -3,8 +3,7 @@ import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory, HOUR_MS } from "~/lib
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
 import { listExpiringCardAlerts, listActiveFailedPayments, type FailedPaymentRow } from "~/lib/recovery/queries.server";
 import { countActiveWinbacks, countFailuresByCustomer, getConnectionSummary, getMostRecentRecoveryAt, listExecutedEmailSteps, listFailuresWithOutcome, listRecentFailedPayments, listRecoveredWithFailureContext, listReactivatedWinbacks, listUpcomingSteps, type ConnectionSummary, type UpcomingStepRow } from "~/lib/recovery/dashboard-queries.server";
-import { groupSumByCurrency } from "./stats.server";
-import type { CurrencyAmount } from "./stats.server";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   bestCategory,
   categorySparklineWindow,
@@ -223,7 +222,7 @@ export async function getRecoveryDashboardWindow(
 
   // ---- Current-state facts (range-invariant) ----
   const activePaymentsCount = activePayments.length;
-  const atRiskRevenue = groupSumByCurrency(activePayments);
+  const atRiskRevenue = groupSumByCurrency(activePayments.map((r) => ({ currency: r.currency, cents: r.amountCents })));
   const expiringCardsCount = expiringCards.filter((c) =>
     isCardExpiringSoon(c.expiresYear, c.expiresMonth, new Date(nowMs)),
   ).length;
@@ -237,7 +236,7 @@ export async function getRecoveryDashboardWindow(
     recoveredCount: recoveredInCohortCount,
     recoveryRatePct:
       failuresWithOutcome.length > 0 ? Math.round((recoveredInCohortCount / failuresWithOutcome.length) * 100) : null,
-    recoveredRevenue: groupSumByCurrency(recovered),
+    recoveredRevenue: groupSumByCurrency(recovered.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
     recoveryDaysCount: recoveryDays.length,
     avgDaysToRecovery,
     recoveryTimingBuckets: recoveryTimingBuckets(recoveryDays),
@@ -263,7 +262,7 @@ export async function getRecoveryDashboardWindow(
     reactivatedRevenue: groupSumByCurrency(
       reactivated
         .filter((r): r is { amountCents: number; currency: string } => r.amountCents != null && r.currency != null)
-        .map((r) => ({ amountCents: r.amountCents, currency: r.currency })),
+        .map((r) => ({ cents: r.amountCents, currency: r.currency })),
     ),
     recentPayments,
     previousFailureCounts,

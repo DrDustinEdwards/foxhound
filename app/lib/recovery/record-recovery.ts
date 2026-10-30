@@ -80,9 +80,26 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
   // and writing: the value is resolved at insert time, in this same atomic batch.
   // See buildRefundStampBatch for the other half and why the pair is exhaustive.
   const refundedAtFromMarker = sql`(select ${failedPayments.refundSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
+  // THE GUARD IS JOINED TO THE WRITE (hard rule 3). Every caller flips the
+  // failed payment to recovered at `recoveredAt` in the statement before this
+  // one, conditionally. If that flip matched nothing (the merchant cancelled
+  // recovery a moment earlier), this subquery is NULL, the NOT NULL account_id
+  // refuses the insert and the whole batch rolls back, so no billable row is
+  // ever written against a payment that is not recovered.
+  const accountIdIfFlipped = sql`(${db
+    .select({ accountId: failedPayments.accountId })
+    .from(failedPayments)
+    .where(
+      and(
+        eq(failedPayments.id, input.failedPaymentId),
+        eq(failedPayments.accountId, input.accountId),
+        eq(failedPayments.status, "recovered"),
+        eq(failedPayments.resolvedAt, input.recoveredAt),
+      ),
+    )})`;
   return [
     db.insert(recoveredPayments).values({
-      accountId: input.accountId,
+      accountId: accountIdIfFlipped,
       failedPaymentId: input.failedPaymentId,
       recoveredAt: input.recoveredAt,
       amountCents: input.amountCents,

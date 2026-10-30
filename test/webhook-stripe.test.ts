@@ -160,6 +160,7 @@ describe("webhook batch builders (compile against schema)", () => {
       stripeEventId: "evt_1",
       invoiceId: "in_1",
       customerId: "cus_1",
+      subscriptionId: null,
       customerEmail: "a@b.com",
       customerName: null,
       amountCents: 4200,

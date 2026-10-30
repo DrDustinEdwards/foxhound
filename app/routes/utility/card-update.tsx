@@ -107,6 +107,9 @@ interface CardUpdateTarget {
   /** Recovery mode may pin the subscription; an alert has none, and
    *  finalizeCardUpdateSession already updates the CUSTOMER default either way. */
   subscriptionId: string | null;
+  /** The failed invoice, so a payment recorded before its subscription was
+   *  stored can still find the subscription at finalize time. */
+  invoiceId?: string | null;
   connection: ConnectionCandidate | null;
   /** True when there is nothing left to do (a payment already resolved). */
   resolved: boolean;
@@ -217,6 +220,7 @@ async function loadTarget(env: Env, failedPaymentId: string, accountId: string) 
         status: failedPayments.status,
         stripeCustomerId: failedPayments.stripeCustomerId,
         subscriptionId: failedPayments.subscriptionId,
+        stripeInvoiceId: failedPayments.stripeInvoiceId,
         amountCents: failedPayments.amountCents,
         currency: failedPayments.currency,
         stripeConnectionId: failedPayments.stripeConnectionId,
@@ -256,6 +260,7 @@ async function resolveTarget(
       failedPaymentId: failedPayment.id,
       stripeCustomerId: failedPayment.stripeCustomerId,
       subscriptionId: failedPayment.subscriptionId,
+      invoiceId: failedPayment.stripeInvoiceId,
       connection,
       resolved: failedPayment.status !== "active",
       amountCents: failedPayment.amountCents,
@@ -378,6 +383,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
         accessToken,
         sessionId,
         subscriptionId: target.subscriptionId,
+        invoiceId: target.invoiceId ?? null,
       });
       if (!result.ok) {
         return data<LoaderState>({ state: "setup_failed" });

@@ -71,6 +71,8 @@ export async function finalizeCardUpdateSession(input: {
   accessToken: string;
   sessionId: string;
   subscriptionId?: string | null;
+  /** Read for its subscription when `subscriptionId` is not known. */
+  invoiceId?: string | null;
 }): Promise<FinalizeCardUpdateResult> {
   const stripe = getConnectedStripe(input.accessToken);
   const session = await stripe.checkout.sessions.retrieve(input.sessionId, {
@@ -93,8 +95,16 @@ export async function finalizeCardUpdateSession(input: {
   await stripe.customers.update(customerId, {
     invoice_settings: { default_payment_method: paymentMethodId },
   });
-  if (input.subscriptionId) {
-    await stripe.subscriptions.update(input.subscriptionId, {
+  // A subscription's own default card outranks the customer's, so a retry
+  // would still charge the declined card unless the subscription moves too.
+  let subscriptionId = input.subscriptionId ?? null;
+  if (!subscriptionId && input.invoiceId) {
+    const invoice = await stripe.invoices.retrieve(input.invoiceId);
+    const sub = invoice.parent?.subscription_details?.subscription ?? null;
+    subscriptionId = typeof sub === "string" ? sub : (sub?.id ?? null);
+  }
+  if (subscriptionId) {
+    await stripe.subscriptions.update(subscriptionId, {
       default_payment_method: paymentMethodId,
     });
   }

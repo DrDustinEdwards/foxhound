@@ -76,6 +76,7 @@ function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
   const full = invoice as InvoiceWithCharge;
   const charge = typeof full.charge === "object" && full.charge ? { failure_code: full.charge.failure_code } : null;
   return {
+    id: full.id,
     amount_due: full.amount_due,
     currency: full.currency,
     due_date: full.due_date,
@@ -91,7 +92,12 @@ function narrowInvoice(invoice: Stripe.Invoice): Stripe.Invoice {
 /** A subscription as the engine reads it: status, currency, customer id, the
  *  card's expiry, the first item's price, and the cancellation. */
 function narrowSubscription(subscription: Stripe.Subscription): Stripe.Subscription {
-  const pm = subscription.default_payment_method;
+  // The subscription's own card, else the customer's default (what Stripe
+  // charges when the subscription names none).
+  const customer = typeof subscription.customer === "object" && !("deleted" in subscription.customer)
+    ? subscription.customer
+    : null;
+  const pm = subscription.default_payment_method ?? customer?.invoice_settings?.default_payment_method ?? null;
   const card = pm && typeof pm === "object" ? pm.card : null;
   const price = subscription.items?.data?.[0]?.price;
   return {
@@ -171,7 +177,7 @@ export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<Stripe.Su
     stripe.subscriptions.list({
       status: "all",
       limit: 100,
-      expand: ["data.default_payment_method"],
+      expand: ["data.default_payment_method", "data.customer.invoice_settings.default_payment_method"],
     }),
     narrowSubscription,
   );

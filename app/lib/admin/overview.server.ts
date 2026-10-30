@@ -19,7 +19,8 @@ import {
 } from "~/db";
 import { auditTarget, describeAuditAction, type AuditTarget } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
-import { groupSumByCurrency, startOfUtcMonthMs, type CurrencyAmount } from "~/lib/billing/preview.server";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { BILLABLE_ATTRIBUTION_KINDS, DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 

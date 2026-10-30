@@ -1,7 +1,9 @@
 import type Stripe from "stripe";
 
 import { CAU_EVENT_RETENTION_DAYS, DAY_MS } from "~/lib/constants";
+import { pickDeclineCode } from "~/lib/recovery/decline";
 import { getConnectedStripe } from "~/lib/stripe/client";
+import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import {
   readCardUpdaterEvents,
   readDisputes,
@@ -10,7 +12,7 @@ import {
   readUncollectibleInvoices,
 } from "~/lib/stripe/reads";
 
-import { runAudit, type AuditInputs, type AuditResult } from "./engine";
+import { runAudit, type AuditInputs, type AuditResult, type ReadOutcome } from "./engine";
 import { generateAuditSummary, type AuditSummaryOutcome } from "./summary.server";
 
 // The five live reads, the pure engine and the one AI call, joined. Phase (f).
@@ -62,7 +64,51 @@ export async function collectAuditInputs(
       readCardUpdaterEvents(stripe, cauWindowStartSeconds),
     ]);
 
-  return { uncollectibleInvoices, openInvoices, subscriptions, disputes, cardUpdaterEvents };
+  return {
+    uncollectibleInvoices: await withDeclineCodes(stripe, uncollectibleInvoices),
+    openInvoices: await withDeclineCodes(stripe, openInvoices),
+    subscriptions,
+    disputes,
+    cardUpdaterEvents,
+  };
+}
+
+/** Invoices read for their decline code, at most this many per list: each
+ *  costs two Stripe calls, and the category breakdown is a sample beyond it. */
+const DECLINE_LOOKUP_CAP = 100;
+
+/**
+ * Fill in each invoice's real decline code. On the pinned API version an
+ * invoice carries no `charge` and no `last_payment_error`, so without this
+ * every failed invoice read as "unknown" and the expired-card advice never
+ * fired. The code comes off the latest charge, the way webhook intake reads
+ * it, and is set where extractDeclineCode looks (`charge.failure_code`). A
+ * failed read leaves that invoice as it was.
+ */
+async function withDeclineCodes(
+  stripe: Stripe,
+  outcome: ReadOutcome<Stripe.Invoice>,
+): Promise<ReadOutcome<Stripe.Invoice>> {
+  if (!outcome.ok) return outcome;
+  const data = await Promise.all(
+    outcome.data.map(async (invoice, index) => {
+      if (index >= DECLINE_LOOKUP_CAP || !invoice.id) return invoice;
+      try {
+        const latest = await latestInvoiceCharge(stripe, invoice.id);
+        if (!latest) return invoice;
+        const { paymentIntent, charge } = latest;
+        const code = pickDeclineCode([
+          paymentIntent.last_payment_error?.decline_code,
+          charge.outcome?.type === "issuer_declined" ? charge.outcome.reason : null,
+          charge.failure_code,
+        ]);
+        return code ? ({ ...invoice, charge: { failure_code: code } } as Stripe.Invoice) : invoice;
+      } catch {
+        return invoice;
+      }
+    }),
+  );
+  return { ok: true, data };
 }
 
 /**

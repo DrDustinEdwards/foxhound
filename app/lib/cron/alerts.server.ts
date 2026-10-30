@@ -13,6 +13,7 @@ import {
   DAY_MS,
 } from "~/lib/constants";
 import { sendRenderedTransactionalEmail, sendTransactionalEmail } from "~/lib/email/send";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import {
   manageEmailSettingsLine,
   recoveryFooterNote,
@@ -189,9 +190,14 @@ export async function claimAlertSlot(
       createdAt: now,
     });
     return true;
-  } catch {
+  } catch (err) {
     // The unique index rejected it: already alerted today for this cron+kind.
-    return false;
+    if (isUniqueConstraintError(err)) return false;
+    // Anything else (D1 down, a schema error) is not "already alerted". The
+    // alert exists to report a broken system, so it goes out undeduplicated
+    // rather than being swallowed.
+    console.error("cron alert dedupe claim failed; sending anyway:", err instanceof Error ? err.message : err);
+    return true;
   }
 }
 

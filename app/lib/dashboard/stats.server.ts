@@ -1,3 +1,4 @@
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { and, asc, eq, gte } from "drizzle-orm";
 
 import { getBillableRecoveries } from "~/db/billable";
@@ -11,26 +12,6 @@ import { rollUpByMonth } from "~/lib/intelligence/mrr";
 // read-only. "Fee owed" previews what the next billing run would invoice: it
 // reuses the same billable predicate (app/db/billable.ts) and fee function
 // (app/lib/billing/fees.ts) the billing run itself uses, never re-derives them.
-
-export interface CurrencyAmount {
-  currency: string;
-  cents: number;
-}
-
-/**
- * Sum cents per currency. Exported because three dashboard surfaces render the
- * same money totals and each carried its own copy. A local reduce that ignores
- * currency silently adds EUR to USD and labels the result with whichever row
- * happened to be first, which is what the console's at-risk hero shipped.
- * One number, one computation.
- */
-export function groupSumByCurrency(rows: { currency: string; amountCents: number }[]): CurrencyAmount[] {
-  const totals = new Map<string, number>();
-  for (const row of rows) {
-    totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.amountCents);
-  }
-  return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
-}
 
 export interface RecoveryStats {
   activeFailedCount: number;
@@ -76,7 +57,7 @@ export async function getRecoveryStats(
 
   const feeRows = billable.map((r) => ({
     currency: r.currency,
-    amountCents: recoveryFeeCents(r.amountCents),
+    cents: recoveryFeeCents(r.amountCents),
   }));
 
   return {
@@ -84,8 +65,8 @@ export async function getRecoveryStats(
     totalFailedCount,
     recoveredCount,
     recoveryRatePct,
-    revenueRecovered: groupSumByCurrency(recovered),
-    billableRevenue: groupSumByCurrency(billable),
+    revenueRecovered: groupSumByCurrency(recovered.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
+    billableRevenue: groupSumByCurrency(billable.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
     feeOwed: groupSumByCurrency(feeRows),
   };
 }

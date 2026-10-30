@@ -135,14 +135,14 @@ describe("PLANT 1: the pure copy is legacy's", () => {
       personalOutreachCount: 0,
       totalFailed: 1,
       totalRecovered: 0,
-      recoveredRevenueCents: 0,
-      atRiskRevenueCents: 100,
+      recoveredRevenue: [{ currency: "usd", cents: 0 }],
+      atRiskRevenue: [{ currency: "usd", cents: 100 }],
       activeCount: 0,
       emailsSent: 0,
       winBackCount: 0,
       expiringCardCount: 2,
       openDisputeCount: 1,
-      openDisputeCents: 9900,
+      openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
       currency: "usd",
       senderName: null,
       disputesActive: true,
@@ -181,9 +181,9 @@ describe("PLANT 3: the numbers come from the week", () => {
 
     // f_in plus the failed row seedRecovered creates, never f_out.
     expect(n.totalFailed).toBe(2);
-    expect(n.atRiskRevenueCents).toBe(14000);
+    expect(n.atRiskRevenue).toEqual([{ currency: "usd", cents: 14000 }]);
     expect(n.totalRecovered).toBe(1);
-    expect(n.recoveredRevenueCents).toBe(4000);
+    expect(n.recoveredRevenue).toEqual([{ currency: "usd", cents: 4000 }]);
   });
 
   it("ACTIVE SEQUENCES ARE CURRENT STATE, not this week's, as legacy has it", async () => {

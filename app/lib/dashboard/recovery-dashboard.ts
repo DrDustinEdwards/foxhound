@@ -1,3 +1,4 @@
+import { groupSumByCurrency } from "~/lib/money/totals";
 import {
   DAY_MS,
   DECLINE_CATEGORIES,
@@ -26,13 +27,6 @@ export interface CurrencyCents {
 /** The recovery fee as Foxhound's pricing constant prints it ("20%"). */
 export const RECOVERY_FEE_LABEL = `${RECOVERY_FEE_BPS / 100}%`;
 
-/** Sum per currency, never across currencies (RULES.md 3.20). */
-function sumByCurrency(rows: readonly { currency: string; cents: number }[]): CurrencyCents[] {
-  const totals = new Map<string, number>();
-  for (const r of rows) totals.set(r.currency, (totals.get(r.currency) ?? 0) + r.cents);
-  return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
-}
-
 export interface RoiColumn {
   recovered: CurrencyCents[];
   fee: CurrencyCents[];
@@ -53,8 +47,8 @@ export interface RoiColumn {
  * so those claims are not copied (ROWS-S S5, 181).
  */
 export function roiColumn(rows: readonly { amountCents: number; currency: string }[]): RoiColumn {
-  const recovered = sumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
-  const fee = sumByCurrency(rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })));
+  const recovered = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
+  const fee = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })));
   const kept = recovered.map((r) => ({
     currency: r.currency,
     cents: r.cents - (fee.find((f) => f.currency === r.currency)?.cents ?? 0),

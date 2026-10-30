@@ -154,6 +154,11 @@ function buildDisputeAcceptBatch(
           and(
             eq(disputes.id, input.disputeId),
             eq(disputes.accountId, input.accountId),
+            // Joined to the resolution UPDATE above (hard rule 3): only a
+            // dispute that statement just resolved as lost, at this moment,
+            // records "accepted". One already resolved records nothing.
+            eq(disputes.state, "resolved_lost"),
+            eq(disputes.resolvedAt, input.acceptedAt),
           ),
         ),
     ),

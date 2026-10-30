@@ -122,20 +122,20 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
   return {
     totalFailed: 4,
     totalRecovered: 1,
-    recoveredRevenueCents: 5000,
-    atRiskRevenueCents: 20000,
+    recoveredRevenue: [{ currency: "usd", cents: 5000 }],
+    atRiskRevenue: [{ currency: "usd", cents: 20000 }],
     activeCount: 3,
     emailsSent: 7,
     winBackCount: 2,
     expiringCardCount: 2,
     openDisputeCount: 1,
-    openDisputeCents: 9900,
+    openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
     currency: "usd",
     senderName: "Teamflow",
     disputesActive: true,
     highRiskCustomers: [
-      { name: "Acme Co", mrrCents: 19900 },
-      { name: "(unnamed)", mrrCents: null },
+      { name: "Acme Co", mrrCents: 19900, currency: "usd" },
+      { name: "(unnamed)", mrrCents: null, currency: "usd" },
     ],
     personalOutreachCount: 2,
     now: NOW,
@@ -155,7 +155,7 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
       fullInput({
         expiringCardCount: 0,
         openDisputeCount: 0,
-        openDisputeCents: 0,
+        openDisputeAmounts: [{ currency: "usd", cents: 0 }],
         disputesActive: false,
         highRiskCustomers: [],
         personalOutreachCount: 0,
@@ -167,6 +167,20 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
     expect(words).not.toContain("Disputes");
     expect(words).not.toContain("Intelligence");
     expect(blocks.at(-1)).toEqual({ type: "button", label: "View Dashboard", url: `${BASE}/recovery/dashboard` });
+  });
+
+  it("never adds two currencies together (hard rule 2)", () => {
+    const words = JSON.stringify(
+      digestEmail.digestContent(
+        fullInput({
+          recoveredRevenue: [
+            { currency: "usd", cents: 5000 },
+            { currency: "jpy", cents: 1000 },
+          ],
+        }),
+      ).blocks,
+    );
+    expect(words).toContain("$50.00 + ¥1,000");
   });
 
   it("the Intelligence section waits for an at-risk customer or an outreach flag, as Recova's does", () => {

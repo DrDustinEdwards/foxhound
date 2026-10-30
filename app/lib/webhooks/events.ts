@@ -44,6 +44,10 @@ export type WebhookIntent =
       kind: "intake";
       invoiceId: string;
       customerId: string;
+      /** The invoice's subscription, so the card-update page can move the
+       *  subscription itself onto the new card (a subscription's own default
+       *  card outranks the customer's). */
+      subscriptionId: string | null;
       customerEmail: string;
       customerName: string | null;
       amountCents: number;
@@ -86,6 +90,12 @@ export type WebhookIntent =
       /** The invoice's subscription, when it has one. A win-back reactivation
        *  is read off THIS subscription's metadata (344 binding 1). */
       subscriptionId: string | null;
+      /** When the customer actually paid (Stripe's paid_at), not when the
+       *  event reached Foxhound: attribution compares signals against it, so
+       *  a late or replayed event cannot credit Foxhound with a payment the
+       *  customer made before the click or card update. Null when the event
+       *  carries neither paid_at nor its own created time. */
+      paidAt: Date | null;
       amountPaidCents: number;
       currency: string;
     }
@@ -219,6 +229,10 @@ function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
   return { kind: "card_auto_updated", customerId };
 }
 
+function unixToDate(seconds: number | null | undefined): Date | null {
+  return typeof seconds === "number" && Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
+}
+
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   // Stripe's name for payment_method.automatically_updated before 2020-08-27,
   // with the same PaymentMethod payload. Stripe no longer emits it and the SDK
@@ -251,6 +265,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         stripeGaveUp: (invoice.next_payment_attempt ?? null) === null,
         invoiceId: invoice.id,
         customerId: asId(invoice.customer) ?? "",
+        subscriptionId: asId(invoice.parent?.subscription_details?.subscription),
         customerEmail: invoice.customer_email ?? "",
         customerName: invoice.customer_name ?? null,
         amountCents: invoice.amount_due ?? 0,
@@ -266,12 +281,10 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         kind: "recover",
         invoiceId: invoice.id,
         customerId: asId(invoice.customer),
-        // On the pinned API version the invoice no longer types `subscription`,
-        // and legacy reads it through the same cast.
-        subscriptionId: asId(
-          (invoice as Stripe.Invoice & { subscription?: string | { id: string } | null })
-            .subscription,
-        ),
+        // On the pinned API version the subscription lives under `parent`;
+        // the top-level `subscription` field is gone.
+        subscriptionId: asId(invoice.parent?.subscription_details?.subscription),
+        paidAt: unixToDate(invoice.status_transitions?.paid_at ?? event.created),
         amountPaidCents: invoice.amount_paid ?? 0,
         currency: invoice.currency ?? "usd",
       };

@@ -122,7 +122,7 @@ function invoiceEvent(subscriptionId: string | null, id = "evt_i1", customer = "
       object: {
         id: `in_${id}`,
         customer,
-        subscription: subscriptionId,
+        parent: { subscription_details: { subscription: subscriptionId } },
         amount_paid: 4900,
         currency: "usd",
       },

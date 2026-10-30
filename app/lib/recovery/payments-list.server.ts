@@ -1,4 +1,4 @@
-import { groupSumByCurrency } from "~/lib/dashboard/stats.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 import { sequenceStepLabel } from "~/lib/recovery/sequence-performance";
 
@@ -18,8 +18,8 @@ export function paymentHeaderStats(
   const active = rows.filter((r) => r.status === "active");
   const recovered = rows.filter((r) => r.status === "recovered");
   return {
-    atRisk: groupSumByCurrency(active),
-    recovered: groupSumByCurrency(recovered),
+    atRisk: groupSumByCurrency(active.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
+    recovered: groupSumByCurrency(recovered.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
     ratePct: rows.length > 0 ? Math.round((recovered.length / rows.length) * 100) : 0,
   };
 }

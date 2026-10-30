@@ -14,7 +14,7 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
-import { groupSumByCurrency } from "~/lib/billing/preview.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import type { CustomerActivity } from "./customer-detail";
 import { healthScoreBand } from "./health-band";

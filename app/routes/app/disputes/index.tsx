@@ -16,7 +16,7 @@ import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
-import { groupSumByCurrency } from "~/lib/billing/preview.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import {

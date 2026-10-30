@@ -1,7 +1,8 @@
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { formatLongDate, type DisputeFeeRow, type FeeStatusTone, type RecoveryHistoryRow } from "~/lib/billing/page";
-import { groupSumByCurrency, type PendingDisputeFee } from "~/lib/billing/preview.server";
+import { type PendingDisputeFee } from "~/lib/billing/preview.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.server";
 
 // The rows of /billing's Recovery and Dispute Fees sections (J65, row S3), built

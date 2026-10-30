@@ -11,7 +11,7 @@ import {
   winBackSteps,
 } from "~/db";
 import type { ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { disputeFeeCents } from "~/lib/billing/fees";
+import { disputeFeeCents, feeForCurrency } from "~/lib/billing/fees";
 import {
   FAILED_PAYMENT_STATUS_ACTIVE,
   FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
@@ -84,6 +84,8 @@ export interface IntakeBatchInput {
   stripeEventId: string;
   invoiceId: string;
   customerId: string;
+  /** The invoice's subscription, when it has one. */
+  subscriptionId: string | null;
   customerEmail: string;
   customerName: string | null;
   amountCents: number;
@@ -449,7 +451,15 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     evidenceDeadline: input.evidenceDeadline,
     createdAt: input.createdAt,
     stripeConnectionId: input.stripeConnectionId,
-    state: "pending_review",
+    // A dispute Stripe has already closed (its closed event was processed
+    // first, or this created event is a late retry) is born resolved, so it
+    // is never left awaiting review or picked up by auto-submit.
+    ...(input.status === "won" || input.status === "lost"
+      ? {
+          state: input.status === "won" ? ("resolved_won" as const) : ("resolved_lost" as const),
+          resolvedAt: input.claim.receivedAt,
+        }
+      : { state: "pending_review" as const }),
     ...input.contextColumns,
   });
   const evidenceInserts = input.evidence.map((field) =>
@@ -533,7 +543,9 @@ export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResoluti
       // snapshotted: the dispute resolves, and it is simply not billable
       // until a run that can price it. Never the flat 50,000.
       resolvedFeeCents:
-        billableWin && input.cap ? disputeFeeCents(input.amountCents, input.cap.capMinorUnits) : null,
+        billableWin && input.cap
+          ? feeForCurrency(disputeFeeCents(input.amountCents, input.cap.capMinorUnits), input.currency)
+          : null,
       resolvedFeeCurrency: billableWin && input.cap ? input.currency : null,
       resolvedFeeRate: input.cap?.rate ?? null,
       resolvedFeeQuoteId: input.cap?.quoteId ?? null,

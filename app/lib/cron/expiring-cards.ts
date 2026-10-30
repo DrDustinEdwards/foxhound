@@ -187,7 +187,11 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
       for await (const sub of stripe.subscriptions.list({
         status: "active",
         limit: 100,
-        expand: ["data.customer", "data.default_payment_method"],
+        expand: [
+          "data.customer",
+          "data.default_payment_method",
+          "data.customer.invoice_settings.default_payment_method",
+        ],
       })) {
         if (seen >= EXPIRING_CARD_SCAN_SOFT_LIMIT) {
           result.overLimit.push(account.accountId);
@@ -198,7 +202,9 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
 
         const customer = sub.customer;
         if (!customer || typeof customer === "string" || "deleted" in customer) continue;
-        const pm = sub.default_payment_method;
+        // The subscription's own card, else the customer's default, which is
+        // what Stripe charges when the subscription names none.
+        const pm = sub.default_payment_method ?? customer.invoice_settings?.default_payment_method;
         if (!pm || typeof pm === "string" || !pm.card) continue;
         const card = pm.card;
         if (!isInsideLeadWindow(card.exp_month, card.exp_year, now)) continue;

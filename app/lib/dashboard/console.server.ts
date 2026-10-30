@@ -11,7 +11,7 @@ import {
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { byCurrencyCode } from "~/lib/money-format";
-import { groupSumByCurrency, type CurrencyAmount } from "./stats.server";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   ATTENTION_ROWS_PER_CATEGORY,
   DISPUTE_ATTENTION_LIMIT,
@@ -140,7 +140,7 @@ function auditLeaking(audit: {
   const parts = money
     ? [...(money.failedInvoices ?? []), ...(money.openDisputes ?? [])]
     : [{ currency, cents: (audit.failedInvoicesCents ?? 0) + (audit.openDisputesCents ?? 0) }];
-  const totals = groupSumByCurrency(parts.map((p) => ({ currency: p.currency, amountCents: p.cents })))
+  const totals = groupSumByCurrency(parts)
     .filter((t) => t.cents !== 0)
     .sort(byCurrencyCode);
   return totals.length > 0 ? totals : [{ currency, cents: 0 }];
@@ -271,15 +271,15 @@ export async function getConsoleView(
   // currencies produced a total that was the arithmetic sum of USD and EUR
   // labeled with whichever row sorted first.
   const protectedThisMonth = groupSumByCurrency(
-    monthRecovered.map((r) => ({ currency: r.currency, amountCents: r.cents })),
+    monthRecovered,
   );
-  const atRisk = groupSumByCurrency(activeFailed);
+  const atRisk = groupSumByCurrency(activeFailed.map((r) => ({ currency: r.currency, cents: r.amountCents })));
   // A customer with no MRR currency recorded has no figure to add, so it is
   // counted but not summed.
   const highRisk = highRiskCustomers;
   const highRiskMrr = groupSumByCurrency(
     highRisk.flatMap((c) =>
-      c.currency && c.mrrContributionCents ? [{ currency: c.currency, amountCents: c.mrrContributionCents }] : [],
+      c.currency && c.mrrContributionCents ? [{ currency: c.currency, cents: c.mrrContributionCents }] : [],
     ),
   );
   const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);

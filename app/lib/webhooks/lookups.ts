@@ -468,6 +468,7 @@ export async function resolveRecoveryAttribution(
       stepType: recoverySteps.stepType,
       result: recoverySteps.result,
       clickedAt: recoverySteps.clickedAt,
+      executedAt: recoverySteps.executedAt,
       clickSuspectReason: recoverySteps.clickSuspectReason,
     })
     .from(recoverySteps)

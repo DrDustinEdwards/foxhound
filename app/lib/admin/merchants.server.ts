@@ -29,11 +29,8 @@ import { PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { countActiveRecoveries, mrrUnderManagement } from "~/lib/admin/overview.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import {
-  groupSumByCurrency,
-  startOfUtcMonthMs,
-  type CurrencyAmount,
-} from "~/lib/billing/preview.server";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
 export interface MerchantListRow {

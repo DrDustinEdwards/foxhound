@@ -322,6 +322,25 @@ describe("Review round 1, must-fix 1: the reads keep only what the engine reads"
   });
 });
 
+describe("the audit reads each failed invoice's real decline code", () => {
+  it("files an invoice under its charge's decline, not unknown, on the pinned API version", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    // What Stripe sends now: no charge, no last_payment_error on the invoice.
+    const bare = fullInvoice({ last_finalization_error: null, last_payment_error: null, charge: undefined });
+    const stripe = {
+      ...fakeStripe({ invoices: [bare], subscriptions: [], disputes: [], events: [] }),
+      invoicePayments: { list: listOf([{ created: 1, payment: { payment_intent: "pi_1" } }]) },
+      paymentIntents: {
+        retrieve: async () => ({ last_payment_error: { decline_code: "expired_card" }, latest_charge: { failure_code: "card_declined" } }),
+      },
+    } as unknown as Stripe;
+    const { collectAuditInputs } = await import("~/lib/audit/run.server");
+    const reads = await collectAuditInputs(stripe, 90, RAN_AT);
+    const result = runAudit({ stripeAccountId: "acct_x", lookbackDays: 90, ranAt: RAN_AT, reads });
+    expect(result.failedInvoices.ok && result.failedInvoices.data.byCategory.expired).toBeGreaterThan(0);
+  });
+});
+
 describe("Review round 1: a failed live-figure read still renders the saved run", () => {
   beforeEach(() => {
     const made = createInMemoryDb();

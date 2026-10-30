@@ -12,8 +12,9 @@ import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
+import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 import { ChargeGuardReadError, runChargeRetrySweep, type ChargeRetryDeps } from "./charge-retry";
-import { recoveryFeeCents } from "./fees";
+import { feeForCurrency, recoveryFeeCents } from "./fees";
 import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
 import {
   createPlatformInvoice,
@@ -154,7 +155,7 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
   let total = 0;
 
   for (const r of input.recoveries) {
-    const fee = recoveryFeeCents(r.amountCents);
+    const fee = feeForCurrency(recoveryFeeCents(r.amountCents), input.currency);
     total += fee;
     // GUARDED: the predicate is re-evaluated by the database as this row is
     // written, inside the batch (ruling 376(3)). A refund landing between the
@@ -443,7 +444,7 @@ export async function runAccountBilling(
     // builder, same key) the billing setup action uses, so no existing write
     // changes its order, key or batch. A failure here is caught below like any
     // other Stripe failure: the ledger stands and the row stays draft.
-    if (applied && chargeableLines(summary.lines).length > 0) {
+    if (PLATFORM_CHARGES_ENABLED && applied && chargeableLines(summary.lines).length > 0) {
       try {
         if (!platformCustomerId) {
           const createdCustomerId = await ensurePlatformCustomer(env, {
@@ -466,7 +467,11 @@ export async function runAccountBilling(
         );
       }
     }
-    if (applied && shouldAttemptPlatformCharge(platformCustomerId, summary.lines)) {
+    if (
+      PLATFORM_CHARGES_ENABLED &&
+      applied &&
+      shouldAttemptPlatformCharge(platformCustomerId, summary.lines)
+    ) {
       try {
         // platformCustomerId is non-null here (the guard above requires it).
         const result = await createPlatformInvoice(env, {

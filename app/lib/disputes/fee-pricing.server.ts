@@ -4,7 +4,7 @@ import type { Db, MoneyWriteBatch } from "~/db";
 import { disputeBalanceTransactions, disputes, getDb } from "~/db";
 import { getUnpricedBillableWins } from "~/db/billable";
 import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/dispute-cap";
-import { disputeFeeCents } from "~/lib/billing/fees";
+import { disputeFeeCents, feeForCurrency } from "~/lib/billing/fees";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { sendDisputeFeeNotice } from "./notices.server";
@@ -40,7 +40,10 @@ function buildDisputeFeePricingUpdate(
     db
       .update(disputes)
       .set({
-        resolvedFeeCents: disputeFeeCents(input.amountCents, input.cap.capMinorUnits),
+        resolvedFeeCents: feeForCurrency(
+          disputeFeeCents(input.amountCents, input.cap.capMinorUnits),
+          input.currency,
+        ),
         resolvedFeeCurrency: input.currency,
         resolvedFeeRate: input.cap.rate,
         resolvedFeeQuoteId: input.cap.quoteId,

@@ -27,7 +27,8 @@ import {
   type RecoveryHistoryRow,
   type SubscriptionView,
 } from "~/lib/billing/page";
-import type { AccountBillingState, CurrencyAmount } from "~/lib/billing/preview.server";
+import type { AccountBillingState } from "~/lib/billing/preview.server";
+import type { CurrencyAmount } from "~/lib/money/totals";
 import {
   BILLING_RUN_DAY_OF_MONTH,
   DISPUTE_FEE_CAP_CENTS,

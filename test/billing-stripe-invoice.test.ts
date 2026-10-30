@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
+
 // createPlatformInvoice calls the real Stripe SDK; mock the client factory so
 // these tests assert the CALL SHAPE (order, params, idempotency keys) without
 // a network call. This is a different testing style from the compile-test

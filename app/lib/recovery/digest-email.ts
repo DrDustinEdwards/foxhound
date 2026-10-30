@@ -26,20 +26,23 @@ import type { Block } from "capsomer/email";
 
 import { recoveryFooterNote } from "~/lib/email/templates";
 import { formatMoney } from "~/lib/money-format";
+import type { CurrencyAmount } from "~/lib/money/totals";
 
 export const DIGEST_TEMPLATE = "weekly_digest";
 
 export interface DigestNumbers {
   totalFailed: number;
   totalRecovered: number;
-  recoveredRevenueCents: number;
-  atRiskRevenueCents: number;
+  /** Per currency (hard rule 2): a merchant paid in two currencies sees both. */
+  recoveredRevenue: CurrencyAmount[];
+  atRiskRevenue: CurrencyAmount[];
   activeCount: number;
   emailsSent: number;
   winBackCount: number;
   expiringCardCount: number;
   openDisputeCount: number;
-  openDisputeCents: number;
+  openDisputeAmounts: CurrencyAmount[];
+  /** The account's main currency, shown when a total is empty. */
   currency: string;
 }
 
@@ -49,7 +52,7 @@ export interface DigestInput extends DigestNumbers {
   senderName: string | null;
   /** Recova gates the Disputes row and section on the product being active. */
   disputesActive: boolean;
-  highRiskCustomers: { name: string; mrrCents: number | null }[];
+  highRiskCustomers: { name: string; mrrCents: number | null; currency: string | null }[];
   /** Customers the nightly scoring flagged for personal outreach. */
   personalOutreachCount: number;
   /** The digest's own clock, so the header line and subject agree. */
@@ -106,6 +109,14 @@ function formatAmount(cents: number, currency: string): string {
   return formatMoney(cents, currency);
 }
 
+/** Per-currency totals joined ("$693.00 + €40.00"), or zero in the account's
+ *  currency when there is nothing to total. */
+function formatAmounts(amounts: CurrencyAmount[], fallbackCurrency: string): string {
+  const shown = amounts.filter((a) => a.cents !== 0);
+  if (shown.length === 0) return formatAmount(0, fallbackCurrency);
+  return shown.map((a) => formatAmount(a.cents, a.currency)).join(" + ");
+}
+
 /**
  * Legacy's subject: `platform` when Intelligence or Disputes is active, else
  * `recovery`. Intelligence is on for every account (free, Dustin 2026-10-29),
@@ -136,7 +147,7 @@ function row(label: string, value: string): Block {
 function disputesSection(input: DigestInput): Block[] {
   if (!input.disputesActive || input.openDisputeCount === 0) return [];
   const noun = input.openDisputeCount === 1 ? "dispute" : "disputes";
-  const amount = formatAmount(input.openDisputeCents, input.currency);
+  const amount = formatAmounts(input.openDisputeAmounts, input.currency);
   return [
     { type: "paragraph", text: "Disputes" },
     {
@@ -165,7 +176,7 @@ function intelligenceSection(input: DigestInput): Block[] {
     out.push(
       { type: "paragraph", text: "Top at-risk customers" },
       ...input.highRiskCustomers.map((c): Block =>
-        c.mrrCents != null ? row(c.name, `${formatAmount(c.mrrCents, input.currency)}/mo`) : { type: "paragraph", text: c.name },
+        c.mrrCents != null ? row(c.name, `${formatAmount(c.mrrCents, c.currency ?? input.currency)}/mo`) : { type: "paragraph", text: c.name },
       ),
     );
   }
@@ -192,11 +203,11 @@ export function buildDigestBlocks(input: DigestInput): Block[] {
   return [
     { type: "fine", text: `Week ending ${weekEnding}` },
     { type: "heading", text: "Your recovery summary" },
-    row("Revenue recovered", formatAmount(input.recoveredRevenueCents, input.currency)),
+    row("Revenue recovered", formatAmounts(input.recoveredRevenue, input.currency)),
     row("Recovery rate", `${rate}%`),
     row("Failed payments detected", String(input.totalFailed)),
     row("Payments recovered", String(input.totalRecovered)),
-    row("Revenue at risk", formatAmount(input.atRiskRevenueCents, input.currency)),
+    row("Revenue at risk", formatAmounts(input.atRiskRevenue, input.currency)),
     row("Active recovery sequences", String(input.activeCount)),
     row("Recovery emails sent", String(input.emailsSent)),
     row("Active win-back sequences", String(input.winBackCount)),
@@ -204,7 +215,7 @@ export function buildDigestBlocks(input: DigestInput): Block[] {
     // Recova writes "{n} &mdash; {amount}"; a comma here, as the dash is kept
     // out of Foxhound's copy.
     ...(input.disputesActive && input.openDisputeCount > 0
-      ? [row("Open disputes", `${input.openDisputeCount}, ${formatAmount(input.openDisputeCents, input.currency)}`)]
+      ? [row("Open disputes", `${input.openDisputeCount}, ${formatAmounts(input.openDisputeAmounts, input.currency)}`)]
       : []),
     ...disputesSection(input),
     ...intelligenceSection(input),

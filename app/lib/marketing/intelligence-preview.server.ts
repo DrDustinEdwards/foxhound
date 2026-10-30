@@ -1,4 +1,4 @@
-import { groupSumByCurrency } from "~/lib/dashboard/stats.server";
+import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
@@ -103,7 +103,7 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     const members = directory.filter((c) => healthScoreBand(c.healthScore) === band);
     // The demo bills in one currency; a second one would be a seed change, and
     // this shows the first, as the Recovery spoke's preview does.
-    const [total] = groupSumByCurrency(members.map((c) => ({ currency: c.currency, amountCents: c.mrrCents })));
+    const [total] = groupSumByCurrency(members.map((c) => ({ currency: c.currency, cents: c.mrrCents })));
     return {
       band,
       customerCount: members.length,

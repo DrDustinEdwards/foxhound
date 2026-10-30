@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
+// These tests exercise charging itself, so the hard-rule-12 switch is on here.
+vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
+
 // E25 (J97). Recova creates every account's billing customer when the merchant
 // connects Stripe (app/api/auth/stripe/callback/route.ts, blob c60331af,
 // ensureBillingCustomer), with the billing email on it, so every billable

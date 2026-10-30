@@ -1,3 +1,4 @@
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { and, count, desc, eq, gte, inArray, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -202,7 +203,12 @@ export async function collectDigestNumbers(
   db: Db,
   accountId: string,
   windowStart: Date,
-): Promise<DigestNumbers & { highRisk: { name: string; mrrCents: number | null }[]; personalOutreachCount: number }> {
+): Promise<
+  DigestNumbers & {
+    highRisk: { name: string; mrrCents: number | null; currency: string | null }[];
+    personalOutreachCount: number;
+  }
+> {
   const [failedRows, recoveredRows, activeRows, emailRows, winBackRows, expiringRows, disputeRows] =
     await Promise.all([
       db
@@ -269,7 +275,7 @@ export async function collectDigestNumbers(
           ),
         ),
       db
-        .select({ amountCents: disputes.amountCents })
+        .select({ amountCents: disputes.amountCents, currency: disputes.currency })
         .from(disputes)
         .where(
           and(
@@ -284,6 +290,7 @@ export async function collectDigestNumbers(
     .select({
       name: customerContext.customerName,
       mrrCents: customerContext.mrrContributionCents,
+      currency: customerContext.currency,
     })
     .from(customerContext)
     .where(
@@ -305,19 +312,26 @@ export async function collectDigestNumbers(
   return {
     totalFailed: failedRows.length,
     totalRecovered: recoveredRows.length,
-    recoveredRevenueCents: recoveredRows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0),
-    atRiskRevenueCents: failedRows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0),
+    recoveredRevenue: totalsOf(recoveredRows),
+    atRiskRevenue: totalsOf(failedRows),
     activeCount: activeRows[0]?.n ?? 0,
     emailsSent: emailRows[0]?.n ?? 0,
     winBackCount: winBackRows[0]?.n ?? 0,
     expiringCardCount: expiringRows[0]?.n ?? 0,
     openDisputeCount: disputeRows.length,
-    openDisputeCents: disputeRows.reduce((sum, d) => sum + (d.amountCents ?? 0), 0),
+    openDisputeAmounts: totalsOf(disputeRows),
     currency: resolveDigestCurrency(recoveredRows, failedRows),
     // Legacy's `(unnamed)` for a customer_context row with no name.
-    highRisk: highRisk.map((c) => ({ name: c.name ?? "(unnamed)", mrrCents: c.mrrCents })),
+    highRisk: highRisk.map((c) => ({ name: c.name ?? "(unnamed)", mrrCents: c.mrrCents, currency: c.currency })),
     personalOutreachCount: outreachRows[0]?.n ?? 0,
   };
+}
+
+/** Per-currency totals of rows that may lack an amount or currency. */
+function totalsOf(rows: { amountCents: number | null; currency: string | null }[]): CurrencyAmount[] {
+  return groupSumByCurrency(
+    rows.flatMap((r) => (r.amountCents != null && r.currency ? [{ currency: r.currency, cents: r.amountCents }] : [])),
+  );
 }
 
 /** One weekly run. */

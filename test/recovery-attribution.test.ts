@@ -70,6 +70,21 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
     expect(resolveAttribution(signals)).toEqual({ kind: "card_update", ref: "step_2" });
   });
 
+  it("a card update made after the customer already paid is not a signal", () => {
+    const steps = [
+      step({
+        id: "step_late",
+        stepType: "card_update",
+        result: "card_updated",
+        executedAt: new Date(RECOVERED_AT.getTime() + 60_000),
+      }),
+    ];
+    expect(resolveAttribution(findAttributionSignals(steps, RECOVERED_AT))).toEqual({
+      kind: "stripe_baseline",
+      ref: null,
+    });
+  });
+
   it("an incomplete card_update step (no result yet) is not a signal", () => {
     const steps = [step({ id: "step_1", stepType: "card_update", result: null })];
     expect(findAttributionSignals(steps, RECOVERED_AT).cardUpdateRef).toBeNull();
