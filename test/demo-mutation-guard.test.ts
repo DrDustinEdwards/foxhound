@@ -9,6 +9,7 @@ import { appShellMiddleware } from "~/lib/auth/guards";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DEMO_SESSION_COOKIE, DEMO_SESSION_COOKIE_VALUE } from "~/lib/demo/constants";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { getSession } from "~/lib/auth/session";
 
 // getSession makes a real Better Auth call (app/lib/auth/session.ts); the
 // test below only cares that appShellMiddleware still refuses a mutating
@@ -133,5 +134,23 @@ describe("appShellMiddleware still refuses a mutating request in demo mode", () 
     ).rejects.toEqual(data(DEMO_READ_ONLY_MESSAGE, { status: 405 }));
 
     expect(next).not.toHaveBeenCalled();
+    // Hard rule 10: refused before any session work, not after it.
+    expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("the theme and account-switch endpoints refuse a demo POST before reading a session", async () => {
+    const { action: themeAction } = await import("~/routes/api/theme");
+    const { action: switchAction } = await import("~/routes/api/account-switch");
+    const context = new RouterContextProvider();
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+    for (const [path, action] of [["/api/theme", themeAction], ["/api/account/switch", switchAction]] as const) {
+      const request = new Request(`http://localhost${path}`, {
+        method: "POST",
+        headers: { cookie: `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}` },
+      });
+      const response = (await action({ request, context, params: {} } as never)) as Response;
+      expect(response.status, path).toBe(405);
+    }
+    expect(getSession).not.toHaveBeenCalled();
   });
 });
