@@ -250,7 +250,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
               <tbody>
                 {migrations.rows.map((m) => (
                   <tr key={m.name}>
-                    <th scope="row" className="font-normal font-mono text-text">
+                    <th scope="row" className="font-normal font-mono break-all text-text">
                       {m.name}
                     </th>
                     <td>
@@ -287,7 +287,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             <tbody>
               {envSanity.map((row) => (
                 <tr key={row.name}>
-                  <th scope="row" className="font-normal font-mono text-text">
+                  <th scope="row" className="font-normal font-mono break-all text-text">
                     {row.name}
                   </th>
                   <td className="text-text-secondary">{settingKindWord(row.kind)}</td>
@@ -316,7 +316,7 @@ function LockRow({ lock }: { lock: CronLockRow }) {
   const status = LOCK_STATUS[lock.state];
   return (
     <tr>
-      <th scope="row" className="font-normal font-mono text-text">
+      <th scope="row" className="font-normal font-mono break-all text-text">
         {lock.name}
       </th>
       <td>
