@@ -1,5 +1,6 @@
 import { CARD_UPDATE_TOKEN_MAX_AGE_MS } from "~/lib/constants";
-import { readSignedToken, signToken } from "~/lib/http/signed-token";
+import { readSignedToken, signToken } from "@dustinedwards/site-runtime/signed-token";
+import { linkKeys } from "~/lib/http/signed-token";
 
 // Stateless HMAC-signed token for the hosted card-update page (/p/:token,
 // ROUTES.md public-utility). Mirrors the /e/* engagement token pattern
@@ -54,7 +55,7 @@ export async function signCardUpdateToken(
   payload: Omit<CardUpdateTokenPayload, "iat">,
 ): Promise<string> {
   const full: CardUpdateTokenPayload = { ...payload, iat: Date.now() };
-  return signToken(env, full);
+  return signToken(linkKeys(env), full);
 }
 
 /** Verify + parse a card-update token. Returns null on tamper/format/parse
@@ -63,7 +64,7 @@ export async function verifyCardUpdateToken(
   env: Env,
   token: string,
 ): Promise<CardUpdateTokenPayload | null> {
-  const parsed = (await readSignedToken(env, token)) as CardUpdateTokenPayload | null;
+  const parsed = (await readSignedToken(linkKeys(env), token)) as CardUpdateTokenPayload | null;
   if (!parsed) return null;
   // EXACTLY ONE MODE. A token carrying no id is refused here rather than
   // resolving to nothing downstream, and a token carrying more than one is
