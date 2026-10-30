@@ -25,13 +25,12 @@
     "check:all": "npm run typecheck && npm run lint && npm run test && npm run check-tokens && npm run check-gates"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.111.0",
     "@better-auth/passkey": "1.7.12",
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.18.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.6.0",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.14.0",
-    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.34.0",
+    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#28ee939502e49fe3d4fd085c85d7441d6f720996",
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.66.0",
     "better-auth": "1.7.12",

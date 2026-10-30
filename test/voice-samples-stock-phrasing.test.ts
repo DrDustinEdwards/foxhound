@@ -13,7 +13,7 @@ const METER = { source: "test", accountId: null };
 // audit summary) share the retry in ai/plain-writing.ts; one plant here proves
 // the wiring outside the email path.
 //
-// The model is stubbed at the client factory, as timing-word-guard does.
+// The model is stubbed at ~/lib/ai/client's askStructured, as timing-word-guard does.
 
 const harness = vi.hoisted(() => ({
   calls: [] as { system?: unknown; messages: { role: string; content: string }[] }[],
@@ -21,16 +21,17 @@ const harness = vi.hoisted(() => ({
 }));
 
 vi.mock("~/lib/ai/client", () => ({
-  createAnthropicClient: () => ({
-    messages: {
-      create: async (params: { system?: unknown; messages: { role: string; content: string }[] }) => {
-        harness.calls.push(params);
-        const next = harness.replies.shift();
-        if (!next) throw new Error("no stub reply queued");
-        return { content: [{ type: "text", text: JSON.stringify(next) }] };
-      },
-    },
-  }),
+  REWRITE: { maxAttempts: 1 },
+  askStructured: async (
+    _env: unknown,
+    _meter: unknown,
+    params: { system?: unknown; messages: { role: string; content: string }[] },
+  ) => {
+    harness.calls.push(params);
+    const next = harness.replies.shift();
+    if (!next) throw new Error("no stub reply queued");
+    return { ok: true, value: next };
+  },
 }));
 
 const { createInMemoryDb } = await import("./helpers/inmemory-db");
@@ -111,7 +112,7 @@ describe("sample emails", () => {
       merchantName: "Acme",
       voiceSamples: [SAMPLE],
     } as unknown as Parameters<typeof buildGenerateEmailInput>[1]);
-    const escaped = "<data>Hey folks, Jo here. Short one: the roaster's back &lt;on&gt; Friday. Cheers, Jo</data>";
+    const escaped = "<data label=\"voice_sample\">Hey folks, Jo here. Short one: the roaster's back &lt;on&gt; Friday. Cheers, Jo</data>";
     expect(buildPrompts(input).system).toContain(`Sample 1: ${escaped}`);
     expect(
       buildWinbackPrompt({
