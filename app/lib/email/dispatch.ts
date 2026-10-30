@@ -22,7 +22,8 @@ import type { OutboundEmailJob } from "./types";
 // references in tests. The CONSUMER stays: consumer.ts also serves
 // foxhound-email-events, which is the bounce and complaint path core.md's
 // blocker 6 depends on, and its own instruction is "do not rebuild the
-// consumer". So the queue registration is what keeps that handler reachable.
+// consumer". The foxhound-email-events consumer entry in wrangler.jsonc is what
+// reaches that handler; the foxhound-email entry does not.
 //
 // The LIVE path bypasses the queue entirely and is synchronous inside the
 // 5-minute recovery cron:

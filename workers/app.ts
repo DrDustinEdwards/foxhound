@@ -95,9 +95,10 @@ export default withSentry<Env>(
       // 9111 heuristic freshness is not the same as "not cached".
       return applyCachePolicy(request, applySecurityHeaders(response, nonce, origin));
     },
-    // Queue consumer (email dispatch; bounce/complaint events added in 4c-C3).
-    // Inert until the queue consumer config is added to wrangler.jsonc (Dustin
-    // provisions the queues + Email Service).
+    // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
+    // foxhound-email (no producer; live sends are synchronous in the recovery
+    // cron), its dead-letter queue, and foxhound-email-events (bounces and
+    // complaints).
     async queue(batch, env, ctx) {
       // Arms the five-minute ticker if its alarm is not set (a no-op once it
       // is). The queues run whenever mail is sent or an email event arrives, so
