@@ -14,7 +14,7 @@ import {
   Tag,
   TrendingUp,
 } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status, type Tone as StatusTone } from "capsomer/react/status";

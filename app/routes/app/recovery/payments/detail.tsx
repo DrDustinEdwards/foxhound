@@ -2,7 +2,8 @@ import { useEffect, useId, useState } from "react";
 
 import { ArrowRight, ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
-import { Form, Link, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
+import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status } from "capsomer/react/status";

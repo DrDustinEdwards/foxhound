@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { data, Link, useNavigation, useRouteLoaderData } from "react-router";
+import { data, useNavigation, useRouteLoaderData } from "react-router";
+import { Link } from "capsomer/react/link";
 import { eq } from "drizzle-orm";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";

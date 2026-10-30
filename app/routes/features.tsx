@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
 import { SequenceTimeline } from "~/components/docs/sequence-timeline";

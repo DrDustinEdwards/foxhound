@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Link, redirect } from "react-router";
+import { redirect } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";

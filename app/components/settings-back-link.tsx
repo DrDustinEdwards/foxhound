@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 /**
  * Recova's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153,

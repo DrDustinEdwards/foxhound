@@ -1,6 +1,7 @@
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Form, Link, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import { Form, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import { Link } from "capsomer/react/link";
 import { dismissBanner } from "capsomer/behavior/banner";
 import { Banner } from "capsomer/react/banner";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import "capsomer/button.css";
 import "capsomer/page-head.css";

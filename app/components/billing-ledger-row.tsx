@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { Badge } from "~/components/badge";
 import type { AttributionKind } from "~/lib/constants";

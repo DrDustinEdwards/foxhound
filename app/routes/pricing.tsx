@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";

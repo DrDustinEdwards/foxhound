@@ -2,7 +2,8 @@ import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
 import { useId } from "react";
-import { data, Form, Link, useNavigation } from "react-router";
+import { data, Form, useNavigation } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";

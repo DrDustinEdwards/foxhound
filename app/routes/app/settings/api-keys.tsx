@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { data, Link, useNavigation, useSearchParams } from "react-router";
+import { data, useNavigation, useSearchParams } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ArrowLeft } from "lucide-react";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";

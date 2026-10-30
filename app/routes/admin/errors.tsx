@@ -1,4 +1,5 @@
-import { Link, useNavigation, useRevalidator } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
+import { Link } from "capsomer/react/link";
 import { ExternalLink } from "lucide-react";
 import { Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";

@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";

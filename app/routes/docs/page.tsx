@@ -1,6 +1,6 @@
 import { slugify } from "@drdustinedwards/site-helpers/slug";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 
 import { DocBlocks } from "~/components/docs/doc-blocks";
 import { cloudflareContext } from "~/lib/cloudflare-context";

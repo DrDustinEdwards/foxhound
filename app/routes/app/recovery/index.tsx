@@ -10,7 +10,7 @@ import "capsomer/table.css";
 import "capsomer/tabs.css";
 import "./dashboard.css";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";

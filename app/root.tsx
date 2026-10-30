@@ -8,6 +8,7 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
 import { ErrorView } from "./components/error-view";
 import dmSansVariable from "./assets/fonts/dm-sans-variable.woff2?url";
@@ -37,6 +38,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, nonce } = context.get(cloudflareContext);
   return { theme: await resolveThemeForRequest(env, request), nonce };
 }
+
+// Paths that act on a GET, so a hovered link never prefetches them (a prefetch runs the loader),
+// beyond the family's NEVER_PREFETCH that capsomer/react/link already skips: the demo entries
+// seed the demo and set its cookie, /demo/exit clears it, the token routes unsubscribe, finish a
+// card update, record an engagement or accept an invite, the OAuth returns exchange a code, and
+// /connect/additional mints the state cookie. /admin/view-as/stop ends a view-as session.
+const NO_PREFETCH = [
+  "/demos/:product",
+  "/demo/exit",
+  "/u/:token",
+  "/p/:token",
+  "/e",
+  "/invite/:token",
+  "/connect/callback",
+  "/connect/additional",
+  "/audit/callback",
+  "/admin/view-as",
+];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   // useRouteLoaderData (not useLoaderData) so an error boundary rendered
@@ -90,7 +109,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="min-h-full">
-        {children}
+        <LinkPrefetch exclude={NO_PREFETCH}>{children}</LinkPrefetch>
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
       </body>

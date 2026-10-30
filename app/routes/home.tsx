@@ -6,7 +6,7 @@ import "capsomer/disclosure.css";
 // keeps the page whole under any layout.
 import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";

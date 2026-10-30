@@ -1,6 +1,6 @@
 import { and, count, eq, isNull, notInArray } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
 import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
