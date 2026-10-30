@@ -1,25 +1,24 @@
 # Data layer (Drizzle + D1)
 
-The Foxhound data layer: Drizzle schema, D1 migrations, query helpers, and the
-legacy transform. Design is governed by `SCHEMA.md` in Capsid (namespace `foxhound`); column truth and
-dispositions are in `docs/schema/legacy-map.md`.
+The Foxhound data layer: Drizzle schema, D1 migrations and query helpers. Design is
+governed by `SCHEMA.md` in Capsid (namespace `foxhound`); how each legacy Recova
+column was carried or dropped is in `docs/schema/legacy-map.md`.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `app/db/schema.ts` | The Drizzle SQLite schema (49 tables). Single source of table definitions. |
+| `app/db/schema/` | The Drizzle SQLite schema, one file per area (65 tables; Better Auth's 6 are in `app/db/auth-schema.ts`). Single source of table definitions. |
 | `app/db/client.ts` | `getDb(env)` -> typed Drizzle client bound to the `DB` D1 binding. |
 | `app/db/scope.ts` | Account-scoping helpers (`byAccount`, `byAccountActive`). |
 | `app/db/billable.ts` | THE billable-recovery predicate (`getBillableRecoveries`). No phase reimplements it. |
-| `app/db/money-write.ts` | Money-write type contract (Phase 4 routes it through the per-account DO). |
+| `app/db/money-write.ts` | Money-write type contract, committed through the per-account DO. |
 | `app/db/index.ts` | Data-layer entry point; import from `~/db`. |
 | `app/lib/constants.ts` | Centralized fees, maturity window, canon enum value sets. |
 | `drizzle.config.ts` | drizzle-kit config (generate only). |
 | `drizzle/migrations/` | Generated SQL migrations + drizzle meta. Applied by wrangler. |
-| `scripts/transform-legacy-to-staging.mjs` | Checksummed, idempotent legacy -> staging transform. |
 
-## Conventions (SCHEMA.md + ARCHITECTURE.md)
+## Conventions (SCHEMA.md)
 
 - ids: `text` uuid string, app-generated via `crypto.randomUUID()`.
 - timestamps: `integer` epoch **milliseconds** (`mode: 'timestamp_ms'`).
@@ -38,7 +37,7 @@ state in a `d1_migrations` table; `migrations_dir` is set per-database in
 `wrangler.jsonc`).
 
 ```bash
-# 1. regenerate after any schema.ts change
+# 1. regenerate after any app/db/schema/ change
 npm run db:generate
 
 # 2. apply (idempotent; wrangler skips already-applied migrations)
@@ -75,27 +74,6 @@ Verified on apply: all tables/indexes present; CHECK constraints reject bad valu
 line item per recovery/dispute (structural no-double-billing); FKs are declared and
 **enforced** by D1.
 
-## Transform (legacy -> staging)
-
-One-time / re-runnable transform of the KEEP content/reference tables (blog_posts,
-benchmark_data, social_*). Tenant data is demo-only and re-seeded, not migrated
-(see legacy-map.md). Reads legacy read-only over the PostgREST REST API; writes
-staging D1 via idempotent upserts (`INSERT ... ON CONFLICT(id) DO UPDATE`).
-
-```bash
-# credentials are read from the environment, never committed or logged
-export SUPABASE_URL=...              # legacy project REST URL
-export SUPABASE_SERVICE_ROLE_KEY=... # used SELECT-only
-
-node scripts/transform-legacy-to-staging.mjs --dry-run   # fetch + generate SQL only
-node scripts/transform-legacy-to-staging.mjs             # import + verify
-```
-
-The script reports per-table row-count parity and sha256 checksums (computed
-identically on both sides) and exits non-zero on any mismatch. Re-running changes
-nothing (upserts; a second run leaves every checksum byte-identical). Generated SQL
-and the report land in `scripts/out/` (gitignored).
-
 ## Binding and environment facts
 
 - Code binding: `DB`.
@@ -115,9 +93,6 @@ and the report land in `scripts/out/` (gitignored).
   serves foxhoundapp.com. The name no longer needs reading past: the inversion
   this section used to warn about is what ruling 301 removed. Treat the
   truth.
-- All Phase 2 work and verification ran on what was then staging; the two-
-  environment split described elsewhere in this file predates the single-
-  environment cutover.
 
 ## Better Auth boundary (Phase 3)
 

@@ -1,4 +1,4 @@
-# Auth model (Phase 3)
+# Auth model
 
 Better Auth on D1: sessions, the family sign-in (passkey, emailed link, Google
 and Apple), team invites, the merchant/admin role split, and RR8 middleware
@@ -54,8 +54,11 @@ deleted the old password rows.
 
 ## Two role axes (kept separate)
 
-- **Platform role** - admin vs merchant. Derived from the `ADMIN_EMAIL`
-  allowlist (`isAdminEmail`), not stored per account. Governs `/admin/*`.
+- **Platform role** - admin vs merchant. `/admin/*` sits behind Cloudflare
+  Access (app "foxhound-login"); `getAdminSession` in
+  `app/lib/auth/access.server.ts` verifies the Access JWT and then requires the
+  email to be on the `ADMIN_EMAIL` allowlist (`isAdminEmail`). Not stored per
+  account, and independent of the merchant session.
 - **Account role** - owner vs member, stored on `account_members.role`. Governs
   team permissions within one merchant account (only owners invite).
 
@@ -72,7 +75,7 @@ app-shell layout and a pathless admin-guard layout.
 | `/invite/:token` | session only to accept | view open; accept -> `/login` | can accept (this is how they get an account) | n/a |
 | Public utility (`/u/:token`, `/p/:token`, `/e/o/:token`, `/e/c/:token`) | nothing | open | open | open |
 | App shell (`/console`, `/recovery/*`, `/disputes/*`, `/intelligence/*`, `/billing/*`, `/settings/*`, `/help`, `/welcome`) | session + account | -> `/login` | -> `/connect` | open |
-| Admin (`/admin/*`) | session + account + admin role | -> `/login` | -> `/connect` | **404** (not 403; existence hiding) |
+| Admin (`/admin/*`) | Access JWT + `ADMIN_EMAIL` allowlist (no merchant session needed) | Access sign-in | n/a | **404** (not 403; existence hiding) |
 
 The app-shell middleware publishes the caller's identity, membership, and admin
 flag on `authContext`; app loaders/actions read it instead of re-querying.
@@ -128,10 +131,11 @@ full team UI. Phase 3 seeds the create + accept paths.
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | secrets (`wrangler secret`) | Sign in with Apple: the Services ID, the team, and the key's id and PEM. |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | var / secret | the check on the emailed link (and the estimator). |
 | `ADMIN_EMAIL` | secret (`wrangler secret`) | comma-separated platform-admin allowlist. Unset => no admins. |
+| `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` | secrets (`wrangler secret`) | the Access team and the admin app's audience tag. Either unset => no admins. |
 
 Never commit secret values; they live only in `wrangler secret`.
 
 ## MCP tokens
 
-The MCP token model (issuance, scoping, storage) is designed in Phase 3 and
-documented separately in [mcp-tokens.md](./mcp-tokens.md). Phase 7 consumes it.
+The MCP token model (issuance, scoping, storage) is in
+[mcp-tokens.md](./mcp-tokens.md).

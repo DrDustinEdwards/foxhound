@@ -15,13 +15,12 @@ import { apiKeys } from "~/db";
 //   - Scope lives in api_keys.scope and pins the token to one of two surfaces:
 //       mcp_merchant -> merchant MCP (/mcp), account-scoped: api_keys.account_id
 //                       is the owning account; every query MUST go through the
-//                       Phase 2 byAccount helpers keyed on it.
-//       mcp_admin    -> operator MCP (/mcp/admin), platform-scoped: account_id is
-//                       null; not tied to any single tenant.
-//   - Issuance is gated by Better Auth in Phase 7: a signed-in owner issues a
-//     merchant token for their own account; a platform admin (isAdminEmail)
-//     issues an admin token. Phase 3 provides the model + helpers; the HTTP/MCP
-//     endpoints that call them are Phase 7 and are NOT built here.
+//                       byAccount helpers keyed on it.
+//       mcp_admin    -> an Admin API key, platform-scoped: account_id is null;
+//                       not tied to any single tenant. The admin MCP Worker
+//                       signs in through Access and does not use these.
+//   - Issuance: Settings, API keys (createAccountApiKey) and the OAuth provider
+//     (app/lib/oauth/provider.server.ts). See docs/auth/mcp-tokens.md.
 //   - Revocation is a timestamp (api_keys.revoked_at); verification rejects it.
 //   - Expiry (J79): api_keys.expires_at is null for a key made in Settings and
 //     set on the one-hour access token an OAuth grant issues (app/lib/oauth);

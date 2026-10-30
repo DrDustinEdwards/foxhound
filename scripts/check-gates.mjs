@@ -14,9 +14,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Four gates run over the codebase; check-gates itself is excluded from the
-// count because it checks the chain rather than the code. check-canon is NOT
-// counted: it needs a canon export argument and cannot run unattended (see
-// scripts/check-canon.mjs). Its MATCHERS are covered by the test gate.
+// count because it checks the chain rather than the code.
 const MINIMUM_GATES = 4;
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
