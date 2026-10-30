@@ -110,7 +110,7 @@ describe("A7: accepting an invite before signing in", () => {
     expect(sqlite.prepare("SELECT active_account_id AS a FROM session WHERE id = 'sess_1'").get()).toEqual({ a: "acc_1" });
   });
 
-  it("refuses a signed-in click under another address with Recova's words", async () => {
+  it("refuses a signed-in click under another address without naming the invited one", async () => {
     signIn("user_other", "other@globex.test");
     const res = (await invite.action({
       request: request(`/invite/${TOKEN}`, { method: "POST" }),
@@ -118,9 +118,8 @@ describe("A7: accepting an invite before signing in", () => {
       context: context(),
     } as never)) as unknown as { data: { error: string }; init: { status: number } };
     expect(res.init.status).toBe(403);
-    expect(res.data.error).toBe(
-      "This invite was sent to mate@acme.test. Copy this page's URL and open it in an incognito window to accept with the correct account.",
-    );
+    expect(res.data.error).toBe("This invite link is invalid or has expired.");
+    expect(res.data.error).not.toContain("mate@acme.test");
     expect(sqlite.prepare("SELECT status AS s FROM account_members WHERE id = 'm_1'").get()).toEqual({ s: "pending" });
   });
 });
