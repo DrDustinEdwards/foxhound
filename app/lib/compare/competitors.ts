@@ -57,7 +57,7 @@ export interface CompetitorDef {
 
 /** The day the competitor pricing pages were last read. One date for all of
  *  them: they are re-read together, as STAT_AS_OF is. */
-export const COMPETITOR_PRICES_CHECKED = "2026-10-30";
+const COMPETITOR_PRICES_CHECKED = "2026-10-30";
 
 const recoveryFee = `${RECOVERY_FEE_PERCENT}%`;
 const disputeCap = formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd");
