@@ -12,7 +12,6 @@ import {
 import {
   ArrowLeft,
   BarChart3,
-  Bell,
   CalendarClock,
   CreditCard,
   FileText,
@@ -175,7 +174,6 @@ const ICONS: Record<string, LucideIcon> = {
   "/intelligence/customers": Users,
   "/intelligence/recommendations": Lightbulb,
   "/intelligence/churn": TrendingDown,
-  "/intelligence/alerts": Bell,
   "/intelligence/reports": FileText,
   "/settings": Settings,
   "/billing": Receipt,

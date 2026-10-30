@@ -8,19 +8,22 @@ import "capsomer/field.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
+import "capsomer/switch.css";
 // Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/notifications does.
 import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { ToggleRow } from "~/components/settings-toggle-row";
 import { SettingsBackLink } from "~/components/settings-back-link";
-import { getDb } from "~/db";
+import { accounts, getDb } from "~/db";
+import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
-import { applySenderName } from "~/lib/settings/apply.server";
+import { applyFeatureSettings, applySenderName } from "~/lib/settings/apply.server";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { sendTestEmail } from "~/lib/settings/test-email.server";
 
@@ -81,9 +84,17 @@ import type { Route } from "./+types/email";
 // one an Enter key in the sender name presses, and would send mail. Owned by
 // its own DemoGuardedForm it keeps the demo refusal and works without script.
 
+// THE RECOVERY EMAILS CARD was /settings/features (S34, J38): Recova's two
+// switches, win-back sequences and expiring card alerts. Dustin had the page
+// combined with this one on 2026-10-29, since both switches turn emails to
+// customers on or off. It keeps its own form and save bar, and the NULL-is-ON
+// pair (337 binding 3): a merchant who never touched it has both on.
+
 export function meta() {
   return [{ title: "Email settings - Foxhound" }];
 }
+
+const NULL_IS_ON = true;
 
 /** Legacy's SaveBar failure sentence, said when the write itself threw. */
 const SAVE_FAILED = "Failed to save. Please try again.";
@@ -106,11 +117,23 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const connection = await getPrimarySenderConnection(db, auth.membership.accountId);
+  const [connection, [features]] = await Promise.all([
+    getPrimarySenderConnection(db, auth.membership.accountId),
+    db
+      .select({
+        winbackNotificationsEnabled: accounts.winbackNotificationsEnabled,
+        expiringCardNotificationsEnabled: accounts.expiringCardNotificationsEnabled,
+      })
+      .from(accounts)
+      .where(eq(accounts.id, auth.membership.accountId))
+      .limit(1),
+  ]);
   return {
     connectionId: connection?.id ?? null,
     senderName: connection?.senderName ?? "",
     replyToEmail: connection?.replyToEmail ?? "",
+    winbackNotificationsEnabled: features?.winbackNotificationsEnabled ?? NULL_IS_ON,
+    expiringCardNotificationsEnabled: features?.expiringCardNotificationsEnabled ?? NULL_IS_ON,
   };
 }
 
@@ -171,6 +194,22 @@ export async function action({ request, context }: Route.ActionArgs) {
         field ? { action: intent, ok: false, error: result.error, field } : { action: intent, ok: false, error: result.error },
         { status: 400 },
       );
+    }
+    return data<ActionResult>({ action: intent, ok: true });
+  }
+
+  if (intent === "features") {
+    // TWO columns, through the shared apply layer (session 79) so this form
+    // and the MCP `set_feature_settings` tool cannot disagree. A checkbox posts
+    // its name only when checked, so an absent key is OFF.
+    try {
+      await applyFeatureSettings(getDb(env), accountId, {
+        winbackNotificationsEnabled: form.get("winbackNotificationsEnabled") === "on",
+        expiringCardNotificationsEnabled: form.get("expiringCardNotificationsEnabled") === "on",
+      });
+    } catch (err) {
+      console.error("feature settings write failed:", err);
+      return data<ActionResult>({ action: intent, ok: false, failed: true }, { status: 500 });
     }
     return data<ActionResult>({ action: intent, ok: true });
   }
@@ -272,6 +311,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
   const navigation = useNavigation();
   const pendingAction = navigation.state === "idle" ? null : String(navigation.formData?.get("_action") ?? "");
   const saveResult = result?.action === "sender" ? result : undefined;
+  const featuresResult = result?.action === "features" ? result : undefined;
   const testResult = useShownTestResult(result?.action === "test-email" ? result : undefined);
   const outcome = pendingAction === "test-email" ? null : testOutcome(testResult);
 
@@ -285,7 +325,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
           keeps that space without styling Capsomer's head. */}
       <div className="mb-8">
-        <PageHead title="Email" lead="Configure how recovery emails appear to your customers." />
+        <PageHead title="Email" lead="Configure how recovery emails appear to your customers, and which ones are sent." />
       </div>
 
       <DemoGuardedForm method="post">
@@ -344,6 +384,38 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             {barError ? <Status tone="crit">{barError}</Status> : null}
           </span>
           <Button type="submit" variant="primary" pending={pendingAction === "sender"}>
+            Save changes
+          </Button>
+        </div>
+      </DemoGuardedForm>
+
+      {/* The recovery emails card, once /settings/features. */}
+      <DemoGuardedForm method="post" className="mt-10">
+        <input type="hidden" name="_action" value="features" />
+        <h2 className="m-0 mb-3 text-heading font-semibold text-text">Recovery emails</h2>
+        <section className="cap-panel">
+          <div className="cap-panel-body">
+            <ToggleRow
+              first
+              name="winbackNotificationsEnabled"
+              label="Win-back sequences"
+              help="Send re-engagement emails to customers who cancel their subscription"
+              defaultChecked={loaderData.winbackNotificationsEnabled}
+            />
+            <ToggleRow
+              name="expiringCardNotificationsEnabled"
+              label="Expiring card alerts"
+              help="Email customers before their card expires to prevent future failures"
+              defaultChecked={loaderData.expiringCardNotificationsEnabled}
+            />
+          </div>
+        </section>
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+          <span role="status">
+            {featuresResult?.ok ? <Status tone="ok">Saved</Status> : null}
+            {featuresResult && !featuresResult.ok ? <Status tone="crit">{SAVE_FAILED}</Status> : null}
+          </span>
+          <Button type="submit" variant="primary" pending={pendingAction === "features"}>
             Save changes
           </Button>
         </div>

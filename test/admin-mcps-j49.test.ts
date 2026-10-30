@@ -2,15 +2,14 @@ import { readFileSync } from "node:fs";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createRoutesStub, RouterContextProvider } from "react-router";
+import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys, mcpCalls } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// J49 (job_4f27c866fb97, row D15): /admin/mcps on the family admin pattern
+// J49 (job_4f27c866fb97, row D15): the MCP servers panels (once /admin/mcps, now on /admin/operations) on the family admin pattern
 // (Capsomer patterns, Dustin's Q9 of 2026-10-14) and his 2026-10-11 admin
 // review. Recova's page (app/admin/mcps/page.tsx, blob d0381e5f) is the
 // inventory: the API keys table (label, scope, account, status, created, last
@@ -28,7 +27,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 // Looked up so a missing module fails the assertion that names it, not the
 // whole file (RULES.md 6.5).
-const route: Record<string, unknown> = await import("~/routes/admin/mcps").catch(() => ({}));
+const panels: Record<string, unknown> = await import("~/components/admin-mcp-panels").catch(() => ({}));
 const serverLib: Record<string, unknown> = await import("~/lib/admin/mcps.server").catch(() => ({}));
 const pageLib: Record<string, unknown> = await import("~/lib/admin/mcps").catch(() => ({}));
 
@@ -133,14 +132,8 @@ describe("the loader", () => {
   });
 
   it("returns the summary, the keys, the calls and the tools", async () => {
-    expect(typeof route.loader).toBe("function");
-    const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
-    const data = await (route.loader as (a: unknown) => Promise<Record<string, unknown>>)({
-      request: new Request("https://foxhoundapp.com/admin/mcps"),
-      context,
-      params: {},
-    });
+    expect(typeof serverLib.loadMcpOverview).toBe("function");
+    const data = await (serverLib.loadMcpOverview as (db: unknown) => Promise<Record<string, unknown>>)(harness.db);
     expect(data.summary).toEqual({ keysTotal: 4, keysActive: 3, callsLast24h: 2, failedLast24h: 1 });
     expect((data.keys as unknown[]).length).toBe(4);
     expect((data.calls as unknown[]).length).toBe(3);
@@ -196,14 +189,14 @@ function render(over: { keys?: KeyRow[]; calls?: unknown[]; tools?: unknown[] } 
       { name: "foxhound_update_settings", title: "Update settings", writes: true },
     ],
   };
-  const Page = route.default as (props: unknown) => React.ReactNode;
-  expect(typeof Page).toBe("function");
-  const Stub = createRoutesStub([{ path: "/admin/mcps", Component: () => createElement(Page as never, { loaderData: data } as never) }]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/mcps"] }));
+  const Panels = panels.AdminMcpPanels as (props: unknown) => React.ReactNode;
+  expect(typeof Panels).toBe("function");
+  const Stub = createRoutesStub([{ path: "/admin/operations", Component: () => createElement(Panels as never, { data } as never) }]);
+  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/operations"] }));
 }
 
 
-describe("the MCP servers page", () => {
+describe("the MCP servers panels", () => {
 
   it("never renders key material", () => {
     const html = render({ keys: [{ ...key(), keyHash: SECRET_HASH } as KeyRow] });

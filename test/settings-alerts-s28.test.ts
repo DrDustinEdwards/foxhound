@@ -22,7 +22,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action } = await import("~/routes/app/settings/alerts");
+// The alerts are on /settings/notifications since 2026-10-29 (once /settings/alerts).
+const { action } = await import("~/routes/app/settings/notifications");
 
 const ACCOUNT = "acct_1";
 const OTHER = "acct_other";
@@ -108,7 +109,7 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   const res = (await action({
     context: ctx,
-    request: new Request("https://foxhoundapp.test/settings/alerts", { method: "POST", body: form }),
+    request: new Request("https://foxhoundapp.test/settings/notifications", { method: "POST", body: form }),
     params: {},
   } as never)) as unknown as Response | { data: Record<string, unknown>; init?: { status?: number } };
   // A successful create redirects back to the page, as Recova's dismissPanel

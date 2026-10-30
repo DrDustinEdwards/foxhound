@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   Bell,
   CircleUser,
   Key,
@@ -8,8 +7,6 @@ import {
   Plug,
   ScanSearch,
   Shield,
-  Sliders,
-  TrendingUp,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -23,9 +20,9 @@ import type { LucideIcon } from "lucide-react";
 // the spec and Foxhound's inline cards the rule to remove, superseding ruling
 // 57's deferral of the split.
 //
-// ALL TWELVE OF LEGACY'S ITEMS. `/settings/intelligence` (S35) shipped with
-// J69 and `/settings/disputes` (S32) with J06, each one line here in the group
-// legacy puts it in, which is why the groups keep their legacy shape.
+// LEGACY'S ITEMS, in legacy's groups, less three combined into others (Dustin,
+// 2026-10-29): Features into Email, Alerts into Notifications, and
+// Intelligence, which had no working control, removed.
 
 interface SettingsNavItem {
   to: string;
@@ -39,8 +36,7 @@ export interface SettingsNavGroup {
 }
 
 /**
- * Legacy's five groups in legacy's order. `Products` holds Disputes,
- * Intelligence and Audit.
+ * Legacy's five groups in legacy's order. `Products` holds Disputes and Audit.
  */
 export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   {
@@ -49,23 +45,18 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
       { to: "/settings/stripe", label: "Stripe connections", icon: Plug },
       { to: "/settings/email", label: "Email", icon: Mail },
       { to: "/settings/brand-voice", label: "Brand voice", icon: Mic },
-      { to: "/settings/features", label: "Features", icon: Sliders },
     ],
   },
   {
     label: "Products",
     items: [
       { to: "/settings/disputes", label: "Disputes", icon: Shield },
-      { to: "/settings/intelligence", label: "Intelligence", icon: TrendingUp },
       { to: "/settings/audit", label: "Audit", icon: ScanSearch },
     ],
   },
   {
     label: "Notifications",
-    items: [
-      { to: "/settings/notifications", label: "Notifications", icon: Bell },
-      { to: "/settings/alerts", label: "Alerts", icon: AlertTriangle },
-    ],
+    items: [{ to: "/settings/notifications", label: "Notifications and alerts", icon: Bell }],
   },
   {
     label: "Workspace",

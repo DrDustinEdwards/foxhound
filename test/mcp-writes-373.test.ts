@@ -141,7 +141,7 @@ describe("PLANT 3: validator parity, over the shared function", () => {
 
     for (const [route, fn] of [
       ["app/routes/app/settings/audit.tsx", "applyAuditSettings"],
-      ["app/routes/app/settings/features.tsx", "applyFeatureSettings"],
+      ["app/routes/app/settings/email.tsx", "applyFeatureSettings"],
       ["app/routes/app/settings/notifications.tsx", "applyNotificationSettings"],
       ["app/routes/app/settings/email.tsx", "applySenderName"],
     ] as const) {

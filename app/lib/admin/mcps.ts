@@ -1,11 +1,9 @@
-// The admin MCP servers page's words: pure helpers (not a .server module, the
+// The admin MCP panels' words (on /admin/operations): pure helpers (not a .server module, the
 // page renders them), tested without a database. Plain sentence-case words
 // for the stored codes (Dustin's review, 2026-10-11).
 
 import { MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { maskEmailsInText } from "~/lib/mcp/redact";
-
-export const MCPS_PATH = "/admin/mcps";
 
 /** How many of the newest calls the page lists. Here, not in the .server
  *  module, because the page's own text names it. */

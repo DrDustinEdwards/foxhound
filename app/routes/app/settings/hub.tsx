@@ -27,11 +27,9 @@ import type { Route } from "./+types/hub";
 // directive makes that the spec. Ruling 57's deferral of the split is
 // superseded.
 //
-// TWELVE ENTRIES, Recova's. `/settings/disputes` (S32) arrived with J06, with
+// NINE ENTRIES: Recova's twelve less three combined into others (see
+// SETTINGS_HUB_ENTRIES). `/settings/disputes` (S32) arrived with J06, with
 // Recova's description "Auto-submit, product description".
-// `/settings/intelligence` (S35) arrived with J69; its description adds "not
-// built yet" to Recova's "Notification preferences", because none of Recova's
-// five preferences has a reader in Foxhound and the page builds none of them.
 //
 // TWO DESCRIPTIONS ARE NOT RECOVA'S, because Recova's were untrue (RULES.md
 // 1.2). Email's "Sender name, reply-to, domain" promises a sender domain, which
@@ -64,17 +62,16 @@ export interface SettingsHubEntry {
   description: string;
 }
 
-/** Recova's twelve, in Recova's order. */
+/** Recova's twelve, in Recova's order, less three combined into others
+ *  (Dustin, 2026-10-29): Features into Email, Alerts into Notifications, and
+ *  Intelligence, which had no working control, removed. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
   { to: "/settings/stripe", label: "Stripe connections", description: "Connected accounts" },
-  { to: "/settings/email", label: "Email", description: "Sender name, reply-to" },
+  { to: "/settings/email", label: "Email", description: "Sender name, reply-to, win-back, expiring cards" },
   { to: "/settings/brand-voice", label: "Brand voice", description: "Per-category AI tone" },
-  { to: "/settings/features", label: "Features", description: "Win-back, expiring cards" },
   { to: "/settings/disputes", label: "Disputes", description: "Auto-submit, product description" },
-  { to: "/settings/intelligence", label: "Intelligence", description: "Notification preferences, not built yet" },
   { to: "/settings/audit", label: "Audit", description: "Lookback period, auto-run" },
-  { to: "/settings/notifications", label: "Notifications", description: "Email, Slack, digest" },
-  { to: "/settings/alerts", label: "Alerts", description: "Metric thresholds" },
+  { to: "/settings/notifications", label: "Notifications and alerts", description: "Email, Slack, digest, metric thresholds" },
   { to: "/settings/team", label: "Team", description: "Members, invite, roles" },
   { to: "/settings/api-keys", label: "API keys", description: "MCP server credentials" },
   { to: "/settings/account", label: "My account", description: "Profile, sign out" },

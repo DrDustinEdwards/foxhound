@@ -70,7 +70,6 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
       // Recova's place for it: after Customers, before Churn Risk (SiteNav.tsx).
       { label: "Recommendations", to: "/intelligence/recommendations" },
       { label: "Churn", to: "/intelligence/churn" },
-      { label: "Alerts", to: "/intelligence/alerts" },
       { label: "Reports", to: "/intelligence/reports" },
     ],
   },
@@ -96,20 +95,13 @@ export const PLATFORM_LINKS: ProductNavLink[] = [
   { label: "Audit settings", to: "/settings/audit" },
   { label: "Audit history", to: "/audit/dashboard" },
   { label: "Email settings", to: "/settings/email" },
-  { label: "Alerts", to: "/settings/alerts" },
   { label: "API keys", to: "/settings/api-keys" },
   { label: "Brand voice", to: "/settings/brand-voice" },
   // Notifications (S36). The writer five engines waited on: it sets
   // digest_enabled, the Slack pair, and the two email toggles.
   { label: "Notifications", to: "/settings/notifications" },
-  // Features (S34). The writer for the win-back and expiring-card toggles
-  // sessions 52 and 49 built their crons against.
-  { label: "Features", to: "/settings/features" },
-  // Intelligence settings (S35, J69). Same mechanism as its siblings: the
-  // sub-nav and hub list it; this row keeps the manifest whole.
   // Dispute settings (S32, J06). Same mechanism as its siblings.
   { label: "Dispute settings", to: "/settings/disputes" },
-  { label: "Intelligence settings", to: "/settings/intelligence" },
   // S24 and S25 (session 59): legacy's hub gained two sub-pages when the
   // inline cards were split off it.
   { label: "Stripe connections", to: "/settings/stripe" },

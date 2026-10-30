@@ -1,35 +1,19 @@
 import { useRef, useState } from "react";
-import { data, Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
+import { Form, Link, useNavigation, useSearchParams } from "react-router";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
-import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
 import { Switch } from "capsomer/react/switch";
 import "capsomer/banner.css";
-import "capsomer/button.css";
 import "capsomer/empty.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
-import "capsomer/status.css";
-import "capsomer/switch.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /intelligence/customers and /disputes load them.
-import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
-import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
-import { loadAlertTarget } from "~/lib/intelligence/alert-notify.server";
-import { getAlertsView } from "~/lib/intelligence/views.server";
 import {
   ALERT_DIRECTION_LABELS,
   ALERT_METRICS,
@@ -43,11 +27,10 @@ import {
   formatThresholdValue,
   type AlertDirection,
 } from "~/lib/settings/alert-metrics";
-import { applyAlertConfig, applyAlertCreate } from "~/lib/settings/apply.server";
+import type { AlertActionResult, loadAlertsSection } from "~/lib/settings/alerts-section.server";
 
-import type { Route } from "./+types/alerts";
-
-// S28, /settings/alerts. Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
+// The alerts part of /settings/notifications (S28, once its own page at
+// /settings/alerts; combined on Dustin's word of 2026-10-29). Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
 // and alerts/AlertsClient.tsx (blob ee8dac99, 20,909 bytes).
 //
 // J33 (job_947a0b8bbe06) rebuilt the page on Capsomer 0.9.0's parts (Q10),
@@ -74,100 +57,6 @@ import type { Route } from "./+types/alerts";
 // and silent reverts on failure. This is the route's own action, class (a),
 // S30's divergence 1, and a failure is shown rather than reverted invisibly.
 
-export function meta() {
-  return [{ title: "Alerts - Foxhound" }];
-}
-
-/** Recova's page reads the twenty most recent firings. The shared view reads
- *  more for /intelligence/alerts, so this page takes its own twenty. */
-const RECENT_TRIGGERS = 20;
-
-export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const [view, target] = await Promise.all([
-    getAlertsView(db, auth.membership.accountId),
-    loadAlertTarget(db, auth.membership.accountId),
-  ]);
-  return {
-    alerts: view.alerts,
-    history: view.history.slice(0, RECENT_TRIGGERS),
-    notificationEmail: target.notificationEmail,
-    hasSlack: !!target.slackWebhookUrl,
-  };
-}
-
-interface ActionResult {
-  action: string;
-  ok: boolean;
-  error?: string;
-}
-
-export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
-  const db = getDb(env);
-  const form = await request.formData();
-  const intent = String(form.get("_action") ?? "");
-
-  // TWO BRANCHES, TWO APPLY FUNCTIONS, and the split below is the one this
-  // action always had: creating takes four fields and no id, changing takes an
-  // id and one verb. Every refusal string moved with the check that produces
-  // it, so the sentences a merchant reads are unchanged and are now the same
-  // sentences an agent reads.
-  if (intent === "create") {
-    const result = await applyAlertCreate(
-      db,
-      accountId,
-      {
-        metric: form.get("metric"),
-        direction: form.get("direction"),
-        threshold: form.get("threshold"),
-        label: form.get("label"),
-        channel: form.get("channel"),
-      },
-      new Date(),
-    );
-    if (!result.ok) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: result.error },
-        { status: 400 },
-      );
-    }
-    // Recova's dismissPanel: a created alert closes the form, clears its
-    // fields and re-enables Create alert. Redirecting drops ?new=1, so the
-    // form cannot be sent twice with the same values. A refusal above keeps
-    // the form open with its message.
-    return redirect("/settings/alerts");
-  }
-
-  if (intent === "toggle" || intent === "delete") {
-    // An alert this account does not own now REFUSES rather than reporting a
-    // zero-row write as success. The pill and the delete button only ever offer
-    // the caller's own ids, so nothing about the page changes.
-    const result = await applyAlertConfig(db, accountId, {
-      alertId: form.get("alertId"),
-      deleted: intent === "delete",
-      enabled: String(form.get("enabled") ?? "") === "true",
-    });
-    if (!result.ok) {
-      return data<ActionResult>(
-        { action: intent, ok: false, error: result.error },
-        { status: 400 },
-      );
-    }
-    return data<ActionResult>({ action: intent, ok: true });
-  }
-
-  return data<ActionResult>(
-    { action: intent, ok: false, error: "Unknown settings action." },
-    { status: 400 },
-  );
-}
-
-
 function formatDate(at: Date | null): string {
   if (!at) return "Never";
   return new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -183,9 +72,13 @@ function formatDateTime(at: Date): string {
   });
 }
 
-export default function AlertSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { alerts, history, notificationEmail, hasSlack } = loaderData;
-  const result = actionData as ActionResult | undefined;
+export function AlertsSection({
+  data: { alerts, history, notificationEmail, hasSlack },
+  result,
+}: {
+  data: Awaited<ReturnType<typeof loadAlertsSection>>;
+  result?: AlertActionResult;
+}) {
   const busy = useNavigation().state !== "idle";
   const [params] = useSearchParams();
   const creating = params.get("new") === "1";
@@ -193,11 +86,12 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
   const rowError = result && !result.ok && result.action !== "create" ? result.error : undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Recova's PageHeader sits mb-8 above the first card. */}
-      <div className="mb-8">
-        <PageHead title="Alerts" lead="Get notified when Recovery metrics cross a threshold." />
+    <section aria-labelledby="alerts-heading" className="mt-12">
+      <div className="mb-6">
+        <h2 id="alerts-heading" className="m-0 text-heading font-semibold text-text">
+          Alerts
+        </h2>
+        <p className="m-0 mt-1 text-label text-text-secondary">Get notified when Recovery metrics cross a threshold.</p>
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
@@ -352,7 +246,7 @@ export default function AlertSettings({ loaderData, actionData }: Route.Componen
           )}
         </Panel>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -481,11 +375,7 @@ function CreateAlertForm({
               />
               {!hasSlack ? (
                 <p className="m-0 mt-1 text-micro text-text-subtle">
-                  Add a Slack webhook in{" "}
-                  <Link to="/settings/notifications" className="underline">
-                    Notifications settings
-                  </Link>{" "}
-                  first.
+                  Add a Slack webhook above and save it first.
                 </p>
               ) : null}
             </div>
@@ -503,7 +393,7 @@ function CreateAlertForm({
             </Button>
             {/* Recova's Cancel closes the form. A link back to the page, in
                 Capsomer's quiet button markup, closes it with no script. */}
-            <Link className="cap-btn" data-variant="quiet" to="/settings/alerts">
+            <Link className="cap-btn" data-variant="quiet" to="/settings/notifications">
               Cancel
             </Link>
           </div>
