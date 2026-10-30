@@ -56,7 +56,7 @@ function keyRows(accountId: string | null) {
   }[];
 }
 
-function ctxFor(isAdmin: boolean) {
+function ctxFor(isAdmin: boolean, role = "owner") {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
@@ -65,12 +65,12 @@ function ctxFor(isAdmin: boolean) {
           userId: "user_1",
           userName: "Owner",
           email: "owner@acme.test",
-          membership: { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
+          membership: { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role },
           // Two memberships with the ACTIVE one second, so a reader that took
           // the earliest membership fails instead of coincidentally agreeing.
           memberships: [
             { memberId: "m1", accountId: OTHER, accountName: "Other", role: "owner" },
-            { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role: "owner" },
+            { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role },
           ],
           activeAccountId: ACCOUNT,
           isAdmin,
@@ -86,11 +86,12 @@ function ctxFor(isAdmin: boolean) {
 async function post(
   fields: Record<string, string>,
   isAdmin = false,
+  role = "owner",
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   const res = (await action({
-    context: ctxFor(isAdmin),
+    context: ctxFor(isAdmin, role),
     request: new Request("https://foxhoundapp.test/settings/api-keys", { method: "POST", body: form }),
     params: {},
   } as never)) as unknown as { data: Record<string, unknown>; init?: { status?: number } };
@@ -173,6 +174,23 @@ describe("PLANT 3: revoke is pinned to the account", () => {
     await post({ _action: "create", label: "My agent" });
     const res = await post({ _action: "revoke" });
     expect(res.status).toBe(400);
+    expect(keyRows(ACCOUNT)[0].revokedAt).toBeNull();
+  });
+});
+
+describe("PLANT 5: only the account owner manages keys (audit S3)", () => {
+  it("403 and NO key for a member who is not the owner", async () => {
+    const res = await post({ _action: "create", label: "My agent" }, false, "member");
+    expect(res.status).toBe(403);
+    expect(res.body.rawKey).toBeUndefined();
+    expect(keyRows(ACCOUNT)).toHaveLength(0);
+  });
+
+  it("403 and NO revoke for a member who is not the owner", async () => {
+    await post({ _action: "create", label: "My agent" });
+    const id = keyRows(ACCOUNT)[0].id;
+    const res = await post({ _action: "revoke", keyId: id }, false, "member");
+    expect(res.status).toBe(403);
     expect(keyRows(ACCOUNT)[0].revokedAt).toBeNull();
   });
 });

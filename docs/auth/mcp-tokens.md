@@ -1,76 +1,47 @@
-# MCP Token Model (Phase 3 design; Phase 7 consumes)
+# MCP tokens
 
-Foxhound's MCP servers (Phase 7, `mcp.foxhoundapp.com/mcp` and `/mcp/admin`)
-authenticate with bearer tokens issued from the app and tied to Better Auth
-identities. Phase 3 designs and implements the token model; it does NOT build any
-MCP endpoint. This document is the contract Phase 7 builds against.
+How callers authenticate to Foxhound's merchant MCP at `foxhoundapp.com/mcp`,
+served inside the `foxhound` Worker (`workers/app.ts`). The admin MCP is a
+separate Worker (`mcp/`, `admin-mcp.foxhoundapp.com`): it signs its operator in
+through Cloudflare Access and reaches Foxhound only over the `AdminApi` service
+binding, so it never uses these tokens.
 
 ## Storage
 
-Tokens live in the existing `api_keys` table (SCHEMA.md: "api_keys -> carry
-(merchant API/MCP)"). The legacy `oauth_clients` / `oauth_authorization_codes` /
-`oauth_tokens` tables do NOT migrate; Better Auth plus this model replaces them.
+Every token is a row in `api_keys`. Helpers are in `app/lib/auth/mcp-tokens.ts`.
 
-Columns used:
+| column         | use                                                          |
+|----------------|--------------------------------------------------------------|
+| `id`           | token id (revocation, last-used stamping)                    |
+| `account_id`   | owning account for merchant tokens; NULL for admin tokens    |
+| `key_hash`     | SHA-256 hex of the plaintext; the plaintext is never stored  |
+| `label`        | human label ("Zapier", "ops laptop")                         |
+| `scope`        | `mcp_merchant` or `mcp_admin`                                |
+| `expires_at`   | set on OAuth-issued tokens (one hour); NULL for Settings keys |
+| `created_at`, `last_used_at`, `revoked_at` | lifecycle                        |
 
-| column       | use                                                        |
-|--------------|------------------------------------------------------------|
-| `id`         | token id (referenced for revocation, last-used stamping)   |
-| `account_id` | owning account for merchant tokens; NULL for admin tokens  |
-| `key_hash`   | SHA-256 hex of the plaintext token; the plaintext is never stored |
-| `label`      | human label ("Zapier", "ops laptop")                       |
-| `scope`      | `mcp_merchant` or `mcp_admin`                              |
-| `created_at` | issuance time                                              |
-| `last_used_at` | stamped on each successful verify                        |
-| `revoked_at` | set on revoke; verification rejects thereafter             |
+## Format
 
-## Token format
+`fox_mcp_<base64url(32 random bytes)>`. The prefix makes a leaked token
+recognizable in logs and secret scans and lets `verifyMcpToken` reject other
+input before any DB access. The plaintext is shown once, at issuance.
 
-`fox_mcp_<base64url(32 random bytes)>`
+## Two ways a token is issued
 
-The `fox_mcp_` prefix makes a leaked token recognizable in logs/secret scans and
-lets `verifyMcpToken` reject non-MCP input before any DB access. Only the SHA-256
-hash is stored; the plaintext is shown to the operator exactly once at issuance.
+- **Settings, API keys** (`app/routes/app/settings/api-keys.tsx`, through
+  `createAccountApiKey`): a key for the active account. The scope is merchant
+  unless the session is a platform admin asking for admin scope.
+- **OAuth** (`app/lib/oauth/provider.server.ts`, migration 0031): dynamic
+  client registration, authorization code with PKCE S256, rotating 30-day
+  refresh tokens. The access token is an ordinary merchant-scope `fox_mcp_` key
+  with a one-hour `expires_at`, bound to the account chosen at consent. The
+  code, refresh token and access token are all stored as hashes.
 
-## Scopes
+## Rules
 
-- `mcp_merchant` — the merchant MCP (`/mcp`). Account-scoped: `account_id` is the
-  owning account. Every data access MUST go through the Phase 2 `byAccount`
-  helpers keyed on that `account_id`; a merchant token can never read another
-  tenant.
-- `mcp_admin` — the operator MCP (`/mcp/admin`). Platform-scoped: `account_id` is
-  NULL. Not tied to a single tenant.
-
-## Issuance (gated by Better Auth in Phase 7)
-
-Issuance is only ever reached behind an authenticated, role-checked endpoint:
-
-- A signed-in account **owner** issues an `mcp_merchant` token for **their own**
-  account (`account_id` from their resolved membership; never a supplied value).
-- A platform **admin** (`isAdminEmail`) issues an `mcp_admin` token.
-
-Phase 3 helpers (in `app/lib/auth/mcp-tokens.ts`):
-
-```ts
-issueMcpToken(db, { accountId, scope, label? }): Promise<IssuedMcpToken>
-// returns { keyId, token, scope } - `token` is plaintext, shown once
-verifyMcpToken(db, presented): Promise<VerifiedMcpToken | null>
-// { keyId, accountId, scope } or null (unknown / revoked / not an MCP token)
-revokeMcpToken(db, keyId): Promise<void>
-hashMcpToken(token): Promise<string>  // SHA-256 hex
-```
-
-## What Phase 7 builds (NOT Phase 3)
-
-- The MCP server(s) and their `/mcp` + `/mcp/admin` HTTP surfaces.
-- The bearer-token extraction from MCP requests that calls `verifyMcpToken`.
-- The issuance/revocation UI (likely under settings for merchants, admin for
-  operator tokens).
-- Any per-tool scoping beyond the merchant/admin split.
-
-## Security notes
-
-- Never log the plaintext token or `key_hash` alongside identifying data.
-- Verification is constant-work on a hash lookup; there is no plaintext compare.
-- A merchant token's `account_id` is authoritative for tenant scoping; the MCP
-  must not accept an account id from the caller.
+- A merchant token's `account_id` is the tenant. No tool takes an account
+  argument (CLAUDE.md hard rule 8), and every query goes through the
+  account-scoped helpers.
+- No tool submits a dispute, cancels, disconnects, connects, or writes an
+  outcome or a bill (CLAUDE.md hard rule 4).
+- Never log the plaintext token or `key_hash` beside identifying data.

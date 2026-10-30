@@ -1,7 +1,7 @@
-# Money writes (Phase 4a)
+# Money writes
 
-The spine every money write in the engine rides. Enforces ARCHITECTURE.md
-non-negotiable #1: **money writes are DO-serialized atomic batches** (outcomes,
+The spine every money write in the engine rides. Enforces CLAUDE.md
+hard rule 2: **money writes are DO-serialized atomic batches** (outcomes,
 attributed billing, webhook claims, Stripe connection writes). D1 has no
 interactive transactions, so serialization + atomicity are provided by a
 per-account Durable Object plus D1's atomic `batch()`.
