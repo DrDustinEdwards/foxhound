@@ -158,7 +158,7 @@ export function MerchantsList({
               </Empty>
             )
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-cap="table" data-reflow="wide" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">{words.caption}</caption>
                 <thead>
@@ -307,13 +307,13 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
         {m.name && m.ownerEmail ? <span className="cap-table-aside">{m.ownerEmail}</span> : null}
         {m.ownerEmail ? null : <span className="cap-table-aside">No owner on record</span>}
       </th>
-      <td>
+      <td data-label="Status">
         <Status tone={status.tone}>{status.word}</Status>
       </td>
-      <td>
+      <td data-label="Stripe">
         <Status tone={m.connectionStatus === "connected" ? "ok" : "nodata"}>{CONNECTION_WORDS[m.connectionStatus]}</Status>
       </td>
-      <td>
+      <td data-label="Recovery rate">
         {m.recoveryRatePct === null ? (
           <span className="text-text-tertiary">{recoveryRateBand(null)}</span>
         ) : (
@@ -324,21 +324,22 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
           </Status>
         )}
       </td>
-      <td data-num="">{moneyWords(m.recovered, "None yet")}</td>
-      <td data-num="" data-drop="1">
+      <td data-num="" data-label="Recovered">{moneyWords(m.recovered, "None yet")}</td>
+      <td data-num="" data-drop="1" data-label="Active recoveries">
         {m.activeRecoveriesCount}
       </td>
-      <td>
+      <td data-label="Last webhook">
         <span className={ABOVE_ROW_LINK}>
           <AdminTime at={m.lastWebhookAt} empty="None received" />
         </span>
       </td>
-      <td data-drop="1">
+      <td data-drop="1" data-label="Joined">
         <span className={ABOVE_ROW_LINK}>
           <AdminTime at={m.createdAt} empty="Not recorded" />
         </span>
       </td>
-      <td>
+      {/* In the card layout (data-reflow) the buttons take the card's full width. */}
+      <td data-label="Actions" className="[grid-column:1/-1]">
         <div className="flex flex-wrap items-center gap-2">
           {m.stripeUserId ? (
             <a
