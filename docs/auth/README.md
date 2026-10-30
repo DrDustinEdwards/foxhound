@@ -64,7 +64,7 @@ deleted the old password rows.
   the server and hidden or disabled for members: connecting Stripe, disconnecting
   Stripe, early fraud warning refunds, dispute Approve and Accept, the dispute
   auto-submit switch, API keys, OAuth consent, inviting and removing members, and
-  cancelling the account. Deleting your own login deletes only the accounts you
+  canceling the account. Deleting your own login deletes only the accounts you
   own. Billing setup (`/billing`) has no role check today.
 
 ## Guard matrix (route tree -> requirement)
