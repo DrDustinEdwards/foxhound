@@ -4,6 +4,7 @@
 // pictures sent are the blog pictures Carrel uploaded; no merchant data is ever in them or in the prompt. Every
 // call is metered in ai_calls (source "media-suggest", no account), as the Anthropic calls are.
 
+import { readSuggestion } from "@dustinedwards/site-api";
 import { anthropicRoute } from "@dustinedwards/site-runtime/ai-gateway";
 import { toBase64 } from "@dustinedwards/site-runtime/encoding";
 import { editImage } from "@dustinedwards/site-runtime/image";
@@ -37,24 +38,6 @@ function suggestGateway(env: Pick<Env, "AI_GATEWAY_BASE_URL">): GatewayOptions |
   const id = /\/v1\/[^/]+\/([^/]+)\/anthropic$/.exec(route.baseURL)?.[1];
   if (!id) throw new Error("AI_GATEWAY_BASE_URL names no gateway id");
   return { id, collectLog: false, metadata: { app: "foxhound" } };
-}
-
-/** The model's answer as tags and alt, from its JSON wherever in the text it put it. */
-function readSuggestion(answer: unknown): { tags: string[]; alt: string | null } {
-  const body = typeof answer === "object" && answer !== null && "response" in answer ? (answer as { response: unknown }).response : answer;
-  let parsed: unknown = body;
-  if (typeof body === "string") {
-    const found = /\{[\s\S]*\}/.exec(body)?.[0];
-    try {
-      parsed = found ? JSON.parse(found) : null;
-    } catch {
-      parsed = null;
-    }
-  }
-  const record = (parsed ?? {}) as { alt?: unknown; tags?: unknown };
-  const alt = typeof record.alt === "string" && record.alt.trim() ? record.alt.trim() : null;
-  const tags = Array.isArray(record.tags) ? record.tags.filter((t): t is string => typeof t === "string") : [];
-  return { tags, alt };
 }
 
 /** What the model suggests for one stored picture. */

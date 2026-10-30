@@ -17,13 +17,21 @@ import {
   type MediaUploaded,
   type MediaUse,
 } from "@dustinedwards/site-api";
+import { mediaRev, mediaVersion } from "@dustinedwards/site-api";
 import { writeFocus, type R2BucketLike } from "@dustinedwards/site-api/r2";
 import { editImage, type EditFormat } from "@dustinedwards/site-runtime/image";
 
 import type { Db } from "~/db";
 import { readEmbedded } from "~/lib/media/embedded.server";
 import { EXTENSIONS, mediaUrl } from "~/lib/media/images";
-import { historyOf, measure, removeFile, revisionBytes, storeFile, swapBytes } from "~/lib/media/library.server";
+import {
+  historyOf,
+  measure,
+  removeFile,
+  revisionBytes,
+  storeFile,
+  swapBytes,
+} from "~/lib/media/library.server";
 import {
   allMediaRows,
   mediaChangeCursor,
@@ -58,7 +66,14 @@ import { mediaUses } from "~/lib/media/usage.server";
 /** The pictures a post can show. No SVG (it can carry script) and nothing that is not a picture. */
 const LIMITS = { maxBytes: 20 * 1024 * 1024, types: Object.keys(EXTENSIONS) };
 
-const LENSES: readonly MediaLens[] = ["unattached", "no-alt", "large", "duplicates", "license-expired", "oversized"];
+const LENSES: readonly MediaLens[] = [
+  "unattached",
+  "no-alt",
+  "large",
+  "duplicates",
+  "license-expired",
+  "oversized",
+];
 
 /** What an upload shrinks to unless it says `resize=no`: wide enough for any screen the 680 px column is shown on at 3x. */
 const RESIZE: MediaResize = { maxEdge: 2560, quality: 85 };
@@ -67,20 +82,23 @@ const RESIZE: MediaResize = { maxEdge: 2560, quality: 85 };
 const TRANSFORM_QUALITY = 92;
 
 /** Pictures the Images binding re-encodes in their own type. A GIF may be animated, and a turn would keep one frame. */
-const REENCODED = new Set<string>(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const REENCODED = new Set<string>([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]);
 
-const TRANSFORMS: Record<MediaTransformOp, { rotate?: 90 | 180 | 270; flip?: "h" | "v" }> = {
+const TRANSFORMS: Record<
+  MediaTransformOp,
+  { rotate?: 90 | 180 | 270; flip?: "h" | "v" }
+> = {
   "rotate-90": { rotate: 90 },
   "rotate-180": { rotate: 180 },
   "rotate-270": { rotate: 270 },
   "flip-h": { flip: "h" },
   "flip-v": { flip: "v" },
 };
-
-const mediaVersion = (rev: number) => `r${rev}`;
-
-/** The rev a version names, or -1 (which no row holds) for anything this site never answered. */
-const revOf = (version: string) => (/^r(0|[1-9]\d{0,15})$/.test(version) ? Number(version.slice(1)) : -1);
 
 const iso = (at: Date | null) => (at ? at.toISOString() : null);
 
@@ -118,18 +136,24 @@ function itemOf(row: MediaRow, usedCount?: number): MediaItem {
 function answer(write: MediaWrite): { version: string } {
   if (write.ok) return { version: mediaVersion(write.rev) };
   if (write.reason === "missing") throw new NotFoundError("No such media.");
-  throw new VersionConflictError(mediaVersion(write.rev), "The file changed since it was loaded.");
+  throw new VersionConflictError(
+    mediaVersion(write.rev),
+    "The file changed since it was loaded.",
+  );
 }
 
 /** The longer edge over the site's shrink size. */
-const oversized = (row: MediaRow) => Math.max(row.width ?? 0, row.height ?? 0) > RESIZE.maxEdge;
+const oversized = (row: MediaRow) =>
+  Math.max(row.width ?? 0, row.height ?? 0) > RESIZE.maxEdge;
 
 /** The reference check, or a refusal that says it could not run: nothing is deleted on a check that failed. */
 async function usesOrRefuse(db: Db): Promise<Map<string, MediaUse[]>> {
   try {
     return await mediaUses(db);
   } catch (error) {
-    throw new RefusedError(`The reference check could not run (${error instanceof Error ? error.message : String(error)}), so this file's uses are unknown.`);
+    throw new RefusedError(
+      `The reference check could not run (${error instanceof Error ? error.message : String(error)}), so this file's uses are unknown.`,
+    );
   }
 }
 
@@ -138,7 +162,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
 
   /** Moves the version first, in one statement, for a write that must change the object before the index. */
   async function claim(id: string, expectedVersion: string) {
-    return answer(await writeMediaAtRev(db, id, {}, revOf(expectedVersion)));
+    return answer(await writeMediaAtRev(db, id, {}, mediaRev(expectedVersion)));
   }
 
   async function mustHold(id: string): Promise<MediaRow> {
@@ -147,12 +171,25 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     return row;
   }
 
-  const field = (fields: MediaFields) => async (id: string, input: { expectedVersion: string }) =>
-    answer(await writeMediaAtRev(db, id, fields, revOf(input.expectedVersion)));
+  const field =
+    (fields: MediaFields) =>
+    async (id: string, input: { expectedVersion: string }) =>
+      answer(
+        await writeMediaAtRev(db, id, fields, mediaRev(input.expectedVersion)),
+      );
 
   /** Re-encodes the picture through the Images binding (site-runtime's editImage), in its own type. */
-  async function reencode(body: ReadableStream | Uint8Array, edit: { rotate?: 90 | 180 | 270; flip?: "h" | "v"; maxEdge?: number }, type: string, quality: number) {
-    const response = await editImage(env.IMAGES, body, { ...edit, format: type as EditFormat, quality });
+  async function reencode(
+    body: ReadableStream | Uint8Array,
+    edit: { rotate?: 90 | 180 | 270; flip?: "h" | "v"; maxEdge?: number },
+    type: string,
+    quality: number,
+  ) {
+    const response = await editImage(env.IMAGES, body, {
+      ...edit,
+      format: type as EditFormat,
+      quality,
+    });
     return new Uint8Array(await response.arrayBuffer());
   }
 
@@ -169,7 +206,8 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     resize: RESIZE,
     readsEmbedded: true,
     // The package checks every address and each redirect before this fetch runs (importRefusal, fetchImport).
-    importFetch: ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)) as typeof fetch,
+    importFetch: ((input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, init)) as typeof fetch,
 
     async list(query) {
       // The cursor first: a change that lands while the page is read is in the next poll, not lost between them.
@@ -177,41 +215,67 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       const [rows, uses] = await Promise.all([allMediaRows(db), mediaUses(db)]);
       const used = (row: MediaRow) => uses.get(row.key)?.length ?? 0;
       const hashes = new Map<string, number>();
-      for (const row of rows) hashes.set(row.sha256, (hashes.get(row.sha256) ?? 0) + 1);
+      for (const row of rows)
+        hashes.set(row.sha256, (hashes.get(row.sha256) ?? 0) + 1);
       const today = new Date().toISOString().slice(0, 10);
       const lens: Record<MediaLens, (row: MediaRow) => boolean> = {
         unattached: (row) => used(row) === 0,
         "no-alt": (row) => row.alt.trim() === "",
         large: (row) => row.bytes > LARGE_MEDIA_BYTES,
         duplicates: (row) => (hashes.get(row.sha256) ?? 0) > 1,
-        "license-expired": (row) => Boolean(row.licenseExpires && row.licenseExpires < today),
+        "license-expired": (row) =>
+          Boolean(row.licenseExpires && row.licenseExpires < today),
         oversized,
       };
       const needle = query.q?.toLowerCase();
       const trashed = query.trashed === "only";
       const matching = rows
-        .filter((row) => (trashed ? row.trashedAt !== null : row.trashedAt === null))
+        .filter((row) =>
+          trashed ? row.trashedAt !== null : row.trashedAt === null,
+        )
         .filter((row) => !query.tag || row.tags.includes(query.tag))
-        .filter((row) => !needle || [row.key, row.filename ?? "", row.alt, row.caption].some((t) => t.toLowerCase().includes(needle)))
+        .filter(
+          (row) =>
+            !needle ||
+            [row.key, row.filename ?? "", row.alt, row.caption].some((t) =>
+              t.toLowerCase().includes(needle),
+            ),
+        )
         .filter((row) => !query.lens || lens[query.lens](row))
-        .filter((row) => !query.orientation || orientationOf(row.width, row.height) === query.orientation)
+        .filter(
+          (row) =>
+            !query.orientation ||
+            orientationOf(row.width, row.height) === query.orientation,
+        )
         .filter((row) => !query.kind || kindOf(row.contentType) === query.kind);
 
       // The contract's defaults: added and size largest first, name A to Z, used most used first.
       const sort = query.sort ?? "added";
       const dir = query.dir ?? (sort === "name" ? "asc" : "desc");
       const keyOf = (row: MediaRow): number | string =>
-        sort === "size" ? row.bytes : sort === "used" ? used(row) : sort === "name" ? (row.filename ?? row.key).toLowerCase() : row.uploadedAt.getTime();
+        sort === "size"
+          ? row.bytes
+          : sort === "used"
+            ? used(row)
+            : sort === "name"
+              ? (row.filename ?? row.key).toLowerCase()
+              : row.uploadedAt.getTime();
       const sorted = matching
         .map((row, n) => ({ row, n }))
         .sort((a, b) => {
           const [x, y] = [keyOf(a.row), keyOf(b.row)];
-          const by = typeof x === "number" ? x - (y as number) : x.localeCompare(y as string);
+          const by =
+            typeof x === "number"
+              ? x - (y as number)
+              : x.localeCompare(y as string);
           return (dir === "asc" ? by : -by) || a.n - b.n;
         })
         .map(({ row }) => row);
 
-      const start = query.cursor && /^(0|[1-9]\d{0,8})$/.test(query.cursor) ? Number(query.cursor) : 0;
+      const start =
+        query.cursor && /^(0|[1-9]\d{0,8})$/.test(query.cursor)
+          ? Number(query.cursor)
+          : 0;
       const next = start + query.limit;
       return {
         items: sorted.slice(start, next).map((row) => itemOf(row, used(row))),
@@ -242,12 +306,27 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       if (input.resize && REENCODED.has(input.contentType)) {
         const size = await measure(env, input.bytes);
         if (size && Math.max(size.width, size.height) > RESIZE.maxEdge) {
-          bytes = await reencode(input.bytes, { maxEdge: RESIZE.maxEdge }, input.contentType, RESIZE.quality);
-          resizedFrom = { width: size.width, height: size.height, bytes: input.bytes.byteLength };
-          original = { bytes: input.bytes, ...size, sha256: input.sha256 ?? (await sha256Hex(input.bytes)) };
+          bytes = await reencode(
+            input.bytes,
+            { maxEdge: RESIZE.maxEdge },
+            input.contentType,
+            RESIZE.quality,
+          );
+          resizedFrom = {
+            width: size.width,
+            height: size.height,
+            bytes: input.bytes.byteLength,
+          };
+          original = {
+            bytes: input.bytes,
+            ...size,
+            sha256: input.sha256 ?? (await sha256Hex(input.bytes)),
+          };
         }
       }
-      const embedded = (["credit", "license", "caption", "takenAt"] as const).filter((name) => found[name]);
+      const embedded = (
+        ["credit", "license", "caption", "takenAt"] as const
+      ).filter((name) => found[name]);
       const row = await storeFile(env, db, {
         bytes,
         contentType: input.contentType,
@@ -272,7 +351,9 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       const uses = (await usesOrRefuse(db)).get(id) ?? [];
       if (uses.length > 0) throw new MediaInUseError(uses);
       if (!(await removeFile(env, db, row))) {
-        throw new RefusedError(`${id} changed while this delete was being checked. Nothing was deleted; try again.`);
+        throw new RefusedError(
+          `${id} changed while this delete was being checked. Nothing was deleted; try again.`,
+        );
       }
     },
 
@@ -312,9 +393,21 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
 
     async replace(id, input) {
       const size = await measure(env, input.bytes);
-      if (!size) throw new RefusedError("The new file could not be read as a picture.");
+      if (!size)
+        throw new RefusedError("The new file could not be read as a picture.");
       await claim(id, input.expectedVersion);
-      const row = await swapBytes(env, db, await mustHold(id), { bytes: input.bytes, contentType: input.contentType, ...size, reason: "replace" }, { focus: null, filename: input.filename.slice(0, 300) });
+      const row = await swapBytes(
+        env,
+        db,
+        await mustHold(id),
+        {
+          bytes: input.bytes,
+          contentType: input.contentType,
+          ...size,
+          reason: "replace",
+        },
+        { focus: null, filename: input.filename.slice(0, 300) },
+      );
       // The image route keys its cached sizes by the object's etag (site-runtime ./image), and the
       // public copies expire in five minutes (app/routes/files/media.ts).
       return { item: itemOf(row), sizesNeedPurge: false };
@@ -328,12 +421,23 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     async transform(id, input) {
       const row = await mustHold(id);
       if (!REENCODED.has(row.contentType)) {
-        throw new RefusedError(`A ${row.contentType} picture is not turned here: a GIF may be animated, and a turn would keep one frame.`);
+        throw new RefusedError(
+          `A ${row.contentType} picture is not turned here: a GIF may be animated, and a turn would keep one frame.`,
+        );
       }
-      if (row.rev !== revOf(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
+      if (row.rev !== mediaRev(input.expectedVersion))
+        throw new VersionConflictError(
+          mediaVersion(row.rev),
+          "The file changed since it was loaded.",
+        );
       const object = await env.MEDIA.get(id);
       if (!object) throw new NotFoundError("No such media.");
-      const bytes = await reencode(object.body, TRANSFORMS[input.op], row.contentType, TRANSFORM_QUALITY);
+      const bytes = await reencode(
+        object.body,
+        TRANSFORMS[input.op],
+        row.contentType,
+        TRANSFORM_QUALITY,
+      );
       const swapped = turnsSize(input.op);
       const focus = transformFocus(row.focus, input.op);
       await claim(id, input.expectedVersion);
@@ -341,7 +445,13 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
         env,
         db,
         await mustHold(id),
-        { bytes, contentType: row.contentType, width: swapped ? row.height : row.width, height: swapped ? row.width : row.height, reason: "transform" },
+        {
+          bytes,
+          contentType: row.contentType,
+          width: swapped ? row.height : row.width,
+          height: swapped ? row.width : row.height,
+          reason: "transform",
+        },
         { focus },
       );
       // The swap dropped the old point with the old bytes; the moved one goes back on the object for ./image.
@@ -358,14 +468,23 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     async revert(id, input) {
       await mustHold(id);
       const kept = await revisionBytes(env, db, id, input.to);
-      if (!kept) throw new NotFoundError("This file has no such earlier version, or its copy is gone.");
+      if (!kept)
+        throw new NotFoundError(
+          "This file has no such earlier version, or its copy is gone.",
+        );
       await claim(id, input.expectedVersion);
       const row = await mustHold(id);
       const after = await swapBytes(
         env,
         db,
         row,
-        { bytes: kept.bytes, contentType: row.contentType, width: kept.revision.width, height: kept.revision.height, reason: "revert" },
+        {
+          bytes: kept.bytes,
+          contentType: row.contentType,
+          width: kept.revision.width,
+          height: kept.revision.height,
+          reason: "revert",
+        },
         { focus: null },
       );
       return { item: itemOf(after), sizesNeedPurge: false };
@@ -373,14 +492,36 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
 
     async shrink(id, input) {
       const row = await mustHold(id);
-      if (row.rev !== revOf(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
-      if (!REENCODED.has(row.contentType) || !oversized(row)) return { resized: false, item: itemOf(row) };
+      if (row.rev !== mediaRev(input.expectedVersion))
+        throw new VersionConflictError(
+          mediaVersion(row.rev),
+          "The file changed since it was loaded.",
+        );
+      if (!REENCODED.has(row.contentType) || !oversized(row))
+        return { resized: false, item: itemOf(row) };
       const object = await env.MEDIA.get(id);
       if (!object) throw new NotFoundError("No such media.");
-      const bytes = await reencode(object.body, { maxEdge: RESIZE.maxEdge }, row.contentType, RESIZE.quality);
+      const bytes = await reencode(
+        object.body,
+        { maxEdge: RESIZE.maxEdge },
+        row.contentType,
+        RESIZE.quality,
+      );
       const size = await measure(env, bytes);
       await claim(id, input.expectedVersion);
-      const after = await swapBytes(env, db, await mustHold(id), { bytes, contentType: row.contentType, width: size?.width ?? null, height: size?.height ?? null, reason: "resize" }, { focus: row.focus });
+      const after = await swapBytes(
+        env,
+        db,
+        await mustHold(id),
+        {
+          bytes,
+          contentType: row.contentType,
+          width: size?.width ?? null,
+          height: size?.height ?? null,
+          reason: "resize",
+        },
+        { focus: row.focus },
+      );
       if (row.focus) await writeFocus(bucket, id, row.focus);
       return { resized: true, item: itemOf(after) };
     },
@@ -389,12 +530,21 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     async changes({ since, limit }) {
       const head = await mediaChangeCursor(db);
       if (!/^(0|[1-9]\d{0,15})$/.test(since) || Number(since) > head) {
-        throw new RefusedError("That change cursor is not this site's; reload the library.");
+        throw new RefusedError(
+          "That change cursor is not this site's; reload the library.",
+        );
       }
       const changed = await mediaChangedSince(db, Number(since), head, limit);
       const more = changed.length > limit;
       const taken = changed.slice(0, limit);
-      const rows = new Map((await mediaRowsByKey(db, taken.map((c) => c.key))).map((row) => [row.key, row]));
+      const rows = new Map(
+        (
+          await mediaRowsByKey(
+            db,
+            taken.map((c) => c.key),
+          )
+        ).map((row) => [row.key, row]),
+      );
       return {
         items: await withUse(taken.flatMap((c) => rows.get(c.key) ?? [])),
         removed: taken.filter((c) => !rows.has(c.key)).map((c) => c.key),
@@ -412,7 +562,9 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       try {
         return await suggestFor(env, db, id, object.body);
       } catch (error) {
-        throw new RefusedError(`No suggestion was made: ${error instanceof Error ? error.message : String(error)}`);
+        throw new RefusedError(
+          `No suggestion was made: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     },
   };

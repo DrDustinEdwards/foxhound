@@ -53,7 +53,7 @@ export function isUniqueConstraintError(err: unknown): boolean {
 /** The table and column(s) a SQLite unique violation names, e.g.
  *  "outcomes.idempotency_key" or "t.a, t.b". "unknown" when the message carries
  *  none (a PRIMARY KEY failure on a rowid table, or a driver that drops it). */
-export function constraintName(err: unknown): string {
+function constraintName(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   return /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim().replace(/\s+/g, " ") ?? "unknown";
 }
@@ -92,7 +92,7 @@ const REPLAY_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 /** True when a unique violation fired on one of the designed replay keys. */
-export function isReplayConstraintError(err: unknown): boolean {
+function isReplayConstraintError(err: unknown): boolean {
   return isUniqueConstraintError(err) && REPLAY_KEYS.has(constraintName(err));
 }
 
