@@ -100,8 +100,9 @@ describe("SerialMoneyCommitter", () => {
 
     const result = await committer.commit({ idempotencyKey: "k", statements: [stmt("Y")] });
     expect(result.applied).toBe(false);
-    // The key is recorded so a later replay short-circuits.
-    expect(seen.has("k")).toBe(true);
+    // Not recorded (audit M8): any unique index can refuse a batch, so the key
+    // stays retryable; a true replay is refused by the DB again.
+    expect(seen.has("k")).toBe(false);
   });
 
   it("propagates a non-constraint failure and does NOT mark the key seen (retryable)", async () => {

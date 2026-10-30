@@ -1,5 +1,5 @@
-// The money-write serialization core (ARCHITECTURE.md non-negotiable #1: money
-// writes are DO-serialized atomic batches). This module is pure and
+// The money-write serialization core (CLAUDE.md hard rule 2: money writes are
+// DO-serialized atomic batches). This module is pure and
 // dependency-injected so it is unit-testable without the Workers runtime; the
 // Durable Object (workers/money-writer.ts) is a thin adapter that supplies real
 // D1 batch + DO-storage implementations.
@@ -45,6 +45,11 @@ export function isUniqueConstraintError(err: unknown): boolean {
   return /UNIQUE constraint failed|PRIMARY KEY constraint failed/i.test(message);
 }
 
+function constraintName(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim() ?? "unknown";
+}
+
 export class SerialMoneyCommitter {
   // Every commit awaits the previous one, so commits run strictly one-at-a-time
   // in arrival order. The tail is kept alive across failures.
@@ -71,10 +76,14 @@ export class SerialMoneyCommitter {
       await this.deps.runBatch(request.statements);
     } catch (err) {
       if (isUniqueConstraintError(err)) {
-        // The DB rejected a replay: the write already exists. Treat as applied
-        // by someone, record it, and report a no-op. This is the exactly-once
-        // backstop for a duplicate that slipped past the seen-set.
-        await this.deps.markSeen(request.idempotencyKey);
+        // The DB rejected the batch on a unique key, which is how a replay
+        // looks: report a no-op. The key is NOT marked seen, because any unique
+        // index can fire here, not only the idempotency key (audit M8): a
+        // batch refused for another reason must stay retryable rather than be
+        // filed as done forever. A true replay is refused again by the DB, so
+        // nothing lands twice. The constraint is logged so a misfiled refusal
+        // shows up (table and column only, no values).
+        console.warn("money write refused on a unique key:", constraintName(err));
         return { applied: false };
       }
       // Any other failure: do NOT mark seen, so a retry re-attempts the batch.
