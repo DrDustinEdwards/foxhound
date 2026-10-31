@@ -1,4 +1,4 @@
-import { coarseLocation, signInOptions } from "@dustinedwards/site-runtime/sign-in";
+import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -19,7 +19,7 @@ import {
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
 // ./sign-in): a passkey first, an emailed link and code before one exists (Turnstile on
-// it once its keys are set), Google and Apple, no passwords. Accounts are joined
+// it), Google and Apple, no passwords. Accounts are joined
 // only by a signed-in person. Built from the Cloudflare `env` so it binds the
 // D1-backed Drizzle adapter (binding `DB`) and offers only the providers whose
 // settings are present. The CLI schema generator uses a separate static instance
@@ -54,11 +54,11 @@ async function buildAuth(env: Env) {
     // security history on /settings/account, /health's spike check and the
     // new-device and recovery notices read it.
     eventsDb: env.DB,
-    // No Turnstile keys exist yet, and without them site-runtime refuses every
-    // link request (503 TURNSTILE_NOT_SET). This lets the link through, with a
-    // warning log line on each request, until Dustin creates the keys; then it
-    // comes out.
-    turnstile: "off-until-keys",
+    // Each session keeps its rough place and a device id (site-runtime's
+    // device cookie; migrations 0069 and 0070), and a read moves its
+    // updatedAt, so the signed-in devices list shows where and when each was
+    // last used, and the new-device notice tells two browsers of one make apart.
+    sessionDetails: true,
     // A passkey added or removed, Google or Apple joined or left, sessions
     // ended, the account deleted, a new device, a recovery: mailed to the
     // account's address.
@@ -71,20 +71,10 @@ async function buildAuth(env: Env) {
     ...options,
     // Better Auth's own path for mailing a verification on request is off: the
     // only verification mail Foxhound sends is the email change's below.
-    disabledPaths: [...options.disabledPaths, "/send-verification-email"],
-    databaseHooks: {
-      ...options.databaseHooks,
-      session: {
-        create: {
-          // The rough place of the sign-in (D5), kept on the session for the
-          // signed-in devices list. site-runtime's coarseLocation reads the
-          // request's cf; never the address.
-          before: async (row, ctx) => ({
-            data: { ...row, location: coarseLocation(ctx?.request as Parameters<typeof coarseLocation>[0]) },
-          }),
-        },
-      },
-    },
+    // Deleting the account is only the Delete account action on
+    // /settings/account (auth.api.deleteUser, after its fresh sign-in check),
+    // never Better Auth's /delete-user over HTTP, as on Foxing.
+    disabledPaths: [...options.disabledPaths, "/send-verification-email", "/delete-user", "/delete-user/callback"],
     // E1: an email change is confirmed from the CURRENT address first, then
     // from the new one (Better Auth's change-email-confirmation flow), and
     // only from a sign-in in the last 10 minutes (site-runtime holds
@@ -111,7 +101,7 @@ async function buildAuth(env: Env) {
           await sendEmailChangeConfirmation(env, { to: user.email, newEmail, url, token });
         },
       },
-      // E2: Better Auth's own delete, so site-runtime's log line, notice and
+      // E2: Better Auth's own delete, called from the app's route only, so site-runtime's log line, notice and
       // history clean-up run, with Foxhound's deletion (the fee evidence kept,
       // the rest scrubbed, then the Stripe grants revoked) in its hooks.
       deleteUser: { enabled: true, ...accountDeletionHooks(env) },

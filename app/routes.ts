@@ -172,6 +172,10 @@ export default [
     route("welcome", "./routes/app/welcome.tsx"),
   ]),
 
+  // The hashed admin list for the access-drift job: behind Access, answered
+  // only to a service token, so outside the admin shell's person check.
+  route("admin/access-drift", "./routes/access-drift.ts"),
+
   // Admin: its own layout, Capsomer's AdminShell, behind Cloudflare Access.
   // Not under the app shell: no merchant session, account or
   // demo cookie is involved. admin-shell.tsx's middleware verifies Access's JWT

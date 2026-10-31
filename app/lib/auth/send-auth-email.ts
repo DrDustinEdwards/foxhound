@@ -1,4 +1,4 @@
-import { SIGN_IN_EXPIRES_IN_WORDS, type NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
+import { emailConfirmURL, SIGN_IN_EXPIRES_IN_WORDS, type NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import type { Rendered } from "capsomer/email";
 
 import { sendRenderedTransactionalEmail, type TransactionalSendOutcome } from "~/lib/email/send";
@@ -75,36 +75,21 @@ export async function sendSecurityNoticeEmail(env: Env, to: string, detail: Noti
 /** How long each email-change link works: Better Auth's emailVerification
  *  expiresIn, and the words the mails say. */
 export const EMAIL_CHANGE_EXPIRES_IN_SECONDS = 60 * 60;
-const EMAIL_CHANGE_EXPIRES_IN_WORDS = "1 hour";
-
-/** Which step of an email change a link confirms: "confirmed" from the current
- *  address, which then mails the new one; "changed" from the new address,
- *  which makes the change. */
-type EmailChangeStep = "confirmed" | "changed";
-
-/** The page an email-change link opens (app/routes/auth/email-confirm.tsx).
- *  Better Auth's own link is a GET that acts, so a mail scanner opening every
- *  link would confirm the change for the person; this page acts only on its
- *  button's POST, as /sign-in/confirm does for the sign-in link. Only the
- *  token is carried over from Better Auth's URL. */
-function emailChangeConfirmURL(env: Env, token: string, step: EmailChangeStep): string {
-  const url = new URL("/email/confirm", env.BETTER_AUTH_URL);
-  url.searchParams.set("token", token);
-  url.searchParams.set("step", step);
-  return url.toString();
-}
+export const EMAIL_CHANGE_EXPIRES_IN_WORDS = "1 hour";
 
 /**
  * Mail the CURRENT address to confirm a change to `newEmail` (E1). Better
- * Auth calls this from /change-email; `url` is its own link, never sent or
- * logged, and the mail carries the confirm page's link with the same token.
+ * Auth calls this from /change-email; `url` is its own link, which acts on a
+ * GET, so it is never sent or logged: the mail carries site-runtime's
+ * emailConfirmURL of it (app/routes/auth/email-confirm.tsx), the same token on
+ * a page that acts only on its button's POST.
  * A refused send is thrown by name, as the sign-in link's is.
  */
 export async function sendEmailChangeConfirmation(
   env: Env,
   change: { to: string; newEmail: string; url: string; token: string },
 ): Promise<void> {
-  const link = emailChangeConfirmURL(env, change.token, "confirmed");
+  const link = emailConfirmURL(change.url);
   const rendered = renderFoxhoundEmailChangeEmail({
     to: change.to,
     url: link,
@@ -124,7 +109,7 @@ export async function sendEmailChangeConfirmation(
  *  has confirmed it. Better Auth's sendVerificationEmail; /send-verification-
  *  email is off (auth.server.ts), so an email change is the only caller. */
 export async function sendNewEmailVerification(env: Env, change: { to: string; url: string; token: string }): Promise<void> {
-  const link = emailChangeConfirmURL(env, change.token, "changed");
+  const link = emailConfirmURL(change.url);
   const rendered = renderFoxhoundEmailChangeEmail({
     to: change.to,
     url: link,
