@@ -26,10 +26,10 @@ import { visit } from "unist-util-visit";
 
 import type { Db } from "~/db";
 import { images, mediaKeyOf, mediaKeysIn, mediaUrl } from "~/lib/media/images";
-import { mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
+import { mediaRow, mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
 
 import { generateSlug } from "./format";
-import { resolvePostLink } from "./queries.server";
+import { resolvePostLink, type BlogPostSummary } from "./queries.server";
 
 export interface TocItem {
   level: 2 | 3;
@@ -225,7 +225,7 @@ function foxhoundPack(db: Db): RenderPack {
 // width, and links to its original.
 const DIAGRAM = /^\/diagrams\/[a-z0-9-]+-(\d+)x(\d+)\.svg$/;
 
-type LibraryPicture = Pick<MediaRow, "key" | "width" | "height" | "focus">;
+type LibraryPicture = Pick<MediaRow, "key" | "width" | "height" | "focus" | "sha256">;
 
 function mediaOptions(pictures: Map<string, LibraryPicture>) {
   const resolveImage = async (src: string): Promise<{ width: number; height: number }> => {
@@ -245,16 +245,38 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
     const key = mediaKeyOf(src);
     const picture = key ? pictures.get(key) : undefined;
     if (!picture) return null;
-    const attrs = images.attributes({ src: mediaUrl(picture.key), width: picture.width, height: picture.height, focus: picture.focus }, "content");
+    const attrs = images.attributes({ src: mediaUrl(picture.key, picture.sha256), width: picture.width, height: picture.height, focus: picture.focus }, "content");
     if (!attrs.srcset) return null;
     return {
       srcSet: attrs.srcset,
       sizes: attrs.sizes,
-      href: mediaUrl(picture.key),
+      href: mediaUrl(picture.key, picture.sha256),
       sources: attrs.sources.map((source) => ({ type: source.type, srcSet: source.srcset })),
     };
   };
   return { resolveImage, media: { keyOf: mediaKeyOf, imageProps } };
+}
+
+/**
+ * A post's cover: site-runtime ./image's attributes for `use`, and, for a media
+ * library file, its versioned original at its real size, for the share card. A
+ * cover from elsewhere is its own address, unsized. Null for a post with no cover.
+ */
+export async function coverPicture(
+  db: Db,
+  post: Pick<BlogPostSummary, "coverImageUrl" | "coverImageAlt" | "title">,
+  use: "content" | "featured",
+) {
+  if (!post.coverImageUrl) return null;
+  const key = mediaKeyOf(post.coverImageUrl);
+  const row = key ? await mediaRow(db, key) : null;
+  const src = row ? mediaUrl(row.key, row.sha256) : post.coverImageUrl;
+  const alt = post.coverImageAlt ?? post.title;
+  return {
+    alt,
+    picture: row ? images.attributes({ src, width: row.width, height: row.height, focus: row.focus }, use) : { src, sources: [] },
+    original: { url: src, width: row?.width ?? undefined, height: row?.height ?? undefined, alt },
+  };
 }
 
 export async function renderMarkdown(db: Db, body: string): Promise<{ html: string; toc: TocItem[] }> {

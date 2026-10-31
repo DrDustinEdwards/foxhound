@@ -1,4 +1,4 @@
-import { NotFoundError, RefusedError, sha256Hex } from "@dustinedwards/site-api";
+import { NotFoundError, RefusedError, sha256Hex, toArrayBuffer, type PreparedUpload } from "@dustinedwards/site-api";
 import { replaceObject, type R2BucketLike } from "@dustinedwards/site-api/r2";
 
 import type { Db } from "~/db";
@@ -27,29 +27,12 @@ import {
 
 export type RevisionReason = "upload" | "import" | "replace" | "transform" | "resize" | "revert";
 
-type MediaEnv = Pick<Env, "MEDIA" | "IMAGES">;
+type MediaEnv = Pick<Env, "MEDIA">;
 
 /** The binding's `put` takes a wider `onlyIf` than the helpers' narrow interface names; the shapes they use agree. */
 const bucketOf = (env: MediaEnv) => env.MEDIA as unknown as R2BucketLike;
 
 const copyKeyOf = (key: string, revision: number) => `revisions/${key}/${revision}`;
-
-/** A view's bytes as a fresh ArrayBuffer, not `bytes.buffer`, which may be a larger allocation than the view. */
-function bufferOf(bytes: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
-}
-
-/** The picture's size as the Images binding reads it; null for bytes it cannot measure. */
-export async function measure(env: MediaEnv, bytes: Uint8Array): Promise<{ width: number; height: number } | null> {
-  try {
-    const info = await env.IMAGES.info(new Blob([bufferOf(bytes)]).stream());
-    return "width" in info && info.width > 0 && info.height > 0 ? { width: info.width, height: info.height } : null;
-  } catch {
-    return null;
-  }
-}
 
 /** `<year>/<month>/<name>-<first 8 of the hash>.<ext>`, a few more hash characters on a clash. */
 async function freshKey(db: Db, filename: string, sha256: string, contentType: string): Promise<string> {
@@ -65,55 +48,44 @@ async function freshKey(db: Db, filename: string, sha256: string, contentType: s
 }
 
 /**
- * Stores new bytes as a new file: the object first, then its row and its
- * revisions. `original` is what an upload was before it was shrunk: its copy is
- * kept as the file's first revision, so the shrink can be reverted.
+ * Stores an upload site-api's prepareUpload made ready as a new file: the
+ * object first, then its row and its revisions. Where it shrank the picture,
+ * the bytes before the shrink are kept as the file's first revision, so the
+ * shrink can be reverted. The upload's revision carries the hash of the bytes
+ * as sent, which is what Carrel asks findByHash about.
  */
 export async function storeFile(
   env: MediaEnv,
   db: Db,
-  input: {
-    bytes: Uint8Array;
-    contentType: string;
-    filename: string;
-    reason: "upload" | "import";
-    fields: MediaFields;
-    original?: { bytes: Uint8Array; width: number; height: number; sha256: string };
-  },
+  prepared: PreparedUpload,
+  input: { reason: "upload" | "import"; fields: MediaFields },
 ): Promise<MediaRow> {
-  const size = await measure(env, input.bytes);
-  if (!size) throw new RefusedError(`${input.filename} could not be read as a picture.`);
-  const sha256 = await sha256Hex(input.bytes);
-  const key = await freshKey(db, input.filename, sha256, input.contentType);
-  await env.MEDIA.put(key, bufferOf(input.bytes), { httpMetadata: { contentType: input.contentType } });
+  const { bytes, contentType, filename, width, height, sha256, original, resizedFrom } = prepared;
+  if (!width || !height) throw new RefusedError(`${filename} could not be read as a picture.`);
+  const key = await freshKey(db, filename, sha256, contentType);
+  await env.MEDIA.put(key, toArrayBuffer(bytes), { httpMetadata: { contentType } });
   const at = new Date();
   await insertMediaRow(db, {
     ...input.fields,
     key,
-    filename: input.filename.slice(0, 300),
-    contentType: input.contentType,
-    bytes: input.bytes.byteLength,
-    width: size.width,
-    height: size.height,
+    filename: filename.slice(0, 300),
+    contentType,
+    bytes: bytes.byteLength,
+    width,
+    height,
     sha256,
     uploadedAt: at,
   });
-  const { original } = input;
-  if (original) {
-    const first = await addRevision(db, {
-      mediaKey: key,
-      at,
-      bytes: original.bytes.byteLength,
-      width: original.width,
-      height: original.height,
-      reason: input.reason,
-      sha256: original.sha256,
-    });
+  const sent = { at, mediaKey: key, reason: input.reason, sha256: prepared.uploadSha256 };
+  if (original && resizedFrom) {
+    const first = await addRevision(db, { ...sent, bytes: original.byteLength, width: resizedFrom.width, height: resizedFrom.height });
     const copyKey = copyKeyOf(key, first);
-    await env.MEDIA.put(copyKey, bufferOf(original.bytes), { httpMetadata: { contentType: input.contentType } });
+    await env.MEDIA.put(copyKey, toArrayBuffer(original), { httpMetadata: { contentType } });
     await keepRevision(db, first, copyKey);
+    await addRevision(db, { ...sent, bytes: bytes.byteLength, width, height, reason: "resize", sha256 });
+  } else {
+    await addRevision(db, { ...sent, bytes: bytes.byteLength, width, height });
   }
-  await addRevision(db, { mediaKey: key, at, bytes: input.bytes.byteLength, ...size, reason: original ? "resize" : input.reason, sha256 });
   const row = await mediaRow(db, key);
   if (!row) throw new Error(`${key} was stored, but its index row cannot be read`);
   return row;

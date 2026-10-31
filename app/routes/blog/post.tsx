@@ -4,12 +4,13 @@ import { Link } from "capsomer/react/link";
 
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
+import { CoverPicture } from "~/components/blog/cover-picture";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
+import { coverPicture, extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
 import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
@@ -71,8 +72,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc }, previous, next, related] = await Promise.all([
+  const [{ html, toc }, cover, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
+    coverPicture(db, post, "content"),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     post.publishedAt ? getNextPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     getPostLinks(db, post.id),
@@ -80,7 +82,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   const faqPairs = extractFaqPairs(post.body);
 
-  return { siteUrl: siteUrl(env), post, html, toc, previous, next, related, faqPairs };
+  return { siteUrl: siteUrl(env), post, cover, html, toc, previous, next, related, faqPairs };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -94,11 +96,15 @@ function ogImageUrl(url: string, title: string, description: string | undefined)
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Blog - Foxhound" }];
-  const { post, siteUrl: url } = loaderData;
+  const { post, cover, siteUrl: url } = loaderData;
   const title = post.ogTitle ?? post.title;
   const description = post.ogDescription ?? post.excerpt;
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
-  const image = post.coverImageUrl ?? ogImageUrl(url, title, post.ogDescription ?? post.excerpt);
+  // The cover at its real size (a library file's stored one), else the
+  // generated 1200x630 card.
+  const image = cover
+    ? { ...cover.original, url: new URL(cover.original.url, url).href }
+    : { url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt), width: 1200, height: 630, alt: title };
 
   // JSON-LD goes through meta, which React Router escapes, because the title,
   // excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>`
@@ -120,7 +126,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
       image,
       ogTitle: title,
       ogType: "article",
-      imageAlt: title,
     }),
     jsonLd(organizationJsonLd(url)),
     ...(byDustin
@@ -139,7 +144,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
         headline: title,
         description,
         path: `/blog/${post.slug}`,
-        imageUrl: image,
+        imageUrl: image.url,
         datePublished: post.publishedAt?.toISOString() ?? null,
         dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
         authorName: post.author,
@@ -159,7 +164,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, html, toc, previous, next, related } = loaderData;
+  const { siteUrl: url, post, cover, html, toc, previous, next, related } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
 
@@ -189,13 +194,9 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
         <article id="blog-post-article">
-          {post.coverImageUrl ? (
+          {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
-              <img
-                src={post.coverImageUrl}
-                alt={post.coverImageAlt ?? post.title}
-                className="h-full w-full object-cover"
-              />
+              <CoverPicture cover={cover} className="h-full w-full object-cover" />
             </div>
           ) : null}
 
