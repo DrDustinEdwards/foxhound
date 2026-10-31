@@ -4,7 +4,7 @@
 // it is not trusted. The dispute evidence upload has its own, larger ceiling
 // (routes/app/disputes/detail.action.server.ts).
 
-import { readCapped, readCappedBytes } from "@dustinedwards/site-runtime/body";
+import { readCapped, readCappedBytes, requireJson } from "@dustinedwards/site-runtime/body";
 
 /** A form or JSON post: the largest field Foxhound takes is 20,000 characters. */
 export const BODY_MAX_BYTES = 256 * 1024;
@@ -23,8 +23,13 @@ export async function readText(request: Request, max = BODY_MAX_BYTES): Promise<
   return text;
 }
 
-/** The body parsed as JSON; throws as request.json() does, or the 413. */
+/**
+ * The body parsed as JSON; throws as request.json() does, or the 413. A body that is not typed JSON throws the 415
+ * first (requireJson): a form or text/plain post is one any page can send with the session cookie and no preflight.
+ */
 export async function readJson(request: Request, max = BODY_MAX_BYTES): Promise<unknown> {
+  const refused = requireJson(request);
+  if (refused) throw refused;
   return JSON.parse(await readText(request, max));
 }
 

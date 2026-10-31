@@ -21,12 +21,13 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accountMembers, accounts, adminImpersonations, user } from "~/db";
 import { getAdminSession } from "~/lib/auth/access.server";
+import { setHostCookie } from "~/lib/http/cookies";
 import type { Membership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
 import { buildAdminAuditLogInsert } from "./audit.server";
 
-export const IMPERSONATION_COOKIE = "fh_view_as";
+export const IMPERSONATION_COOKIE = "__Host-fh_view_as";
 const IMPERSONATION_TTL_MS = 30 * 60 * 1000;
 export const IMPERSONATION_STOP_PATH = "/admin/view-as/stop";
 export const IMPERSONATION_READ_ONLY_MESSAGE =
@@ -50,11 +51,11 @@ export function hasImpersonationCookie(request: Request): boolean {
 }
 
 function setImpersonationCookieHeader(token: string): string {
-  return `${IMPERSONATION_COOKIE}=${token}; Path=/; Max-Age=${IMPERSONATION_TTL_MS / 1000}; HttpOnly; Secure; SameSite=Lax`;
+  return setHostCookie(IMPERSONATION_COOKIE, token, IMPERSONATION_TTL_MS / 1000);
 }
 
 export function clearImpersonationCookieHeader(): string {
-  return `${IMPERSONATION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+  return setHostCookie(IMPERSONATION_COOKIE, "", 0);
 }
 
 function hashToken(token: string): Promise<string> {

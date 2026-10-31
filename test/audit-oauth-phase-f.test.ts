@@ -263,7 +263,7 @@ describe("PLANT 3: the callback, and what it refuses", () => {
     const state = buildConnectState(AUDIT_ACTION);
     const response = (await connectCallback.loader({
       request: new Request(`${ORIGIN}/connect/callback?code=ac_1&state=${state}`, {
-        headers: { Cookie: cookieHeader({ stripe_oauth_state: state }) },
+        headers: { Cookie: cookieHeader({ "__Host-stripe_oauth_state": state }) },
       }),
       context: routeContext(),
       params: {},
