@@ -52,7 +52,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <Panel title={title}>
       <ChartFrame
-        className="fh-chart-nogrid"
+        gridlines="none"
         width={HALF_WIDTH}
         draw={(width) =>
           areaChart({
@@ -67,6 +67,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
             formatValue: pctText,
             formatX: (d) => formatShortDate(d instanceof Date ? d : new Date(d)),
             alt: recoveryRateAlt(w.recoveryRateDaily, w.rangeLabel),
+            hoverTitles: false,
             width,
             height: RATE_HEIGHT,
           })
@@ -90,7 +91,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         </span>
       }>
         <ChartFrame
-          className="fh-chart-nogrid"
+          gridlines="none"
           width={SIDE_WIDTH}
           draw={(width) =>
             barChart({
@@ -110,6 +111,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
               formatX: (d) => formatShortDate(d),
               maxXTicks: 4,
               alt: recoveredRevenueAlt(rows, days),
+              hoverTitles: false,
               width,
               height: REVENUE_HEIGHT,
             })
@@ -214,7 +216,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <Panel title={title}>
       <ChartFrame
-        className="fh-chart-nogrid"
+        gridlines="none"
         width={SIDE_WIDTH}
         draw={(width) =>
           barChart({
@@ -232,6 +234,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
             yLabel: "Rate (%)",
             formatValue: pctText,
             alt: emailCategoryAlt(w.emailCategoryPerformance),
+            hoverTitles: false,
             width,
             height: EMAIL_HEIGHT,
           })
@@ -257,7 +260,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <Panel title={title}>
       <ChartFrame
-        className="fh-chart-nogrid"
+        gridlines="none"
         width={HALF_WIDTH}
         draw={(width) =>
           barChart({
@@ -271,6 +274,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
             yLabel: "Share of recoveries (%)",
             formatValue: pctText,
             alt: recoveryTimingAlt(w.recoveryTimingBuckets),
+            hoverTitles: false,
             width,
             height: TIMING_HEIGHT,
           })

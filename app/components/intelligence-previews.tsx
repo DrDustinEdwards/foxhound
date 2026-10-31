@@ -79,7 +79,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">
           <div className="cap-panel-body">
-            <ChartFrame draw={draw} />
+            <ChartFrame gridlines="x" draw={draw} />
           </div>
         </div>
       ) : null}

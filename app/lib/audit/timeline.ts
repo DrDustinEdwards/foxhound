@@ -63,6 +63,7 @@ export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], widt
     formatValue: (v) => String(v),
     filterBy: "x",
     alt: expiringCardsAlt(months),
+    hoverTitles: false,
     width,
     height: 120,
   });

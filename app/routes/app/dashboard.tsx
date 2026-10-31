@@ -150,7 +150,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
               }
             >
               <ChartFrame
-                className="fh-chart-nogrid"
+                gridlines="none"
                 width={560}
                 draw={(width) => drawMrrTrend(trend, latest.currency, width)}
               />
@@ -158,7 +158,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
 
             <Panel title="Movements (latest month)" level={3}>
               <ChartFrame
-                className="fh-chart-nogrid"
+                gridlines="none"
                 width={560}
                 draw={(width) => drawLatestMovement(latest, latest.currency, width)}
               />
@@ -174,7 +174,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
             {cohortRows.length > 0 ? (
               <Panel title="Cohorts" level={3}>
                 <ChartFrame
-                  className="fh-chart-nogrid"
+                  gridlines="none"
                   width={560}
                   draw={(width) => drawCohorts(cohortRows, width)}
                 />

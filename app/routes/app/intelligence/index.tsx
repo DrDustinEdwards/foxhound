@@ -318,7 +318,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
   if (rows.length === 0) return null;
   return (
     <Panel title="MRR by plan">
-      <ChartFrame draw={draw} />
+      <ChartFrame gridlines="x" draw={draw} />
     </Panel>
   );
 }
