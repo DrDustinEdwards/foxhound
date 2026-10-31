@@ -1,0 +1,19 @@
+// The dev config for `npm run check:conformance`. NEVER DEPLOYED: no routes, no
+// account, a local-only KV and no service binding (entry.ts stands in for the
+// admin API). The entry is passed by devkit-conformance from .conformance.json.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "foxhound-admin-mcp-conformance",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "workers_dev": false,
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "00000000000000000000000000000000" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "MCP_RATE_LIMIT", "class_name": "RateLimiter" },
+      { "name": "TOOL_CALL_LOG", "class_name": "ToolCallLog" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RateLimiter", "ToolCallLog"] }],
+  "vars": { "ACCESS_TEAM_DOMAIN": "conformance.cloudflareaccess.com" }
+}

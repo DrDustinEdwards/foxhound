@@ -1,0 +1,10 @@
+{
+  "mcp": { "entry": "mcp/conformance/entry.ts", "config": "mcp/conformance/wrangler.jsonc", "port": 8789, "persist": ".wrangler/state-conformance" },
+  "auth": { "entry": "mcp/conformance/auth-entry.ts", "config": "mcp/conformance/wrangler.jsonc", "port": 8791, "persist": ".wrangler/state-conformance-auth", "vars": { "ADMIN_MCP_ORIGIN": "http://localhost:8791" } },
+  "scenarios": [
+    { "spec": "2026-07-28", "scenario": "server-stateless", "passed": 24, "total": 28, "note": "4 sep-2575 checks, as on Carrel: upstream SDK and suite diagnostic tools" },
+    { "spec": "2026-07-28", "scenario": "http-header-validation" },
+    { "spec": "2025-11-25", "scenario": "server-initialize" }
+  ],
+  "registration": { "allowed": "https://grok.com/connectors/oauth/callback" }
+}

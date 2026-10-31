@@ -65,7 +65,6 @@ function buildPrompt(category: MarketingEmailCategory): string {
     "sounds like a real SaaS startup.",
     "",
     "Rules:",
-    "- Never use em dashes or en dashes. Use commas or short sentences instead.",
     "- Write like a real person at a small software company, not corporate copy.",
     "- No performative empathy, no apology",
     "  for the payment failing.",

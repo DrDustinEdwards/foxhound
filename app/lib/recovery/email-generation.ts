@@ -465,7 +465,6 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
     ...voiceSampleLines(samples),
     UNTRUSTED_DATA_RULE,
     "Rules you must follow exactly:",
-    "- Never use em dashes or en dashes. Use commas or short sentences.",
     "- Never mention how many days or hours it has been, or reference an internal",
     "  schedule ('day 3', '72 hours ago'). Speak only to the present.",
     // Job J01, layer 1: legacy's rule (blob `e28d780e` line 139), widened to
