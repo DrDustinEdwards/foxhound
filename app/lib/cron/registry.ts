@@ -23,6 +23,8 @@ import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
+import { pruneAuthEvents } from "@dustinedwards/site-runtime/sign-in";
+
 import { runD1Backup, runMediaBackup } from "~/lib/backup/d1-backup";
 import {
   deauthorizeRetryFailureError,
@@ -330,6 +332,14 @@ const stripeMissedEvents: CronHandler = async (env) => {
   return { rowsProcessed: result.replayed, message: describeMissedEventSweep(result) };
 };
 
+/** site-runtime's auth_events (migration 0068): rows with no user go after 30
+ *  days, the rest after a year. The package owns the table and its rule, so
+ *  this is its pruneAuthEvents, not a sweep in retention.ts. */
+const retentionAuthEvents: CronHandler = async (env) => {
+  await pruneAuthEvents(env.DB);
+  return { rowsProcessed: 0, message: "auth_events pruned" };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -390,6 +400,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
+  { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
 ];
 
 /** The jobs registered for a given cron schedule string. */

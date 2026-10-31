@@ -196,6 +196,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["CRON_TICKER", "binding"],
     ["RATE_LIMITER", "binding"],
     ["AUTH_RATE_LIMITER", "binding"],
+    ["TOOL_CALL_LOG", "binding"],
     // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup
     // cron throws on every run and /health reports no backup.
     ["BACKUPS", "binding"],

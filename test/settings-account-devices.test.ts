@@ -9,7 +9,7 @@ import { authContext } from "~/lib/auth/context";
 import { withSignIn } from "~/lib/auth/options";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // The Signed-in devices list on /settings/account: Better Auth's /list-sessions,
 // through the family sign-in's options, against the real schema. It wants a
@@ -19,8 +19,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 const ORIGIN = "https://foxhoundapp.test";
 const SECRET = "test-secret-0123456789abcdef0123456789abcdef";
-const env = { BETTER_AUTH_URL: ORIGIN } as unknown as Env;
 const { sqlite, db } = createInMemoryDb();
+const env = { BETTER_AUTH_URL: ORIGIN, DB: d1Over(sqlite) } as unknown as Env;
 const signIn = await signInOptions(env, { siteName: "Foxhound", social: true, sendMagicLink: async () => {} });
 const auth = betterAuth({
   ...withSignIn(signIn),

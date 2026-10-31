@@ -1,7 +1,8 @@
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useFetcher, useRevalidator } from "react-router";
+import { needsSecondPasskey, type AccountPasskey, type SecurityHistoryEntry } from "@dustinedwards/site-runtime/sign-in";
 import { signalUnknownCredential } from "@dustinedwards/site-runtime/sign-in-client";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
@@ -11,18 +12,60 @@ import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 /** Where this person is signed in (site-runtime's sessionRows, current first);
  *  "stale" when listing them needs a fresh sign-in; null when not shown. */
 export type SignedInDevices =
-  | { id: string; device: string | null; signedInAt: Date; lastActiveAt: Date; current: boolean }[]
+  | {
+      id: string;
+      device: string | null;
+      signedInAt: Date;
+      lastActiveAt: Date;
+      current: boolean;
+      /** The rough place of the sign-in (session.location), null when unknown. */
+      location: string | null;
+    }[]
   | "stale"
   | null;
 
 /** What /settings/account's loader reads for this panel. */
 export type SignInSettings = {
-  /** `name` is passkeyLabel's: the name, else the provider's, else "Passkey". */
-  passkeys: { id: string; name: string; credentialId: string }[];
+  /** site-runtime's passkeyRows, oldest first: `name` is passkeyLabel's (the
+   *  name, else the provider's), `lastUsedAt` from auth_events. */
+  passkeys: (AccountPasskey & { credentialId: string })[];
   /** The providers Foxhound offers, and the joined account's id for each. */
   providers: { id: "google" | "apple"; label: string; accountId: string | null }[];
   devices: SignedInDevices;
+  /** The latest sign-ins and sign-in changes (site-runtime securityHistory),
+   *  newest first; null when not shown. */
+  history: SecurityHistoryEntry[] | null;
 };
+
+const WAY_IN: Record<string, string> = {
+  link: "an email link",
+  code: "an emailed code",
+  passkey: "a passkey",
+  google: "Google",
+  apple: "Apple",
+};
+const PROVIDER: Record<string, string> = { google: "Google", apple: "Apple" };
+
+/** One history row in words, such as "Signed in with a passkey". */
+function historyLabel({ kind, via }: Pick<SecurityHistoryEntry, "kind" | "via">): string {
+  const provider = (via && PROVIDER[via]) ?? "A sign-in method";
+  switch (kind) {
+    case "sign-in":
+      return via && WAY_IN[via] ? `Signed in with ${WAY_IN[via]}` : "Signed in";
+    case "passkey-added":
+      return "Passkey added";
+    case "passkey-removed":
+      return "Passkey removed";
+    case "sign-in-linked":
+      return `${provider} connected`;
+    case "sign-in-unlinked":
+      return `${provider} disconnected`;
+    case "email-changed":
+      return "Email address changed";
+    case "recovery":
+      return "Signed in by email with no passkey left; other devices signed out";
+  }
+}
 
 /**
  * How this person signs in (site-runtime ./sign-in): their passkeys, and
@@ -30,7 +73,8 @@ export type SignInSettings = {
  * signed in, never by a matching email at sign-in. The email link always
  * works, so nothing here can lock anyone out. Each change is Better Auth's
  * own endpoint through the client, then the loader reads the list again.
- * Below them, the devices signed in, each of which can be signed out.
+ * Below them, the devices signed in, each of which can be signed out, and the
+ * latest sign-ins and sign-in changes.
  */
 export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSettings; isDemo: boolean }) {
   const revalidator = useRevalidator();
@@ -81,42 +125,58 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
         </p>
 
         {initial.passkeys.length > 0 ? (
-          <ul className="mb-4 flex flex-col gap-2">
+          <ul className="mb-4 flex flex-col gap-3">
             {initial.passkeys.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3">
-                <span className="text-label text-text">{p.name}</span>
-                <Button
-                  size="sm"
-                  pending={busy === p.id}
-                  onClick={() =>
-                    void run(
-                      p.id,
-                      async () => {
-                        const res = await authClient.passkey.deletePasskey({ id: p.id });
-                        // Tell the browser's password manager it is gone, so
-                        // it stops offering it (where the browser can). The
-                        // relying party is this host, BETTER_AUTH_URL's.
-                        if (!res?.error) {
-                          await signalUnknownCredential({ rpId: location.hostname, credentialId: p.credentialId });
-                        }
-                        return res;
-                      },
-                      "The passkey was not removed.",
-                    )
-                  }
-                >
-                  Remove passkey<span className="sr-only"> {p.name}</span>
-                </Button>
-              </li>
+              <PasskeyItem
+                key={p.id}
+                passkey={p}
+                busy={busy}
+                onRename={(name) =>
+                  void run(
+                    `rename-${p.id}`,
+                    () => authClient.passkey.updatePasskey({ id: p.id, name }),
+                    "The passkey was not renamed.",
+                  )
+                }
+                onRemove={() =>
+                  void run(
+                    p.id,
+                    async () => {
+                      const res = await authClient.passkey.deletePasskey({ id: p.id });
+                      // Tell the browser's password manager it is gone, so
+                      // it stops offering it (where the browser can). The
+                      // relying party is this host, BETTER_AUTH_URL's.
+                      if (!res?.error && p.credentialId) {
+                        await signalUnknownCredential({ rpId: location.hostname, credentialId: p.credentialId });
+                      }
+                      return res;
+                    },
+                    "The passkey was not removed.",
+                  )
+                }
+              />
             ))}
           </ul>
+        ) : null}
+        {needsSecondPasskey(initial.passkeys) ? (
+          <div className="mb-4">
+            {/* A9: one passkey is one device; losing it leaves only the email link. */}
+            <Alert tone="info" title="Add a second passkey">
+              Your only passkey is on one device. Add one on another device too, such as your phone or a
+              security key, so losing this one never leaves you waiting on an email.
+            </Alert>
+          </div>
         ) : null}
         <Button
           variant="primary"
           pending={busy === "add"}
           onClick={() => void run("add", () => authClient.passkey.addPasskey(), "The passkey was not saved.")}
         >
-          {busy === "add" ? "Waiting for your device..." : "Create a passkey"}
+          {busy === "add"
+            ? "Waiting for your device..."
+            : initial.passkeys.length > 0
+              ? "Add another passkey"
+              : "Create a passkey"}
         </Button>
 
         {initial.providers.length > 0 ? (
@@ -178,7 +238,8 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                     {d.device ?? "Unknown device"}
                     {d.current ? " (this device)" : null}
                     <span className="block text-text-tertiary">
-                      Signed in {formatDateShort(d.signedInAt)}, last active {formatDateShort(d.lastActiveAt)}
+                      Signed in {formatDateShort(d.signedInAt)}
+                      {d.location ? ` near ${d.location}` : null}, last active {formatDateShort(d.lastActiveAt)}
                     </span>
                   </span>
                   {d.current ? null : (
@@ -206,6 +267,26 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
           </div>
         ) : null}
 
+        {initial.history ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <h3 className="mb-3 text-label font-semibold text-text">Recent security activity</h3>
+            {initial.history.length === 0 ? (
+              <p className="text-label text-text-tertiary">Nothing yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {initial.history.map((h, i) => (
+                  <li key={`${h.at.toISOString()}-${i}`} className="text-label text-text">
+                    {historyLabel(h)}
+                    <span className="block text-text-tertiary">
+                      {[formatDateShort(h.at), h.device, h.location].filter(Boolean).join(", ")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
+
         {error || signOutFailed ? (
           <div className="mt-4">
             <Alert tone="crit">{error ?? signOutFailed}</Alert>
@@ -213,5 +294,93 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
         ) : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * One passkey (A5): its name, then its provider when the name is not already
+ * that, when it was added and when it last signed in; Rename opens a field in
+ * place, and Remove deletes it. Renaming needs no fresh sign-in; removing does
+ * (site-runtime), which `run` answers by asking for one.
+ */
+function PasskeyItem({
+  passkey,
+  busy,
+  onRename,
+  onRemove,
+}: {
+  passkey: SignInSettings["passkeys"][number];
+  busy: string | null;
+  onRename: (name: string) => void;
+  onRemove: () => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(passkey.name);
+  const fieldId = useId();
+  const facts = [
+    passkey.provider !== passkey.name ? passkey.provider : null,
+    passkey.createdAt ? `added ${formatDateShort(passkey.createdAt)}` : null,
+    passkey.lastUsedAt ? `last used ${formatDateShort(passkey.lastUsedAt)}` : "not used to sign in yet",
+  ].filter(Boolean);
+
+  if (renaming) {
+    return (
+      <li>
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const next = name.trim();
+            if (!next) return;
+            setRenaming(false);
+            if (next !== passkey.name) onRename(next);
+          }}
+        >
+          <div className="cap-field grow">
+            <label className="cap-field-label" htmlFor={fieldId}>
+              Passkey name
+            </label>
+            <input
+              id={fieldId}
+              className="cap-input"
+              value={name}
+              maxLength={60}
+              autoComplete="off"
+              onChange={(event) => setName(event.target.value)}
+              autoFocus
+            />
+          </div>
+          <Button type="submit" size="sm" variant="primary">
+            Save
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              setName(passkey.name);
+              setRenaming(false);
+            }}
+          >
+            Cancel
+          </Button>
+        </form>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3">
+      <span className="text-label text-text">
+        {passkey.name}
+        <span className="block text-text-tertiary">{facts.join(", ")}</span>
+      </span>
+      <span className="flex gap-2">
+        <Button size="sm" pending={busy === `rename-${passkey.id}`} onClick={() => setRenaming(true)}>
+          Rename<span className="sr-only"> {passkey.name}</span>
+        </Button>
+        <Button size="sm" pending={busy === passkey.id} onClick={onRemove}>
+          Remove<span className="sr-only"> {passkey.name}</span>
+        </Button>
+      </span>
+    </li>
   );
 }

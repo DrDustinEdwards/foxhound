@@ -108,7 +108,8 @@
     "BETTER_AUTH_URL": "https://foxhoundapp.com",
     // Turnstile site key (public, non-secret; safe to commit), widget
     // "Foxhound" on foxhoundapp.com. TURNSTILE_SECRET_KEY (env.d.ts, wrangler
-    // secret) is the other half; the check runs only when both are set.
+    // secret) is the other half; the check runs only when both are set, and
+    // until then auth.server.ts lets the link through ("off-until-keys").
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFsFHhwjNpVpV-tg"
   },
   "d1_databases": [
@@ -350,6 +351,13 @@
         // "auth:<ip>" or "signup:<ip>" (app/lib/auth/rate-limit.server.ts).
         "name": "AUTH_RATE_LIMITER",
         "class_name": "RateLimiter"
+      },
+      {
+        // The merchant MCP's append-only tool-call log beside mcp_calls:
+        // site-runtime's ToolCallLog, exported from workers/app.ts
+        // (app/lib/mcp/call-log.server.ts).
+        "name": "TOOL_CALL_LOG",
+        "class_name": "ToolCallLog"
       }
     ]
   },
@@ -373,7 +381,8 @@
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronTickerDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" },
-    "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
+    "RateLimiter": { "type": "durable-object", "storage": "sqlite" },
+    "ToolCallLog": { "type": "durable-object", "storage": "sqlite" }
   },
 
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,

@@ -7,9 +7,9 @@
 // THE GENERATOR OVERWRITES THIS FILE WHOLE, INCLUDING THIS HEADER, so after
 // every `npm run auth:generate` this whole comment block has to be put back by
 // hand. Recorded here because the header was silently lost on the 326 phase (a)
-// regenerate and only a diff caught it. `session.active_account_id` below is NOT
-// hand-added either: it comes from `session.additionalFields` in
-// app/lib/auth/options.ts, which is where its reasoning lives.
+// regenerate and only a diff caught it. `session.active_account_id` and `session.location` below are NOT
+// hand-added either: they come from `session.additionalFields` in
+// app/lib/auth/options.ts, which is where their reasoning lives.
 import { relations, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 
@@ -48,6 +48,7 @@ export const session = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     activeAccountId: text("active_account_id"),
+    location: text("location"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );

@@ -15,18 +15,9 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 // where Recova's AccountSection puts it (blob a154ac8f).
 
 const harness = vi.hoisted(() => ({
-  deleteCalls: [] as string[],
-  deleteResult: { status: "deleted", accountIds: ["acct_1"], deauthorizeErrors: [] } as unknown,
+  deleteCalls: 0,
   deleteThrows: false,
-  signOutCalls: 0,
-}));
-
-vi.mock("~/lib/auth/delete-account.server", () => ({
-  deleteUserAccount: async (_env: unknown, userId: string) => {
-    harness.deleteCalls.push(userId);
-    if (harness.deleteThrows) throw new Error("D1 batch failed");
-    return harness.deleteResult;
-  },
+  signedInAt: new Date(),
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -37,8 +28,12 @@ vi.mock("~/db", async (importOriginal) => ({
 vi.mock("~/lib/auth/auth.server", () => ({
   getAuth: () => ({
     api: {
-      signOut: async () => {
-        harness.signOutCalls += 1;
+      getSession: async () => ({ session: { createdAt: harness.signedInAt }, user: { id: "user_1" } }),
+      // Better Auth's /delete-user, whose hooks are the deletion; it takes no
+      // id, so the session's user is the one deleted.
+      deleteUser: async () => {
+        harness.deleteCalls += 1;
+        if (harness.deleteThrows) throw new Error("D1 batch failed");
         return new Response(JSON.stringify({ success: true }), {
           headers: { "set-cookie": "better-auth.session_token=; Max-Age=0; Path=/" },
         });
@@ -85,27 +80,32 @@ async function post(fields: Record<string, string>): Promise<unknown> {
 }
 
 beforeEach(() => {
-  harness.deleteCalls = [];
-  harness.deleteResult = { status: "deleted", accountIds: ["acct_1"], deauthorizeErrors: [] };
+  harness.deleteCalls = 0;
   harness.deleteThrows = false;
-  harness.signOutCalls = 0;
+  harness.signedInAt = new Date();
 });
 
 describe("S40: the delete-account action", () => {
   it("deletes the SIGNED-IN user, signs them out and sends them home, as Recova does", async () => {
     const res = (await post({ _action: "delete-account" })) as Response;
-    expect(harness.deleteCalls).toEqual(["user_1"]);
-    expect(harness.signOutCalls).toBe(1);
+    expect(harness.deleteCalls).toBe(1);
     expect(res).toBeInstanceOf(Response);
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("/");
     expect(res.headers.get("Set-Cookie")).toContain("better-auth.session_token=;");
   });
 
+  it("refuses a sign-in older than 10 minutes and deletes nothing", async () => {
+    harness.signedInAt = new Date(Date.now() - 11 * 60_000);
+    const res = (await post({ _action: "delete-account" })) as { data: Record<string, unknown>; init?: { status?: number } };
+    expect(harness.deleteCalls).toBe(0);
+    expect(res.init?.status).toBe(403);
+    expect(res.data).toEqual({ action: "delete-account", ok: false, error: "stale" });
+  });
+
   it("on failure keeps the person signed in and tells them, in Recova's words", async () => {
     harness.deleteThrows = true;
     const res = (await post({ _action: "delete-account" })) as { data: Record<string, unknown>; init?: { status?: number } };
-    expect(harness.signOutCalls).toBe(0);
     expect(res.init?.status).toBe(500);
     expect(res.data).toEqual({
       action: "delete-account",

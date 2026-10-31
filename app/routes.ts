@@ -100,6 +100,8 @@ export default [
     route("passkey", "./routes/auth/passkey-offer.tsx"),
     // The emailed sign-in link's page (site-runtime's CONFIRM_PATH).
     route("sign-in/confirm", "./routes/auth/sign-in-confirm.tsx"),
+    // Both email-change links' page (send-auth-email.ts).
+    route("email/confirm", "./routes/auth/email-confirm.tsx"),
   ]),
 
   // Recova's paths: the console is /console and each

@@ -8,6 +8,9 @@ interface Env {
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
   SENTRY_DSN?: string;
+  // HMAC key for the merchant MCP's ToolCallLog chain (site-runtime ./audit-log).
+  // Bind it before the first row; unset, the chain is plain SHA-256.
+  AUDIT_CHAIN_KEY?: string;
   // Reading errors back for /admin/platform/errors (J48). The DSN only sends;
   // listing issues needs a Sentry auth token with event:read and the
   // organization's slug. Either unset => the page says it cannot read them.

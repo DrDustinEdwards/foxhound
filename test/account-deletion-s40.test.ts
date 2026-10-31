@@ -7,7 +7,7 @@ import { account as authAccount, session, user, verification } from "~/db/auth-s
 import { getBillableDisputes, getBillableRecoveries } from "~/db/billable";
 import { getBillingLedger } from "~/lib/billing/queries.server";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
+import { deleteUserAccountLocal as deleteLocal } from "~/lib/auth/delete-account.server";
 import type { Db } from "~/db";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -27,6 +27,14 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // foreign_keys = ON and ends with a foreign_key_check.
 
 const DAY = 24 * 60 * 60 * 1000;
+
+/** The deletion as Better Auth's deleteUser runs it: Foxhound's batch (its
+ *  beforeDelete hook), then the user row, which Better Auth deletes. */
+async function deleteUserAccountLocal(db: Db, userId: string, now: Date) {
+  const result = await deleteLocal(db, userId, now);
+  await db.delete(user).where(eq(user.id, userId));
+  return result;
+}
 const NOW = new Date(Date.UTC(2026, 9, 14, 12));
 const OLD = new Date(NOW.getTime() - 45 * DAY); // matured: billable
 const OLDER = new Date(NOW.getTime() - 80 * DAY); // billed last month

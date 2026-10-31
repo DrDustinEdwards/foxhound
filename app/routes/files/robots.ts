@@ -51,6 +51,7 @@ export const DISALLOW_PATHS = [
   "/signup",
   "/passkey",
   "/sign-in/",
+  "/email/confirm",
   "/connect",
   "/invite",
   "/u/",

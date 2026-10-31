@@ -1,12 +1,21 @@
-import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
+import { coarseLocation, signInOptions } from "@dustinedwards/site-runtime/sign-in";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
+import { accountDeletionHooks } from "./delete-account.server";
+import { isDisposableEmail } from "./disposable-emails";
 import { withSignIn } from "./options";
-import { sendSecurityNoticeEmail, sendSignInLinkEmail } from "./send-auth-email";
+import {
+  EMAIL_CHANGE_EXPIRES_IN_SECONDS,
+  sendEmailChangeConfirmation,
+  sendNewEmailVerification,
+  sendSecurityNoticeEmail,
+  sendSignInLinkEmail,
+} from "./send-auth-email";
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
 // ./sign-in): a passkey first, an emailed link and code before one exists (Turnstile on
@@ -38,16 +47,75 @@ async function buildAuth(env: Env) {
         throw new Error(`sign-in link email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
       }
     },
-    // Five sign-in links an hour and ten typed codes a day per address.
+    // Five sign-in links an hour per address; wrong codes three an hour and ten
+    // a day, counted across links.
     emailLimiter: env.AUTH_RATE_LIMITER,
+    // Each auth event is also a row in auth_events (migration 0068): the
+    // security history on /settings/account, /health's spike check and the
+    // new-device and recovery notices read it.
+    eventsDb: env.DB,
+    // No Turnstile keys exist yet, and without them site-runtime refuses every
+    // link request (503 TURNSTILE_NOT_SET). This lets the link through, with a
+    // warning log line on each request, until Dustin creates the keys; then it
+    // comes out.
+    turnstile: "off-until-keys",
     // A passkey added or removed, Google or Apple joined or left, sessions
-    // ended, the account deleted: mailed to the account's address.
+    // ended, the account deleted, a new device, a recovery: mailed to the
+    // account's address.
     sendSecurityNotice: (_kind, { user, detail }) => sendSecurityNoticeEmail(env, user.email, detail),
   });
 
   const google = signIn.socialProviders.google;
+  const options = withSignIn(signIn);
   return betterAuth({
-    ...withSignIn(signIn),
+    ...options,
+    // Better Auth's own path for mailing a verification on request is off: the
+    // only verification mail Foxhound sends is the email change's below.
+    disabledPaths: [...options.disabledPaths, "/send-verification-email"],
+    databaseHooks: {
+      ...options.databaseHooks,
+      session: {
+        create: {
+          // The rough place of the sign-in (D5), kept on the session for the
+          // signed-in devices list. site-runtime's coarseLocation reads the
+          // request's cf; never the address.
+          before: async (row, ctx) => ({
+            data: { ...row, location: coarseLocation(ctx?.request as Parameters<typeof coarseLocation>[0]) },
+          }),
+        },
+      },
+    },
+    // E1: an email change is confirmed from the CURRENT address first, then
+    // from the new one (Better Auth's change-email-confirmation flow), and
+    // only from a sign-in in the last 10 minutes (site-runtime holds
+    // /change-email to that). Once the new address is confirmed, site-runtime
+    // tells both addresses and ends every other session (D7).
+    emailVerification: {
+      expiresIn: EMAIL_CHANGE_EXPIRES_IN_SECONDS,
+      sendVerificationEmail: async ({ user, url, token }) => {
+        await sendNewEmailVerification(env, { to: user.email, url, token });
+      },
+    },
+    user: {
+      changeEmail: {
+        enabled: true,
+        sendChangeEmailConfirmation: async ({ user, newEmail, url, token }) => {
+          // The same blocklist as sign-up (options.ts), so a change cannot do
+          // what a new account may not.
+          if (isDisposableEmail(newEmail)) {
+            throw new APIError("BAD_REQUEST", {
+              code: "disposable_email",
+              message: "Disposable email addresses are not allowed.",
+            });
+          }
+          await sendEmailChangeConfirmation(env, { to: user.email, newEmail, url, token });
+        },
+      },
+      // E2: Better Auth's own delete, so site-runtime's log line, notice and
+      // history clean-up run, with Foxhound's deletion (the fee evidence kept,
+      // the rest scrubbed, then the Stripe grants revoked) in its hooks.
+      deleteUser: { enabled: true, ...accountDeletionHooks(env) },
+    },
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),

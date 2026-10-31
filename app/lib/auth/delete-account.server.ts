@@ -146,8 +146,9 @@ async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | 
 /**
  * The statements that delete the person: their memberships elsewhere, their
  * notification preferences, their name on any approval they signed, then the
- * Better Auth rows and the user. Recova's cascade ends the same way, with the
- * residual memberships and the user.
+ * Better Auth rows that point at the user. Recova's cascade ends the same way,
+ * with the residual memberships and the user; here Better Auth deletes the
+ * user itself.
  */
 function buildUserDeletionStatements(
   db: Db,
@@ -183,7 +184,10 @@ function buildUserDeletionStatements(
     db.delete(authAccount).where(eq(authAccount.userId, userId)),
     db.delete(passkey).where(eq(passkey.userId, userId)),
     db.delete(verification).where(or(eq(verification.identifier, email), eq(verification.value, userId))),
-    db.delete(user).where(eq(user.id, userId)),
+    // NOT the user row, which Better Auth's deleteUser deletes after this
+    // batch (accountDeletionHooks), so its database hook runs: site-runtime's
+    // user_deleted line, the account-deleted notice and the person's
+    // auth_events rows.
   ];
 }
 
@@ -212,21 +216,14 @@ export type DeleteAccountLocalResult =
   | { status: "deleted"; accountIds: string[]; liveConnections: DeletedConnection[] }
   | { status: "not_found" };
 
-/** Read the plan and commit the batch. Writes nothing when the user is gone. */
+/** Read the plan and commit the batch, which leaves only the user row. Writes
+ *  nothing when the user is gone. */
 export async function deleteUserAccountLocal(db: Db, userId: string, now: Date): Promise<DeleteAccountLocalResult> {
   const plan = await readDeletionPlan(db, userId);
   if (!plan) return { status: "not_found" };
   await db.batch(buildAccountDeletionBatch(db, plan, now));
   return { status: "deleted", accountIds: plan.ownedAccountIds, liveConnections: plan.liveConnections };
 }
-
-export type DeleteAccountResult =
-  | {
-      status: "deleted";
-      accountIds: string[];
-      deauthorizeErrors: Array<{ connectionId: string; stripeUserId: string; error: string }>;
-    }
-  | { status: "not_found" };
 
 export interface DeleteAccountDeps {
   deleteLocal: (env: Env, userId: string, now: Date) => Promise<DeleteAccountLocalResult>;
@@ -253,35 +250,45 @@ async function recordDeauthorizeFailure(db: Db, userId: string, failure: Deautho
 }
 
 /**
- * Delete the signed-in user's account. The local commit first, then each
- * disconnected Stripe grant is revoked, best effort, cancelMerchant's posture:
- * a revoke that fails is reported and never undoes the deletion, because the
- * person asked to be deleted and is.
+ * Better Auth's deleteUser hooks (auth.server.ts), which are the account
+ * deletion. Better Auth checks the sign-in is fresh, then runs beforeDelete
+ * (Foxhound's local batch, everything but the user row), deletes the user and
+ * its sessions, and runs afterDelete: each disconnected Stripe grant is
+ * revoked there, best effort, cancelMerchant's posture, because a revoke that
+ * fails is reported and never undoes the deletion. The connections to revoke
+ * pass from one hook to the other by user id.
+ *
+ * Not one batch with the user row: should Better Auth's delete fail after the
+ * local batch, the person is left with no sessions, memberships or personal
+ * data, and deleting again from a new sign-in finishes it (the batch is set
+ * predicates and repeats cleanly).
  */
-export async function deleteUserAccount(
-  env: Env,
-  userId: string,
-  deps: Partial<DeleteAccountDeps> = {},
-): Promise<DeleteAccountResult> {
+export function accountDeletionHooks(env: Env, deps: Partial<DeleteAccountDeps> = {}) {
   const deleteLocal = deps.deleteLocal ?? ((e, id, now) => deleteUserAccountLocal(getDb(e), id, now));
   const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
   const recordFailure = deps.recordDeauthorizeFailure ?? ((e, id, f) => recordDeauthorizeFailure(getDb(e), id, f));
+  const toRevoke = new Map<string, DeletedConnection[]>();
 
-  const local = await deleteLocal(env, userId, new Date());
-  if (local.status === "not_found") return local;
-
-  const deauthorizeErrors = await revokeDisconnectedGrants(env, local.liveConnections, new Date(), deauthorize);
-  for (const failure of deauthorizeErrors) {
-    // Nobody is signed in to see this once the account is gone, so the
-    // failure is written where an operator finds it (/admin/platform/audit-log),
-    // beside the retry the revoke queued. A failed write is logged and never
-    // reports the deletion as failed.
-    try {
-      await recordFailure(env, userId, failure);
-    } catch (err) {
-      console.error(`could not record deauthorize failure for connection ${failure.connectionId}:`, err);
-    }
-  }
-  return { status: "deleted", accountIds: local.accountIds, deauthorizeErrors };
+  return {
+    beforeDelete: async (deleted: { id: string }) => {
+      const local = await deleteLocal(env, deleted.id, new Date());
+      if (local.status === "deleted") toRevoke.set(deleted.id, local.liveConnections);
+    },
+    afterDelete: async (deleted: { id: string }) => {
+      const connections = toRevoke.get(deleted.id) ?? [];
+      toRevoke.delete(deleted.id);
+      const failures = await revokeDisconnectedGrants(env, connections, new Date(), deauthorize);
+      for (const failure of failures) {
+        // Nobody is signed in to see this once the account is gone, so the
+        // failure is written where an operator finds it (/admin/platform/audit-log),
+        // beside the retry the revoke queued. A failed write is logged and never
+        // reports the deletion as failed.
+        try {
+          await recordFailure(env, deleted.id, failure);
+        } catch (err) {
+          console.error(`could not record deauthorize failure for connection ${failure.connectionId}:`, err);
+        }
+      }
+    },
+  };
 }
-

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // J82, parity row E1, now the sign-in link (the family sign-in has no
@@ -75,9 +75,9 @@ function makeEnv(email: unknown = { send: async (m: SentMessage) => (sent.push(m
     // always-pass test keys; siteverify itself is stubbed below.
     TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
     TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
-    // The per-address code limiter refuses without its Durable Object (site-runtime 0.51).
+    // The per-address code limiter refuses without its Durable Object (site-runtime fails it closed).
     AUTH_RATE_LIMITER: makeRateLimiterNamespace(),
-    DB: {},
+    DB: d1Over(sqlite),
     EMAIL: email,
   } as unknown as Env;
 }
@@ -296,14 +296,15 @@ describe("the code in the same mail signs in the tab that asked", () => {
     expect((await typeCode(env, code)).status).not.toBe("signed_in");
   });
 
-  it("a wrong code counts; after three the address is held, and the link still works", async () => {
+  it("a wrong code counts; after three the address takes no more codes, and the link still works", async () => {
     const env = makeEnv();
     await ask(env);
     const code = codeIn(sent[0]);
     const wrong = code === "111111" ? "222222" : "111111";
 
-    // From three addresses, so no per-IP limit stops the fourth: site-runtime's per-address code limit
-    // (three wrong codes an hour, across links) holds it, even with the right code.
+    // From three IP addresses, so the per-IP limit is not what stops the
+    // fourth: three wrong codes an hour per email address, across links
+    // (site-runtime's CODE_EMAIL_RULES), so a new link brings no fresh tries.
     for (const ip of ["203.0.113.2", "203.0.113.3", "203.0.113.4"]) {
       expect((await typeCode(env, wrong, ip)).status).toBe("wrong");
     }

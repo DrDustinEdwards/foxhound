@@ -24,6 +24,12 @@ vi.mock("~/lib/auth", async (importOriginal) => ({
   }),
 }));
 
+// The offer itself is asked for (site-runtime's shouldOfferPasskey); this test is where it goes on to.
+vi.mock("@dustinedwards/site-runtime/sign-in", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@dustinedwards/site-runtime/sign-in")>()),
+  shouldOfferPasskey: async () => true,
+}));
+
 const { loader } = await import("~/routes/auth/passkey-offer");
 
 let sqlite: Database.Database;

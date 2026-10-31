@@ -1,4 +1,5 @@
 import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
+import { signInWithPasskey } from "@dustinedwards/site-runtime/sign-in-client";
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -163,8 +164,10 @@ export function PasskeyContinue({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function signInWithPasskey(autoFill: boolean) {
-    const res = await authClient.signIn.passkey({ autoFill });
+  async function passkeySignIn(autoFill: boolean) {
+    // site-runtime's wrapper: on a passkey the site no longer has, it tells the
+    // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
+    const res = await signInWithPasskey(authClient, { autoFill });
     if (!res?.error) {
       window.location.assign(next);
       return;
@@ -177,7 +180,7 @@ export function PasskeyContinue({ next }: { next: string }) {
 
   // An effect event reads the latest `next` without making the effect rerun.
   const offerAutofill = useEffectEvent(() => {
-    void signInWithPasskey(true);
+    void passkeySignIn(true);
   });
 
   // Once per page: the browser holds one pending autofill request.
@@ -198,7 +201,7 @@ export function PasskeyContinue({ next }: { next: string }) {
         onClick={async () => {
           setBusy(true);
           setError(null);
-          await signInWithPasskey(false);
+          await passkeySignIn(false);
           setBusy(false);
         }}
       >

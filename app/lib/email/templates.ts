@@ -7,7 +7,9 @@ import {
   magicLink,
   renderEmail,
   securityNotice,
+  verification,
   type AlertLevel,
+  type Copy,
   type Block,
   type FooterLine,
   type Rendered,
@@ -202,6 +204,12 @@ export function renderFoxhoundSignInLinkEmail(input: SignInLinkRenderInput): Ren
  *  page where a merchant manages sign-in; the mail holds no link that signs in. */
 export function renderFoxhoundSecurityNoticeEmail(to: string, detail: NoticeDetail, url: string): Rendered {
   return renderEmail(securityNotice, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, to, ...detail, url });
+}
+
+/** Render one of an email change's two mails on Capsomer's verification
+ *  template, in the words `copy` gives (send-auth-email.ts). */
+export function renderFoxhoundEmailChangeEmail(input: { to: string; url: string; expiresIn: string; copy: Copy }): Rendered {
+  return renderEmail(verification, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, ...input });
 }
 
 // ---- operator alerts (E26, E27) ------------------------------------------------

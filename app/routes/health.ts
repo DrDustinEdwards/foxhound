@@ -1,6 +1,7 @@
 import { cronCheck } from "@dustinedwards/site-runtime/cron";
 import {
   aiCheck,
+  authSpikeCheck,
   durableObjectCheck,
   healthResponse,
   imagesCheck,
@@ -18,7 +19,8 @@ import type { Route } from "./+types/health";
 
 // Unauthenticated health through site-runtime's healthResponse: whether D1 answers, the age of the newest complete
 // dump and of the media copy (d1-dump, warning past 26 hours), whether each other binding answers, and whether a cron
-// job failed, overran or stopped (cron_runs). No counts, no ids, no merchant data. The backup read is held per isolate
+// job failed, overran or stopped (cron_runs). The auth-spike check counts failed sign-ins and sign-in mails in the
+// last hour from auth_events and names only the counts. No ids, no merchant data. The backup read is held per isolate
 // for five minutes there (job_7bbec6ab48d1: an R2 list is a billed Class A operation on a public route). The helper's
 // Cache-Control (no-store) and X-Robots-Tag stand: /health is a private path, which the cache policy leaves as it is.
 //
@@ -50,6 +52,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       durableObjectCheck("rate-limiter", env.RATE_LIMITER),
       durableObjectCheck("auth-rate-limiter", env.AUTH_RATE_LIMITER),
       cronJobsCheck(env),
+      authSpikeCheck(env.DB),
     ].map((check) => ({ ...check, level: "warn" as const })),
   });
 }

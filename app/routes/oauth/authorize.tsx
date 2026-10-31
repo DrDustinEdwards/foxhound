@@ -2,6 +2,7 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
+import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -84,6 +85,13 @@ type Consent = {
   codeChallenge: string;
   /** Whether "Allow changes" starts ticked: the client asked for merchant.write. */
   wantsWrite: boolean;
+  /** The host publishing a metadata-document client's name, or null for a
+   *  registered client, whose name is its own claim. */
+  publishedBy: string | null;
+  /** Where the code goes, and whether that is an app on this computer. */
+  redirectHost: string;
+  /** site-runtime's words when the access goes to an app on this computer, else null. */
+  redirectWarning: string | null;
   /** Posted back as a consistency check only, never as the authority. */
   accountId: string;
   accountName: string;
@@ -123,6 +131,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     return { ok: false, title: "Owner approval needed", message: OWNER_ONLY };
   }
 
+  const redirectTo = describeRedirect(check.redirectUri);
   return {
     ok: true,
     clientId: check.clientId,
@@ -131,6 +140,9 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     state: check.state,
     codeChallenge: check.codeChallenge,
     wantsWrite: check.wantsWrite,
+    publishedBy: check.metadataDocument ? new URL(check.clientId).hostname : null,
+    redirectHost: redirectTo.host,
+    redirectWarning: redirectTo.warning,
     accountId: membership.accountId,
     accountName: membership.accountName ?? session.user.email ?? "your Foxhound account",
     email: session.user.email,
@@ -282,9 +294,29 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
       <h1 className="mb-2 text-title font-medium text-text">
         {consent.clientName} wants to connect to your Foxhound account
       </h1>
-      <p className="mb-6 text-label text-text-subtle">
+      <p className="mb-2 text-label text-text-subtle">
         Approving grants access to the account below. You can revoke it any time from Settings.
       </p>
+      {/* Who the client is and where its access goes, as site-runtime's MCP
+          consent page says it (mcp-login.mjs): a metadata-document client's
+          name is vouched for by the host that publishes it, a registered
+          client's is only its own claim. */}
+      <p className="mb-6 text-label text-text-subtle" data-oauth-client="">
+        {consent.publishedBy ? (
+          <>
+            Published by <strong className="font-medium text-text">{consent.publishedBy}</strong>.
+          </>
+        ) : (
+          "This app registered itself, so its name is its own claim, not checked."
+        )}{" "}
+        Its access will be sent to <strong className="font-medium text-text">{consent.redirectHost}</strong>.
+      </p>
+
+      {consent.redirectWarning ? (
+        <div className="mb-5">
+          <Alert tone="warn">{consent.redirectWarning}</Alert>
+        </div>
+      ) : null}
 
       <div className="mb-5 rounded-lg border border-border-sub bg-bg px-4 py-3">
         <Eyebrow className="mb-1">Account</Eyebrow>

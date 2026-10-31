@@ -449,6 +449,20 @@
       "when": 1793444575201,
       "tag": "0067_cron_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1793449636538,
+      "tag": "0068_auth_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1793449976011,
+      "tag": "0069_session_location",
+      "breakpoints": true
     }
   ]
 }
