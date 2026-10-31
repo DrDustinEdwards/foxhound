@@ -211,8 +211,9 @@ function cookieNames(request: Request): string[] {
 export function edgeRequest(request: Request): { request: Request; theme: string } {
   const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
   // A HEAD goes on as a GET (site-runtime forRenderer): app/entry.server.tsx answers a HEAD with an empty body, which
-  // must never be stored.
-  const forwarded = forRenderer(request);
+  // must never be stored. Copied, because a GET comes back as the incoming request itself, whose headers are immutable
+  // on Workers (setting the cookie on it threw, and every cacheable page answered 500).
+  const forwarded = new Request(forRenderer(request));
   forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
   return { request: forwarded, theme };
 }
