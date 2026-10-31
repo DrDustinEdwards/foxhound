@@ -1,11 +1,13 @@
+import { runJobs } from "@dustinedwards/site-runtime/cron";
 import { desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { cronConfig, cronRunHistory, getDb } from "~/db";
 import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
 
-import { alertCronFailure, type AlertOutcome } from "./alerts.server";
+import { alertCronFailure, SCHEDULE_PERIOD_MS, type AlertOutcome } from "./alerts.server";
 import { isCronEnabled, isDueByInterval } from "./gating";
+import type { CronJob } from "./registry";
 
 // The cron runner: the single wrapper every scheduled job goes through. It
 // enforces the three gates in order (config-enabled -> min-interval -> per-cron DO
@@ -87,6 +89,26 @@ async function recordRun(
     rowsProcessed,
     message,
   });
+}
+
+/** A schedule's jobs through site-runtime's runJobs, so each run lands in
+ *  cron_runs and /health's cronCheck notices one that failed or stopped. Each
+ *  still runs through runCronJob, unchanged; runCronJob never throws, so a failed
+ *  outcome is thrown here for runJobs to record, and a skip (disabled, not due,
+ *  locked) counts as a run. After the last job runJobs throws once, naming the
+ *  failed ones. */
+export function runScheduledJobs(env: Env, jobs: CronJob[], run: typeof runCronJob = runCronJob): Promise<void> {
+  return runJobs(
+    () => env.DB,
+    jobs.map((job) => ({
+      name: job.name,
+      everyMinutes: SCHEDULE_PERIOD_MS[job.schedule]! / 60_000,
+      run: async () => {
+        const outcome = await run(env, job.name, job.handler);
+        if (outcome.status === "failed") throw new Error(outcome.message ?? "failed");
+      },
+    })),
+  );
 }
 
 /** Run one scheduled job through the config + interval + lock gates, logging the

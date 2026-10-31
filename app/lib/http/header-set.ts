@@ -53,6 +53,8 @@ export function renderStaticHeadersFile(): string {
         Object.entries(STATIC_IMAGES).map(([ext, type]) => [`/*.${ext}`, { "Cross-Origin-Resource-Policy": corpFor(type) }]),
       ),
       "/assets/*": { "Cache-Control": "public, max-age=31536000, immutable" },
+      // The islands /site.js starts, each named by its content (devkit's siteScript).
+      "/islands/*": { "Cache-Control": "public, max-age=31536000, immutable" },
     },
   });
 }

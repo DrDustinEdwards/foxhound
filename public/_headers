@@ -62,3 +62,6 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+/islands/*
+  Cache-Control: public, max-age=31536000, immutable

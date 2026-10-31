@@ -4,6 +4,7 @@ import { withAdminIdle } from "@dustinedwards/site-runtime/access";
 import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
+import { SPECULATION_RULES_PATH, speculationRulesResponse } from "@dustinedwards/site-runtime/prefetch";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 import { timedRender } from "@dustinedwards/site-runtime/server-timing";
 import { canonicalRedirect } from "@dustinedwards/site-runtime/url";
@@ -12,11 +13,12 @@ import { createRequestHandler, RouterContextProvider, type ServerBuild } from "r
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
-import { runCronJob } from "~/lib/cron/run";
+import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
 import { applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { SPECULATION_OPTIONS, withSpeculationRules } from "~/lib/http/speculation-rules";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -67,6 +69,11 @@ const site = withSentry<Env>(
       // One hop to the canonical address: https, the bare host, no trailing slash.
       const redirect = canonicalRedirect(request, { host: "foxhoundapp.com" });
       if (redirect) return applySecurityHeaders(redirect, nonce, origin);
+
+      // The link prefetch rules every HTML page names (lib/http/speculation-rules.ts).
+      if (new URL(request.url).pathname === SPECULATION_RULES_PATH) {
+        return applySecurityHeaders(speculationRulesResponse(SPECULATION_OPTIONS, request), nonce, origin);
+      }
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
@@ -190,12 +197,10 @@ const site = withSentry<Env>(
       const { jobsForSchedule } = await import("~/lib/cron/registry");
       // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
       // runCronJob, which is total: it returns a failed outcome rather than
-      // throwing, including for infrastructure failures outside the handler. A
-      // second guard here would be two guards for one rule, and
-      // the one that a plant can drive directly is the one that keeps it.
-      for (const job of jobsForSchedule(controller.cron)) {
-        await runCronJob(env, job.name, job.handler);
-      }
+      // throwing, including for infrastructure failures outside the handler.
+      // runScheduledJobs records each in cron_runs and throws after the last
+      // job when any failed, so Cloudflare marks the invocation failed.
+      await runScheduledJobs(env, jobsForSchedule(controller.cron));
     },
   } satisfies ExportedHandler<Env>,
 );
@@ -203,7 +208,9 @@ const site = withSentry<Env>(
 // An admin idle for an hour is signed out of Access (site-runtime ./access).
 export default {
   ...site,
-  fetch: (request, env, ctx) => withAdminIdle(request, async () => site.fetch!(request, env, ctx)),
+  // Every HTML page names the link prefetch rules (Speculation-Rules), stored pages included.
+  fetch: async (request, env, ctx) =>
+    withSpeculationRules(await withAdminIdle(request, async () => site.fetch!(request, env, ctx))),
 } satisfies ExportedHandler<Env>;
 
 /**

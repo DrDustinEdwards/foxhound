@@ -3,6 +3,7 @@ import { Link } from "capsomer/react/link";
 
 import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";
+import { calculatorFigures, fmt } from "~/lib/marketing/calculator-math";
 import { STAT_AS_OF, STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
 
 import { Range } from "capsomer/react/field";
@@ -44,20 +45,23 @@ export function RecoveryCalculator() {
 
   const [failureShare, setFailureShare] = useState(DEFAULT_ASSUMED_FAILURE_SHARE);
 
-  const failedRevenue = Math.round((mrr * failureShare) / 100); // the visitor's assumed share of MRR that fails
-  const stripeRecovers = Math.round(failedRevenue * (STRIPE_RECOVERY_RATE_PERCENT / 100));
-  const remaining = failedRevenue - stripeRecovers; // what Stripe could not get
-  const foxhoundRecovers = Math.round(remaining * (recoveryShare / 100));
-  const foxhoundFee = Math.round((foxhoundRecovers * RECOVERY_FEE_BPS) / 10_000); // the outcome fee
-  const netGain = foxhoundRecovers - foxhoundFee; // net to merchant
-  const netGainAnnual = netGain * 12;
-
-  function fmt(n: number) {
-    return "$" + n.toLocaleString();
-  }
+  const { failedRevenue, stripeRecovers, remaining, foxhoundRecovers, foxhoundFee, netGain, netGainAnnual } =
+    calculatorFigures({
+      mrr,
+      failureShare,
+      recoveryShare,
+      stripeRecoveryRatePercent: STRIPE_RECOVERY_RATE_PERCENT,
+      recoveryFeeBps: RECOVERY_FEE_BPS,
+    });
 
   return (
-    <div className="cap-panel [--gap:1.5rem] [--pad-card:1.5rem] sm:[--gap:2rem] sm:[--pad-card:2rem]">
+    // On a page that does not hydrate, the calculator island (islands/calculator.ts) runs the same math
+    // on the same markup; data-calc names each figure it writes.
+    <div
+      className="cap-panel [--gap:1.5rem] [--pad-card:1.5rem] sm:[--gap:2rem] sm:[--pad-card:2rem]"
+      data-island="calculator"
+      data-props={JSON.stringify({ stripeRecoveryRatePercent: STRIPE_RECOVERY_RATE_PERCENT, recoveryFeeBps: RECOVERY_FEE_BPS })}
+    >
       <div className="cap-panel-body">
       <div>
       <div className="mb-6">
@@ -68,7 +72,7 @@ export function RecoveryCalculator() {
           >
             Monthly recurring revenue
           </label>
-          <span className="font-mono text-body font-medium text-text">{fmt(mrr)}</span>
+          <span className="font-mono text-body font-medium text-text" data-calc="mrr">{fmt(mrr)}</span>
         </div>
         <Range
           id="mrr-slider"
@@ -102,7 +106,7 @@ export function RecoveryCalculator() {
           >
             Assumed share of MRR that fails
           </label>
-          <span className="font-mono text-body font-medium text-text">{failureShare}%</span>
+          <span className="font-mono text-body font-medium text-text" data-calc="failureShare">{`${failureShare}%`}</span>
         </div>
         <Range
           id="failure-share-slider"
@@ -132,7 +136,7 @@ export function RecoveryCalculator() {
           >
             Assumed recovery of the remainder
           </label>
-          <span className="font-mono text-body font-medium text-text">{recoveryShare}%</span>
+          <span className="font-mono text-body font-medium text-text" data-calc="recoveryShare">{`${recoveryShare}%`}</span>
         </div>
         <Range
           id="recovery-share-slider"
@@ -156,29 +160,34 @@ export function RecoveryCalculator() {
 
       <div className="mb-6 flex flex-col gap-3">
         <Row
+          name="failedRevenue"
           label="Failed payments per month"
           sub={`${failureShare}% of MRR, the share you set above`}
           value={fmt(failedRevenue)}
         />
         <Row
+          name="stripeRecovers"
           label="Stripe Smart Retries recover"
           sub={`${STRIPE_RECOVERY_RATE_PERCENT}% average, stripe.com/billing, read ${STAT_AS_OF}`}
           value={fmt(stripeRecovers)}
           valueClassName="text-text-secondary"
         />
         <Row
+          name="remaining"
           label="Your recoverable opportunity"
           sub="What Stripe's own retries could not get back"
           value={fmt(remaining)}
           valueClassName="text-accent-text"
         />
         <Row
+          name="foxhoundRecovers"
           label="Foxhound recovers from that"
           sub="Billable only when a Foxhound action provably preceded payment"
           value={fmt(foxhoundRecovers)}
           valueClassName="text-success-text"
         />
         <Row
+          name="foxhoundFee"
           label="Foxhound fee"
           sub={`${RECOVERY_FEE_BPS / 100}% of what Foxhound recovers, nothing else, ever`}
           value={`-${fmt(foxhoundFee)}`}
@@ -193,13 +202,13 @@ export function RecoveryCalculator() {
           </div>
           <div className="text-right">
             <p className="font-mono text-title font-semibold text-success-text">
-              +{fmt(netGainAnnual)}
+              <span data-calc="netGainAnnual">{`+${fmt(netGainAnnual)}`}</span>
               <span className="text-caption font-normal text-text-tertiary">/yr</span>
             </p>
             {/* Recova dims this line to 70%, which takes it and its "/mo" under
                 4.5:1 in both themes (measured 3.02 and 3.29). Full strength here. */}
             <p className="mt-0.5 font-mono text-subhead font-medium text-success-text">
-              +{fmt(netGain)}
+              <span data-calc="netGain">{`+${fmt(netGain)}`}</span>
               <span className="text-micro font-normal text-text-tertiary">/mo</span>
             </p>
           </div>
@@ -236,11 +245,14 @@ export function RecoveryCalculator() {
 }
 
 function Row({
+  name,
   label,
   sub,
   value,
   valueClassName = "text-text",
 }: {
+  /** What the calculator island calls this figure (data-calc). */
+  name: string;
   label: string;
   sub: string;
   value: string;
@@ -250,9 +262,13 @@ function Row({
     <div className="flex items-center justify-between border-b border-border-sub py-3">
       <div>
         <p className="text-copy text-text">{label}</p>
-        <p className="mt-0.5 font-mono text-micro text-text-tertiary">{sub}</p>
+        <p className="mt-0.5 font-mono text-micro text-text-tertiary" data-calc={`${name}-sub`}>
+          {sub}
+        </p>
       </div>
-      <div className={`font-mono text-subhead font-medium ${valueClassName}`}>{value}</div>
+      <div className={`font-mono text-subhead font-medium ${valueClassName}`} data-calc={name}>
+        {value}
+      </div>
     </div>
   );
 }

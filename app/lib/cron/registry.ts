@@ -1,3 +1,5 @@
+import { pruneNotFound } from "@dustinedwards/site-runtime/not-found";
+
 import { getDb } from "~/db";
 import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
 import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from "~/lib/billing/credit-note";
@@ -11,6 +13,7 @@ import {
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
+  RETENTION_PAGE_404_DAILY_DAYS,
 } from "~/lib/constants";
 import { runBlogSchedules } from "~/lib/carrel/handler.server";
 import { DEMO_BUSINESSES, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
@@ -22,7 +25,7 @@ import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
 import { pruneAuthEvents } from "@dustinedwards/site-runtime/sign-in";
 
-import { runD1Backup } from "~/lib/backup/d1-backup";
+import { runD1Backup, runMediaBackup } from "~/lib/backup/d1-backup";
 import {
   deauthorizeRetryFailureError,
   describeDeauthorizeRetry,
@@ -52,7 +55,6 @@ import {
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
-  sweepPage404Daily,
   sweepSocialLeads,
   sweepWebhookEvents,
 } from "./retention";
@@ -245,6 +247,14 @@ const expiringCards: CronHandler = async (env) => {
 /** The nightly D1 dump into R2. Reuses the daily schedule, so no
  *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
+const mediaBackup: CronHandler = (env) => runMediaBackup(env);
+
+/** The 404 count's retention, by site-runtime's pruneNotFound at Foxhound's own window. It does not count what it
+ *  deletes. */
+const retentionPage404: CronHandler = async (env) => {
+  await pruneNotFound(env.DB, { days: RETENTION_PAGE_404_DAILY_DAYS });
+  return { rowsProcessed: 0, message: `kept the last ${RETENTION_PAGE_404_DAILY_DAYS} days` };
+};
 
 /** The credit-note retry (Grok audit FH-2). A refund or lost dispute credits
  *  its charged fee from the webhook, and that call never throws, so a Stripe
@@ -322,7 +332,7 @@ const stripeMissedEvents: CronHandler = async (env) => {
   return { rowsProcessed: result.replayed, message: describeMissedEventSweep(result) };
 };
 
-/** site-runtime's auth_events (migration 0067): rows with no user go after 30
+/** site-runtime's auth_events (migration 0068): rows with no user go after 30
  *  days, the rest after a year. The package owns the table and its rule, so
  *  this is its pruneAuthEvents, not a sweep in retention.ts. */
 const retentionAuthEvents: CronHandler = async (env) => {
@@ -372,6 +382,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
+  { name: "media-backup", schedule: CRON_SCHEDULE_DAILY, handler: mediaBackup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
@@ -387,7 +398,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "retention-health-score", schedule: CRON_SCHEDULE_DAILY, handler: sweepHealthScoreHistory },
   { name: "retention-cron-history", schedule: CRON_SCHEDULE_DAILY, handler: sweepCronRunHistory },
   { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
-  { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: sweepPage404Daily },
+  { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
   { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
 ];

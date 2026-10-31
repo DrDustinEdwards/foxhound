@@ -61,6 +61,7 @@ function env(): Env {
       prepare: () => ({
         run: async () => ({ meta: { size_after: 4096 } }),
         all: async () => ({ results: [] }),
+        bind: () => ({ all: async () => ({ results: [] }) }),
       }),
     },
     ADMIN_EMAIL: `${ADMIN}, second@foxhound.test`,

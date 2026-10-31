@@ -1,3 +1,4 @@
+import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { CONFIRM_PATH, SIGN_IN_CODE_PATH } from "@dustinedwards/site-runtime/sign-in";
 import { data, redirect } from "react-router";
 
@@ -96,14 +97,14 @@ export async function requestSignInLink(
     }
     if (!res.ok) {
       // The status only: the body can carry the address.
-      console.error(`[sign-in-link] request returned ${res.status}`);
+      logEvent("sign_in_link_failed", { status: res.status }, { level: "error" });
       return "failed";
     }
     return "sent";
   } catch {
     // sendMagicLink's throw names the send's reason, never the link; it is not
     // repeated here because the address is in the request.
-    console.error("[sign-in-link] the link was not sent");
+    logEvent("sign_in_link_failed", { status: "threw" }, { level: "error" });
     return "failed";
   }
 }
@@ -172,10 +173,14 @@ export async function signInWithCode(
       // Only the session cookies go on to the page's redirect.
       const headers = new Headers();
       for (const cookie of res.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
+      logEvent(OWASP_EVENTS.signInSuccess, { ...requestFields(request), via: "code" });
       return { status: "signed_in", headers };
     }
     if (res.status === 429) return { status: await limitOf(res) };
     const { code } = (await res.json().catch(() => ({}))) as { code?: string };
+    if (code === "INVALID_OTP" || code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") {
+      logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), via: "code", code }, { level: "warn" });
+    }
     if (code === "INVALID_OTP") return { status: "wrong" };
     if (code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") return { status: "spent" };
     if (code === "disposable_email") return { status: "disposable" };
@@ -183,10 +188,10 @@ export async function signInWithCode(
     // code (RATE_LIMIT_UNAVAILABLE) rather than allow unlimited guesses.
     if (res.status === 503 && code === "RATE_LIMIT_UNAVAILABLE") return { status: "unavailable" };
     // The status only: the body can carry the address.
-    console.error(`[sign-in-code] sign-in returned ${res.status}`);
+    logEvent("sign_in_code_failed", { status: res.status }, { level: "error" });
     return { status: "failed" };
   } catch {
-    console.error("[sign-in-code] the sign-in did not complete");
+    logEvent("sign_in_code_failed", { status: "threw" }, { level: "error" });
     return { status: "failed" };
   }
 }

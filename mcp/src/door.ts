@@ -37,7 +37,7 @@ import { SERVER, serveAdminMcp } from "./server";
 //   /authorize  /callback     the consent page and the Access sign-in
 //   /register                 tightened registration (rule 13), rate limited here first
 //   /token, /.well-known/*    served by the provider
-//   /health                   liveness
+//   /health                   liveness, and the deployed commit CI's live gate waits for
 //   anything else             404
 
 type DoorEnv = AdminMcpEnv & { OAUTH_PROVIDER: OAuthHelpers };
@@ -56,6 +56,8 @@ const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
   admit: (env, user) => isFoxhoundAdmin(env, user.email.toLowerCase()),
   // Every sign-in, admitted or refused, is a row in the tool-call log.
   audit: { name: SERVER.name, version: SERVER.version },
+  // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it.
+  health: (env) => Response.json({ ok: true, sha: env.DEPLOY_SHA ?? null }),
 });
 
 /** The provider's defaultHandler: the shared consent and sign-in, with this Worker's origin for the callback. */

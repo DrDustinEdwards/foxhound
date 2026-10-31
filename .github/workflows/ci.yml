@@ -138,12 +138,34 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@d992f82350f7143b026597f89359bad90580ebfc # v0.20.9
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@71f342e07f91d3be216f2dfd8e9815a0f9f7299c # v0.20.13
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
       pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
+      sha-var: DEPLOY_SHA
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # The admin MCP Worker (mcp/), the one second Worker, through the same shared
+  # deploy once the foxhound Worker it binds is live. mcp/wrangler.jsonc holds
+  # no secret, so the deploy reads it as committed; its dependencies are the
+  # root's. The live gate waits for its /health to report this commit, runs
+  # scripts/verify-admin-mcp.mjs, and rolls it back on a refusal.
+  admin-mcp-deploy:
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@71f342e07f91d3be216f2dfd8e9815a0f9f7299c # v0.20.13
+    with:
+      worker-name: foxhound-admin-mcp
+      working-directory: mcp
+      install: cd .. && npm ci
+      health-url: https://admin-mcp.foxhoundapp.com/health
+      verify-command: node ../scripts/verify-admin-mcp.mjs
       sha-var: DEPLOY_SHA
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

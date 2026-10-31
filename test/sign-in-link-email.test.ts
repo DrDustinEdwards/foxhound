@@ -4,6 +4,7 @@ import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
@@ -134,7 +135,7 @@ function linkTokens(): string[] {
 }
 
 describe("E1: the sign-in link is sent when a page asks for one", () => {
-  it("one mail to the address, rendered by Capsomer's magic-link template, carrying Better Auth's link", async () => {
+  it("one mail to the address, rendered by Capsomer's magic-link template, carrying the confirm page's link", async () => {
     expect(await ask(makeEnv())).toBe("sent");
 
     expect(sent).toHaveLength(1);
@@ -157,6 +158,30 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(m.subject).toBe(want.subject);
     expect(m.html).toBe(want.html);
     expect(m.text).toBe(want.text);
+  });
+});
+
+describe("the mailed link opens /sign-in/confirm, and only its button signs in", () => {
+  it("the page's POST to the mailed URL makes the session and goes on to the passkey offer; the token works once", async () => {
+    const env = makeEnv();
+    await ask(env);
+    const link = sent[0].html.match(/<a\b[^>]*href="([^"]*)"/)![1].replace(/&amp;/g, "&");
+    const { action } = await import("~/routes/auth/sign-in-confirm");
+    const context = { get: (key: unknown) => (key === cloudflareContext ? { env } : undefined) };
+    // Better Auth's redirect is a Response; only its 429 comes back as data.
+    const press = async () =>
+      (await action({
+        request: new Request(link, { method: "POST" }),
+        context,
+      } as unknown as Parameters<typeof action>[0])) as Response;
+
+    const first = await press();
+    expect(first.status).toBe(302);
+    expect(first.headers.get("location")).toBe(`${BASE}/passkey?next=%2Fconsole`);
+    expect(first.headers.getSetCookie().join(";")).toContain("session_token");
+    const again = await press();
+    expect(again.headers.get("location")).toContain("error=");
+    expect(again.headers.getSetCookie().join(";")).not.toContain("session_token=");
   });
 });
 

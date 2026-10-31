@@ -36,6 +36,9 @@ export function FadeUp({
     <div
       ref={ref}
       className={className}
+      // Wired by the reveal island (islands/reveal.ts) on a page that does not hydrate.
+      data-island="reveal"
+      data-props='{"threshold":0.15}'
       style={{
         opacity: inView ? 1 : 0,
         transform: inView ? "translateY(0)" : "translateY(16px)",
