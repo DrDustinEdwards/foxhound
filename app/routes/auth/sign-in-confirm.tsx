@@ -25,10 +25,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function SignInConfirm() {
   return (
     <AuthCard>
-      <AuthHeading title="Sign in to Foxhound" subtitle="Press the button to finish signing in." />
-      <Form method="post" reloadDocument>
+      <AuthHeading title="Sign in to Foxhound" />
+      <Form method="post" reloadDocument className="grid">
         <Button type="submit" variant="primary" size="lg">
-          Sign in to Foxhound
+          Sign in
         </Button>
       </Form>
     </AuthCard>
