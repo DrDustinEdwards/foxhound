@@ -24,6 +24,7 @@ import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settin
 
 import type { Route } from "./+types/audit";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S30, /settings/audit. Legacy, read whole at HEAD: page.tsx (blob 18e6a384),
 // AuditForm.tsx (5bf81c10), settings/components/AuditSection.tsx (58c5abce),
@@ -85,7 +86,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const { membership } = context.get(authContext);
   const db = getDb(env);
-  const form = await request.formData();
+  const form = await readForm(request);
 
   // THE CORE MOVED TO apply.server.ts IN SESSION 79, so this action and the
   // MCP `set_audit_settings` tool validate and write through one implementation.

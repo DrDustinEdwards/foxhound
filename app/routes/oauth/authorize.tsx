@@ -28,6 +28,7 @@ import {
 
 import type { Route } from "./+types/authorize";
 import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /oauth/authorize: the page where a signed-in merchant
 // lets an external agent connect to one Foxhound account.
@@ -148,7 +149,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: EXPIRED_REQUEST }, { status: 403 });
   }
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const params = new URLSearchParams();
   for (const [k, v] of form) if (typeof v === "string") params.append(k, v);
 

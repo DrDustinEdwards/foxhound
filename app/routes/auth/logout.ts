@@ -1,3 +1,4 @@
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
@@ -7,6 +8,8 @@ import type { Route } from "./+types/logout";
 
 // Sign out on POST only (CSRF-safe); a stray GET just bounces to /login.
 export async function action({ request, context }: Route.ActionArgs) {
+  const refused = refuseCrossSite(request);
+  if (refused) return refused;
   const { env } = context.get(cloudflareContext);
   const res = await (await getAuth(env)).api.signOut({
     headers: request.headers,

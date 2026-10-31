@@ -50,6 +50,7 @@ import {
 } from "~/components/site-header";
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { IMPERSONATION_STOP_PATH } from "~/lib/admin/impersonation.server";
 import { authContext } from "~/lib/auth/context";
 import { adminPageName as routePageName } from "~/lib/admin/page";
@@ -71,7 +72,16 @@ import type { loader as rootLoader } from "~/root";
 import type { Route } from "./+types/app-shell";
 
 // Server guard for the entire authenticated tree (session + account required).
-export const middleware: Route.MiddlewareFunction[] = [noindexHeader, appShellMiddleware];
+// ONLY THIS ORIGIN MAY WRITE, as in admin-shell.tsx: every merchant action
+// under this shell, page or resource route, gets site-runtime's shared check
+// before any session work.
+const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
+  const refused = refuseCrossSite(request);
+  if (refused) throw refused;
+  return next();
+};
+
+export const middleware: Route.MiddlewareFunction[] = [noindexHeader, sameOriginWrites, appShellMiddleware];
 
 // This layout's own route match never changes on a same-shell navigation
 // (no params, no path segment of its own), so React Router's default

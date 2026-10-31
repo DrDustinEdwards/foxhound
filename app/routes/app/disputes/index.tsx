@@ -41,6 +41,7 @@ import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /disputes: Recova's disputes dashboard on Foxhound's engine.
 // Recova is the spec: app/(app)/disputes/dashboard/page.tsx (blob c97c3e93),
@@ -154,7 +155,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
   if (isWarningIntent(intent)) {
     // A refund cannot be undone, so only the account owner makes one.

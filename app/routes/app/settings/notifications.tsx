@@ -37,6 +37,7 @@ import {
 
 import type { Route } from "./+types/notifications";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S36, /settings/notifications. THE SURFACE FIVE ENGINES HAVE BEEN WAITING ON.
 //
@@ -157,7 +158,7 @@ function checked(form: FormData, name: string): boolean {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await request.formData();
+  const form = await readForm(request);
 
   // The alerts' own forms carry an intent; the delivery form carries none.
   const intent = String(form.get("_action") ?? "");
