@@ -1,37 +1,21 @@
-// THE CONTENT-SECURITY-POLICY AND THE ONE PLACE THE HEADERS ARE APPLIED
-// (audit finding H-1, foxhound-audit-security.md: the site once shipped zero
-// security headers). Since J22 (row F16; RULES.md 4.2; Q4) the header set comes
-// from site-runtime through header-set.ts and the policy from site-runtime's
-// builder; what stays here is Foxhound's own list of what it loads and the
-// Worker-side merge. The single call site is workers/app.ts's fetch handler,
-// which makes the nonce (site-runtime's generateNonce) before the route runs.
+// THE CONTENT-SECURITY-POLICY AND THE ONE PLACE THE HEADERS ARE APPLIED. The
+// header set comes from site-runtime through header-set.ts and the policy from
+// site-runtime's builder; what stays here is Foxhound's own list of what it
+// loads and the Worker-side merge. The single call site is workers/app.ts's
+// fetch handler, which makes the nonce (site-runtime's generateNonce) before
+// the route runs.
 //
-// CSP verified against the actual tree, not assumed (TASK-foxhound-security-headers.md,
-// corrected by TASK-foxhound-csp-nonce-hydration.md):
-//  - script-src carries a per-request nonce. The original no-nonce policy was
-//    wrong: it reasoned that the only inline <script> blocks in the app are
-//    non-executable type="application/ld+json" JSON-LD (still true, still
-//    exempt, still no nonce needed on those), but missed that React Router 8's
-//    own <Scripts>/<ScrollRestoration> emit REAL inline `<script type="module">`
-//    bootstrap/hydration code. Under script-src 'self' with no nonce and no
-//    'unsafe-inline', the browser silently blocked every one of those, so
-//    window.__reactRouterContext never got assigned and no client handler on
-//    the site ever ran (dead theme toggle, dead FAQ accordions, dead ROI
-//    slider, stuck scroll-reveal opacity:0 sections - foxhound-audit-parity.md
-//    Cluster A). CDP-based console capture does NOT surface CSP violation
-//    entries, which is how two prior sessions concluded "zero CSP violations"
-//    while this was live; do not use automation console output to re-litigate
-//    this. Since J22 the policy also has a report sink (/api/csp-report), so a
-//    blocked script is heard about.
-//  - site-runtime's rule is a nonce only on a response that is never
-//    shared-cached. Since the edge page cache (site-runtime ./edge-cache), a
-//    public page rendered by the Renderer entrypoint IS stored and handed to
-//    every reader. It is stored with the nonce it was rendered with, and the
+//  - script-src carries a per-request nonce: React Router's <Scripts> and
+//    <ScrollRestoration> emit real inline module scripts, which a policy with
+//    no nonce blocks (and with them every client handler). JSON-LD blocks are
+//    data and need none. Violations go to the report sink (/api/csp-report);
+//    a CDP console capture does not show them.
+//  - A public page from the Renderer entrypoint is stored at the edge
+//    (site-runtime ./edge-cache) with the nonce it was rendered with, and the
 //    gateway gives every reader a fresh one (site-runtime's renewNonce), on
 //    the policy and on only the elements that carried the stored value, so no
 //    two readers share a nonce and no injected script gains one.
-//  - style-src has NO 'unsafe-inline' for elements since J22, which is stricter
-//    than the pre-J22 policy. Inline style={{}} attributes (charts.tsx,
+//  - style-src has no 'unsafe-inline' for elements. Inline style={{}} attributes (charts.tsx,
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
 //    allowed by style-src-attr 'unsafe-inline', which runs no code. The two
 //    inline <style> elements are trusted by hash (inline-styles.ts).
@@ -49,8 +33,7 @@
 //    (challenges.cloudflare.com, script and frame) and the Web Analytics beacon,
 //    which Cloudflare injects at the edge and which public sites allow (Dustin's
 //    ruling, 2026-10-03). site-runtime names the beacon by its path prefix
-//    (static.cloudflareinsights.com/beacon.min.js and .../beacon.min.js/), which
-//    is narrower than the bare host the pre-J22 policy allowed. The beacon
+//    (static.cloudflareinsights.com/beacon.min.js and .../beacon.min.js/). The beacon
 //    reports to this origin's /cdn-cgi/rum, so connect-src stays 'self'. Fonts
 //    are self-hosted and preloaded from root.tsx; no <img src="https://...">
 //    beyond same-origin; no js.stripe.com / Stripe Elements usage anywhere in
