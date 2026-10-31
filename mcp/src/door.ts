@@ -1,6 +1,7 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { durableObjectCheck, healthResponse, kvCheck, type HealthCheck } from "@dustinedwards/site-runtime/health";
 import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
 import {
   DCR_CALLBACKS,
@@ -37,7 +38,8 @@ import { SERVER, serveAdminMcp } from "./server";
 //   /authorize  /callback     the consent page and the Access sign-in
 //   /register                 tightened registration (rule 13), rate limited here first
 //   /token, /.well-known/*    served by the provider
-//   /health                   liveness, and the deployed commit CI's live gate waits for
+//   /health                   site-runtime's healthResponse: the deployed commit CI's live gate waits for, and
+//                             a check for each of the four bindings (healthChecks)
 //   anything else             404
 
 type DoorEnv = AdminMcpEnv & { OAUTH_PROVIDER: OAuthHelpers };
@@ -57,8 +59,27 @@ const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
   // Every sign-in, admitted or refused, is a row in the tool-call log.
   audit: { name: SERVER.name, version: SERVER.version },
   // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it.
-  health: (env) => Response.json({ ok: true, sha: env.DEPLOY_SHA ?? null }),
+  health: (env) => healthResponse({ sha: env.DEPLOY_SHA, checks: healthChecks(env) }),
 });
+
+/**
+ * One check per binding in mcp/wrangler.jsonc. Every one is level fail: without OAUTH_KV no token is checked, without
+ * FOXHOUND no tool reaches the admin API, without MCP_RATE_LIMIT every /mcp call is a 429 (it fails closed) and without
+ * TOOL_CALL_LOG every tool call is refused. The service binding is checked by presence only: a request over it would
+ * be an admin API call. The Durable Object checks mint an id and wake no object.
+ */
+function healthChecks(env: AdminMcpEnv): HealthCheck[] {
+  const foxhound: HealthCheck = {
+    name: "foxhound",
+    run: async () => typeof env.FOXHOUND?.fetch === "function" || { ok: false, detail: "binding missing" },
+  };
+  return [
+    kvCheck("oauth-kv", env.OAUTH_KV),
+    foxhound,
+    durableObjectCheck("mcp-rate-limit", env.MCP_RATE_LIMIT),
+    durableObjectCheck("tool-call-log", env.TOOL_CALL_LOG),
+  ].map((check) => ({ ...check, level: "fail" as const }));
+}
 
 /** The provider's defaultHandler: the shared consent and sign-in, with this Worker's origin for the callback. */
 const loginRoutes = {

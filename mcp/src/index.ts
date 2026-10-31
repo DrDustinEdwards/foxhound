@@ -1,3 +1,5 @@
+import { withRequestLog } from "@dustinedwards/site-runtime/log";
+
 import { adminDoor } from "./door";
 import type { AdminMcpEnv } from "./env";
 
@@ -13,6 +15,9 @@ export { ToolCallLog } from "@dustinedwards/site-runtime/audit-log";
 // binding and no database: everything it does is a call to the admin API on the
 // foxhound Worker. See door.ts for the routes.
 
+// One `request` line per request (site-runtime ./log: path, status, ms and the deployed commit; never a query).
 export default {
-  fetch: (request: Request, env: AdminMcpEnv, ctx: ExecutionContext) => adminDoor(request, env, ctx),
+  fetch: withRequestLog((request: Request, env: AdminMcpEnv, ctx: ExecutionContext) => adminDoor(request, env, ctx), {
+    sha: (env) => env.DEPLOY_SHA,
+  }),
 } satisfies ExportedHandler<AdminMcpEnv>;
