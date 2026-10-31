@@ -29,12 +29,12 @@ export function makeRateLimiterNamespace(now: () => number = () => Date.now()) {
           db = new Database(":memory:");
           dbs.set(id, db);
         }
-        return sqlFor(db);
+        return db;
       };
       return {
-        hit: async (rules: Rule[]) => hitRules(dbFor(), rules, now()),
-        // The look that counts nothing, for the limits on failures (wrong codes).
-        peek: async (rules: Rule[]) => peekRules(dbFor(), rules, now()),
+        hit: async (rules: Rule[]) => hitRules(sqlFor(dbFor()), rules, now()),
+        // The real object's peek: whether the rules are spent, counting nothing.
+        peek: async (rules: Rule[]) => peekRules(sqlFor(dbFor()), rules, now()),
       };
     },
   };

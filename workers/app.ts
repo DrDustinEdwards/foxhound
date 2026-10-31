@@ -3,6 +3,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { withAdminIdle } from "@dustinedwards/site-runtime/access";
 import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
+import { withRequestLog } from "@dustinedwards/site-runtime/log";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
 import { SPECULATION_RULES_PATH, speculationRulesResponse } from "@dustinedwards/site-runtime/prefetch";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
@@ -208,9 +209,16 @@ const site = withSentry<Env>(
 // An admin idle for an hour is signed out of Access (site-runtime ./access).
 export default {
   ...site,
-  // Every HTML page names the link prefetch rules (Speculation-Rules), stored pages included.
-  fetch: async (request, env, ctx) =>
-    withSpeculationRules(await withAdminIdle(request, async () => site.fetch!(request, env, ctx))),
+  // Every HTML page names the link prefetch rules (Speculation-Rules), stored pages included. Every request writes one
+  // `request` line (site-runtime ./log's withRequestLog: path, status, ms and the deployed commit; never a query).
+  fetch: withRequestLog(
+    // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
+    async (request: Request, env: Env, ctx: ExecutionContext) =>
+      withSpeculationRules(
+        await withAdminIdle(request, async () => site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx)),
+      ),
+    { sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA },
+  ),
 } satisfies ExportedHandler<Env>;
 
 /**

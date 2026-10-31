@@ -706,7 +706,8 @@ export const RETENTION_HEALTH_SCORE_DAYS = 90;
 export const RETENTION_CRON_HISTORY_DAYS = 90;
 export const RETENTION_AI_CALLS_DAYS = 90;
 export const RETENTION_SOCIAL_LEADS_DAYS = 180;
-export const RETENTION_PAGE_404_DAILY_DAYS = 365;
+/** The 404 counts: 90 days, the family default (pruneNotFound's own), which the admin report's 30-day view sits well inside. */
+export const RETENTION_PAGE_404_DAILY_DAYS = 90;
 /** Max raw rows a single retention tick sweeps per table (keeps a tick bounded;
  *  a large backlog drains over successive ticks). */
 export const RETENTION_SWEEP_LIMIT = 5_000;
@@ -846,7 +847,7 @@ export const STRIPE_CONNECT_SCOPE = "read_write";
  */
 export const STRIPE_AUDIT_SCOPE = "read_write";
 /** CSRF state cookie name for the Connect OAuth flow. */
-export const STRIPE_OAUTH_STATE_COOKIE = "stripe_oauth_state";
+export const STRIPE_OAUTH_STATE_COOKIE = "__Host-stripe_oauth_state";
 /**
  * CSRF state cookie name for the AUDIT OAuth flow. Legacy's own name, verbatim.
  *
@@ -856,7 +857,7 @@ export const STRIPE_OAUTH_STATE_COOKIE = "stripe_oauth_state";
  * connect state overwritten and land on `invalid_state` at the end of a flow
  * they started correctly.
  */
-export const AUDIT_OAUTH_STATE_COOKIE = "audit_oauth_state";
+export const AUDIT_OAUTH_STATE_COOKIE = "__Host-audit_oauth_state";
 /** Connect OAuth state cookie lifetime: 10 minutes (legacy parity). */
 export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
 /**
@@ -871,7 +872,8 @@ export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
  * ends (app/lib/audit/grant-revoke.server.ts), unless a Foxhound account holds
  * that Stripe account live.
  */
-export const AUDIT_TOKEN_COOKIE = "audit_access_token";
+// __Secure-, not __Host-: __Host- requires Path=/, and Path=/audit is what keeps the token off every other request.
+export const AUDIT_TOKEN_COOKIE = "__Secure-audit_access_token";
 /** Audit access-token cookie lifetime: 5 minutes (legacy parity). Also the delay
  *  before Foxhound revokes the audit's Stripe grant. */
 export const AUDIT_TOKEN_TTL_SECONDS = 300;
