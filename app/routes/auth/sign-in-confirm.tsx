@@ -53,12 +53,12 @@ export default function SignInConfirm({ loaderData, actionData }: Route.Componen
 
   return (
     <AuthCard>
-      <AuthHeading title="Welcome back" subtitle="Press the button to finish signing in." />
+      <AuthHeading title="Sign in to Foxhound" />
       {/* A plain form: it posts to this URL, token and all, and the browser follows the redirect. */}
       <form method="post" className="grid gap-3">
         {actionData?.limited ? <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert> : null}
         <Button type="submit" variant="primary" size="lg">
-          Sign in to Foxhound
+          Continue
         </Button>
       </form>
     </AuthCard>
