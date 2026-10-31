@@ -899,7 +899,10 @@ export const RATE_LIMIT_INVITE = { max: 5, windowMs: 60 * 60 * 1000 } as const;
 export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
 
 /**
- * The merchant MCP endpoint's AUTHENTICATED bucket, keyed on the api_keys row id.
+ * The admin API's AUTHENTICATED bucket (app/lib/admin-api), keyed on the
+ * api_keys row id. The merchant MCP endpoint used it until area 11 moved that
+ * door onto site-runtime's checkRateLimit, which fails closed at the family's
+ * thirty a minute (app/lib/mcp/handler.server.ts).
  *
  * 120 PER MINUTE, and the reasoning rather than a round number: an agent
  * commonly fans out several tool calls per user turn, and a read-only surface
@@ -911,8 +914,8 @@ export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
  */
 export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
 /**
- * The UNAUTHENTICATED bucket, keyed on cf-connecting-ip, spent only when
- * authentication FAILS.
+ * The merchant MCP endpoint's UNAUTHENTICATED bucket, keyed on cf-connecting-ip,
+ * spent only when authentication FAILS.
  *
  * 20 PER MINUTE, matching the existing `public` bucket's number rather than
  * inventing one. The only thing an unauthenticated caller can obtain here is a

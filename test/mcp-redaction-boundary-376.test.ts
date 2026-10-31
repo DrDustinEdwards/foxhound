@@ -8,7 +8,7 @@ import {
 import { redactToolResult } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, toolCallLogStub } from "./helpers/mcp-client";
 
 // SESSION 83: THE REDACTION IS STRUCTURAL, AND THIS IS WHAT WATCHES IT (376
 // item 7).
@@ -117,6 +117,7 @@ const TOOLS_THAT_MUST_RETURN_A_CUSTOMER = [
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),

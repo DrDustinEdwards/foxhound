@@ -203,6 +203,9 @@ export const mcpCalls = sqliteTable(
     accountId: text("account_id").notNull().references(() => accounts.id),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
+    /** oauth_clients.id (or a metadata-document URL) the key was issued to;
+     *  null for a key made in Settings, and on rows from before 0070. */
+    clientId: text("client_id"),
     /** The tool name the call asked for, whether or not it exists. */
     tool: text("tool").notNull(),
     /** The arguments as sent, with credentials replaced. */

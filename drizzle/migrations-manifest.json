@@ -67,6 +67,7 @@
     "0066_merchant_mcp_scopes.sql": "d99c86938b3e17f1f622c4e015f0a6236f0714c0e7c734ee46aa1bd3f4de1717",
     "0067_cron_runs.sql": "dbb89cc12a6591bcd594421c5c40edc0bc6cd895c95afbd0c4eb4d845ce42f44",
     "0068_auth_events.sql": "6be94992add99c853fd4dda7c4767f23d5a38dcf6fe12527c963b2222ca572b9",
-    "0069_session_location.sql": "260f73c2c5abee610c1d35d0072f73bdcfc9fd5a984e531b9a2adf42e9054324"
+    "0069_session_location.sql": "260f73c2c5abee610c1d35d0072f73bdcfc9fd5a984e531b9a2adf42e9054324",
+    "0070_mcp_calls_client_id.sql": "fa2bc7e2f63bda9181d4828b93191860321643dfac647d69521567ccaffcfafd"
   }
 }

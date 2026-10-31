@@ -78,6 +78,22 @@ import {
 
 type ToolArgs = Record<string, unknown>;
 
+/**
+ * A tool's outputSchema (area 11, T3): an object naming its top-level fields,
+ * with `required` only those that are always present (a lookup that may come
+ * back empty is not required, since a missing required field would turn a
+ * good answer into an error). The fields themselves are left open, so the
+ * schema says what an answer holds without pinning every nested shape.
+ * The SDK checks each successful result against it.
+ */
+function result(fields: string[], required: string[] = fields) {
+  return {
+    type: "object" as const,
+    properties: Object.fromEntries(fields.map((field) => [field, {}])),
+    required,
+  };
+}
+
 /** Every read: changes nothing, safe to repeat, touches nothing outside Foxhound. */
 const READ: McpToolAnnotations = {
   readOnlyHint: true,
@@ -267,6 +283,7 @@ const READ_TOOLS: McpTool[] = [
     description:
       "Start here. Read this account's recurring-revenue overview (MRR, movement, customer counts, the latest report summary), the failed-payment counts by recovery status, and the Stripe accounts connected to it. Access tokens are never returned, and nothing can be connected or disconnected here.",
     inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: result(["overview", "payment_status_counts", "connections"], []),
     annotations: READ,
     scope: "read",
     execute: async (ctx) => {
@@ -299,6 +316,7 @@ const READ_TOOLS: McpTool[] = [
       },
       required: [],
     },
+    outputSchema: result(["payments", "total", "has_more", "next_cursor"], ["payments", "has_more"]),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -332,6 +350,7 @@ const READ_TOOLS: McpTool[] = [
       properties: { payment_id: { type: "string", description: "The failed payment's id, from foxhound_list_payments." } },
       required: ["payment_id"],
     },
+    outputSchema: result(["steps"]),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -358,6 +377,7 @@ const READ_TOOLS: McpTool[] = [
       },
       required: [],
     },
+    outputSchema: result(["customers", "total", "total_mrr_cents", "tiers", "has_more", "next_cursor"], ["customers", "has_more"]),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -398,6 +418,7 @@ const READ_TOOLS: McpTool[] = [
       },
       required: ["stripe_customer_id"],
     },
+    outputSchema: result(["customer"], []),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -417,6 +438,7 @@ const READ_TOOLS: McpTool[] = [
     description:
       "Read this account's subscription intelligence: churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings. Alert ids from here are the ones foxhound_manage_alerts takes.",
     inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: result(["churn", "alerts", "alert_history"], []),
     annotations: READ,
     scope: "read",
     execute: async (ctx) => {
@@ -433,6 +455,7 @@ const READ_TOOLS: McpTool[] = [
     description:
       "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
     inputSchema: { type: "object", properties: { cursor: CURSOR_PROPERTY }, required: [] },
+    outputSchema: result(["disputes", "total", "has_more", "next_cursor"], ["disputes", "has_more"]),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -456,6 +479,7 @@ const READ_TOOLS: McpTool[] = [
       },
       required: [],
     },
+    outputSchema: result(["run", "settings", "runs", "total", "has_more", "next_cursor"], []),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -485,6 +509,7 @@ const READ_TOOLS: McpTool[] = [
     description:
       "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Read only: cannot issue, pay, adjust or void anything.",
     inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: result(["ledger", "invoices", "preview"], []),
     annotations: READ,
     scope: "read",
     execute: async (ctx) => {
@@ -506,6 +531,7 @@ const READ_TOOLS: McpTool[] = [
     description:
       "Read every setting foxhound_update_settings can change: audit window, the two engine toggles, notification email and toggles, the connected Stripe accounts, the primary connection's sender name and brand voice, and the business context the email writer is given. The Slack webhook URL is never returned, only whether one is set.",
     inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: result(["audit", "features", "notifications", "connections", "sender", "brand_voice", "intelligence_context"], ["features", "notifications"]),
     annotations: READ,
     scope: "read",
     execute: async (ctx) => {
@@ -796,6 +822,7 @@ const WRITE_TOOLS: McpTool[] = [
     // Destructive because a value is overwritten, and clearing the notification
     // email silences every notification. Idempotent because the same call twice
     // leaves the same settings.
+    outputSchema: result(["section", "updated", "state"], ["section", "updated"]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     scope: "write",
     execute: async (ctx, args) => {
@@ -838,6 +865,7 @@ const WRITE_TOOLS: McpTool[] = [
     },
     // Destructive because delete is; not idempotent because create makes a new
     // alert each time.
+    outputSchema: result(["action", "updated", "state"], ["action", "updated"]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     scope: "write",
     execute: async (ctx, args) => {

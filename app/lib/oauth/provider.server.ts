@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { safeEqual } from "@dustinedwards/site-runtime/compare";
 import { base64url } from "@dustinedwards/site-runtime/encoding";
+import { allowedRedirects, DCR_CALLBACKS, registrationRefusal } from "@dustinedwards/site-runtime/mcp-login";
 
 import type { Db } from "~/db";
 import { findActiveMembership } from "~/lib/auth/account";
@@ -134,14 +135,30 @@ async function verifyPkceS256(verifier: string, challenge: string): Promise<bool
 // ============================================================================
 
 /**
- * Register a client. Public by specification, as in Recova: registering does
- * nothing until a signed-in merchant approves it at /oauth/authorize.
+ * The exact callbacks a registration may name: site-runtime's DCR_CALLBACKS
+ * (Grok, ChatGPT, Gemini Enterprise) and DCR_REDIRECT_URIS, as on the admin
+ * MCP (mcp/src/door.ts).
+ */
+export function registrationCallbacks(env: Pick<Env, "DCR_REDIRECT_URIS">): string {
+  return [...DCR_CALLBACKS, ...allowedRedirects(env.DCR_REDIRECT_URIS)].join(",");
+}
+
+/**
+ * Register a client. Registering does nothing until a signed-in merchant
+ * approves it at /oauth/authorize.
+ *
+ * REGISTRATION IS KEPT ONLY FOR THE CLIENTS THAT STILL NEED IT (area 11, A7).
+ * Claude, Claude Code and ChatGPT name a client metadata document instead.
+ * Every redirect URI must be one of `allowed` character for character
+ * (site-runtime's registrationRefusal, the check every family MCP door runs),
+ * because a redirect URI is where a code is delivered. A client registered
+ * before this check keeps working: only new registrations are checked.
  *
  * THE CLIENT ID IS ALWAYS MINTED HERE. Recova upserted on a client_id the
  * request supplied, so anyone could rewrite a registered client's redirect
  * URIs and collect the codes meant for it. A supplied client_id is ignored.
  */
-export async function registerClient(db: Db, body: unknown, now: Date): Promise<OAuthResult> {
+export async function registerClient(db: Db, body: unknown, now: Date, allowed: string): Promise<OAuthResult> {
   if (!body || typeof body !== "object") return oauthError(400, "invalid_client_metadata");
   const raw = body as Record<string, unknown>;
 
@@ -154,6 +171,8 @@ export async function registerClient(db: Db, body: unknown, now: Date): Promise<
   ) {
     return oauthError(400, "invalid_redirect_uri");
   }
+  const refused = registrationRefusal(allowed, raw);
+  if (refused) return oauthError(400, "invalid_redirect_uri", refused);
   const redirectUris = uris as string[];
   const clientName = (asString(raw.client_name)?.trim() || DEFAULT_CLIENT_NAME).slice(0, MAX_CLIENT_NAME);
 

@@ -7,6 +7,10 @@ interface Env {
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
+  // Extra exact callbacks a merchant MCP client registration may name, space or
+  // comma separated, beside site-runtime's DCR_CALLBACKS (registerClient). A
+  // plain list of https URLs, not a secret.
+  DCR_REDIRECT_URIS?: string;
   SENTRY_DSN?: string;
   // HMAC key for the merchant MCP's ToolCallLog chain (site-runtime ./audit-log).
   // Bind it before the first row; unset, the chain is plain SHA-256.
