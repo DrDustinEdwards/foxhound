@@ -18,7 +18,12 @@ export const authClient = createAuthClient({ plugins: signInClientPlugins() });
  */
 export function signInAgainIfStale(error: unknown): boolean {
   if ((error as { code?: string } | null)?.code !== "SESSION_NOT_FRESH") return false;
+  signInAgain();
+  return true;
+}
+
+/** Log in again and come back to this page, for a fresh sign-in. */
+export function signInAgain(): void {
   const next = encodeURIComponent(location.pathname + location.search);
   window.location.assign(`/login?${REAUTH_PARAM}&next=${next}`);
-  return true;
 }
