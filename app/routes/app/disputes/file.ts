@@ -1,4 +1,5 @@
 import { buildPolicy } from "@dustinedwards/site-runtime/csp";
+import { UPLOAD_HEADERS } from "@dustinedwards/site-runtime/headers";
 
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
@@ -15,11 +16,9 @@ import type { Route } from "./+types/file";
 // streams the object itself. The file is someone's customer data: never
 // cached (the one cache policy, app/lib/http/cache-policy.ts, makes this path
 // private, no-store, so the route sets no header of its own), never sniffed
-// into another type, and sandboxed so a PDF or image served from this origin
-// can run nothing.
+// into another type, and inert: site-runtime's UPLOAD_HEADERS (nosniff and a
+// sandboxed policy that loads nothing), except a PDF's policy below.
 
-/** An image opens in a sandboxed document that may show itself and nothing else. */
-const IMAGE_POLICY = buildPolicy(["sandbox", "default-src 'none'", "img-src 'self'", "style-src 'unsafe-inline'"]);
 /** A PDF needs the browser's own viewer, which a sandboxed document is refused
  *  (Chrome will not run its viewer in one), so the PDF policy allows only that
  *  viewer's embed of this same response and nothing else. */
@@ -41,10 +40,10 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   }
   return new Response(result.body, {
     headers: {
+      ...UPLOAD_HEADERS,
+      ...(result.contentType === "application/pdf" ? { "Content-Security-Policy": PDF_POLICY } : {}),
       "Content-Type": result.contentType,
       "Content-Disposition": `inline; filename="${result.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
-      "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": result.contentType === "application/pdf" ? PDF_POLICY : IMAGE_POLICY,
     },
   });
 }

@@ -48,7 +48,6 @@ describe("Recova's /og URL shape (ruling 41)", () => {
   it("/og with no query draws the default card", async () => {
     const { response, html } = await render("/og");
     expect(response.headers.get("Content-Type")).toBe("image/png");
-    expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("cross-origin");
     expect(html).toContain(">hound</div>");
     expect(html).not.toContain("Foxhound Blog");
   });

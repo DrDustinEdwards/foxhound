@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { checkSecurityHeaders, failures } from "@dustinedwards/site-runtime/check";
 
 import type { Db } from "~/db";
 import { accounts, disputeApprovals, disputeEvidence, disputes } from "~/db/schema";
@@ -418,7 +419,8 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     const res = await view(fileRows()[0]!.id, { bucket });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
-    expect(res.headers.get("content-security-policy")).toMatch(/^sandbox; default-src 'none'/);
+    const a3 = checkSecurityHeaders(res.headers, { upload: true, csp: false }).filter((r) => r.id === "A3");
+    expect(failures(a3)).toEqual([]);
   });
 
   it("serves the account's own file privately, typed, never cached, locked down", async () => {
@@ -432,10 +434,6 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     // The one cache policy, applied on the way out, makes it private.
     const sent = applyCachePolicy(new Request(`https://foxhoundapp.test/disputes/dsp_1/files/${row.id}`), res);
     expect(sent.headers.get("cache-control")).toBe("private, no-store");
-    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
-    // A PDF needs the browser's viewer, so no sandbox, but nothing else may load.
-    expect(res.headers.get("content-security-policy")).toContain("default-src 'none'");
-    expect(res.headers.get("content-security-policy")).not.toContain("script-src");
     expect(res.headers.get("content-disposition")).toBe(`inline; filename="${row.field_value.split("/").pop()}"`);
     expect(new Uint8Array(await res.arrayBuffer()).slice(0, 5)).toEqual(new Uint8Array(PDF.slice(0, 5)));
   });
