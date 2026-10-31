@@ -5,7 +5,8 @@
 // the admin API. Its two Durable Objects are its own classes (src/index.ts),
 // the door's rate limit and the tool-call log, and hold no Foxhound data.
 //
-// Deploy with: npx wrangler deploy --config mcp/wrangler.jsonc
+// CI deploys it after the foxhound Worker on every merge to main (.github/workflows/ci.yml,
+// admin-mcp-deploy). By hand, only if CI is down: npx wrangler deploy --config mcp/wrangler.jsonc
 // test/admin-mcp-worker-mcp7.test.ts fails if a binding is added here.
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
