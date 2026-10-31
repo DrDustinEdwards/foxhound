@@ -52,7 +52,7 @@ export async function sendSignInLinkEmail(
 }
 
 /** Where a merchant manages how they sign in; the notice's button opens it. */
-export const SIGN_IN_SETTINGS_PATH = "/settings/account";
+const SIGN_IN_SETTINGS_PATH = "/settings/account";
 
 /**
  * Mail a security notice (a passkey added, a session ended, ...) to `to`, the
