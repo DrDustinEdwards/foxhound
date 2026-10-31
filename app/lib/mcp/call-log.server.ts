@@ -1,3 +1,5 @@
+import { correlationId, loggedArgs, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+
 import type { Db } from "~/db";
 import { mcpCalls } from "~/db/schema";
 
@@ -17,6 +19,14 @@ import { maskEmailsInText } from "./redact";
 // customers; copying it here would make this table a second, unredacted copy of
 // them. What is kept is whether the call worked and, if not, the error text the
 // agent was given, with email addresses masked.
+//
+// EACH ROW IS ALSO WRITTEN TO site-runtime's ./audit-log, the append-only,
+// hash-chained ToolCallLog Durable Object (TOOL_CALL_LOG) the other MCP servers
+// write, with the same redacted arguments and the same outcome: `finished` for
+// a call that ran, `refused` for one that never reached a tool. mcp_calls stays
+// as the table Foxhound's own pages read; the Durable Object is the record
+// nothing that reaches the Worker can rewrite. Its caller is the key, never
+// the token.
 
 /** Arguments that are credentials: kept as "[redacted]" wherever they appear. */
 const CREDENTIAL_ARGUMENTS = new Set(["slack_webhook_url"]);
@@ -105,6 +115,8 @@ function redactArguments(value: unknown): unknown {
  * agent it failed would be the one false statement this path could make.
  */
 export async function recordToolCalls(
+  env: Env,
+  server: { name: string; version: string },
   db: Db,
   caller: { accountId: string; apiKeyId: string },
   calls: McpToolCallRequest[],
@@ -125,6 +137,18 @@ export async function recordToolCalls(
       createdAt: now,
     };
   });
+  for (const row of rows) {
+    await recordAudit(env, {
+      callId: crypto.randomUUID(),
+      phase: row.outcome === "protocol_error" ? "refused" : "finished",
+      caller: `agent:key_${caller.apiKeyId}`,
+      tool: row.tool,
+      args: await loggedArgs(row.arguments),
+      result: { isError: row.outcome !== "ok", text: row.error ?? "ok" },
+      server,
+      correlationId: correlationId(),
+    });
+  }
   try {
     await db.insert(mcpCalls).values(rows);
   } catch (err) {

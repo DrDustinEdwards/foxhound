@@ -38,9 +38,21 @@ const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
 const MINE = "acct_mine";
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 
+/** The rows sent to TOOL_CALL_LOG, site-runtime's ToolCallLog beside mcp_calls. */
+const auditRows: Record<string, unknown>[] = [];
+
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: {
+      idFromName: () => "tool-calls",
+      get: () => ({
+        fetch: async (_url: string, init: RequestInit) => {
+          auditRows.push(JSON.parse(String(init.body)));
+          return new Response(null, { status: 204 });
+        },
+      }),
+    },
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
@@ -139,12 +151,17 @@ describe("PLANT 1: every tool call leaves one row", () => {
 describe("PLANT 2: what the log never keeps", () => {
   it("the Slack webhook URL is stored as [redacted], and the setting itself still lands", async () => {
     const { sqlite, token } = await seed();
+    auditRows.length = 0;
     const url = "https://hooks.slack.com/services/T0LOG/B0LOG/logPangolinSecret";
     await callTool(token, "foxhound_update_settings", { notifications: { slack_webhook_url: url } });
     const [row] = logRows(sqlite);
     expect(row.outcome).toBe("ok");
     expect(row.arguments).not.toContain("logPangolinSecret");
     expect(JSON.parse(row.arguments)).toEqual({ notifications: { slack_webhook_url: "[redacted]" } });
+    // The shared log gets the same row, redacted the same way.
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({ phase: "finished", tool: "foxhound_update_settings", result: { isError: false, text: "ok" } });
+    expect(JSON.stringify(auditRows[0])).not.toContain("logPangolinSecret");
     const stored = sqlite.prepare("SELECT slack_webhook_url FROM accounts WHERE id = ?").get(MINE) as {
       slack_webhook_url: string;
     };

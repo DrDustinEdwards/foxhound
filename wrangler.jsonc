@@ -343,6 +343,13 @@
         // "auth:<ip>" or "signup:<ip>" (app/lib/auth/rate-limit.server.ts).
         "name": "AUTH_RATE_LIMITER",
         "class_name": "RateLimiter"
+      },
+      {
+        // The merchant MCP's append-only tool-call log beside mcp_calls:
+        // site-runtime's ToolCallLog, exported from workers/app.ts
+        // (app/lib/mcp/call-log.server.ts).
+        "name": "TOOL_CALL_LOG",
+        "class_name": "ToolCallLog"
       }
     ]
   },
@@ -366,7 +373,8 @@
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronTickerDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" },
-    "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
+    "RateLimiter": { "type": "durable-object", "storage": "sqlite" },
+    "ToolCallLog": { "type": "durable-object", "storage": "sqlite" }
   },
 
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,

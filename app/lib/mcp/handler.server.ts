@@ -13,7 +13,7 @@ import { mcpResource, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
 import { answersIn, recordToolCalls, toolCallsIn } from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
-import { serveMcp } from "./server";
+import { MCP_SERVER_INFO, serveMcp } from "./server";
 
 // THE MERCHANT MCP ENDPOINT (370, roadmap item 3; brought to the 2026-10-10
 // MCP ruling by job_874dc20ea9ac).
@@ -271,6 +271,8 @@ export async function handleMcpRequest(
     // with the challenge as its error.
     const challenge = response.status === 403 ? response.headers.get("www-authenticate") : null;
     await recordToolCalls(
+      env,
+      MCP_SERVER_INFO,
       getDb(env),
       { accountId: authenticated.auth.accountId, apiKeyId: authenticated.auth.keyId },
       calls,

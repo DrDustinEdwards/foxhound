@@ -34,7 +34,7 @@ import { HOUR_MS } from "~/lib/constants";
 // request reaches this file, and the account is closed over here, never read
 // from the request.
 
-const MCP_SERVER_INFO = { name: "foxhound", title: "Foxhound", version: "2.0.0" } as const;
+export const MCP_SERVER_INFO = { name: "foxhound", title: "Foxhound", version: "2.0.0" } as const;
 
 const INSTRUCTIONS = [
   "Foxhound recovers failed Stripe payments and tracks disputes and subscription health for one merchant: the account this key belongs to, and no other.",

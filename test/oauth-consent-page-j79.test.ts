@@ -26,6 +26,9 @@ const OK: LoaderData = {
   state: "st",
   codeChallenge: "x".repeat(43),
   wantsWrite: false,
+  publishedBy: "claude.ai",
+  redirectHost: "claude.ai",
+  redirectLocal: false,
   accountId: "acct_b",
   accountName: "Acme Supply Co.",
   email: "dana@acme.test",
@@ -54,5 +57,15 @@ describe("A9: Recova's card, in Recova's order", () => {
     const list = /<ul[^>]*aria-labelledby="oauth-can"[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
     expect(list).not.toMatch(/Change your settings/);
     expect(html).toMatch(/Change your settings and alerts/);
+  });
+
+  it("names the client's publisher and where access goes, and warns when that is this computer", () => {
+    const html = render(OK);
+    expect(html).toMatch(/Published by <strong[^>]*>claude\.ai<\/strong>/);
+    expect(html).toMatch(/will be sent to <strong[^>]*>claude\.ai<\/strong>/);
+    expect(html).not.toMatch(/an app on your computer/);
+    const local = render({ ...OK, publishedBy: null, redirectHost: "localhost", redirectLocal: true });
+    expect(local).toMatch(/registered itself, so its name is its own claim/);
+    expect(local).toMatch(/an app on your computer/);
   });
 });
