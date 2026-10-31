@@ -81,6 +81,9 @@ const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
   return next();
 };
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export const middleware: Route.MiddlewareFunction[] = [noindexHeader, sameOriginWrites, appShellMiddleware];
 
 // This layout's own route match never changes on a same-shell navigation

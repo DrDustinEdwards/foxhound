@@ -56,6 +56,9 @@ import type { Route } from "./+types/results";
 // not. Same class as 356 binding 2 and 330 binding 2, both of which refuse
 // rather than mis-file, and ruled for this case by Dustin in session 71.
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta() {
   return [
     { title: "Your Stripe audit - Foxhound" },

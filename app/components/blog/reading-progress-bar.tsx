@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { readingProgress } from "~/lib/blog/reading-progress";
+
 // Thin amber (brand accent) bar pinned to the top of the viewport, tracking scroll progress
 // through the article element it targets. Ported from legacy
 // app/(marketing)/blog/[slug]/ReadingProgressBar.tsx. RR8 has no 'use client'
@@ -22,17 +24,7 @@ export function ReadingProgressBar({ targetId }: { targetId: string }) {
 
     function update() {
       if (!target) return;
-      const rect = target.getBoundingClientRect();
-      const viewportTop = window.scrollY;
-      const articleTop = rect.top + viewportTop;
-      const articleHeight = target.offsetHeight;
-      const articleBottom = articleTop + articleHeight;
-      const viewportBottom = viewportTop + window.innerHeight;
-      const range = Math.max(articleHeight, 1);
-      const progress = (viewportBottom - articleTop) / range;
-      const clamped = Math.min(1, Math.max(0, progress));
-      const final = viewportBottom < articleTop ? 0 : viewportBottom > articleBottom ? 1 : clamped;
-      setWidth(final * 100);
+      setWidth(readingProgress(target));
     }
 
     update();
@@ -44,5 +36,14 @@ export function ReadingProgressBar({ targetId }: { targetId: string }) {
     };
   }, [targetId]);
 
-  return <div className="blog-progress-bar" style={{ width: `${width}%` }} aria-hidden="true" />;
+  // On a page that does not hydrate, the reading-progress island (islands/reading-progress.ts) moves it.
+  return (
+    <div
+      className="blog-progress-bar"
+      style={{ width: `${width}%` }}
+      aria-hidden="true"
+      data-island="reading-progress"
+      data-props={JSON.stringify({ targetId })}
+    />
+  );
 }

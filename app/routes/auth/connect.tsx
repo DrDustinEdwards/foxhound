@@ -32,6 +32,9 @@ import { setStateCookie } from "~/lib/stripe/state-cookie";
 import type { Route } from "./+types/connect";
 import { readForm } from "~/lib/http/body";
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta() {
   return [{ title: "Set up your account - Foxhound" }];
 }
