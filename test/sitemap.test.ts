@@ -120,6 +120,8 @@ const EXCLUDED_PREFIXES = [
   "/sitemap_index.xml",
   // JSON health for monitors, not a page.
   "/health",
+  // The CSP and Reporting API sink, a POST endpoint.
+  "/csp-report",
   // The OAuth consent page: a step inside an agent's connect flow,
   // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
   "/oauth/",

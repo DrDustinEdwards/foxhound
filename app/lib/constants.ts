@@ -927,7 +927,7 @@ export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
  */
 export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
 
-/** The CSP report sink's per-IP bucket (/api/csp-report), bounding Workers
+/** The CSP report sink's per-IP bucket (/csp-report), bounding Workers
  *  Logs lines from one misbehaving browser or a flood. */
 export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;
 

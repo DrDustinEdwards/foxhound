@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { CSP_REPORT_PATH } from "~/lib/http/content-security-policy";
-import { action } from "~/routes/api/csp-report";
+import { action } from "~/routes/csp-report";
 
 // The CSP report sink. Reading and answering are site-runtime's (tested there);
 // what is Foxhound's is what it logs: never a path or a page, because /u/, /p/
@@ -43,7 +43,7 @@ const TOKEN_REPORT = JSON.stringify({
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("POST /api/csp-report", () => {
+describe("POST /csp-report", () => {
   it("logs the directive and the blocked origin only, never a token path or the page", async () => {
     const log = vi.spyOn(console, "info").mockImplementation(() => {});
     const { response, calls } = call(post(TOKEN_REPORT, "198.51.100.9"));
