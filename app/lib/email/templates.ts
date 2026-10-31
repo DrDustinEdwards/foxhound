@@ -178,7 +178,7 @@ export interface SignInLinkRenderInput {
   url: string;
   /** The six-digit code for the tab that asked. */
   code: string;
-  /** How long the link and code work, in words: "15 minutes". */
+  /** How long the link and code work, in words: "10 minutes". */
   expiresIn: string;
 }
 
