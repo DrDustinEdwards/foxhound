@@ -12,7 +12,7 @@ import { createRequestHandler, RouterContextProvider, type ServerBuild } from "r
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
-import { runCronJob } from "~/lib/cron/run";
+import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
@@ -187,12 +187,10 @@ const site = withSentry<Env>(
       const { jobsForSchedule } = await import("~/lib/cron/registry");
       // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
       // runCronJob, which is total: it returns a failed outcome rather than
-      // throwing, including for infrastructure failures outside the handler. A
-      // second guard here would be two guards for one rule, and
-      // the one that a plant can drive directly is the one that keeps it.
-      for (const job of jobsForSchedule(controller.cron)) {
-        await runCronJob(env, job.name, job.handler);
-      }
+      // throwing, including for infrastructure failures outside the handler.
+      // runScheduledJobs records each in cron_runs and throws after the last
+      // job when any failed, so Cloudflare marks the invocation failed.
+      await runScheduledJobs(env, jobsForSchedule(controller.cron));
     },
   } satisfies ExportedHandler<Env>,
 );

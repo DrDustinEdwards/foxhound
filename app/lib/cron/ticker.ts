@@ -1,3 +1,5 @@
+import { logEvent } from "@dustinedwards/site-runtime/log";
+
 import {
   CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_RECOVERY_TICK,
@@ -6,7 +8,7 @@ import {
 } from "~/lib/constants";
 
 import type { CronJob } from "./registry";
-import { runCronJob } from "./run";
+import { runCronJob, runScheduledJobs } from "./run";
 
 // THE FIVE-MINUTE TICKER, the logic half. workers/cron-ticker.ts is the Durable
 // Object shell; it imports "cloudflare:workers" and cannot load under vitest, so
@@ -75,17 +77,17 @@ const defaultDeps: TickerDeps = {
  *  Re-arming before the jobs is what keeps the chain alive. A job that throws,
  *  runs until the platform kills the invocation, or fails to import would
  *  otherwise leave no alarm behind and the ticker would stop for good, which is
- *  the failure this exists to get away from. runCronJob never throws, so the
- *  jobs run one after another with no guard of their own, as in scheduled(). */
+ *  the failure this exists to get away from. The jobs run through
+ *  runScheduledJobs, as in scheduled(), so each lands in cron_runs. Its closing
+ *  throw, after every job has run and each failure is logged and recorded, is
+ *  caught here: an alarm that throws is retried, which would run the jobs again. */
 export async function runTickerAlarm(
   env: Env,
   storage: TickerAlarmStorage,
   deps: TickerDeps = defaultDeps,
 ): Promise<void> {
   await storage.setAlarm(deps.now() + CRON_TICKER_INTERVAL_MS);
-  for (const job of await deps.jobs()) {
-    await deps.run(env, job.name, job.handler);
-  }
+  await runScheduledJobs(env, await deps.jobs(), deps.run).catch(() => undefined);
 }
 
 /** Ask the ticker to make sure its alarm is set. Called from scheduled() and
@@ -96,6 +98,6 @@ export async function ensureCronTickerArmed(env: Env): Promise<void> {
     const ns = env.CRON_TICKER;
     await ns.get(ns.idFromName(CRON_TICKER_INSTANCE_NAME)).ensureArmed();
   } catch (err) {
-    console.error("cron ticker arm failed", err instanceof Error ? err.message : err);
+    logEvent("cron_ticker_arm_failed", { error: err }, { level: "error" });
   }
 }

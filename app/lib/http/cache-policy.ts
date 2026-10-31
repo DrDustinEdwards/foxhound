@@ -288,7 +288,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/p/",
   "/u/",
   "/invite/",
-  // Where the emailed sign-in link lands, carrying a signed-in session.
+  // Where the emailed sign-in link opens (its query holds the token) and lands, carrying a signed-in session.
+  "/sign-in/confirm",
   "/passkey",
   // Where the emailed sign-in link opens: its query carries the link's token.
   "/sign-in/",

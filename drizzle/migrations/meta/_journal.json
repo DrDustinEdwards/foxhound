@@ -442,6 +442,13 @@
       "when": 1793442357083,
       "tag": "0066_merchant_mcp_scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1793444575201,
+      "tag": "0067_cron_runs",
+      "breakpoints": true
     }
   ]
 }
