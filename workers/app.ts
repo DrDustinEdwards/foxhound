@@ -4,6 +4,7 @@ import { withAdminIdle } from "@dustinedwards/site-runtime/access";
 import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
+import { SPECULATION_RULES_PATH, speculationRulesResponse } from "@dustinedwards/site-runtime/prefetch";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 import { timedRender } from "@dustinedwards/site-runtime/server-timing";
 import { canonicalRedirect } from "@dustinedwards/site-runtime/url";
@@ -17,6 +18,7 @@ import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
 import { applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { SPECULATION_OPTIONS, withSpeculationRules } from "~/lib/http/speculation-rules";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -64,6 +66,11 @@ const site = withSentry<Env>(
       // One hop to the canonical address: https, the bare host, no trailing slash.
       const redirect = canonicalRedirect(request, { host: "foxhoundapp.com" });
       if (redirect) return applySecurityHeaders(redirect, nonce, origin);
+
+      // The link prefetch rules every HTML page names (lib/http/speculation-rules.ts).
+      if (new URL(request.url).pathname === SPECULATION_RULES_PATH) {
+        return applySecurityHeaders(speculationRulesResponse(SPECULATION_OPTIONS, request), nonce, origin);
+      }
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
@@ -200,7 +207,9 @@ const site = withSentry<Env>(
 // An admin idle for an hour is signed out of Access (site-runtime ./access).
 export default {
   ...site,
-  fetch: (request, env, ctx) => withAdminIdle(request, async () => site.fetch!(request, env, ctx)),
+  // Every HTML page names the link prefetch rules (Speculation-Rules), stored pages included.
+  fetch: async (request, env, ctx) =>
+    withSpeculationRules(await withAdminIdle(request, async () => site.fetch!(request, env, ctx))),
 } satisfies ExportedHandler<Env>;
 
 /**
