@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "711dccc8-2581-4f18-9d84-2beac1e400e2",
+  "id": "55abd119-c046-42bf-8db2-ff1428ab8476",
   "prevId": "2978dec3-5725-4be9-8715-5ef6dea714c5",
   "tables": {
     "audit_digest_runs": {
@@ -7980,65 +7980,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "cron_runs": {
-      "name": "cron_runs",
-      "columns": {
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "every_minutes": {
-          "name": "every_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "first_started_at": {
-          "name": "first_started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "last_started_at": {
-          "name": "last_started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "last_ok_at": {
-          "name": "last_ok_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "last_failed_at": {
-          "name": "last_failed_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "customer_notes": {
       "name": "customer_notes",
       "columns": {
@@ -8868,6 +8809,20 @@
         },
         "taken_at": {
           "name": "taken_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "placeholder": {
+          "name": "placeholder",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

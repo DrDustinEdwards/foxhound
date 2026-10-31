@@ -149,7 +149,7 @@ export function classifyPath(pathname: string): CacheClass {
   if (MARKETING_PREFIXES.some((prefix) => path.startsWith(prefix))) return "marketing";
   if (path === "/docs" || path.startsWith("/docs/")) return "docs";
   if (path === "/blog" || path.startsWith("/blog/")) return "blog";
-  // The blog's media library files set their own five-minute directive
+  // The blog's media library files set their own directive
   // (app/routes/files/media.ts); listed so they get Vary: Cookie like any file.
   if (FILES_EXACT.has(path) || path === "/og" || path.startsWith("/og/") || path.startsWith("/media/")) return "files";
   return "private";
