@@ -97,9 +97,10 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
 }
 
 /**
- * A post's cover: site-runtime ./image's attributes for `use`, and, for a media
- * library file, its versioned original at its real size, for the share card. A
- * cover from elsewhere is its own address, unsized. Null for a post with no cover.
+ * A post's cover: site-runtime ./image's attributes for `use` (with the stored
+ * placeholder and color it shows while it loads), and, for a media library file,
+ * its versioned original at its real size, for the share card. A cover from
+ * elsewhere is its own address, unsized. Null for a post with no cover.
  */
 export async function coverPicture(
   db: Db,
@@ -113,7 +114,12 @@ export async function coverPicture(
   const alt = post.coverImageAlt ?? post.title;
   return {
     alt,
-    picture: row ? images.attributes({ src, width: row.width, height: row.height, focus: row.focus }, use) : { src, sources: [] },
+    picture: images.attributes(
+      row
+        ? { src, width: row.width, height: row.height, focus: row.focus, placeholder: row.placeholder, color: row.color }
+        : { src, width: null, height: null },
+      use,
+    ),
     original: { url: src, width: row?.width ?? undefined, height: row?.height ?? undefined, type: row?.contentType, alt },
   };
 }
