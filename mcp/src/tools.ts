@@ -21,7 +21,7 @@ import type { AdminMcpEnv } from "./env";
 // chooses the route and passes the arguments, and the API's own sentence is
 // what the agent reads when it refuses.
 
-export interface AdminToolSession {
+interface AdminToolSession {
   env: AdminMcpEnv;
   /** The signed-in admin, re-checked by the API on every call. */
   actor: string;
