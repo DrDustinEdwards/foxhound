@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // J82, parity row E1, now the sign-in link (the family sign-in has no
 // passwords, so the reset mail is gone; APPROVED-DIFFERENCES, "Sign-in and
@@ -69,8 +70,10 @@ function makeEnv(email: unknown = { send: async (m: SentMessage) => (sent.push(m
   return {
     BETTER_AUTH_URL: BASE,
     BETTER_AUTH_SECRET: "test-secret-not-real-0123456789abcdef",
-    DB: {},
+    DB: d1Over(sqlite),
     EMAIL: email,
+    // Without a counter a typed code is refused (site-runtime fails it closed).
+    AUTH_RATE_LIMITER: makeRateLimiterNamespace(),
   } as unknown as Env;
 }
 
@@ -257,17 +260,19 @@ describe("the code in the same mail signs in the tab that asked", () => {
     expect((await typeCode(env, code)).status).not.toBe("signed_in");
   });
 
-  it("a wrong code counts; after three the code is spent, and the link still works", async () => {
+  it("a wrong code counts; after three the address takes no more codes, and the link still works", async () => {
     const env = makeEnv();
     await ask(env);
     const code = codeIn(sent[0]);
     const wrong = code === "111111" ? "222222" : "111111";
 
-    // From three addresses, so the code's own count is what stops the fourth.
+    // From three IP addresses, so the per-IP limit is not what stops the
+    // fourth: three wrong codes an hour per email address, across links
+    // (site-runtime's CODE_EMAIL_RULES), so a new link brings no fresh tries.
     for (const ip of ["203.0.113.2", "203.0.113.3", "203.0.113.4"]) {
       expect((await typeCode(env, wrong, ip)).status).toBe("wrong");
     }
-    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("spent");
+    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("email_limited");
     expect(linkTokens()).toHaveLength(1);
   });
 

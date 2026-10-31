@@ -22,7 +22,15 @@ import "capsomer/status.css";
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
 
-import { accountSessions, passkeyLabel, revokeSessionById, signInMethods } from "@dustinedwards/site-runtime/sign-in";
+import {
+  accountSessions,
+  passkeyLabel,
+  requireFreshSession,
+  revokeSessionById,
+  securityHistory,
+  SessionNotFresh,
+  signInMethods,
+} from "@dustinedwards/site-runtime/sign-in";
 import { isAPIError } from "better-auth/api";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
@@ -40,6 +48,7 @@ import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~
 import type { AuthContext } from "~/lib/auth/context";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
+import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 import { chooseTheme } from "~/lib/settings/theme-choice";
@@ -102,6 +111,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     signIn: {
       ...(await signInSettings(env, auth.userId, auth.isDemo)),
       devices: await signedInDevices(env, request, auth),
+      history: auth.isDemo || auth.viewingAs ? null : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
     },
     account,
     cancelledAt: account.cancelledAt,
@@ -130,7 +140,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
  * the app's other reads of them are (delete-account.server.ts). The demo
  * changes nothing, so it lists none.
  */
-async function signInSettings(env: Env, userId: string, isDemo: boolean): Promise<Omit<SignInSettings, "devices">> {
+async function signInSettings(
+  env: Env,
+  userId: string,
+  isDemo: boolean,
+): Promise<Omit<SignInSettings, "devices" | "history">> {
   const methods = signInMethods(env, { social: true });
   const offered = [
     methods.google ? { id: "google" as const, label: "Google" } : null,
@@ -164,6 +178,9 @@ async function signedInDevices(env: Env, request: Request, auth: AuthContext): P
   if (auth.isDemo || auth.viewingAs) return null;
   return (await accountSessions(await getAuth(env), request)) ?? "stale";
 }
+
+/** How many of a person's latest security events the Sign-in panel lists. */
+const SECURITY_HISTORY_SHOWN = 10;
 
 type ProfileField = "name" | "merchantMrrSelfReported";
 
@@ -280,6 +297,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       });
     }
     case "delete-account": {
+      // A sign-in from the last 10 minutes first (site-runtime
+      // requireFreshSession, the rule Better Auth holds its own risky changes
+      // to): a borrowed or forgotten session cannot delete the account. Stale
+      // answers as signing a device out does, and the page asks for a new
+      // sign-in.
+      const fresh = await requireFreshSession(await getAuth(env), request).catch((error: unknown) => {
+        if (error instanceof SessionNotFresh) return null;
+        throw error;
+      });
+      if (!fresh) return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
       // The SIGNED-IN user, never an id from the form: a person deletes
       // themselves and nobody else. Recova's route does the same
       // with supabase.auth.getUser().
@@ -613,6 +640,9 @@ const CANCEL_CONSEQUENCE =
 
 type Confirming = "cancel-account" | "delete-account" | null;
 
+/** Log in again and come back here (lib/auth/client.ts's signInAgain, as a link). */
+const SIGN_IN_AGAIN_HREF = `/login?${REAUTH_PARAM}&next=${encodeURIComponent("/settings/account")}`;
+
 /**
  * AccountSection's Danger zone (blob a154ac8f), below a rule in the account
  * card: the label, the controls at the right, and on a press Recova's
@@ -662,7 +692,8 @@ function DangerZone({
       Keep my account
     </Button>
   );
-  const deleteFailed = result?.action === "delete-account" && !result.ok ? result.error : undefined;
+  const deleteStale = result?.action === "delete-account" && result.error === "stale";
+  const deleteFailed = result?.action === "delete-account" && !result.ok && !deleteStale ? result.error : undefined;
   const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
   const cancelRefused = result?.action === "cancel-account" && !result.ok ? result.error : undefined;
 
@@ -679,6 +710,18 @@ function DangerZone({
         ) : null}
         {cancelWarning ? <Alert tone="warn">{cancelWarning}</Alert> : null}
         {deleteFailed ? <Alert tone="crit">{deleteFailed}</Alert> : null}
+        {deleteStale ? (
+          <Alert
+            tone="warn"
+            action={
+              <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
+                Sign in again
+              </a>
+            }
+          >
+            Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then delete it.
+          </Alert>
+        ) : null}
         {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
 
         {confirming === "cancel-account" ? (

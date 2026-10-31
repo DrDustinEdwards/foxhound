@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // MULTI-ACCOUNT PHASE (f), ruling 326: every authenticated surface renders the
 // ACTIVE account and nothing else.
@@ -173,7 +173,7 @@ function contextFor(accountId: string, accountName: string): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env: {} as Env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
+        return { env: { DB: d1Over(sqlite) } as unknown as Env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
       }
       if (key === authContext) {
         return {
@@ -614,7 +614,7 @@ describe("PHASE (f): the app shell, the ONE surface that must see other accounts
         get(key: unknown) {
           if (key === cloudflareContext) {
             return {
-              env: {} as Env,
+              env: { DB: d1Over(sqlite) } as unknown as Env,
               ctx: { waitUntil() {} } as unknown as ExecutionContext,
               nonce: "n",
             };

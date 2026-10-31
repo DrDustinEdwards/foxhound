@@ -38,10 +38,21 @@ async function buildAuth(env: Env) {
         throw new Error(`sign-in link email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
       }
     },
-    // Five sign-in links an hour and ten typed codes a day per address.
+    // Five sign-in links an hour per address; wrong codes three an hour and ten
+    // a day, counted across links.
     emailLimiter: env.AUTH_RATE_LIMITER,
+    // Each auth event is also a row in auth_events (migration 0067): the
+    // security history on /settings/account, /health's spike check and the
+    // new-device and recovery notices read it.
+    eventsDb: env.DB,
+    // No Turnstile keys exist yet, and without them site-runtime refuses every
+    // link request (503 TURNSTILE_NOT_SET). This lets the link through, with a
+    // warning log line on each request, until Dustin creates the keys; then it
+    // comes out.
+    turnstile: "off-until-keys",
     // A passkey added or removed, Google or Apple joined or left, sessions
-    // ended, the account deleted: mailed to the account's address.
+    // ended, the account deleted, a new device, a recovery: mailed to the
+    // account's address.
     sendSecurityNotice: (_kind, { user, detail }) => sendSecurityNoticeEmail(env, user.email, detail),
   });
 

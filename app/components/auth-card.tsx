@@ -1,4 +1,5 @@
 import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
+import { signInWithPasskey } from "@dustinedwards/site-runtime/sign-in-client";
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -151,6 +152,8 @@ export function AuthFootnote({ children }: { children: ReactNode }) {
 /** Which ways in a page offers: the loader's signInMethods(env, { social: true }). */
 export type SignInMethods = { google: boolean; apple: boolean; turnstileSiteKey: string | null };
 
+type PasskeyClient = Parameters<typeof signInWithPasskey>[0];
+
 /**
  * "Sign in with a passkey", the main way in. The browser asks which saved
  * passkey to use; someone with none cancels and uses another way. It also
@@ -163,8 +166,12 @@ export function PasskeyContinue({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function signInWithPasskey(autoFill: boolean) {
-    const res = await authClient.signIn.passkey({ autoFill });
+  async function passkeySignIn(autoFill: boolean) {
+    // site-runtime's wrapper: on a passkey the site no longer has, it tells the
+    // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
+    // The cast: site-runtime 0.51.0 types the error as `{ code?: string }`, which
+    // TypeScript's weak-type check will not match to Better Auth's error type.
+    const res = await signInWithPasskey(authClient as unknown as PasskeyClient, { autoFill });
     if (!res?.error) {
       window.location.assign(next);
       return;
@@ -177,7 +184,7 @@ export function PasskeyContinue({ next }: { next: string }) {
 
   // An effect event reads the latest `next` without making the effect rerun.
   const offerAutofill = useEffectEvent(() => {
-    void signInWithPasskey(true);
+    void passkeySignIn(true);
   });
 
   // Once per page: the browser holds one pending autofill request.
@@ -198,7 +205,7 @@ export function PasskeyContinue({ next }: { next: string }) {
         onClick={async () => {
           setBusy(true);
           setError(null);
-          await signInWithPasskey(false);
+          await passkeySignIn(false);
           setBusy(false);
         }}
       >

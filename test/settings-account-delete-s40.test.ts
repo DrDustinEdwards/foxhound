@@ -19,6 +19,7 @@ const harness = vi.hoisted(() => ({
   deleteResult: { status: "deleted", accountIds: ["acct_1"], deauthorizeErrors: [] } as unknown,
   deleteThrows: false,
   signOutCalls: 0,
+  signedInAt: new Date(),
 }));
 
 vi.mock("~/lib/auth/delete-account.server", () => ({
@@ -37,6 +38,7 @@ vi.mock("~/db", async (importOriginal) => ({
 vi.mock("~/lib/auth/auth.server", () => ({
   getAuth: () => ({
     api: {
+      getSession: async () => ({ session: { createdAt: harness.signedInAt }, user: { id: "user_1" } }),
       signOut: async () => {
         harness.signOutCalls += 1;
         return new Response(JSON.stringify({ success: true }), {
@@ -89,6 +91,7 @@ beforeEach(() => {
   harness.deleteResult = { status: "deleted", accountIds: ["acct_1"], deauthorizeErrors: [] };
   harness.deleteThrows = false;
   harness.signOutCalls = 0;
+  harness.signedInAt = new Date();
 });
 
 describe("S40: the delete-account action", () => {
@@ -100,6 +103,14 @@ describe("S40: the delete-account action", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("/");
     expect(res.headers.get("Set-Cookie")).toContain("better-auth.session_token=;");
+  });
+
+  it("refuses a sign-in older than 10 minutes and deletes nothing", async () => {
+    harness.signedInAt = new Date(Date.now() - 11 * 60_000);
+    const res = (await post({ _action: "delete-account" })) as { data: Record<string, unknown>; init?: { status?: number } };
+    expect(harness.deleteCalls).toEqual([]);
+    expect(res.init?.status).toBe(403);
+    expect(res.data).toEqual({ action: "delete-account", ok: false, error: "stale" });
   });
 
   it("on failure keeps the person signed in and tells them, in Recova's words", async () => {

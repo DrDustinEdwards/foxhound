@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import {
   type Db,
@@ -182,6 +182,10 @@ function buildUserDeletionStatements(
     db.delete(session).where(eq(session.userId, userId)),
     db.delete(authAccount).where(eq(authAccount.userId, userId)),
     db.delete(passkey).where(eq(passkey.userId, userId)),
+    // The person's security history (site-runtime's auth_events, migration
+    // 0067), which Better Auth's own delete would clear; this delete is not
+    // Better Auth's.
+    db.run(sql`DELETE FROM auth_events WHERE user_id = ${userId}`),
     db.delete(verification).where(or(eq(verification.identifier, email), eq(verification.value, userId))),
     db.delete(user).where(eq(user.id, userId)),
   ];

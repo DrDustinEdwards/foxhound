@@ -34,7 +34,7 @@ export function signInErrorMessage(code: string | null): string | null {
   return code ? (ERROR_MESSAGES[code] ?? "That sign-in did not complete. Try again or use another way.") : null;
 }
 
-export type SignInLinkResult = "sent" | "limited" | "email_limited" | "check_failed" | "failed";
+export type SignInLinkResult = "sent" | "limited" | "email_limited" | "check_failed" | "unavailable" | "failed";
 
 /** A 429 from Better Auth: its per-IP limit, or site-runtime's per-address one
  *  (EMAIL_RATE_LIMITED), whose window is an hour or a day, so its words say
@@ -87,6 +87,9 @@ export async function requestSignInLink(
       }),
     );
     if (res.status === 429) return limitOf(res);
+    // site-runtime refuses the link when Turnstile has no keys (TURNSTILE_NOT_SET),
+    // which "off-until-keys" in auth.server.ts holds off until they exist.
+    if (res.status === 503) return "unavailable";
     if (res.status === 400 || res.status === 403) {
       const { code } = (await res.clone().json().catch(() => ({}))) as { code?: string };
       if (code === "MISSING_RESPONSE" || code === "VERIFICATION_FAILED") return "check_failed";
@@ -122,6 +125,15 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
         { sent: null, error: "Complete the check, then send the link again.", codeError: null },
         { status: 400 },
       );
+    case "unavailable":
+      return data(
+        {
+          sent: null,
+          error: "Sign-in links are switched off for a moment. Sign in with a passkey, or try again later.",
+          codeError: null,
+        },
+        { status: 503 },
+      );
     case "failed":
       return data(
         { sent: null, error: "We could not send the link. Check the address and try again.", codeError: null },
@@ -141,7 +153,7 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
 
 export type SignInCodeResult =
   | { status: "signed_in"; headers: Headers }
-  | { status: "wrong" | "spent" | "disposable" | "limited" | "email_limited" | "failed" };
+  | { status: "wrong" | "spent" | "disposable" | "limited" | "email_limited" | "unavailable" | "failed" };
 
 export async function signInWithCode(
   env: Env,
@@ -167,6 +179,9 @@ export async function signInWithCode(
     if (code === "INVALID_OTP") return { status: "wrong" };
     if (code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") return { status: "spent" };
     if (code === "disposable_email") return { status: "disposable" };
+    // The wrong-code counter could not answer, so site-runtime refuses every
+    // code (RATE_LIMIT_UNAVAILABLE) rather than allow unlimited guesses.
+    if (res.status === 503 && code === "RATE_LIMIT_UNAVAILABLE") return { status: "unavailable" };
     // The status only: the body can carry the address.
     console.error(`[sign-in-code] sign-in returned ${res.status}`);
     return { status: "failed" };
@@ -180,6 +195,7 @@ const CODE_ANSWERS = {
   wrong: "That code is not right. Check the email and try again.",
   spent: "That code has expired or was tried too many times. Use the link in the email, or send a new one.",
   disposable: "Please use a real email address. Disposable email providers are not allowed.",
+  unavailable: "Codes cannot be checked right now. Use the link in the email instead.",
   failed: "That sign-in did not complete. Try again or use the link in the email.",
 } as const;
 
@@ -190,7 +206,13 @@ function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, nex
   if (result.status === "signed_in") throw redirect(afterLinkURL(env, next), { headers: result.headers });
   const error =
     result.status === "limited" ? limited : result.status === "email_limited" ? SIGN_UP_LIMITED : CODE_ANSWERS[result.status];
-  const status = result.status.endsWith("limited") ? 429 : result.status === "failed" ? 500 : 400;
+  const status = result.status.endsWith("limited")
+    ? 429
+    : result.status === "unavailable"
+      ? 503
+      : result.status === "failed"
+        ? 500
+        : 400;
   return data({ sent: email as string | null, error: null as string | null, codeError: error }, { status });
 }
 

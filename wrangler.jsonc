@@ -101,7 +101,8 @@
     "BETTER_AUTH_URL": "https://foxhoundapp.com",
     // Turnstile site key (public, non-secret; safe to commit), widget
     // "Foxhound" on foxhoundapp.com. TURNSTILE_SECRET_KEY (env.d.ts, wrangler
-    // secret) is the other half; the check runs only when both are set.
+    // secret) is the other half; the check runs only when both are set, and
+    // until then auth.server.ts lets the link through ("off-until-keys").
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFsFHhwjNpVpV-tg"
   },
   "d1_databases": [

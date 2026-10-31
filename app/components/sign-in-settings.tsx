@@ -2,6 +2,7 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { useState } from "react";
 import { useFetcher, useRevalidator } from "react-router";
+import type { SecurityHistoryEntry } from "@dustinedwards/site-runtime/sign-in";
 import { signalUnknownCredential } from "@dustinedwards/site-runtime/sign-in-client";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
@@ -22,7 +23,40 @@ export type SignInSettings = {
   /** The providers Foxhound offers, and the joined account's id for each. */
   providers: { id: "google" | "apple"; label: string; accountId: string | null }[];
   devices: SignedInDevices;
+  /** The latest sign-ins and sign-in changes (site-runtime securityHistory),
+   *  newest first; null when not shown. */
+  history: SecurityHistoryEntry[] | null;
 };
+
+const WAY_IN: Record<string, string> = {
+  link: "an email link",
+  code: "an emailed code",
+  passkey: "a passkey",
+  google: "Google",
+  apple: "Apple",
+};
+const PROVIDER: Record<string, string> = { google: "Google", apple: "Apple" };
+
+/** One history row in words, such as "Signed in with a passkey". */
+function historyLabel({ kind, via }: Pick<SecurityHistoryEntry, "kind" | "via">): string {
+  const provider = (via && PROVIDER[via]) ?? "A sign-in method";
+  switch (kind) {
+    case "sign-in":
+      return via && WAY_IN[via] ? `Signed in with ${WAY_IN[via]}` : "Signed in";
+    case "passkey-added":
+      return "Passkey added";
+    case "passkey-removed":
+      return "Passkey removed";
+    case "sign-in-linked":
+      return `${provider} connected`;
+    case "sign-in-unlinked":
+      return `${provider} disconnected`;
+    case "email-changed":
+      return "Email address changed";
+    case "recovery":
+      return "Signed in by email with no passkey left; other devices signed out";
+  }
+}
 
 /**
  * How this person signs in (site-runtime ./sign-in): their passkeys, and
@@ -30,7 +64,8 @@ export type SignInSettings = {
  * signed in, never by a matching email at sign-in. The email link always
  * works, so nothing here can lock anyone out. Each change is Better Auth's
  * own endpoint through the client, then the loader reads the list again.
- * Below them, the devices signed in, each of which can be signed out.
+ * Below them, the devices signed in, each of which can be signed out, and the
+ * latest sign-ins and sign-in changes.
  */
 export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSettings; isDemo: boolean }) {
   const revalidator = useRevalidator();
@@ -203,6 +238,26 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                 Sign out all other devices
               </Button>
             ) : null}
+          </div>
+        ) : null}
+
+        {initial.history ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <h3 className="mb-3 text-label font-semibold text-text">Recent security activity</h3>
+            {initial.history.length === 0 ? (
+              <p className="text-label text-text-tertiary">Nothing yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {initial.history.map((h, i) => (
+                  <li key={`${h.at.toISOString()}-${i}`} className="text-label text-text">
+                    {historyLabel(h)}
+                    <span className="block text-text-tertiary">
+                      {[formatDateShort(h.at), h.device, h.location].filter(Boolean).join(", ")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
 
