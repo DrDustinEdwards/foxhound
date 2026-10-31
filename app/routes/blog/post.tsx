@@ -76,7 +76,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc, faq }, cover, previous, next, related] = await Promise.all([
+  const [{ html, toc, faq, version }, cover, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
     coverPicture(db, post, "content"),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
@@ -84,7 +84,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     getPostLinks(db, post.id),
   ]);
 
-  return { siteUrl: siteUrl(env), post, cover, html, toc, previous, next, related, faq };
+  return { siteUrl: siteUrl(env), post, cover, html, version, toc, previous, next, related, faq };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -157,7 +157,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, cover, html, toc, previous, next, related } = loaderData;
+  const { siteUrl: url, post, cover, html, version, toc, previous, next, related } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
 
@@ -239,7 +239,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <TableOfContents items={toc} variant="inline" />
 
-          <div className="blog-prose e-content" dangerouslySetInnerHTML={{ __html: html }} />
+          <div className="blog-prose e-content" data-render-version={version} dangerouslySetInnerHTML={{ __html: html }} />
         </article>
 
         <TableOfContents items={toc} variant="sidebar" />

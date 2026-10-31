@@ -49,6 +49,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = Object.freeze(
 // favicons beside a Foxhound link, the RSS channel image); a page keeps the
 // standard's same-origin. The og cards are Worker responses and set it there.
 const STATIC_TYPES: Readonly<Record<string, string>> = {
+  ico: "image/x-icon",
   png: "image/png",
   svg: "image/svg+xml",
   css: "text/css",

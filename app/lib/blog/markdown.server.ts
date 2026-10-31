@@ -14,7 +14,7 @@
 // (public/diagrams/<slug>-light|dark-<w>x<h>.svg): an SVG in an <img> cannot
 // read the page's data-theme, so app.css shows the one that matches.
 
-import { ContentError, render } from "@drdustinedwards/site-helpers/render/nomath";
+import { ContentError, RENDER_VERSION, render } from "@drdustinedwards/site-helpers/render/nomath";
 import type { RenderPack } from "@drdustinedwards/site-helpers/render/packs";
 import type { Root as HastRoot } from "hast";
 import { toString as hastToString } from "hast-util-to-string";
@@ -147,7 +147,7 @@ export async function coverPicture(
 export async function renderMarkdown(
   db: Db,
   body: string,
-): Promise<{ html: string; toc: TocItem[]; faq: Array<{ question: string; answer: string }> }> {
+): Promise<{ html: string; toc: TocItem[]; faq: Array<{ question: string; answer: string }>; version: string }> {
   const keys = mediaKeysIn(body);
   const pictures = new Map((keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]));
   const { resolveImage, media } = mediaOptions(pictures);
@@ -156,5 +156,7 @@ export async function renderMarkdown(
     return target && { url: `/blog/${target.slug}`, title: target.title };
   };
   const { html, toc, faq } = await render({ file: "post", body, resolveImage, options: { packs: [foxhoundPack], media, postLink } });
-  return { html, toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })), faq };
+  // version goes on the body's wrapper (data-render-version), so prelum-content can see a page rendered by an older
+  // pipeline, such as one the edge cache still holds after a Prelum update.
+  return { html, toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })), faq, version: RENDER_VERSION };
 }
