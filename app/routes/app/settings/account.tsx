@@ -22,7 +22,7 @@ import "capsomer/status.css";
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
 
-import { passkeyLabel, sessionRows, signInMethods } from "@dustinedwards/site-runtime/sign-in";
+import { accountSessions, passkeyLabel, revokeSessionById, signInMethods } from "@dustinedwards/site-runtime/sign-in";
 import { isAPIError } from "better-auth/api";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
@@ -36,7 +36,7 @@ import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
 import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
-import { getAuth, getSession, listMemberships, listSessions, setSessionActiveAccount } from "~/lib/auth";
+import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
@@ -162,13 +162,7 @@ async function signInSettings(env: Env, userId: string, isDemo: boolean): Promis
  */
 async function signedInDevices(env: Env, request: Request, auth: AuthContext): Promise<SignedInDevices> {
   if (auth.isDemo || auth.viewingAs) return null;
-  try {
-    const listed = await listSessions(env, request);
-    return listed ? sessionRows(listed.sessions, listed.token) : null;
-  } catch (error) {
-    if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") return "stale";
-    throw error;
-  }
+  return (await accountSessions(await getAuth(env), request)) ?? "stale";
 }
 
 type ProfileField = "name" | "merchantMrrSelfReported";
@@ -312,6 +306,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       const headers = new Headers();
       for (const cookie of signedOut.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
       return redirect("/", { headers });
+    }
+    case "sign-out-device": {
+      // By the session's id, so no session token reaches the page (site-runtime ./sign-in).
+      try {
+        const ok = await revokeSessionById(await getAuth(env), request, String(form.get("session") ?? ""));
+        return data<ActionResult>({ action: intent, ok }, { status: ok ? 200 : 404 });
+      } catch (error) {
+        if (!isAPIError(error) || error.body?.code !== "SESSION_NOT_FRESH") throw error;
+        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
+      }
     }
     default:
       return data<ActionResult>(

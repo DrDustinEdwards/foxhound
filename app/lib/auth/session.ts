@@ -6,13 +6,3 @@ import { getAuth } from "./auth.server";
 export async function getSession(env: Env, request: Request) {
   return (await getAuth(env)).api.getSession({ headers: request.headers });
 }
-
-/** This person's sessions, from Better Auth's /list-sessions, and the current
- *  one's token; null when signed out. Throws SESSION_NOT_FRESH without a
- *  sign-in from the last 10 minutes. */
-export async function listSessions(env: Env, request: Request) {
-  const auth = await getAuth(env);
-  const current = await auth.api.getSession({ headers: request.headers });
-  if (!current) return null;
-  return { sessions: await auth.api.listSessions({ headers: request.headers }), token: current.session.token };
-}

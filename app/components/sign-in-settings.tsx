@@ -1,7 +1,7 @@
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { useState } from "react";
-import { useRevalidator } from "react-router";
+import { useFetcher, useRevalidator } from "react-router";
 import { signalUnknownCredential } from "@dustinedwards/site-runtime/sign-in-client";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
@@ -11,7 +11,7 @@ import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 /** Where this person is signed in (site-runtime's sessionRows, current first);
  *  "stale" when listing them needs a fresh sign-in; null when not shown. */
 export type SignedInDevices =
-  | { id: string; token: string; device: string | null; signedInAt: Date; lastActiveAt: Date; current: boolean }[]
+  | { id: string; device: string | null; signedInAt: Date; lastActiveAt: Date; current: boolean }[]
   | "stale"
   | null;
 
@@ -36,6 +36,13 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
   const revalidator = useRevalidator();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const signOut = useFetcher<{ ok: boolean; error?: string }>();
+  const signOutFailed =
+    signOut.state === "idle" && signOut.data?.ok === false
+      ? signOut.data.error === "stale"
+        ? "Sign in again, then sign that device out."
+        : "That device was not signed out."
+      : null;
 
   async function run(key: string, change: () => Promise<{ error?: unknown } | null | undefined>, failed: string) {
     // One change at a time; Capsomer's buttons are never disabled, so a
@@ -175,15 +182,13 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                     </span>
                   </span>
                   {d.current ? null : (
-                    <Button
-                      size="sm"
-                      pending={busy === d.id}
-                      onClick={() =>
-                        void run(d.id, () => authClient.revokeSession({ token: d.token }), "That device was not signed out.")
-                      }
-                    >
-                      Sign out<span className="sr-only"> {d.device ?? "Unknown device"}</span>
-                    </Button>
+                    <signOut.Form method="post">
+                      <input type="hidden" name="_action" value="sign-out-device" />
+                      <input type="hidden" name="session" value={d.id} />
+                      <Button type="submit" size="sm" pending={signOut.formData?.get("session") === d.id}>
+                        Sign out<span className="sr-only"> {d.device ?? "Unknown device"}</span>
+                      </Button>
+                    </signOut.Form>
                   )}
                 </li>
               ))}
@@ -201,9 +206,9 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
           </div>
         ) : null}
 
-        {error ? (
+        {error || signOutFailed ? (
           <div className="mt-4">
-            <Alert tone="crit">{error}</Alert>
+            <Alert tone="crit">{error ?? signOutFailed}</Alert>
           </div>
         ) : null}
       </div>

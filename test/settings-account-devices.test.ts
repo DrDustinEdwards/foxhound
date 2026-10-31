@@ -76,9 +76,11 @@ describe("Signed-in devices", () => {
 
     const fresh = await load(current.token);
     expect(fresh.signIn.devices).toMatchObject([
-      { token: current.token, current: true },
+      { id: current.id, current: true },
       { device: "Safari on iPhone", current: false },
     ]);
+    // The page never carries a session token, which would let a script on it take that session over.
+    expect(JSON.stringify(fresh.signIn.devices)).not.toContain(current.token);
 
     sqlite.prepare("UPDATE session SET created_at = ? WHERE token = ?").run(Date.now() - 11 * 60_000, current.token);
     expect((await load(current.token)).signIn.devices).toBe("stale");

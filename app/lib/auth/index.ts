@@ -1,7 +1,7 @@
 // Auth module entry point. Application code imports from "~/lib/auth".
 export { getAuth } from "./auth.server";
 ;
-export { getSession, listSessions } from "./session";
+export { getSession,  } from "./session";
 export {
   MEMBER_ROLE,
   

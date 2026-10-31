@@ -38,7 +38,11 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-vi.mock("~/lib/auth/session", () => ({ getSession: async () => sessionHarness.session, listSessions: async () => null }));
+vi.mock("~/lib/auth/session", () => ({ getSession: async () => sessionHarness.session }));
+// Settings lists signed-in devices through Better Auth, which this harness has none of.
+vi.mock("~/lib/auth/auth.server", () => ({
+  getAuth: async () => ({ api: { getSession: async () => null, listSessions: async () => [] } }),
+}));
 
 const dashboard = await import("~/routes/app/dashboard");
 const recoveryIndex = await import("~/routes/app/recovery/index");
