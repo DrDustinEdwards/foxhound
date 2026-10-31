@@ -5,7 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
-import { authOptions } from "./options";
+import { withSignIn } from "./options";
 import { sendSignInLinkEmail } from "./send-auth-email";
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
@@ -42,9 +42,7 @@ async function buildAuth(env: Env) {
 
   const google = signIn.socialProviders.google;
   return betterAuth({
-    ...signIn,
-    ...authOptions,
-    advanced: { ...signIn.advanced, ...authOptions.advanced },
+    ...withSignIn(signIn),
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),
