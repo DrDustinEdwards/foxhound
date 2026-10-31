@@ -3,7 +3,7 @@ import { Button } from "capsomer/react/button";
 import { useState } from "react";
 import { useRevalidator } from "react-router";
 
-import { authClient } from "~/lib/auth/client";
+import { authClient, signInAgainIfStale } from "~/lib/auth/client";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 
 /** What /settings/account's loader reads for this panel. */
@@ -38,6 +38,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
     setBusy(key);
     try {
       const res = await change();
+      if (signInAgainIfStale(res?.error)) return;
       if (res?.error) {
         const message = (res.error as { message?: string }).message;
         setError(message ? `${failed} ${message}` : failed);

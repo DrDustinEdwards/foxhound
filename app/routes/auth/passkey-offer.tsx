@@ -5,7 +5,7 @@ import { redirect } from "react-router";
 
 import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
-import { authClient } from "~/lib/auth/client";
+import { authClient, signInAgainIfStale } from "~/lib/auth/client";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { safeNextPath } from "~/lib/auth/next-path";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -57,6 +57,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
             setBusy(true);
             setError(null);
             const res = await authClient.passkey.addPasskey();
+            if (signInAgainIfStale(res?.error)) return;
             setBusy(false);
             if (res?.error) {
               setError("The passkey was not saved. Try again, or skip it for now.");
