@@ -134,8 +134,10 @@ jobs:
 
   # devkit's shared deploy (worker-deploy.yml). Its deploy job applies the D1
   # migrations first (schema before code: a failing migration never reaches the
-  # Worker, and old code against an old schema still works; DB_MIGRATE_CONFIRM
-  # is the opt-in scripts/db-migrate.mjs demands before touching production),
+  # Worker, and old code against an old schema still works) through
+  # devkit-migrations --apply, which applies only the pending migrations that
+  # add and refuses a drop, rename or row delete (a table recreate included)
+  # with the command to run it by hand, so those wait for Dustin. Then it
   # builds, and deploys with DEPLOY_SHA set to this commit. Its live gate waits
   # for /health to report that commit, then runs scripts/verify-live.mjs (the
   # home page and every hashed asset it names answer 200), and rolls the deploy
@@ -151,7 +153,7 @@ jobs:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
-      pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
+      pre-deploy: npx devkit-migrations drizzle/migrations --apply foxhound && npm run build
       # The Time Travel bookmark from before the migrations above, with its restore command, in the run's summary.
       d1-database: foxhound
       sha-var: DEPLOY_SHA
