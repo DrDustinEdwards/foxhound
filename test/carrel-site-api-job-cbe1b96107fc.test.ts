@@ -104,7 +104,7 @@ describe("the key reaches only the prefix", () => {
 });
 
 describe("content round trip against the real schema", () => {
-  it("create, read, edit, publish, unpublish, revisions", async () => {
+  it("create, read, edit, publish, unpublish, revisions, post fields", async () => {
     const t = setup();
     const put = (id: string, body: unknown) =>
       t.call(`/content/${id}/draft`, { method: "PUT", body: JSON.stringify(body) });
@@ -161,6 +161,22 @@ describe("content round trip against the real schema", () => {
 
     const list = (await (await t.call("/content?status=draft")).json()) as { items: unknown[] };
     expect(list.items).toHaveLength(1);
+
+    // authors, series and part are post fields; a source with the older author key still reads.
+    const older = SOURCE.replace('authors: ["Foxhound"]', 'author: "Dustin Edwards"').replace('"why-cards-fail"', '"retry-timing"');
+    expect(older).toContain('author: "Dustin Edwards"');
+    await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: older, expectedVersion: null, changeId: "f1" }) });
+    const fields = (await (await t.call("/content/a1")).json()) as { version: string; source: string; authors: string[] };
+    expect(fields.authors).toEqual(["Dustin Edwards"]);
+    const series = fields.source.replace("tags:", 'series: "Recovery basics"\nseriesPart: 2\ntags:').replace('["Dustin Edwards"]', '["Dustin Edwards","Ada Lovelace"]');
+    await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: series, expectedVersion: fields.version, changeId: "f2" }) });
+    const withSeries = (await (await t.call("/content/a1")).json()) as { source: string; version: string };
+    expect(withSeries.source).toBe(series);
+    const byAda = (await (await t.call("/content?author=Ada%20Lovelace")).json()) as { items: Array<{ id: string; authors: string[] }> };
+    expect(byAda.items).toEqual([expect.objectContaining({ id: "a1", authors: ["Dustin Edwards", "Ada Lovelace"] })]);
+    const noPart = series.replace("seriesPart: 2", "seriesPart: 0");
+    const refused = await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: noPart, expectedVersion: withSeries.version, changeId: "f3" }) });
+    expect(refused.status).toBe(422);
   });
 
   it("a slug change is refused; media answers 501", async () => {
@@ -262,24 +278,6 @@ describe("content round trip against the real schema", () => {
     const revs = (await (await t.call("/content/d1/revisions")).json()) as { items: Array<{ version: string; message: string }> };
     const before = revs.items.find((i) => i.message === "the post before it was edited")!;
     expect(((await (await t.call(`/content/d1/revisions/${before.version}`)).json()) as { source: string }).source).toBe(SOURCE);
-  });
-
-  it("authors, series and part are post fields; a source with the older author key still reads", async () => {
-    const t = setup();
-    const older = SOURCE.replace('authors: ["Foxhound"]', 'author: "Dustin Edwards"');
-    expect(older).toContain('author: "Dustin Edwards"');
-    await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: older, expectedVersion: null, changeId: "c1" }) });
-    const doc = (await (await t.call("/content/a1")).json()) as { version: string; source: string; authors: string[] };
-    expect(doc.authors).toEqual(["Dustin Edwards"]);
-    const series = doc.source.replace("tags:", 'series: "Recovery basics"\nseriesPart: 2\ntags:').replace('["Dustin Edwards"]', '["Dustin Edwards","Ada Lovelace"]');
-    await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: series, expectedVersion: doc.version, changeId: "c2" }) });
-    const withSeries = (await (await t.call("/content/a1")).json()) as { source: string; version: string };
-    expect(withSeries.source).toBe(series);
-    const byAda = (await (await t.call("/content?author=Ada%20Lovelace")).json()) as { items: Array<{ id: string; authors: string[] }> };
-    expect(byAda.items).toEqual([expect.objectContaining({ id: "a1", authors: ["Dustin Edwards", "Ada Lovelace"] })]);
-    const noPart = series.replace("seriesPart: 2", "seriesPart: 0");
-    const refused = await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: noPart, expectedVersion: withSeries.version, changeId: "c3" }) });
-    expect(refused.status).toBe(422);
   });
 
   it("a live post renamed keeps its old address as a 301; trashed it leaves the blog and goes for good only from the trash", async () => {
