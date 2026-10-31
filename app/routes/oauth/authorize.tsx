@@ -5,6 +5,7 @@ import { data, Form, redirect, useNavigation } from "react-router";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/field.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // buttons, the alert and the focus ring read. The site header loads the same
@@ -314,7 +315,7 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         <input type="hidden" name="account_id" value={consent.accountId} />
         {consent.state ? <input type="hidden" name="state" value={consent.state} /> : null}
         <div className="mb-6 rounded-lg border border-border-sub bg-bg px-4 py-3">
-          <label className="flex items-start gap-2 text-label text-text">
+          <label className="cap-check items-start text-label">
             <input type="checkbox" name="allow_write" value="1" defaultChecked={consent.wantsWrite} className="mt-1" />
             <span>
               <span className="font-medium">Allow changes</span>
