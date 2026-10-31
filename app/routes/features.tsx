@@ -18,7 +18,7 @@ import {
   type FeatureFilterValue,
 } from "~/lib/marketing/features-content";
 import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -31,7 +31,6 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/features";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // /features. Recova's spec is app/(marketing)/features/page.tsx
 // (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
@@ -99,19 +98,11 @@ function SectionInlineExample({ id }: { id: string }) {
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Features - Foxhound",
+      title: "Features",
       description: FEATURES_META_DESCRIPTION,
       path: "/features",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Features", path: "/features" },
-          ])),
-        ]
-      : []),
   ];
 }
 

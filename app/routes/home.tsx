@@ -24,7 +24,6 @@ import {
   HERO_LEAD,
   HOME_META_DESCRIPTION,
   HOME_TITLE,
-  HOME_WEBPAGE_NAME,
   MATURITY_DAYS,
   PRODUCT_CARDS,
   RECOVERY_FEE,
@@ -86,6 +85,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: HOME_TITLE,
+      fullTitle: true,
       description: HOME_META_DESCRIPTION,
       path: "/",
       siteUrl: url,
@@ -96,7 +96,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
           jsonLd(softwareApplicationJsonLd(url)),
           jsonLd(faqPageJsonLd(FAQS)),
           jsonLd(speakableWebPageJsonLd(url, {
-            name: HOME_WEBPAGE_NAME,
             path: "/",
             selectors: [".speakable-hero", ".speakable-how-it-works", ".speakable-faq"],
           })),

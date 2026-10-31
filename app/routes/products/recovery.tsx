@@ -44,7 +44,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // The path is Recova's own /product/recovery since J09.
 
 const PATH = "/product/recovery";
-const TITLE = "Recovery - Foxhound";
+const TITLE = "Recovery";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -60,7 +60,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
     ...(loaderData
       ? [
           jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            name: TITLE,
             path: PATH,
             selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
           })),

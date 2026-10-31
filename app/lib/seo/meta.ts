@@ -1,4 +1,4 @@
-import { headTags, searchTitle } from "@drdustinedwards/site-helpers/head";
+import { defineHead } from "@drdustinedwards/site-helpers/head";
 import type { MiddlewareFunction } from "react-router";
 
 // Shared meta-tag builder (TASK-foxhound-seo-remediation.md, fixing
@@ -22,12 +22,18 @@ export const noindexHeader: MiddlewareFunction<Response> = async (_args, next) =
   return response;
 };
 
+/** The section pages a breadcrumb trail passes through, by path. */
+const SECTIONS = { "/blog": "Blog", "/docs": "Docs", "/compare": "Compare", "/decline-codes": "Decline codes", "/products": "Products" };
+
 export interface MarketingMetaInput {
+  /** The page's own title, without the site's suffix, unless `fullTitle`. */
   title: string;
-  /** The site's suffix, such as " - Foxhound Blog". A title too long for a
+  /** The site's suffix, " - Foxhound" unless given, such as " - Foxhound Blog". A title too long for a
    *  search result drops it and is cut at a word (Prelum's searchTitle); the
    *  share card keeps the whole title. */
   suffix?: string;
+  /** `title` is already the whole `<title>` (the home page's). */
+  fullTitle?: boolean;
   description: string;
   path: string;
   siteUrl: string;
@@ -42,11 +48,15 @@ export interface MarketingMetaInput {
    *  headline, not the "- Foxhound Blog"-suffixed <title> string). */
   ogTitle?: string;
   ogType?: "website" | "article";
+  /** The WebPage subtype: `CollectionPage` for an index. */
+  pageType?: string;
 }
 
+/** Prelum's head: the tags, and the page's WebPage and BreadcrumbList (from `SECTIONS`) joined to the site's WebSite node. */
 export function marketingMeta({
   title,
-  suffix,
+  suffix = " - Foxhound",
+  fullTitle,
   description,
   path,
   siteUrl,
@@ -55,16 +65,22 @@ export function marketingMeta({
   imageAlt,
   ogTitle,
   ogType = "website",
+  pageType,
 }: MarketingMetaInput) {
-  return headTags({
+  return defineHead({
     origin: siteUrl,
+    siteName: "Foxhound",
+    image: { url: image ?? `${siteUrl}/og/default`, width: 1200, height: 630, alt: imageAlt ?? "Foxhound" },
+    suffix,
+    sections: SECTIONS,
+  })({
+    title,
+    fullTitle,
+    description,
     path,
     canonical,
-    title: suffix ? searchTitle(title, suffix) : title,
-    description,
-    socialTitle: ogTitle ?? (suffix ? `${title}${suffix}` : undefined),
-    image: { url: image ?? `${siteUrl}/og/default`, width: 1200, height: 630, alt: imageAlt ?? "Foxhound" },
-    siteName: "Foxhound",
+    socialTitle: ogTitle ?? (fullTitle ? undefined : `${title}${suffix}`),
     type: ogType,
+    pageType,
   });
 }
