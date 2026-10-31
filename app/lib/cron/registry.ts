@@ -1,3 +1,4 @@
+import { exportAuditLog } from "@dustinedwards/site-runtime/audit-log";
 import { pruneNotFound } from "@dustinedwards/site-runtime/not-found";
 
 import { getDb } from "~/db";
@@ -340,6 +341,15 @@ const retentionAuthEvents: CronHandler = async (env) => {
   return { rowsProcessed: 0, message: "auth_events pruned" };
 };
 
+/** The merchant MCP's tool-call log (TOOL_CALL_LOG): new rows copied to AUDIT_BUCKET, copied rows older than 90 days
+ *  pruned (area 11, L6-L7). A failed write throws, so the run is recorded failed and alerts; /health's tool-call-log
+ *  check warns once rows go uncopied for two days (L8). */
+const toolCallLogExport: CronHandler = async (env) => {
+  if (!env.AUDIT_BUCKET) throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
+  const done = await exportAuditLog(env, env.AUDIT_BUCKET);
+  return { rowsProcessed: done.exported, message: `${done.objects.length} object(s) written, ${done.pruned} row(s) pruned` };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -401,6 +411,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
   { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
+  { name: "tool-call-log-export", schedule: CRON_SCHEDULE_DAILY, handler: toolCallLogExport },
 ];
 
 /** The jobs registered for a given cron schedule string. */

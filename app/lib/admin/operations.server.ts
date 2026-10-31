@@ -209,6 +209,9 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // The blog's media library (Carrel uploads, /media/*). Unset means every
     // media call and every /media file fails.
     ["MEDIA", "binding"],
+    // The merchant MCP's tool-call log copies. Unset means the daily
+    // tool-call-log-export run fails and /health warns after two days.
+    ["AUDIT_BUCKET", "binding"],
     // Cloudflare Images: the blog pictures' sizes and Carrel's turns and
     // shrinks. Unset means /media serves originals only.
     ["IMAGES", "binding"],
