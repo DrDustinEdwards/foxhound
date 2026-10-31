@@ -1,10 +1,10 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
+import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
-import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
