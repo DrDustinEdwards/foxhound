@@ -68,7 +68,7 @@ import { INLINE_STYLE_HASHES } from "./inline-styles";
 export const CSP_REPORT_PATH = "/api/csp-report";
 
 /** The Reporting API group name, defined by the Reporting-Endpoints header. */
-export const CSP_REPORT_GROUP = "csp-endpoint";
+const CSP_REPORT_GROUP = "csp-endpoint";
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
