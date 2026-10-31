@@ -25,6 +25,8 @@ export const blogPosts = sqliteTable(
     ogTitle: text("og_title"),
     ogDescription: text("og_description"),
     canonicalUrl: text("canonical_url"),
+    // site-api's noindex search field: robots noindex, and left out of the sitemap.
+    noindex: bool("noindex").notNull().default(false),
     showUpdatedAt: bool("show_updated_at").notNull().default(true),
     showPublishedAt: bool("show_published_at").notNull().default(true),
     featured: bool("featured").notNull().default(false),

@@ -45,6 +45,7 @@ export interface CreatePostInput {
   ogTitle?: string | null;
   ogDescription?: string | null;
   canonicalUrl?: string | null;
+  noindex?: boolean;
   /** Caller-chosen id (the Carrel adapter, whose create names the id). */
   id?: string;
 }
@@ -69,6 +70,7 @@ export async function createPost(db: Db, input: CreatePostInput): Promise<string
     ogTitle: input.ogTitle ?? null,
     ogDescription: input.ogDescription ?? null,
     canonicalUrl: input.canonicalUrl ?? null,
+    noindex: input.noindex ?? false,
     showUpdatedAt: true,
     showPublishedAt: true,
     createdAt: now,
@@ -89,6 +91,7 @@ export interface UpdatePostInput {
   ogTitle: string | null;
   ogDescription: string | null;
   canonicalUrl: string | null;
+  noindex: boolean;
   showUpdatedAt: boolean;
   showPublishedAt: boolean;
 }
@@ -133,6 +136,7 @@ export async function updatePostWithVersion(
       ogTitle: input.ogTitle,
       ogDescription: input.ogDescription,
       canonicalUrl: input.canonicalUrl,
+      noindex: input.noindex,
       showUpdatedAt: input.showUpdatedAt,
       showPublishedAt: input.showPublishedAt,
       updatedAt: now,

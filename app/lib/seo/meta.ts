@@ -40,6 +40,8 @@ export interface MarketingMetaInput {
    *  headline, not the "- Foxhound Blog"-suffixed <title> string). */
   ogTitle?: string;
   ogType?: "website" | "article";
+  /** robots noindex (a blog post's search field). */
+  noindex?: boolean;
 }
 
 export function marketingMeta({
@@ -52,6 +54,7 @@ export function marketingMeta({
   image,
   ogTitle,
   ogType = "website",
+  noindex,
 }: MarketingMetaInput) {
   return headTags({
     origin: siteUrl,
@@ -63,5 +66,6 @@ export function marketingMeta({
     image: image ?? { url: `${siteUrl}/og/default`, width: 1200, height: 630, type: "image/png", alt: "Foxhound" },
     siteName: "Foxhound",
     type: ogType,
+    noindex,
   });
 }

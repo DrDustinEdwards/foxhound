@@ -50,7 +50,9 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 //
 // The media group is media-adapter.server.ts (the blog's media library), joined
 // to this adapter in handler.server.ts. Cover addresses stay as they are:
-// Carrel's post source does not carry them.
+// Carrel's post source does not carry them. The search fields it does carry
+// (site-api v0.17.0) are the og_title, og_description, canonical_url and
+// noindex columns under site-api's shared names (./source.ts).
 
 const CARREL_SITE = {
   id: "foxhound",
@@ -79,7 +81,10 @@ interface Post {
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
 async function versionOf(row: PostRow, pending: Pending | null): Promise<string> {
-  const updated = String(row.updatedAt.getTime());
+  // A post with search fields set carries their hash, so a source read before Carrel saw them is a conflict, not a
+  // save that clears them.
+  const search = [row.ogTitle, row.ogDescription, row.canonicalUrl, row.noindex];
+  const updated = String(row.updatedAt.getTime()) + (search.some(Boolean) ? `.s${(await contentVersion(search)).slice(0, 8)}` : "");
   if (!pending) return updated;
   return `${updated}.${(await contentVersion([pending.publishAt, pending.changeId])).slice(0, 16)}`;
 }
@@ -108,6 +113,10 @@ function sourceOf(row: PostRow): PostSource {
     author: row.author,
     tags: row.tags ?? [],
     featured: row.featured,
+    searchTitle: row.ogTitle,
+    description: row.ogDescription,
+    canonical: row.canonicalUrl,
+    noindex: row.noindex,
     body: row.body,
   };
 }
@@ -171,6 +180,10 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
         author: post.author,
         tags: post.tags,
         featured: post.featured,
+        ogTitle: post.searchTitle,
+        ogDescription: post.description,
+        canonicalUrl: post.canonical,
+        noindex: post.noindex,
       });
       return;
     }
@@ -189,9 +202,10 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
       featured: post.featured,
       coverImageUrl: current.coverImageUrl,
       coverImageAlt: current.coverImageAlt,
-      ogTitle: current.ogTitle,
-      ogDescription: current.ogDescription,
-      canonicalUrl: current.canonicalUrl,
+      ogTitle: post.searchTitle ?? null,
+      ogDescription: post.description ?? null,
+      canonicalUrl: post.canonical ?? null,
+      noindex: post.noindex ?? false,
       showUpdatedAt: current.showUpdatedAt,
       showPublishedAt: current.showPublishedAt,
     });
@@ -208,6 +222,9 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
     site: { ...CARREL_SITE },
 
     content: {
+      // The blog post head renders these; the share card is the cover or the generated card, which Carrel does not edit.
+      searchFields: ["searchTitle", "description", "canonical", "noindex"],
+
       async list(query) {
         const rows = await db.select().from(blogPosts).orderBy(desc(blogPosts.updatedAt));
         const waiting = new Map(

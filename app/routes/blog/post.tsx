@@ -126,6 +126,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       image,
       ogTitle: title,
       ogType: "article",
+      noindex: post.noindex,
     }),
     jsonLd(organizationJsonLd(url)),
     ...(byDustin
