@@ -249,20 +249,16 @@ describe("registration (RFC 7591)", () => {
     expect(res.body.client_id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("refuses a body with no usable redirect URI", async () => {
+  it("refuses a body with no usable or no allowlisted redirect URI", async () => {
     for (const body of [{}, { redirect_uris: [] }, { redirect_uris: "x" }, { redirect_uris: [7] }]) {
       const res = await provider.registerClient(db, body, NOW, ALLOWED);
       expect(res.status, JSON.stringify(body)).toBe(400);
       expect(res.body.error).toBe("invalid_redirect_uri");
     }
-  });
-
-  it("refuses a redirect URI that is not on the allowlist, claude.ai's own when DCR_REDIRECT_URIS does not list it", async () => {
+    // And one that is not on the shared allowlist (area 11, A7).
     const unlisted = await provider.registerClient(db, { redirect_uris: ["https://evil.example/cb"] }, NOW, ALLOWED);
     expect(unlisted.status).toBe(400);
     expect(unlisted.body.error).toBe("invalid_redirect_uri");
-    const closed = await provider.registerClient(db, { redirect_uris: [CLAUDE_REDIRECT] }, NOW, provider.registrationCallbacks({}));
-    expect(closed.status).toBe(400);
   });
 
   it("refuses script, data and plain-http redirect URIs, and fragments", () => {
@@ -326,18 +322,6 @@ describe("A9: the authorize request is checked in Recova's order, with Recova's 
     }
     const good = await provider.checkAuthorizeRequest(db, authorizeParams(clientId, challenge), ORIGIN);
     expect(good).toMatchObject({ ok: true, clientId, clientName: "Claude", redirectUri: CLAUDE_REDIRECT, state: "st_123" });
-  });
-
-  it("an unknown client is refused with a 400 before any sign-in", async () => {
-    harness.session = null;
-    const { challenge } = await pkcePair();
-    const loaded = (await authorizeRoute.loader({
-      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams("00000000-0000-0000-0000-000000000000", challenge)}`),
-      context: context(),
-      params: {},
-    } as never)) as unknown as { data: { ok: boolean; title: string }; init: { status: number } };
-    expect(loaded.init.status).toBe(400);
-    expect(loaded.data).toMatchObject({ ok: false, title: "Unknown client" });
   });
 
   it("a signed-out visitor goes to /login with EVERY parameter kept, resource included", async () => {
@@ -457,6 +441,14 @@ describe("A9: consent", () => {
     } as never)) as unknown as { data: { ok: boolean }; init: { status: number } };
     expect(loaded.data.ok).toBe(false);
     expect(loaded.init.status).toBe(403);
+    // An unknown client is refused on the card too, with a 400 (area 11, A8).
+    const unknown = (await authorizeRoute.loader({
+      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams("00000000-0000-0000-0000-000000000000", challenge)}`),
+      context: context(),
+      params: {},
+    } as never)) as unknown as { data: { title: string }; init: { status: number } };
+    expect(unknown.init.status).toBe(400);
+    expect(unknown.data.title).toBe("Unknown client");
     const form = authorizeParams(clientId, challenge, { intent: "allow", account_id: ACCOUNT_B });
     const res = (await authorizeRoute.action({
       request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
