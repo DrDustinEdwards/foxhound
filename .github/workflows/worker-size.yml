@@ -1,7 +1,8 @@
 name: worker-size
 
-# The Worker bundle size budget in .worker-size.json, checked by devkit's shared worker-size.yml against
-# `wrangler deploy --dry-run` of the build. No secret: a dry run never talks to the account.
+# The Worker bundle size budgets, checked by devkit's shared worker-size.yml against `wrangler deploy --dry-run`:
+# .worker-size.json for the foxhound Worker's build, .worker-size.mcp.json for the admin MCP Worker (mcp/).
+# No secret: a dry run never talks to the account.
 
 on:
   pull_request:
@@ -17,6 +18,11 @@ concurrency:
 
 jobs:
   worker-size:
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@f55d2caadaa7a18a73397fb8defffb2e3123967b # v0.20.3
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@a0fbcb5c7f65e4183a97989511f9d352950ad90b # v0.20.7
     with:
       prepare: npm run build
+
+  admin-mcp:
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@a0fbcb5c7f65e4183a97989511f9d352950ad90b # v0.20.7
+    with:
+      config: .worker-size.mcp.json
