@@ -33,6 +33,7 @@ import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settin
 import type { Route } from "./+types/dashboard";
 import { NOINDEX } from "~/lib/seo/meta";
 import { formatDateShort } from "~/lib/date-format";
+import { readForm } from "~/lib/http/body";
 
 // J43, row U2: Recova's /audit/dashboard, at Recova's path.
 // Read whole at HEAD: app/audit/dashboard/page.tsx (blob 988c190a, 9,206 bytes)
@@ -127,7 +128,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // A failed write throws (the D1 batch lands or throws), so it is caught,
   // logged whole, and answered 500 with Recova's failure line on the page.
   try {
-    const form = await request.formData();
+    const form = await readForm(request);
     const result = await applyAuditSettings(getDb(env), membership.accountId, {
       lookbackDays: form.get("audit_lookback_days"),
       autoRun: form.get("audit_auto_run"),

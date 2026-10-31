@@ -37,7 +37,7 @@ import type { Route } from "./+types/security";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Security - Foxhound",
+    title: "Security",
     description:
       "How Foxhound handles Stripe access, encryption, data retention, subprocessors and vulnerability reports.",
     path: "/security",

@@ -17,7 +17,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // blog/post.tsx.
   return [
     ...marketingMeta({
-      title: "About - Foxhound",
+      title: "About",
       description: "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
       path: "/about",
       siteUrl: loaderData?.siteUrl ?? "",

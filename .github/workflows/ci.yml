@@ -39,6 +39,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       # The second half of the 2026-10-15 ruling above. A merge to main whose
       # tree is byte for byte the tree its pull request already passed verify
@@ -130,7 +132,7 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@64997ae3facf4360eb676c57b7a5b5e8ec3350de # v0.18.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@a0fbcb5c7f65e4183a97989511f9d352950ad90b # v0.20.7
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health

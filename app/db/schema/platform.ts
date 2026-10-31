@@ -347,7 +347,10 @@ export const page404Daily = sqliteTable(
     id: id(),
     day: ts("day").notNull(),
     path: text("path").notNull(),
+    referrerHost: text("referrer_host").notNull().default(""),
+    kind: text("kind").notNull().default("page"),
     hitCount: integer("hit_count").notNull().default(0),
   },
-  (t) => [uniqueIndex("page_404_daily_day_path_uq").on(t.day, t.path)],
+  // site-runtime ./not-found's shape (NOT_FOUND_UPGRADE_SQL, migration 0061).
+  (t) => [uniqueIndex("page_404_daily_day_path_referrer_uq").on(t.day, t.path, t.referrerHost)],
 );

@@ -29,6 +29,7 @@ import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-d
 
 import type { Route } from "./+types/disputes";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S32, /settings/disputes.
 //
@@ -92,7 +93,7 @@ type ActionResult =
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await request.formData();
+  const form = await readForm(request);
   if (form.get("_action") === "toggle_disputes") {
     const enabled = form.get("enabled") === "true";
     try {

@@ -5,7 +5,7 @@ import { redirect } from "react-router";
 
 import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
-import { authClient } from "~/lib/auth/client";
+import { authClient, signInAgainIfStale } from "~/lib/auth/client";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { safeNextPath } from "~/lib/auth/next-path";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -20,7 +20,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // ./sign-in), in the sign-in card.
 
 export function meta() {
-  return [{ title: "Add a passkey - Foxhound" }, NOINDEX];
+  return [{ title: "Create a passkey - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -57,6 +57,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
             setBusy(true);
             setError(null);
             const res = await authClient.passkey.addPasskey();
+            if (signInAgainIfStale(res?.error)) return;
             setBusy(false);
             if (res?.error) {
               setError("The passkey was not saved. Try again, or skip it for now.");
@@ -65,7 +66,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
             window.location.assign(next);
           }}
         >
-          {busy ? "Waiting for your device..." : "Add a passkey"}
+          {busy ? "Waiting for your device..." : "Create a passkey"}
         </Button>
         {error ? <Alert tone="crit">{error}</Alert> : null}
       </div>
