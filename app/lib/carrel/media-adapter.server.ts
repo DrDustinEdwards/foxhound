@@ -6,7 +6,7 @@ import {
   VersionConflictError,
   kindOf,
   orientationOf,
-  sha256Hex,
+  prepareUpload,
   transformFocus,
   mediaRev,
   mediaVersion,
@@ -16,18 +16,15 @@ import {
   type MediaLens,
   type MediaResize,
   type MediaTransformOp,
-  type MediaUploaded,
   type MediaUse,
 } from "@dustinedwards/site-api";
 import { writeFocus, type R2BucketLike } from "@dustinedwards/site-api/r2";
 import { editImage, type EditFormat } from "@dustinedwards/site-runtime/image";
 
 import type { Db } from "~/db";
-import { readEmbedded } from "~/lib/media/embedded.server";
 import { EXTENSIONS, mediaUrl } from "~/lib/media/images";
 import {
   historyOf,
-  measure,
   removeFile,
   revisionBytes,
   storeFile,
@@ -56,7 +53,9 @@ import { mediaUses } from "~/lib/media/usage.server";
 // upload, alt, tags, trash and restore, delete, focal point, caption, replace,
 // duplicates, usage, filters, import, credit and license, turns and mirrors,
 // byte history and revert, the change log, shrinking at upload and in place,
-// embedded metadata, and suggestions. Not `replaceKeepsSize`: a post's picture
+// embedded metadata, and suggestions. Every new set of bytes (an upload, a
+// replace, a shrink) goes through site-api's prepareUpload: the location taken
+// out, the shrink, the size and the embedded metadata. Not `replaceKeepsSize`: a post's picture
 // is sized from the index row each time the post renders (markdown.server.ts),
 // not from its address, so new bytes of another size are honest here.
 //
@@ -122,8 +121,8 @@ function itemOf(row: MediaRow, usedCount?: number): MediaItem {
     focus: row.focus,
     caption: row.caption,
     ...(usedCount === undefined ? {} : { usedCount }),
-    placeholder: null,
-    color: null,
+    placeholder: row.placeholder,
+    color: row.color,
     credit: row.credit,
     license: row.license,
     sourceUrl: row.sourceUrl,
@@ -175,20 +174,9 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
   const field = (fields: MediaFields) => async (id: string, input: { expectedVersion: string }) =>
     answer(await writeMediaAtRev(db, id, fields, mediaRev(input.expectedVersion)));
 
-  /** Re-encodes the picture through the Images binding (site-runtime's editImage), in its own type. */
-  async function reencode(
-    body: ReadableStream | Uint8Array,
-    edit: { rotate?: 90 | 180 | 270; flip?: "h" | "v"; maxEdge?: number },
-    type: string,
-    quality: number,
-  ) {
-    const response = await editImage(env.IMAGES, body, {
-      ...edit,
-      format: type as EditFormat,
-      quality,
-    });
-    return new Uint8Array(await response.arrayBuffer());
-  }
+  /** The bytes prepareUpload makes of a file's own, for a replace or a shrink. */
+  const prepare = (input: { bytes: Uint8Array; contentType: string; filename: string; changeId: string }, resize = false) =>
+    prepareUpload(env.IMAGES, { ...input, alt: "", resize }, { resize: RESIZE });
 
   async function withUse(rows: MediaRow[]): Promise<MediaItem[]> {
     const uses = await mediaUses(db);
@@ -295,41 +283,11 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     },
 
     async upload(input) {
-      // Read before any shrink, which drops the metadata with the pixels.
-      const found = readEmbedded(input.bytes, input.contentType);
-      let bytes = input.bytes;
-      let resizedFrom: MediaUploaded["resizedFrom"];
-      let original: Parameters<typeof storeFile>[2]["original"];
-      if (input.resize && REENCODED.has(input.contentType)) {
-        const size = await measure(env, input.bytes);
-        if (size && Math.max(size.width, size.height) > RESIZE.maxEdge) {
-          bytes = await reencode(
-            input.bytes,
-            { maxEdge: RESIZE.maxEdge },
-            input.contentType,
-            RESIZE.quality,
-          );
-          resizedFrom = {
-            width: size.width,
-            height: size.height,
-            bytes: input.bytes.byteLength,
-          };
-          original = {
-            bytes: input.bytes,
-            ...size,
-            sha256: input.sha256 ?? (await sha256Hex(input.bytes)),
-          };
-        }
-      }
-      const embedded = (
-        ["credit", "license", "caption", "takenAt"] as const
-      ).filter((name) => found[name]);
-      const row = await storeFile(env, db, {
-        bytes,
-        contentType: input.contentType,
-        filename: input.filename,
+      const prepared = await prepareUpload(env.IMAGES, input, { resize: RESIZE });
+      const found = prepared.embedded;
+      const embedded = (["credit", "license", "caption", "takenAt"] as const).filter((name) => found[name]);
+      const row = await storeFile(env, db, prepared, {
         reason: input.sourceUrl ? "import" : "upload",
-        original,
         fields: {
           alt: input.alt,
           ...Object.fromEntries(embedded.map((name) => [name, found[name]])),
@@ -339,7 +297,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       return {
         ...itemOf(row, 0),
         ...(embedded.length > 0 ? { embedded: [...embedded] } : {}),
-        ...(resizedFrom ? { resizedFrom } : {}),
+        ...(prepared.resizedFrom ? { resizedFrom: prepared.resizedFrom } : {}),
       };
     },
 
@@ -389,8 +347,8 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     },
 
     async replace(id, input) {
-      const size = await measure(env, input.bytes);
-      if (!size)
+      const prepared = await prepare(input);
+      if (!prepared.width || !prepared.height)
         throw new RefusedError("The new file could not be read as a picture.");
       await claim(id, input.expectedVersion);
       const row = await swapBytes(
@@ -398,15 +356,16 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
         db,
         await mustHold(id),
         {
-          bytes: input.bytes,
-          contentType: input.contentType,
-          ...size,
+          bytes: prepared.bytes,
+          contentType: prepared.contentType,
+          width: prepared.width,
+          height: prepared.height,
           reason: "replace",
         },
-        { focus: null, filename: input.filename.slice(0, 300) },
+        { focus: null, filename: input.filename.slice(0, 300), placeholder: prepared.placeholder, color: prepared.color },
       );
-      // The image route keys its cached sizes by the object's etag (site-runtime ./image), and the
-      // public copies expire in five minutes (app/routes/files/media.ts).
+      // The image route keys its cached sizes by the object's etag (site-runtime ./image), and pages
+      // name the new bytes by a new versioned address (app/routes/files/media.ts).
       return { item: itemOf(row), sizesNeedPurge: false };
     },
 
@@ -425,12 +384,12 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       if (row.rev !== mediaRev(input.expectedVersion)) throw new VersionConflictError(mediaVersion(row.rev), "The file changed since it was loaded.");
       const object = await env.MEDIA.get(id);
       if (!object) throw new NotFoundError("No such media.");
-      const bytes = await reencode(
-        object.body,
-        TRANSFORMS[input.op],
-        row.contentType,
-        TRANSFORM_QUALITY,
-      );
+      const turned = await editImage(env.IMAGES, object.body, {
+        ...TRANSFORMS[input.op],
+        format: row.contentType as EditFormat,
+        quality: TRANSFORM_QUALITY,
+      });
+      const bytes = new Uint8Array(await turned.arrayBuffer());
       const swapped = turnsSize(input.op);
       const focus = transformFocus(row.focus, input.op);
       await claim(id, input.expectedVersion);
@@ -445,7 +404,8 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
           height: swapped ? row.width : row.height,
           reason: "transform",
         },
-        { focus },
+        // The placeholder and color were the old bytes'; a turn or a revert has none.
+        { focus, placeholder: null, color: null },
       );
       // The swap dropped the old point with the old bytes; the moved one goes back on the object for ./image.
       if (focus) await writeFocus(bucket, id, focus);
@@ -478,7 +438,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
           height: kept.revision.height,
           reason: "revert",
         },
-        { focus: null },
+        { focus: null, placeholder: null, color: null },
       );
       return { item: itemOf(after), sizesNeedPurge: false };
     },
@@ -489,26 +449,24 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
       if (!REENCODED.has(row.contentType) || !oversized(row)) return { resized: false, item: itemOf(row) };
       const object = await env.MEDIA.get(id);
       if (!object) throw new NotFoundError("No such media.");
-      const bytes = await reencode(
-        object.body,
-        { maxEdge: RESIZE.maxEdge },
-        row.contentType,
-        RESIZE.quality,
+      const shrunk = await prepare(
+        { bytes: new Uint8Array(await object.arrayBuffer()), contentType: row.contentType, filename: row.filename ?? id, changeId: input.changeId },
+        true,
       );
-      const size = await measure(env, bytes);
+      if (!shrunk.resizedFrom) return { resized: false, item: itemOf(row) };
       await claim(id, input.expectedVersion);
       const after = await swapBytes(
         env,
         db,
         await mustHold(id),
         {
-          bytes,
+          bytes: shrunk.bytes,
           contentType: row.contentType,
-          width: size?.width ?? null,
-          height: size?.height ?? null,
+          width: shrunk.width,
+          height: shrunk.height,
           reason: "resize",
         },
-        { focus: row.focus },
+        { focus: row.focus, placeholder: shrunk.placeholder, color: shrunk.color },
       );
       if (row.focus) await writeFocus(bucket, id, row.focus);
       return { resized: true, item: itemOf(after) };

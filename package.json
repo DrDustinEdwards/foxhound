@@ -27,7 +27,7 @@
     "@anthropic-ai/sdk": "0.111.0",
     "@better-auth/passkey": "1.7.12",
     "@cloudflare/workers-oauth-provider": "1.2.4",
-    "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.21.0",
+    "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.23.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.7.0",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.17.0",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.46.1",
@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.65.0",
-    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.20.7",
+    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.20.8",
     "@eslint/js": "9.39.5",
     "@react-router/dev": "8.5.1",
     "@tailwindcss/vite": "4.3.2",

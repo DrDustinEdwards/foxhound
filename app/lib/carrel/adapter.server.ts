@@ -112,9 +112,9 @@ function sourceOf(row: PostRow): PostSource {
   };
 }
 
-function parse(source: string): PostSource {
+function parse(source: string, options?: { preview?: boolean }): PostSource {
   try {
-    return parsePostSource(source, { author: DEFAULT_AUTHOR });
+    return parsePostSource(source, { author: DEFAULT_AUTHOR }, options);
   } catch (error) {
     if (error instanceof SourceError) throw new RefusedError(error.message);
     throw error;
@@ -382,13 +382,11 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
     },
 
     preview: {
-      // A bare body with no front matter still previews, untitled (site-api 0.17.0's
-      // conformance asks it to); a save still refuses it.
       async render(input) {
-        const post = input.source.startsWith("---") ? parse(input.source) : { title: "Untitled", body: input.source };
+        const post = parse(input.source, { preview: true });
         const { html } = await renderMarkdown(db, post.body);
         const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
-        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(post.title)}</title></head><body><article><h1>${esc(post.title)}</h1>${html}</article></body></html>`;
+        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>${esc(post.title)}</title></head><body><article><h1>${esc(post.title)}</h1>${html}</article></body></html>`;
       },
     },
   };
