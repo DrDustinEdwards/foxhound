@@ -285,7 +285,9 @@ export const NO_TRANSFORM_PREFIXES = [
   "/p/",
   "/u/",
   "/invite/",
-  // Where the emailed sign-in link lands, carrying a signed-in session.
+  // Where the emailed sign-in link lands (its URL holds the link's token), and
+  // the passkey offer after it, carrying a signed-in session.
+  "/sign-in/",
   "/passkey",
   // The OAuth consent page: its query carries a client's id and state.
   "/oauth/",

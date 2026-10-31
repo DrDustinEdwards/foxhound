@@ -340,14 +340,18 @@ export const customerNotes = sqliteTable(
   (t) => [index("customer_notes_account_idx").on(t.accountId)],
 );
 
-// NEW: daily aggregate per path (raw page_404s rows are not migrated; see legacy-map.md)
+// NEW: daily aggregate per path and referring host (raw page_404s rows are not
+// migrated; see legacy-map.md). site-runtime ./not-found writes it: its
+// NOT_FOUND_UPGRADE_SQL added referrer_host and kind ("page" or "probe").
 export const page404Daily = sqliteTable(
   "page_404_daily",
   {
     id: id(),
     day: ts("day").notNull(),
     path: text("path").notNull(),
+    referrerHost: text("referrer_host").notNull().default(""),
+    kind: text("kind").notNull().default("page"),
     hitCount: integer("hit_count").notNull().default(0),
   },
-  (t) => [uniqueIndex("page_404_daily_day_path_uq").on(t.day, t.path)],
+  (t) => [uniqueIndex("page_404_daily_day_path_referrer_uq").on(t.day, t.path, t.referrerHost)],
 );

@@ -49,6 +49,7 @@ vi.mock("~/db/client", async (importOriginal) => ({
 
 const { requestSignInLink, signInWithCode } = await import("~/lib/auth/sign-in-link.server");
 const { sendSignInLinkEmail } = await import("~/lib/auth/send-auth-email");
+const { action: confirmAction } = await import("~/routes/auth/sign-in-confirm");
 
 const BASE = "https://foxhoundapp.com";
 const TO = "jane@example.com";
@@ -139,12 +140,21 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(hrefs).toHaveLength(1);
     const raw = hrefs[0].replace(/&amp;/g, "&");
     const href = new URL(raw);
-    expect(href.origin + href.pathname).toBe(`${BASE}/api/auth/magic-link/verify`);
-    // The token is the one Better Auth stored, and the link lands on the
-    // passkey offer, which goes on to /console.
-    expect(linkTokens()).toEqual([href.searchParams.get("token")]);
+    // The link opens the confirm page (site-runtime 0.36), never Better Auth's
+    // GET verify, so a mail scanner opening it signs nobody in.
+    expect(href.origin + href.pathname).toBe(`${BASE}/sign-in/confirm`);
+    expect(linkTokens()).toHaveLength(1);
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
     expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/login`);
+    // The page's button posts to its own URL: that signs in and lands on the
+    // passkey offer, which goes on to /console.
+    const confirmed = await confirmAction({
+      request: new Request(raw, { method: "POST", headers: { origin: BASE } }),
+      context: { get: () => ({ env: makeEnv() }) },
+    } as unknown as Parameters<typeof confirmAction>[0]);
+    expect(confirmed.status).toBe(302);
+    expect(confirmed.headers.get("location")).toBe(`${BASE}/passkey?next=%2Fconsole`);
+    expect(confirmed.headers.get("set-cookie")).toMatch(/session_token=/);
 
     const want = expectedRender(TO, raw, codeIn(m));
     expect(m.subject).toBe(want.subject);
