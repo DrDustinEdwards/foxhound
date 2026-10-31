@@ -1,3 +1,4 @@
+import type { NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import {
   alert,
   checkUrl,
@@ -5,6 +6,7 @@ import {
   notice,
   magicLink,
   renderEmail,
+  securityNotice,
   type AlertLevel,
   type Block,
   type FooterLine,
@@ -16,9 +18,10 @@ import {
 // here, on Capsomer's shared email component (RULES.md 3.16; Q3, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQL1VeHhPyiYfFgdd86VozbJD).
 // send.ts calls renderFoxhoundEmail for both sendEmail and sendTransactionalEmail,
-// so the frame is applied in exactly one place. The sign-in link is the one
-// exception to foxhoundMail: it is rendered on Capsomer's `magicLink` template by
-// renderFoxhoundSignInLinkEmail below, still in this module.
+// so the frame is applied in exactly one place. The sign-in link and the
+// security notice are the exceptions to foxhoundMail: they are rendered on
+// Capsomer's `magicLink` and `securityNotice` templates below, still in this
+// module.
 //
 // WHAT STAYS FOXHOUND'S. The senders still write their own content, in the same
 // words as before; this module only turns that content into Capsomer's typed
@@ -192,6 +195,13 @@ export function renderFoxhoundSignInLinkEmail(input: SignInLinkRenderInput): Ren
     code: input.code,
     expiresIn: input.expiresIn,
   });
+}
+
+/** Render a security notice (site-runtime ./sign-in's `sendSecurityNotice`
+ *  detail, taken as it is) on Capsomer's securityNotice template. `url` is the
+ *  page where a merchant manages sign-in; the mail holds no link that signs in. */
+export function renderFoxhoundSecurityNoticeEmail(to: string, detail: NoticeDetail, url: string): Rendered {
+  return renderEmail(securityNotice, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, to, ...detail, url });
 }
 
 // ---- operator alerts (E26, E27) ------------------------------------------------

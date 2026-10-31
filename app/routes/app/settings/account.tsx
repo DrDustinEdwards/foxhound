@@ -22,10 +22,11 @@ import "capsomer/status.css";
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
 
-import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
+import { passkeyLabel, sessionRows, signInMethods } from "@dustinedwards/site-runtime/sign-in";
+import { isAPIError } from "better-auth/api";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SignInMethodsPanel, type SignInSettings } from "~/components/sign-in-settings";
+import { SignInMethodsPanel, type SignedInDevices, type SignInSettings } from "~/components/sign-in-settings";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
@@ -35,7 +36,8 @@ import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
 import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
-import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
+import { getAuth, getSession, listMemberships, listSessions, setSessionActiveAccount } from "~/lib/auth";
+import type { AuthContext } from "~/lib/auth/context";
 import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
@@ -84,19 +86,23 @@ import { readForm } from "~/lib/http/body";
 // 2026-10-14); Sign out is a button that posts ("yes", 2026-09-19); the
 // Sign-in panel after Appearance lists passkeys and joins Google or Apple, the
 // one place an account is joined (the family sign-in, APPROVED-DIFFERENCES
-// "Sign-in and invites", 2026-10-24).
+// "Sign-in and invites", 2026-10-24), and lists the signed-in devices (the
+// family's account security, site-runtime ./sign-in).
 
 export function meta() {
   return [{ title: "My account - Foxhound" }, NOINDEX];
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const account = await getAccount(getDb(env), auth.membership.accountId);
   if (!account) throw new Response("Not Found", { status: 404 });
   return {
-    signIn: await signInSettings(env, auth.userId, auth.isDemo),
+    signIn: {
+      ...(await signInSettings(env, auth.userId, auth.isDemo)),
+      devices: await signedInDevices(env, request, auth),
+    },
     account,
     cancelledAt: account.cancelledAt,
     // The signed-in address, which legacy's AccountSection displays beside its
@@ -124,7 +130,7 @@ export async function loader({ context }: Route.LoaderArgs) {
  * the app's other reads of them are (delete-account.server.ts). The demo
  * changes nothing, so it lists none.
  */
-async function signInSettings(env: Env, userId: string, isDemo: boolean): Promise<SignInSettings> {
+async function signInSettings(env: Env, userId: string, isDemo: boolean): Promise<Omit<SignInSettings, "devices">> {
   const methods = signInMethods(env, { social: true });
   const offered = [
     methods.google ? { id: "google" as const, label: "Google" } : null,
@@ -134,7 +140,7 @@ async function signInSettings(env: Env, userId: string, isDemo: boolean): Promis
   const db = getDb(env);
   const [passkeys, joined] = await Promise.all([
     db
-      .select({ id: passkey.id, name: passkey.name })
+      .select({ id: passkey.id, name: passkey.name, aaguid: passkey.aaguid, credentialId: passkey.credentialID })
       .from(passkey)
       .where(eq(passkey.userId, userId))
       .orderBy(passkey.createdAt),
@@ -143,9 +149,26 @@ async function signInSettings(env: Env, userId: string, isDemo: boolean): Promis
   // The joined account's own id, which Disconnect names.
   const byProvider = new Map(joined.map((a) => [a.providerId, a.id]));
   return {
-    passkeys: passkeys.map((p) => ({ id: p.id, name: p.name || "Passkey" })),
+    passkeys: passkeys.map((p) => ({ id: p.id, name: passkeyLabel(p), credentialId: p.credentialId })),
     providers: offered.map((p) => ({ ...p, accountId: byProvider.get(p.id) ?? null })),
   };
+}
+
+/**
+ * Where this person is signed in, from Better Auth's own list, which wants a
+ * sign-in from the last 10 minutes: "stale" until then, and the panel asks for
+ * one, as adding a passkey does. The demo and an admin's read-only view list
+ * none: the request's session is not this person's.
+ */
+async function signedInDevices(env: Env, request: Request, auth: AuthContext): Promise<SignedInDevices> {
+  if (auth.isDemo || auth.viewingAs) return null;
+  try {
+    const listed = await listSessions(env, request);
+    return listed ? sessionRows(listed.sessions, listed.token) : null;
+  } catch (error) {
+    if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") return "stale";
+    throw error;
+  }
 }
 
 type ProfileField = "name" | "merchantMrrSelfReported";

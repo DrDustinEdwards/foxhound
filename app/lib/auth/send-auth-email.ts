@@ -1,10 +1,10 @@
-import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
+import { SIGN_IN_EXPIRES_IN_WORDS, type NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import type { Rendered } from "capsomer/email";
 
 import { sendRenderedTransactionalEmail, type TransactionalSendOutcome } from "~/lib/email/send";
-import { renderFoxhoundSignInLinkEmail } from "~/lib/email/templates";
+import { renderFoxhoundSecurityNoticeEmail, renderFoxhoundSignInLinkEmail } from "~/lib/email/templates";
 
-// The sign-in link and its code, the one auth email: the family sign-in
+// The sign-in link and its code, and the security notice: the family sign-in
 // (site-runtime ./sign-in) has no passwords, so there is no reset or
 // verification mail. The code is for the tab that asked, when the link opens
 // in another browser (the mail app's, a phone). Sent
@@ -49,6 +49,23 @@ export async function sendSignInLinkEmail(
     return { status: "failed", reason: isHttps(url) ? "render_failed" : "link_refused", error: null };
   }
   return sendRenderedTransactionalEmail(env, { to, rendered, redact: [url, token, code, to] });
+}
+
+/** Where a merchant manages how they sign in; the notice's button opens it. */
+export const SIGN_IN_SETTINGS_PATH = "/settings/account";
+
+/**
+ * Mail a security notice (a passkey added, a session ended, ...) to `to`, the
+ * way the sign-in link goes. site-runtime calls this after the change is made
+ * and logs a throw as `security_notice_failed` without undoing the change, so a
+ * refusal is thrown by name, with the recipient cut out of the provider's words.
+ */
+export async function sendSecurityNoticeEmail(env: Env, to: string, detail: NoticeDetail): Promise<void> {
+  const rendered = renderFoxhoundSecurityNoticeEmail(to, detail, `${env.BETTER_AUTH_URL}${SIGN_IN_SETTINGS_PATH}`);
+  const sent = await sendRenderedTransactionalEmail(env, { to, rendered, redact: [to] });
+  if (sent.status !== "sent") {
+    throw new Error(`security notice email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
+  }
 }
 
 function isHttps(url: string): boolean {

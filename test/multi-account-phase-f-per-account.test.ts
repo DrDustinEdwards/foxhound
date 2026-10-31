@@ -38,7 +38,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-vi.mock("~/lib/auth/session", () => ({ getSession: async () => sessionHarness.session }));
+vi.mock("~/lib/auth/session", () => ({ getSession: async () => sessionHarness.session, listSessions: async () => null }));
 
 const dashboard = await import("~/routes/app/dashboard");
 const recoveryIndex = await import("~/routes/app/recovery/index");
