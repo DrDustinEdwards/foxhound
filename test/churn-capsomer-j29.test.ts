@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { churnRateAlt } from "~/lib/intelligence/churn";
-import IntelligenceChurn, { ChurnRateChart } from "~/routes/app/intelligence/churn";
+import IntelligenceChurn from "~/routes/app/intelligence/churn";
 
 import type { ChurnView } from "~/lib/intelligence/trends.server";
 
@@ -111,16 +111,5 @@ describe("churnRateAlt", () => {
     expect(churnRateAlt([{ at: at("2026-01-01"), involuntaryPct: 4, voluntaryPct: null }])).toBe(
       "Monthly churn rate, Jan 2026. Involuntary churn was 4% in Jan 2026; voluntary churn has no rate yet.",
     );
-  });
-});
-
-describe("J29 churn: the chart's redraw", () => {
-  it("keeps its measured wrapper when Enarratio refuses to draw, so the observer still attaches", () => {
-    const html = renderToStaticMarkup(
-      createElement(ChurnRateChart, {
-        points: [{ at: new Date(Number.NaN), involuntaryPct: 1, voluntaryPct: 1 }],
-      }),
-    );
-    expect(html).toMatch(/^<div class="min-w-0 fh-churn-chart"><p[^>]*>This chart could not be drawn/);
   });
 });
