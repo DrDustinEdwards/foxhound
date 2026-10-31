@@ -1,5 +1,6 @@
 import { createSiteApi, type PublishHook, type RateLimiter, type ScheduleRun, type SiteApi } from "@dustinedwards/site-api";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 
 import { getDb } from "~/db";
 import { purgePublicPages } from "~/lib/http/edge-purge.server";
@@ -49,8 +50,13 @@ const purgeOnSchedule: PublishHook = {
 function carrelSiteApi(env: Env): SiteApi {
   const db = getDb(env);
   return createSiteApi({
-    // The blog's media library rides beside the posts (media-adapter.server.ts).
-    adapter: { ...carrelAdapter(db, d1ScheduledUpdates(env.DB)), media: carrelMediaAdapter(env, db) },
+    // The blog's media library rides beside the posts (media-adapter.server.ts),
+    // and the 404s entry.server.tsx counts beside both, for Carrel's report.
+    adapter: {
+      ...carrelAdapter(db, d1ScheduledUpdates(env.DB)),
+      media: carrelMediaAdapter(env, db),
+      insight: { notFound: (options) => notFoundReport(env.DB, options) },
+    },
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
     hooks: [indexNow, purgeOnSchedule],
