@@ -1,13 +1,13 @@
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
-import "./recovery/dashboard.css";
 
 import { ConsoleAttentionFeed, ConsoleHeroRow, ConsoleTileRow } from "~/components/console-panels";
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -149,17 +149,17 @@ export default function Console({ loaderData }: Route.ComponentProps) {
                 </span>
               }
             >
-              <EnarratioFigure
-                className="fh-recovery-chart"
-                initialWidth={560}
+              <ChartFrame
+                className="fh-chart-nogrid"
+                width={560}
                 draw={(width) => drawMrrTrend(trend, latest.currency, width)}
               />
             </Panel>
 
             <Panel title="Movements (latest month)" level={3}>
-              <EnarratioFigure
-                className="fh-recovery-chart"
-                initialWidth={560}
+              <ChartFrame
+                className="fh-chart-nogrid"
+                width={560}
                 draw={(width) => drawLatestMovement(latest, latest.currency, width)}
               />
             </Panel>
@@ -173,9 +173,9 @@ export default function Console({ loaderData }: Route.ComponentProps) {
 
             {cohortRows.length > 0 ? (
               <Panel title="Cohorts" level={3}>
-                <EnarratioFigure
-                  className="fh-recovery-chart"
-                  initialWidth={560}
+                <ChartFrame
+                  className="fh-chart-nogrid"
+                  width={560}
                   draw={(width) => drawCohorts(cohortRows, width)}
                 />
               </Panel>

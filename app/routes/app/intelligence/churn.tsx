@@ -1,20 +1,15 @@
 import { Link } from "capsomer/react/link";
 import { lineChart } from "enarratio/lite/line";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
-import "enarratio/base.css";
-// Capsomer's --enarratio-* mapping onto its tokens, loaded here rather than
-// relied on through the shell's capsomer/tokens.css import, so the chart's
-// colors do not depend on another file's imports.
-import "capsomer/enarratio.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-import "./churn.css";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -229,6 +224,7 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
     ];
   });
   return lineChart({
+    title: "Churn rate over time",
     data,
     x: "Month",
     y: "rate",
@@ -237,11 +233,11 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
     seriesDomain: ["Involuntary", "Voluntary"],
     // Recova's colors, through Enarratio's own option: Involuntary on the
     // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
-    // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio 0.3.1 has
-    // no per-series dash (enarratio gap).
+    // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio has no
+    // per-series dash (enarratio gap).
     colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },
     xLabel: null,
-    // Enarratio 0.3.1 has no tick format, so Recova's "2%" ticks read as "2"
+    // Enarratio has no tick format, so Recova's "2%" ticks read as "2"
     // under this axis label until it does (enarratio gap).
     yLabel: "Churn rate (%)",
     formatValue: formatChurnPct,
@@ -252,7 +248,6 @@ function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): st
   });
 }
 
-// fh-churn-chart scopes Enarratio's documented gridline rule (churn.css).
 export function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
-  return <EnarratioFigure className="fh-churn-chart" draw={(width) => drawChurnRate(points, width)} />;
+  return <ChartFrame className="fh-chart-nogrid" draw={(width) => drawChurnRate(points, width)} />;
 }

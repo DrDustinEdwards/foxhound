@@ -1,9 +1,0 @@
-/* The churn-rate chart (app/routes/app/intelligence/churn.tsx). Recova's
-   ChurnRateChart draws no CartesianGrid, and ruling 398 pinned that. Enarratio
-   draws y gridlines by default; this is its documented way to hide them
-   (enarratio docs/api.md, "Custom properties": hide a direction with a rule on
-   the x-grid or y-grid mark). Scoped to this chart only. Tested by
-   test/churn-capsomer-j29.test.ts. */
-.fh-churn-chart [data-enarratio-mark="y-grid"] {
-  display: none;
-}

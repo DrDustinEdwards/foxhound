@@ -5,8 +5,9 @@ import { areaChart } from "enarratio/lite/area";
 import { barChart } from "enarratio/lite/bar";
 import { sparkline } from "enarratio";
 import { Meter } from "capsomer/react/meter";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import {
   dailyRecoveredRows,
@@ -19,7 +20,6 @@ import {
   recoveredRevenueAlt,
   recoveryRateAlt,
   recoveryTimingAlt,
-  withoutHoverTitles,
 } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney, fromMajorUnits } from "~/lib/money-format";
 
@@ -44,20 +44,19 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
   if (!w.recoveryRateDaily.some((p) => p.rate !== null)) {
     return (
       <Panel title={title}>
-        <p className="m-0 text-label text-text-subtle">
-          Not enough data yet. Recovery rate will appear after your first recovery.
-        </p>
+        <ChartFrame noData={{ title, reason: "Not enough data yet. Recovery rate will appear after your first recovery." }} />
       </Panel>
     );
   }
   const rows = w.recoveryRateDaily.map((p) => ({ Day: p.date, rate: p.rate }));
   return (
     <Panel title={title}>
-      <EnarratioFigure
-        className="fh-recovery-chart"
-        initialWidth={HALF_WIDTH}
+      <ChartFrame
+        className="fh-chart-nogrid"
+        width={HALF_WIDTH}
         draw={(width) =>
           areaChart({
+            title,
             data: rows,
             x: "Day",
             y: "rate",
@@ -82,18 +81,20 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
   const days = w.rangeDays;
   const { rows, currencies } = dailyRecoveredRows(w.recoveredPayments, days, nowMs);
   const single = currencies.length === 1 ? currencies[0]! : null;
+  const title = `Recovered revenue · ${w.rangeLabel}`;
   return (
     <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-[2fr_1fr]">
-      <Panel title={`Recovered revenue · ${w.rangeLabel}`} more={
+      <Panel title={title} more={
         <span className="font-mono text-body font-semibold tabular-nums text-text">
           {formatCurrencyTotals(w.recoveredRevenue)}
         </span>
       }>
-        <EnarratioFigure
-          className="fh-recovery-chart"
-          initialWidth={SIDE_WIDTH}
+        <ChartFrame
+          className="fh-chart-nogrid"
+          width={SIDE_WIDTH}
           draw={(width) =>
             barChart({
+              title,
               data: rows,
               x: "Day",
               xType: "time",
@@ -172,19 +173,19 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
                   {row.spark.some((v) => v > 0) ? (
                     <span
                       className="inline-flex"
-                      // Enarratio's sparkline is an SVG named by its own
-                      // generated sentence (count, first, last, lowest,
+                      // A sparkline beside a figure needs no frame (Capsomer's
+                      // chart frame, "When not to"): Enarratio's inline SVG is
+                      // named by its own sentence (count, first, last, lowest,
                       // highest), so the trend is text as well.
                       dangerouslySetInnerHTML={{
-                        __html: withoutHoverTitles(
-                          sparkline({
-                            values: row.spark,
-                            label: `${row.label} failures per day, last 30 days`,
-                            width: 60,
-                            height: 24,
-                            endDot: false,
-                          }),
-                        ),
+                        __html: sparkline({
+                          values: row.spark,
+                          label: `${row.label} failures per day, last 30 days`,
+                          width: 60,
+                          height: 24,
+                          endDot: false,
+                          inline: true,
+                        }),
                       }}
                     />
                   ) : null}
@@ -206,17 +207,18 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
   if (totalSent === 0) {
     return (
       <Panel title={title}>
-        <p className="m-0 text-label text-text-subtle">No recovery emails sent yet.</p>
+        <ChartFrame noData={{ title, reason: "No recovery emails sent yet." }} />
       </Panel>
     );
   }
   return (
     <Panel title={title}>
-      <EnarratioFigure
-        className="fh-recovery-chart"
-        initialWidth={SIDE_WIDTH}
+      <ChartFrame
+        className="fh-chart-nogrid"
+        width={SIDE_WIDTH}
         draw={(width) =>
           barChart({
+            title,
             data: rows,
             x: "Category",
             y: "rate",
@@ -245,7 +247,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
   if (total === 0) {
     return (
       <Panel title={title}>
-        <p className="m-0 text-label text-text-subtle">No recoveries yet.</p>
+        <ChartFrame noData={{ title, reason: "No recoveries yet." }} />
       </Panel>
     );
   }
@@ -254,11 +256,12 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
   const rows = w.recoveryTimingBuckets.map((b) => ({ Bucket: b.dayBucket, share: b.percentage }));
   return (
     <Panel title={title}>
-      <EnarratioFigure
-        className="fh-recovery-chart"
-        initialWidth={HALF_WIDTH}
+      <ChartFrame
+        className="fh-chart-nogrid"
+        width={HALF_WIDTH}
         draw={(width) =>
           barChart({
+            title,
             data: rows,
             x: "Bucket",
             y: "share",
