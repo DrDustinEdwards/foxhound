@@ -132,7 +132,7 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@a0fbcb5c7f65e4183a97989511f9d352950ad90b # v0.20.7
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@d9d5a3448a50f183c3c8b4a5f293717728717245 # v0.20.8
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health

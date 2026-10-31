@@ -5,7 +5,7 @@ Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscri
 ## Rules that come first
 
 - Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
-- Read `foxhound/core.md` in Capsid with this file. Before writing anything another site might have, read what the family shares: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's family check fails on a copy). Fees are `foxhound/PRICING.md`; read it before touching billing.
+- Read `foxhound/core.md` in Capsid with this file. Before writing anything another site might have, read what the sites share: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's shared-code check fails on a copy). Fees are `foxhound/PRICING.md`; read it before touching billing.
 - Recova is the spec (Dustin: "I want the new site to be like the old site, except built to be native on Cloudflare"): its content, layout, widths, text sizes and features, with Capsomer's components in Recova's amber and the shared family pieces in place of Foxhound's own. Shared pieces, their defaults, not copying Recova's bugs, and plain improvements need no ruling; a change people can see is approved the way every visual PR is, by Dustin's yes on its screenshots. Only dropping a Recova feature or content needs his quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`, which also lists what is deliberately not built.
 
 ## Commands
