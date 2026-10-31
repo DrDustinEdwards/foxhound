@@ -26,11 +26,10 @@
 //  - site-runtime's rule is a nonce only on a response that is never
 //    shared-cached. Since the edge page cache (site-runtime ./edge-cache), a
 //    public page rendered by the Renderer entrypoint IS stored and handed to
-//    every reader, so it carries no nonce: it is rendered without one and its
-//    inline scripts (React Router's hydration data and module bootstrap, and
-//    the JSON-LD) are trusted by hash, computed from the page as rendered
-//    (applyHashedSecurityHeaders). Every page the gateway renders, signed-in or
-//    private, keeps its per-request nonce.
+//    every reader. It is stored with the nonce it was rendered with, and the
+//    gateway gives every reader a fresh one (site-runtime's renewNonce), on
+//    the policy and on only the elements that carried the stored value, so no
+//    two readers share a nonce and no injected script gains one.
 //  - style-src has NO 'unsafe-inline' for elements since J22, which is stricter
 //    than the pre-J22 policy. Inline style={{}} attributes (charts.tsx,
 //    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
@@ -56,29 +55,20 @@
 //    are self-hosted and preloaded from root.tsx; no <img src="https://...">
 //    beyond same-origin; no js.stripe.com / Stripe Elements usage anywhere in
 //    the client tree.
-//  - frame-src is written here, not through the builder's `sources.frame`,
-//    because the builder always adds 'self' to frame-src and the pre-J22 policy
-//    framed Turnstile ONLY. RULES.md 4.1: a new default never loosens what
-//    Foxhound already had. Since site-runtime 0.26.0 the builder refuses
-//    frame-src in `extraDirectives`, so the directive is appended to the
-//    builder's output once, at module load; the builder writes no frame-src of
-//    its own while `sources.frame` is empty, so there is still exactly one.
+//  - frame-src is Turnstile (sources.frame; the builder adds 'self').
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
-import { buildContentSecurityPolicy, reportingEndpoints, scriptHash } from "@dustinedwards/site-runtime/csp";
+import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
 import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
 
-/** Turnstile is framed by itself; the builder writes no frame-src while `sources.frame` is empty. */
-const withTurnstileFrame = (value: string): string => `${value}; frame-src ${TURNSTILE_ORIGIN}`;
-
 /** Where browsers send violation reports: the path Recova used too. */
 export const CSP_REPORT_PATH = "/api/csp-report";
 
 /** The Reporting API group name, defined by the Reporting-Endpoints header. */
-export const CSP_REPORT_GROUP = "csp-endpoint";
+const CSP_REPORT_GROUP = "csp-endpoint";
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
@@ -91,6 +81,7 @@ const NONCE_PLACEHOLDER = "Rk9YSE9VTkROT05DRVBMQUNFSE9MREVS";
 const SITE = {
   sources: {
     script: [TURNSTILE_ORIGIN],
+    frame: [TURNSTILE_ORIGIN],
     img: ["data:"],
   },
   styleHashes: INLINE_STYLE_HASHES,
@@ -102,8 +93,7 @@ const SITE = {
   formTargets: ["https://checkout.stripe.com", "https://connect.stripe.com"],
 } as const;
 const POLICY = buildContentSecurityPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER });
-const POLICY_VALUE = withTurnstileFrame(POLICY.value);
-const POLICY_PARTS = POLICY_VALUE.split(`'nonce-${NONCE_PLACEHOLDER}'`);
+const POLICY_PARTS = POLICY.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy for one response, carrying that request's nonce. */
 function contentSecurityPolicy(nonce: string) {
@@ -126,35 +116,6 @@ function contentSecurityPolicy(nonce: string) {
  */
 export function applySecurityHeaders(response: Response, nonce: string, origin: string): Response {
   return withHeaders(response, contentSecurityPolicy(nonce), origin);
-}
-
-// An inline <script> (no src) and its text. React Router escapes "</" inside
-// what it writes inline, so the first closing tag ends each one.
-const INLINE_SCRIPT = /<script\b(?![^>]*\ssrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi;
-
-/** The `sha256-...` source of every distinct inline script in a rendered page. */
-async function inlineScriptHashes(html: string): Promise<string[]> {
-  const texts = new Set<string>();
-  for (const match of html.matchAll(INLINE_SCRIPT)) texts.add(match[1] ?? "");
-  return Promise.all([...texts].map((text) => scriptHash(text)));
-}
-
-/**
- * The same header set for a page the edge stores: rendered with no nonce, its
- * inline scripts trusted by hash. An HTML body is read whole to hash it (a
- * miss only; a hit is served from the cache), then sent on as that text. The
- * builder runs per response here, which is every check it makes, on a path
- * that runs once per page per deploy or purge.
- */
-export async function applyHashedSecurityHeaders(response: Response, origin: string): Promise<Response> {
-  const isHtml = (response.headers.get("Content-Type") ?? "").startsWith("text/html");
-  const html = isHtml ? await response.text() : null;
-  const scriptHashes = html === null ? [] : await inlineScriptHashes(html);
-  const policy = buildContentSecurityPolicy({ ...SITE, scriptHashes });
-  const page = html === null
-    ? response
-    : new Response(html, { status: response.status, statusText: response.statusText, headers: response.headers });
-  return withHeaders(page, { name: policy.name, value: withTurnstileFrame(policy.value) }, origin);
 }
 
 function withHeaders(response: Response, policy: { name: string; value: string }, origin: string): Response {

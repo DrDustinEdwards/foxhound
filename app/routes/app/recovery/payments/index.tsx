@@ -88,6 +88,7 @@ import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/reco
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /recovery/payments. Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
@@ -234,7 +235,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
   const ids = form.getAll("ids").map(String).filter(Boolean);
 

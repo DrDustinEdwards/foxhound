@@ -1,6 +1,11 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 
+import { buildPolicy, scriptHash } from "@dustinedwards/site-runtime/csp";
+import { applyHeaderSet, buildSecurityHeaders } from "@dustinedwards/site-runtime/headers";
+import { securityTxtResponse } from "@dustinedwards/site-runtime/security-txt";
+import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
 import {
+  CONSENT_STYLE,
   DCR_CALLBACKS,
   loginHandler,
   registrationLimited,
@@ -38,16 +43,38 @@ import { serveAdminMcp } from "./server";
 type DoorEnv = AdminMcpEnv & { OAUTH_PROVIDER: OAuthHelpers };
 
 const REGISTER_PATH = "/register";
+const SECURITY_TXT_PATH = "/.well-known/security.txt";
 
-const PRIVATE_HEADERS: Record<string, string> = {
-  "Cache-Control": "no-store",
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
+// EVERY RESPONSE LEAVES THROUGH withDoorHeaders: the family's standard set
+// (site-runtime's registry entry foxhoundMcp, which declares no deviation),
+// never cached or indexed, and a policy that lets no page frame
+// this one, so the consent page cannot be clickjacked.
+const DOOR_HEADERS: Readonly<Record<string, string>> = {
+  ...buildSecurityHeaders({ site: foxhoundMcp }),
   "X-Robots-Tag": "noindex, nofollow",
 };
 
+/** Nothing here but the consent page is a page: the rest may load nothing. */
+const NON_HTML_POLICY = buildPolicy(["default-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'"]);
+
+// The consent page's one inline <style>, by hash. No form-action: approving
+// posts into a redirect chain ending at whatever redirect_uri the client named.
+let consentPolicy: Promise<string> | undefined;
+
+async function withDoorHeaders(response: Response): Promise<Response> {
+  const headers = new Headers(response.headers);
+  applyHeaderSet(headers, DOOR_HEADERS);
+  if (!(headers.get("Cache-Control") ?? "").includes("no-store")) headers.set("Cache-Control", "no-store");
+  const isHtml = (headers.get("Content-Type") ?? "").includes("text/html");
+  consentPolicy ??= scriptHash(CONSENT_STYLE).then((hash) =>
+    buildPolicy(["default-src 'none'", `style-src '${hash}'`, "base-uri 'none'", "frame-ancestors 'none'"]),
+  );
+  headers.set("Content-Security-Policy", isHtml ? await consentPolicy : NON_HTML_POLICY);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 function text(body: string, status: number): Response {
-  return new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8", ...PRIVATE_HEADERS } });
+  return new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }
 
 const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
@@ -79,10 +106,7 @@ const apiHandler = {
       console.warn(JSON.stringify({ door: "refused", reason: guarded.reason }));
       return text("Forbidden. This token was not issued for Foxhound Admin, or names nobody.", 403);
     }
-    const response = await serveAdminMcp(request, env, { actor: guarded.email, client: guarded.client, scopes: guarded.scopes });
-    const out = new Response(response.body, response);
-    for (const [name, value] of Object.entries(PRIVATE_HEADERS)) out.headers.set(name, value);
-    return out;
+    return serveAdminMcp(request, env, { actor: guarded.email, client: guarded.client, scopes: guarded.scopes });
   },
 };
 
@@ -126,10 +150,14 @@ function providerFor(env: AdminMcpEnv): OAuthProvider<AdminMcpEnv> {
 
 /** One request to admin-mcp.foxhoundapp.com. */
 export async function adminDoor(request: Request, env: AdminMcpEnv, ctx: ExecutionContext): Promise<Response> {
-  const { pathname } = new URL(request.url);
+  const { origin, pathname } = new URL(request.url);
+  // RFC 9116, the family's one address and Expires, as foxhoundapp.com sends.
+  if (pathname === SECURITY_TXT_PATH) {
+    return withDoorHeaders(securityTxtResponse({ origin, contact: "security@dustinedwards.info", expires: "2027-09-28T00:00:00Z" }));
+  }
   if (pathname === REGISTER_PATH && request.method === "POST") {
     const limited = await registrationLimited(request, env.OAUTH_KV);
-    if (limited) return limited;
+    if (limited) return withDoorHeaders(limited);
   }
-  return providerFor(env).fetch(request, env, ctx);
+  return withDoorHeaders(await providerFor(env).fetch(request, env, ctx));
 }

@@ -30,6 +30,7 @@ import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { setStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
+import { readForm } from "~/lib/http/body";
 
 export function meta() {
   return [{ title: "Set up your account - Foxhound" }];
@@ -108,7 +109,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // the account now exists, so both outcomes redirect to /connect, where the
   // loader re-reads the membership and shows the Connect Stripe step.
   if (!membership) {
-    const form = await request.formData();
+    const form = await readForm(request);
     const name = String(form.get("name") ?? "").trim();
     if (!name) {
       return data({ error: "Enter a name for your account." }, { status: 400 });

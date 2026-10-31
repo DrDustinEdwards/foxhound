@@ -29,6 +29,7 @@ import { pagePending, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/crons";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Crons" };
 
@@ -53,7 +54,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(adminContext);
   const db = getDb(env);
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const cronName = String(form.get("cronName") ?? "");
   const nextEnabled = String(form.get("nextEnabled") ?? "") === "true";
   if (!cronName) {

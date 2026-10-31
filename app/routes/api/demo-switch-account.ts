@@ -1,6 +1,8 @@
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { findDemoBusiness, setActiveDemoAccountCookieHeader } from "~/lib/demo/session";
 
 import type { Route } from "./+types/demo-switch-account";
+import { readForm, readJson } from "~/lib/http/body";
 
 // Switch which demo business the demo shows. Legacy's
 // app/api/demo/switch-account/route.ts (blob `f6786c87`), at the same path:
@@ -15,6 +17,8 @@ import type { Route } from "./+types/demo-switch-account";
 //
 // ACTION ONLY, no loader, as app/routes/api/account-switch.ts.
 export async function action({ request }: Route.ActionArgs) {
+  const refused = refuseCrossSite(request);
+  if (refused) return refused;
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
   }
@@ -33,12 +37,13 @@ async function readAccountId(request: Request): Promise<string | null> {
   const contentType = request.headers.get("content-type") ?? "";
   try {
     if (contentType.includes("application/json")) {
-      const payload = (await request.json()) as { accountId?: unknown } | null;
+      const payload = (await readJson(request)) as { accountId?: unknown } | null;
       return typeof payload?.accountId === "string" ? payload.accountId : null;
     }
-    const value = (await request.formData()).get("accountId");
+    const value = (await readForm(request)).get("accountId");
     return typeof value === "string" ? value : null;
-  } catch {
+  } catch (error) {
+    if (error instanceof Response) throw error;
     return null;
   }
 }
