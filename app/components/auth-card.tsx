@@ -1,5 +1,5 @@
 import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
-import { signInWithPasskey } from "@dustinedwards/site-runtime/sign-in-client";
+import { signalPasskeys, signInWithPasskey } from "@dustinedwards/site-runtime/sign-in-client";
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -24,8 +24,8 @@ import "~/site-header.css";
 //
 // The ways in are the family's one sign-in (site-runtime ./sign-in; Dustin's
 // approval in APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): a
-// passkey first, Google and Apple, and an emailed link with Turnstile on it
-// once its keys are set. No passwords, so Recova's password field, "Forgot
+// passkey first, Google and Apple, and an emailed link with Turnstile on it.
+// No passwords, so Recova's password field, "Forgot
 // password?" and its reset pages are gone.
 
 /**
@@ -169,6 +169,14 @@ export function PasskeyContinue({ next }: { next: string }) {
     // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
     const res = await signInWithPasskey(authClient, { autoFill });
     if (!res?.error) {
+      // The passkey's provider learns it is still accepted, under the
+      // account's address (site-runtime's signalPasskeys). Each passkey has a
+      // user handle of its own, so this one is the whole list for its handle.
+      const credentialId = (res as { webauthn?: { response?: { id?: string } } }).webauthn?.response?.id;
+      if (credentialId) {
+        const session = await authClient.getSession().catch(() => null);
+        await signalPasskeys({ credentialIds: [credentialId], name: session?.data?.user.email });
+      }
       window.location.assign(next);
       return;
     }

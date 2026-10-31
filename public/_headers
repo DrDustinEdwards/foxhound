@@ -11,6 +11,8 @@
   X-DNS-Prefetch-Control: off
   X-Frame-Options: deny
   X-Permitted-Cross-Domain-Policies: none
+  Cross-Origin-Embedder-Policy-Report-Only: credentialless; report-to="csp-endpoint"
+  Integrity-Policy-Report-Only: blocked-destinations=(script), endpoints=(csp-endpoint)
   tdm-reservation: 1
 
 /*.html

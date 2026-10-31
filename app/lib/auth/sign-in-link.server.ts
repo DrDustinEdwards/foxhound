@@ -13,15 +13,12 @@ import { RATE_LIMITED_ERROR, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "./rate-lim
 // because only the handler runs Better Auth's own limiter and the captcha
 // plugin's Turnstile check (txasm signin.tsx, Grok audit TX-4).
 
-/** The ?error= codes that come back to /login and the link's confirm page:
- *  the limiter's, and Better Auth's from a spent link or a refused Google or
- *  Apple sign-in. Null for none. */
-const LINK_SPENT = "That sign-in link has expired or was already used. Send yourself a new one.";
+/** The ?error= codes that come back to /login: the limiter's, and Better
+ *  Auth's from a refused Google or Apple sign-in. Null for none. A spent or
+ *  expired link lands on its confirm page instead, which tells used, expired
+ *  and cut short apart (site-runtime's signInLinkProblem). */
 const ERROR_MESSAGES: Record<string, string> = {
   [RATE_LIMITED_ERROR]: SIGN_IN_LIMITED,
-  EXPIRED_TOKEN: LINK_SPENT,
-  INVALID_TOKEN: LINK_SPENT,
-  ATTEMPTS_EXCEEDED: LINK_SPENT,
   // The disposable-address refusal (app/lib/auth/options.ts), in Recova's words
   // (app/(auth)/login/page.tsx).
   disposable_email: "Please use a real email address. Disposable email providers are not allowed.",
@@ -30,6 +27,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   account_not_linked:
     "That email already has a Foxhound account. Sign in with an email link, then connect Google or Apple in My account.",
 };
+
+/** Foxhound's own words for a code it knows, or null: the confirm page uses
+ *  them for a refusal that is not the link's (a disposable address). */
+export function knownSignInError(code: string | null): string | null {
+  return code ? (ERROR_MESSAGES[code] ?? null) : null;
+}
 
 export function signInErrorMessage(code: string | null): string | null {
   return code ? (ERROR_MESSAGES[code] ?? "That sign-in did not complete. Try again or use another way.") : null;
@@ -89,8 +92,8 @@ export async function requestSignInLink(
       }),
     );
     if (res.status === 429) return limitOf(res);
-    // site-runtime refuses the link when Turnstile has no keys (TURNSTILE_NOT_SET),
-    // which "off-until-keys" in auth.server.ts holds off until they exist.
+    // site-runtime refuses the link, failing closed, when Turnstile's keys are
+    // missing (TURNSTILE_NOT_SET).
     if (res.status === 503) return "unavailable";
     if (res.status === 400 || res.status === 403) {
       const { code } = (await res.clone().json().catch(() => ({}))) as { code?: string };

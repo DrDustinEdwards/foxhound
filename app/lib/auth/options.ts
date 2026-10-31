@@ -84,17 +84,8 @@ export const authOptions = {
         required: false,
         input: false,
       },
-      // The rough place a session was signed in from ("Austin, Texas, United
-      // States"), site-runtime's coarseLocation of the sign-in request's cf, set
-      // once when the session is made (auth.server.ts) and shown in the
-      // signed-in devices list (site-runtime's sessionRows reads `location`).
-      // Never an IP address. Null when the request carried no cf, as a request
-      // the site built itself does.
-      location: {
-        type: "string",
-        required: false,
-        input: false,
-      },
+      // The session's place and device id (`location`, `deviceId`) are
+      // site-runtime's sessionDetails fields, merged in by withSignIn.
     },
   },
   advanced: {
@@ -116,7 +107,15 @@ export function withSignIn(signIn: Awaited<ReturnType<typeof signInOptions>>) {
     ...signIn,
     ...authOptions,
     databaseHooks: { ...signIn.databaseHooks, ...authOptions.databaseHooks },
-    session: { ...signIn.session, ...authOptions.session },
+    session: {
+      ...signIn.session,
+      ...authOptions.session,
+      // sessionDetails is on (auth.server.ts), so the shared fields are there.
+      additionalFields: {
+        ...(signIn.session.additionalFields as NonNullable<typeof signIn.session.additionalFields>),
+        ...authOptions.session.additionalFields,
+      },
+    },
     advanced: { ...signIn.advanced, ...authOptions.advanced },
   };
 }

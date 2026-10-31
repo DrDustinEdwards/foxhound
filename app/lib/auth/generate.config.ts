@@ -16,6 +16,16 @@ import { authOptions } from "./options";
 // Do NOT import this from application code.
 export const auth = betterAuth({
   ...authOptions,
+  // site-runtime's sessionDetails columns (SESSION_DETAILS_SQL), which its
+  // options add at runtime (withSignIn), so the generated session table keeps them.
+  session: {
+    ...authOptions.session,
+    additionalFields: {
+      ...authOptions.session.additionalFields,
+      location: { type: "string", required: false, input: false },
+      deviceId: { type: "string", required: false, input: false, returned: false },
+    },
+  },
   plugins: [magicLink({ sendMagicLink: () => {} }), emailOTP({ sendVerificationOTP: async () => {} }), passkey()],
   rateLimit: { enabled: true, storage: "database" },
   database: drizzleAdapter({} as never, { provider: "sqlite" }),
