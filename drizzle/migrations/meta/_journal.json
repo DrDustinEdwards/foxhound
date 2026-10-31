@@ -432,8 +432,22 @@
     {
       "idx": 61,
       "version": "6",
-      "when": 1793439906472,
-      "tag": "0065_cron_runs",
+      "when": 1793441190754,
+      "tag": "0065_search_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1793442357083,
+      "tag": "0066_merchant_mcp_scopes",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1793444575201,
+      "tag": "0067_cron_runs",
       "breakpoints": true
     }
   ]

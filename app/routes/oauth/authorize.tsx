@@ -5,6 +5,7 @@ import { data, Form, redirect, useNavigation } from "react-router";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/field.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // buttons, the alert and the focus ring read. The site header loads the same
@@ -20,6 +21,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_OAUTH_APPROVE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
+import { grantedScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 import {
   checkAuthorizeRequest,
   denyRedirect,
@@ -53,9 +55,11 @@ import { readForm } from "~/lib/http/body";
 //     (app/lib/http/cache-policy.ts), and the login action answers with a
 //     server redirect that carries the session cookie, so neither has anything
 //     to fix here.
-//   - The scope a URL asks for can never raise what is granted. Foxhound issues
-//     one scope, the merchant MCP for one account, so the page offers no scope
-//     choice at all; Recova's admin-only selector is not built (see the PR).
+//   - The scope a URL asks for can never raise what is granted. Every grant
+//     holds merchant.read; merchant.write only when the owner ticks "Allow
+//     changes", which starts ticked when the client asked for it (MCP ruling
+//     2026-10-10, rule 12.1, least scope first). Recova's admin-only selector is
+//     not built (see the PR).
 //
 // The account is the session's active one, resolved again in the action from
 // the session. The form posts back the id the card showed only
@@ -75,6 +79,8 @@ type Consent = {
   redirectUri: string;
   state: string | null;
   codeChallenge: string;
+  /** Whether "Allow changes" starts ticked: the client asked for merchant.write. */
+  wantsWrite: boolean;
   /** Posted back as a consistency check only, never as the authority. */
   accountId: string;
   accountName: string;
@@ -96,7 +102,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
 
   // The request is checked before the session, as Recova did: a malformed or
   // unknown-client request is refused without a sign-in detour.
-  const check = await checkAuthorizeRequest(db, params);
+  const check = await checkAuthorizeRequest(db, params, new URL(request.url).origin);
   if (!check.ok) return check;
 
   const session = await getSession(env, request);
@@ -121,6 +127,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     redirectUri: check.redirectUri,
     state: check.state,
     codeChallenge: check.codeChallenge,
+    wantsWrite: check.wantsWrite,
     accountId: membership.accountId,
     accountName: membership.accountName ?? session.user.email ?? "your Foxhound account",
     email: session.user.email,
@@ -159,11 +166,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   // Re-checked from the posted fields: nothing carried in a hidden input is
   // trusted, so a tampered redirect URI is refused here, never followed.
-  const check = await checkAuthorizeRequest(db, params);
+  const check = await checkAuthorizeRequest(db, params, self);
   if (!check.ok) return data({ error: EXPIRED_REQUEST }, { status: 400 });
 
+  // This origin is the issuer the metadata names, sent back as iss (RFC 9207).
   if (params.get("intent") === "deny") {
-    return redirect(denyRedirect(check.redirectUri, check.state));
+    return redirect(denyRedirect(check.redirectUri, check.state, self));
   }
 
   // Recova's per-user cap on minting codes.
@@ -195,11 +203,15 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const target = await issueAuthorizationCode(db, {
     clientId: check.clientId,
+    metadataDocument: check.metadataDocument ? { clientName: check.clientName, redirectUris: check.redirectUris } : null,
     redirectUri: check.redirectUri,
     state: check.state,
     codeChallenge: check.codeChallenge,
     accountId: membership.accountId,
     userId: session.user.id,
+    // What the owner ticked, never what the client asked for.
+    scopes: grantedScopes(params.get("allow_write") === "1"),
+    issuer: self,
     now: new Date(),
   });
   if (!target) return data({ error: DEMO_REFUSED }, { status: 403 });
@@ -282,7 +294,7 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
           What {consent.clientName} can do
         </Eyebrow>
         <ul aria-labelledby="oauth-can" className="m-0 list-disc pl-4 text-label leading-relaxed text-text-secondary">
-          {CONSENT_CAPABILITIES.map((c) => (
+          {CONSENT_CAPABILITIES.filter((c) => !c.write).map((c) => (
             <li key={c.text}>{c.text}</li>
           ))}
         </ul>
@@ -302,6 +314,21 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         <input type="hidden" name="code_challenge_method" value="S256" />
         <input type="hidden" name="account_id" value={consent.accountId} />
         {consent.state ? <input type="hidden" name="state" value={consent.state} /> : null}
+        <div className="mb-6 rounded-lg border border-border-sub bg-bg px-4 py-3">
+          <label className="cap-check items-start text-label">
+            <input type="checkbox" name="allow_write" value="1" defaultChecked={consent.wantsWrite} className="mt-1" />
+            <span>
+              <span className="font-medium">Allow changes</span>
+              {CONSENT_CAPABILITIES.filter((c) => c.write).map((c) => (
+                <span key={c.text} className="mt-0.5 block text-text-subtle">
+                  {c.text}
+                </span>
+              ))}
+              <span className="mt-0.5 block text-text-subtle">Without this, {consent.clientName} can only read.</span>
+              <span className="mt-0.5 block font-mono text-micro text-text-subtle">{MERCHANT_SCOPES.write}</span>
+            </span>
+          </label>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Button
             type="submit"

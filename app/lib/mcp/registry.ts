@@ -123,6 +123,14 @@ interface McpToolDescriptor {
  *  carries the account the bearer key resolved to; no tool takes an account as
  *  an argument, so an agent cannot be talked into changing it. */
 export interface McpTool extends McpToolDescriptor {
+  /**
+   * The scope a call needs (MCP ruling 2026-10-10, rule 12.1): "read" is
+   * merchant.read, which every connection holds; "write" is merchant.write,
+   * which the owner ticked. Declared, never read from readOnlyHint: a hint
+   * describes a tool to the client and is not an authorization. The registry
+   * still refuses a tool whose hint and scope disagree.
+   */
+  scope: "read" | "write";
   execute: (ctx: McpToolContext, args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -172,6 +180,9 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
     }
     if (byName.has(tool.name)) {
       throw new Error(`MCP tool "${tool.name}" is registered twice`);
+    }
+    if ((tool.scope === "read") !== tool.annotations.readOnlyHint) {
+      throw new Error(`MCP tool "${tool.name}" declares scope ${tool.scope} but readOnlyHint ${tool.annotations.readOnlyHint}`);
     }
     // REGISTRATION IS WHAT APPLIES THE REDACTION. The executor
     // stored here is the tool's own wrapped in `redactToolResult`, so 370's

@@ -105,6 +105,8 @@ async function seed(options: { disconnectMine?: boolean } = {}) {
       keyHash: await hashMcpToken(token),
       label: "agent",
       scope: MCP_TOKEN_SCOPE.MERCHANT,
+      // A key that may change the account, as one made in Settings.
+      scopes: ["merchant.read", "merchant.write"],
       createdAt: NOW,
     });
     await db.insert(stripeConnections).values({

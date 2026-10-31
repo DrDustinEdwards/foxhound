@@ -94,7 +94,8 @@ export async function loader({ context }: Route.LoaderArgs) {
   const url = siteUrl(env);
   const db = getDb(env);
 
-  const posts = await getAllPublishedPosts(db);
+  // A post marked noindex (its search field) is left out.
+  const posts = await getAllPublishedPosts(db, { indexedOnly: true });
 
   const postEntries: SitemapEntry[] = posts.map((post) => ({
     path: `/blog/${post.slug}`,

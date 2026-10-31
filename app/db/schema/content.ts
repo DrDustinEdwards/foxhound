@@ -25,6 +25,11 @@ export const blogPosts = sqliteTable(
     ogTitle: text("og_title"),
     ogDescription: text("og_description"),
     canonicalUrl: text("canonical_url"),
+    // site-api's image and imageAlt search fields: the share card, over the cover and the generated card.
+    ogImageUrl: text("og_image_url"),
+    ogImageAlt: text("og_image_alt"),
+    // site-api's noindex search field: robots noindex, and left out of the sitemap.
+    noindex: bool("noindex").notNull().default(false),
     showUpdatedAt: bool("show_updated_at").notNull().default(true),
     showPublishedAt: bool("show_published_at").notNull().default(true),
     featured: bool("featured").notNull().default(false),

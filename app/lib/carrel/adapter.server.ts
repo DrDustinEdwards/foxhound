@@ -12,6 +12,7 @@ import {
   type SiteAdapter,
   type WriteResult,
 } from "@dustinedwards/site-api";
+import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { desc, eq } from "drizzle-orm";
@@ -69,7 +70,10 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 //
 // The media group is media-adapter.server.ts (the blog's media library), joined
 // to this adapter in handler.server.ts. Cover addresses stay as they are:
-// Carrel's post source does not carry them.
+// Carrel's post source does not carry them. The search fields it does carry
+// (site-api v0.17.0) are the og_title, og_description, og_image_url,
+// og_image_alt, canonical_url and noindex columns under site-api's shared
+// names (./source.ts).
 
 const CARREL_SITE = {
   id: "foxhound",
@@ -101,7 +105,10 @@ interface Post {
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
 async function versionOf(row: PostRow, pending: Pending | null): Promise<string> {
-  const updated = String(row.updatedAt.getTime());
+  // A post with search fields set carries their hash, so a source read before Carrel saw them is a conflict, not a
+  // save that clears them.
+  const search = [row.ogTitle, row.ogDescription, row.ogImageUrl, row.ogImageAlt, row.canonicalUrl, row.noindex];
+  const updated = String(row.updatedAt.getTime()) + (search.some(Boolean) ? `.s${(await contentVersion(search)).slice(0, 8)}` : "");
   if (!pending) return updated;
   return `${updated}.${(await contentVersion([pending.publishAt, pending.changeId])).slice(0, 16)}`;
 }
@@ -159,6 +166,12 @@ function sourceOf(row: PostRow): PostSource {
     author: row.author,
     tags: row.tags ?? [],
     featured: row.featured,
+    searchTitle: row.ogTitle,
+    description: row.ogDescription,
+    canonical: row.canonicalUrl,
+    image: row.ogImageUrl,
+    imageAlt: row.ogImageAlt,
+    noindex: row.noindex,
     body: row.body,
   };
 }
@@ -235,6 +248,12 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         author: post.author,
         tags: post.tags,
         featured: post.featured,
+        ogTitle: post.searchTitle,
+        ogDescription: post.description,
+        canonicalUrl: post.canonical,
+        ogImageUrl: post.image,
+        ogImageAlt: post.imageAlt,
+        noindex: post.noindex,
       });
       return;
     }
@@ -253,9 +272,12 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       featured: post.featured,
       coverImageUrl: current.coverImageUrl,
       coverImageAlt: current.coverImageAlt,
-      ogTitle: current.ogTitle,
-      ogDescription: current.ogDescription,
-      canonicalUrl: current.canonicalUrl,
+      ogTitle: post.searchTitle ?? null,
+      ogDescription: post.description ?? null,
+      canonicalUrl: post.canonical ?? null,
+      ogImageUrl: post.image ?? null,
+      ogImageAlt: post.imageAlt ?? null,
+      noindex: post.noindex ?? false,
       showUpdatedAt: current.showUpdatedAt,
       showPublishedAt: current.showPublishedAt,
     });
@@ -275,6 +297,8 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       filters: ["kind", "tag", "author", "published"],
       postFields: ["excerpt"],
       publishedAtSettable: true,
+      // The blog post head renders all of them. With no share image the card is the cover, else the generated card.
+      searchFields: SEARCH_FIELDS,
 
       async list(query) {
         const rows = (await db.select().from(blogPosts)).filter((row) => listed(row, query));
