@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 
 import type { Db } from "~/db";
 import * as schema from "~/db/schema";
-import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
+import { renderMarkdown } from "~/lib/blog/markdown.server";
 
 // An empty-D1 stand-in; renderMarkdown only
 // touches the db when a body contains ::postlink[...], so most cases below
@@ -11,28 +11,6 @@ import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
 function emptyDb(): Db {
   return drizzle(async () => ({ rows: [] }), { schema }) as unknown as Db;
 }
-
-describe("extractFaqPairs", () => {
-
-  it("parses Q:/A: pairs out of a :::faq block", () => {
-    const body = [
-      "Intro paragraph.",
-      "",
-      ":::faq",
-      "Q: What is a decline code?",
-      "A: A reason Stripe gives for a failed charge.",
-      "Q: Can it be retried?",
-      "A: Yes, for soft declines.",
-      ":::",
-      "",
-      "Outro.",
-    ].join("\n");
-    expect(extractFaqPairs(body)).toEqual([
-      { question: "What is a decline code?", answer: "A reason Stripe gives for a failed charge." },
-      { question: "Can it be retried?", answer: "Yes, for soft declines." },
-    ]);
-  });
-});
 
 describe("renderMarkdown", () => {
 
@@ -79,12 +57,10 @@ describe("renderMarkdown", () => {
     expect(html).toContain('<a href="https://foxhoundapp.com/">home</a>');
   });
 
-  it("renders a :::faq block as legacy's list, the answers as written", async () => {
-    const { html } = await renderMarkdown(emptyDb(), ":::faq\nQ: Is it *soft*?\nA: See [the guide](https://example.com).\n:::");
-    expect(html).toBe(
-      '<div class="blog-faq" data-faq="true"><dl class="blog-faq-list"><div class="blog-faq-item">' +
-        '<dt class="blog-faq-question">Is it *soft*?</dt><dd class="blog-faq-answer">See [the guide](https://example.com).</dd>' +
-        "</div></dl></div>",
-    );
+  it("links a post named in a :::faq answer, and gives the JSON-LD its words", async () => {
+    const db = drizzle(async () => ({ rows: [["stripe-recovery", "Stripe recovery"]] }), { schema }) as unknown as Db;
+    const { html, faq } = await renderMarkdown(db, ":::faq\nQ: Where next?\nA: The ::postlink[stripe-recovery|full recovery system] works upstream.\n:::");
+    expect(html).toContain('<dd>The <a href="/blog/stripe-recovery">full recovery system</a> works upstream.</dd>');
+    expect(faq).toEqual([{ question: "Where next?", answer: "The full recovery system works upstream." }]);
   });
 });
