@@ -58,7 +58,7 @@ export default function SignInConfirm({ loaderData, actionData }: Route.Componen
       <form method="post" className="grid gap-3">
         {actionData?.limited ? <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert> : null}
         <Button type="submit" variant="primary" size="lg">
-          Continue
+          Sign in
         </Button>
       </form>
     </AuthCard>
