@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d767edfe-23bd-404b-a2e2-b0ef440fa51b",
+  "id": "2978dec3-5725-4be9-8715-5ef6dea714c5",
   "prevId": "22acd2bc-ec3d-4928-8b64-1eac059da08e",
   "tables": {
     "audit_digest_runs": {
@@ -8366,6 +8366,22 @@
           "notNull": true,
           "autoincrement": false
         },
+        "referrer_host": {
+          "name": "referrer_host",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'page'"
+        },
         "hit_count": {
           "name": "hit_count",
           "type": "integer",
@@ -8376,11 +8392,12 @@
         }
       },
       "indexes": {
-        "page_404_daily_day_path_uq": {
-          "name": "page_404_daily_day_path_uq",
+        "page_404_daily_day_path_referrer_uq": {
+          "name": "page_404_daily_day_path_referrer_uq",
           "columns": [
             "day",
-            "path"
+            "path",
+            "referrer_host"
           ],
           "isUnique": true
         }
@@ -8792,20 +8809,6 @@
         },
         "taken_at": {
           "name": "taken_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "placeholder": {
-          "name": "placeholder",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "color": {
-          "name": "color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

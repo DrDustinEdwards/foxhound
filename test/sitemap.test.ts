@@ -70,6 +70,7 @@ const EXCLUDED_PREFIXES = [
   "/login",
   "/signup",
   "/passkey",
+  "/sign-in/",
   "/connect",
   "/invite",
   "/auth/",
@@ -104,6 +105,7 @@ const EXCLUDED_PREFIXES = [
   // images) or the sitemap/robots routes themselves.
   "/sitemap.xml",
   "/robots.txt",
+  "/site.webmanifest",
   "/llms.txt",
   "/ai.txt",
   "/llms-full.txt",

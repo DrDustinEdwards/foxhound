@@ -36,7 +36,6 @@ import dmSans500 from "~/assets/fonts/dm-sans-500.ttf?inline";
 import dmSans600 from "~/assets/fonts/dm-sans-600.ttf?inline";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { EMBEDDABLE_RESOURCE_HEADERS } from "~/lib/http/header-set";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/og";
@@ -172,9 +171,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   // site-runtime's shareCardResponse (renderShareCard underneath) removes the whitespace between tags (a text child of the flex box: on the blog card
   // it pulled the footer's host and pill in from the edges and the footer up off Recova's 72px bottom padding, J20) and
-  // reads the whole PNG, so a failed render is a 503 rather than an empty image. A card is an image other sites show
-  // (og:image previews, embeds), so it sends Cross-Origin-Resource-Policy: cross-origin; the Worker's default is
-  // same-origin, and its merge keeps this route-set value (header-set.ts, EMBEDDABLE_RESOURCE_HEADERS).
+  // reads the whole PNG, so a failed render is a 503 rather than an empty image, and sends the card with
+  // Cross-Origin-Resource-Policy: cross-origin, which the Worker's merge keeps.
   return shareCardResponse(ImageResponse, {
     html,
     fonts: () => [
@@ -183,6 +181,5 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       { name: FONT_SANS, data: fontBytes(dmSans500), weight: 500, style: "normal" },
       { name: FONT_SANS, data: fontBytes(dmSans600), weight: 600, style: "normal" },
     ],
-    headers: EMBEDDABLE_RESOURCE_HEADERS,
   });
 }

@@ -3,7 +3,7 @@ import { barChart } from "enarratio/lite/bar";
 // Recova's ExpiringCardsTimeline (components/audit/ExpiringCardsTimeline.tsx,
 // blob 33537a84), drawn by Enarratio in place of recharts. Pure and
 // client-safe: the audit sections draw it on the server and redraw it at the
-// measured width in the browser (app/components/enarratio-figure.tsx).
+// measured width in the browser (Capsomer's ChartFrame).
 //
 // WHAT IS PLOTTED IS RECOVA'S: the months with at least one card expiring,
 // oldest first, at most four, each labeled "Oct 2026", one bar per month, and
@@ -48,6 +48,7 @@ export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], widt
   const max = Math.max(...months.map((m) => m.count));
   const series = months.some((m) => m.count !== max) ? [PEAK, OTHER] : [PEAK];
   return barChart({
+    title: "Cards expiring by month",
     data: months.map((m) => ({ month: m.label, kind: m.count === max ? PEAK : OTHER, count: m.count })),
     x: "month",
     xDomain: months.map((m) => m.label),

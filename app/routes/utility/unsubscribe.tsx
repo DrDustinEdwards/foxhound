@@ -18,6 +18,7 @@ import { verifyUnsubscribeToken, type UnsubscribeTokenPayload } from "~/lib/emai
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import type { Route } from "./+types/unsubscribe";
+import { readForm } from "~/lib/http/body";
 
 export function meta() {
   return [{ title: "Unsubscribe - Foxhound" }];
@@ -135,7 +136,7 @@ const CONFIRM_FIELD = "confirm";
 export async function action({ params, context, request }: Route.ActionArgs): Promise<Response | LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
-  const fromPage = (await request.formData().catch(() => null))?.get(CONFIRM_FIELD) === "1";
+  const fromPage = (await readForm(request).catch(() => null))?.get(CONFIRM_FIELD) === "1";
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
   const outcome: LoaderState = payload && token ? await follow(env, payload, token) : { state: "invalid" };
   return fromPage ? outcome : new Response(null, { status: 200 });

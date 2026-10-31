@@ -21,6 +21,7 @@ import {
 
 import { OAUTH_SCOPE } from "./metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode } from "./redirects";
+import { readJson, readText } from "~/lib/http/body";
 
 // THE OAUTH PROVIDER (J79, rows A9, F18, F19; ruling 8's build).
 //
@@ -103,15 +104,16 @@ function asString(v: unknown): string | null {
 export async function parseOAuthBody(request: Request): Promise<URLSearchParams | null> {
   const type = request.headers.get("content-type") ?? "";
   if (type.includes("application/x-www-form-urlencoded")) {
-    return new URLSearchParams(await request.text());
+    return new URLSearchParams(await readText(request));
   }
   if (type.includes("application/json")) {
     try {
-      const body = (await request.json()) as Record<string, unknown>;
+      const body = (await readJson(request)) as Record<string, unknown>;
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(body ?? {})) if (typeof v === "string") params.set(k, v);
       return params;
-    } catch {
+    } catch (error) {
+      if (error instanceof Response) throw error;
       return null;
     }
   }

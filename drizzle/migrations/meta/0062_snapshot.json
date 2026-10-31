@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3f48cbea-d89f-4b39-91b9-969e0f4332d1",
-  "prevId": "d767edfe-23bd-404b-a2e2-b0ef440fa51b",
+  "id": "55abd119-c046-42bf-8db2-ff1428ab8476",
+  "prevId": "2978dec3-5725-4be9-8715-5ef6dea714c5",
   "tables": {
     "audit_digest_runs": {
       "name": "audit_digest_runs",
@@ -1159,14 +1159,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "noindex": {
-          "name": "noindex",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
         },
         "show_updated_at": {
           "name": "show_updated_at",
@@ -8374,6 +8366,22 @@
           "notNull": true,
           "autoincrement": false
         },
+        "referrer_host": {
+          "name": "referrer_host",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'page'"
+        },
         "hit_count": {
           "name": "hit_count",
           "type": "integer",
@@ -8384,11 +8392,12 @@
         }
       },
       "indexes": {
-        "page_404_daily_day_path_uq": {
-          "name": "page_404_daily_day_path_uq",
+        "page_404_daily_day_path_referrer_uq": {
+          "name": "page_404_daily_day_path_referrer_uq",
           "columns": [
             "day",
-            "path"
+            "path",
+            "referrer_host"
           ],
           "isUnique": true
         }

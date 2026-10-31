@@ -45,6 +45,8 @@ const PUBLIC_ROUTES = [
   ["/compare/chargeflow", "marketing"],
   ["/decline-codes", "marketing"],
   ["/decline-codes/card_declined", "marketing"],
+  ["/audit", "marketing"],
+  ["/demos", "marketing"],
   ["/docs", "docs"],
   ["/docs/recovery", "docs"],
   ["/blog", "blog"],
@@ -113,9 +115,7 @@ const PRIVATE_ROUTES = [
   "/e/c/tok",
   "/webhooks/stripe",
   "/marketing/generate-email-sample",
-  // Under the marketing layout, but the estimator and the demo's door.
-  "/audit",
-  "/demos",
+  // A demo entry sets the demo cookie.
   "/demos/dashboard",
   "/recovery/payments/export.csv",
 ];
@@ -165,7 +165,7 @@ describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
   });
 });
 
-describe("PLANT 8: the gateway sends only an anonymous GET of a public page to the cache", () => {
+describe("PLANT 8: the gateway sends only an anonymous GET or HEAD of a public page to the cache", () => {
   it.each(PUBLIC_ROUTES)("%s goes to the Renderer when anonymous", (path) => {
     expect(edgeCacheable(request(path))).toBe(true);
     expect(edgeCacheable(request(path, "fh_theme=light"))).toBe(true);
@@ -181,19 +181,32 @@ describe("PLANT 8: the gateway sends only an anonymous GET of a public page to t
     expect(edgeCacheable(request(path))).toBe(false);
   });
 
-  it("writes, HEAD and the media library stay in the gateway", () => {
+  it("writes and the media library stay in the gateway", () => {
     expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "POST" }))).toBe(false);
-    expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "HEAD" }))).toBe(false);
     expect(edgeCacheable(request("/media/a.png"))).toBe(false);
   });
 
-  it("the Renderer sees only the theme, and the theme is in the key", () => {
-    const dark = edgeRequest(request("/pricing"), "/pricing");
-    const light = edgeRequest(request("/pricing?x=1", "fh_theme=light"), "/pricing?x=1");
+  it("a HEAD reaches the Renderer as a GET, so its empty answer is never what is stored", () => {
+    const head = new Request("https://foxhoundapp.com/pricing", { method: "HEAD" });
+    expect(edgeCacheable(head)).toBe(true);
+    expect(edgeRequest(head).request.method).toBe("GET");
+  });
+
+  it("the Renderer sees only the theme, the one the key holds", () => {
+    const dark = edgeRequest(request("/pricing"));
+    const light = edgeRequest(request("/pricing?x=1", "fh_theme=light"));
     expect(dark.request.headers.get("cookie")).toBe("fh_theme=dark");
-    expect(dark.cacheKey).toBe("/pricing?fh-theme-key=dark");
+    expect(dark.theme).toBe("dark");
     expect(light.request.headers.get("cookie")).toBe("fh_theme=light");
-    expect(light.cacheKey).toBe("/pricing?x=1&fh-theme-key=light");
+    expect(light.theme).toBe("light");
+  });
+
+  it("a GET's own headers are left alone: on Workers they are immutable, and setting one was a 500 (2026-10-31)", () => {
+    const get = request("/pricing");
+    get.headers.set = () => {
+      throw new TypeError("Can't modify immutable headers.");
+    };
+    expect(edgeRequest(get).request.headers.get("cookie")).toBe("fh_theme=dark");
   });
 });
 
@@ -243,6 +256,6 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
     const source = readFileSync("workers/app.ts", "utf8");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))");
-    expect(source).toContain("settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)))");
+    expect(source).toContain("withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader())");
   });
 });

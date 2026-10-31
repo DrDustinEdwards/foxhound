@@ -1,4 +1,4 @@
-import { desc, eq, gte } from "drizzle-orm";
+import { desc, eq, gte, sum } from "drizzle-orm";
 
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls, page404Daily } from "~/db/schema";
@@ -35,6 +35,7 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import { redactToolResult } from "~/lib/mcp/redact";
 import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
+import { readJson } from "~/lib/http/body";
 
 // THE FOXHOUND ADMIN API at /api/admin/v1 (MCP ruling 2026-10-10, rule 9
 // amendment; job_21de68b30fc2 PR 1).
@@ -355,10 +356,12 @@ const ROUTES: ApiRoute[] = [
         getMigrationStatus(env),
         getD1SizeBytes(env),
         db
-          .select({ day: page404Daily.day, path: page404Daily.path, hits: page404Daily.hitCount })
+          // One row per day and path, as before: the referring hosts (site-runtime 0.42) are summed.
+          .select({ day: page404Daily.day, path: page404Daily.path, hits: sum(page404Daily.hitCount).mapWith(Number) })
           .from(page404Daily)
           .where(gte(page404Daily.day, since))
-          .orderBy(desc(page404Daily.hitCount))
+          .groupBy(page404Daily.day, page404Daily.path)
+          .orderBy(desc(sum(page404Daily.hitCount)))
           .limit(20),
       ]);
       return { webhooks, crons, migrations, d1_size_bytes: d1SizeBytes, top_404s_7d: notFound };
@@ -556,7 +559,7 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
   let body: Json = {};
   if (request.method === "POST") {
     try {
-      const parsed: unknown = await request.json();
+      const parsed: unknown = await readJson(request);
       body = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Json) : {};
     } catch {
       body = {};

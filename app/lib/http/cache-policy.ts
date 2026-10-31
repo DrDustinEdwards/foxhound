@@ -1,4 +1,4 @@
-import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { forRenderer, publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { readThemeCookie } from "capsomer/theme-server";
 
 import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
@@ -105,11 +105,12 @@ const MARKETING_EXACT = new Set([
   "/products",
   "/compare",
   "/decline-codes",
+  // The estimator and the demo's door. Their GETs read nothing per reader and
+  // write nothing: the estimator's Turnstile-gated POST and the /demos/* entries
+  // that set the demo cookie are other requests, which never reach the Renderer.
+  "/audit",
+  "/demos",
 ]);
-// NOT /audit and NOT /demos, though both sit under the marketing layout: /audit
-// is the estimator, whose form posts to a Turnstile-gated action and whose page
-// leads into the Stripe audit flow, and /demos is where the demo begins (its
-// entries set the demo cookie). Both stay private, rendered per request.
 
 /** Prefixes that are PUBLIC marketing, with their own index covered above. */
 // "/product/" is Recova's product pages; "/products/" stays for the four
@@ -174,8 +175,9 @@ export function resolveCacheControl(request: Request, edge = false): string {
 /**
  * Should the gateway send this request through the cacheable Renderer?
  *
- * Only a GET of a public page or files route (a HEAD is answered with an
- * empty body by app/entry.server.tsx, which must never be stored), never /media (its own
+ * Only a GET or HEAD of a public page or files route (a HEAD reaches the
+ * Renderer as a GET, site-runtime forRenderer, so what is stored is a whole
+ * page and forReader gives the HEAD reader no body), never /media (its own
  * route keeps each size in caches.default), and only when every cookie the
  * request carries is the theme cookie. A session cookie, the demo cookie, the
  * audit cookie, an OAuth state cookie or anything else sends it to the gateway's
@@ -183,7 +185,7 @@ export function resolveCacheControl(request: Request, edge = false): string {
  * never a leak.
  */
 export function edgeCacheable(request: Request): boolean {
-  if (request.method !== "GET") return false;
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
   const pathname = new URL(request.url).pathname;
   const cacheClass = classifyPath(pathname);
   if (cacheClass === "private" || pathname.startsWith("/media/")) return false;
@@ -200,19 +202,20 @@ function cookieNames(request: Request): string[] {
 }
 
 /**
- * The request the Renderer sees, and its cache key. The theme is the one
- * cookie a public page reads (<html data-theme> and the toggle), so it is
- * resolved here, handed on as the only cookie, and written into the key: one
- * stored copy per theme, and a stored dark page can never answer a light
- * reader. The suffix is appended, never set, so a query that already holds the
- * same name still keys apart.
+ * The request the Renderer sees, and the theme its cache key holds. The theme
+ * is the one cookie a public page reads (<html data-theme> and the toggle), so
+ * it is resolved here and handed on as the only cookie; the gateway adds it to
+ * site-runtime's cacheKey as a dimension: one stored copy per theme, and a
+ * stored dark page can never answer a light reader.
  */
-export function edgeRequest(request: Request, key: string): { request: Request; cacheKey: string } {
+export function edgeRequest(request: Request): { request: Request; theme: string } {
   const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
-  const forwarded = new Request(request);
+  // A HEAD goes on as a GET (site-runtime forRenderer): app/entry.server.tsx answers a HEAD with an empty body, which
+  // must never be stored. forRenderer hands a GET back as it came, and an incoming request's headers are immutable on
+  // Workers, so the copy is what takes the theme cookie (a set on the original was a 500 on every page, 2026-10-31).
+  const forwarded = new Request(forRenderer(request));
   forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
-  const separator = key.includes("?") ? "&" : "?";
-  return { request: forwarded, cacheKey: `${key}${separator}fh-theme-key=${theme}` };
+  return { request: forwarded, theme };
 }
 
 /**
@@ -287,6 +290,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/invite/",
   // Where the emailed sign-in link lands, carrying a signed-in session.
   "/passkey",
+  // Where the emailed sign-in link opens: its query carries the link's token.
+  "/sign-in/",
   // The OAuth consent page: its query carries a client's id and state.
   "/oauth/",
 ];

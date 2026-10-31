@@ -10,11 +10,10 @@ import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { coverPicture, extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
-import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
+import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
+import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost, getSlugRedirect } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
-  breadcrumbListJsonLd,
   faqPageJsonLd,
   organizationJsonLd,
   personJsonLd,
@@ -69,10 +68,15 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   const post = await getPostBySlug(db, params.slug);
   if (!post) {
+    // A post Carrel renamed: its old address answers a permanent redirect to
+    // the new one (site-api's rename contract). Read only on a miss, so a live
+    // post's own page costs no extra query.
+    const moved = await getSlugRedirect(db, params.slug);
+    if (moved) throw redirect(`/blog/${moved}`, 301);
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc }, cover, previous, next, related] = await Promise.all([
+  const [{ html, toc, faq, version }, cover, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
     coverPicture(db, post, "content"),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
@@ -80,9 +84,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     getPostLinks(db, post.id),
   ]);
 
-  const faqPairs = extractFaqPairs(post.body);
-
-  return { siteUrl: siteUrl(env), post, cover, html, toc, previous, next, related, faqPairs };
+  return { siteUrl: siteUrl(env), post, cover, html, version, toc, previous, next, related, faq };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -151,21 +153,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
         authorName: post.author,
       }),
     ),
-    jsonLd(
-      breadcrumbListJsonLd(url, [
-        { name: "Home", path: "/" },
-        { name: "Blog", path: "/blog" },
-        { name: post.title, path: `/blog/${post.slug}` },
-      ]),
-    ),
-    ...(loaderData.faqPairs.length > 0
-      ? [jsonLd(faqPageJsonLd(loaderData.faqPairs.map((f) => ({ question: f.question, answer: f.answer }))))]
-      : []),
+    ...(loaderData.faq.length > 0 ? [jsonLd(faqPageJsonLd(loaderData.faq))] : []),
   ];
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, cover, html, toc, previous, next, related } = loaderData;
+  const { siteUrl: url, post, cover, html, version, toc, previous, next, related } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
 
@@ -194,7 +187,10 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       </Link>
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
-        <article id="blog-post-article">
+        {/* h-entry and e-content name the post's own text for site-api's
+            webmention hook, which sends to the links inside it only (not the
+            share row's). No style reads either class. */}
+        <article id="blog-post-article" className="h-entry">
           {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
               <CoverPicture cover={cover} className="h-full w-full object-cover" />
@@ -244,7 +240,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <TableOfContents items={toc} variant="inline" />
 
-          <div className="blog-prose" dangerouslySetInnerHTML={{ __html: html }} />
+          <div className="blog-prose e-content" data-render-version={version} dangerouslySetInnerHTML={{ __html: html }} />
         </article>
 
         <TableOfContents items={toc} variant="sidebar" />

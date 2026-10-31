@@ -37,6 +37,7 @@ import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
 import type { Route } from "./+types/api-keys";
 import { NOINDEX } from "~/lib/seo/meta";
 import { formatDateShort } from "~/lib/date-format";
+import { readForm } from "~/lib/http/body";
 
 // S29, /settings/api-keys. Legacy: api-keys/page.tsx (blob b50fb228, 624 bytes)
 // and api-keys/ApiKeysClient.tsx (blob 338db3db, 10,371 bytes), with its API at
@@ -117,7 +118,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
   const db = getDb(env);
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("_action") ?? "");
 
   if (!isOwner(auth)) {

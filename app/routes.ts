@@ -92,12 +92,14 @@ export default [
   ]),
 
   // The sign-in pages: Recova's bare auth layout, no site navigation and the
-  // footer's auth variant. /passkey is where an
-  // emailed sign-in link lands (site-runtime ./sign-in).
+  // footer's auth variant. The emailed sign-in link opens /sign-in/confirm,
+  // then lands on /passkey (site-runtime ./sign-in).
   layout("./layouts/auth.tsx", [
     route("login", "./routes/auth/login.tsx"),
     route("signup", "./routes/auth/signup.tsx"),
     route("passkey", "./routes/auth/passkey-offer.tsx"),
+    // The emailed sign-in link's page (site-runtime's CONFIRM_PATH).
+    route("sign-in/confirm", "./routes/auth/sign-in-confirm.tsx"),
   ]),
 
   // Recova's paths: the console is /console and each
@@ -236,6 +238,7 @@ export default [
   // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
   route("robots.txt", "./routes/files/robots.ts"),
+  route("site.webmanifest", "./routes/files/site-webmanifest.ts"),
   route("ai.txt", "./routes/files/ai-txt.ts"),
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),

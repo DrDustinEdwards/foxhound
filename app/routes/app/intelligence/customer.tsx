@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
@@ -11,7 +12,7 @@ import "capsomer/status.css";
 // page whole under any layout, as /intelligence/customers does.
 import "~/site-header.css";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -357,7 +358,7 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
         </span>
         <span className="text-label text-text-subtle">/ 100</span>
       </p>
-      {readings.length >= 2 ? <EnarratioFigure draw={draw} /> : null}
+      {readings.length >= 2 ? <ChartFrame draw={draw} /> : null}
     </Panel>
   );
 }

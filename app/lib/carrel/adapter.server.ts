@@ -1,25 +1,34 @@
 import {
+  ContentTag,
   contentVersion,
   NotFoundError,
+  previewDocument,
   RefusedError,
   VersionConflictError,
   type ContentDoc,
   type ContentSummary,
   type DueSchedule,
+  type ListQuery,
   type SiteAdapter,
   type WriteResult,
 } from "@dustinedwards/site-api";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { desc, eq } from "drizzle-orm";
 
 import { blogPostVersions, blogPosts, type Db } from "~/db";
 import {
   createPost,
+  deletePost,
+  renamePost,
   setPublished,
+  setTrashed,
   uniqueSlugFromTitle,
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
 import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
+import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
@@ -48,6 +57,16 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 // waiting. The cron calls the package's runSchedules, which
 // lists due rows here and applies each one (app/lib/cron/registry.ts).
 //
+// SITE-API v0.17.0. A trash (trashed_at): trashing takes a live post off the
+// blog, a restore answers a draft, and only a trashed post is deleted for good
+// (by Carrel, or by runSchedules 30 days on). A rename moves the post's id and
+// its address together (its slug becomes the new id), and a post that was ever
+// published leaves a 301 at its old address (blog_slug_redirects). The list
+// filters by kind, tag, author and publish date, searches title and body, sorts
+// and counts. A publish may carry the date it goes out under. Blog posts render
+// through Prelum on every read (markdown.server.ts), so the render version meta
+// names is the installed one.
+//
 // The media group is media-adapter.server.ts (the blog's media library), joined
 // to this adapter in handler.server.ts. Cover addresses stay as they are:
 // Carrel's post source does not carry them. The search fields it does carry
@@ -60,7 +79,10 @@ const CARREL_SITE = {
   origin: SITE_ORIGIN,
 } as const;
 
+const KIND = "post";
 const DEFAULT_AUTHOR = "Foxhound";
+/** A rename's new id is the post's new address, /blog/<id>. */
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const REVISION_PREFIX = "rev-";
 /** Every schedule is due by then, so `due` at this time lists every row. A
  *  four-digit year, since the store compares times as ISO text. */
@@ -93,7 +115,7 @@ function summary({ row, pending, version }: Post): ContentSummary {
   const scheduled = !row.published && pending !== null;
   return {
     id: row.id,
-    kind: "post",
+    kind: KIND,
     title: row.title,
     status: row.published ? "published" : scheduled ? "scheduled" : "draft",
     path: row.publishedAt ? `/blog/${row.slug}` : null,
@@ -101,8 +123,37 @@ function summary({ row, pending, version }: Post): ContentSummary {
     publishedAt: iso(row.publishedAt),
     updatedAt: iso(row.updatedAt),
     version,
+    // Only tags the contract can carry, so one odd tag never fails the list.
+    tags: (row.tags ?? []).filter((t) => ContentTag.safeParse(t).success),
+    authors: row.author.trim() ? [row.author] : [],
+    excerpt: row.excerpt.slice(0, 5000),
+    trashedAt: iso(row.trashedAt),
     scheduledUpdate: row.published && pending ? { ...pending } : null,
   };
+}
+
+/** The list's orderings: the dates newest first and titles A to Z unless `dir` says otherwise. */
+const ORDER = {
+  updated: (r: PostRow) => r.updatedAt.getTime(),
+  published: (r: PostRow) => r.publishedAt?.getTime() ?? 0,
+  title: (r: PostRow) => r.title.toLowerCase(),
+};
+
+/** A row the list's filters keep. Trashed posts appear only when the trash is asked for, and then alone. */
+function listed(row: PostRow, query: ListQuery): boolean {
+  const needle = query.q?.toLowerCase();
+  const at = row.publishedAt?.getTime() ?? null;
+  const after = query.publishedAfter ? Date.parse(query.publishedAfter) : null;
+  const before = query.publishedBefore ? Date.parse(query.publishedBefore) : null;
+  return (
+    Boolean(row.trashedAt) === Boolean(query.trashed) &&
+    (!query.kind || query.kind === KIND) &&
+    (!query.tag || (row.tags ?? []).some((t) => t.toLowerCase() === query.tag!.toLowerCase())) &&
+    (!query.author || row.author === query.author) &&
+    (after === null || (at !== null && at >= after)) &&
+    (before === null || (at !== null && at < before)) &&
+    (!needle || [row.title, row.body, row.slug].some((t) => t.toLowerCase().includes(needle)))
+  );
 }
 
 function sourceOf(row: PostRow): PostSource {
@@ -121,23 +172,28 @@ function sourceOf(row: PostRow): PostSource {
   };
 }
 
-function parse(source: string): PostSource {
+function parse(source: string, options?: { preview?: boolean }): PostSource {
   try {
-    return parsePostSource(source, { author: DEFAULT_AUTHOR });
+    return parsePostSource(source, { author: DEFAULT_AUTHOR }, options);
   } catch (error) {
     if (error instanceof SourceError) throw new RefusedError(error.message);
     throw error;
   }
 }
 
-/** A slug moves its public URL, so Carrel cannot change it. */
+/** A slug moves its public URL, so only a rename changes it (it leaves the redirect). */
 function keepSlug(post: PostSource, current: PostRow) {
   if (post.slug !== null && post.slug !== current.slug) {
-    throw new RefusedError("A post's slug cannot be changed through Carrel.");
+    throw new RefusedError("A post's slug is its address: rename the post to move it.");
   }
 }
 
-export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapter {
+function notTrashed(row: PostRow) {
+  if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
+}
+
+/** `stylesheets` are the root route's, for the preview; the cron passes none. */
+export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets: string[] = []): SiteAdapter {
   async function load(id: string): Promise<Post | null> {
     const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
     const row = rows[0];
@@ -150,6 +206,14 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
   async function mustMatch(id: string, expectedVersion: string): Promise<Post> {
     const post = await load(id);
     if (!post) throw new VersionConflictError(null);
+    if (post.version !== expectedVersion) throw new VersionConflictError(post.version);
+    return post;
+  }
+
+  /** The post, if `expectedVersion` is its version; NotFoundError for no post at all. */
+  async function held(id: string, expectedVersion: string): Promise<Post> {
+    const post = await load(id);
+    if (!post) throw new NotFoundError();
     if (post.version !== expectedVersion) throw new VersionConflictError(post.version);
     return post;
   }
@@ -222,30 +286,40 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
     site: { ...CARREL_SITE },
 
     content: {
+      filters: ["kind", "tag", "author", "published"],
+      postFields: ["excerpt"],
+      publishedAtSettable: true,
       // The blog post head renders these; the share card is the cover or the generated card, which Carrel does not edit.
       searchFields: ["searchTitle", "description", "canonical", "noindex"],
 
       async list(query) {
-        const rows = await db.select().from(blogPosts).orderBy(desc(blogPosts.updatedAt));
+        const rows = (await db.select().from(blogPosts)).filter((row) => listed(row, query));
+        const sort = query.sort ?? "updated";
+        const dir = query.dir ?? (sort === "title" ? "asc" : "desc");
+        const key = ORDER[sort];
+        rows.sort((a, b) => {
+          const [x, y] = [key(a), key(b)];
+          return (typeof x === "string" ? x.localeCompare(y as string) : x - (y as number)) * (dir === "asc" ? 1 : -1);
+        });
         const waiting = new Map(
           (await schedules.due(END_OF_TIME, ALL_ROWS)).map((d) => [d.id, { publishAt: d.publishAt, changeId: d.changeId }]),
         );
-        const needle = query.q?.toLowerCase();
-        const posts = await Promise.all(
-          rows
-            .filter((r) => !needle || r.title.toLowerCase().includes(needle) || r.slug.includes(needle))
-            .map(async (row) => {
-              const pending = waiting.get(row.id) ?? null;
-              return summary({ row, pending, version: await versionOf(row, pending) });
-            }),
-        );
-        const matching = posts.filter((p) => !query.status || p.status === query.status);
+        // The status is the row's and its schedule's, so it filters before the page is cut.
+        const matching = rows
+          .map((row) => ({ row, pending: waiting.get(row.id) ?? null }))
+          .filter(({ row, pending }) => !query.status || summary({ row, pending, version: "" }).status === query.status);
         const start = Number.parseInt(query.cursor ?? "0", 10) || 0;
-        const page = matching.slice(start, start + query.limit);
+        const items = await Promise.all(
+          matching
+            .slice(start, start + query.limit)
+            .map(async ({ row, pending }) => summary({ row, pending, version: await versionOf(row, pending) })),
+        );
         const next = start + query.limit;
         return {
-          items: page,
+          items,
           nextCursor: next < matching.length ? String(next) : null,
+          total: matching.length,
+          sorted: { sort, dir },
         };
       },
 
@@ -269,13 +343,13 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
       },
 
       async publish(id, input) {
-        await mustMatch(id, input.expectedVersion);
+        notTrashed((await mustMatch(id, input.expectedVersion)).row);
         if (input.source !== undefined) {
           await save(id, input.source, input.expectedVersion, input.changeId);
         }
         // What goes live is this publish, so a waiting schedule is dropped.
         await schedules.remove(id).run();
-        await setPublished(db, id, true);
+        await setPublished(db, id, true, input.publishedAt ? { publishedAt: new Date(input.publishedAt) } : {});
         return writeResult(id, input.changeId);
       },
 
@@ -283,6 +357,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
       // schedule is schedules.update below.
       async schedule(id, input) {
         const { row } = await mustMatch(id, input.expectedVersion);
+        notTrashed(row);
         await putSchedule(row, input.source ?? serializePostSource(sourceOf(row)), input.publishAt, input.changeId);
         if (input.source !== undefined) await writeSource(row, parse(input.source), input.changeId);
         return writeResult(id, input.changeId);
@@ -293,6 +368,63 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
         await schedules.remove(id).run();
         await setPublished(db, id, false);
         return writeResult(id, input.changeId);
+      },
+
+      // The tags field of the post's source, written alone. A live post's page changes with it.
+      async setTags(id, input) {
+        const { row } = await held(id, input.expectedVersion);
+        await writeSource(row, { ...sourceOf(row), tags: input.tags }, input.changeId);
+        return writeResult(id, input.changeId);
+      },
+
+      // A live post leaves the blog as it goes in, and a waiting schedule goes
+      // with it (apply also skips a trashed post, should the drop fail).
+      async trash(id, input) {
+        const { row } = await held(id, input.expectedVersion);
+        notTrashed(row);
+        await schedules.remove(id).run();
+        await setTrashed(db, id, true);
+        return writeResult(id, input.changeId);
+      },
+
+      async restore(id, input) {
+        const { row } = await held(id, input.expectedVersion);
+        if (!row.trashedAt) throw new RefusedError("This post is not in the trash.");
+        await setTrashed(db, id, false);
+        return writeResult(id, input.changeId);
+      },
+
+      // For good, and only from the trash, so a live post never loses its
+      // address in one step.
+      async delete(id, input) {
+        const { row } = await held(id, input.expectedVersion);
+        if (!row.trashedAt) throw new RefusedError("Move the post to the trash first: a delete cannot be undone.");
+        await schedules.remove(id).run();
+        await deletePost(db, id, row.slug);
+      },
+
+      async rename(id, input) {
+        const { row, pending } = await held(id, input.expectedVersion);
+        const { newId } = input;
+        if (!SLUG.test(newId)) {
+          throw new RefusedError("A post's id is its address, /blog/<id>: lower case letters and digits, joined by single hyphens.");
+        }
+        // The four renamed comparison posts and the withdrawn ones answer before any post does.
+        if (redirectedBlogSlug(newId) || isWithdrawnBlogSlug(newId)) {
+          throw new RefusedError(`/blog/${newId} is kept for an older post, so no post can take it.`);
+        }
+        const taken = await db.select({ id: blogPosts.id }).from(blogPosts).where(eq(blogPosts.slug, newId)).limit(1);
+        if ((await load(newId)) || (taken[0] && taken[0].id !== id)) throw new RefusedError(`${newId} is already taken.`);
+        const previousPath = row.publishedAt && row.slug !== newId ? `/blog/${row.slug}` : null;
+        await renamePost(db, row, newId, { redirect: previousPath !== null });
+        // The waiting schedule moves with it. A preview link names the old id,
+        // so it stops working, as the address it showed has.
+        const waiting = pending ? await schedules.get(id) : null;
+        if (waiting) {
+          await schedules.put(newId, { source: waiting.source, publishAt: waiting.publishAt, changeId: waiting.changeId }).run();
+          await schedules.remove(id).run();
+        }
+        return { ...(await writeResult(newId, input.changeId)), previousPath };
       },
 
       async revisions(id) {
@@ -381,7 +513,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
       async apply(id, input) {
         const post = await load(id);
         const waiting = await schedules.get(id);
-        if (!post || !waiting) return null;
+        if (!post || !waiting || post.row.trashedAt) return null;
         if (waiting.changeId !== input.changeId || waiting.publishAt !== utc(input.publishAt)) return null;
         if (Date.parse(waiting.publishAt) > input.now.getTime()) return null;
         if (input.kind === "update") {
@@ -391,19 +523,29 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
         } else {
           if (post.row.published) return null;
           // A first publication records the time it was scheduled for.
-          await setPublished(db, id, true, new Date(waiting.publishAt));
+          await setPublished(db, id, true, { firstPublishedAt: new Date(waiting.publishAt) });
         }
         await schedules.remove(id, { publishAt: waiting.publishAt, changeId: waiting.changeId }).run();
         return writeResult(id, input.changeId);
       },
     },
 
+    renderVersion: RENDER_VERSION,
+
+    // The body as /blog/<slug> renders it, in the site's own stylesheets: an
+    // unsaved source has no row for the route to load.
     preview: {
       async render(input) {
-        const post = parse(input.source);
+        const post = parse(input.source, { preview: true });
         const { html } = await renderMarkdown(db, post.body);
         const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
-        return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(post.title)}</title></head><body><article><h1>${esc(post.title)}</h1>${html}</article></body></html>`;
+        return previewDocument({
+          title: post.title,
+          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${esc(post.title)}</h1><div class="blog-prose e-content">${html}</div></article></main>`,
+          origin: SITE_ORIGIN,
+          stylesheets,
+          attributes: { "data-theme": "light" },
+        });
       },
     },
   };

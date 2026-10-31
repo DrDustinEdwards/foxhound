@@ -1,7 +1,9 @@
+import { ApiLegError, callApi } from "@dustinedwards/site-runtime/mcp-server";
+
 import type { AdminMcpEnv } from "./env";
 
 // The one way into Foxhound: the admin API at /api/admin/v1 on the foxhound
-// Worker, over the FOXHOUND service binding.
+// Worker, over the FOXHOUND service binding, through site-runtime's callApi.
 //
 // EVERY CALL CARRIES TWO CREDENTIALS. The admin key says the caller is this
 // Worker; the acting admin's email says which person it is acting for. The API
@@ -14,6 +16,8 @@ const ADMIN_API_PREFIX = "/api/admin/v1";
 
 /** A service binding ignores the host; this one only has to be a valid URL. */
 const BINDING_ORIGIN = "https://foxhound.internal";
+
+const LEG = { binding: "FOXHOUND", token: "FOXHOUND_ADMIN_API_KEY", api: "Foxhound's admin API", userAgent: "foxhound-admin-mcp" };
 
 export type ApiResult = { ok: true; data: Record<string, unknown> } | { ok: false; status: number; error: string };
 
@@ -28,29 +32,24 @@ export interface ApiCall {
 export const segment = (value: string) => encodeURIComponent(value);
 
 export async function callAdminApi(env: AdminMcpEnv, actor: string, call: ApiCall): Promise<ApiResult> {
-  const key = env.FOXHOUND_ADMIN_API_KEY?.trim();
-  if (!key) {
-    return { ok: false, status: 503, error: "Foxhound Admin is not configured: FOXHOUND_ADMIN_API_KEY is unset." };
-  }
-  const url = new URL(`${ADMIN_API_PREFIX}${call.path}`, BINDING_ORIGIN);
+  const search = new URLSearchParams();
   for (const [name, value] of Object.entries(call.query ?? {})) {
-    if (value !== undefined && value !== "") url.searchParams.set(name, value);
+    if (value !== undefined && value !== "") search.set(name, value);
   }
-  const response = await env.FOXHOUND.fetch(
-    new Request(url, {
+  const query = search.toString();
+  const path = `${ADMIN_API_PREFIX}${call.path}${query ? `?${query}` : ""}`;
+  try {
+    const answer = await callApi({ ...env, SITE_ORIGIN: BINDING_ORIGIN }, LEG, path, {
       method: call.method,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Foxhound-Acting-Admin": actor,
-        "Content-Type": "application/json",
-      },
-      body: call.method === "POST" ? JSON.stringify(call.body ?? {}) : undefined,
-    }),
-  );
-  const payload = (await response.json().catch(() => null)) as { ok?: boolean; data?: unknown; error?: unknown } | null;
-  if (response.ok && payload?.ok === true) {
-    return { ok: true, data: (payload.data ?? {}) as Record<string, unknown> };
+      headers: { "Foxhound-Acting-Admin": actor },
+      json: call.method === "POST" ? (call.body ?? {}) : undefined,
+    });
+    const payload = answer.body as { ok?: boolean; data?: unknown; error?: unknown } | null;
+    if (answer.ok && payload?.ok === true) return { ok: true, data: (payload.data ?? {}) as Record<string, unknown> };
+    return { ok: false, status: answer.status, error: typeof payload?.error === "string" ? payload.error : `Foxhound answered ${answer.status}.` };
+  } catch (err) {
+    // Unreachable throws on, so its cause (not written for an agent) stays in the log (server.ts).
+    if (!(err instanceof ApiLegError) || err.kind === "unreachable") throw err;
+    return { ok: false, status: err.status ?? 503, error: err.message };
   }
-  const error = typeof payload?.error === "string" ? payload.error : `Foxhound answered ${response.status}.`;
-  return { ok: false, status: response.status, error };
 }

@@ -97,13 +97,15 @@ export const authOptions = {
 
 /** Foxhound's options over the family sign-in's (site-runtime ./sign-in). The
  *  hooks are merged, not replaced: the shared databaseHooks.account store no
- *  Google or Apple tokens (FH-5), and the shared advanced settings read the
- *  client IP from cf-connecting-ip. */
+ *  Google or Apple tokens (FH-5), the shared session keeps freshAge (a sign-in
+ *  from the last 10 minutes to add a passkey or unlink), and the shared
+ *  advanced settings read the client IP from cf-connecting-ip. */
 export function withSignIn(signIn: Awaited<ReturnType<typeof signInOptions>>) {
   return {
     ...signIn,
     ...authOptions,
     databaseHooks: { ...signIn.databaseHooks, ...authOptions.databaseHooks },
+    session: { ...signIn.session, ...authOptions.session },
     advanced: { ...signIn.advanced, ...authOptions.advanced },
   };
 }

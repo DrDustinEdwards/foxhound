@@ -404,15 +404,36 @@
     {
       "idx": 57,
       "version": "6",
-      "when": 1793412025176,
-      "tag": "0061_media_placeholder_color",
+      "when": 1793410036664,
+      "tag": "0061_not_found_referrer",
       "breakpoints": true
     },
     {
       "idx": 58,
       "version": "6",
-      "when": 1793426342651,
-      "tag": "0062_search_noindex",
+      "when": 1793427837545,
+      "tag": "0062_media_placeholder_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1793435588268,
+      "tag": "0063_blog_trash_and_renames",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1793435608989,
+      "tag": "0064_site_api_store",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1793440709666,
+      "tag": "0065_search_noindex",
       "breakpoints": true
     }
   ]
