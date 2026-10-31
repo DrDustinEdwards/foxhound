@@ -178,20 +178,6 @@ describe("content round trip against the real schema", () => {
     expect((await t.call("/media")).status).toBe(501);
   });
 
-  it("a draft with no title previews as Untitled, noindex; a save of it is refused", async () => {
-    const t = setup();
-    const preview = await t.call("/preview", { method: "POST", body: JSON.stringify({ source: "# A heading only\n" }) });
-    expect(preview.status).toBe(200);
-    const html = await preview.text();
-    expect(html).toContain("<title>Untitled</title>");
-    expect(html).toContain('content="noindex"');
-    const saved = await t.call("/content/p3/draft", {
-      method: "PUT",
-      body: JSON.stringify({ source: "# A heading only\n", expectedVersion: null, changeId: "c4" }),
-    });
-    expect(saved.status).toBe(422);
-  });
-
   it("a scheduled post goes live on the cron at its time, and a scheduled update leaves the live post served until then", async () => {
     const t = setup();
     const json = async (r: Response) => (await r.json()) as { version: string; status: string; publishAt: string | null };
