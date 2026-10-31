@@ -1,1 +1,0 @@
-ALTER TABLE `blog_posts` ADD `noindex` integer DEFAULT false NOT NULL;

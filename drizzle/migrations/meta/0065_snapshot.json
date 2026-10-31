@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d4f1f3f5-1891-46e4-a718-3f0aabd2653c",
+  "id": "052de20c-570a-4db9-9d1b-3f1e8b642634",
   "prevId": "b45eee1b-2a82-42d2-8e1c-2bc57fbe5c56",
   "tables": {
     "audit_digest_runs": {
@@ -1155,6 +1155,20 @@
         },
         "canonical_url": {
           "name": "canonical_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "og_image_url": {
+          "name": "og_image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "og_image_alt": {
+          "name": "og_image_alt",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

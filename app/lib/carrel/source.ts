@@ -30,6 +30,8 @@ export interface PostSource {
   searchTitle?: string | null;
   description?: string | null;
   canonical?: string | null;
+  image?: string | null;
+  imageAlt?: string | null;
   noindex?: boolean;
   body: string;
 }
@@ -46,13 +48,15 @@ const FIELDS = {
   searchTitle: "text",
   description: "text",
   canonical: "text",
+  image: "text",
+  imageAlt: "text",
   noindex: "flag",
 } as const;
 const SOURCE = jsonSource(FIELDS, { required: ["title"] });
 /** A preview reads a draft that may have no title, or no front matter at all, yet. */
 const PREVIEW_SOURCE = jsonSource(FIELDS);
 
-export function serializePostSource({ body, slug, searchTitle, description, canonical, noindex, ...post }: PostSource): string {
+export function serializePostSource({ body, slug, searchTitle, description, canonical, image, imageAlt, noindex, ...post }: PostSource): string {
   return SOURCE.write(
     {
       ...post,
@@ -60,6 +64,8 @@ export function serializePostSource({ body, slug, searchTitle, description, cano
       searchTitle: searchTitle || undefined,
       description: description || undefined,
       canonical: canonical || undefined,
+      image: image || undefined,
+      imageAlt: imageAlt || undefined,
       noindex: noindex || undefined,
     },
     body,
@@ -79,6 +85,8 @@ export function parsePostSource(source: string, defaults: { author: string }, { 
     searchTitle: v.searchTitle?.trim() || null,
     description: v.description?.trim() || null,
     canonical: v.canonical?.trim() || null,
+    image: v.image?.trim() || null,
+    imageAlt: v.imageAlt?.trim() || null,
     noindex: v.noindex ?? false,
     body,
   };

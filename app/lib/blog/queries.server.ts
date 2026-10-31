@@ -33,6 +33,8 @@ export interface BlogPost extends BlogPostSummary {
   ogTitle: string | null;
   ogDescription: string | null;
   canonicalUrl: string | null;
+  ogImageUrl: string | null;
+  ogImageAlt: string | null;
   noindex: boolean;
   showUpdatedAt: boolean;
   showPublishedAt: boolean;
@@ -200,6 +202,8 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
     ogTitle: r.ogTitle,
     ogDescription: r.ogDescription,
     canonicalUrl: r.canonicalUrl,
+    ogImageUrl: r.ogImageUrl,
+    ogImageAlt: r.ogImageAlt,
     noindex: r.noindex,
     showUpdatedAt: r.showUpdatedAt,
     showPublishedAt: r.showPublishedAt,
