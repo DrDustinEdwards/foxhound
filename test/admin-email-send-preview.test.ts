@@ -527,9 +527,9 @@ describe("PLANT 8: the admin MCP's preview and send tools", () => {
   });
 
   it("send needs the write grant, and passes types, merchant and recipient to the send route", async () => {
+    // A read grant is never offered the send tool (registerTools, T7): the call is an unknown tool and sends nothing.
     const readOnly = fakeFoxhound();
-    const refused = await callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ]);
-    expect(refused.isError).toBe(true);
+    await expect(callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ])).rejects.toThrow(/not found/);
     expect(readOnly.calls).toEqual([]);
 
     const fox = fakeFoxhound();

@@ -6,13 +6,7 @@ import {
   type AuthInfo,
   type JsonSchemaType,
 } from "@modelcontextprotocol/server";
-import {
-  invokeTool,
-  mcpCacheHints,
-  routeMcpEra,
-  toolScopeChallenge,
-  type McpServerInfo,
-} from "@dustinedwards/site-runtime/mcp-server";
+import { mcpCacheHints, outsideResult, registerTools, routeMcpEra, type McpServerInfo } from "@dustinedwards/site-runtime/mcp-server";
 
 import type { AdminMcpEnv } from "./env";
 import { SCOPE_READ, SCOPE_WRITE } from "./scopes";
@@ -71,37 +65,35 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
   // handed that same email, so here it proves only that the grant names someone.
   const checkEnv = { ...env, ADMIN_EMAIL: session.actor };
   const caller = { kind: "admin" as const, props: { email: session.actor, client: session.client, clientId: session.clientId }, scopes: session.scopes };
-  for (const tool of ADMIN_TOOLS) {
-    server.registerTool(
-      tool.name,
-      {
-        title: tool.title,
-        description: tool.description,
-        inputSchema: fromJsonSchema(tool.inputSchema as JsonSchemaType),
-        outputSchema: fromJsonSchema(tool.outputSchema as JsonSchemaType),
-        annotations: tool.annotations,
-        scopeChallenge: toolScopeChallenge(env, SERVER, tool),
-      },
-      (args: unknown, ctx) =>
-        invokeTool(checkEnv, SERVER, {
-          caller,
-          tool,
-          args: (args ?? {}) as Record<string, unknown>,
-          meta: ctx.mcpReq._meta as { traceparent?: unknown } | undefined,
-          run: async () => {
-            try {
-              const outcome = await tool.run({ env, actor: session.actor }, (args ?? {}) as Record<string, unknown>);
-              return outcome.ok ? result(outcome.data) : result({ error: outcome.error, tool: tool.name }, true);
-            } catch (err) {
-              // An unexpected failure's text stays in the log: it was not written
-              // for an agent and could carry anything.
-              console.error("admin mcp tool failed:", tool.name, err instanceof Error ? err.message : String(err));
-              return result({ error: `${tool.name} could not reach Foxhound. Try again.`, tool: tool.name }, true);
-            }
-          },
-        }),
-    );
-  }
+  // site-runtime's registerTools: only the tools the grant can call are listed (T7), each with the server's icon (T9),
+  // the 403 step-up before a tool runs, and invokeTool, which still checks the scope, logs the call and hands the run
+  // the request's abort signal (P11), which reaches the admin API call (api-client.ts).
+  registerTools(server as unknown as Parameters<typeof registerTools>[0], ADMIN_TOOLS, {
+    env: checkEnv,
+    server: SERVER,
+    caller,
+    icons: SERVER_INFO.icons,
+    config: (tool) => ({
+      title: tool.title,
+      description: tool.description,
+      inputSchema: fromJsonSchema(tool.inputSchema as JsonSchemaType),
+      outputSchema: fromJsonSchema(tool.outputSchema as JsonSchemaType),
+      annotations: tool.annotations,
+    }),
+    run: async (tool, args, signal) => {
+      try {
+        const outcome = await tool.run({ env, actor: session.actor, signal }, args);
+        if (!outcome.ok) return result({ error: outcome.error, tool: tool.name }, true);
+        // Merchant names and notes, customer and webhook error text: data, never instructions (S2).
+        return tool.outside ? outsideResult(tool.outside, outcome.data) : result(outcome.data);
+      } catch (err) {
+        // An unexpected failure's text stays in the log: it was not written
+        // for an agent and could carry anything.
+        console.error("admin mcp tool failed:", tool.name, err instanceof Error ? err.message : String(err));
+        return result({ error: `${tool.name} could not reach Foxhound. Try again.`, tool: tool.name }, true);
+      }
+    },
+  });
   return server;
 }
 

@@ -1,7 +1,8 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { validateHostHeader } from "@modelcontextprotocol/server";
 
-import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { auditLogCheck, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { healthResponse } from "@dustinedwards/site-runtime/health";
 import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
 import {
   DCR_CALLBACKS,
@@ -38,7 +39,7 @@ import { SERVER, serveAdminMcp } from "./server";
 //   /authorize  /callback     the consent page and the Access sign-in
 //   /register                 tightened registration (rule 13), rate limited here first
 //   /token, /.well-known/*    served by the provider
-//   /health                   liveness, and the deployed commit CI's live gate waits for
+//   /health                   liveness, the deployed commit CI's live gate waits for, and the tool-call log's check
 //   anything else             404
 
 type DoorEnv = AdminMcpEnv & { OAUTH_PROVIDER: OAuthHelpers };
@@ -57,8 +58,9 @@ const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
   admit: (env, user) => isFoxhoundAdmin(env, user.email.toLowerCase()),
   // Every sign-in, admitted or refused, is a row in the tool-call log.
   audit: { name: SERVER.name, version: SERVER.version },
-  // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it.
-  health: (env) => Response.json({ ok: true, sha: env.DEPLOY_SHA ?? null }),
+  // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it. The tool-call log's
+  // check (L8) warns on a call started and never finished, a spike, or rows uncopied for two days.
+  health: (env) => healthResponse({ sha: env.DEPLOY_SHA, checks: [auditLogCheck(env as Parameters<typeof auditLogCheck>[0])] }),
 });
 
 /** The provider's defaultHandler: the shared consent and sign-in, with this Worker's origin for the callback. */

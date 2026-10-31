@@ -26,6 +26,8 @@ export interface ApiCall {
   path: string;
   query?: Record<string, string | undefined>;
   body?: Record<string, unknown>;
+  /** The tool call's abort signal: callApi stops the request when the client leaves (P11). */
+  signal?: AbortSignal;
 }
 
 /** One path segment, encoded, so an id can never step onto another route. */
@@ -43,6 +45,7 @@ export async function callAdminApi(env: AdminMcpEnv, actor: string, call: ApiCal
       method: call.method,
       headers: { "Foxhound-Acting-Admin": actor },
       json: call.method === "POST" ? (call.body ?? {}) : undefined,
+      signal: call.signal,
     });
     const payload = answer.body as { ok?: boolean; data?: unknown; error?: unknown } | null;
     if (answer.ok && payload?.ok === true) return { ok: true, data: (payload.data ?? {}) as Record<string, unknown> };
