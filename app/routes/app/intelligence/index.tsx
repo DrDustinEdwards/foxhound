@@ -47,6 +47,7 @@ import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format"
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /intelligence/dashboard. Recova is the spec: its real
 // page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
@@ -126,7 +127,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   // generate the report. Try again or contact support."
   try {
     const db = getDb(env);
-    const form = await request.formData();
+    const form = await readForm(request);
     if (form.get("intent") !== "generate") return refused("invalid_intent");
     const result = await generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
     if (!result.ok) return refused(result.error);

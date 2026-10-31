@@ -20,6 +20,7 @@ import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 export const handle: AdminHandle<{ account: { name: string | null; id: string } }> = {
   page: (data: { account: { name: string | null; id: string } }) => data.account.name ?? data.account.id,
@@ -60,7 +61,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   const db = getDb(env);
   const accountId = params.id;
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
 
   if (intent === "toggle-billing-exempt") {

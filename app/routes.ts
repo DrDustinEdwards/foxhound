@@ -98,6 +98,7 @@ export default [
     route("login", "./routes/auth/login.tsx"),
     route("signup", "./routes/auth/signup.tsx"),
     route("passkey", "./routes/auth/passkey-offer.tsx"),
+    // The emailed sign-in link's page (site-runtime's CONFIRM_PATH).
     route("sign-in/confirm", "./routes/auth/sign-in-confirm.tsx"),
   ]),
 

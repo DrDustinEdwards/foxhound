@@ -5,6 +5,7 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { oauthResponse, registerClient } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/oauth-register";
+import { readJson } from "~/lib/http/body";
 
 // POST /api/oauth/register, at Recova's path: RFC 7591 dynamic client
 // registration. Public by specification; a registered client can do nothing
@@ -22,8 +23,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJson(request);
+  } catch (error) {
+    if (error instanceof Response) throw error;
     return oauthResponse({ status: 400, body: { error: "invalid_client_metadata" } });
   }
   return oauthResponse(await registerClient(getDb(env), body, new Date()));
