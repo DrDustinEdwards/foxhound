@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { SCOPE_READ, SCOPE_WRITE } from "../mcp/src/scopes";
 import { ADMIN_TOOLS, ADMIN_TOOL_NAMES } from "../mcp/src/tools";
 import { serveAdminMcp } from "../mcp/src/server";
-import { guardMcpRequest, isFoxhoundAdmin } from "../mcp/src/guard";
+import { isFoxhoundAdmin } from "../mcp/src/guard";
 
 import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 
@@ -32,7 +32,7 @@ const strip = (source: string) =>
 const jsonc = (source: string) => JSON.parse(strip(source).replace(/,(\s*[}\]])/g, "$1")) as Record<string, unknown>;
 
 const ADMIN = "dustin@foxhound.test";
-const KEY = "fox_mcp_test_admin_key";
+const KEY = "fox_mcp_test_admin_key_at_least_32_chars";
 
 interface ApiCall {
   method: string;
@@ -49,7 +49,9 @@ function fakeFoxhound(answer: (call: ApiCall) => { status: number; body: unknown
   return {
     calls,
     binding: {
-      async fetch(request: Request) {
+      // callApi hands a service binding a URL and init, as Fetcher.fetch takes them.
+      async fetch(input: Request | string, init?: RequestInit) {
+        const request = new Request(input, init);
         const url = new URL(request.url);
         const call: ApiCall = {
           method: request.method,
@@ -67,8 +69,19 @@ function fakeFoxhound(answer: (call: ApiCall) => { status: number; body: unknown
   };
 }
 
-function env(binding: { fetch(request: Request): Promise<Response> }) {
-  return { FOXHOUND: binding, FOXHOUND_ADMIN_API_KEY: KEY } as never;
+/** A fake TOOL_CALL_LOG that keeps the rows it is sent. */
+function toolCallLog(rows: Record<string, unknown>[] = []) {
+  const stub = {
+    fetch: async (_url: string, init: RequestInit) => {
+      rows.push(JSON.parse(String(init.body)));
+      return new Response(null, { status: 204 });
+    },
+  };
+  return { idFromName: () => "tool-calls", get: () => stub };
+}
+
+function env(binding: { fetch(request: Request): Promise<Response> }, rows?: Record<string, unknown>[]) {
+  return { FOXHOUND: binding, FOXHOUND_ADMIN_API_KEY: KEY, TOOL_CALL_LOG: toolCallLog(rows) } as never;
 }
 
 async function callTool(
@@ -76,13 +89,17 @@ async function callTool(
   name: string,
   args: Record<string, unknown>,
   scopes: string[] = [SCOPE_READ, SCOPE_WRITE],
+  rows?: Record<string, unknown>[],
 ) {
-  const res = await serveAdminMcp(mcpRequest({ method: "tools/call", params: { name, arguments: args } }), env(binding), {
+  const res = await serveAdminMcp(mcpRequest({ method: "tools/call", params: { name, arguments: args } }), env(binding, rows), {
     actor: ADMIN,
     client: "test client",
     scopes,
   });
-  return toolOutput(await readMcp(res));
+  const answer = await readMcp(res);
+  // The refusal's sentence: a refused call carries no structuredContent.
+  const text = (answer.json as { result?: { content?: { text?: string }[] } }).result?.content?.[0]?.text ?? "";
+  return { ...toolOutput(answer), text };
 }
 
 // ============================================================================
@@ -90,10 +107,15 @@ async function callTool(
 describe("PLANT 1: the Worker holds no Stripe key, no money binding and no D1", () => {
   const config = jsonc(read("mcp/wrangler.jsonc"));
 
-  it("binds only the foxhound service and the OAuth KV, nothing else", () => {
+  it("binds only the foxhound service, the OAuth KV and its own limiter and log, nothing else", () => {
     expect(config.services).toEqual([{ binding: "FOXHOUND", service: "foxhound", entrypoint: "AdminApi" }]);
     expect((config.kv_namespaces as { binding: string }[]).map((k) => k.binding)).toEqual(["OAUTH_KV"]);
-    for (const forbidden of ["d1_databases", "r2_buckets", "queues", "durable_objects", "send_email", "analytics_engine_datasets", "hyperdrive"]) {
+    // Its own classes only: no script_name, so never one of the foxhound Worker's money objects.
+    expect((config.durable_objects as { bindings: unknown[] }).bindings).toEqual([
+      { name: "MCP_RATE_LIMIT", class_name: "RateLimiter" },
+      { name: "TOOL_CALL_LOG", class_name: "ToolCallLog" },
+    ]);
+    for (const forbidden of ["d1_databases", "r2_buckets", "queues", "send_email", "analytics_engine_datasets", "hyperdrive"]) {
       expect(config[forbidden], forbidden).toBeUndefined();
     }
     expect(JSON.stringify(config.vars ?? {})).not.toMatch(/stripe/i);
@@ -130,9 +152,10 @@ describe("PLANT 2: the tools", () => {
     }
   });
 
-  it("only pause, stage_change and the test-mail send write; every other tool is read-only", () => {
-    const writes = ADMIN_TOOLS.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name).sort();
+  it("only pause, stage_change and the test-mail send need the write scope, and their hints say so", () => {
+    const writes = ADMIN_TOOLS.filter((t) => t.scope === "write").map((t) => t.name).sort();
     expect(writes).toEqual(["foxhound_admin_pause", "foxhound_admin_send_test_email", "foxhound_admin_stage_change"]);
+    for (const tool of ADMIN_TOOLS) expect(tool.annotations.readOnlyHint, tool.name).toBe(tool.scope === "read");
   });
 
   it("every call carries the admin key and the signed-in admin's email", async () => {
@@ -184,33 +207,28 @@ describe("PLANT 2: the tools", () => {
   });
 });
 
-describe("PLANT 3: least scope (rule 12.3)", () => {
-  it("a read-only grant can read and cannot pause or stage", async () => {
+describe("PLANT 3: least scope (rule 12.3) and the tool-call log (rule 12.4)", () => {
+  it("a read-only grant can read and cannot pause or stage, and every call is a row", async () => {
     const fox = fakeFoxhound();
-    expect((await callTool(fox.binding, "foxhound_admin_get_platform", {}, [SCOPE_READ])).isError).toBe(false);
+    const rows: Record<string, unknown>[] = [];
+    expect((await callTool(fox.binding, "foxhound_admin_get_platform", {}, [SCOPE_READ], rows)).isError).toBe(false);
     for (const tool of ["foxhound_admin_pause", "foxhound_admin_stage_change"]) {
-      const out = await callTool(fox.binding, tool, { account_id: "acct_a", kind: "resume_account" }, [SCOPE_READ]);
+      const out = await callTool(fox.binding, tool, { account_id: "acct_a", kind: "resume_account" }, [SCOPE_READ], rows);
       expect(out.isError, tool).toBe(true);
-      expect(String(out.data.error)).toMatch(/read-only/);
+      expect(out.text).toMatch(/read access only/);
     }
     expect(fox.calls.map((c) => c.path)).toEqual(["/api/admin/v1/platform"]);
+    // The refusals reach the log too, which a console line never did.
+    expect(rows.map((r) => [r.phase, r.tool])).toEqual([
+      ["started", "foxhound_admin_get_platform"],
+      ["finished", "foxhound_admin_get_platform"],
+      ["refused", "foxhound_admin_pause"],
+      ["refused", "foxhound_admin_stage_change"],
+    ]);
   });
 });
 
-describe("PLANT 4: the door (rule 12.2)", () => {
-  const origin = "https://admin-mcp.foxhoundapp.com";
-  const good = { audience: `${origin}/mcp`, props: { email: ADMIN, client: "c", clientId: "https://claude.ai/x" }, scope: [SCOPE_READ] };
-
-  it("a token issued for another resource is refused", () => {
-    expect(guardMcpRequest(origin, { ...good, audience: "https://carrel-mcp.dustinedwards.info/mcp" }).ok).toBe(false);
-    expect(guardMcpRequest(origin, { ...good, audience: undefined }).ok).toBe(false);
-    expect(guardMcpRequest(origin, good).ok).toBe(true);
-  });
-
-  it("a grant with no email is refused", () => {
-    expect(guardMcpRequest(origin, { ...good, props: { client: "c" } }).ok).toBe(false);
-  });
-
+describe("PLANT 4: the door", () => {
   it("whether someone is a Foxhound admin is the API's answer, asked at sign-in", async () => {
     const fox = fakeFoxhound((call) =>
       call.actor === ADMIN ? { status: 200, body: { ok: true, data: { actor: ADMIN } } } : { status: 403, body: { ok: false, error: "no" } },

@@ -38,6 +38,8 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      // The webmention hook's read of the post's page is not IndexNow's.
+      if (String(input) !== ENDPOINT) return new Response(null, { status: 404 });
       captured.push({ url: String(input), body: JSON.parse(String(init?.body ?? "{}")) });
       return fetchImpl();
     }),

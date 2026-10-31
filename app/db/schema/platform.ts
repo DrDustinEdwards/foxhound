@@ -89,7 +89,7 @@ export const cronRunHistory = sqliteTable(
   ],
 );
 
-// global: site-runtime ./cron's CRON_SQL (migration 0063), written by runJobs and read by /health's cronCheck. Epoch ms.
+// global: site-runtime ./cron's CRON_SQL (migration 0065), written by runJobs and read by /health's cronCheck. Epoch ms.
 export const cronRuns = sqliteTable("cron_runs", {
   name: text("name").primaryKey(),
   everyMinutes: integer("every_minutes").notNull(),

@@ -23,6 +23,9 @@ import type { CronJobResult } from "~/lib/cron/run";
  *                  app/lib/auth/options.ts). FINDING for the seat, not fixed here.
  *                  After a restore, password users reset their password and
  *                  Google users sign in again; user rows are kept.
+ *  - preview_links Carrel's preview links (site-api's store): the hash of each
+ *                  link's token. A restore would bring back a link revoked
+ *                  since; a lost link is made again in Carrel.
  *
  * KEPT ON PURPOSE: stripe_connections. Its stripe_access_token is AES-256-GCM
  * encrypted by app code (ENCRYPTION_KEY / ENCRYPTION_KEYS_OLD are Worker secrets,
@@ -32,7 +35,7 @@ import type { CronJobResult } from "~/lib/cron/run";
  * and email_suppressions.token (the unsubscribe token) stay because the tables
  * are business data; d1-dump excludes whole tables only.
  */
-const BACKUP_EXCLUDED_TABLES = ["session", "verification", "account"] as const;
+const BACKUP_EXCLUDED_TABLES = ["session", "verification", "account", "preview_links"] as const;
 
 /** Tables that must be in every dump; their absence means the dump is not real. */
 const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
