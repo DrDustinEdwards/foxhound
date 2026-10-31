@@ -1,4 +1,13 @@
-import { createMcpHandler, fromJsonSchema, McpServer, type JsonSchemaType } from "@modelcontextprotocol/server";
+import {
+  type AuthInfo,
+  createMcpHandler,
+  fromJsonSchema,
+  type JsonSchemaType,
+  McpServer,
+  requireScopes,
+} from "@modelcontextprotocol/server";
+
+import { MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
 import { maskEmailsInText } from "./redact";
 import { ToolInputError, type McpToolContext, type McpToolRegistry } from "./registry";
@@ -72,7 +81,7 @@ function errorForAgent(tool: string, err: unknown): string {
  * One server for one request, with every registered tool on it in registry
  * order, so `tools/list` is deterministic.
  */
-function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): McpServer {
+function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: readonly string[]): McpServer {
   // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
   const server = new McpServer(MCP_SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS, maxToolInputElements: 10_000 });
   for (const descriptor of registry.list()) {
@@ -85,8 +94,25 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): McpServ
         description: descriptor.description,
         inputSchema: fromJsonSchema(descriptor.inputSchema as JsonSchemaType),
         annotations: descriptor.annotations,
+        // A key without the scope the tool needs gets the SDK's 403
+        // insufficient_scope, naming every scope the call needs and where to
+        // find the authorization server, before the tool runs, so the client
+        // can step up instead of failing.
+        scopeChallenge:
+          tool.scope === "write"
+            ? requireScopes(MERCHANT_SCOPES.read, MERCHANT_SCOPES.write)
+            : requireScopes(MERCHANT_SCOPES.read),
       },
       async (args: unknown) => {
+        // The challenge above runs only when the transport is handed the key's
+        // scopes; this check holds whatever path reaches the tool.
+        const needed = tool.scope === "write" ? MERCHANT_SCOPES.write : MERCHANT_SCOPES.read;
+        if (!scopes.includes(needed)) {
+          return toolResult(
+            { error: `${descriptor.name} needs ${needed}. Reconnect and tick "Allow changes" on the consent page.`, tool: descriptor.name },
+            true,
+          );
+        }
         try {
           // THE TRACE NAMES THE TOOL BEING RUN, set here rather than passed in,
           // so a tool cannot record a different tool's name against its write.
@@ -104,10 +130,11 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext): McpServ
   return server;
 }
 
-/** Serve one already-authenticated request through the SDK. */
-export function serveMcp(request: Request, registry: McpToolRegistry, ctx: McpToolContext) {
+/** Serve one already-authenticated request through the SDK. `authInfo`
+ *  carries the key's scopes, for the per-tool step-up. */
+export function serveMcp(request: Request, registry: McpToolRegistry, ctx: McpToolContext, authInfo: AuthInfo) {
   // `responseMode` stays the SDK's "auto": one JSON body per modern answer,
   // because no tool here emits a message before its result.
-  const handler = createMcpHandler(() => buildMcpServer(registry, ctx), { legacy: "stateless" });
-  return handler.fetch(request);
+  const handler = createMcpHandler(() => buildMcpServer(registry, ctx, authInfo.scopes), { legacy: "stateless" });
+  return handler.fetch(request, { authInfo });
 }

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-import { id, ts, bool } from "./columns";
+import { bool, id, json, ts } from "./columns";
 
 // ============================================================================
 // Tenancy and identity (business-owned; Better Auth owns user/session/etc.)
@@ -274,6 +274,10 @@ export const apiKeys = sqliteTable(
     keyHash: text("key_hash").notNull(),
     label: text("label"),
     scope: text("scope").notNull(),
+    /** The merchant MCP scopes this key holds: merchant.read, and
+     *  merchant.write when the owner allowed changes. Null reads as
+     *  merchant.read (keyScopes in app/lib/oauth/metadata.ts). */
+    scopes: json<string[]>("scopes"),
     createdAt: ts("created_at").notNull(),
     lastUsedAt: ts("last_used_at"),
     revokedAt: ts("revoked_at"),

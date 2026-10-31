@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, apiKeys } from "~/db";
+import { keyScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
 // MCP token model (Phase 3 designs it; Phase 7's Foxhound MCP consumes it).
 //
@@ -87,6 +88,9 @@ export async function issueMcpToken(
     keyHash,
     label: input.label ?? null,
     scope: input.scope,
+    // A key made in Settings is made by the owner, signed in, for an agent they
+    // choose: it may read and change, as before the read and write split.
+    scopes: input.scope === MCP_TOKEN_SCOPE.MERCHANT ? [...MERCHANT_SCOPES.all] : null,
     createdAt: new Date(),
   });
   return { keyId, token, scope: input.scope };
@@ -96,6 +100,8 @@ export interface VerifiedMcpToken {
   keyId: string;
   accountId: string | null;
   scope: McpTokenScope;
+  /** The merchant MCP scopes the key holds (keyScopes). */
+  scopes: string[];
 }
 
 /**
@@ -115,6 +121,7 @@ export async function verifyMcpToken(
       id: apiKeys.id,
       accountId: apiKeys.accountId,
       scope: apiKeys.scope,
+      scopes: apiKeys.scopes,
       revokedAt: apiKeys.revokedAt,
       expiresAt: apiKeys.expiresAt,
       accountCancelledAt: accounts.cancelledAt,
@@ -137,5 +144,5 @@ export async function verifyMcpToken(
   }
 
   await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
-  return { keyId: row.id, accountId: row.accountId, scope: row.scope };
+  return { keyId: row.id, accountId: row.accountId, scope: row.scope, scopes: keyScopes(row.scopes) };
 }

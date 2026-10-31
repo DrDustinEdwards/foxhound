@@ -105,6 +105,7 @@ function tool(name: string): McpTool {
     description: "d",
     inputSchema: { type: "object" },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    scope: "read",
     execute: async () => ({}),
   };
 }
@@ -137,8 +138,14 @@ describe("PLANT 1: the endpoint's shape", () => {
     // present and invalid, servers MUST respond with HTTP 403 Forbidden." An
     // agent sends none, so absence must NOT be treated as invalid.
     const { good } = await seed();
-    const foreign = await call({ token: good, headers: { Origin: "https://evil.test" } });
+    // site-runtime's refusal (mcpOriginRefusal), plain text, never cached.
+    const foreign = (await handleMcpRequest(
+      mcpRequest({ token: good, headers: { Origin: "https://evil.test" } }),
+      env(),
+      PROBE,
+    )) as Response;
     expect(foreign.status).toBe(403);
+    expect(foreign.headers.get("Cache-Control")).toBe("no-store");
     const sameOrigin = await call({ token: good, headers: { Origin: ORIGIN } });
     expect(sameOrigin.status).toBe(200);
     const absent = await call({ token: good });
@@ -192,7 +199,7 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
       // J79: the 401 now names the protected-resource document an MCP client
       // follows to the OAuth provider. Still one value for every failure.
       expect(res.headers.get("WWW-Authenticate")).toBe(
-        `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource", scope="merchant"`,
+        `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp", scope="merchant.read"`,
       );
       seen.add(await res.clone().text());
     }
