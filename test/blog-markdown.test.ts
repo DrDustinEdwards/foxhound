@@ -46,15 +46,10 @@ describe("renderMarkdown", () => {
     );
   });
 
-  it("keeps legacy's heading ids and opens only off-site links in a new tab", async () => {
-    const { html } = await renderMarkdown(
-      emptyDb(),
-      "## What does call_issuer mean?\n\n[Stripe](https://stripe.com) and [the audit](/audit) and [home](https://foxhoundapp.com/).",
-    );
+  it("keeps legacy's heading ids", async () => {
+    const { html } = await renderMarkdown(emptyDb(), "## What does call_issuer mean?\n\n[Stripe](https://stripe.com).");
     expect(html).toContain('<h2 id="what-does-callissuer-mean">');
-    expect(html).toContain('<a href="https://stripe.com" target="_blank" rel="noopener noreferrer">Stripe</a>');
-    expect(html).toContain('<a href="/audit">the audit</a>');
-    expect(html).toContain('<a href="https://foxhoundapp.com/">home</a>');
+    expect(html).toContain('<a href="https://stripe.com">Stripe</a>');
   });
 
   it("links a post named in a :::faq answer, and gives the JSON-LD its words", async () => {

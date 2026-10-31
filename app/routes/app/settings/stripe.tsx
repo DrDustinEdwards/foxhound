@@ -364,7 +364,7 @@ function StripeSection({
                               rel="noreferrer"
                             >
                               Open Stripe dashboard
-                            </a>
+                            <span className="cap-sr-only"> (opens in a new tab)</span></a>
                           }
                         >
                           {conn.healthWarning.join(" ")}

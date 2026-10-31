@@ -219,7 +219,7 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
                     <a href={issue.permalink} target="_blank" rel="noreferrer" className={LINK}>
                       <span className="break-all">{issue.title}</span>
                       <ExternalLink aria-hidden="true" className="size-4 shrink-0 text-text-tertiary" />
-                      <span className="cap-sr-only"> (opens in Sentry)</span>
+                      <span className="cap-sr-only"> (opens Sentry in a new tab)</span>
                     </a>
                   ) : (
                     <span className="break-all">{issue.title}</span>

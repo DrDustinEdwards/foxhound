@@ -45,7 +45,7 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
           {invoice.stripeInvoiceUrl ? (
             <a href={invoice.stripeInvoiceUrl} target="_blank" rel="noreferrer" className="text-label text-brand-text hover:underline">
               View Stripe invoice
-            </a>
+            <span className="cap-sr-only"> (opens in a new tab)</span></a>
           ) : null}
         </div>
       </div>
