@@ -116,6 +116,9 @@ interface McpToolDescriptor {
   /** JSON Schema. Plain object rather than a zod schema: MCP's `inputSchema` IS
    *  JSON Schema, and the SDK's `fromJsonSchema` takes it as written. */
   inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[] };
+  /** JSON Schema of the result's structuredContent (area 11, T3). The SDK
+   *  checks every successful result against it before it leaves. */
+  outputSchema?: { type: "object"; properties: Record<string, unknown>; required?: string[] };
   annotations: McpToolAnnotations;
 }
 
@@ -202,11 +205,12 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
   }
   return {
     list: () =>
-      [...byName.values()].map(({ name, title, description, inputSchema, annotations }) => ({
+      [...byName.values()].map(({ name, title, description, inputSchema, outputSchema, annotations }) => ({
         name,
         title,
         description,
         inputSchema,
+        ...(outputSchema ? { outputSchema } : {}),
         annotations,
       })),
     get: (name: string) => byName.get(name) ?? null,

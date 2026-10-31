@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { accounts, alertHistory, alerts, apiKeys, mcpWrites, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
-import { mcpRequest, readMcp } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolCallLogStub } from "./helpers/mcp-client";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // SESSION 80: THE FOUR SURGERIES, AND ITEM 4 CLOSES.
@@ -82,6 +82,7 @@ const OLD_WRITE_NAMES = [
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
