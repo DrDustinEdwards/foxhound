@@ -1,9 +1,10 @@
 import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import { d1SiteApiStore } from "@dustinedwards/site-api/store";
 import { describe, expect, it } from "vitest";
 
-import { getPostBySlug } from "~/lib/blog/queries.server";
+import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { handleCarrelRequest } from "~/lib/carrel/handler.server";
 import { parsePostSource, serializePostSource } from "~/lib/carrel/source";
@@ -30,6 +31,8 @@ function setup(limit = () => true) {
     adapter: { ...adapter, content: counted },
     key: KEY,
     limiter: { limit: async () => ({ success: limit() }) },
+    // site-api's own store, so the conformance suite's replay checks run too.
+    store: d1SiteApiStore(d1Over(sqlite)),
     log: () => {},
   });
   const call = (path: string, init: RequestInit = {}, key: string | null = KEY) =>
@@ -228,6 +231,41 @@ describe("content round trip against the real schema", () => {
     expect(updated?.body).toContain("Goodbye");
     expect(updated?.publishedAt?.toISOString()).toBe(at);
     expect((await t.call("/content/s1/schedule")).status).toBe(404);
+  });
+
+  it("a live post renamed keeps its old address as a 301; trashed it leaves the blog and goes for good only from the trash", async () => {
+    const t = setup();
+    const json = async (r: Response) => (await r.json()) as { version: string; status: string; previousPath?: string | null };
+    const post = (id: string, op: string, body: unknown) => t.call(`/content/${id}/${op}`, { method: "POST", body: JSON.stringify(body) });
+    const draft = await json(
+      await t.call("/content/r1/draft", { method: "PUT", body: JSON.stringify({ source: SOURCE, expectedVersion: null, changeId: "c1" }) }),
+    );
+    await new Promise((r) => setTimeout(r, 5));
+    const live = await json(
+      await post("r1", "publish", { expectedVersion: draft.version, changeId: "c2", source: SOURCE.replace("Hello", "Hi") }),
+    );
+
+    const renamed = await post("r1", "rename", { newId: "why-cards-decline", expectedVersion: live.version, changeId: "c3" });
+    expect(renamed.status).toBe(200);
+    const moved = await json(renamed);
+    expect(moved.previousPath).toBe("/blog/why-cards-fail");
+    expect((await getPostBySlug(t.db, "why-cards-decline"))?.id).toBe("why-cards-decline");
+    expect(await getSlugRedirect(t.db, "why-cards-fail")).toBe("why-cards-decline");
+    // Its history came with it.
+    expect(((await json(await t.call("/content/why-cards-decline/revisions"))) as unknown as { items: unknown[] }).items).toHaveLength(2);
+    expect((await t.call("/content/r1")).status).toBe(404);
+
+    // A delete outside the trash is refused; in it, the post is off the blog and then gone.
+    const del = (version: string, changeId: string) =>
+      t.call(`/content/why-cards-decline?expectedVersion=${version}&changeId=${changeId}`, { method: "DELETE" });
+    expect((await del(moved.version, "c4")).status).toBe(422);
+    const trashed = await json(await post("why-cards-decline", "trash", { expectedVersion: moved.version, changeId: "c5" }));
+    expect(trashed.status).toBe("draft");
+    expect(await getPostBySlug(t.db, "why-cards-decline")).toBeNull();
+    const listed = (await (await t.call("/content?trashed=true")).json()) as { items: Array<{ id: string }>; filtered: string[] };
+    expect([listed.items.map((i) => i.id), listed.filtered]).toEqual([["why-cards-decline"], ["trashed"]]);
+    expect((await del(trashed.version, "c6")).status).toBe(200);
+    expect(await getSlugRedirect(t.db, "why-cards-fail")).toBeNull();
   });
 
   it("the package's own conformance suite passes against the adapter", async () => {

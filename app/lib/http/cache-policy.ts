@@ -149,7 +149,7 @@ export function classifyPath(pathname: string): CacheClass {
   if (MARKETING_PREFIXES.some((prefix) => path.startsWith(prefix))) return "marketing";
   if (path === "/docs" || path.startsWith("/docs/")) return "docs";
   if (path === "/blog" || path.startsWith("/blog/")) return "blog";
-  // The blog's media library files set their own five-minute directive
+  // The blog's media library files set their own directive
   // (app/routes/files/media.ts); listed so they get Vary: Cookie like any file.
   if (FILES_EXACT.has(path) || path === "/og" || path.startsWith("/og/") || path.startsWith("/media/")) return "files";
   return "private";
@@ -211,8 +211,9 @@ function cookieNames(request: Request): string[] {
 export function edgeRequest(request: Request): { request: Request; theme: string } {
   const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
   // A HEAD goes on as a GET (site-runtime forRenderer): app/entry.server.tsx answers a HEAD with an empty body, which
-  // must never be stored.
-  const forwarded = forRenderer(request);
+  // must never be stored. forRenderer hands a GET back as it came, and an incoming request's headers are immutable on
+  // Workers, so the copy is what takes the theme cookie (a set on the original was a 500 on every page, 2026-10-31).
+  const forwarded = new Request(forRenderer(request));
   forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
   return { request: forwarded, theme };
 }

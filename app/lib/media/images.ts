@@ -5,10 +5,13 @@ import { defineImages } from "@dustinedwards/site-runtime/image";
 // (app/routes/files/media.ts) share this one closed set, so a width a page links
 // is never a 400, and a width no page links is never a billed transform.
 
-/** The post column is 680 CSS px wide (app/routes/blog/post.tsx). */
+/** The post column is 680 CSS px wide (app/routes/blog/post.tsx); the blog's
+ *  featured post fills its half of the 1280 px band, or the page under 1024 px
+ *  (app/routes/blog/index.tsx). */
 export const images = defineImages({
   uses: {
     content: { layout: "constrained", width: 680 },
+    featured: { layout: "constrained", width: 976, sizes: "(min-width: 1280px) 592px, (min-width: 1024px) calc(50vw - 48px), calc(100vw - 48px)" },
   },
 });
 
@@ -31,7 +34,16 @@ export const EXTENSIONS: Readonly<Record<string, string>> = {
   "image/gif": "gif",
 };
 
-export const mediaUrl = (key: string) => `${MEDIA_PATH}${key}`;
+/** How much of a file's SHA-256 its versioned address carries. */
+export const VERSION_LENGTH = 12;
+
+/**
+ * A file's address. With the file's SHA-256, it names these bytes (`?v=`), and
+ * the route serves it for a year, immutable: a replace, a turn or a revert is
+ * a new address.
+ */
+export const mediaUrl = (key: string, sha256?: string) =>
+  `${MEDIA_PATH}${key}${sha256 ? `?v=${sha256.slice(0, VERSION_LENGTH)}` : ""}`;
 
 /**
  * The library key a post's image address cites, or null when it is not one:
