@@ -2,6 +2,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
+import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
 import { describe, expect, it } from "vitest";
 
 
@@ -28,7 +29,7 @@ const OK: LoaderData = {
   wantsWrite: false,
   publishedBy: "claude.ai",
   redirectHost: "claude.ai",
-  redirectLocal: false,
+  redirectWarning: null,
   accountId: "acct_b",
   accountName: "Acme Supply Co.",
   email: "dana@acme.test",
@@ -64,7 +65,7 @@ describe("A9: Recova's card, in Recova's order", () => {
     expect(html).toMatch(/Published by <strong[^>]*>claude\.ai<\/strong>/);
     expect(html).toMatch(/will be sent to <strong[^>]*>claude\.ai<\/strong>/);
     expect(html).not.toMatch(/an app on your computer/);
-    const local = render({ ...OK, publishedBy: null, redirectHost: "localhost", redirectLocal: true });
+    const local = render({ ...OK, publishedBy: null, redirectHost: "localhost", redirectWarning: describeRedirect("http://localhost:3000/cb").warning });
     expect(local).toMatch(/registered itself, so its name is its own claim/);
     expect(local).toMatch(/an app on your computer/);
   });

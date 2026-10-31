@@ -2,6 +2,7 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
+import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -22,7 +23,6 @@ import { RATE_LIMIT_OAUTH_APPROVE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
 import { grantedScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
-import { describeRedirect } from "~/lib/oauth/redirects";
 import {
   checkAuthorizeRequest,
   denyRedirect,
@@ -87,7 +87,8 @@ type Consent = {
   publishedBy: string | null;
   /** Where the code goes, and whether that is an app on this computer. */
   redirectHost: string;
-  redirectLocal: boolean;
+  /** site-runtime's words when the access goes to an app on this computer, else null. */
+  redirectWarning: string | null;
   /** Posted back as a consistency check only, never as the authority. */
   accountId: string;
   accountName: string;
@@ -138,7 +139,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     wantsWrite: check.wantsWrite,
     publishedBy: check.metadataDocument ? new URL(check.clientId).hostname : null,
     redirectHost: redirectTo.host,
-    redirectLocal: redirectTo.local,
+    redirectWarning: redirectTo.warning,
     accountId: membership.accountId,
     accountName: membership.accountName ?? session.user.email ?? "your Foxhound account",
     email: session.user.email,
@@ -308,11 +309,9 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         Its access will be sent to <strong className="font-medium text-text">{consent.redirectHost}</strong>.
       </p>
 
-      {consent.redirectLocal ? (
+      {consent.redirectWarning ? (
         <div className="mb-5">
-          <Alert tone="warn">
-            This sends access to an app on your computer. Continue only if you just started connecting from it.
-          </Alert>
+          <Alert tone="warn">{consent.redirectWarning}</Alert>
         </div>
       ) : null}
 

@@ -78,17 +78,3 @@ export function isAcceptableRedirectUri(uri: string): boolean {
   // the refused list above is what keeps system handlers out.
   return /^[a-z][a-z0-9+.-]*:$/.test(u.protocol);
 }
-
-/**
- * Where a code would go, as the consent page names it: the host of an https or
- * loopback URI, or the scheme and host of an app's private-use URI
- * (cursor://anysphere.cursor-mcp). `local` is true when that is an app on the
- * person's own computer, which the page warns about, as site-runtime's MCP
- * consent page does (mcp-login.mjs).
- */
-export function describeRedirect(uri: string): { host: string; local: boolean } {
-  const u = new URL(uri);
-  if (u.protocol === "https:") return { host: u.hostname, local: false };
-  if (u.protocol === "http:") return { host: u.hostname, local: LOOPBACK_HOSTS.has(u.hostname) };
-  return { host: `${u.protocol}//${u.hostname}`, local: true };
-}

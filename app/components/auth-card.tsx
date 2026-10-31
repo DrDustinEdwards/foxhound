@@ -152,8 +152,6 @@ export function AuthFootnote({ children }: { children: ReactNode }) {
 /** Which ways in a page offers: the loader's signInMethods(env, { social: true }). */
 export type SignInMethods = { google: boolean; apple: boolean; turnstileSiteKey: string | null };
 
-type PasskeyClient = Parameters<typeof signInWithPasskey>[0];
-
 /**
  * "Sign in with a passkey", the main way in. The browser asks which saved
  * passkey to use; someone with none cancels and uses another way. It also
@@ -169,9 +167,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   async function passkeySignIn(autoFill: boolean) {
     // site-runtime's wrapper: on a passkey the site no longer has, it tells the
     // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
-    // The cast: site-runtime 0.51.0 types the error as `{ code?: string }`, which
-    // TypeScript's weak-type check will not match to Better Auth's error type.
-    const res = await signInWithPasskey(authClient as unknown as PasskeyClient, { autoFill });
+    const res = await signInWithPasskey(authClient, { autoFill });
     if (!res?.error) {
       window.location.assign(next);
       return;
