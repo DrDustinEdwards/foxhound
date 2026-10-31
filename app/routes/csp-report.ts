@@ -6,7 +6,7 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import type { Route } from "./+types/csp-report";
 
-// POST /api/csp-report: the Content-Security-Policy report sink. The policy
+// POST /csp-report: the Content-Security-Policy report sink. The policy
 // (lib/http/content-security-policy.ts) names it by report-uri and by report-to.
 // site-runtime's receiver reads and answers it; Foxhound logs less than it would.
 //

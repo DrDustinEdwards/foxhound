@@ -4,7 +4,7 @@ import { accounts, apiKeys, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
 
 // RULE 12.4 OF THE 2026-10-10 MCP RULING: an append-only log of every tool
 // call, with the caller, the arguments and the result.
@@ -44,6 +44,7 @@ const auditRows: Record<string, unknown>[] = [];
 function env(): Env {
   return {
     DB: {},
+    EMAIL_TOKEN_KEY: TEST_LINK_KEY,
     TOOL_CALL_LOG: {
       idFromName: () => "tool-calls",
       get: () => ({
@@ -88,11 +89,7 @@ async function seed() {
 }
 
 async function callTool(token: string | null, name: string, args: unknown) {
-  const res = (await handleMcpRequest(
-    mcpRequest({ token, method: "tools/call", params: { name, arguments: args as Record<string, unknown> } }),
-    env(),
-    MERCHANT_TOOLS,
-  )) as Response;
+  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args as Record<string, unknown>));
   return readMcp(res);
 }
 
@@ -158,10 +155,15 @@ describe("PLANT 2: what the log never keeps", () => {
     expect(row.outcome).toBe("ok");
     expect(row.arguments).not.toContain("logPangolinSecret");
     expect(JSON.parse(row.arguments)).toEqual({ notifications: { slack_webhook_url: "[redacted]" } });
-    // The shared log gets the same row, redacted the same way.
-    expect(auditRows).toHaveLength(1);
-    expect(auditRows[0]).toMatchObject({ phase: "finished", tool: "foxhound_update_settings", result: { isError: false, text: "ok" } });
-    expect(JSON.stringify(auditRows[0])).not.toContain("logPangolinSecret");
+    // The shared log gets a started row before the call and a finished row
+    // after, one call id between them, both redacted the same way.
+    // The call is made twice, the second time with the confirm code
+    // (app/lib/mcp/confirm.server.ts), which is stored as [redacted] too.
+    expect(auditRows.map((r) => r.phase)).toEqual(["started", "finished", "started", "finished"]);
+    expect(auditRows[3]).toMatchObject({ tool: "foxhound_update_settings", result: { isError: false, text: "ok" } });
+    expect(auditRows[3].callId).toBe(auditRows[2].callId);
+    expect(JSON.parse(logRows(sqlite)[1].arguments).confirm).toBe("[redacted]");
+    expect(JSON.stringify(auditRows)).not.toContain("logPangolinSecret");
     const stored = sqlite.prepare("SELECT slack_webhook_url FROM accounts WHERE id = ?").get(MINE) as {
       slack_webhook_url: string;
     };
@@ -175,6 +177,29 @@ describe("PLANT 2: what the log never keeps", () => {
     expect(row.outcome).toBe("tool_error");
     expect(row.error).not.toContain("wanda.lowell@example.test");
     expect(row.error).toContain("w***@example.test");
+  });
+});
+
+describe("PLANT 4: a call that cannot be logged is not run", () => {
+  it("when the started row cannot be written the request is refused and the setting is untouched", async () => {
+    const { sqlite, token } = await seed();
+    const broken = {
+      ...env(),
+      TOOL_CALL_LOG: { idFromName: () => "tool-calls", get: () => ({ fetch: async () => new Response(null, { status: 500 }) }) },
+    } as unknown as Env;
+    const res = (await handleMcpRequest(
+      mcpRequest({
+        token,
+        method: "tools/call",
+        params: { name: "foxhound_update_settings", arguments: { features: { winback_notifications_enabled: false, expiring_card_notifications_enabled: false } } },
+      }),
+      broken,
+      MERCHANT_TOOLS,
+    )) as Response;
+    expect(res.status).toBe(503);
+    expect(logRows(sqlite)).toEqual([]);
+    const account = sqlite.prepare("SELECT winback_notifications_enabled AS w FROM accounts WHERE id = ?").get(MINE) as { w: number };
+    expect(account.w).not.toBe(0);
   });
 });
 

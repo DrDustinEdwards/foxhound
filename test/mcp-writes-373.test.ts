@@ -9,7 +9,7 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
 
 // SESSION 79: THE FIRST FOUR WRITE TOOLS (372's item-4 ruling).
 //
@@ -57,6 +57,8 @@ const SECTIONS = ["audit", "features", "notifications", "sender_name", "brand_vo
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
+    EMAIL_TOKEN_KEY: TEST_LINK_KEY,
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
@@ -103,11 +105,7 @@ async function seed() {
 
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
   const answer = await readMcp(
-    (await handleMcpRequest(
-      mcpRequest({ token, method: "tools/call", params: { name, arguments: args } }),
-      env(),
-      MERCHANT_TOOLS,
-    )) as Response,
+    (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args)),
   );
   return { status: answer.status, text: answer.text, ...toolOutput(answer) };
 }

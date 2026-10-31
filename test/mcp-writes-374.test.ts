@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { accounts, alertHistory, alerts, apiKeys, mcpWrites, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
-import { mcpRequest, readMcp } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // SESSION 80: THE FOUR SURGERIES, AND ITEM 4 CLOSES.
@@ -82,6 +82,8 @@ const OLD_WRITE_NAMES = [
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
+    EMAIL_TOKEN_KEY: TEST_LINK_KEY,
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
@@ -166,11 +168,7 @@ async function seed() {
 
 /** One tools/call through the real handler, the SDK and the registry. */
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
-  const res = (await handleMcpRequest(
-    mcpRequest({ token, method: "tools/call", params: { name, arguments: args } }),
-    env(),
-    MERCHANT_TOOLS,
-  )) as Response;
+  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args));
   const answer = await readMcp(res);
   return { status: answer.status, text: answer.text, json: answer.json as never };
 }
@@ -437,6 +435,30 @@ describe("PLANT 6: every write leaves a trace, naming fields and never values", 
     expect(rows).toHaveLength(1);
     expect(rows[0].tool).toBe(ALERTS);
     expect(rows[0].fields).toEqual(["deleted"]);
+  });
+});
+
+describe("PLANT 9: a destructive call is confirmed first, by a code tied to that exact call (area 11, T11)", () => {
+  it("the first call deletes nothing, another call's code is refused, and the matching code deletes", async () => {
+    const { db, tokens } = await seed();
+    const send = async (args: Record<string, unknown>) =>
+      resultOf(
+        (await readMcp((await handleMcpRequest(
+          mcpRequest({ token: tokens[MINE], method: "tools/call", params: { name: ALERTS, arguments: args } }),
+          env(),
+          MERCHANT_TOOLS,
+        )) as Response)).json as never,
+      );
+    const asked = await send({ action: "delete", alert_id: `al_${MINE}` });
+    expect(asked.structuredContent).toMatchObject({ confirmation_required: true });
+    expect(await db.select().from(mcpWrites)).toHaveLength(0);
+    // A code for one alert does not delete another.
+    const other = await send({ action: "delete", alert_id: `al_${THEIRS}`, confirm: asked.structuredContent.confirm });
+    expect(other.structuredContent).toMatchObject({ confirmation_required: true });
+    expect(await db.select().from(mcpWrites)).toHaveLength(0);
+    const done = await send({ action: "delete", alert_id: `al_${MINE}`, confirm: asked.structuredContent.confirm });
+    expect(done.structuredContent).toMatchObject({ action: "delete" });
+    expect(await db.select().from(mcpWrites)).toHaveLength(1);
   });
 });
 

@@ -2,7 +2,7 @@ import { base64url, sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { accounts, apiKeys } from "~/db";
+import { accounts, apiKeys, oauthGrants } from "~/db";
 import { keyScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
 // MCP token model (Phase 3 designs it; Phase 7's Foxhound MCP consumes it).
@@ -102,6 +102,8 @@ export interface VerifiedMcpToken {
   scope: McpTokenScope;
   /** The merchant MCP scopes the key holds (keyScopes). */
   scopes: string[];
+  /** The OAuth client this key is the access token of; null for a key made in Settings. */
+  clientId: string | null;
 }
 
 /**
@@ -125,10 +127,14 @@ export async function verifyMcpToken(
       revokedAt: apiKeys.revokedAt,
       expiresAt: apiKeys.expiresAt,
       accountCancelledAt: accounts.cancelledAt,
+      clientId: oauthGrants.clientId,
     })
     .from(apiKeys)
     // Left, because an admin key has no account.
     .leftJoin(accounts, eq(accounts.id, apiKeys.accountId))
+    // Left, because a key made in Settings has no grant. A refresh rotates the
+    // grant's key in place, so one key has at most one grant.
+    .leftJoin(oauthGrants, eq(oauthGrants.apiKeyId, apiKeys.id))
     .where(eq(apiKeys.keyHash, keyHash))
     .limit(1);
 
@@ -144,5 +150,11 @@ export async function verifyMcpToken(
   }
 
   await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
-  return { keyId: row.id, accountId: row.accountId, scope: row.scope, scopes: keyScopes(row.scopes) };
+  return {
+    keyId: row.id,
+    accountId: row.accountId,
+    scope: row.scope,
+    scopes: keyScopes(row.scopes),
+    clientId: row.clientId ?? null,
+  };
 }

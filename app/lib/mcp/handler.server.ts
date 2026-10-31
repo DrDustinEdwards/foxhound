@@ -1,18 +1,14 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
-import { mcpOriginRefusal, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
+import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { checkRateLimit, mcpOriginRefusal, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
 import { getDb } from "~/db";
-import {
-  DEMO_ACCOUNT_ID_PREFIX,
-  RATE_LIMIT_MCP,
-  RATE_LIMIT_MCP_ANON,
-} from "~/lib/constants";
+import { DEMO_ACCOUNT_ID_PREFIX, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { mcpResource, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
-import { answersIn, recordToolCalls, toolCallsIn } from "./call-log.server";
+import { answersIn, recordToolCalls, startToolCalls, toolCallsIn, type StartedCall } from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
 import { MCP_SERVER_INFO, serveMcp } from "./server";
 
@@ -58,16 +54,30 @@ import { MCP_SERVER_INFO, serveMcp } from "./server";
 
 /** JSON-RPC codes this file answers with itself, before the SDK is reached. */
 const MCP_ERROR = { INVALID_REQUEST: -32600 } as const;
+/** JSON-RPC internal error: the door could not do its own part. */
+const INTERNAL_ERROR = -32603;
 
 function mcpErrorBody(id: string | number | null, code: number, message: string) {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
+
+/** The server as the shared log names it. */
+const AUDIT_SERVER = { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
 
 /** What the endpoint resolved before dispatching. */
 interface McpAuthContext {
   keyId: string;
   accountId: string;
   scopes: string[];
+  /** The OAuth client the key was issued to; null for a key made in Settings. */
+  clientId: string | null;
+}
+
+/** The 429, with the limiter's Retry-After. */
+function tooMany(retryAfter: number): Response {
+  return jsonResponse(429, mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "Too many requests"), {
+    "Retry-After": String(retryAfter),
+  });
 }
 
 const UNAUTHORIZED_MESSAGE = "Unauthorized";
@@ -134,20 +144,16 @@ async function authenticate(
 ): Promise<{ ok: true; auth: McpAuthContext } | { ok: false; response: Response }> {
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const refuse = async (reason: string) => {
-    const allowed = await isWithinRateLimit(
-      env,
-      "mcp-anon",
-      ip,
-      RATE_LIMIT_MCP_ANON.max,
-      RATE_LIMIT_MCP_ANON.windowMs,
-    );
+    // site-runtime's checkRateLimit, which fails closed: a limiter that cannot
+    // answer is a 429, never a free guess.
+    const limit = await checkRateLimit(env.RATE_LIMITER, `mcp-anon:${ip}`, RATE_LIMIT_MCP_ANON.max);
     // The reason is logged, never returned, so the response stays byte-stable.
     // OWASP's names (site-runtime ./log), at log level: a refused connect is
     // expected traffic on a public endpoint.
     logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), door: "mcp", reason });
-    if (!allowed) {
+    if (!limit.allowed) {
       logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), door: "mcp", bucket: "mcp-anon" }, { level: "warn" });
-      return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
+      return tooMany(limit.retryAfter);
     }
     return unauthorized(new URL(request.url).origin);
   };
@@ -183,7 +189,10 @@ async function authenticate(
     return { ok: false, response: await refuse("demo account key") };
   }
 
-  return { ok: true, auth: { keyId: verified.keyId, accountId: verified.accountId, scopes: verified.scopes } };
+  return {
+    ok: true,
+    auth: { keyId: verified.keyId, accountId: verified.accountId, scopes: verified.scopes, clientId: verified.clientId },
+  };
 }
 
 /**
@@ -228,16 +237,27 @@ export async function handleMcpRequest(
   // verifyMcpToken already resolved it, so this costs no second SHA-256, and an
   // opaque row id is a safer thing to put in a Durable Object name than anything
   // derived from a secret.
-  const within = await isWithinRateLimit(
-    env,
-    "mcp",
-    authenticated.auth.keyId,
-    RATE_LIMIT_MCP.max,
-    RATE_LIMIT_MCP.windowMs,
-  );
-  if (!within) {
+  //
+  // site-runtime's checkRateLimit, the one every family MCP door runs (area 11,
+  // S1): thirty requests a minute per key, and it FAILS CLOSED, so a limiter
+  // that cannot answer refuses the request rather than letting it through
+  // uncounted. A refused request is a `rate-limited` row in the shared log.
+  const caller = {
+    accountId: authenticated.auth.accountId,
+    apiKeyId: authenticated.auth.keyId,
+    clientId: authenticated.auth.clientId,
+  };
+  const limit = await checkRateLimit(env.RATE_LIMITER, `mcp:${authenticated.auth.keyId}`);
+  if (!limit.allowed) {
     logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), door: "mcp", bucket: "mcp" }, { level: "warn" });
-    return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
+    await recordAudit(env, {
+      callId: crypto.randomUUID(),
+      phase: "rate-limited",
+      caller: `agent:key_${caller.apiKeyId}`,
+      server: AUDIT_SERVER,
+      ...(caller.clientId ? { clientId: caller.clientId } : {}),
+    });
+    return tooMany(limit.retryAfter);
   }
 
   // THE TOOL CALLS IN THIS REQUEST, read to a ceiling before the SDK sees the
@@ -253,6 +273,20 @@ export async function handleMcpRequest(
   }
   const calls = toolCallsIn(body);
 
+  // EACH CALL'S `started` ROW IS WRITTEN BEFORE ANYTHING RUNS, and a call whose
+  // row cannot be written is refused (area 11, L1): no tool runs untraced.
+  let started: StartedCall[] = [];
+  try {
+    started = await startToolCalls(env, AUDIT_SERVER, caller, calls);
+  } catch (err) {
+    logEvent(
+      "sys_monitor_disabled",
+      { ...requestFields(request), door: "mcp", reason: "tool-call log unavailable", detail: err instanceof Error ? err.message : String(err) },
+      { level: "error" },
+    );
+    return errorResponse(503, null, INTERNAL_ERROR, "The call log is unavailable, so no tool was run. Try again shortly.");
+  }
+
   const now = new Date();
   const response = await serveMcp(new Request(request, { body: text }), registry, {
     env,
@@ -262,7 +296,7 @@ export async function handleMcpRequest(
     trace: { apiKeyId: authenticated.auth.keyId, tool: "", now },
   }, {
     token: "",
-    clientId: authenticated.auth.keyId,
+    clientId: authenticated.auth.clientId ?? authenticated.auth.keyId,
     scopes: authenticated.auth.scopes,
     resource: new URL(mcpResource(url.origin)),
   });
@@ -276,10 +310,11 @@ export async function handleMcpRequest(
     const challenge = response.status === 403 ? response.headers.get("www-authenticate") : null;
     await recordToolCalls(
       env,
-      MCP_SERVER_INFO,
+      AUDIT_SERVER,
       getDb(env),
-      { accountId: authenticated.auth.accountId, apiKeyId: authenticated.auth.keyId },
+      caller,
       calls,
+      started,
       challenge
         ? calls.map((call) => ({ id: call.id, error: { message: `Refused before running: ${challenge}` } }))
         : answersIn(text, response.headers.get("content-type")),

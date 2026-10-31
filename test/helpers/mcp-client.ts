@@ -87,3 +87,32 @@ export function toolOutput(answer: McpAnswer): { isError: boolean; data: Record<
   if (!result) throw new Error(`not a tool result: ${answer.text}`);
   return { isError: result.isError === true, data: result.structuredContent ?? {} };
 }
+
+/** A TOOL_CALL_LOG binding that accepts every row, for tests that are not about the log.
+ *  The door refuses a call whose `started` row cannot be written, so every /mcp test needs one. */
+export function toolCallLogStub() {
+  return {
+    idFromName: () => "tool-calls",
+    get: () => ({ fetch: async () => new Response(null, { status: 204 }) }),
+  };
+}
+
+/** A link key for the tests: the merchant MCP signs its confirm codes with the link keys. */
+export const TEST_LINK_KEY = "a".repeat(64);
+
+/**
+ * One tools/call through the confirmation step (app/lib/mcp/confirm.server.ts):
+ * when the first answer asks for confirmation, the same arguments go again with
+ * its code, as an agent does once the merchant says yes.
+ */
+export async function confirmedCall(
+  send: (args: Record<string, unknown>) => Promise<Response | null>,
+  args: Record<string, unknown>,
+): Promise<Response> {
+  const first = (await send(args)) as Response;
+  const answer = await readMcp(first.clone());
+  const pending = (answer.json as { result?: { structuredContent?: { confirmation_required?: boolean; confirm?: string } } } | null)
+    ?.result?.structuredContent;
+  if (!pending?.confirmation_required || !pending.confirm) return first;
+  return (await send({ ...args, confirm: pending.confirm })) as Response;
+}

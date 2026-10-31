@@ -132,6 +132,13 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm test
 
+      # The official MCP conformance suite against the admin MCP's real
+      # protocol layer and door under wrangler dev (.conformance.json; area 11,
+      # P2 to P7 and P10). A scenario with a recorded count must not move.
+      - name: MCP conformance
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:conformance
+
   # devkit's shared deploy (worker-deploy.yml). Its deploy job applies the D1
   # migrations first (schema before code: a failing migration never reaches the
   # Worker, and old code against an old schema still works) through
@@ -148,7 +155,7 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@8a4e871eebe89744d8fecc6cbaaf4ab5bedd263e # v0.20.17
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@e7ecda8f69c8bbde738edcd1cf510710e547bcf3 # v0.20.22
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
@@ -171,7 +178,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@8a4e871eebe89744d8fecc6cbaaf4ab5bedd263e # v0.20.17
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@e7ecda8f69c8bbde738edcd1cf510710e547bcf3 # v0.20.22
     with:
       worker-name: foxhound-admin-mcp
       working-directory: mcp

@@ -110,7 +110,6 @@ function buildSystemPrompt(): string {
     "You may state ONLY the facts given to you below. Never invent a date, an",
     "amount, an event, or any detail that is not explicitly provided. If the",
     "facts are sparse, write a short, honest summary using just what is given.",
-    "Never use em dashes or en dashes. No corporate filler, no AI-sounding phrases.",
     PLAIN_WRITING_PROMPT,
     UNTRUSTED_DATA_RULE,
   ].join("\n");

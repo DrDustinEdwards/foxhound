@@ -14,7 +14,7 @@ import {
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
 
 // RULE 12.1 OF THE 2026-10-10 MCP RULING: every tool that takes an id proves
 // the caller owns it, with a planted test that fails without the check.
@@ -57,6 +57,8 @@ const THEIR_MARK = "Quillon-Marsh-7731";
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
+    EMAIL_TOKEN_KEY: TEST_LINK_KEY,
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
@@ -157,11 +159,7 @@ async function seed() {
 }
 
 async function callTool(token: string, name: string, args: Record<string, unknown>) {
-  const res = (await handleMcpRequest(
-    mcpRequest({ token, method: "tools/call", params: { name, arguments: args } }),
-    env(),
-    MERCHANT_TOOLS,
-  )) as Response;
+  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args));
   return readMcp(res);
 }
 

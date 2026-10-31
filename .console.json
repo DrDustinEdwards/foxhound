@@ -56,7 +56,7 @@
       "app/lib/webhooks/intelligence-handlers.ts": 1,
       "app/lib/webhooks/lookups.ts": 5,
       "app/lib/webhooks/renewal-check.ts": 1,
-      "app/routes/api/csp-report.ts": 1,
+      "app/routes/csp-report.ts": 1,
       "app/routes/app/audit/dashboard.tsx": 1,
       "app/routes/app/audit/run.tsx": 1,
       "app/routes/app/billing/index.tsx": 2,

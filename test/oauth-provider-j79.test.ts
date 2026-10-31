@@ -17,7 +17,7 @@ import { DISALLOW_PATHS } from "~/routes/files/robots";
 import { defineToolRegistry, type McpTool } from "~/lib/mcp/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, toolCallLogStub } from "./helpers/mcp-client";
 
 // J79, rows A9, F18 and F19: the OAuth provider external
 // agents connect through, ruling 8's build. Recova is the spec for what the
@@ -64,6 +64,8 @@ const ACCOUNT_A = "acct_a";
 const ACCOUNT_B = "acct_b";
 const NOW = new Date("2026-10-16T12:00:00.000Z");
 const CLAUDE_REDIRECT = "https://claude.ai/api/mcp/auth_callback";
+/** The registration allowlist these tests run with, as DCR_REDIRECT_URIS would set it. */
+const ALLOWED = provider.registrationCallbacks({ DCR_REDIRECT_URIS: CLAUDE_REDIRECT });
 
 let sqlite: Database.Database;
 let db: ReturnType<typeof createInMemoryDb>["db"];
@@ -72,6 +74,8 @@ function env(): Env {
   return {
     DB: {},
     BETTER_AUTH_URL: ORIGIN,
+    DCR_REDIRECT_URIS: CLAUDE_REDIRECT,
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: harness.allowed, retryAfterSeconds: 60 }) }),
@@ -122,7 +126,7 @@ async function pkcePair(): Promise<{ verifier: string; challenge: string }> {
 }
 
 async function registered(redirectUris: string[] = [CLAUDE_REDIRECT]): Promise<string> {
-  const res = await provider.registerClient(db, { client_name: "Claude", redirect_uris: redirectUris }, NOW);
+  const res = await provider.registerClient(db, { client_name: "Claude", redirect_uris: redirectUris }, NOW, ALLOWED);
   expect(res.status).toBe(201);
   return res.body.client_id as string;
 }
@@ -233,7 +237,7 @@ describe("the protected-resource document and the /mcp 401 that points at it", (
 describe("registration (RFC 7591)", () => {
 
   it("answers Recova's shape, defaults included", async () => {
-    const res = await provider.registerClient(db, { redirect_uris: [CLAUDE_REDIRECT] }, NOW);
+    const res = await provider.registerClient(db, { redirect_uris: [CLAUDE_REDIRECT] }, NOW, ALLOWED);
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       client_name: "OAuth Client",
@@ -245,12 +249,16 @@ describe("registration (RFC 7591)", () => {
     expect(res.body.client_id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("refuses a body with no usable redirect URI", async () => {
+  it("refuses a body with no usable or no allowlisted redirect URI", async () => {
     for (const body of [{}, { redirect_uris: [] }, { redirect_uris: "x" }, { redirect_uris: [7] }]) {
-      const res = await provider.registerClient(db, body, NOW);
+      const res = await provider.registerClient(db, body, NOW, ALLOWED);
       expect(res.status, JSON.stringify(body)).toBe(400);
       expect(res.body.error).toBe("invalid_redirect_uri");
     }
+    // And one that is not on the shared allowlist (area 11, A7).
+    const unlisted = await provider.registerClient(db, { redirect_uris: ["https://evil.example/cb"] }, NOW, ALLOWED);
+    expect(unlisted.status).toBe(400);
+    expect(unlisted.body.error).toBe("invalid_redirect_uri");
   });
 
   it("refuses script, data and plain-http redirect URIs, and fragments", () => {
@@ -430,8 +438,17 @@ describe("A9: consent", () => {
       request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams(clientId, challenge)}`),
       context: context(),
       params: {},
-    } as never)) as { ok: boolean };
-    expect(loaded.ok).toBe(false);
+    } as never)) as unknown as { data: { ok: boolean }; init: { status: number } };
+    expect(loaded.data.ok).toBe(false);
+    expect(loaded.init.status).toBe(403);
+    // An unknown client is refused on the card too, with a 400 (area 11, A8).
+    const unknown = (await authorizeRoute.loader({
+      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams("00000000-0000-0000-0000-000000000000", challenge)}`),
+      context: context(),
+      params: {},
+    } as never)) as unknown as { data: { title: string }; init: { status: number } };
+    expect(unknown.init.status).toBe(400);
+    expect(unknown.data.title).toBe("Unknown client");
     const form = authorizeParams(clientId, challenge, { intent: "allow", account_id: ACCOUNT_B });
     const res = (await authorizeRoute.action({
       request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),

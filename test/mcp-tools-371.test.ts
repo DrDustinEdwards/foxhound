@@ -8,7 +8,7 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { maskEmail } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput, type McpCallInit } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, type McpCallInit, toolCallLogStub } from "./helpers/mcp-client";
 
 // SESSION 77: THE THIRTEEN READ TOOLS, under 370's DEFAULT-REDACT. The read
 // count is fifteen since session 83 added 375's two approved readers, and the
@@ -75,6 +75,7 @@ const THEIR_EMAIL = "persephone.nightingale@other.test";
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
@@ -280,7 +281,7 @@ describe("PLANT 7: the tool module holds no money writer", () => {
     const imports = [...tools.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
     for (const path of imports) {
       expect(path, `${path} is not a read or the settings apply module`).toMatch(
-        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|\/render|settings\/apply\.server|\.\/registry)$/,
+        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|\/render|settings\/apply\.server|\.\/confirm\.server|\.\/registry)$/,
       );
     }
     // persist.server holds a writer too (saveAuditRun, above); only its two

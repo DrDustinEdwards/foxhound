@@ -1,4 +1,5 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import { validateHostHeader } from "@modelcontextprotocol/server";
 
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
 import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
@@ -11,7 +12,7 @@ import {
 import { audienceRefusal, checkRateLimit, mcpOriginRefusal, refuse, withMcpHeaders } from "@dustinedwards/site-runtime/mcp-server";
 import type { AdminMcpEnv } from "./env";
 import { adminMcpOrigin, isFoxhoundAdmin, MCP_ROUTE, type DoorProps } from "./guard";
-import { SCOPE_READ, SCOPE_WRITE, SCOPES_SUPPORTED } from "./scopes";
+import { currentScopes, SCOPE_READ, SCOPE_WRITE, SCOPES_SUPPORTED } from "./scopes";
 import { SERVER, serveAdminMcp } from "./server";
 
 // THE FOXHOUND ADMIN MCP DOOR, everything on admin-mcp.foxhoundapp.com
@@ -98,7 +99,7 @@ const apiHandler = {
       });
       return refuse("Rate limited. Foxhound Admin allows 30 requests a minute.", 429, { "Retry-After": String(limit.retryAfter) });
     }
-    const scopes = auth?.scope ?? [];
+    const scopes = currentScopes(auth?.scope ?? []);
     const response = await serveAdminMcp(request, env, {
       actor: email,
       client: props?.client || "an unnamed AI client",
@@ -163,6 +164,13 @@ async function route(request: Request, env: AdminMcpEnv, ctx: ExecutionContext):
   if (pathname === MCP_ROUTE) {
     const foreign = mcpOriginRefusal(request, []);
     if (foreign) return foreign;
+    // And a Host that is not this server's (area 11, P10): a rebound name
+    // pointing here is refused before the token is read. On Workers the URL's
+    // host is the Host the client sent.
+    const host = validateHostHeader(request.headers.get("host") ?? new URL(request.url).host, [
+      new URL(adminMcpOrigin(env)).hostname,
+    ]);
+    if (!host.ok) return refuse("Forbidden. This is not a host this server answers on.", 403);
   }
   if (pathname === REGISTER_PATH && request.method === "POST") {
     const limited = await registrationLimited(request, env.OAUTH_KV);
