@@ -6,7 +6,7 @@ import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
 import { withSignIn } from "./options";
-import { sendSignInLinkEmail } from "./send-auth-email";
+import { sendSecurityNoticeEmail, sendSignInLinkEmail } from "./send-auth-email";
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
 // ./sign-in): a passkey first, an emailed link and code before one exists (Turnstile on
@@ -40,6 +40,9 @@ async function buildAuth(env: Env) {
     },
     // Five sign-in links an hour and ten typed codes a day per address.
     emailLimiter: env.AUTH_RATE_LIMITER,
+    // A passkey added or removed, Google or Apple joined or left, sessions
+    // ended, the account deleted: mailed to the account's address.
+    sendSecurityNotice: (_kind, { user, detail }) => sendSecurityNoticeEmail(env, user.email, detail),
   });
 
   const google = signIn.socialProviders.google;

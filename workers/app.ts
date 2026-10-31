@@ -1,5 +1,6 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { withAdminIdle } from "@dustinedwards/site-runtime/access";
 import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
@@ -49,7 +50,7 @@ async function preloadHeader(): Promise<string> {
   return preloads([...rootStylesheets(await serverBuild()), ...FONT_PRELOADS]).header;
 }
 
-export default withSentry<Env>(
+const site = withSentry<Env>(
   sentryOptions,
   {
     async fetch(request, env, ctx) {
@@ -195,6 +196,12 @@ export default withSentry<Env>(
     },
   } satisfies ExportedHandler<Env>,
 );
+
+// An admin idle for an hour is signed out of Access (site-runtime ./access).
+export default {
+  ...site,
+  fetch: (request, env, ctx) => withAdminIdle(request, async () => site.fetch!(request, env, ctx)),
+} satisfies ExportedHandler<Env>;
 
 /**
  * THE CACHEABLE ENTRYPOINT (site-runtime ./edge-cache; wrangler.jsonc
