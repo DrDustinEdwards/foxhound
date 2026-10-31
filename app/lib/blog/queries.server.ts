@@ -33,6 +33,9 @@ export interface BlogPost extends BlogPostSummary {
   ogTitle: string | null;
   ogDescription: string | null;
   canonicalUrl: string | null;
+  ogImageUrl: string | null;
+  ogImageAlt: string | null;
+  noindex: boolean;
   showUpdatedAt: boolean;
   showPublishedAt: boolean;
 }
@@ -125,11 +128,11 @@ export async function getPublishedTagSet(db: Db): Promise<string[]> {
  *  getPublishedPostsByTag instead (SQL-filtered, perf-audit fix M-2), not
  *  this. Content volume here is small (dozens of posts, not thousands), so a
  *  full scan is the simplest correct query; there is no pagination need yet. */
-export async function getAllPublishedPosts(db: Db): Promise<BlogPostSummary[]> {
+export async function getAllPublishedPosts(db: Db, { indexedOnly = false } = {}): Promise<BlogPostSummary[]> {
   const rows = await db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)
-    .where(eq(blogPosts.published, true))
+    .where(indexedOnly ? and(eq(blogPosts.published, true), eq(blogPosts.noindex, false)) : eq(blogPosts.published, true))
     .orderBy(desc(blogPosts.publishedAt));
   return rows.map(toSummary);
 }
@@ -199,6 +202,9 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
     ogTitle: r.ogTitle,
     ogDescription: r.ogDescription,
     canonicalUrl: r.canonicalUrl,
+    ogImageUrl: r.ogImageUrl,
+    ogImageAlt: r.ogImageAlt,
+    noindex: r.noindex,
     showUpdatedAt: r.showUpdatedAt,
     showPublishedAt: r.showPublishedAt,
   };

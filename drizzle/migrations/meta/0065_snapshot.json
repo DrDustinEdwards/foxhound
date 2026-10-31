@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "43ff771c-babb-4cf4-a6ce-bc0d44052e56",
+  "id": "052de20c-570a-4db9-9d1b-3f1e8b642634",
   "prevId": "b45eee1b-2a82-42d2-8e1c-2bc57fbe5c56",
   "tables": {
     "audit_digest_runs": {
@@ -1159,6 +1159,28 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "og_image_url": {
+          "name": "og_image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "og_image_alt": {
+          "name": "og_image_alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "noindex": {
+          "name": "noindex",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "show_updated_at": {
           "name": "show_updated_at",
@@ -3970,13 +3992,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "scopes": {
-          "name": "scopes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -4335,13 +4350,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "scopes": {
-          "name": "scopes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "expires_at": {

@@ -24,7 +24,7 @@ export const MERCHANT_SCOPES = mcpScopes("merchant");
 // "merchant", the one scope Foxhound issued before the split, is no longer
 // listed. A client that still asks for it gets the read grant (requestsWrite
 // sees no merchant.write), and a grant made with it was backfilled read only
-// (drizzle/migrations/0065_merchant_mcp_scopes.sql).
+// (drizzle/migrations/0066_merchant_mcp_scopes.sql).
 
 /** What a grant holds: the read scope always, the write scope when the owner
  *  ticked it. Never what the client asked for. */
