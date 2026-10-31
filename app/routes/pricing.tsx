@@ -61,7 +61,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
       ? [
           jsonLd(faqPageJsonLd(PRICING_FAQS)),
           jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            name: "Pricing",
             path: "/pricing",
             selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
           })),

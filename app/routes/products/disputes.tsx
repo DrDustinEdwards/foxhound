@@ -62,7 +62,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
     ...(loaderData
       ? [
           jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            name: TITLE,
             path: PATH,
             selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
           })),

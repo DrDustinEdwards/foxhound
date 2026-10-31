@@ -104,11 +104,10 @@ export function faqPageJsonLd(faqs: JsonLdFaq[]) {
 /** The speakable parts of a page, on Prelum's WebPage node (marketingMeta) by its `@id`, so the page is one node. */
 export function speakableWebPageJsonLd(
   url: string,
-  opts: { name: string; path: string; selectors: string[] },
+  opts: { path: string; selectors: string[] },
 ) {
   return thing("WebPage", {
     "@id": `${url}${opts.path}#webpage`,
-    name: opts.name,
     url: `${url}${opts.path}`,
     speakable: {
       "@type": "SpeakableSpecification",
