@@ -1,3 +1,4 @@
+import { cronFindings, type D1Like } from "@dustinedwards/site-runtime/cron";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
@@ -142,28 +143,38 @@ export interface StaleFinding {
   reason: "never_run" | "overdue" | "unknown_schedule";
 }
 
-/** Pure: which registered jobs look stale, given their last run times. */
-export function findStaleCrons(
-  jobs: JobSchedule[],
-  lastRunByCron: Map<string, Date | null>,
-  now: Date,
-): StaleFinding[] {
+/** Which registered jobs look stale, judged by site-runtime's cronFindings over
+ *  cron_runs (what runJobs records and /health's cronCheck reads), so the email
+ *  and /health read one record by one rule. Recova's threshold is kept: each
+ *  schedule's grace is one more period, so a job is stale past two periods with
+ *  no SUCCESSFUL run. A job whose last run failed is stale too once its last
+ *  success is that old (Recova's watcher reads last_succeeded_at); a recent
+ *  failure alone is the failure alert's, not this one's. */
+export async function findStaleCrons(db: D1Like, jobs: JobSchedule[], now: Date): Promise<StaleFinding[]> {
   const out: StaleFinding[] = [];
+  const bySchedule = new Map<string, JobSchedule[]>();
   for (const job of jobs) {
-    const period = SCHEDULE_PERIOD_MS[job.schedule];
-    const lastRunAt = lastRunByCron.get(job.name) ?? null;
-
-    if (period === undefined) {
+    if (SCHEDULE_PERIOD_MS[job.schedule] === undefined) {
       // Loud rather than skipped: an unmapped schedule is a blind spot.
-      out.push({ cronName: job.name, lastRunAt, reason: "unknown_schedule" });
+      out.push({ cronName: job.name, lastRunAt: null, reason: "unknown_schedule" });
       continue;
     }
-    if (lastRunAt === null) {
-      out.push({ cronName: job.name, lastRunAt: null, reason: "never_run" });
-      continue;
-    }
-    if (now.getTime() - lastRunAt.getTime() > period * STALE_PERIOD_MULTIPLIER) {
-      out.push({ cronName: job.name, lastRunAt, reason: "overdue" });
+    bySchedule.set(job.schedule, [...(bySchedule.get(job.schedule) ?? []), job]);
+  }
+  for (const [schedule, group] of bySchedule) {
+    const period = SCHEDULE_PERIOD_MS[schedule]!;
+    const minutes = period / 60_000;
+    const found = await cronFindings(db, {
+      jobs: group.map((job) => ({ name: job.name, everyMinutes: minutes })),
+      graceMinutes: minutes * (STALE_PERIOD_MULTIPLIER - 1),
+      now,
+    });
+    for (const { name, reason, lastOkAt } of found) {
+      const lastRunAt = lastOkAt === null ? null : new Date(lastOkAt);
+      if (lastRunAt === null) out.push({ cronName: name, lastRunAt: null, reason: "never_run" });
+      else if (reason === "stale" || now.getTime() - lastRunAt.getTime() > period * STALE_PERIOD_MULTIPLIER) {
+        out.push({ cronName: name, lastRunAt, reason: "overdue" });
+      }
     }
   }
   return out;
@@ -438,12 +449,7 @@ export async function runCronHealthCheck(
   // Last SUCCESSFUL run per cron (E27): Recova's watcher reads
   // last_succeeded_at, so a cron that keeps running and failing is stale as
   // well as failing, and both alerts go.
-  const lastRuns = new Map<string, Date | null>();
-  for (const job of jobs) {
-    lastRuns.set(job.name, await lastSuccessAt(db, job.name));
-  }
-
-  const stale = findStaleCrons(jobs, lastRuns, now);
+  const stale = await findStaleCrons(env.DB, jobs, now);
   const scheduleOf = new Map(jobs.map((j) => [j.name, j.schedule]));
   let alerted = 0;
   const deduped: string[] = [];

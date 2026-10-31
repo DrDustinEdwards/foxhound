@@ -1,5 +1,4 @@
-import { runJobs } from "@dustinedwards/site-runtime/cron";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { CRON_SKIPPED, runJobs } from "@dustinedwards/site-runtime/cron";
 import { desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -105,41 +104,35 @@ function cronTimeoutMs(schedule: string): number {
   return Math.min(SCHEDULE_PERIOD_MS[schedule]!, CRON_OVERRUN_CAP_MS);
 }
 
-/** A schedule's jobs, each through runCronJob (its gates, lock and cron_run_history, unchanged), with each run that
- *  really executes also recorded by site-runtime's runJobs in cron_runs, so /health's cronCheck notices one that
- *  failed, overran or stopped.
+/** A schedule's jobs, run by site-runtime's runJobs: each isolated, raced against its timeout, recorded in cron_runs
+ *  (so /health's cronCheck notices one that failed, overran or stopped), and one Error naming the failed ones after
+ *  the last, so Cloudflare marks the invocation failed. runCronJob is each job's body: Foxhound's own gates
+ *  (cron_config, the minimum interval, the CRON_LOCK lease), cron_run_history and the failure email, none of which
+ *  site-runtime has.
  *
- *  ONLY A RUN THAT EXECUTES IS RECORDED. runJobs sits inside the handler runCronJob calls, so a job the gates skip
- *  (disabled, not due, locked) never reaches it and writes nothing to cron_runs: it is logged as cron_job_skipped,
- *  not recorded as a success it never had. A failure before the handler (the config read, the lock) is recorded
- *  failed there too.
+ *  A SKIP RECORDS NO SUCCESS. A job the gates skip (disabled, not due, locked) resolves to CRON_SKIPPED, which runJobs
+ *  logs as cron_job_skipped without recording a success it never had.
  *
- *  THE TIMEOUT MARKS, IT DOES NOT LET GO. A run past cronTimeoutMs is recorded failed ("timed out") so /health warns,
- *  but the handler is still awaited and keeps its CRON_LOCK lease until it really ends: handing the lock on while a
- *  money job is still running would let a second run start beside it. Cloudflare's own fifteen-minute limit is the
- *  hard stop. After the last job, one Error names the failed ones, so Cloudflare marks the invocation failed. */
-export async function runScheduledJobs(env: Env, jobs: CronJob[], run: typeof runCronJob = runCronJob): Promise<void> {
-  const failed: string[] = [];
-  for (const job of jobs) {
-    const record = { name: job.name, everyMinutes: cronEveryMinutes(job.schedule), timeoutMs: cronTimeoutMs(job.schedule) };
-    let executed = false;
-    const outcome = await run(env, job.name, async (runEnv, ctx) => {
-      executed = true;
-      const work = job.handler(runEnv, ctx);
-      await runJobs(() => env.DB, [{ ...record, run: () => work }]).catch(() => undefined);
-      return work;
-    });
-    if (outcome.status === "skipped") {
-      logEvent("cron_job_skipped", { name: job.name, reason: outcome.message ?? "skipped" });
-    } else if (outcome.status === "failed") {
-      failed.push(job.name);
-      if (!executed) {
-        const error = new Error(outcome.message ?? "failed");
-        await runJobs(() => env.DB, [{ ...record, run: () => Promise.reject(error) }]).catch(() => undefined);
-      }
-    }
-  }
-  if (failed.length) throw new Error(`cron jobs failed: ${failed.join(", ")}`);
+ *  THE TIMEOUT MARKS, IT DOES NOT LET GO (holdOnTimeout). A run past cronTimeoutMs is recorded failed ("timed out") so
+ *  /health warns, but runJobs waits for it to end before the next job, and it keeps its CRON_LOCK lease until then:
+ *  handing the lock on, or letting the invocation end, while a money job is still running would let a second run
+ *  start beside it or cut a write in half. Cloudflare's own fifteen-minute limit is the hard stop. */
+export function runScheduledJobs(env: Env, jobs: CronJob[], run: typeof runCronJob = runCronJob): Promise<void> {
+  return runJobs(
+    () => env.DB,
+    jobs.map((job) => ({
+      name: job.name,
+      everyMinutes: cronEveryMinutes(job.schedule),
+      timeoutMs: cronTimeoutMs(job.schedule),
+      holdOnTimeout: true,
+      run: async () => {
+        const outcome = await run(env, job.name, job.handler);
+        if (outcome.status === "skipped") return CRON_SKIPPED;
+        if (outcome.status === "failed") throw new Error(outcome.message ?? "failed");
+        return outcome;
+      },
+    })),
+  );
 }
 
 /** Run one scheduled job through the config + interval + lock gates, logging the

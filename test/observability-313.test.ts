@@ -15,7 +15,7 @@ import { recordDeadLetters } from "~/lib/email/dead-letters.server";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // RULING 313: the observability batch. Ruling 311 measured three holes and this
 // closes them.
@@ -133,15 +133,19 @@ describe("313 A: the never-executed detector", () => {
     { name: "demo-reset", schedule: "0 3 * * *" },
   ];
 
-  it("flags a cron overdue against its own schedule, and not one within tolerance", () => {
-    const last = new Map<string, Date | null>([
-      // 30 minutes for a 5-minute job: well past two periods.
-      ["recovery-tick", new Date(NOW.getTime() - 30 * 60_000)],
-      ["billing-monthly", new Date(NOW.getTime() - 60_000)],
-      // 25 hours for a daily job: inside two periods, so NOT stale.
-      ["demo-reset", new Date(NOW.getTime() - 25 * 60 * 60_000)],
-    ]);
-    const stale = findStaleCrons(jobs, last, NOW);
+  it("flags a cron overdue against its own schedule, and not one within tolerance", async () => {
+    // cron_runs, as runJobs writes it: each job's last success in epoch ms.
+    const { sqlite } = createInMemoryDb();
+    const ok = (name: string, every: number, agoMs: number) =>
+      sqlite
+        .prepare("INSERT INTO cron_runs (name, every_minutes, first_started_at, last_ok_at) VALUES (?, ?, ?, ?)")
+        .run(name, every, NOW.getTime() - agoMs, NOW.getTime() - agoMs);
+    // 30 minutes for a 5-minute job: well past two periods.
+    ok("recovery-tick", 5, 30 * 60_000);
+    ok("billing-monthly", 44_640, 60_000);
+    // 25 hours for a daily job: inside two periods, so NOT stale.
+    ok("demo-reset", 1440, 25 * 60 * 60_000);
+    const stale = await findStaleCrons(d1Over(sqlite), jobs, NOW);
     expect(stale.map((s) => s.cronName)).toEqual(["recovery-tick"]);
     expect(stale[0].reason).toBe("overdue");
   });
@@ -173,9 +177,9 @@ describe("313 A: the never-executed detector", () => {
   });
 
   it("the health check alerts on findings and reports what it did", async () => {
-    const { db } = createInMemoryDb();
+    const { db, sqlite } = createInMemoryDb();
     const result = await runCronHealthCheck(
-      okEnv(),
+      { ...okEnv(), DB: d1Over(sqlite) } as unknown as Env,
       db,
       [{ name: "billing-monthly", schedule: "0 4 1 * *" }],
       NOW,

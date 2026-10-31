@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cronAlerts, cronRunHistory } from "~/db/schema";
+import { cronAlerts } from "~/db/schema";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // ROWS E26 AND E27: the cron failure and cron stale
 // alerts, checked against Recova's lib/cron-monitor.ts (blob 2891dd9b,
@@ -207,25 +207,15 @@ describe("E27: the cron stale alert says what Recova's notifyCronStale says", ()
   it("TRIGGER: no SUCCESSFUL run within the interval, as Recova's watcher reads last_succeeded_at", async () => {
     // A cron that keeps running and failing is stale to Recova: its watcher
     // reads last_succeeded_at, not the last run of any status.
-    const db = createInMemoryDb().db;
+    const { db, sqlite } = createInMemoryDb();
     harness.db = db;
+    // cron_runs, as runJobs writes it: a failure a minute ago, the last success three days ago.
     const recentFail = new Date(NOW.getTime() - 60_000);
-    await db.insert(cronRunHistory).values({
-      id: "f1",
-      cronName: "d1-backup",
-      finishedAt: recentFail,
-      status: "failed",
-      createdAt: recentFail,
-    });
     const oldSuccess = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
-    await db.insert(cronRunHistory).values({
-      id: "s1",
-      cronName: "d1-backup",
-      finishedAt: oldSuccess,
-      status: "success",
-      createdAt: oldSuccess,
-    });
-    await runCronHealthCheck(env(), db, [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }], NOW);
+    sqlite
+      .prepare("INSERT INTO cron_runs (name, every_minutes, first_started_at, last_ok_at, last_failed_at, last_error) VALUES (?, ?, ?, ?, ?, ?)")
+      .run("d1-backup", 1440, oldSuccess.getTime(), oldSuccess.getTime(), recentFail.getTime(), "Error: boom");
+    await runCronHealthCheck({ ...env(), DB: d1Over(sqlite) } as unknown as Env, db, [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }], NOW);
     const m = only();
     expectBothParts(m, [`Last succeeded: ${oldSuccess.toISOString()}`, "Age: last succeeded 3 days ago"]);
   });

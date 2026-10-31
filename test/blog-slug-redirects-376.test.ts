@@ -58,7 +58,7 @@ describe("PLANT 1: every old slug 301s to its new one, driven through the loader
       const res = thrown as Response;
       expect(res.status, `${oldSlug} is not a permanent redirect`).toBe(301);
       expect(res.headers.get("Location"), `${oldSlug} points at the wrong place`).toBe(
-        `/blog/${newSlug}`,
+        `https://foxhoundapp.com/blog/${newSlug}`,
       );
     }
   });

@@ -3,7 +3,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { withAdminIdle } from "@dustinedwards/site-runtime/access";
 import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
-import { withRequestLog } from "@dustinedwards/site-runtime/log";
+import { routeNamer, withRequestLog } from "@dustinedwards/site-runtime/log";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
 import { SPECULATION_RULES_PATH, speculationRulesResponse } from "@dustinedwards/site-runtime/prefetch";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
@@ -206,18 +206,26 @@ const site = withSentry<Env>(
   } satisfies ExportedHandler<Env>,
 );
 
+/** The route pattern each request's log line names (`/blog/:slug`), from the build's route table, made once per isolate. */
+let nameRoute: ((request: Request) => string | undefined) | undefined;
+
 // An admin idle for an hour is signed out of Access (site-runtime ./access).
 export default {
   ...site,
   // Every HTML page names the link prefetch rules (Speculation-Rules), stored pages included. Every request writes one
-  // `request` line (site-runtime ./log's withRequestLog: path, status, ms and the deployed commit; never a query).
+  // `request` line (site-runtime ./log's withRequestLog: path, route pattern, status, ms and the deployed commit; never
+  // a query), and a refused input (400 or 422) an `input_validation_fail` line beside it.
   fetch: withRequestLog(
     // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
-    async (request: Request, env: Env, ctx: ExecutionContext) =>
-      withSpeculationRules(
+    async (request: Request, env: Env, ctx: ExecutionContext) => {
+      // Not awaited: no request, the MCP and Carrel doors included, waits on the build for its log line; the first
+      // few requests in an isolate may go without a route.
+      if (!nameRoute) void serverBuild().then((build) => (nameRoute ??= routeNamer(build.routes)), () => undefined);
+      return withSpeculationRules(
         await withAdminIdle(request, async () => site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx)),
-      ),
-    { sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA },
+      );
+    },
+    { sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA, route: (request) => nameRoute?.(request) },
   ),
 } satisfies ExportedHandler<Env>;
 

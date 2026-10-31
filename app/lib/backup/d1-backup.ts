@@ -78,8 +78,45 @@ const BACKUP_CREDENTIAL_ALLOW: Record<string, string> = {
   "admin_api_calls.api_key_id": "a row id, not a key",
 };
 
-/** Tables that must be in every dump; their absence means the dump is not real. */
-const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
+/**
+ * Tables that must be in every dump, because what they hold exists nowhere else: the people and their sign-ins'
+ * owners, each merchant's account and Stripe connection, the money records (failed payments, recovery steps,
+ * recoveries, outcomes, Foxhound's own invoices and exemptions), disputes, the unsubscribe list (a send to an
+ * address on it breaks the law), the admin audit trail and the blog. A missing one means the dump is not real.
+ */
+const BACKUP_REQUIRED_TABLES = [
+  "user",
+  "passkey",
+  "accounts",
+  "account_members",
+  "api_keys",
+  "stripe_connections",
+  "failed_payments",
+  "recovery_steps",
+  "recovered_payments",
+  "outcomes",
+  "billing_invoices",
+  "billing_line_items",
+  "billing_exemption_periods",
+  "disputes",
+  "dispute_evidence",
+  "email_suppressions",
+  "admin_audit_log",
+  "blog_posts",
+  "blog_slug_redirects",
+  "media",
+  "media_revisions",
+  "cron_config",
+] as const;
+
+/**
+ * Tables counted again straight after the dump, whose dumped rows must equal the live count (required too). Only
+ * tables the operator alone writes, so nothing between the dump and the count can change them: the blog and its
+ * media library (Carrel), the cron switches and billing exemptions (the admin). Merchant, Stripe-webhook and cron
+ * tables are left out on purpose, since a payment event at 03:00 would fail the night. The blog is never empty, so
+ * an emptied database cannot pass by matching its own counts.
+ */
+const BACKUP_COUNTED_TABLES = ["blog_posts", "blog_slug_redirects", "media", "media_revisions", "cron_config", "billing_exemption_periods"] as const;
 
 function requireBucket(env: Env): R2Like {
   if (!env.BACKUPS) {
@@ -92,7 +129,8 @@ function requireBucket(env: Env): R2Like {
 
 /**
  * The cron handler body, by d1-dump's runCheckedBackup: dump without the marker, refuse a dump
- * with no tables or no rows, a credential table in it or a required table missing (BackupIncomplete,
+ * with no tables or no rows, a credential table in it, a required table missing or a counted table whose rows differ
+ * from its live count (BackupIncomplete,
  * leaving it without the marker, so a bad run is never the "latest" dump), then mark complete and
  * prune.
  */
@@ -102,6 +140,7 @@ export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
     exclude: [...BACKUP_EXCLUDED_TABLES],
     credentials: { allow: BACKUP_CREDENTIAL_ALLOW },
     required: [...BACKUP_REQUIRED_TABLES],
+    counted: [...BACKUP_COUNTED_TABLES],
   });
   const rows = dump.tables.reduce((sum, t) => sum + t.rows, 0);
   return {

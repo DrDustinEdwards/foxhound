@@ -58,8 +58,9 @@ describe("five-minute ticker", () => {
 
 // cron_runs is what /health's cronCheck reads. A job the gates skip (disabled,
 // not due, locked) used to be recorded there as a success it never had, so a
-// disabled job looked healthy forever. Only a run that executes is recorded;
-// a skip writes nothing, and a failure before the handler is recorded failed.
+// disabled job looked healthy forever. site-runtime's runJobs runs them now: a
+// skip (CRON_SKIPPED) records its start and never a success, and a failure
+// before the handler is recorded failed.
 
 function fakeDb() {
   const writes: Array<{ sql: string; name: unknown }> = [];
@@ -85,8 +86,8 @@ const job = (name: string): CronJob => ({
 const kinds = (writes: Array<{ sql: string; name: unknown }>) =>
   writes.map((w) => `${String(w.name)}:${w.sql.includes("last_ok_at)") ? "ok" : w.sql.includes("last_failed_at") ? "failed" : "started"}`);
 
-describe("runScheduledJobs records only runs that execute", () => {
-  it("writes nothing for a skip, ok for a run, failed for an infrastructure failure", async () => {
+describe("runScheduledJobs records a success only for a run that executes", () => {
+  it("no success for a skip, ok for a run, failed for an infrastructure failure", async () => {
     const { env, writes } = fakeDb();
     await expect(
       runScheduledJobs(env, [job("off"), job("ran"), job("broke")], async (e, name, handler) => {
@@ -96,6 +97,6 @@ describe("runScheduledJobs records only runs that execute", () => {
         return { cronName: name, status: "success", rowsProcessed: result.rowsProcessed };
       }),
     ).rejects.toThrow("cron jobs failed: broke");
-    expect(kinds(writes)).toEqual(["ran:started", "ran:ok", "broke:started", "broke:failed"]);
+    expect(kinds(writes)).toEqual(["off:started", "ran:started", "ran:ok", "broke:started", "broke:failed"]);
   });
 });

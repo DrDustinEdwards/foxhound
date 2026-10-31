@@ -142,13 +142,29 @@ jobs:
   # for /health to report that commit, then runs scripts/verify-live.mjs (the
   # home page and every hashed asset it names answer 200), and rolls the deploy
   # back on a refusal. A rollback never undoes a migration.
+  #
+  # NO GRADUAL ROLLOUT AND NO PER-PR PREVIEW (worker-deploy's gradual-percent
+  # and preview stay off), both because of the Durable Objects:
+  # - Gradual: wrangler.jsonc declares its Durable Objects in `exports`, and
+  #   Cloudflare does not support gradual deployments there (Cloudflare Docs,
+  #   "Durable Objects migrations", Constraints: "Gradual deployments are not
+  #   supported with exports"; a class added to `exports` cannot go up as a
+  #   version at all).
+  # - Preview: Cloudflare generates no preview URL for a Worker that implements
+  #   a Durable Object (Cloudflare Docs, "Version URLs", Limitations), and
+  #   workers_dev is off. Even with one, a preview version runs with this
+  #   Worker's own bindings: production D1, the Stripe keys, the EMAIL send
+  #   binding and the queues. A reviewer's click could send dunning mail or
+  #   write a fee row, which CLAUDE.md hard rule 6 forbids. A safe preview needs
+  #   a second Worker with its own D1, test-mode Stripe keys and no send
+  #   binding, which is a build and a ruling (one Worker, CLAUDE.md), not a flag.
   deploy:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@8a4e871eebe89744d8fecc6cbaaf4ab5bedd263e # v0.20.17
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@017fccd9e3f316a9dfb9b8e1495592dffc677278 # v0.20.21
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
@@ -171,7 +187,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@8a4e871eebe89744d8fecc6cbaaf4ab5bedd263e # v0.20.17
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@017fccd9e3f316a9dfb9b8e1495592dffc677278 # v0.20.21
     with:
       worker-name: foxhound-admin-mcp
       working-directory: mcp

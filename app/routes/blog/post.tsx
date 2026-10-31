@@ -1,9 +1,9 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { redirect } from "react-router";
+import { goneResponse, renameRedirect } from "@dustinedwards/site-runtime/url";
 import { Link } from "capsomer/react/link";
 
-import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
-import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
+import { BLOG_SLUG_REDIRECTS } from "~/lib/blog/slug-redirects";
+import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 import { CoverPicture } from "~/components/blog/cover-picture";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
@@ -39,40 +39,36 @@ import { formatDateShort } from "~/lib/date-format";
 // already uses for its `logo` field below, not a Person image - this repo
 // has no Person identity for blog authorship (every current post's author
 // column is "Foxhound", per the Phase 6 brand-token remediation).
-export async function loader({ params, context }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  // THE RENAMED COMPARISON SLUGS, checked BEFORE the lookup.
+  // THE RENAMED COMPARISON SLUGS, checked BEFORE the lookup, through
+  // site-runtime's renameRedirect (one 301, a chain followed to its end).
   //
   // Before the lookup rather than in the 404 branch, deliberately: an old slug
   // must redirect whether or not a post happens to still answer to it, so the
   // canonical URL is the new one from the moment this ships. Putting it after
   // the miss would make the redirect depend on the database having already been
   // renamed, which is a race between a deploy and a data change.
-  const renamed = redirectedBlogSlug(params.slug);
-  if (renamed) {
-    throw redirect(`/blog/${renamed}`, 301);
-  }
+  const renamed = await renameRedirect(request, { prefix: "/blog/", renames: BLOG_SLUG_REDIRECTS });
+  if (renamed) throw renamed;
 
-  // WITHDRAWN POSTS ANSWER 410, NOT 404. The row is unpublished, so the
-  // lookup below would return null and this route would 404, which says "we have
-  // nothing here" and is indistinguishable from a typo. 410 says the page existed
-  // and is deliberately gone. Checked before the lookup for the same reason the
-  // redirect is: the answer must not depend on what the database happens to hold.
-  if (isWithdrawnBlogSlug(params.slug)) {
-    throw new Response(WITHDRAWN_BLOG_MESSAGE, {
-      status: 410,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
+  // WITHDRAWN POSTS ANSWER 410, NOT 404, through site-runtime's goneResponse.
+  // The row is unpublished, so the lookup below would return null and this
+  // route would 404, which says "we have nothing here" and is indistinguishable
+  // from a typo. 410 says the page existed and is deliberately gone. Checked
+  // before the lookup for the same reason the redirect is: the answer must not
+  // depend on what the database happens to hold.
+  const gone = goneResponse(request, BLOG_GONE_PATHS, { body: WITHDRAWN_BLOG_MESSAGE });
+  if (gone) throw gone;
 
   const post = await getPostBySlug(db, params.slug);
   if (!post) {
     // A post Carrel renamed: its old address answers a permanent redirect to
     // the new one (site-api's rename contract). Read only on a miss, so a live
     // post's own page costs no extra query.
-    const moved = await getSlugRedirect(db, params.slug);
-    if (moved) throw redirect(`/blog/${moved}`, 301);
+    const moved = await renameRedirect(request, { prefix: "/blog/", renames: (slug) => getSlugRedirect(db, slug) });
+    if (moved) throw moved;
     throw new Response("Not found", { status: 404 });
   }
 
@@ -88,6 +84,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   return { siteUrl: siteUrl(env), post, cover, share, html, version, toc, previous, next, related, faq };
 }
+
+/** The withdrawn posts' paths, the gone list goneResponse reads. */
+const BLOG_GONE_PATHS = WITHDRAWN_BLOG_SLUGS.map((slug) => `/blog/${slug}`);
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
 // (legacy app/og/route.tsx). Foxhound had been passing the first tag instead,
