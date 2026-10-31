@@ -87,3 +87,12 @@ export function toolOutput(answer: McpAnswer): { isError: boolean; data: Record<
   if (!result) throw new Error(`not a tool result: ${answer.text}`);
   return { isError: result.isError === true, data: result.structuredContent ?? {} };
 }
+
+/** A TOOL_CALL_LOG binding that accepts every row, for tests that are not about the log.
+ *  The door refuses a call whose `started` row cannot be written, so every /mcp test needs one. */
+export function toolCallLogStub() {
+  return {
+    idFromName: () => "tool-calls",
+    get: () => ({ fetch: async () => new Response(null, { status: 204 }) }),
+  };
+}

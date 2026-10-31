@@ -12,7 +12,7 @@ import {
 import { DISALLOW_PATHS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, type McpCallInit } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, type McpCallInit, toolCallLogStub } from "./helpers/mcp-client";
 
 // RULING 370, ROADMAP ITEM 3: the transport, driven with an EMPTY tool registry
 // so every assertion here is about the door and the protocol, not a tool.
@@ -45,6 +45,7 @@ const ORIGIN = "https://foxhoundapp.test";
 function env(allowed = true): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: allowed, retryAfterSeconds: 60 }) }),

@@ -2,13 +2,14 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_OAUTH_REGISTER } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import { oauthResponse, registerClient } from "~/lib/oauth/provider.server";
+import { oauthResponse, registerClient, registrationCallbacks } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/oauth-register";
 import { readJson } from "~/lib/http/body";
 
 // POST /api/oauth/register, at Recova's path: RFC 7591 dynamic client
-// registration. Public by specification; a registered client can do nothing
+// registration, kept for the clients that still need it, each redirect URI on
+// the shared allowlist (registerClient). A registered client can do nothing
 // until a signed-in merchant approves it.
 //
 // RATE LIMIT: Recova's 10 an hour per IP. ACTION ONLY: a GET gets 405.
@@ -28,7 +29,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (error instanceof Response) throw error;
     return oauthResponse({ status: 400, body: { error: "invalid_client_metadata" } });
   }
-  return oauthResponse(await registerClient(getDb(env), body, new Date()));
+  return oauthResponse(await registerClient(getDb(env), body, new Date(), registrationCallbacks(env)));
 }
 
 export function loader() {

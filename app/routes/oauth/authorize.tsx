@@ -106,15 +106,16 @@ function loginRedirect(params: URLSearchParams): Response {
   return redirect(`/login?next=${encodeURIComponent(next)}`);
 }
 
-export async function loader({ request, context }: Route.LoaderArgs): Promise<Consent | Refusal> {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const params = new URL(request.url).searchParams;
   const db = getDb(env);
 
   // The request is checked before the session, as Recova did: a malformed or
-  // unknown-client request is refused without a sign-in detour.
+  // unknown-client request is refused without a sign-in detour, with a 400
+  // (area 11, A8): the card is the same, and the status says it is a refusal.
   const check = await checkAuthorizeRequest(db, params, new URL(request.url).origin);
-  if (!check.ok) return check;
+  if (!check.ok) return data<Refusal>({ ok: false, title: check.title, message: check.message }, { status: 400 });
 
   const session = await getSession(env, request);
   if (!session) throw loginRedirect(params);
@@ -128,11 +129,11 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
   // The grant carries write tools, so only the account owner approves one, as
   // only an owner creates an API key (/settings/api-keys).
   if (membership.role !== MEMBER_ROLE.OWNER) {
-    return { ok: false, title: "Owner approval needed", message: OWNER_ONLY };
+    return data<Refusal>({ ok: false, title: "Owner approval needed", message: OWNER_ONLY }, { status: 403 });
   }
 
   const redirectTo = describeRedirect(check.redirectUri);
-  return {
+  const consent: Consent = {
     ok: true,
     clientId: check.clientId,
     clientName: check.clientName,
@@ -147,6 +148,7 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
     accountName: membership.accountName ?? session.user.email ?? "your Foxhound account",
     email: session.user.email,
   };
+  return consent;
 }
 
 /** The words for a refusal on the card. Recova showed its raw error codes

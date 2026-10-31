@@ -1,4 +1,4 @@
-import { correlationId, loggedArgs, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { appendAudit, correlationId, loggedArgs, recordAudit } from "@dustinedwards/site-runtime/audit-log";
 
 import type { Db } from "~/db";
 import { mcpCalls } from "~/db/schema";
@@ -26,7 +26,13 @@ import { maskEmailsInText } from "./redact";
 // a call that ran, `refused` for one that never reached a tool. mcp_calls stays
 // as the table Foxhound's own pages read; the Durable Object is the record
 // nothing that reaches the Worker can rewrite. Its caller is the key, never
-// the token.
+// the token, and each row names the OAuth client the key was issued to.
+//
+// A `started` ROW GOES FIRST, AND A CALL THAT CANNOT LOG IS NOT RUN (area 11,
+// L1). startToolCalls writes it before the SDK sees the request and throws
+// when it cannot, so the door refuses the request: a call that left no trace
+// is not a state this path can reach. The finished rows are written after,
+// sharing each call's id and correlation id.
 
 /** Arguments that are credentials: kept as "[redacted]" wherever they appear. */
 const CREDENTIAL_ARGUMENTS = new Set(["slack_webhook_url"]);
@@ -37,12 +43,27 @@ export interface McpToolCallRequest {
   id: string | number;
   tool: string;
   arguments: Record<string, unknown>;
+  /** The request's `_meta`, whose traceparent becomes the correlation id. */
+  meta?: Record<string, unknown>;
+}
+
+/** Who made the calls: the key, its account and the OAuth client it was issued to (null for a key made in Settings). */
+export interface McpCaller {
+  accountId: string;
+  apiKeyId: string;
+  clientId: string | null;
+}
+
+/** One call's ids in the shared log, shared by its `started` and `finished` rows. */
+export interface StartedCall {
+  callId: string;
+  correlationId: string;
 }
 
 interface JsonRpcMessage {
   id?: string | number | null;
   method?: string;
-  params?: { name?: unknown; arguments?: unknown };
+  params?: { name?: unknown; arguments?: unknown; _meta?: unknown };
   result?: { isError?: boolean; structuredContent?: { error?: unknown }; content?: { text?: unknown }[] };
   error?: { message?: unknown };
 }
@@ -58,11 +79,13 @@ export function toolCallsIn(body: unknown): McpToolCallRequest[] {
   return messages(body).flatMap((m) => {
     if (m.method !== "tools/call" || m.id === undefined || m.id === null) return [];
     const args = m.params?.arguments;
+    const meta = m.params?._meta;
     return [
       {
         id: m.id,
         tool: typeof m.params?.name === "string" ? m.params.name : "",
         arguments: args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {},
+        ...(meta && typeof meta === "object" && !Array.isArray(meta) ? { meta: meta as Record<string, unknown> } : {}),
       },
     ];
   });
@@ -108,18 +131,52 @@ function redactArguments(value: unknown): unknown {
   );
 }
 
+/** The shared log's name for the caller: the key, never the token. */
+function callerName(caller: McpCaller): string {
+  return `agent:key_${caller.apiKeyId}`;
+}
+
 /**
- * Append one row per call. A failure to write the log is REPORTED, never
- * swallowed, and never turns the call into a failure: the call has already
- * happened (a write has already committed with its own trace), and telling the
- * agent it failed would be the one false statement this path could make.
+ * Write each call's `started` row to the shared log before anything runs.
+ * Throws when a row cannot be written, and the door then refuses the request.
+ */
+export async function startToolCalls(
+  env: Env,
+  server: { name: string; version: string },
+  caller: McpCaller,
+  calls: McpToolCallRequest[],
+): Promise<StartedCall[]> {
+  const started: StartedCall[] = [];
+  for (const call of calls) {
+    const ids = { callId: crypto.randomUUID(), correlationId: correlationId(call.meta) };
+    await appendAudit(env, {
+      ...ids,
+      phase: "started",
+      caller: callerName(caller),
+      tool: call.tool,
+      args: await loggedArgs(redactArguments(call.arguments) as Record<string, unknown>),
+      server,
+      ...(caller.clientId ? { clientId: caller.clientId } : {}),
+    });
+    started.push(ids);
+  }
+  return started;
+}
+
+/**
+ * Append one row per call, after it ran. A failure to write here is REPORTED,
+ * never swallowed, and never turns the call into a failure: the call has
+ * already happened (its `started` row is in the shared log, and a write has
+ * already committed with its own trace), and telling the agent it failed would
+ * be the one false statement this path could make.
  */
 export async function recordToolCalls(
   env: Env,
   server: { name: string; version: string },
   db: Db,
-  caller: { accountId: string; apiKeyId: string },
+  caller: McpCaller,
   calls: McpToolCallRequest[],
+  started: StartedCall[],
   answers: JsonRpcMessage[],
   now: Date,
 ): Promise<void> {
@@ -130,6 +187,7 @@ export async function recordToolCalls(
     return {
       accountId: caller.accountId,
       apiKeyId: caller.apiKeyId,
+      clientId: caller.clientId,
       tool: call.tool,
       arguments: redactArguments(call.arguments) as Record<string, unknown>,
       outcome,
@@ -137,16 +195,17 @@ export async function recordToolCalls(
       createdAt: now,
     };
   });
-  for (const row of rows) {
+  for (const [i, row] of rows.entries()) {
     await recordAudit(env, {
-      callId: crypto.randomUUID(),
+      callId: started[i]?.callId ?? crypto.randomUUID(),
       phase: row.outcome === "protocol_error" ? "refused" : "finished",
-      caller: `agent:key_${caller.apiKeyId}`,
+      caller: callerName(caller),
       tool: row.tool,
       args: await loggedArgs(row.arguments),
       result: { isError: row.outcome !== "ok", text: row.error ?? "ok" },
       server,
-      correlationId: correlationId(),
+      ...(caller.clientId ? { clientId: caller.clientId } : {}),
+      correlationId: started[i]?.correlationId ?? correlationId(),
     });
   }
   try {

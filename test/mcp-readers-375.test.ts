@@ -4,7 +4,7 @@ import { accounts, apiKeys, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, toolOutput, toolCallLogStub } from "./helpers/mcp-client";
 
 // SESSION 83: THE TWO READERS 375 APPROVED, NOW TWO KEYS OF ONE READER.
 //
@@ -74,6 +74,7 @@ const FIXTURES = {
 function env(): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
