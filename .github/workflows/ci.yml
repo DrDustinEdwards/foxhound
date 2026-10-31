@@ -100,6 +100,14 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run build
 
+      # Raw console.* calls in server code against .console.json's baseline (a
+      # rise fails; log through site-runtime ./log instead), and the migrations
+      # against drizzle/migrations-manifest.json (an applied one edited or gone,
+      # or a new one that drops or renames without `-- contract:`, fails).
+      - name: Console ratchet and expand-only migrations
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:console && npm run check:migrations
+
       # Knip (unused files, exports, dependencies) and jscpd (duplication)
       # against .no-bloat.json: a count above its baseline fails. Lower it with
       # `npx devkit-no-bloat --write-baseline` when a count goes down.
@@ -138,12 +146,14 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@71f342e07f91d3be216f2dfd8e9815a0f9f7299c # v0.20.13
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@65782d2c45431055672a315f0d126b62d0dd3aff # v0.20.14
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
       pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
+      # The Time Travel bookmark from before the migrations above, with its restore command, in the run's summary.
+      d1-database: foxhound
       sha-var: DEPLOY_SHA
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -159,7 +169,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@71f342e07f91d3be216f2dfd8e9815a0f9f7299c # v0.20.13
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@65782d2c45431055672a315f0d126b62d0dd3aff # v0.20.14
     with:
       worker-name: foxhound-admin-mcp
       working-directory: mcp

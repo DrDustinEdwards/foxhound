@@ -18,9 +18,16 @@
   "assets": {
     "directory": "./build/client"
   },
+  // Logs: every invocation (head_sampling_rate 1), stated so a change to it is a reviewed one. Traces: one in ten.
   "observability": {
     "enabled": true,
+    "head_sampling_rate": 1,
     "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+  },
+  // The deployed version's upload time, which /health's cron check uses to hold back a job that has not had its first
+  // window since the deploy (app/routes/health.ts).
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
   },
 
   // WORKERS CACHE (345 binding 4; the gateway and Renderer since site-runtime
