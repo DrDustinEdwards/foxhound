@@ -93,32 +93,26 @@ export interface UpdatePostInput {
   showPublishedAt: boolean;
 }
 
-/** Saves the PRE-edit state as a version snapshot, then applies the update,
- *  then prunes versions beyond BLOG_VERSION_RETENTION. Three plain
- *  operational writes (not a money write - content editing, no DO), matching
- *  the operational-write precedent (gotcha #25) elsewhere in this codebase. */
+/** Applies the update only while the post still has `expectedUpdatedAt`, then
+ *  saves the PRE-edit state as a version snapshot and prunes versions beyond
+ *  BLOG_VERSION_RETENTION. The guard sits in the UPDATE itself, so of two saves
+ *  from the same version the second finds nothing to update and returns false
+ *  instead of overwriting the first (EmDash 1.4.0, emdash-cms/emdash PR 4286).
+ *  Plain operational writes (not a money write - content editing, no DO),
+ *  matching the operational-write precedent (gotcha #25) elsewhere in this codebase. */
 export async function updatePostWithVersion(
   db: Db,
   postId: string,
   savedBy: string,
+  expectedUpdatedAt: Date,
   input: UpdatePostInput,
-): Promise<void> {
+): Promise<boolean> {
   const existingRows = await db.select().from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
   const existing = existingRows[0];
   if (!existing) throw new Error("Post not found");
 
   const now = new Date();
-  await db.insert(blogPostVersions).values({
-    id: crypto.randomUUID(),
-    postId,
-    title: existing.title,
-    body: existing.body,
-    excerpt: existing.excerpt,
-    savedAt: now,
-    savedBy,
-  });
-
-  await db
+  const updated = await db
     .update(blogPosts)
     .set({
       title: input.title,
@@ -137,7 +131,19 @@ export async function updatePostWithVersion(
       showPublishedAt: input.showPublishedAt,
       updatedAt: now,
     })
-    .where(eq(blogPosts.id, postId));
+    .where(and(eq(blogPosts.id, postId), eq(blogPosts.updatedAt, expectedUpdatedAt)))
+    .returning({ id: blogPosts.id });
+  if (updated.length === 0) return false;
+
+  await db.insert(blogPostVersions).values({
+    id: crypto.randomUUID(),
+    postId,
+    title: existing.title,
+    body: existing.body,
+    excerpt: existing.excerpt,
+    savedAt: now,
+    savedBy,
+  });
 
   const versions = await db
     .select({ id: blogPostVersions.id })
@@ -151,6 +157,7 @@ export async function updatePostWithVersion(
   for (const id of toDelete) {
     await db.delete(blogPostVersions).where(eq(blogPostVersions.id, id));
   }
+  return true;
 }
 
 /** Pure: given version ids newest-first, which ids exceed the retention
