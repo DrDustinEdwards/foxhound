@@ -33,21 +33,6 @@ export interface TocItem {
   id: string;
 }
 
-// Hosts treated as "this site" for the new-tab rule. Includes the legacy
-// domain so imported posts that still reference old recovamrr.com URLs don't
-// get a needless target="_blank". Matched against the URL's host: the old
-// renderer matched the whole href, so its own links opened in a new tab too.
-const INTERNAL_HOST = /(^|\.)(foxhoundapp|recovamrr)\.com$/i;
-
-function isExternal(href: string): boolean {
-  if (!/^https?:\/\//i.test(href)) return false;
-  try {
-    return !INTERNAL_HOST.test(new URL(href).hostname);
-  } catch {
-    return true;
-  }
-}
-
 // Before Prelum's own slugger, which keeps an id already set.
 function rehypeHeadingIds() {
   return (tree: HastRoot) => {
@@ -62,23 +47,12 @@ function rehypeHeadingIds() {
   };
 }
 
-function rehypeExternalLinks() {
-  return (tree: HastRoot) => {
-    visit(tree, "element", (node) => {
-      if (node.tagName === "a" && isExternal(String(node.properties.href ?? ""))) {
-        node.properties.target = "_blank";
-        node.properties.rel = ["noopener", "noreferrer"];
-      }
-    });
-  };
-}
-
 const foxhoundPack: RenderPack = {
   name: "foxhound",
   directives: [],
   setup: () => ({
     remark: [],
-    rehype: [[rehypeHeadingIds], [rehypeExternalLinks]],
+    rehype: [[rehypeHeadingIds]],
   }),
 };
 

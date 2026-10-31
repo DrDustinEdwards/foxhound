@@ -483,6 +483,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             >
               View invoice in Stripe
               <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
+              <span className="cap-sr-only"> (opens in a new tab)</span>
             </a>
             <a
               className="cap-btn"
@@ -493,6 +494,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             >
               View customer in Stripe
               <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
+              <span className="cap-sr-only"> (opens in a new tab)</span>
             </a>
           </>
         )}

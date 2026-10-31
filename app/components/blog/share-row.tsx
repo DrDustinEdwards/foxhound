@@ -24,8 +24,6 @@ export function ShareRow({ url, title }: { url: string; title: string }) {
       <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Share</span>
       <a
         href={tweetHref}
-        target="_blank"
-        rel="noopener noreferrer"
         aria-label="Share on X"
         className="inline-flex items-center gap-1.5 font-mono text-label text-text-tertiary transition-colors hover:text-text"
       >
@@ -36,8 +34,6 @@ export function ShareRow({ url, title }: { url: string; title: string }) {
       </a>
       <a
         href={linkedinHref}
-        target="_blank"
-        rel="noopener noreferrer"
         aria-label="Share on LinkedIn"
         className="inline-flex items-center gap-1.5 font-mono text-label text-text-tertiary transition-colors hover:text-text"
       >

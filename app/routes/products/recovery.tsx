@@ -103,8 +103,6 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
                 {categories.bodyBefore}{" "}
                 <a
                   href={categories.linkHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="text-accent-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
                 >
                   {categories.linkText}

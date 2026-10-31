@@ -131,7 +131,7 @@ function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | 
         className="inline-flex min-h-6 items-center gap-0.5 text-micro text-accent-text hover:text-accent-hover"
       >
         View invoice <ArrowUpRight size={12} strokeWidth={1.5} aria-hidden />
-      </a>
+      <span className="cap-sr-only"> (opens in a new tab)</span></a>
     );
   }
   if (stripeId) return <span className="font-mono text-micro text-text-tertiary">{stripeId}</span>;
