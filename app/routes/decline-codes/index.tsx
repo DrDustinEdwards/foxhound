@@ -6,11 +6,10 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone } from "~/lib/decline-codes/presentation";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 3 (net-new, no legacy equivalent): the decline-code
 // reference library hub. Cards are grouped by classification category
@@ -22,20 +21,13 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Stripe Decline Code Library - Foxhound",
+      title: "Stripe Decline Code Library",
       description:
         "What every major Stripe decline code means, why it happens, and how it gets recovered. Grouped by soft, network, expired, and fraud classifications.",
       path: "/decline-codes",
+      pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Decline codes", path: "/decline-codes" },
-          ])),
-        ]
-      : []),
   ];
 }
 

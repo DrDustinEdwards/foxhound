@@ -6,11 +6,10 @@ import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { COMPETITORS } from "~/lib/compare/competitors";
 import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "capsomer/table.css";
 
 // NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
@@ -35,16 +34,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const { competitor, siteUrl: url } = loaderData;
   return [
     ...marketingMeta({
-      title: `Foxhound vs ${competitor.name} - Foxhound`,
+      title: `Foxhound vs ${competitor.name}`,
       description: `How Foxhound compares to ${competitor.name}: pricing model, what each product does, and honest tradeoffs.`,
       path: `/compare/${competitor.slug}`,
       siteUrl: url,
     }),
-    jsonLd(breadcrumbListJsonLd(url, [
-      { name: "Home", path: "/" },
-      { name: "Compare", path: "/compare" },
-      { name: competitor.name, path: `/compare/${competitor.slug}` },
-    ])),
   ];
 }
 

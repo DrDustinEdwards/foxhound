@@ -1,42 +1,64 @@
 import { confirmSignInLink } from "@dustinedwards/site-runtime/sign-in";
+import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { data } from "react-router";
 
-import { AuthCard, AuthHeading } from "~/components/auth-card";
+import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
+import { signInErrorMessage } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { NOINDEX } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/sign-in-confirm";
 
-// /sign-in/confirm, the page the mailed sign-in link opens (site-runtime 0.36
-// ./sign-in, CONFIRM_PATH). A GET only shows the button, so a mail scanner that
-// opens every link neither spends the link nor signs itself in; the button's
-// POST runs Better Auth's verify through confirmSignInLink, which answers its
-// 302 to the link's callbackURL (the passkey offer) with the session cookie.
-// The URL holds the token: never stored, never indexed, nothing loaded from
-// another origin.
+// /sign-in/confirm, where the emailed sign-in link opens (site-runtime
+// ./sign-in, CONFIRM_PATH). Its GET only shows this card, so a mail scanner
+// that opens every link spends nothing; the button's POST signs in through
+// confirmSignInLink, on to /passkey and `next`. A spent or expired link comes
+// back here with ?error= (app/lib/auth/sign-in-link.server.ts).
 
 export function meta() {
   return [{ title: "Sign in - Foxhound" }, NOINDEX];
 }
 
-export function headers() {
-  return { "Cache-Control": "no-store, no-cache, must-revalidate, private" };
+// The page's URL holds the token.
+export const headers = () => ({ "Cache-Control": "no-store" });
+
+export function loader({ request }: Route.LoaderArgs) {
+  const params = new URL(request.url).searchParams;
+  const code = params.get("error") ?? (params.get("token") ? null : "INVALID_TOKEN");
+  return { error: signInErrorMessage(code), expired: code === "INVALID_TOKEN" };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  return confirmSignInLink(await getAuth(env), request);
+  const res = await confirmSignInLink(await getAuth(env), request);
+  // Better Auth's redirect (signed in, or back here with ?error=), or its per-IP limit.
+  if (res.status !== 429) return res;
+  return data({ limited: true }, { status: 429 });
 }
 
-export default function SignInConfirm() {
+export default function SignInConfirm({ loaderData, actionData }: Route.ComponentProps) {
+  if (loaderData.error) {
+    return (
+      <AuthCard>
+        <AuthHeading title={loaderData.expired ? "This link has expired" : "That sign-in did not complete"} />
+        <Alert tone="crit">{loaderData.error}</Alert>
+        <AuthFootnote>
+          <AuthLink to="/login">{loaderData.expired ? "Get a new link" : "Back to sign in"}</AuthLink>
+        </AuthFootnote>
+      </AuthCard>
+    );
+  }
+
   return (
     <AuthCard>
-      <AuthHeading title="Sign in to Foxhound" subtitle="Press the button to finish signing in on this device." />
-      {/* A plain form: it posts to this page's own URL, query and all, with or without scripts. */}
-      <form method="post">
+      <AuthHeading title="Sign in to Foxhound" />
+      {/* A plain form: it posts to this URL, token and all, and the browser follows the redirect. */}
+      <form method="post" className="grid gap-3">
+        {actionData?.limited ? <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert> : null}
         <Button type="submit" variant="primary" size="lg">
-          Sign in to Foxhound
+          Sign in
         </Button>
       </form>
     </AuthCard>

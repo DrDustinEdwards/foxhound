@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { createHash } from "node:crypto";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,7 +50,6 @@ vi.mock("~/db/client", async (importOriginal) => ({
 
 const { requestSignInLink, signInWithCode } = await import("~/lib/auth/sign-in-link.server");
 const { sendSignInLinkEmail } = await import("~/lib/auth/send-auth-email");
-const { action: confirmAction } = await import("~/routes/auth/sign-in-confirm");
 
 const BASE = "https://foxhoundapp.com";
 const TO = "jane@example.com";
@@ -140,21 +140,14 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(hrefs).toHaveLength(1);
     const raw = hrefs[0].replace(/&amp;/g, "&");
     const href = new URL(raw);
-    // The link opens the confirm page (site-runtime 0.36), never Better Auth's
-    // GET verify, so a mail scanner opening it signs nobody in.
+    // The link opens the confirm page, whose button signs in (site-runtime
+    // ./sign-in). Better Auth stores the token hashed (SHA-256, base64url), and
+    // the link lands on the passkey offer, which goes on to /console.
     expect(href.origin + href.pathname).toBe(`${BASE}/sign-in/confirm`);
-    expect(linkTokens()).toHaveLength(1);
+    const token = href.searchParams.get("token") ?? "";
+    expect(linkTokens()).toEqual([createHash("sha256").update(token).digest("base64url")]);
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
-    expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/login`);
-    // The page's button posts to its own URL: that signs in and lands on the
-    // passkey offer, which goes on to /console.
-    const confirmed = await confirmAction({
-      request: new Request(raw, { method: "POST", headers: { origin: BASE } }),
-      context: { get: () => ({ env: makeEnv() }) },
-    } as unknown as Parameters<typeof confirmAction>[0]);
-    expect(confirmed.status).toBe(302);
-    expect(confirmed.headers.get("location")).toBe(`${BASE}/passkey?next=%2Fconsole`);
-    expect(confirmed.headers.get("set-cookie")).toMatch(/session_token=/);
+    expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/sign-in/confirm`);
 
     const want = expectedRender(TO, raw, codeIn(m));
     expect(m.subject).toBe(want.subject);
@@ -230,14 +223,16 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
 
   it("through the page, a refused send is surfaced by name and the link never reaches a log", async () => {
     const logged = consoleSpies();
+    let token = "";
     const env = makeEnv({
       send: async (m: SentMessage) => {
+        token = /token=([^&\s]+)/.exec(m.text ?? "")?.[1] ?? "";
         throw new Error(`provider echoed ${m.text}`);
       },
     });
     expect(await ask(env)).toBe("failed");
 
-    const [token] = linkTokens();
+    expect(token).not.toBe("");
     const out = logged();
     expect(out).toContain("sign-in link email not sent: provider_error");
     expect(out).not.toContain(token);

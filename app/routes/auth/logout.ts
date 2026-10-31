@@ -1,4 +1,3 @@
-import { LOGOUT_HEADERS } from "@dustinedwards/site-runtime/headers";
 import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
@@ -14,12 +13,13 @@ export async function action({ request, context }: Route.ActionArgs) {
     asResponse: true,
   });
 
-  // Clear-Site-Data, OSHP's logout header: the browser also drops this site's
-  // other cookies (theme, demo, view-as), its storage and its cache.
-  const headers = new Headers(LOGOUT_HEADERS);
-  for (const cookie of res.headers.getSetCookie()) {
-    headers.append("Set-Cookie", cookie);
-  }
+  // Better Auth's /sign-out clears the session cookies and, from site-runtime's
+  // sign-out hook, sends Clear-Site-Data, OSHP's logout header: the browser also
+  // drops this site's other cookies (theme, demo, view-as), its storage and its
+  // cache. Both go onto the redirect.
+  const headers = new Headers(res.headers);
+  headers.delete("Content-Type");
+  headers.delete("Content-Length");
   return redirect("/login", { headers });
 }
 
