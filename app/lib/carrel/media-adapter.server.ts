@@ -121,8 +121,8 @@ function itemOf(row: MediaRow, usedCount?: number): MediaItem {
     focus: row.focus,
     caption: row.caption,
     ...(usedCount === undefined ? {} : { usedCount }),
-    placeholder: null,
-    color: null,
+    placeholder: row.placeholder,
+    color: row.color,
     credit: row.credit,
     license: row.license,
     sourceUrl: row.sourceUrl,
@@ -362,7 +362,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
           height: prepared.height,
           reason: "replace",
         },
-        { focus: null, filename: input.filename.slice(0, 300) },
+        { focus: null, filename: input.filename.slice(0, 300), placeholder: prepared.placeholder, color: prepared.color },
       );
       // The image route keys its cached sizes by the object's etag (site-runtime ./image), and pages
       // name the new bytes by a new versioned address (app/routes/files/media.ts).
@@ -404,7 +404,8 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
           height: swapped ? row.width : row.height,
           reason: "transform",
         },
-        { focus },
+        // The placeholder and color were the old bytes'; a turn or a revert has none.
+        { focus, placeholder: null, color: null },
       );
       // The swap dropped the old point with the old bytes; the moved one goes back on the object for ./image.
       if (focus) await writeFocus(bucket, id, focus);
@@ -437,7 +438,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
           height: kept.revision.height,
           reason: "revert",
         },
-        { focus: null },
+        { focus: null, placeholder: null, color: null },
       );
       return { item: itemOf(after), sizesNeedPurge: false };
     },
@@ -465,7 +466,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
           height: shrunk.height,
           reason: "resize",
         },
-        { focus: row.focus },
+        { focus: row.focus, placeholder: shrunk.placeholder, color: shrunk.color },
       );
       if (row.focus) await writeFocus(bucket, id, row.focus);
       return { resized: true, item: itemOf(after) };

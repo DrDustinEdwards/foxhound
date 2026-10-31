@@ -97,6 +97,7 @@ interface Answer {
   width: number;
   height: number;
   alt: string;
+  placeholder: string | null;
   usedCount: number;
   usedBy: Array<{ type: string; id: string }>;
   currentVersion: string;
@@ -157,6 +158,9 @@ describe("the media library through Carrel's site-api mount", () => {
     expect(up.status).toBe(201);
     const { id } = up.body;
     expect(id).toMatch(/^\d{4}\/\d{2}\/declines-chart-[0-9a-f]{8}\.png$/);
+    // prepareUpload's placeholder is stored and answered with the file.
+    expect(up.body.placeholder).toMatch(/^data:image\/webp;base64,/);
+    expect((await t.json(t.at(id))).body.placeholder).toBe(up.body.placeholder);
 
     const created = await t.json("/content/p1/draft", {
       method: "PUT",

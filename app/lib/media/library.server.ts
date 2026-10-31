@@ -60,7 +60,7 @@ export async function storeFile(
   prepared: PreparedUpload,
   input: { reason: "upload" | "import"; fields: MediaFields },
 ): Promise<MediaRow> {
-  const { bytes, contentType, filename, width, height, sha256, original, resizedFrom } = prepared;
+  const { bytes, contentType, filename, width, height, sha256, placeholder, color, original, resizedFrom } = prepared;
   if (!width || !height) throw new RefusedError(`${filename} could not be read as a picture.`);
   const key = await freshKey(db, filename, sha256, contentType);
   await env.MEDIA.put(key, toArrayBuffer(bytes), { httpMetadata: { contentType } });
@@ -74,6 +74,8 @@ export async function storeFile(
     width,
     height,
     sha256,
+    placeholder,
+    color,
     uploadedAt: at,
   });
   const sent = { at, mediaKey: key, reason: input.reason, sha256: prepared.uploadSha256 };
