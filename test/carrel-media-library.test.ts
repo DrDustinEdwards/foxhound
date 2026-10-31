@@ -12,6 +12,10 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
+// The media route reads the index through getDb(env).
+const route = vi.hoisted(() => ({ db: undefined as unknown }));
+vi.mock("~/db", async (importOriginal) => ({ ...(await importOriginal<typeof import("~/db")>()), getDb: () => route.db }));
+
 // The blog's media library through Carrel's real site-api mount, over the real
 // schema (migration 0059's tables and triggers) and in-memory stand-ins for the
 // R2 bucket, the Images binding and Workers AI.
@@ -93,6 +97,7 @@ interface Answer {
   width: number;
   height: number;
   alt: string;
+  placeholder: string | null;
   usedCount: number;
   usedBy: Array<{ type: string; id: string }>;
   currentVersion: string;
@@ -153,6 +158,9 @@ describe("the media library through Carrel's site-api mount", () => {
     expect(up.status).toBe(201);
     const { id } = up.body;
     expect(id).toMatch(/^\d{4}\/\d{2}\/declines-chart-[0-9a-f]{8}\.png$/);
+    // prepareUpload's placeholder is stored and answered with the file.
+    expect(up.body.placeholder).toMatch(/^data:image\/webp;base64,/);
+    expect((await t.json(t.at(id))).body.placeholder).toBe(up.body.placeholder);
 
     const created = await t.json("/content/p1/draft", {
       method: "PUT",
@@ -162,7 +170,8 @@ describe("the media library through Carrel's site-api mount", () => {
 
     const { html } = await renderMarkdown(t.db, `![Declines by reason](/media/${id})\n`);
     expect(html).toContain("<picture>");
-    expect(html).toContain(`/media/${id}?w=680`);
+    // Named by its bytes, so the route serves each size immutable.
+    expect(html).toMatch(new RegExp(`/media/${id}\\?v=[0-9a-f]{12}&#x26;w=680 `));
     expect(html).toContain('width="1600" height="900"');
 
     const detail = await t.json(t.at(id));
@@ -225,16 +234,20 @@ describe("the media library through Carrel's site-api mount", () => {
     expect(changes.body.removed).toEqual([gone.id]);
   });
 
-  it("the public route serves an upload and never the earlier bytes kept beside it", async () => {
+  it("the public route serves an upload, immutable only at its current version, and never the earlier bytes kept beside it", async () => {
     const t = setup();
     const up = (await t.upload(png(4000, 3000))).body;
     const copy = [...t.bucket.objects.keys()].find((k) => k.startsWith("revisions/"));
     expect(copy).toBeDefined();
     vi.stubGlobal("caches", { default: { match: async () => undefined, put: async () => {} } });
+    route.db = t.db;
     const context = new Map([[cloudflareContext, { env: t.env }]]);
-    const get = (key: string) =>
-      mediaLoader({ params: { "*": key }, request: new Request(`${ORIGIN}/media/${key}`), context } as unknown as Parameters<typeof mediaLoader>[0]);
-    expect((await get(up.id)).status).toBe(200);
+    const get = (key: string, query = "") =>
+      mediaLoader({ params: { "*": key }, request: new Request(`${ORIGIN}/media/${key}${query}`), context } as unknown as Parameters<typeof mediaLoader>[0]);
+    expect((await get(up.id)).headers.get("cache-control")).toBe("public, max-age=300");
+    const [row] = t.sqlite.prepare("SELECT sha256 FROM media WHERE key = ?").all(up.id) as Array<{ sha256: string }>;
+    expect((await get(up.id, `?v=${row!.sha256.slice(0, 12)}`)).headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect((await get(up.id, "?v=000000000000")).headers.get("cache-control")).toBe("public, max-age=300");
     expect((await get(copy!)).status).toBe(404);
     vi.unstubAllGlobals();
   });

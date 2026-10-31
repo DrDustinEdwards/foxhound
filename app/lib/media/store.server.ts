@@ -35,7 +35,8 @@ export function allMediaRows(db: Db): Promise<MediaRow[]> {
 }
 
 /** The file holding these bytes now, or the one that was uploaded with them and
- *  shrunk at upload, so sending the same camera file again is a duplicate too. */
+ *  changed at upload (converted, shrunk or its location taken out), so sending
+ *  the same camera file again is a duplicate too. */
 export async function mediaRowByHash(db: Db, sha256: string): Promise<MediaRow | null> {
   const rows = await db.select().from(media).where(eq(media.sha256, sha256)).orderBy(media.uploadedAt).limit(1);
   if (rows[0]) return rows[0];
