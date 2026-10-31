@@ -109,7 +109,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <BlogPostCard key={post.id} post={post} />
+              <BlogPostCard key={post.id} post={post} level={2} />
             ))}
           </div>
         )}
