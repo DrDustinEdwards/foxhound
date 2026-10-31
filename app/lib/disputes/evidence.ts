@@ -1,6 +1,7 @@
-import { createAnthropicClient, type AiCallMeter } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
+
+import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
 import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
-import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
@@ -118,9 +119,9 @@ function buildSystemPrompt(): string {
 function buildUserPrompt(facts: EvidenceFacts): string {
   const lines = ["Known facts about this transaction and customer contact:"];
   if (facts.merchantProductDescription) {
-    lines.push(`Product description (stated by the merchant): ${untrusted(facts.merchantProductDescription)}`);
+    lines.push(`Product description (stated by the merchant): ${untrusted("product_description", facts.merchantProductDescription)}`);
   }
-  if (facts.productName) lines.push(`Product/plan: ${untrusted(facts.productName)}`);
+  if (facts.productName) lines.push(`Product/plan: ${untrusted("plan_name", facts.productName)}`);
   if (facts.serviceDate) {
     lines.push(`Service/subscription start: ${facts.serviceDate.toISOString().slice(0, 10)}`);
   }
@@ -165,31 +166,32 @@ export async function draftDisputeEvidence(
 
   if (!env.ANTHROPIC_API_KEY) return fields;
 
-  try {
-    const client = createAnthropicClient(env, meter);
-    const call = async (instruction = ""): Promise<string> => {
-      const response = await client.messages.create({
+  // A failed call or rewrite never blocks intake: the deterministic fields
+  // above still land. It is logged by kind (the shared caller logs the call).
+  const call = async (instruction = ""): Promise<string> => {
+    const result = await askStructured<{ uncategorizedText: string }>(
+      env,
+      meter,
+      {
         model: MODEL_RECOVERY_EMAIL,
         max_tokens: 500,
         thinking: { type: "disabled" },
-        output_config: {
-          effort: "low",
-          format: { type: "json_schema", schema: OUTPUT_SCHEMA },
-        },
+        output_config: { effort: "low" },
         system: buildSystemPrompt(),
         messages: [{ role: "user", content: buildUserPrompt(facts) + instruction }],
-      });
-      const textBlock = response.content.find((b) => b.type === "text");
-      if (!textBlock || textBlock.type !== "text") return "";
-      const parsed = JSON.parse(textBlock.text) as { uncategorizedText: string };
-      return sanitizeCopy(parsed.uncategorizedText);
-    };
+      },
+      OUTPUT_SCHEMA,
+      instruction ? REWRITE : {},
+    );
+    if (!result.ok) throw new Error(`dispute evidence drafting failed: ${result.kind}`);
+    return sanitizeCopy(String(result.value.uncategorizedText ?? ""));
+  };
+  try {
     // One retry when the draft reads as machine-written (ai/plain-writing.ts).
     const clean = await retryStockPhrasing(await call(), (text) => text, call);
     if (clean.trim()) fields.push({ fieldName: "uncategorized_text", fieldValue: clean });
-  } catch {
-    // AI drafting must never block dispute intake (mirrors recordOutcome's
-    // never-throws posture): the deterministic fields above still land.
+  } catch (err) {
+    console.error("dispute evidence drafting failed; the deterministic fields stand:", err instanceof Error ? err.message : "unknown error");
   }
   return fields;
 }
