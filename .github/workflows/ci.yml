@@ -107,12 +107,18 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run check:bloat
 
-      # Warn only: page weight per route from this build, and tests with no
-      # assertion. continue-on-error keeps a crash from failing the run.
-      - name: Bloat report (warn only)
+      # A gate (area 7, D5): a route over .route-weight.json's budget_bytes, or
+      # grown past its baseline, fails the run.
+      - name: Page weight
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:page-weight
+
+      # Warn only: tests with no assertion. continue-on-error keeps a crash
+      # from failing the run.
+      - name: Assertion report (warn only)
         if: steps.tested.outputs.same != 'true'
         continue-on-error: true
-        run: npm run report:bloat
+        run: npm run report:assertions
 
       - name: Test
         if: steps.tested.outputs.same != 'true'
