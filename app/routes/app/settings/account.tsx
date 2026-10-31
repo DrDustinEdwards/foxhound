@@ -662,7 +662,7 @@ function DangerZone({
             </Alert>
             <div className="flex flex-wrap gap-2.5">
               <Button type="submit" variant="danger" pending={running === "cancel-account"}>
-                {running === "cancel-account" ? "Canceling..." : "Yes, cancel my account"}
+                {running === "cancel-account" ? "Canceling..." : "Cancel my account"}
               </Button>
               {running === "cancel-account" ? null : keep}
             </div>
@@ -675,7 +675,7 @@ function DangerZone({
             </Alert>
             <div className="flex flex-wrap gap-2.5">
               <Button type="submit" variant="danger" pending={running === "delete-account"}>
-                {running === "delete-account" ? "Deleting..." : "Yes, delete my account"}
+                {running === "delete-account" ? "Deleting..." : "Delete my account"}
               </Button>
               {running === "delete-account" ? null : keep}
             </div>

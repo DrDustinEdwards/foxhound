@@ -114,7 +114,7 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
 
       <AuthFootnote>
         Already have an account?{" "}
-        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>Log in</AuthLink>
+        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>Sign in</AuthLink>
       </AuthFootnote>
     </AuthCard>
   );

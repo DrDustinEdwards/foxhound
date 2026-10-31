@@ -5,7 +5,7 @@ import { Link } from "capsomer/react/link";
 import { DocBlocks } from "~/components/docs/doc-blocks";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDocGuide } from "~/lib/marketing/docs-content";
-import { breadcrumbListJsonLd, siteUrl, techArticleJsonLd } from "~/lib/seo/jsonld";
+import { siteUrl, techArticleJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/banner.css";
@@ -55,7 +55,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // is the same value the h1 renders, so the two cannot drift.
   return [
     ...marketingMeta({
-      title: `${guide.title} - Foxhound docs`,
+      title: guide.title,
+      suffix: " - Foxhound docs",
       description: guide.description,
       path: `/docs/${guide.slug}`,
       siteUrl: url,
@@ -66,10 +67,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
       path: `/docs/${guide.slug}`,
       datePublished: guide.datePublished,
     })),
-    jsonLd(breadcrumbListJsonLd(url, [
-      { name: "Docs", path: "/docs" },
-      { name: guide.title, path: `/docs/${guide.slug}` },
-    ])),
   ];
 }
 

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { createHash } from "node:crypto";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -139,14 +140,14 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(hrefs).toHaveLength(1);
     const raw = hrefs[0].replace(/&amp;/g, "&");
     const href = new URL(raw);
-    // The confirm page (site-runtime's CONFIRM_PATH), whose button runs the
-    // verify. Better Auth stores the token hashed, and the link lands on the
-    // passkey offer, which goes on to /console.
+    // The link opens the confirm page, whose button signs in (site-runtime
+    // ./sign-in). Better Auth stores the token hashed (SHA-256, base64url), and
+    // the link lands on the passkey offer, which goes on to /console.
     expect(href.origin + href.pathname).toBe(`${BASE}/sign-in/confirm`);
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(href.searchParams.get("token") ?? ""));
-    expect(linkTokens()).toEqual([Buffer.from(digest).toString("base64url")]);
+    const token = href.searchParams.get("token") ?? "";
+    expect(linkTokens()).toEqual([createHash("sha256").update(token).digest("base64url")]);
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
-    expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/login`);
+    expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/sign-in/confirm`);
 
     const want = expectedRender(TO, raw, codeIn(m));
     expect(m.subject).toBe(want.subject);
@@ -222,14 +223,16 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
 
   it("through the page, a refused send is surfaced by name and the link never reaches a log", async () => {
     const logged = consoleSpies();
+    let token = "";
     const env = makeEnv({
       send: async (m: SentMessage) => {
+        token = /token=([^&\s]+)/.exec(m.text ?? "")?.[1] ?? "";
         throw new Error(`provider echoed ${m.text}`);
       },
     });
     expect(await ask(env)).toBe("failed");
 
-    const [token] = linkTokens();
+    expect(token).not.toBe("");
     const out = logged();
     expect(out).toContain("sign-in link email not sent: provider_error");
     expect(out).not.toContain(token);

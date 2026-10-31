@@ -13,7 +13,6 @@ import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
 import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
-  breadcrumbListJsonLd,
   faqPageJsonLd,
   organizationJsonLd,
   personJsonLd,
@@ -144,13 +143,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
         dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
         authorName: post.author,
       }),
-    ),
-    jsonLd(
-      breadcrumbListJsonLd(url, [
-        { name: "Home", path: "/" },
-        { name: "Blog", path: "/blog" },
-        { name: post.title, path: `/blog/${post.slug}` },
-      ]),
     ),
     ...(loaderData.faqPairs.length > 0
       ? [jsonLd(faqPageJsonLd(loaderData.faqPairs.map((f) => ({ question: f.question, answer: f.answer }))))]
