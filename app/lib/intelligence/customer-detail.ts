@@ -145,9 +145,10 @@ const HEALTH_CHART_HEIGHT = 184;
 /** Recova's HealthSparkline: an area chart of the readings, oldest first, with
  *  short dates along the bottom. Readings arrive oldest first. */
 export function drawHealthHistory(readings: readonly HealthReading[], width: number): string {
-  const yLabel = "Health score";
+  const yLabel = "Health score (0-100)";
   const latest = readings[readings.length - 1]?.healthScore ?? 0;
   return areaChart({
+    title: "Health score history",
     data: readings.map((r) => ({ Date: r.recordedAt, score: r.healthScore })),
     x: "Date",
     y: "score",
