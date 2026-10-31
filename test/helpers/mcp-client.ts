@@ -96,3 +96,23 @@ export function toolCallLogStub() {
     get: () => ({ fetch: async () => new Response(null, { status: 204 }) }),
   };
 }
+
+/** A link key for the tests: the merchant MCP signs its confirm codes with the link keys. */
+export const TEST_LINK_KEY = "a".repeat(64);
+
+/**
+ * One tools/call through the confirmation step (app/lib/mcp/confirm.server.ts):
+ * when the first answer asks for confirmation, the same arguments go again with
+ * its code, as an agent does once the merchant says yes.
+ */
+export async function confirmedCall(
+  send: (args: Record<string, unknown>) => Promise<Response | null>,
+  args: Record<string, unknown>,
+): Promise<Response> {
+  const first = (await send(args)) as Response;
+  const answer = await readMcp(first.clone());
+  const pending = (answer.json as { result?: { structuredContent?: { confirmation_required?: boolean; confirm?: string } } } | null)
+    ?.result?.structuredContent;
+  if (!pending?.confirmation_required || !pending.confirm) return first;
+  return (await send({ ...args, confirm: pending.confirm })) as Response;
+}
