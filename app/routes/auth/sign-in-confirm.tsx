@@ -18,7 +18,7 @@ import type { Route } from "./+types/sign-in-confirm";
 // back here with ?error= (app/lib/auth/sign-in-link.server.ts).
 
 export function meta() {
-  return [{ title: "Log in - Foxhound" }, NOINDEX];
+  return [{ title: "Sign in - Foxhound" }, NOINDEX];
 }
 
 // The page's URL holds the token.
@@ -45,7 +45,7 @@ export default function SignInConfirm({ loaderData, actionData }: Route.Componen
         <AuthHeading title={loaderData.expired ? "This link has expired" : "That sign-in did not complete"} />
         <Alert tone="crit">{loaderData.error}</Alert>
         <AuthFootnote>
-          <AuthLink to="/login">{loaderData.expired ? "Get a new link" : "Back to log in"}</AuthLink>
+          <AuthLink to="/login">{loaderData.expired ? "Get a new link" : "Back to sign in"}</AuthLink>
         </AuthFootnote>
       </AuthCard>
     );

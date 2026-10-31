@@ -32,7 +32,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // Supabase client calls.
 
 export function meta() {
-  return [{ title: "Log in - Foxhound" }, NOINDEX];
+  return [{ title: "Sign in - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -81,8 +81,8 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
   return (
     <AuthCard>
       <AuthHeading
-        title={loaderData.reauth ? "Log in again" : "Welcome back"}
-        subtitle={loaderData.reauth ? "To change how you sign in, log in again." : "Log in to your Foxhound account"}
+        title={loaderData.reauth ? "Sign in again" : "Welcome back"}
+        subtitle={loaderData.reauth ? "To change how you sign in, sign in again." : "Sign in to your Foxhound account"}
       />
 
       {actionData?.sent ? (
