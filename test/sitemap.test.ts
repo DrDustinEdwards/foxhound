@@ -105,6 +105,7 @@ const EXCLUDED_PREFIXES = [
   // images) or the sitemap/robots routes themselves.
   "/sitemap.xml",
   "/robots.txt",
+  "/site.webmanifest",
   "/llms.txt",
   "/ai.txt",
   "/llms-full.txt",
