@@ -1,3 +1,4 @@
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
 import { redirect } from "react-router";
 
@@ -8,6 +9,7 @@ import { checkAuthLimit, RATE_LIMITED_ERROR } from "~/lib/auth/rate-limit.server
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/social-start";
+import { readForm } from "~/lib/http/body";
 
 // Starts a Google or Apple sign-in (POST /auth/google, /auth/apple). Calls
 // Better Auth server-side to build the provider's authorization URL and set the
@@ -15,6 +17,8 @@ import type { Route } from "./+types/social-start";
 // Cleanly inert for a provider Foxhound has no settings for (its button is not
 // drawn then, but guard anyway).
 export async function action({ request, context, params }: Route.ActionArgs) {
+  const refused = refuseCrossSite(request);
+  if (refused) return refused;
   const { env } = context.get(cloudflareContext);
   // The shared auth bucket (site-runtime's limiter): a signed-out caller
   // can start sign-ins here. A form post, so a refusal goes back to the page.
@@ -34,7 +38,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   // and there is no cookie to burn. It is made absolute on Foxhound's own
   // origin because Better Auth's relative-path pattern refuses a query that
   // carries an encoded URL, which an OAuth authorize URL always does.
-  const form = await request.formData().catch(() => null);
+  const form = await readForm(request).catch(() => null);
   const next = safeNextPath(form ? String(form.get("next") ?? "") : null);
   const callbackURL = new URL(next, env.BETTER_AUTH_URL).toString();
   // A refused sign-in (account_not_linked and the like) comes back to /login,

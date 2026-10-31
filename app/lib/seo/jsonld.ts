@@ -1,4 +1,4 @@
-import { article, breadcrumbs, faqPage, thing, website } from "@drdustinedwards/site-helpers/schema";
+import { article, faqPage, thing, website } from "@drdustinedwards/site-helpers/schema";
 
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 
@@ -101,12 +101,13 @@ export function faqPageJsonLd(faqs: JsonLdFaq[]) {
   return faqPage(faqs);
 }
 
+/** The speakable parts of a page, on Prelum's WebPage node (marketingMeta) by its `@id`, so the page is one node. */
 export function speakableWebPageJsonLd(
   url: string,
-  opts: { name: string; path: string; selectors: string[] },
+  opts: { path: string; selectors: string[] },
 ) {
   return thing("WebPage", {
-    name: opts.name,
+    "@id": `${url}${opts.path}#webpage`,
     url: `${url}${opts.path}`,
     speakable: {
       "@type": "SpeakableSpecification",
@@ -189,12 +190,6 @@ export function articleJsonLd(
     author,
     publisher: { "@id": `${url}/#organization` },
   });
-}
-
-// Used more heavily once /blog post pages ship in Pass 2; the builder is
-// wired now so those pages can call it without an SEO-module change.
-export function breadcrumbListJsonLd(url: string, items: { name: string; path: string }[]) {
-  return breadcrumbs(url, items);
 }
 
 /**

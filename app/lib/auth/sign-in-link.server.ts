@@ -1,11 +1,11 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
-import { SIGN_IN_CODE_PATH } from "@dustinedwards/site-runtime/sign-in";
+import { CONFIRM_PATH, SIGN_IN_CODE_PATH } from "@dustinedwards/site-runtime/sign-in";
 import { data, redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
 
 import { safeNextPath } from "./next-path";
-import { checkEmailLimit, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "./rate-limit.server";
+import { RATE_LIMITED_ERROR, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "./rate-limit.server";
 
 // The emailed sign-in link that /login and /signup send (site-runtime
 // ./sign-in's magic link). The page's action calls this after its own
@@ -13,7 +13,37 @@ import { checkEmailLimit, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "./rate-limit.
 // because only the handler runs Better Auth's own limiter and the captcha
 // plugin's Turnstile check (txasm signin.tsx, Grok audit TX-4).
 
-export type SignInLinkResult = "sent" | "limited" | "check_failed" | "failed";
+/** The ?error= codes that come back to /login and the link's confirm page:
+ *  the limiter's, and Better Auth's from a spent link or a refused Google or
+ *  Apple sign-in. Null for none. */
+const LINK_SPENT = "That sign-in link has expired or was already used. Send yourself a new one.";
+const ERROR_MESSAGES: Record<string, string> = {
+  [RATE_LIMITED_ERROR]: SIGN_IN_LIMITED,
+  EXPIRED_TOKEN: LINK_SPENT,
+  INVALID_TOKEN: LINK_SPENT,
+  ATTEMPTS_EXCEEDED: LINK_SPENT,
+  // The disposable-address refusal (app/lib/auth/options.ts), in Recova's words
+  // (app/(auth)/login/page.tsx).
+  disposable_email: "Please use a real email address. Disposable email providers are not allowed.",
+  // Accounts are joined only by a signed-in person (site-runtime ./sign-in),
+  // never by a matching email at sign-in, so this one has a way forward.
+  account_not_linked:
+    "That email already has a Foxhound account. Sign in with an email link, then connect Google or Apple in My account.",
+};
+
+export function signInErrorMessage(code: string | null): string | null {
+  return code ? (ERROR_MESSAGES[code] ?? "That sign-in did not complete. Try again or use another way.") : null;
+}
+
+export type SignInLinkResult = "sent" | "limited" | "email_limited" | "check_failed" | "failed";
+
+/** A 429 from Better Auth: its per-IP limit, or site-runtime's per-address one
+ *  (EMAIL_RATE_LIMITED), whose window is an hour or a day, so its words say
+ *  "later", not "a minute". */
+async function limitOf(res: Response): Promise<"limited" | "email_limited"> {
+  const { code } = (await res.clone().json().catch(() => ({}))) as { code?: string };
+  return code === "EMAIL_RATE_LIMITED" ? "email_limited" : "limited";
+}
 
 /** Where the link lands: the passkey offer, which goes on to `next` (straight
  *  away for someone who already has a passkey). Absolute on Foxhound's own
@@ -52,12 +82,12 @@ export async function requestSignInLink(
           email: link.email,
           callbackURL: afterLinkURL(env, link.next),
           newUserCallbackURL: afterLinkURL(env, link.newUserNext),
-          // A spent or expired link comes back to /login, which says so.
-          errorCallbackURL: new URL("/login", env.BETTER_AUTH_URL).toString(),
+          // A spent or expired link comes back to the confirm page, which says so.
+          errorCallbackURL: new URL(CONFIRM_PATH, env.BETTER_AUTH_URL).toString(),
         }),
       }),
     );
-    if (res.status === 429) return "limited";
+    if (res.status === 429) return limitOf(res);
     if (res.status === 400 || res.status === 403) {
       const { code } = (await res.clone().json().catch(() => ({}))) as { code?: string };
       if (code === "MISSING_RESPONSE" || code === "VERIFICATION_FAILED") return "check_failed";
@@ -83,7 +113,11 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
     case "sent":
       return data({ sent: email as string | null, error: null as string | null, codeError: null as string | null });
     case "limited":
-      return data({ sent: null, error: limited, codeError: null }, { status: 429 });
+    case "email_limited":
+      return data(
+        { sent: null, error: result === "limited" ? limited : SIGN_UP_LIMITED, codeError: null },
+        { status: 429 },
+      );
     case "check_failed":
       return data(
         { sent: null, error: "Complete the check, then send the link again.", codeError: null },
@@ -108,7 +142,7 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
 
 export type SignInCodeResult =
   | { status: "signed_in"; headers: Headers }
-  | { status: "wrong" | "spent" | "disposable" | "limited" | "failed" };
+  | { status: "wrong" | "spent" | "disposable" | "limited" | "email_limited" | "failed" };
 
 export async function signInWithCode(
   env: Env,
@@ -130,7 +164,7 @@ export async function signInWithCode(
       logEvent(OWASP_EVENTS.signInSuccess, { ...requestFields(request), via: "code" });
       return { status: "signed_in", headers };
     }
-    if (res.status === 429) return { status: "limited" };
+    if (res.status === 429) return { status: await limitOf(res) };
     const { code } = (await res.json().catch(() => ({}))) as { code?: string };
     if (code === "INVALID_OTP" || code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") {
       logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), via: "code", code }, { level: "warn" });
@@ -159,8 +193,9 @@ const CODE_ANSWERS = {
  *  shows. `limited` is the page's own words for its limit. */
 function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, next: string, limited: string) {
   if (result.status === "signed_in") throw redirect(afterLinkURL(env, next), { headers: result.headers });
-  const error = result.status === "limited" ? limited : CODE_ANSWERS[result.status];
-  const status = result.status === "limited" ? 429 : result.status === "failed" ? 500 : 400;
+  const error =
+    result.status === "limited" ? limited : result.status === "email_limited" ? SIGN_UP_LIMITED : CODE_ANSWERS[result.status];
+  const status = result.status.endsWith("limited") ? 429 : result.status === "failed" ? 500 : 400;
   return data({ sent: email as string | null, error: null as string | null, codeError: error }, { status });
 }
 
@@ -176,18 +211,6 @@ export async function answerSignInForm(
   const email = String(form.get("email") ?? "").trim();
   if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
   const next = safeNextPath(String(form.get("next") ?? ""));
-
-  // The address's own budget, after the page's IP limit (rate-limit.server.ts).
-  // Its window is an hour or a day, so the words say "later", not "a minute".
-  const emailRefusal = await checkEmailLimit(env, email, page.isCode ? "code" : "link");
-  if (emailRefusal) {
-    return data(
-      page.isCode
-        ? { sent: email as string | null, error: null as string | null, codeError: SIGN_UP_LIMITED as string | null }
-        : { sent: null, error: SIGN_UP_LIMITED, codeError: null },
-      { status: 429, headers: { "Retry-After": String(emailRefusal.retryAfterSeconds) } },
-    );
-  }
 
   // The code from the same mail, typed on the "link sent" screen.
   if (page.isCode) {

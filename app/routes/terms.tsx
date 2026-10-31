@@ -36,7 +36,7 @@ import type { Route } from "./+types/terms";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Terms of Service - Foxhound",
+    title: "Terms of Service",
     description: "Terms of service for Foxhound, the payment recovery platform for Stripe merchants.",
     path: "/terms",
     siteUrl: loaderData?.siteUrl ?? "",

@@ -93,11 +93,12 @@ export default [
 
   // The sign-in pages: Recova's bare auth layout, no site navigation and the
   // footer's auth variant. The emailed sign-in link opens /sign-in/confirm,
-  // whose button signs in and lands on /passkey (site-runtime ./sign-in).
+  // then lands on /passkey (site-runtime ./sign-in).
   layout("./layouts/auth.tsx", [
     route("login", "./routes/auth/login.tsx"),
     route("signup", "./routes/auth/signup.tsx"),
     route("passkey", "./routes/auth/passkey-offer.tsx"),
+    // The emailed sign-in link's page (site-runtime's CONFIRM_PATH).
     route("sign-in/confirm", "./routes/auth/sign-in-confirm.tsx"),
   ]),
 

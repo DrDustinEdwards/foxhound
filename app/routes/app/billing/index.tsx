@@ -32,6 +32,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /billing: Recova's billing page on Foxhound's billing engine.
 // Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
@@ -123,7 +124,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     return data({ error: "Only the account owner can set up billing." }, { status: 403 });
   }
 
-  const form = await request.formData();
+  const form = await readForm(request);
   if (String(form.get("intent") ?? "") !== "setup_billing") {
     return data({ error: "Unknown action." }, { status: 400 });
   }

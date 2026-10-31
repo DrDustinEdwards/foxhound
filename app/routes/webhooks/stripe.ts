@@ -5,6 +5,7 @@ import { constructStripeEvent } from "~/lib/stripe/webhook";
 import { processConnectedWebhook } from "~/lib/webhooks/process";
 
 import type { Route } from "./+types/stripe";
+import { readText, WEBHOOK_BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Connected-account Stripe webhook (ROUTES.md: /webhooks/stripe). Signature is
 // verified with STRIPE_WEBHOOK_SECRET (constructEventAsync, Web Crypto). The
@@ -32,7 +33,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return new Response("webhook not configured", { status: 500 });
   }
 
-  const payload = await request.text();
+  const payload = await readText(request, WEBHOOK_BODY_MAX_BYTES);
   const signature = request.headers.get("stripe-signature") ?? "";
 
   let event;

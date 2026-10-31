@@ -4,13 +4,15 @@ import { data, useFetcher } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
+import { ChartFrame } from "capsomer/react/chart-frame";
+import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
+import "capsomer/meter.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 
-import { Meter } from "~/components/charts";
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -45,6 +47,7 @@ import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format"
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /intelligence/dashboard. Recova is the spec: its real
 // page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
@@ -124,7 +127,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   // generate the report. Try again or contact support."
   try {
     const db = getDb(env);
-    const form = await request.formData();
+    const form = await readForm(request);
     if (form.get("intent") !== "generate") return refused("invalid_intent");
     const result = await generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
     if (!result.ok) return refused(result.error);
@@ -199,9 +202,13 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
                     </td>
                     <td className="w-40 px-4 py-3">
                       <Meter
+                        label={<span className="cap-sr-only">Health score</span>}
+                        size="sm"
                         value={c.healthScore}
+                        max={100}
+                        display={c.healthScore}
                         tone={healthScoreMeterTone(c.healthScore)}
-                        label={`Health score ${c.healthScore} of 100`}
+                        valueText={`Health score ${c.healthScore} of 100.`}
                       />
                     </td>
                     <td className="px-4 py-3 font-mono text-text">
@@ -259,7 +266,7 @@ function MrrTrend({ series, currency }: { series: Series; currency: string }) {
   const draw = useCallback((w: number) => drawMrrTrend(series, currency, w), [series, currency]);
   return (
     <Panel title="MRR trend (90 days)">
-      <EnarratioFigure draw={draw} />
+      <ChartFrame draw={draw} />
     </Panel>
   );
 }
@@ -273,7 +280,7 @@ function NrrCard({ series }: { series: Series }) {
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
   return (
     <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn (90 days)">
-      <EnarratioFigure draw={draw} />
+      <ChartFrame draw={draw} />
     </Panel>
   );
 }
@@ -294,7 +301,7 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
   if (!moved) return null;
   return (
     <Panel title="MRR movement" description="New, expansion, contraction, and churn by week">
-      <EnarratioFigure draw={draw} />
+      <ChartFrame draw={draw} />
     </Panel>
   );
 }
@@ -311,7 +318,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
   if (rows.length === 0) return null;
   return (
     <Panel title="MRR by plan">
-      <EnarratioFigure draw={draw} />
+      <ChartFrame draw={draw} />
     </Panel>
   );
 }
@@ -324,7 +331,7 @@ function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["health
   if (days.length === 0) return null;
   return (
     <Panel title="Customer health distribution" description="Customer count per health band over 90 days">
-      <EnarratioFigure draw={draw} />
+      <ChartFrame draw={draw} />
     </Panel>
   );
 }

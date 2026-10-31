@@ -36,7 +36,7 @@ import type { Route } from "./+types/demos";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Live demo - Foxhound",
+    title: "Live demo",
     description:
       "Explore the real Foxhound app with a full sample account: recovery sequences, dispute review, and MRR intelligence. No signup, nothing to connect.",
     path: "/demos",
