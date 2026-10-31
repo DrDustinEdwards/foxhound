@@ -2,6 +2,7 @@ import { schedulePurgeHook } from "@dustinedwards/site-runtime/edge-cache";
 import { createSiteApi, webmentionHook, type RateLimiter, type ScheduleRun, type SiteApi } from "@dustinedwards/site-api";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { d1SiteApiStore } from "@dustinedwards/site-api/store";
+import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 
 import { getDb } from "~/db";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
@@ -47,8 +48,13 @@ function carrelSiteApi(env: Env, stylesheets: string[] = []): SiteApi {
   const db = getDb(env);
   const store = d1SiteApiStore(env.DB);
   return createSiteApi({
-    // The blog's media library rides beside the posts (media-adapter.server.ts).
-    adapter: { ...carrelAdapter(db, d1ScheduledUpdates(env.DB), stylesheets), media: carrelMediaAdapter(env, db) },
+    // The blog's media library rides beside the posts (media-adapter.server.ts),
+    // and the 404s entry.server.tsx counts beside both, for Carrel's report.
+    adapter: {
+      ...carrelAdapter(db, d1ScheduledUpdates(env.DB), stylesheets),
+      media: carrelMediaAdapter(env, db),
+      insight: { notFound: (options) => notFoundReport(env.DB, options) },
+    },
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
     store,
