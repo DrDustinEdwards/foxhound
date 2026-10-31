@@ -10,7 +10,6 @@ import {
   emailSends,
   engagementEvents,
   healthScoreHistory,
-  page404Daily,
   socialLeads,
   webhookEvents,
 } from "~/db/schema";
@@ -192,15 +191,6 @@ const SWEEPERS: Record<string, SweeperCase> = {
         }), when),
       ),
   },
-  sweepPage404Daily: {
-    fn: retention.sweepPage404Daily,
-    seed: (db, n, when) =>
-      insertMany(
-        db,
-        page404Daily,
-        rowsOf(n, (i) => ({ id: `p4_${when.getTime()}_${i}`, day: when, path: `/x/${i}`, hitCount: 1 }), when),
-      ),
-  },
   sweepSocialLeads: {
     fn: retention.sweepSocialLeads,
     seed: (db, n, when) =>
@@ -252,7 +242,7 @@ describe("317: the guard covers every sweeper, in both directions", () => {
       .filter((k) => k.startsWith("sweep"))
       .sort();
     expect(Object.keys(SWEEPERS).sort()).toEqual(exported);
-    expect(exported.length).toBe(8);
+    expect(exported.length).toBe(7);
   });
 });
 
@@ -286,8 +276,8 @@ describe(`317: no retention statement exceeds D1's ${D1_MAX_BOUND_PARAMS} bound 
 describe("317: the predicate sites carry NO id list at all", () => {
   const predicateSites = Object.entries(SWEEPERS).filter(([, s]) => !s.batched);
 
-  it("covers seven of the eight sweepers, the eighth being the batched one", () => {
-    expect(predicateSites).toHaveLength(7);
+  it("covers six of the seven sweepers, the seventh being the batched one", () => {
+    expect(predicateSites).toHaveLength(6);
   });
 });
 

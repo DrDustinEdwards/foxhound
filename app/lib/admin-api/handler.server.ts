@@ -1,7 +1,9 @@
-import { desc, eq, gte } from "drizzle-orm";
+import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
+import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
+import { eq } from "drizzle-orm";
 
 import { getDb, type Db } from "~/db";
-import { accounts, adminApiCalls, page404Daily } from "~/db/schema";
+import { accounts, adminApiCalls } from "~/db/schema";
 import { listAuditLog } from "~/lib/admin/audit-log.server";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import {
@@ -29,7 +31,7 @@ import { describeStaged, listStagedChanges, stageChange, type StagedRow } from "
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "~/lib/auth/roles";
-import { DAY_MS, RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
+import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { listDisputes } from "~/lib/disputes/queries.server";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
@@ -98,7 +100,7 @@ const UNAUTHORIZED = () => json(401, { ok: false, error: "Unauthorized" });
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const refuse = async (response: Response, reason: string) => {
-    console.debug("admin api refused:", reason);
+    logEvent(OWASP_EVENTS.authorizationFailure, { ...requestFields(request), door: "admin-api", reason }, { level: "warn" });
     const allowed = await isWithinRateLimit(
       env,
       "admin-api-anon",
@@ -348,18 +350,12 @@ const ROUTES: ApiRoute[] = [
     method: "GET",
     pattern: "/health",
     handler: async ({ db, env, now }) => {
-      const since = new Date(now.getTime() - 7 * DAY_MS);
       const [webhooks, crons, migrations, d1SizeBytes, notFound] = await Promise.all([
         getWebhookHealthSummary(db),
         listCronRows(db),
         getMigrationStatus(env),
         getD1SizeBytes(env),
-        db
-          .select({ day: page404Daily.day, path: page404Daily.path, hits: page404Daily.hitCount })
-          .from(page404Daily)
-          .where(gte(page404Daily.day, since))
-          .orderBy(desc(page404Daily.hitCount))
-          .limit(20),
+        notFoundReport(env.DB, { days: 7, limit: 20, now }),
       ]);
       return { webhooks, crons, migrations, d1_size_bytes: d1SizeBytes, top_404s_7d: notFound };
     },

@@ -89,6 +89,17 @@ export const cronRunHistory = sqliteTable(
   ],
 );
 
+// global: site-runtime ./cron's CRON_SQL (migration 0061), written by runJobs and read by /health's cronCheck. Epoch ms.
+export const cronRuns = sqliteTable("cron_runs", {
+  name: text("name").primaryKey(),
+  everyMinutes: integer("every_minutes").notNull(),
+  firstStartedAt: integer("first_started_at"),
+  lastStartedAt: integer("last_started_at"),
+  lastOkAt: integer("last_ok_at"),
+  lastFailedAt: integer("last_failed_at"),
+  lastError: text("last_error"),
+});
+
 // global
 export const adminAuditLog = sqliteTable("admin_audit_log", {
   id: id(),
@@ -347,7 +358,10 @@ export const page404Daily = sqliteTable(
     id: id(),
     day: ts("day").notNull(),
     path: text("path").notNull(),
+    // site-runtime ./not-found's NOT_FOUND_UPGRADE_SQL (migration 0061): the referring host and "page" or "probe".
+    referrerHost: text("referrer_host").notNull().default(""),
+    kind: text("kind").notNull().default("page"),
     hitCount: integer("hit_count").notNull().default(0),
   },
-  (t) => [uniqueIndex("page_404_daily_day_path_uq").on(t.day, t.path)],
+  (t) => [uniqueIndex("page_404_daily_day_path_referrer_uq").on(t.day, t.path, t.referrerHost)],
 );

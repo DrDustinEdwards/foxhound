@@ -70,6 +70,7 @@ const EXCLUDED_PREFIXES = [
   "/login",
   "/signup",
   "/passkey",
+  "/sign-in/",
   "/connect",
   "/invite",
   "/auth/",

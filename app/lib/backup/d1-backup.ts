@@ -1,4 +1,4 @@
-import { backupHealth, runCheckedBackup, type BackupHealth, type R2Like } from "@dustinedwards/d1-dump";
+import { backupFiles, backupHealth, filesHealth, runCheckedBackup, type BackupHealth, type R2Like } from "@dustinedwards/d1-dump";
 
 import type { CronJobResult } from "~/lib/cron/run";
 
@@ -65,10 +65,27 @@ export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
   };
 }
 
-/** The unauthenticated health fields: age of the newest complete dump. */
-export async function backupStatus(env: Env, now = new Date()): Promise<BackupHealth> {
+/** The blog's media library (MEDIA), copied beside the dumps under files/media/ by d1-dump's backupFiles; each
+ *  run goes on where the last stopped. Its own job, so a failed copy never marks the D1 dump failed. */
+const MEDIA_BACKUP = { name: "media" };
+
+export async function runMediaBackup(env: Env): Promise<CronJobResult> {
+  const run = await backupFiles(env.MEDIA, env.BACKUPS, MEDIA_BACKUP);
+  return {
+    rowsProcessed: run.worked,
+    message: `${run.counts.copied} copied, ${run.counts.skipped} unchanged, ${run.counts.removed} removed${run.complete ? ", pass complete" : ", resumes next run"}`,
+  };
+}
+
+/** The unauthenticated health fields: age of the newest complete dump, with the media copy's; either one's warning warns. */
+export async function backupStatus(env: Env, now = new Date()): Promise<BackupHealth & { files?: { media: BackupHealth } }> {
   if (!env.BACKUPS) {
     return { last_ok: null, age_hours: null, warning: "no backup bucket is bound" } as BackupHealth;
   }
-  return backupHealth(env.BACKUPS as unknown as R2Like, { now });
+  const [dump, media] = await Promise.all([
+    backupHealth(env.BACKUPS, { now }),
+    filesHealth(env.BACKUPS, { ...MEDIA_BACKUP, now }),
+  ]);
+  const warning = [dump.warning, media.warning].filter(Boolean).join("; ");
+  return { ...dump, files: { media }, ...(warning ? { warning } : {}) };
 }

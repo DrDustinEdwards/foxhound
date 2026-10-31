@@ -130,13 +130,15 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@64997ae3facf4360eb676c57b7a5b5e8ec3350de # v0.18.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@dfdb60397d24f15c80b9468059d7d601b2caa6bf # v0.20.1
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
       pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
       sha-var: DEPLOY_SHA
+      # Its Time Travel bookmark is read before the migrations, so a bad one is one restore to undo.
+      d1-database: foxhound
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

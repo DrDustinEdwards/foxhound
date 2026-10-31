@@ -1,0 +1,27 @@
+name: restore-drill
+
+# The weekly restore drill (devkit's restore-drill.yml): d1-dump downloads the newest complete dump from
+# foxhound-backups, restores it into a scratch SQLite file and checks the copy. The token reads the backups bucket only
+# (R2: Read), so the drill changes nothing.
+
+on:
+  schedule:
+    - cron: "23 4 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: restore-drill
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    uses: DrDustinEdwards/devkit/.github/workflows/restore-drill.yml@dfdb60397d24f15c80b9468059d7d601b2caa6bf # v0.20.1
+    with:
+      bucket: foxhound-backups
+      d1-dump-ref: v0.7.0
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
