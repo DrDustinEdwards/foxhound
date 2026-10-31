@@ -60,7 +60,7 @@ export function marketingMeta({
     title: suffix ? searchTitle(title, suffix) : title,
     description,
     socialTitle: ogTitle ?? (suffix ? `${title}${suffix}` : undefined),
-    image: image ?? { url: `${siteUrl}/og/default`, width: 1200, height: 630, alt: "Foxhound" },
+    image: image ?? { url: `${siteUrl}/og/default`, width: 1200, height: 630, type: "image/png", alt: "Foxhound" },
     siteName: "Foxhound",
     type: ogType,
   });

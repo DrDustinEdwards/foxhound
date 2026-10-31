@@ -104,7 +104,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // generated 1200x630 card.
   const image = cover
     ? { ...cover.original, url: new URL(cover.original.url, url).href }
-    : { url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt), width: 1200, height: 630, alt: title };
+    : { url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt), width: 1200, height: 630, type: "image/png", alt: title };
 
   // JSON-LD goes through meta, which React Router escapes, because the title,
   // excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>`

@@ -275,7 +275,7 @@ export async function coverPicture(
   return {
     alt,
     picture: row ? images.attributes({ src, width: row.width, height: row.height, focus: row.focus }, use) : { src, sources: [] },
-    original: { url: src, width: row?.width ?? undefined, height: row?.height ?? undefined, alt },
+    original: { url: src, width: row?.width ?? undefined, height: row?.height ?? undefined, type: row?.contentType, alt },
   };
 }
 
