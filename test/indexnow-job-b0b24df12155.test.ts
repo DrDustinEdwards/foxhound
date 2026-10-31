@@ -79,7 +79,7 @@ const SOURCE = serializePostSource({
   title: "Why cards fail",
   slug: "why-cards-fail",
   excerpt: "Reasons.",
-  author: "Foxhound",
+  authors: ["Foxhound"],
   tags: ["billing"],
   featured: false,
   body: "Hello **world**.\n",

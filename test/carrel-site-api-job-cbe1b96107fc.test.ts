@@ -20,7 +20,8 @@ const CTX = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
   let adapterCalls = 0;
-  const adapter = carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)));
+  // The blog route's stand-in (workers/app.ts draws the real one): the preview row, noindex as the route's meta says.
+  const adapter = carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)), async (post) => `<!doctype html><meta name="robots" content="noindex"><h1>${post.title}</h1>`);
   const counted = new Proxy(adapter.content, {
     get(target, prop, receiver) {
       adapterCalls++;
@@ -53,7 +54,7 @@ const SOURCE = serializePostSource({
   title: "Why cards fail",
   slug: "why-cards-fail",
   excerpt: "Reasons.",
-  author: "Foxhound",
+  authors: ["Foxhound"],
   tags: ["billing"],
   featured: false,
   body: "Hello **world**.\n",
@@ -61,7 +62,7 @@ const SOURCE = serializePostSource({
 
 describe("source round trip", () => {
   it("is lossless", () => {
-    const parsed = parsePostSource(SOURCE, { author: "x" });
+    const parsed = parsePostSource(SOURCE, { authors: ["x"] });
     expect(parsed.title).toBe("Why cards fail");
     expect(parsed.tags).toEqual(["billing"]);
     expect(serializePostSource(parsed)).toBe(SOURCE);
@@ -128,12 +129,12 @@ describe("content round trip against the real schema", () => {
     };
     expect(saved.version).not.toBe(doc.version);
 
-    // the pre-edit state is a revision, stamped with the Carrel change id
+    // the pre-edit state is a revision, named by the person who made the change
     const revs = (await (await t.call("/content/p1/revisions")).json()) as {
       items: Array<{ version: string; author: string }>;
     };
     expect(revs.items).toHaveLength(2);
-    expect(revs.items[1].author).toBe("carrel:c2");
+    expect(revs.items[1].author).toBe("Dustin Edwards");
     const diff = (await (await t.call(`/content/p1/diff?from=${revs.items[1].version}`)).json()) as { patch: string };
     expect(diff.patch).toContain("-Hello");
     expect(diff.patch).toContain("+Goodbye");
@@ -233,6 +234,54 @@ describe("content round trip against the real schema", () => {
     expect((await t.call("/content/s1/schedule")).status).toBe(404);
   });
 
+  it("a draft saved on a live post leaves the page as it is until a publish applies it", async () => {
+    const t = setup();
+    const json = async (r: Response) => (await r.json()) as { version: string; status: string; source: string };
+    const draft = await json(
+      await t.call("/content/d1/draft", { method: "PUT", body: JSON.stringify({ source: SOURCE, expectedVersion: null, changeId: "c1" }) }),
+    );
+    await new Promise((r) => setTimeout(r, 5));
+    const live = await json(await t.call("/content/d1/publish", { method: "POST", body: JSON.stringify({ expectedVersion: draft.version, changeId: "c2" }) }));
+
+    const edited = SOURCE.replace("Hello", "Goodbye").replace('["billing"]', '["billing","disputes"]');
+    const saved = await json(
+      await t.call("/content/d1/draft", { method: "PUT", body: JSON.stringify({ source: edited, expectedVersion: live.version, changeId: "c3" }) }),
+    );
+    expect(saved.status).toBe("published");
+    expect(saved.version).not.toBe(live.version);
+    // The page still serves the live row; Carrel reads the draft back, and the live post is a revision beside it.
+    expect((await getPostBySlug(t.db, "why-cards-fail"))?.body).toContain("Hello");
+    expect((await json(await t.call("/content/d1"))).source).toBe(edited);
+    expect((await (await t.call("/content/d1/revisions/live")).json()) as { source: string }).toMatchObject({ source: SOURCE });
+
+    await new Promise((r) => setTimeout(r, 5));
+    await t.call("/content/d1/publish", { method: "POST", body: JSON.stringify({ expectedVersion: saved.version, changeId: "c4" }) });
+    const page = await getPostBySlug(t.db, "why-cards-fail");
+    expect([page?.body, page?.tags]).toEqual(["Goodbye **world**.\n", ["billing", "disputes"]]);
+    // Each revision is the whole post: the one before the edit has the old tags back.
+    const revs = (await (await t.call("/content/d1/revisions")).json()) as { items: Array<{ version: string; message: string }> };
+    const before = revs.items.find((i) => i.message === "the post before it was edited")!;
+    expect(((await (await t.call(`/content/d1/revisions/${before.version}`)).json()) as { source: string }).source).toBe(SOURCE);
+  });
+
+  it("authors, series and part are post fields; a source with the older author key still reads", async () => {
+    const t = setup();
+    const older = SOURCE.replace('authors: ["Foxhound"]', 'author: "Dustin Edwards"');
+    expect(older).toContain('author: "Dustin Edwards"');
+    await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: older, expectedVersion: null, changeId: "c1" }) });
+    const doc = (await (await t.call("/content/a1")).json()) as { version: string; source: string; authors: string[] };
+    expect(doc.authors).toEqual(["Dustin Edwards"]);
+    const series = doc.source.replace("tags:", 'series: "Recovery basics"\nseriesPart: 2\ntags:').replace('["Dustin Edwards"]', '["Dustin Edwards","Ada Lovelace"]');
+    await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: series, expectedVersion: doc.version, changeId: "c2" }) });
+    const withSeries = (await (await t.call("/content/a1")).json()) as { source: string; version: string };
+    expect(withSeries.source).toBe(series);
+    const byAda = (await (await t.call("/content?author=Ada%20Lovelace")).json()) as { items: Array<{ id: string; authors: string[] }> };
+    expect(byAda.items).toEqual([expect.objectContaining({ id: "a1", authors: ["Dustin Edwards", "Ada Lovelace"] })]);
+    const noPart = series.replace("seriesPart: 2", "seriesPart: 0");
+    const refused = await t.call("/content/a1/draft", { method: "PUT", body: JSON.stringify({ source: noPart, expectedVersion: withSeries.version, changeId: "c3" }) });
+    expect(refused.status).toBe(422);
+  });
+
   it("a live post renamed keeps its old address as a 301; trashed it leaves the blog and goes for good only from the trash", async () => {
     const t = setup();
     const json = async (r: Response) => (await r.json()) as { version: string; status: string; previousPath?: string | null };
@@ -251,8 +300,14 @@ describe("content round trip against the real schema", () => {
     expect(moved.previousPath).toBe("/blog/why-cards-fail");
     expect((await getPostBySlug(t.db, "why-cards-decline"))?.id).toBe("why-cards-decline");
     expect(await getSlugRedirect(t.db, "why-cards-fail")).toBe("why-cards-decline");
-    // Its history came with it.
-    expect(((await json(await t.call("/content/why-cards-decline/revisions"))) as unknown as { items: unknown[] }).items).toHaveLength(2);
+    // Its history came with it, the publish and the rename each a revision of the whole post.
+    const history = (await json(await t.call("/content/why-cards-decline/revisions"))) as unknown as { items: Array<{ message: string }> };
+    expect(history.items.map((i) => i.message)).toEqual([
+      "current",
+      "the post before it was renamed from /blog/why-cards-fail",
+      "the post before it was published",
+      "the post before it was edited",
+    ]);
     expect((await t.call("/content/r1")).status).toBe(404);
 
     // A delete outside the trash is refused; in it, the post is off the blog and then gone.
@@ -264,8 +319,14 @@ describe("content round trip against the real schema", () => {
     expect(await getPostBySlug(t.db, "why-cards-decline")).toBeNull();
     const listed = (await (await t.call("/content?trashed=true")).json()) as { items: Array<{ id: string }>; filtered: string[] };
     expect([listed.items.map((i) => i.id), listed.filtered]).toEqual([["why-cards-decline"], ["trashed"]]);
+    // A further-reading link to it outlives the delete, with the slug and title it pointed at.
+    await t.call("/content/other/draft", { method: "PUT", body: JSON.stringify({ source: SOURCE.replace("why-cards-fail", "other"), expectedVersion: null, changeId: "c7" }) });
+    t.sqlite.prepare("INSERT INTO blog_post_links (id, source_id, target_id, position, created_at) VALUES ('l1', 'other', 'why-cards-decline', 0, 0)").run();
     expect((await del(trashed.version, "c6")).status).toBe(200);
     expect(await getSlugRedirect(t.db, "why-cards-fail")).toBeNull();
+    expect(t.sqlite.prepare("SELECT source_slug, target_slug, target_title FROM blog_post_links_removed").all()).toEqual([
+      { source_slug: "other", target_slug: "why-cards-decline", target_title: "Why cards fail" },
+    ]);
   });
 
   it("the package's own conformance suite passes against the adapter", async () => {

@@ -20,7 +20,13 @@ export const blogPosts = sqliteTable(
     publishedAt: ts("published_at"),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),
+    // The byline as one line of text (the feed, the page), kept by admin-queries from `authors`.
     author: text("author").notNull(),
+    // site-api's authors post field: display names in credit order, the first the primary author.
+    authors: json<string[]>("authors").notNull().default([]),
+    // site-api's series and seriesPart post fields: the page reads "Part n of m" when both are set.
+    series: text("series"),
+    seriesPart: integer("series_part"),
     tags: json<string[]>("tags").notNull(),
     ogTitle: text("og_title"),
     ogDescription: text("og_description"),
@@ -83,9 +89,46 @@ export const blogPostVersions = sqliteTable(
     body: text("body").notNull(),
     excerpt: text("excerpt").notNull(),
     savedAt: ts("saved_at").notNull(),
+    // The person who made the change (a display name, "Dustin Edwards").
     savedBy: text("saved_by"),
+    // The whole post source before the change (every field, ./carrel/source.ts); null on rows from before 0070,
+    // which kept title, excerpt and body only.
+    source: text("source"),
+    // What the change was: "edited", "published", "unpublished", "renamed from /blog/<slug>".
+    message: text("message"),
   },
   (t) => [index("blog_post_versions_post_idx").on(t.postId)],
+);
+
+// A live post's pending draft (Carrel's saveDraft on a published post): the post source, kept apart so the live row,
+// and so the page, stay as they are until a publish applies it. A draft post has none: its own row is the draft.
+export const blogPostDrafts = sqliteTable("blog_post_drafts", {
+  postId: text("post_id")
+    .primaryKey()
+    .references(() => blogPosts.id),
+  source: text("source").notNull(),
+  changeId: text("change_id").notNull(),
+  savedAt: ts("saved_at").notNull(),
+  savedBy: text("saved_by"),
+});
+
+// The further-reading links (blog_post_links) a delete took away, kept with the slugs and titles they had, so the
+// links between posts outlive either end and can be listed again. No foreign keys: either post may be gone.
+export const blogPostLinksRemoved = sqliteTable(
+  "blog_post_links_removed",
+  {
+    id: id(),
+    sourceId: text("source_id").notNull(),
+    targetId: text("target_id").notNull(),
+    sourceSlug: text("source_slug"),
+    targetSlug: text("target_slug"),
+    sourceTitle: text("source_title"),
+    targetTitle: text("target_title"),
+    position: integer("position").notNull(),
+    createdAt: ts("created_at").notNull(),
+    removedAt: ts("removed_at").notNull(),
+  },
+  (t) => [index("blog_post_links_removed_target_idx").on(t.targetId)],
 );
 
 export const socialConfig = sqliteTable("social_config", {

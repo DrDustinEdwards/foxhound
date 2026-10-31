@@ -12,6 +12,8 @@ import { canonicalRedirect } from "@dustinedwards/site-runtime/url";
 import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider, type ServerBuild } from "react-router";
 
+import type { BlogPost } from "~/lib/blog/queries.server";
+import { blogPreviewContext } from "~/lib/blog/preview-context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
@@ -91,8 +93,19 @@ const site = withSentry<Env>(
       const { pathname } = new URL(request.url);
       if (pathname.startsWith("/api/carrel/v1") || pathname.startsWith("/preview/")) {
         const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
-        const stylesheets = rootStylesheets(await serverBuild()).map((s) => s.href);
-        const carrel = await handleCarrelRequest(request, env, ctx, stylesheets);
+        // A preview is the blog route itself, header, footer and byline, drawn
+        // here in process over the row the source makes: never the Renderer,
+        // whose answers the edge stores, so a preview is never cached. Its
+        // scripts carry this request's nonce, which the headers below name.
+        const renderPage = async (post: BlogPost) => {
+          const context = new RouterContextProvider();
+          context.set(cloudflareContext, { env, ctx, nonce });
+          context.set(blogPreviewContext, post);
+          const page = await requestHandler(new Request(`${origin}/blog/${post.slug}`, { headers: { accept: "text/html" } }), context);
+          if (!page.ok) throw new Error(`The blog route answered ${page.status} for the preview.`);
+          return page.text();
+        };
+        const carrel = await handleCarrelRequest(request, env, ctx, renderPage);
         // A preview link: noindex, private, no-store and no-referrer from the
         // package (the header set does not overwrite them, so the token, which
         // is the address, is never sent on). It writes nothing to purge.

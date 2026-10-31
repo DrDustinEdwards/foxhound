@@ -28,6 +28,10 @@ export interface BlogPostSummary {
 
 export interface BlogPost extends BlogPostSummary {
   body: string;
+  /** Display names in credit order; `author` is their byline. */
+  authors: string[];
+  series: string | null;
+  seriesPart: number | null;
   createdAt: Date;
   published: boolean;
   ogTitle: string | null;
@@ -197,6 +201,9 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
   return {
     ...toSummary(r),
     body: r.body,
+    authors: r.authors?.length ? r.authors : [r.author],
+    series: r.series,
+    seriesPart: r.seriesPart,
     createdAt: r.createdAt,
     published: r.published,
     ogTitle: r.ogTitle,
@@ -208,6 +215,16 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
     showUpdatedAt: r.showUpdatedAt,
     showPublishedAt: r.showPublishedAt,
   };
+}
+
+/** How many parts a series has: its highest part among published posts, or `part` if that is higher (a part published
+ *  before the ones it follows still reads "Part 3 of 3"). */
+export async function getSeriesLength(db: Db, series: string, part: number): Promise<number> {
+  const rows = await db
+    .select({ last: sql<number | null>`max(${blogPosts.seriesPart})` })
+    .from(blogPosts)
+    .where(and(eq(blogPosts.published, true), eq(blogPosts.series, series)));
+  return Math.max(rows[0]?.last ?? 0, part);
 }
 
 /** Where a renamed post's old slug now leads (blog_slug_redirects, written by

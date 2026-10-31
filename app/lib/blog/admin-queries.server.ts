@@ -4,10 +4,10 @@
 // The editor's list, version and related-post helpers went with it. The public
 // read path (queries.server.ts) is untouched.
 
-import { and, eq, ne, or } from "drizzle-orm";
+import { and, eq, inArray, ne, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { blogPostLinks, blogPostVersions, blogPosts, blogSlugRedirects } from "~/db";
+import { blogPostDrafts, blogPostLinks, blogPostLinksRemoved, blogPostVersions, blogPosts, blogSlugRedirects } from "~/db";
 
 import { estimateReadingTime, generateSlug } from "./format";
 
@@ -32,7 +32,9 @@ export interface CreatePostInput {
   slug: string;
   excerpt: string;
   body: string;
-  author: string;
+  authors: string[];
+  series?: string | null;
+  seriesPart?: number | null;
   tags: string[];
   featured: boolean;
   coverImageUrl?: string | null;
@@ -56,7 +58,10 @@ export async function createPost(db: Db, input: CreatePostInput): Promise<string
     title: input.title,
     excerpt: input.excerpt,
     body: input.body,
-    author: input.author,
+    author: byline(input.authors),
+    authors: input.authors,
+    series: input.series ?? null,
+    seriesPart: input.seriesPart ?? null,
     tags: input.tags,
     featured: input.featured,
     readingMinutes: estimateReadingTime(input.body),
@@ -78,11 +83,29 @@ export async function createPost(db: Db, input: CreatePostInput): Promise<string
   return id;
 }
 
+/** The authors as the byline reads them: "A", "A and B", "A, B and C". */
+export function byline(authors: string[]): string {
+  return authors.length < 2 ? (authors[0] ?? "") : `${authors.slice(0, -1).join(", ")} and ${authors.at(-1)}`;
+}
+
+/** Who made a change, what it was, and the whole post source before it (a revision). */
+export interface VersionNote {
+  savedBy: string;
+  message: string;
+  source: string;
+}
+
+function versionValues(row: typeof blogPosts.$inferSelect, note: VersionNote, at: Date, postId = row.id) {
+  return { id: crypto.randomUUID(), postId, title: row.title, body: row.body, excerpt: row.excerpt, savedAt: at, ...note };
+}
+
 export interface UpdatePostInput {
   title: string;
   excerpt: string;
   body: string;
-  author: string;
+  authors: string[];
+  series: string | null;
+  seriesPart: number | null;
   tags: string[];
   featured: boolean;
   coverImageUrl: string | null;
@@ -97,7 +120,7 @@ export interface UpdatePostInput {
   showPublishedAt: boolean;
 }
 
-/** Saves the PRE-edit state as a version snapshot, then applies the update.
+/** Saves the PRE-edit state as a version snapshot (`note.source`, every field), then applies the update.
  *  Every version is kept: site-api's contract (v0.17.0, "Revisions") has a
  *  site never prune one, so any publish can be undone; only a delete removes
  *  them. Plain operational writes (not a money write - content editing, no
@@ -105,7 +128,7 @@ export interface UpdatePostInput {
 export async function updatePostWithVersion(
   db: Db,
   postId: string,
-  savedBy: string,
+  note: VersionNote,
   input: UpdatePostInput,
 ): Promise<void> {
   const existingRows = await db.select().from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
@@ -113,15 +136,7 @@ export async function updatePostWithVersion(
   if (!existing) throw new Error("Post not found");
 
   const now = new Date();
-  await db.insert(blogPostVersions).values({
-    id: crypto.randomUUID(),
-    postId,
-    title: existing.title,
-    body: existing.body,
-    excerpt: existing.excerpt,
-    savedAt: now,
-    savedBy,
-  });
+  await db.insert(blogPostVersions).values(versionValues(existing, note, now));
 
   await db
     .update(blogPosts)
@@ -129,7 +144,10 @@ export async function updatePostWithVersion(
       title: input.title,
       excerpt: input.excerpt,
       body: input.body,
-      author: input.author,
+      author: byline(input.authors),
+      authors: input.authors,
+      series: input.series,
+      seriesPart: input.seriesPart,
       tags: input.tags,
       featured: input.featured,
       readingMinutes: estimateReadingTime(input.body),
@@ -151,26 +169,33 @@ export async function updatePostWithVersion(
 /** `firstPublishedAt` is the date a first publication records: now by default,
  *  the time it was scheduled for when a schedule publishes it. `publishedAt`,
  *  where given, is the date the post is published under whether or not it was
- *  live before (Carrel's settable publish date: a backdate or a re-date). */
+ *  live before (Carrel's settable publish date: a backdate or a re-date). The
+ *  state before it is kept as a revision, with `note`. */
 export async function setPublished(
   db: Db,
   postId: string,
   published: boolean,
+  note: VersionNote,
   { firstPublishedAt = new Date(), publishedAt }: { firstPublishedAt?: Date; publishedAt?: Date } = {},
 ): Promise<void> {
-  const rows = await db.select({ publishedAt: blogPosts.publishedAt }).from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
+  const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
   const current = rows[0];
-  await db
+  if (!current) throw new Error("Post not found");
+  const now = new Date();
+  await db.batch([
+    db.insert(blogPostVersions).values(versionValues(current, note, now)),
+    db
     .update(blogPosts)
     .set({
       published,
       // First publish stamps publishedAt; unpublishing never clears it (so a
       // later republish keeps its original publish date, matching how the
       // public blog's "showPublishedAt" toggle is meant to work).
-      publishedAt: publishedAt ?? (published && !current?.publishedAt ? firstPublishedAt : current?.publishedAt),
-      updatedAt: new Date(),
+      publishedAt: publishedAt ?? (published && !current.publishedAt ? firstPublishedAt : current.publishedAt),
+      updatedAt: now,
     })
-    .where(eq(blogPosts.id, postId));
+    .where(eq(blogPosts.id, postId)),
+  ]);
 }
 
 /** Into the trash (`trashedAt` set) or back out of it. Either way the post is
@@ -183,15 +208,43 @@ export async function setTrashed(db: Db, postId: string, trashed: boolean): Prom
     .where(eq(blogPosts.id, postId));
 }
 
-/** Deletes the post for good, with its versions, the further-reading links to
- *  and from it, and the redirects that led to it, as one batch. */
+/** Deletes the post for good, with its versions, its pending draft and the
+ *  redirects that led to it, as one batch. The further-reading links to and
+ *  from it leave blog_post_links, whose keys need both posts, for
+ *  blog_post_links_removed, with each end's slug and title, so they can be
+ *  listed after the post is gone. */
 export async function deletePost(db: Db, postId: string, slug: string): Promise<void> {
-  await db.batch([
-    db.delete(blogPostLinks).where(or(eq(blogPostLinks.sourceId, postId), eq(blogPostLinks.targetId, postId))),
+  const involves = or(eq(blogPostLinks.sourceId, postId), eq(blogPostLinks.targetId, postId));
+  const links = await db.select().from(blogPostLinks).where(involves);
+  const ids = [...new Set(links.flatMap((l) => [l.sourceId, l.targetId]))];
+  const ends = new Map(
+    (ids.length
+      ? await db.select({ id: blogPosts.id, slug: blogPosts.slug, title: blogPosts.title }).from(blogPosts).where(inArray(blogPosts.id, ids))
+      : []
+    ).map((p) => [p.id, p]),
+  );
+  const now = new Date();
+  const kept = links.map((l) => ({
+    id: crypto.randomUUID(),
+    sourceId: l.sourceId,
+    targetId: l.targetId,
+    sourceSlug: ends.get(l.sourceId)?.slug ?? null,
+    targetSlug: ends.get(l.targetId)?.slug ?? null,
+    sourceTitle: ends.get(l.sourceId)?.title ?? null,
+    targetTitle: ends.get(l.targetId)?.title ?? null,
+    position: l.position,
+    createdAt: l.createdAt,
+    removedAt: now,
+  }));
+  const deletes = [
+    db.delete(blogPostLinks).where(involves),
     db.delete(blogPostVersions).where(eq(blogPostVersions.postId, postId)),
+    db.delete(blogPostDrafts).where(eq(blogPostDrafts.postId, postId)),
     db.delete(blogSlugRedirects).where(eq(blogSlugRedirects.toSlug, slug)),
     db.delete(blogPosts).where(eq(blogPosts.id, postId)),
-  ]);
+  ] as const;
+  // The kept links go in first, in the same batch as the deletes.
+  await (kept.length ? db.batch([db.insert(blogPostLinksRemoved).values(kept), ...deletes]) : db.batch(deletes));
 }
 
 /**
@@ -207,12 +260,14 @@ export async function renamePost(
   db: Db,
   row: typeof blogPosts.$inferSelect,
   newId: string,
-  { redirect }: { redirect: boolean },
+  { redirect, note }: { redirect: boolean; note: VersionNote },
 ): Promise<void> {
   const now = new Date();
   const moved = [
     db.insert(blogPosts).values({ ...row, id: newId, slug: `rename:${newId}`, updatedAt: now }),
     db.update(blogPostVersions).set({ postId: newId }).where(eq(blogPostVersions.postId, row.id)),
+    db.insert(blogPostVersions).values(versionValues(row, note, now, newId)),
+    db.update(blogPostDrafts).set({ postId: newId }).where(eq(blogPostDrafts.postId, row.id)),
     db.update(blogPostLinks).set({ sourceId: newId }).where(eq(blogPostLinks.sourceId, row.id)),
     db.update(blogPostLinks).set({ targetId: newId }).where(eq(blogPostLinks.targetId, row.id)),
     db.delete(blogPosts).where(eq(blogPosts.id, row.id)),
@@ -232,4 +287,23 @@ export async function renamePost(
       .values({ fromSlug: row.slug, toSlug: newId, createdAt: now })
       .onConflictDoUpdate({ target: blogSlugRedirects.fromSlug, set: { toSlug: newId, createdAt: now } }),
   ]);
+}
+
+/** A live post's pending draft (blog_post_drafts), or null. */
+export async function getDraft(db: Db, postId: string): Promise<typeof blogPostDrafts.$inferSelect | null> {
+  const rows = await db.select().from(blogPostDrafts).where(eq(blogPostDrafts.postId, postId)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** Keeps a live post's draft apart from its live row, which the page goes on serving; a later save replaces it. */
+export async function putDraft(db: Db, postId: string, draft: { source: string; changeId: string; savedBy: string }): Promise<void> {
+  const values = { ...draft, savedAt: new Date() };
+  await db
+    .insert(blogPostDrafts)
+    .values({ postId, ...values })
+    .onConflictDoUpdate({ target: blogPostDrafts.postId, set: values });
+}
+
+export async function dropDraft(db: Db, postId: string): Promise<void> {
+  await db.delete(blogPostDrafts).where(eq(blogPostDrafts.postId, postId));
 }

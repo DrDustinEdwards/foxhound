@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
+
+/** The blog route's stand-in (workers/app.ts draws the real one): the preview row, noindex as the route's meta says. */
+const PAGE = async (post: { title: string }) => `<!doctype html><meta name="robots" content="noindex"><h1>${post.title}</h1>`;
 import { carrelMediaAdapter } from "~/lib/carrel/media-adapter.server";
 import { serializePostSource } from "~/lib/carrel/source";
 import { loader as mediaLoader } from "~/routes/files/media";
@@ -118,7 +121,7 @@ function setup() {
     AI: { run: async () => ({ response: '{"alt": "A bar chart of declines", "tags": ["chart", "declines"]}', usage: { prompt_tokens: 10, completion_tokens: 5 } }) },
   } as unknown as Env;
   const api = createSiteApi({
-    adapter: { ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite))), media: carrelMediaAdapter(env, db) },
+    adapter: { ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)), PAGE), media: carrelMediaAdapter(env, db) },
     key: KEY,
     limiter: { limit: async () => ({ success: true }) },
     log: () => {},
@@ -138,7 +141,7 @@ function setup() {
 let uploads = 0;
 
 const post = (body: string) =>
-  serializePostSource({ title: "Why cards fail", slug: "why-cards-fail", excerpt: "Reasons.", author: "Foxhound", tags: [], featured: false, body });
+  serializePostSource({ title: "Why cards fail", slug: "why-cards-fail", excerpt: "Reasons.", authors: ["Foxhound"], tags: [], featured: false, body });
 
 describe("the media library through Carrel's site-api mount", () => {
   it("passes site-api's conformance suite, its own upload round trip included", async () => {

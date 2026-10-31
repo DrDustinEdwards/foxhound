@@ -2,7 +2,6 @@ import {
   ContentTag,
   contentVersion,
   NotFoundError,
-  previewDocument,
   RefusedError,
   VersionConflictError,
   type ContentDoc,
@@ -12,27 +11,36 @@ import {
   type SiteAdapter,
   type WriteResult,
 } from "@dustinedwards/site-api";
-import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
+import { POST_FIELDS, SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { desc, eq } from "drizzle-orm";
 
-import { blogPostVersions, blogPosts, type Db } from "~/db";
+import { blogPostDrafts, blogPostVersions, blogPosts, type Db } from "~/db";
 import {
+  byline,
   createPost,
   deletePost,
+  dropDraft,
+  getDraft,
+  putDraft,
   renamePost,
   setPublished,
   setTrashed,
   uniqueSlugFromTitle,
   updatePostWithVersion,
+  type VersionNote,
 } from "~/lib/blog/admin-queries.server";
-import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { estimateReadingTime } from "~/lib/blog/format";
+import type { BlogPost } from "~/lib/blog/queries.server";
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
+
+/** Draws a post through the real /blog/<slug> route and root layout, in process (workers/app.ts), for a preview. */
+export type RenderPostPage = (post: BlogPost) => Promise<string>;
 
 // The Carrel site adapter over Foxhound's blog. Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
@@ -42,9 +50,18 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 // Version = the post's updated_at in epoch milliseconds, as a string, with a
 // hash of its schedule's time and change id added while one waits, so a
 // schedule, a reschedule and a cancel each move it. A historical revision is
-// "rev-<blog_post_versions.id>"; the table keeps the PRE-edit state of title,
-// excerpt and body only, so a revision's source takes its other fields from the
-// current post.
+// "rev-<blog_post_versions.id>": the post's whole source (every field) before an
+// edit, a publish, an unpublish or a rename, named by who made it ("Dustin
+// Edwards": every Carrel change is his until site-api passes the actor). Rows
+// from before migration 0070 kept title, excerpt and body only, so their source
+// takes its other fields from the current post.
+//
+// A LIVE POST'S DRAFT. A save on a published post never touches its row: the
+// source goes to blog_post_drafts, the page keeps serving the live row, and the
+// post reads back with the draft as its source and "live" among its revisions.
+// A publish applies it; an unpublish or a trash, which take the post off the
+// blog, write it into the row. The version carries the draft's hash, so a save
+// moves it.
 //
 // SCHEDULED PUBLISHING (site-api v0.10.0). One row per post in site-api's
 // scheduled_updates table (migration 0056, read and written only through the
@@ -82,7 +99,11 @@ const CARREL_SITE = {
 } as const;
 
 const KIND = "post";
-const DEFAULT_AUTHOR = "Foxhound";
+const DEFAULT_AUTHORS = ["Foxhound"];
+/** Who a revision names. Every change through Carrel is Dustin's until site-api's actor carries the person. */
+const EDITOR = "Dustin Edwards";
+/** The revision that is the live post, beside a pending draft. */
+const LIVE_REVISION = "live";
 /** A rename's new id is the post's new address, /blog/<id>. */
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const REVISION_PREFIX = "rev-";
@@ -92,6 +113,7 @@ const END_OF_TIME = new Date("9999-12-31T23:59:59.999Z");
 const ALL_ROWS = 10_000;
 
 type PostRow = typeof blogPosts.$inferSelect;
+type Draft = NonNullable<Awaited<ReturnType<typeof getDraft>>>;
 interface Pending {
   publishAt: string;
   changeId: string;
@@ -99,19 +121,24 @@ interface Pending {
 interface Post {
   row: PostRow;
   pending: Pending | null;
+  draft: Draft | null;
   version: string;
 }
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
-async function versionOf(row: PostRow, pending: Pending | null): Promise<string> {
+async function versionOf(row: PostRow, pending: Pending | null, draft: Draft | null = null): Promise<string> {
   // A post with search fields set carries their hash, so a source read before Carrel saw them is a conflict, not a
   // save that clears them.
   const search = [row.ogTitle, row.ogDescription, row.ogImageUrl, row.ogImageAlt, row.canonicalUrl, row.noindex];
-  const updated = String(row.updatedAt.getTime()) + (search.some(Boolean) ? `.s${(await contentVersion(search)).slice(0, 8)}` : "");
-  if (!pending) return updated;
-  return `${updated}.${(await contentVersion([pending.publishAt, pending.changeId])).slice(0, 16)}`;
+  let version = String(row.updatedAt.getTime()) + (search.some(Boolean) ? `.s${(await contentVersion(search)).slice(0, 8)}` : "");
+  if (draft) version += `.d${(await contentVersion([draft.changeId, draft.source])).slice(0, 12)}`;
+  if (!pending) return version;
+  return `${version}.${(await contentVersion([pending.publishAt, pending.changeId])).slice(0, 16)}`;
 }
+
+/** The post's authors; a row from before 0070's backfill has only `author`. */
+const authorsOf = (row: PostRow): string[] => (row.authors?.length ? row.authors : row.author.trim() ? [row.author] : []);
 
 function summary({ row, pending, version }: Post): ContentSummary {
   const scheduled = !row.published && pending !== null;
@@ -127,7 +154,7 @@ function summary({ row, pending, version }: Post): ContentSummary {
     version,
     // Only tags the contract can carry, so one odd tag never fails the list.
     tags: (row.tags ?? []).filter((t) => ContentTag.safeParse(t).success),
-    authors: row.author.trim() ? [row.author] : [],
+    authors: authorsOf(row),
     excerpt: row.excerpt.slice(0, 5000),
     trashedAt: iso(row.trashedAt),
     scheduledUpdate: row.published && pending ? { ...pending } : null,
@@ -151,7 +178,7 @@ function listed(row: PostRow, query: ListQuery): boolean {
     Boolean(row.trashedAt) === Boolean(query.trashed) &&
     (!query.kind || query.kind === KIND) &&
     (!query.tag || (row.tags ?? []).some((t) => t.toLowerCase() === query.tag!.toLowerCase())) &&
-    (!query.author || row.author === query.author) &&
+    (!query.author || authorsOf(row).includes(query.author)) &&
     (after === null || (at !== null && at >= after)) &&
     (before === null || (at !== null && at < before)) &&
     (!needle || [row.title, row.body, row.slug].some((t) => t.toLowerCase().includes(needle)))
@@ -163,7 +190,9 @@ function sourceOf(row: PostRow): PostSource {
     title: row.title,
     slug: row.slug,
     excerpt: row.excerpt,
-    author: row.author,
+    authors: authorsOf(row),
+    series: row.series,
+    seriesPart: row.seriesPart,
     tags: row.tags ?? [],
     featured: row.featured,
     searchTitle: row.ogTitle,
@@ -178,7 +207,7 @@ function sourceOf(row: PostRow): PostSource {
 
 function parse(source: string, options?: { preview?: boolean }): PostSource {
   try {
-    return parsePostSource(source, { author: DEFAULT_AUTHOR }, options);
+    return parsePostSource(source, { authors: DEFAULT_AUTHORS }, options);
   } catch (error) {
     if (error instanceof SourceError) throw new RefusedError(error.message);
     throw error;
@@ -196,15 +225,66 @@ function notTrashed(row: PostRow) {
   if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
 }
 
-/** `stylesheets` are the root route's, for the preview; the cron passes none. */
-export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets: string[] = []): SiteAdapter {
+/** A revision of the row as it is now, before the change `message` names. */
+const noteOf = (row: PostRow, message: string): VersionNote => ({
+  savedBy: EDITOR,
+  message,
+  source: serializePostSource(sourceOf(row)),
+});
+
+/** The row the blog route renders for a preview: the source's fields over the stored post, if there is one. Never indexed. */
+function previewPost(post: PostSource, row: PostRow | null): BlogPost {
+  return {
+    id: row?.id ?? "carrel-preview",
+    slug: row?.slug ?? post.slug ?? "carrel-preview",
+    title: post.title,
+    excerpt: post.excerpt,
+    coverImageUrl: row?.coverImageUrl ?? null,
+    coverImageAlt: row?.coverImageAlt ?? null,
+    publishedAt: row?.publishedAt ?? null,
+    updatedAt: row?.updatedAt ?? null,
+    author: byline(post.authors),
+    authors: post.authors,
+    series: post.series ?? null,
+    seriesPart: post.seriesPart ?? null,
+    tags: post.tags,
+    featured: post.featured,
+    readingTimeMinutes: estimateReadingTime(post.body),
+    body: post.body,
+    createdAt: row?.createdAt ?? new Date(),
+    published: true,
+    ogTitle: post.searchTitle ?? null,
+    ogDescription: post.description ?? null,
+    canonicalUrl: post.canonical ?? null,
+    ogImageUrl: post.image ?? null,
+    ogImageAlt: post.imageAlt ?? null,
+    noindex: true,
+    showUpdatedAt: row?.showUpdatedAt ?? true,
+    showPublishedAt: row?.showPublishedAt ?? true,
+  };
+}
+
+/** `renderPage` draws a preview through the blog route; the cron passes none, and draws none. */
+export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, renderPage?: RenderPostPage): SiteAdapter {
   async function load(id: string): Promise<Post | null> {
     const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
     const row = rows[0];
     if (!row) return null;
     const waiting = await schedules.get(id);
     const pending = waiting ? { publishAt: waiting.publishAt, changeId: waiting.changeId } : null;
-    return { row, pending, version: await versionOf(row, pending) };
+    const draft = row.published ? await getDraft(db, id) : null;
+    return { row, pending, draft, version: await versionOf(row, pending, draft) };
+  }
+
+  /** The source Carrel edits: a live post's pending draft, else the row. */
+  const sourceNow = ({ row, draft }: Post) => draft?.source ?? serializePostSource(sourceOf(row));
+
+  /** A post just taken off the blog with a draft waiting: the draft becomes its row, as a draft post has no other. */
+  async function settleDraft(id: string, draft: Draft | null) {
+    if (!draft) return;
+    const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
+    if (rows[0]) await writeSource(rows[0], { ...parse(draft.source), slug: null });
+    await dropDraft(db, id);
   }
 
   async function mustMatch(id: string, expectedVersion: string): Promise<Post> {
@@ -245,7 +325,9 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         slug,
         excerpt: post.excerpt,
         body: post.body,
-        author: post.author,
+        authors: post.authors,
+        series: post.series,
+        seriesPart: post.seriesPart,
         tags: post.tags,
         featured: post.featured,
         ogTitle: post.searchTitle,
@@ -258,16 +340,22 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       return;
     }
     const { row: current } = await mustMatch(id, expectedVersion);
-    await writeSource(current, parse(source), changeId);
+    const post = parse(source);
+    if (!current.published) return writeSource(current, post);
+    // A live post's draft stays apart until a publish (B3): its page is unchanged.
+    keepSlug(post, current);
+    await putDraft(db, id, { source, changeId, savedBy: EDITOR });
   }
 
-  async function writeSource(current: PostRow, post: PostSource, changeId: string) {
+  async function writeSource(current: PostRow, post: PostSource, message = "edited") {
     keepSlug(post, current);
-    await updatePostWithVersion(db, current.id, `carrel:${changeId}`, {
+    await updatePostWithVersion(db, current.id, noteOf(current, message), {
       title: post.title,
       excerpt: post.excerpt,
       body: post.body,
-      author: post.author,
+      authors: post.authors,
+      series: post.series ?? null,
+      seriesPart: post.seriesPart ?? null,
       tags: post.tags,
       featured: post.featured,
       coverImageUrl: current.coverImageUrl,
@@ -295,7 +383,8 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
 
     content: {
       filters: ["kind", "tag", "author", "published"],
-      postFields: ["excerpt"],
+      // The page renders each: the excerpt under the title, the authors in the byline, "Part n of m" for a series.
+      postFields: [...POST_FIELDS],
       publishedAtSettable: true,
       // The blog post head renders all of them. With no share image the card is the cover, else the generated card.
       searchFields: SEARCH_FIELDS,
@@ -312,15 +401,16 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         const waiting = new Map(
           (await schedules.due(END_OF_TIME, ALL_ROWS)).map((d) => [d.id, { publishAt: d.publishAt, changeId: d.changeId }]),
         );
+        const drafts = new Map((await db.select().from(blogPostDrafts)).map((d) => [d.postId, d]));
         // The status is the row's and its schedule's, so it filters before the page is cut.
         const matching = rows
-          .map((row) => ({ row, pending: waiting.get(row.id) ?? null }))
-          .filter(({ row, pending }) => !query.status || summary({ row, pending, version: "" }).status === query.status);
+          .map((row) => ({ row, pending: waiting.get(row.id) ?? null, draft: row.published ? (drafts.get(row.id) ?? null) : null }))
+          .filter((post) => !query.status || summary({ ...post, version: "" }).status === query.status);
         const start = Number.parseInt(query.cursor ?? "0", 10) || 0;
         const items = await Promise.all(
           matching
             .slice(start, start + query.limit)
-            .map(async ({ row, pending }) => summary({ row, pending, version: await versionOf(row, pending) })),
+            .map(async (post) => summary({ ...post, version: await versionOf(post.row, post.pending, post.draft) })),
         );
         const next = start + query.limit;
         return {
@@ -337,7 +427,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         return {
           ...summary(post),
           format: "markdown",
-          source: serializePostSource(sourceOf(post.row)),
+          source: sourceNow(post),
           version: post.version,
         };
       },
@@ -351,13 +441,16 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       },
 
       async publish(id, input) {
-        notTrashed((await mustMatch(id, input.expectedVersion)).row);
-        if (input.source !== undefined) {
-          await save(id, input.source, input.expectedVersion, input.changeId);
-        }
+        const { row, draft } = await mustMatch(id, input.expectedVersion);
+        notTrashed(row);
+        // What goes live: the source sent, else a live post's pending draft, else the row as it is.
+        const source = input.source ?? draft?.source;
+        if (source !== undefined) await writeSource(row, parse(source));
+        await dropDraft(db, id);
         // What goes live is this publish, so a waiting schedule is dropped.
         await schedules.remove(id).run();
-        await setPublished(db, id, true, input.publishedAt ? { publishedAt: new Date(input.publishedAt) } : {});
+        const fresh = (await load(id))!.row;
+        await setPublished(db, id, true, noteOf(fresh, "published"), input.publishedAt ? { publishedAt: new Date(input.publishedAt) } : {});
         return writeResult(id, input.changeId);
       },
 
@@ -367,31 +460,38 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         const { row } = await mustMatch(id, input.expectedVersion);
         notTrashed(row);
         await putSchedule(row, input.source ?? serializePostSource(sourceOf(row)), input.publishAt, input.changeId);
-        if (input.source !== undefined) await writeSource(row, parse(input.source), input.changeId);
+        if (input.source !== undefined) await writeSource(row, parse(input.source));
         return writeResult(id, input.changeId);
       },
 
       async unpublish(id, input) {
-        await mustMatch(id, input.expectedVersion);
+        const { row, draft } = await mustMatch(id, input.expectedVersion);
         await schedules.remove(id).run();
-        await setPublished(db, id, false);
+        await setPublished(db, id, false, noteOf(row, "unpublished"));
+        await settleDraft(id, draft);
         return writeResult(id, input.changeId);
       },
 
-      // The tags field of the post's source, written alone. A live post's page changes with it.
+      // The tags field of the post's source, written alone. A live post's page changes with it, and its pending
+      // draft takes the same tags.
       async setTags(id, input) {
-        const { row } = await held(id, input.expectedVersion);
-        await writeSource(row, { ...sourceOf(row), tags: input.tags }, input.changeId);
+        const { row, draft } = await held(id, input.expectedVersion);
+        await writeSource(row, { ...sourceOf(row), tags: input.tags });
+        if (draft) {
+          const source = serializePostSource({ ...parse(draft.source), tags: input.tags });
+          await putDraft(db, id, { source, changeId: input.changeId, savedBy: EDITOR });
+        }
         return writeResult(id, input.changeId);
       },
 
       // A live post leaves the blog as it goes in, and a waiting schedule goes
       // with it (apply also skips a trashed post, should the drop fail).
       async trash(id, input) {
-        const { row } = await held(id, input.expectedVersion);
+        const { row, draft } = await held(id, input.expectedVersion);
         notTrashed(row);
         await schedules.remove(id).run();
         await setTrashed(db, id, true);
+        await settleDraft(id, draft);
         return writeResult(id, input.changeId);
       },
 
@@ -412,7 +512,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       },
 
       async rename(id, input) {
-        const { row, pending } = await held(id, input.expectedVersion);
+        const { row, pending, draft } = await held(id, input.expectedVersion);
         const { newId } = input;
         if (!SLUG.test(newId)) {
           throw new RefusedError("A post's id is its address, /blog/<id>: lower case letters and digits, joined by single hyphens.");
@@ -424,7 +524,12 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         const taken = await db.select({ id: blogPosts.id }).from(blogPosts).where(eq(blogPosts.slug, newId)).limit(1);
         if ((await load(newId)) || (taken[0] && taken[0].id !== id)) throw new RefusedError(`${newId} is already taken.`);
         const previousPath = row.publishedAt && row.slug !== newId ? `/blog/${row.slug}` : null;
-        await renamePost(db, row, newId, { redirect: previousPath !== null });
+        await renamePost(db, row, newId, { redirect: previousPath !== null, note: noteOf(row, `renamed from /blog/${row.slug}`) });
+        // A pending draft names the old slug, which is no longer the post's.
+        if (draft) {
+          const source = serializePostSource({ ...parse(draft.source), slug: newId });
+          await putDraft(db, newId, { source, changeId: input.changeId, savedBy: EDITOR });
+        }
         // The waiting schedule moves with it. A preview link names the old id,
         // so it stops working, as the address it showed has.
         const waiting = pending ? await schedules.get(id) : null;
@@ -444,13 +549,18 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
           .from(blogPostVersions)
           .where(eq(blogPostVersions.postId, id))
           .orderBy(desc(blogPostVersions.savedAt));
+        const { draft } = post;
         return [
-          { version: post.version, at: row.updatedAt.toISOString(), author: row.author, message: "current" },
+          draft
+            ? { version: post.version, at: draft.savedAt.toISOString(), author: draft.savedBy ?? EDITOR, message: "draft of the live post, not yet published" }
+            : { version: post.version, at: row.updatedAt.toISOString(), author: EDITOR, message: "current" },
+          ...(draft ? [{ version: LIVE_REVISION, at: row.updatedAt.toISOString(), author: EDITOR, message: "the live post" }] : []),
           ...versions.map((v) => ({
             version: `${REVISION_PREFIX}${v.id}`,
             at: v.savedAt.toISOString(),
-            author: v.savedBy ?? "unknown",
-            message: "content before the edit made at this time",
+            // Rows from before 0070 name the change id ("carrel:<id>"); every one was Dustin's.
+            author: !v.savedBy || v.savedBy.startsWith("carrel:") ? EDITOR : v.savedBy,
+            message: `the post before it was ${v.message ?? "edited"}`,
           })),
         ];
       },
@@ -458,7 +568,8 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       async revisionSource(id, version) {
         const post = await load(id);
         if (!post) return null;
-        if (version === post.version) return serializePostSource(sourceOf(post.row));
+        if (version === post.version) return sourceNow(post);
+        if (version === LIVE_REVISION && post.draft) return serializePostSource(sourceOf(post.row));
         if (!version.startsWith(REVISION_PREFIX)) return null;
         const rows = await db
           .select()
@@ -467,6 +578,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
           .limit(1);
         const old = rows[0];
         if (!old || old.postId !== id) return null;
+        if (old.source) return old.source;
         return serializePostSource({
           ...sourceOf(post.row),
           title: old.title,
@@ -527,11 +639,11 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
         if (input.kind === "update") {
           if (!post.row.published) return null;
           // The post's own slug: the update's source cannot move it.
-          await writeSource(post.row, { ...parse(waiting.source), slug: null }, input.changeId);
+          await writeSource(post.row, { ...parse(waiting.source), slug: null });
         } else {
           if (post.row.published) return null;
           // A first publication records the time it was scheduled for.
-          await setPublished(db, id, true, { firstPublishedAt: new Date(waiting.publishAt) });
+          await setPublished(db, id, true, noteOf(post.row, "published"), { firstPublishedAt: new Date(waiting.publishAt) });
         }
         await schedules.remove(id, { publishAt: waiting.publishAt, changeId: waiting.changeId }).run();
         return writeResult(id, input.changeId);
@@ -540,20 +652,17 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
 
     renderVersion: RENDER_VERSION,
 
-    // The body as /blog/<slug> renders it, in the site's own stylesheets: an
-    // unsaved source has no row for the route to load.
+    // The page /blog/<slug> would be, drawn by the blog route itself with the
+    // marketing header, footer and byline (renderPage, workers/app.ts), over a
+    // row built from the source: an unsaved source has no row for the route to
+    // load. The row says noindex, so the page's robots meta does; site-api's
+    // preview responses are private, no-store and x-robots-tag noindex.
     preview: {
       async render(input) {
+        if (!renderPage) throw new Error("A preview is drawn only on a request, which gives the adapter the page renderer.");
         const post = parse(input.source, { preview: true });
-        const { html } = await renderMarkdown(db, post.body);
-        const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
-        return previewDocument({
-          title: post.title,
-          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${esc(post.title)}</h1><div class="blog-prose e-content">${html}</div></article></main>`,
-          origin: SITE_ORIGIN,
-          stylesheets,
-          attributes: { "data-theme": "light" },
-        });
+        const row = input.id ? ((await load(input.id))?.row ?? null) : null;
+        return renderPage(previewPost(post, row));
       },
     },
   };

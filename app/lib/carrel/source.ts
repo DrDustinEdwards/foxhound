@@ -8,7 +8,9 @@
 //   title: "Why cards fail"
 //   slug: "why-cards-fail"
 //   excerpt: "..."
-//   author: "Dustin Edwards"
+//   authors: ["Dustin Edwards"]
+//   series: "Recovery basics"
+//   seriesPart: 2
 //   tags: ["billing", "recovery"]
 //   featured: false
 //   searchTitle: "Why cards fail, and what to do"
@@ -17,6 +19,8 @@
 //
 // The search fields carry site-api's shared names over the blog_posts columns: searchTitle is og_title, description
 // is og_description, canonical is canonical_url, noindex is noindex. A blank one is left out and clears its column.
+// So do the post fields (site-api's POST_FIELDS): authors, series and seriesPart. A source written before authors
+// carries the one name under `author`, which is still read (never written).
 
 import { jsonSource, JsonSourceError } from "@dustinedwards/site-api/frontmatter";
 
@@ -24,7 +28,9 @@ export interface PostSource {
   title: string;
   slug: string | null;
   excerpt: string;
-  author: string;
+  authors: string[];
+  series?: string | null;
+  seriesPart?: number | null;
   tags: string[];
   featured: boolean;
   searchTitle?: string | null;
@@ -42,6 +48,10 @@ const FIELDS = {
   title: "text",
   slug: "text",
   excerpt: "text",
+  authors: "list",
+  series: "text",
+  seriesPart: "text",
+  /** The key before authors: read, never written. */
   author: "text",
   tags: "list",
   featured: "flag",
@@ -56,11 +66,14 @@ const SOURCE = jsonSource(FIELDS, { required: ["title"] });
 /** A preview reads a draft that may have no title, or no front matter at all, yet. */
 const PREVIEW_SOURCE = jsonSource(FIELDS);
 
-export function serializePostSource({ body, slug, searchTitle, description, canonical, image, imageAlt, noindex, ...post }: PostSource): string {
+export function serializePostSource({ body, slug, series, seriesPart, searchTitle, description, canonical, image, imageAlt, noindex, ...post }: PostSource): string {
   return SOURCE.write(
     {
       ...post,
       slug: slug || undefined,
+      series: series || undefined,
+      // A number in the source, as site-api's setPostFields writes it; the reader takes either.
+      seriesPart: (seriesPart ?? undefined) as unknown as string | undefined,
       searchTitle: searchTitle || undefined,
       description: description || undefined,
       canonical: canonical || undefined,
@@ -72,14 +85,25 @@ export function serializePostSource({ body, slug, searchTitle, description, cano
   );
 }
 
-/** With `preview`, a missing title reads as "Untitled"; a save still refuses a source without one. */
-export function parsePostSource(source: string, defaults: { author: string }, { preview = false } = {}): PostSource {
+function partOf(raw: string | null | undefined): number | null {
+  if (raw === undefined || raw === null || raw.trim() === "") return null;
+  const part = Number(raw);
+  if (!Number.isInteger(part) || part < 1) throw new JsonSourceError(["seriesPart must be a whole number, 1 or more."]);
+  return part;
+}
+
+/** With `preview`, a missing title reads as "Untitled"; a save still refuses a source without one. No authors (and no
+ *  older `author`) reads as `defaults.authors`. */
+export function parsePostSource(source: string, defaults: { authors: string[] }, { preview = false } = {}): PostSource {
   const { values: v, body } = (preview ? PREVIEW_SOURCE : SOURCE).read(source);
+  const authors = v.authors ?? (v.author?.trim() ? [v.author.trim()] : []);
   return {
     title: v.title?.trim() ? v.title : preview ? "Untitled" : "",
     slug: v.slug ?? null,
     excerpt: v.excerpt ?? "",
-    author: v.author ?? defaults.author,
+    authors: authors.length ? authors : defaults.authors,
+    series: v.series?.trim() || null,
+    seriesPart: partOf(v.seriesPart),
     tags: v.tags ?? [],
     featured: v.featured ?? false,
     searchTitle: v.searchTitle?.trim() || null,
