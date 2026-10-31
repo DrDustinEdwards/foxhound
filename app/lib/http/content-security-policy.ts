@@ -8,7 +8,7 @@
 //  - script-src carries a per-request nonce: React Router's <Scripts> and
 //    <ScrollRestoration> emit real inline module scripts, which a policy with
 //    no nonce blocks (and with them every client handler). JSON-LD blocks are
-//    data and need none. Violations go to the report sink (/api/csp-report);
+//    data and need none. Violations go to the report sink (/csp-report);
 //    a CDP console capture does not show them.
 //  - A public page from the Renderer entrypoint is stored at the edge
 //    (site-runtime ./edge-cache) with the nonce it was rendered with, and the
@@ -41,17 +41,21 @@
 //  - frame-src is Turnstile (sources.frame; the builder adds 'self').
 
 import { applyHeaderSet } from "@dustinedwards/site-runtime/headers";
-import { buildContentSecurityPolicy, reportingEndpoints } from "@dustinedwards/site-runtime/csp";
+import {
+  buildContentSecurityPolicy,
+  buildStagedPolicy,
+  CSP_REPORT_GROUP,
+  CSP_REPORT_PATH,
+  reportingEndpoints,
+} from "@dustinedwards/site-runtime/csp";
 import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 
 import { SECURITY_HEADERS } from "./header-set";
 import { INLINE_STYLE_HASHES } from "./inline-styles";
 
-/** Where browsers send violation reports: the path Recova used too. */
-export const CSP_REPORT_PATH = "/api/csp-report";
-
-/** The Reporting API group name, defined by the Reporting-Endpoints header. */
-const CSP_REPORT_GROUP = "csp-endpoint";
+// Reports go to the family's path and group (site-runtime's CSP_REPORT_PATH, /csp-report, and CSP_REPORT_GROUP),
+// the builder's defaults and what the check expects.
+export { CSP_REPORT_PATH };
 
 // BUILT AND VALIDATED ONCE, at module load, with a placeholder nonce; only the
 // nonce is swapped per request. Every check the builder makes (sources, hashes,
@@ -70,17 +74,22 @@ const SITE = {
   styleHashes: INLINE_STYLE_HASHES,
   styleAttributesInline: true,
   cloudflareWebAnalytics: true,
-  reportUri: CSP_REPORT_PATH,
-  reportTo: CSP_REPORT_GROUP,
   // Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
   formTargets: ["https://checkout.stripe.com", "https://connect.stripe.com"],
 } as const;
 const POLICY = buildContentSecurityPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER });
 const POLICY_PARTS = POLICY.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
+// What the registry entry stages (Trusted Types, default-src 'none'), Report-Only beside the enforced policy until the
+// reports are quiet; renewNonce renews its nonce with the other's.
+const STAGED = buildStagedPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER }, { trustedTypes: true, denyUnlisted: true });
+const STAGED_PARTS = STAGED.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
-/** The policy for one response, carrying that request's nonce. */
-function contentSecurityPolicy(nonce: string) {
-  return { name: POLICY.name, value: POLICY_PARTS.join(`'nonce-${nonce}'`) };
+/** The policy and its Report-Only stage for one response, each carrying that request's nonce. */
+function contentSecurityPolicies(nonce: string) {
+  return [
+    { name: POLICY.name, value: POLICY_PARTS.join(`'nonce-${nonce}'`) },
+    { name: STAGED.name, value: STAGED_PARTS.join(`'nonce-${nonce}'`) },
+  ];
 }
 
 /**
@@ -98,14 +107,14 @@ function contentSecurityPolicy(nonce: string) {
  * the header named the bare path and no report-to report was ever sent).
  */
 export function applySecurityHeaders(response: Response, nonce: string, origin: string): Response {
-  return withHeaders(response, contentSecurityPolicy(nonce), origin);
+  return withHeaders(response, contentSecurityPolicies(nonce), origin);
 }
 
-function withHeaders(response: Response, policy: { name: string; value: string }, origin: string): Response {
+function withHeaders(response: Response, policies: { name: string; value: string }[], origin: string): Response {
   const headers = new Headers(response.headers);
   applyHeaderSet(headers, SECURITY_HEADERS, { overwrite: false });
   if (!headers.has("Content-Security-Policy")) {
-    headers.set(policy.name, policy.value);
+    for (const { name, value } of policies) headers.set(name, value);
     try {
       headers.set("Reporting-Endpoints", reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)));
     } catch {
