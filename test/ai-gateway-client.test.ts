@@ -11,27 +11,14 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => db,
 }));
 
-const { createAnthropicClient } = await import("~/lib/ai/client");
+const { askModel } = await import("~/lib/ai/client");
 
-// SESSION 54 / 346: AI Gateway in front of the Anthropic calls.
-//
-// Where the calls go (gateway or direct, the token, body logging off) is
-// site-runtime's anthropicRoute and is tested there, once. What these plants
-// defend is that the decision stays in one place here too: four call sites
-// each built their own client, and four copies of a routing decision is four
-// chances to get it wrong.
-
-describe("the factory", () => {
-  it("refuses to build a client with no key, as every call site did before", () => {
-    expect(() => createAnthropicClient({} as unknown as Env, { source: "test", accountId: null })).toThrow(
-      "ANTHROPIC_API_KEY",
-    );
-  });
-});
-
-// Every model call costs money, so every one leaves an ai_calls row: the
-// factory meters the client it hands out, so a call site cannot forget to.
-describe("the factory meters every call", () => {
+// Where the calls go, the retry layer and the stop reasons are site-runtime's
+// ./anthropic and are tested there, once. What this plant defends is Foxhound's
+// meter: every model call costs money, so every one leaves an ai_calls row, and
+// the row is written before the call returns, so a Worker that answers at once
+// cannot drop it.
+describe("every call is metered", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("writes one ai_calls row per call with the call's tokens, source and cost", async () => {
@@ -50,12 +37,13 @@ describe("the factory meters every call", () => {
         }),
       ),
     );
-    const client = createAnthropicClient({ ANTHROPIC_API_KEY: "sk-test" } as unknown as Env, {
-      source: "recovery_email",
-      accountId: null,
-      relatedId: "fp_1",
-    });
-    await client.messages.create({ model: "claude-sonnet-5", max_tokens: 10, messages: [{ role: "user", content: "x" }] });
+    const result = await askModel(
+      { ANTHROPIC_API_KEY: "sk-test" } as unknown as Env,
+      { source: "recovery_email", accountId: null, relatedId: "fp_1" },
+      { model: "claude-sonnet-5", max_tokens: 10, messages: [{ role: "user", content: "x" }] },
+      { log: false },
+    );
+    expect(result.ok).toBe(true);
 
     const rows = await db.select().from(aiCalls).where(eq(aiCalls.relatedId, "fp_1"));
     expect(rows).toHaveLength(1);
@@ -69,4 +57,3 @@ describe("the factory meters every call", () => {
     });
   });
 });
-

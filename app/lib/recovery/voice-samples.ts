@@ -8,8 +8,8 @@
 // NULL when there are none. Read leniently: anything that is not an array of
 // strings reads as no samples, so a bad row costs the voice, never a send.
 
+import { untrusted } from "@dustinedwards/site-runtime/anthropic";
 import { copiedRuns } from "@dustinedwards/site-runtime/prose";
-import { untrusted } from "~/lib/ai/untrusted";
 import { hrefsIn } from "~/lib/recovery/update-link";
 
 /** The form's five boxes. Two or three is plenty; five is the most a prompt carries. */
@@ -60,7 +60,7 @@ export function voiceSampleLines(samples: readonly string[]): string[] {
   return [
     "Emails this business has written itself. Match how they read: their length, greeting, sign-off,",
     "contractions and sentence rhythm. Never copy their facts, offers, names or links.",
-    ...samples.map((s, i) => `Sample ${i + 1}: ${untrusted(s)}`),
+    ...samples.map((s, i) => `Sample ${i + 1}: ${untrusted("voice_sample", s)}`),
   ];
 }
 

@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
+import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,7 +59,7 @@ const URL_FIXTURE = `${BASE}/api/auth/magic-link/verify?token=${TOKEN}&callbackU
 const CODE = "000000";
 
 function expectedRender(to: string, url: string, code: string) {
-  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, code, expiresIn: "15 minutes" });
+  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, code, expiresIn: SIGN_IN_EXPIRES_IN_WORDS });
 }
 
 let sqlite: Database.Database;

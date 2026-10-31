@@ -1,6 +1,7 @@
-import { createAnthropicClient, type AiCallMeter } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
+
+import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
 import { PLAIN_WRITING_LINES, findStockPhrasing, ownPhrasing, retryStockPhrasing } from "~/lib/ai/plain-writing";
-import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import { strayContent, voiceSampleLines } from "./voice-samples";
@@ -187,15 +188,13 @@ export async function applyTimingWordGuard(
  * the sentence the cut leaves behind.
  */
 export function readGeneratedCopy(
-  response: { content: { type: string; text?: string }[] },
+  result: Awaited<ReturnType<typeof askStructured<{ subject: string; bodyHtml: string }>>>,
   label: string,
 ): EmailCopy {
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || typeof textBlock.text !== "string") {
-    throw new Error(`${label} generation returned no text block`);
-  }
-  const parsed = JSON.parse(textBlock.text) as { subject: string; bodyHtml: string };
-  return { subject: parsed.subject.trim(), bodyHtml: parsed.bodyHtml.trim() };
+  // A failed call (refused, cut off, unparsable, unreachable) throws, and the
+  // caller sends the template. The kind is safe to log; the provider's text never reaches here.
+  if (!result.ok) throw new Error(`${label} generation failed: ${result.kind}`);
+  return { subject: String(result.value.subject ?? "").trim(), bodyHtml: String(result.value.bodyHtml ?? "").trim() };
 }
 
 /**
@@ -462,7 +461,7 @@ const OUTPUT_SCHEMA = {
 function buildSystemPrompt(brandVoice: string, samples: readonly string[]): string {
   return [
     "You write short payment-recovery emails on behalf of a business, in that",
-    `business's own voice: ${untrusted(brandVoice)}.`,
+    `business's own voice: ${untrusted("brand_voice", brandVoice)}.`,
     ...voiceSampleLines(samples),
     UNTRUSTED_DATA_RULE,
     "Rules you must follow exactly:",
@@ -512,8 +511,8 @@ export function buildUserPrompt(input: GenerateEmailInput): string {
   // three columns reach nothing.
   const merchantContext = merchantContextLine(input.merchant);
   return [
-    `Business: ${untrusted(input.merchant.merchantName)}`,
-    merchantContext ? untrusted(merchantContext) : "",
+    `Business: ${untrusted("business_name", input.merchant.merchantName)}`,
+    merchantContext ? untrusted("business_context", merchantContext) : "",
     `A customer's payment of ${input.amountFormatted} did not go through`,
     `(reason category: ${input.declineCategory}).`,
     guidance ?? `Write a brief note asking them to fix it using this link: ${input.updateUrl}`,
@@ -559,24 +558,26 @@ export async function generateDunningEmail(
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const client = createAnthropicClient(env, meter);
   const prompts = buildPrompts(input);
 
-  // One call shape for the first call and the timing-word retry: the retry is
-  // the same system and user prompt with legacy's instruction appended.
+  // One call shape for the first call and the rewrites: a rewrite is the same
+  // system and user prompt with its instruction appended, and one attempt.
   const call = async (instruction = ""): Promise<EmailCopy> => {
-    const response = await client.messages.create({
-      model: MODEL_RECOVERY_EMAIL,
-      max_tokens: 2000,
-      thinking: { type: "disabled" },
-      output_config: {
-        effort: "low",
-        format: { type: "json_schema", schema: OUTPUT_SCHEMA },
+    const result = await askStructured<{ subject: string; bodyHtml: string }>(
+      env,
+      meter,
+      {
+        model: MODEL_RECOVERY_EMAIL,
+        max_tokens: 2000,
+        thinking: { type: "disabled" },
+        output_config: { effort: "low" },
+        system: prompts.system,
+        messages: [{ role: "user", content: prompts.user + instruction }],
       },
-      system: prompts.system,
-      messages: [{ role: "user", content: prompts.user + instruction }],
-    });
-    return readGeneratedCopy(response, "recovery email");
+      OUTPUT_SCHEMA,
+      instruction ? REWRITE : {},
+    );
+    return readGeneratedCopy(result, "recovery email");
   };
 
   // Stock phrasing first, then job J01, layers 3 and 4 (legacy
