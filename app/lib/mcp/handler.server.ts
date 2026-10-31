@@ -1,3 +1,4 @@
+import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { mcpOriginRefusal, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
 import { getDb } from "~/db";
@@ -140,10 +141,12 @@ async function authenticate(
       RATE_LIMIT_MCP_ANON.max,
       RATE_LIMIT_MCP_ANON.windowMs,
     );
-    // Debug level: a refused connect is expected traffic on a public endpoint.
     // The reason is logged, never returned, so the response stays byte-stable.
-    console.debug("mcp auth refused:", reason);
+    // OWASP's names (site-runtime ./log), at log level: a refused connect is
+    // expected traffic on a public endpoint.
+    logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), door: "mcp", reason });
     if (!allowed) {
+      logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), door: "mcp", bucket: "mcp-anon" }, { level: "warn" });
       return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
     }
     return unauthorized(new URL(request.url).origin);
@@ -233,6 +236,7 @@ export async function handleMcpRequest(
     RATE_LIMIT_MCP.windowMs,
   );
   if (!within) {
+    logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), door: "mcp", bucket: "mcp" }, { level: "warn" });
     return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
   }
 

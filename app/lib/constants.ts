@@ -706,7 +706,8 @@ export const RETENTION_HEALTH_SCORE_DAYS = 90;
 export const RETENTION_CRON_HISTORY_DAYS = 90;
 export const RETENTION_AI_CALLS_DAYS = 90;
 export const RETENTION_SOCIAL_LEADS_DAYS = 180;
-export const RETENTION_PAGE_404_DAILY_DAYS = 365;
+/** The 404 counts: 90 days, the family default (pruneNotFound's own), which the admin report's 30-day view sits well inside. */
+export const RETENTION_PAGE_404_DAILY_DAYS = 90;
 /** Max raw rows a single retention tick sweeps per table (keeps a tick bounded;
  *  a large backlog drains over successive ticks). */
 export const RETENTION_SWEEP_LIMIT = 5_000;

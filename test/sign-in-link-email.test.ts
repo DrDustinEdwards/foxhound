@@ -8,6 +8,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // J82, parity row E1, now the sign-in link (the family sign-in has no
 // passwords, so the reset mail is gone; APPROVED-DIFFERENCES, "Sign-in and
@@ -70,6 +71,12 @@ function makeEnv(email: unknown = { send: async (m: SentMessage) => (sent.push(m
   return {
     BETTER_AUTH_URL: BASE,
     BETTER_AUTH_SECRET: "test-secret-not-real-0123456789abcdef",
+    // site-runtime's sign-in fails closed without both Turnstile keys, as production has them. Cloudflare's
+    // always-pass test keys; siteverify itself is stubbed below.
+    TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+    TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+    // The per-address code limiter refuses without its Durable Object (site-runtime 0.51).
+    AUTH_RATE_LIMITER: makeRateLimiterNamespace(),
     DB: {},
     EMAIL: email,
   } as unknown as Env;
@@ -93,17 +100,24 @@ beforeEach(() => {
   harness.db = db;
   harness.renderThrows = false;
   sent = [];
+  const realFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input instanceof Request ? input.url : input).startsWith("https://challenges.cloudflare.com/")
+      ? Promise.resolve(Response.json({ success: true }))
+      : realFetch(input, init),
+  );
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 /** What /login sends: the page's own path to Better Auth's handler. */
 function ask(env: Env, email = TO) {
   return requestSignInLink(env, new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }), {
     email,
-    captchaToken: "",
+    captchaToken: "XXXX.DUMMY.TOKEN.XXXX",
     next: "/console",
     newUserNext: "/console",
   });
@@ -282,17 +296,18 @@ describe("the code in the same mail signs in the tab that asked", () => {
     expect((await typeCode(env, code)).status).not.toBe("signed_in");
   });
 
-  it("a wrong code counts; after three the code is spent, and the link still works", async () => {
+  it("a wrong code counts; after three the address is held, and the link still works", async () => {
     const env = makeEnv();
     await ask(env);
     const code = codeIn(sent[0]);
     const wrong = code === "111111" ? "222222" : "111111";
 
-    // From three addresses, so the code's own count is what stops the fourth.
+    // From three addresses, so no per-IP limit stops the fourth: site-runtime's per-address code limit
+    // (three wrong codes an hour, across links) holds it, even with the right code.
     for (const ip of ["203.0.113.2", "203.0.113.3", "203.0.113.4"]) {
       expect((await typeCode(env, wrong, ip)).status).toBe("wrong");
     }
-    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("spent");
+    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("email_limited");
     expect(linkTokens()).toHaveLength(1);
   });
 

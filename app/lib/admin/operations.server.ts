@@ -238,6 +238,8 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["SENTRY_AUTH_TOKEN", "secret"],
     ["SENTRY_ORG", "secret"],
     ["EMAIL", "binding"],
+    // The deployed version's time, for /health's cron check.
+    ["CF_VERSION_METADATA", "binding"],
   ];
   const values = env as unknown as Record<string, unknown>;
   return rows.map(([name, kind]) => ({
