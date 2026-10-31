@@ -33,6 +33,7 @@ import {
   signInMethods,
 } from "@dustinedwards/site-runtime/sign-in";
 import { isAPIError } from "better-auth/api";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SignInMethodsPanel, type SignedInDevices, type SignInSettings } from "~/components/sign-in-settings";
@@ -354,7 +355,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         console.error("account deletion failed:", err);
       }
       if (!deleted?.ok) {
-        if (deleted) console.error(`account deletion failed: ${deleted.status}`);
+        if (deleted) logEvent("account_deletion_failed", { status: deleted.status }, { level: "error" });
         // Recova's own words for this failure (AccountSection.tsx, blob a154ac8f).
         return data<ActionResult>(
           {
@@ -394,7 +395,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
           return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
         }
-        console.error("email change failed:", error);
+        logEvent("email_change_failed", { error: error instanceof Error ? error.message : String(error) }, { level: "error" });
         return data<ActionResult>(
           { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
           { status: 500 },
