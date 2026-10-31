@@ -29,6 +29,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { readForm } from "~/lib/http/body";
 
 // Real no-auth estimator + audit marketing page (Phase 6 Pass 3). Ported the
 // legacy app/audit/page.tsx marketing structure (Capsid read_repo_file,
@@ -103,7 +104,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const mrrDollars = Number(form.get("mrr"));
   const customerCount = Number(form.get("customerCount"));
   const currency = String(form.get("currency") ?? "usd").toLowerCase();

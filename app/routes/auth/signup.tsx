@@ -21,6 +21,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/signup";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // Row A3, /signup: Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
 // read whole, for the frame: one card, "Connect Stripe once", the fee line,
@@ -72,7 +73,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return limitedData({ sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null }, refusal);
   }
 
-  return answerSignInForm(env, request, await request.formData(), { isCode, limited: SIGN_UP_LIMITED });
+  return answerSignInForm(env, request, await readForm(request), { isCode, limited: SIGN_UP_LIMITED });
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {

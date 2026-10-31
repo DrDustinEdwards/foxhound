@@ -139,10 +139,12 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(hrefs).toHaveLength(1);
     const raw = hrefs[0].replace(/&amp;/g, "&");
     const href = new URL(raw);
-    expect(href.origin + href.pathname).toBe(`${BASE}/api/auth/magic-link/verify`);
-    // The token is the one Better Auth stored, and the link lands on the
+    // The confirm page (site-runtime's CONFIRM_PATH), whose button runs the
+    // verify. Better Auth stores the token hashed, and the link lands on the
     // passkey offer, which goes on to /console.
-    expect(linkTokens()).toEqual([href.searchParams.get("token")]);
+    expect(href.origin + href.pathname).toBe(`${BASE}/sign-in/confirm`);
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(href.searchParams.get("token") ?? ""));
+    expect(linkTokens()).toEqual([Buffer.from(digest).toString("base64url")]);
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
     expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/login`);
 

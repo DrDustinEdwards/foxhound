@@ -1,6 +1,6 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { generateNonce } from "@dustinedwards/site-runtime/csp";
+import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, PAGES_CACHE_TAG, purgeTags, settleCacheHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 import { withSentry } from "@sentry/cloudflare";
@@ -12,7 +12,7 @@ import { runCronJob } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
-import { applyHashedSecurityHeaders, applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -120,7 +120,7 @@ export default withSentry<Env>(
       if (edgeCacheable(request)) {
         const edge = edgeRequest(request, cacheKey(request.url));
         const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: edge.cacheKey } });
-        return forReader(page, request);
+        return forReader(renewNonce(page), request);
       }
 
       const context = new RouterContextProvider();
@@ -192,17 +192,18 @@ export default withSentry<Env>(
  * GET of a public page or files route whose one cookie, if any, is the theme.
  * Its responses are stored by the Workers cache under the key the gateway
  * names, so every header a stored page leaves with is set here, or it is
- * missing from every hit. The page is rendered with no nonce and its inline
- * scripts trusted by hash, since every reader of a stored page would share one.
+ * missing from every hit. The page is stored with the nonce it was rendered
+ * with, and the gateway renews it for every reader (renewNonce).
  * settleCacheHeaders runs last: anything but a shared 200 leaves
  * `private, no-store` and is stored nowhere.
  */
 export class Renderer extends WorkerEntrypoint<Env> {
   override async fetch(request: Request): Promise<Response> {
+    const storedNonce = generateNonce();
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined });
+    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined, storedNonce });
     const response = await requestHandler(request, context);
-    const secured = await applyHashedSecurityHeaders(response, new URL(request.url).origin);
+    const secured = applySecurityHeaders(response, storedNonce, new URL(request.url).origin);
     return settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)));
   }
 

@@ -1,3 +1,4 @@
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { getDb } from "~/db";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
@@ -7,6 +8,7 @@ import { setAccountTheme } from "~/lib/theme.server";
 import { isTheme } from "~/lib/theme";
 
 import type { Route } from "./+types/theme";
+import { readJson } from "~/lib/http/body";
 
 // Persist an authenticated merchant's theme to accounts.theme so it follows
 // them across devices. Legacy's equivalent is
@@ -25,6 +27,8 @@ import type { Route } from "./+types/theme";
 // so a failed write must not roll back what the merchant is looking at. The
 // next request reconciles from the DB.
 export async function action({ request, context }: Route.ActionArgs) {
+  const refused = refuseCrossSite(request);
+  if (refused) return refused;
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
   }
@@ -43,8 +47,9 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   let payload: unknown;
   try {
-    payload = await request.json();
-  } catch {
+    payload = await readJson(request);
+  } catch (error) {
+    if (error instanceof Response) throw error;
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
 

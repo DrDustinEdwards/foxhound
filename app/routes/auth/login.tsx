@@ -26,6 +26,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // Row A2, /login: Recova's app/(auth)/login/page.tsx (blob ec09cd24),
 // read whole, for the frame: one card, "Welcome back", the line under it, the
@@ -87,7 +88,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
-  return answerSignInForm(env, request, await request.formData(), { isCode, limited: SIGN_IN_LIMITED });
+  return answerSignInForm(env, request, await readForm(request), { isCode, limited: SIGN_IN_LIMITED });
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
