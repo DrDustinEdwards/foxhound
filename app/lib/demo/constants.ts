@@ -50,14 +50,14 @@ export const DEMO_MEMBER_EMAIL = "demo@foxhoundapp.com";
 
 // Cookie that marks a browser as being in read-only demo mode. Carries NO account
 // id, so on its own it can only ever resolve to a demo account, never a real one.
-export const DEMO_SESSION_COOKIE = "fh_demo";
+export const DEMO_SESSION_COOKIE = "__Host-fh_demo";
 export const DEMO_SESSION_COOKIE_VALUE = "1";
 
 // Which demo business the visitor last switched to: legacy's
 // `active_demo_account` cookie (app/api/demo/switch-account/route.ts, blob
 // `f6786c87`). Its value is only ever matched against DEMO_BUSINESSES, so a
 // forged value falls back to Teamflow rather than naming any other account.
-export const DEMO_ACTIVE_ACCOUNT_COOKIE = "fh_demo_account";
+export const DEMO_ACTIVE_ACCOUNT_COOKIE = "__Host-fh_demo_account";
 
 // The name registered in the cron registry for the daily demo-reset job, and
 // the CronLock DO id both that cron and the demo enter action lock on. Shared

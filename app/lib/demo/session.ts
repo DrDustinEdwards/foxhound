@@ -3,7 +3,7 @@ import { inArray } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts } from "~/db";
 import type { Membership } from "~/lib/auth/account";
-import { readCookie } from "~/lib/http/cookies";
+import { readCookie, setHostCookie } from "~/lib/http/cookies";
 
 import {
   DEMO_ACTIVE_ACCOUNT_COOKIE,
@@ -18,7 +18,7 @@ import {
 // synthetic membership for the demo account so the REAL app routes render demo
 // data. The cookie carries no account id, so it can only ever resolve to a
 // hardcoded demo account, never a real tenant. HttpOnly so page scripts cannot
-// read or forge it.
+// read or forge it, and __Host- (setHostCookie) so no sibling host can set it.
 
 const DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8; // an 8h look-around is plenty
 
@@ -30,11 +30,11 @@ export function hasDemoCookie(request: Request): boolean {
 }
 
 export function setDemoCookieHeader(): string {
-  return `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}; Path=/; Max-Age=${DEMO_COOKIE_MAX_AGE_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
+  return setHostCookie(DEMO_SESSION_COOKIE, DEMO_SESSION_COOKIE_VALUE, DEMO_COOKIE_MAX_AGE_SECONDS);
 }
 
 export function clearDemoCookieHeader(): string {
-  return `${DEMO_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+  return setHostCookie(DEMO_SESSION_COOKIE, "", 0);
 }
 
 // Legacy kept `active_demo_account` for a year (switch-account/route.ts), so a
@@ -55,7 +55,7 @@ export function activeDemoBusiness(request: Request): DemoBusiness {
 }
 
 export function setActiveDemoAccountCookieHeader(business: DemoBusiness): string {
-  return `${DEMO_ACTIVE_ACCOUNT_COOKIE}=${business.accountId}; Path=/; Max-Age=${DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
+  return setHostCookie(DEMO_ACTIVE_ACCOUNT_COOKIE, business.accountId, DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS);
 }
 
 /**

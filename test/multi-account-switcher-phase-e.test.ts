@@ -220,7 +220,7 @@ describe("the add-account route marks its OAuth state", () => {
     // Legacy puts the SAME payload in the cookie, and Foxhound's callback
     // compares the two by string equality, so they must match exactly.
     const cookie = res.headers.get("set-cookie")!;
-    expect(cookie).toContain(state);
+    expect(cookie).toContain(encodeURIComponent(state));
     expect(cookie).toContain("HttpOnly");
   });
 
