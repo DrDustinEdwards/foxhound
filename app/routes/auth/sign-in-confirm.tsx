@@ -45,7 +45,7 @@ export default function SignInConfirm({ loaderData, actionData }: Route.Componen
         <AuthHeading title={loaderData.expired ? "This link has expired" : "That sign-in did not complete"} />
         <Alert tone="crit">{loaderData.error}</Alert>
         <AuthFootnote>
-          <AuthLink to="/login">Back to log in</AuthLink>
+          <AuthLink to="/login">{loaderData.expired ? "Get a new link" : "Back to log in"}</AuthLink>
         </AuthFootnote>
       </AuthCard>
     );

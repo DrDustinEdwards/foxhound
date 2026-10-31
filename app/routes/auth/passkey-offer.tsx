@@ -20,7 +20,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 // ./sign-in), in the sign-in card.
 
 export function meta() {
-  return [{ title: "Add a passkey - Foxhound" }, NOINDEX];
+  return [{ title: "Create a passkey - Foxhound" }, NOINDEX];
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -66,7 +66,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
             window.location.assign(next);
           }}
         >
-          {busy ? "Waiting for your device..." : "Add a passkey"}
+          {busy ? "Waiting for your device..." : "Create a passkey"}
         </Button>
         {error ? <Alert tone="crit">{error}</Alert> : null}
       </div>

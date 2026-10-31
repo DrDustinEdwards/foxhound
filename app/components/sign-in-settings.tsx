@@ -73,7 +73,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                     void run(p.id, () => authClient.passkey.deletePasskey({ id: p.id }), "The passkey was not removed.")
                   }
                 >
-                  Remove<span className="sr-only"> {p.name}</span>
+                  Remove passkey<span className="sr-only"> {p.name}</span>
                 </Button>
               </li>
             ))}
@@ -84,7 +84,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
           pending={busy === "add"}
           onClick={() => void run("add", () => authClient.passkey.addPasskey(), "The passkey was not saved.")}
         >
-          {busy === "add" ? "Waiting for your device..." : "Add a passkey"}
+          {busy === "add" ? "Waiting for your device..." : "Create a passkey"}
         </Button>
 
         {initial.providers.length > 0 ? (
@@ -106,7 +106,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                       )
                     }
                   >
-                    Disconnect<span className="sr-only"> {provider.label}</span>
+                    Disconnect {provider.label}
                   </Button>
                 ) : (
                   <Button
