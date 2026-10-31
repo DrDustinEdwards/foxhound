@@ -24,7 +24,8 @@ import "~/site-header.css";
 
 import {
   accountSessions,
-  passkeyLabel,
+  passkeyLastUsed,
+  passkeyRows,
   requireFreshSession,
   revokeSessionById,
   securityHistory,
@@ -46,8 +47,8 @@ import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
-import { deleteUserAccount } from "~/lib/auth/delete-account.server";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
+import { isDisposableEmail } from "~/lib/auth/disposable-emails";
 import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
@@ -118,6 +119,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // The signed-in address, which legacy's AccountSection displays beside its
     // sign-out control.
     userEmail: auth.email,
+    emailChange: emailChangeStatus(request),
     // Every account this person owns, which a deletion clears, so the
     // confirmation can say which (S40 review fix F2). From the session's
     // memberships, so this loader reads no other account's rows.
@@ -135,9 +137,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 /**
- * The Sign-in panel's lists: this person's passkeys, and which of Google and
- * Apple are joined, read from Better Auth's tables by the session's user, as
- * the app's other reads of them are (delete-account.server.ts). The demo
+ * The Sign-in panel's lists: this person's passkeys, as site-runtime's
+ * accountPasskeys gives them (passkeyRows: name, provider, added, and last
+ * used from auth_events), each with its credential id for the Signal API on
+ * removal; and which of Google and Apple are joined. Read from Better Auth's
+ * tables by the session's user, as the app's other reads of them are
+ * (delete-account.server.ts), rather than through accountPasskeys's own
+ * session read, which an admin's read-only view does not have. The demo
  * changes nothing, so it lists none.
  */
 async function signInSettings(
@@ -152,20 +158,36 @@ async function signInSettings(
   ].filter((p) => p !== null);
   if (isDemo) return { passkeys: [], providers: offered.map((p) => ({ ...p, accountId: null })) };
   const db = getDb(env);
-  const [passkeys, joined] = await Promise.all([
+  const [stored, lastUsed, joined] = await Promise.all([
     db
-      .select({ id: passkey.id, name: passkey.name, aaguid: passkey.aaguid, credentialId: passkey.credentialID })
+      .select({
+        id: passkey.id,
+        name: passkey.name,
+        aaguid: passkey.aaguid,
+        createdAt: passkey.createdAt,
+        credentialId: passkey.credentialID,
+      })
       .from(passkey)
-      .where(eq(passkey.userId, userId))
-      .orderBy(passkey.createdAt),
+      .where(eq(passkey.userId, userId)),
+    passkeyLastUsed(env.DB, userId),
     db.select({ id: authAccount.id, providerId: authAccount.providerId }).from(authAccount).where(eq(authAccount.userId, userId)),
   ]);
+  const credentialOf = new Map(stored.map((p) => [p.id, p.credentialId]));
   // The joined account's own id, which Disconnect names.
   const byProvider = new Map(joined.map((a) => [a.providerId, a.id]));
   return {
-    passkeys: passkeys.map((p) => ({ id: p.id, name: passkeyLabel(p), credentialId: p.credentialId })),
+    passkeys: passkeyRows(stored, lastUsed).map((p) => ({ ...p, credentialId: credentialOf.get(p.id) ?? "" })),
     providers: offered.map((p) => ({ ...p, accountId: byProvider.get(p.id) ?? null })),
   };
+}
+
+/** Where an email-change link landed (app/routes/auth/email-confirm.tsx): the
+ *  first link confirmed, the change made, or a link that did not work. */
+function emailChangeStatus(request: Request): "confirmed" | "changed" | "failed" | null {
+  const params = new URL(request.url).searchParams;
+  const step = params.get("email");
+  if (step !== "confirmed" && step !== "changed") return null;
+  return params.get("error") ? "failed" : step;
 }
 
 /**
@@ -191,6 +213,21 @@ interface ActionResult {
   error?: string;
   field?: ProfileField;
   warning?: string;
+  /** change-email: the current address the first link went to. */
+  sentTo?: string;
+}
+
+/** Enough of an address's shape to refuse a typo before Better Auth's own check. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** The session when it was made in the last 10 minutes (site-runtime
+ *  requireFreshSession), else null, which the page answers by asking for a
+ *  new sign-in. */
+async function freshSession(env: Env, request: Request) {
+  return requireFreshSession(await getAuth(env), request).catch((error: unknown) => {
+    if (error instanceof SessionNotFresh) return null;
+    throw error;
+  });
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -302,18 +339,22 @@ export async function action({ request, context }: Route.ActionArgs) {
       // to): a borrowed or forgotten session cannot delete the account. Stale
       // answers as signing a device out does, and the page asks for a new
       // sign-in.
-      const fresh = await requireFreshSession(await getAuth(env), request).catch((error: unknown) => {
-        if (error instanceof SessionNotFresh) return null;
-        throw error;
-      });
+      const fresh = await freshSession(env, request);
       if (!fresh) return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      // The SIGNED-IN user, never an id from the form: a person deletes
-      // themselves and nobody else. Recova's route does the same
-      // with supabase.auth.getUser().
+      // Better Auth's own delete (/delete-user), for the SIGNED-IN user only:
+      // it takes no id, so a person deletes themselves and nobody else, as
+      // Recova's route does with supabase.auth.getUser(). Foxhound's deletion
+      // runs in its hooks (delete-account.server.ts), and site-runtime's log
+      // line and notice follow it. Its answer clears the session cookie, and
+      // Recova then sends the person to "/".
+      let deleted: Response | null = null;
       try {
-        await deleteUserAccount(env, auth.userId);
+        deleted = await (await getAuth(env)).api.deleteUser({ body: {}, headers: request.headers, asResponse: true });
       } catch (err) {
         console.error("account deletion failed:", err);
+      }
+      if (!deleted?.ok) {
+        if (deleted) console.error(`account deletion failed: ${deleted.status}`);
         // Recova's own words for this failure (AccountSection.tsx, blob a154ac8f).
         return data<ActionResult>(
           {
@@ -324,15 +365,44 @@ export async function action({ request, context }: Route.ActionArgs) {
           { status: 500 },
         );
       }
-      // The user and their sessions are gone; this clears the cookie the
-      // browser still holds, and Recova then sends the person to "/".
-      const signedOut = await (await getAuth(env)).api.signOut({
-        headers: request.headers,
-        asResponse: true,
-      });
       const headers = new Headers();
-      for (const cookie of signedOut.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
+      for (const cookie of deleted.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
       return redirect("/", { headers });
+    }
+    case "change-email": {
+      // E1, through Better Auth's /change-email: the link goes to the CURRENT
+      // address first (auth.server.ts). A sign-in from the last 10 minutes
+      // first, as for delete; site-runtime refuses the endpoint without one
+      // too.
+      const fresh = await freshSession(env, request);
+      if (!fresh) return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
+      const newEmail = String(form.get("newEmail") ?? "").trim().toLowerCase();
+      const refuse = (error: string) => data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
+      if (!EMAIL_SHAPE.test(newEmail)) return refuse("Enter an email address.");
+      if (newEmail === fresh.user.email.toLowerCase()) return refuse("That is already your address.");
+      if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
+      // An address nobody has confirmed would get the link at the new address
+      // alone (Better Auth's other branch), so it is refused: every way into
+      // Foxhound confirms the address, so this is only ever an old account.
+      if (!fresh.user.emailVerified) return refuse("Sign in with an email link first, then change your address.");
+      try {
+        await (await getAuth(env)).api.changeEmail({
+          body: { newEmail, callbackURL: "/settings/account?email=confirmed" },
+          headers: request.headers,
+        });
+      } catch (error) {
+        if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
+          return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
+        }
+        console.error("email change failed:", error);
+        return data<ActionResult>(
+          { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
+          { status: 500 },
+        );
+      }
+      // Better Auth answers the same whether or not the new address is taken,
+      // so this says nothing about it either.
+      return data<ActionResult>({ action: intent, ok: true, sentTo: fresh.user.email });
     }
     case "sign-out-device": {
       // By the session's id, so no session token reaches the page (site-runtime ./sign-in).
@@ -635,6 +705,92 @@ function SignedIn({ userEmail }: { userEmail: string }) {
   );
 }
 
+/** Where each step of an email change stands, in words: after the form, and
+ *  after each of the two links (emailChangeStatus). */
+const EMAIL_CHANGE_SAID = {
+  confirmed: "Change confirmed. We sent a link to the new address: open it to finish. Until then you sign in with this one.",
+  changed: "Your email address is changed. Your other devices were signed out.",
+  failed: "That link has expired or was already used. Start the change again.",
+} as const;
+
+/**
+ * E1: change the sign-in address. The form asks Better Auth for the change
+ * (the action's change-email), which mails the CURRENT address first; its link
+ * then mails the new one, and that link makes the change. It needs a sign-in
+ * from the last 10 minutes, as Delete account does.
+ */
+function ChangeEmail({
+  landed,
+  result,
+}: {
+  landed: "confirmed" | "changed" | "failed" | null;
+  result?: ActionResult;
+}) {
+  const navigation = useNavigation();
+  const sending = navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
+  const [open, setOpen] = useState(false);
+  const fieldId = useId();
+  const mine = result?.action === "change-email" ? result : undefined;
+  const stale = mine?.error === "stale";
+  const refused = mine && !mine.ok && !stale ? mine.error : undefined;
+  const showForm = (open || Boolean(refused)) && !mine?.ok;
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      {landed ? <Alert tone={landed === "failed" ? "crit" : "ok"}>{EMAIL_CHANGE_SAID[landed]}</Alert> : null}
+      {mine?.ok ? (
+        <Alert tone="ok">
+          We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the new address.
+        </Alert>
+      ) : null}
+      {stale ? (
+        <Alert
+          tone="warn"
+          action={
+            <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
+              Sign in again
+            </a>
+          }
+        >
+          Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change it.
+        </Alert>
+      ) : null}
+      {showForm ? (
+        <DemoGuardedForm method="post" className="flex flex-wrap items-end gap-2.5">
+          <input type="hidden" name="_action" value="change-email" />
+          <div className="cap-field grow" data-invalid={refused ? "true" : undefined}>
+            <label className="cap-field-label" htmlFor={fieldId}>
+              New email address
+            </label>
+            <input
+              id={fieldId}
+              name="newEmail"
+              type="email"
+              required
+              autoComplete="email"
+              className="cap-input"
+              aria-invalid={refused ? true : undefined}
+              aria-describedby={refused ? `${fieldId}-error` : undefined}
+            />
+            <p className="cap-field-error" id={`${fieldId}-error`} role={refused ? "alert" : undefined} hidden={!refused}>
+              {refused ?? null}
+            </p>
+          </div>
+          <Button type="submit" variant="primary" pending={sending}>
+            {sending ? "Sending..." : "Send confirmation"}
+          </Button>
+        </DemoGuardedForm>
+      ) : mine?.ok ? null : (
+        <div>
+          <Button size="sm" onClick={() => setOpen(true)}>
+            Change email
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const CANCEL_CONSEQUENCE =
   "This stops all recovery processing and disconnects every Stripe account here. Fees on recoveries Foxhound has already attributed remain owed and are still invoiced.";
 
@@ -798,6 +954,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SignedIn userEmail={userEmail} />
+            {isDemo ? null : <ChangeEmail landed={loaderData.emailChange} result={result} />}
             <DangerZone
               cancelledAt={cancelledAt}
               isOwner={Boolean(isOwner)}

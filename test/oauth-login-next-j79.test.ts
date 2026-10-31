@@ -105,7 +105,7 @@ describe("/login carries next= through both ways of signing in", () => {
     }
   });
 
-  it("the Google start sends the validated next to Better Auth as an absolute same-site URL", async () => {
+  it("the Google start sends the validated next to Better Auth, by way of the passkey offer", async () => {
     harness.signInSocial.mockImplementation(async () => new Response(JSON.stringify({ url: "https://accounts.google.com/x" })));
     const form = new URLSearchParams({ next: AUTHORIZE });
     await socialStart.action({
@@ -113,7 +113,7 @@ describe("/login carries next= through both ways of signing in", () => {
       context: context(),
       params: { provider: "google" },
     } as never);
-    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}${AUTHORIZE}`);
+    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}/passkey?next=${encodeURIComponent(AUTHORIZE)}`);
 
     harness.signInSocial.mockClear();
     await socialStart.action({
@@ -121,7 +121,7 @@ describe("/login carries next= through both ways of signing in", () => {
       context: context(),
       params: { provider: "google" },
     } as never);
-    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}/console`);
+    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}/passkey?next=${encodeURIComponent("/console")}`);
   });
 
   function renderLogin(next: string): string {

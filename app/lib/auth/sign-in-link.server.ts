@@ -45,12 +45,13 @@ async function limitOf(res: Response): Promise<"limited" | "email_limited"> {
   return code === "EMAIL_RATE_LIMITED" ? "email_limited" : "limited";
 }
 
-/** Where the link lands: the passkey offer, which goes on to `next` (straight
- *  away for someone who already has a passkey). Absolute on Foxhound's own
+/** Where a sign-in by link, code, Google or Apple lands: the passkey offer,
+ *  which goes on to `next` (straight away when site-runtime's
+ *  shouldOfferPasskey says no). Absolute on Foxhound's own
  *  origin, as /auth/google makes its callback, because Better Auth's
  *  relative-path check refuses a query that carries an encoded URL, which an
  *  OAuth authorize `next` always does. */
-function afterLinkURL(env: Env, next: string): string {
+export function passkeyOfferURL(env: Env, next: string): string {
   return new URL(`/passkey?next=${encodeURIComponent(safeNextPath(next))}`, env.BETTER_AUTH_URL).toString();
 }
 
@@ -80,8 +81,8 @@ export async function requestSignInLink(
         headers,
         body: JSON.stringify({
           email: link.email,
-          callbackURL: afterLinkURL(env, link.next),
-          newUserCallbackURL: afterLinkURL(env, link.newUserNext),
+          callbackURL: passkeyOfferURL(env, link.next),
+          newUserCallbackURL: passkeyOfferURL(env, link.newUserNext),
           // A spent or expired link comes back to the confirm page, which says so.
           errorCallbackURL: new URL(CONFIRM_PATH, env.BETTER_AUTH_URL).toString(),
         }),
@@ -208,7 +209,7 @@ const CODE_ANSWERS = {
  *  the link goes, or the "link sent" screen again with the words its alert
  *  shows. `limited` is the page's own words for its limit. */
 function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, next: string, limited: string) {
-  if (result.status === "signed_in") throw redirect(afterLinkURL(env, next), { headers: result.headers });
+  if (result.status === "signed_in") throw redirect(passkeyOfferURL(env, next), { headers: result.headers });
   const error =
     result.status === "limited" ? limited : result.status === "email_limited" ? SIGN_UP_LIMITED : CODE_ANSWERS[result.status];
   const status = result.status.endsWith("limited")

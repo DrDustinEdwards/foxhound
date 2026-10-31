@@ -84,6 +84,17 @@ export const authOptions = {
         required: false,
         input: false,
       },
+      // The rough place a session was signed in from ("Austin, Texas, United
+      // States"), site-runtime's coarseLocation of the sign-in request's cf, set
+      // once when the session is made (auth.server.ts) and shown in the
+      // signed-in devices list (site-runtime's sessionRows reads `location`).
+      // Never an IP address. Null when the request carried no cf, as a request
+      // the site built itself does.
+      location: {
+        type: "string",
+        required: false,
+        input: false,
+      },
     },
   },
   advanced: {

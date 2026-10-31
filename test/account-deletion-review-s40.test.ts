@@ -22,7 +22,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const schema = await import("~/db/schema");
 const { user } = await import("~/db/auth-schema");
-const { deleteUserAccount } = await import("~/lib/auth/delete-account.server");
+const { accountDeletionHooks } = await import("~/lib/auth/delete-account.server");
 const { deletionConsequence, ownedAccountNames } = await import("~/lib/auth/deletion-copy");
 const { listMemberships } = await import("~/lib/auth/account");
 
@@ -66,11 +66,13 @@ beforeEach(async () => {
 
 describe("F1: a failed Stripe revoke after deletion is recorded durably", () => {
   it("writes one admin_audit_log row per failed revoke, with no personal data", async () => {
-    const result = await deleteUserAccount({} as Env, "u1", {
+    const hooks = accountDeletionHooks({} as Env, {
       deauthorize: async (_env, stripeUserId) =>
         stripeUserId === "acct_stripe_a" ? { ok: false, error: "grant not found" } : { ok: true },
     });
-    expect(result.status).toBe("deleted");
+    await hooks.beforeDelete({ id: "u1" });
+    await db.delete(user).where(eq(user.id, "u1"));
+    await hooks.afterDelete({ id: "u1" });
 
     const rows = await db
       .select()

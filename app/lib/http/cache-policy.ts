@@ -293,6 +293,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/passkey",
   // Where the emailed sign-in link opens: its query carries the link's token.
   "/sign-in/",
+  // Where an email-change link opens: its query carries the link's token.
+  "/email/confirm",
   // The OAuth consent page: its query carries a client's id and state.
   "/oauth/",
 ];

@@ -5,6 +5,7 @@ import { redirect } from "react-router";
 import { getAuth } from "~/lib/auth";
 import { forwardSetCookie } from "~/lib/auth/http";
 import { safeNextPath } from "~/lib/auth/next-path";
+import { passkeyOfferURL } from "~/lib/auth/sign-in-link.server";
 import { checkAuthLimit, RATE_LIMITED_ERROR } from "~/lib/auth/rate-limit.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
@@ -40,7 +41,9 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   // carries an encoded URL, which an OAuth authorize URL always does.
   const form = await readForm(request).catch(() => null);
   const next = safeNextPath(form ? String(form.get("next") ?? "") : null);
-  const callbackURL = new URL(next, env.BETTER_AUTH_URL).toString();
+  // By way of the passkey offer (A3), which goes straight on to `next` for
+  // someone it does not ask.
+  const callbackURL = passkeyOfferURL(env, next);
   // A refused sign-in (account_not_linked and the like) comes back to /login,
   // which says what happened, instead of Better Auth's own error page.
   const errorCallbackURL = new URL("/login", env.BETTER_AUTH_URL).toString();
