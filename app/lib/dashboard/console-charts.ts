@@ -24,6 +24,7 @@ const MOVEMENT_COLORS: Record<string, string> = {
 export function drawLatestMovement(m: MovementTotals, currency: string, width: number): string {
   const bars = mrrMovementBars(m, currency);
   return barChart({
+    title: "MRR movements, latest month",
     data: bars.map((b) => ({ Movement: b.label, kind: b.label, amount: b.units })),
     x: "Movement",
     xDomain: bars.map((b) => b.label),
@@ -54,6 +55,7 @@ function cohortChartHeight(count: number): number {
 export function drawCohorts(rows: readonly CohortRow[], width: number): string {
   const yLabel = "Still paying (%)";
   return barChart({
+    title: "Customer cohorts still paying",
     data: rows.map((r) => ({ Cohort: r.label, share: r.values[0] ?? 0 })),
     x: "Cohort",
     xDomain: rows.map((r) => r.label),
