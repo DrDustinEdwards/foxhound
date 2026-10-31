@@ -30,6 +30,9 @@ import { noindexHeader } from "~/lib/seo/meta";
 import type { Route } from "./+types/admin-shell";
 import type { loader as rootLoader } from "~/root";
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 // The ONE gate for /admin. Cloudflare Access signs the person in before a
 // request reaches the Worker; this re-verifies Access's JWT and the
 // ADMIN_EMAIL allowlist (app/lib/auth/access.server.ts), so a request that got

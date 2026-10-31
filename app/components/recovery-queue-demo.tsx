@@ -1,6 +1,22 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, RefreshCw, X } from "lucide-react";
 
+import {
+  amountClass,
+  FINAL_FRAME,
+  FRAMES,
+  iconClass,
+  PAYMENTS,
+  recoveredText,
+  recoveredTone,
+  REDUCED_MOTION_QUERY,
+  rowClass,
+  type Status,
+  statValueClass,
+  stepClass,
+  STEPS,
+} from "~/lib/marketing/queue-demo-frames";
+
 // The home hero visual: a looping, self-running view of the recovery queue
 // working a batch of failed payments (ruling 6, adapted from legacy's animated
 // hero). It shows the thing the product actually does, which a static screen
@@ -18,120 +34,11 @@ import { Check, RefreshCw, X } from "lucide-react";
 //   - It honors prefers-reduced-motion by settling on the final frame and
 //     scheduling nothing. An indefinite auto-playing loop with no pause
 //     control is a WCAG 2.2.2 problem, and the canon target is 2.2 AA.
-
-type Status = "failed" | "running" | "recovered";
-type StepState = "done" | "active" | "pending";
-
-interface Payment {
-  name: string;
-  amount: string;
-}
-
-const PAYMENTS: Payment[] = [
-  { name: "Teamflow", amount: "$349" },
-  { name: "Bolt Analytics", amount: "$129" },
-  { name: "Northstar Inc", amount: "$599" },
-];
-
-const STEPS = ["E1", "R1", "E2", "R2", "E3", "R3", "E4"];
-
-const IDLE_METAS = [
-  "insufficient_funds, step 1 of 4",
-  "card_expired, step 2 of 4",
-  "do_not_honor, step 1 of 4",
-];
-
-interface Frame {
-  statuses: Status[];
-  metas: string[];
-  /** How many of STEPS are complete; the next one is the active chip. */
-  done: number;
-  activeSequence: number;
-  recovered: number;
-  rate: string;
-  active: number;
-  holdMs: number;
-}
-
-// The whole animation as data. A list of frames beats a chain of awaited
-// setState calls: the reduced-motion path is then just "render the last one",
-// and the loop is a single timer rather than a cancellable async walk.
-const FRAMES: Frame[] = [
-  {
-    statuses: ["failed", "failed", "failed"],
-    metas: IDLE_METAS,
-    done: 0,
-    activeSequence: 0,
-    recovered: 0,
-    rate: "0%",
-    active: 3,
-    holdMs: 1200,
-  },
-  {
-    statuses: ["failed", "failed", "failed"],
-    metas: ["Email 1 sent, awaiting retry", IDLE_METAS[1], IDLE_METAS[2]],
-    done: 0,
-    activeSequence: 0,
-    recovered: 0,
-    rate: "0%",
-    active: 3,
-    holdMs: 1400,
-  },
-  {
-    statuses: ["failed", "failed", "failed"],
-    metas: ["Email 1 sent, awaiting retry", IDLE_METAS[1], IDLE_METAS[2]],
-    done: 1,
-    activeSequence: 0,
-    recovered: 0,
-    rate: "0%",
-    active: 3,
-    holdMs: 1000,
-  },
-  {
-    statuses: ["running", "failed", "failed"],
-    metas: ["Retry charging", IDLE_METAS[1], IDLE_METAS[2]],
-    done: 2,
-    activeSequence: 0,
-    recovered: 0,
-    rate: "0%",
-    active: 3,
-    holdMs: 1200,
-  },
-  {
-    statuses: ["recovered", "failed", "failed"],
-    metas: ["Recovered on day 3", IDLE_METAS[1], IDLE_METAS[2]],
-    done: 3,
-    activeSequence: 0,
-    recovered: 349,
-    rate: "33%",
-    active: 2,
-    holdMs: 1800,
-  },
-  {
-    statuses: ["recovered", "running", "failed"],
-    metas: ["Recovered on day 3", "Retry charging", IDLE_METAS[2]],
-    done: 2,
-    activeSequence: 1,
-    recovered: 349,
-    rate: "33%",
-    active: 2,
-    holdMs: 1400,
-  },
-  {
-    statuses: ["recovered", "recovered", "failed"],
-    metas: ["Recovered on day 3", "Recovered on day 7", IDLE_METAS[2]],
-    done: 4,
-    activeSequence: 1,
-    recovered: 478,
-    rate: "67%",
-    active: 1,
-    holdMs: 4200,
-  },
-];
-
-const FINAL_FRAME = FRAMES.length - 1;
-
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+//
+// The frames and their classes are lib/marketing/queue-demo-frames.ts. On a page
+// that does not hydrate, the queue-demo island (islands/queue-demo.ts) plays
+// them on this markup: every status icon is drawn, the ones not showing hidden,
+// and data-queue names each part it changes.
 
 // prefers-reduced-motion is an external store, so it is READ through
 // useSyncExternalStore rather than sampled into state inside the animation
@@ -164,41 +71,23 @@ function getReducedMotionOnServer(): boolean {
   return false;
 }
 
-function stepStateAt(index: number, done: number): StepState {
-  if (index < done) return "done";
-  if (index === done) return "active";
-  return "pending";
+// All three icons, the one for `status` showing (Tailwind's `hidden` on the
+// others), so the island can switch them.
+function StatusIcons({ status }: { status: Status }) {
+  return (
+    <>
+      <X width={13} height={13} strokeWidth={2.5} aria-hidden className={status === "failed" ? undefined : "hidden"} data-queue-status="failed" />
+      <RefreshCw width={13} height={13} strokeWidth={2.5} aria-hidden className={status === "running" ? undefined : "hidden"} data-queue-status="running" />
+      <Check width={13} height={13} strokeWidth={2.5} aria-hidden className={status === "recovered" ? undefined : "hidden"} data-queue-status="recovered" />
+    </>
+  );
 }
 
-const STATUS_ICON_CLASS: Record<Status, string> = {
-  failed: "bg-red-bg text-red",
-  running: "bg-brand-bg text-brand-text",
-  recovered: "bg-green-bg text-green",
-};
-
-const AMOUNT_CLASS: Record<Status, string> = {
-  failed: "text-text-subtle",
-  running: "text-brand-text",
-  recovered: "text-green",
-};
-
-const STEP_CLASS: Record<StepState, string> = {
-  done: "border-green bg-green-bg text-green",
-  active: "border-brand-border-interactive bg-brand-bg text-brand-text",
-  pending: "border-border text-text-subtle",
-};
-
-function StatusIcon({ status }: { status: Status }) {
-  if (status === "failed") return <X width={13} height={13} strokeWidth={2.5} aria-hidden />;
-  if (status === "running") return <RefreshCw width={13} height={13} strokeWidth={2.5} aria-hidden />;
-  return <Check width={13} height={13} strokeWidth={2.5} aria-hidden />;
-}
-
-function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Stat({ name, label, value, tone }: { name: string; label: string; value: string; tone?: string }) {
   return (
     <div className="px-3 py-2.5">
       <div className="mb-1 font-mono text-micro uppercase tracking-widest text-text-subtle">{label}</div>
-      <div className={`font-mono text-label font-medium transition-colors duration-300 ${tone ?? "text-text"}`}>
+      <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
     </div>
@@ -239,7 +128,7 @@ export function RecoveryQueueDemo() {
   const activePayment = PAYMENTS[frame.activeSequence];
 
   return (
-    <div className="w-full">
+    <div className="w-full" data-island="queue-demo">
       <p className="sr-only">
         An illustration of the recovery queue working three sample failed payments. A Foxhound email
         sequence runs, a retry is attempted, and two of the three payments are recovered.
@@ -268,6 +157,7 @@ export function RecoveryQueueDemo() {
             <span
               className="h-1.5 w-1.5 rounded-full bg-green transition-opacity duration-300"
               style={{ opacity: pulse ? 1 : 0.3 }}
+              data-queue-pulse=""
             />
             <span className="font-mono text-micro text-green">live</span>
           </div>
@@ -275,24 +165,17 @@ export function RecoveryQueueDemo() {
 
         <ol className="flex flex-col">
           {PAYMENTS.map((payment, i) => (
-            <li
-              key={payment.name}
-              className={`flex items-center gap-3 border-b border-border-sub px-4 py-3 transition-colors duration-300 ${
-                frame.statuses[i] === "recovered" ? "bg-surface2" : ""
-              }`}
-            >
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${STATUS_ICON_CLASS[frame.statuses[i]]}`}
-              >
-                <StatusIcon status={frame.statuses[i]} />
+            <li key={payment.name} className={rowClass(frame.statuses[i])} data-queue-row={i}>
+              <span className={iconClass(frame.statuses[i])} data-queue-icon="">
+                <StatusIcons status={frame.statuses[i]} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-label font-medium text-text">{payment.name}</span>
-                <span className="block font-mono text-micro text-text-subtle">{frame.metas[i]}</span>
+                <span className="block font-mono text-micro text-text-subtle" data-queue-meta="">
+                  {frame.metas[i]}
+                </span>
               </span>
-              <span
-                className={`shrink-0 font-mono text-label font-medium transition-colors duration-300 ${AMOUNT_CLASS[frame.statuses[i]]}`}
-              >
+              <span className={amountClass(frame.statuses[i])} data-queue-amount="">
                 {payment.amount}
               </span>
             </li>
@@ -300,25 +183,12 @@ export function RecoveryQueueDemo() {
         </ol>
 
         <div className="border-b border-border-sub bg-bg px-4 py-3">
-          <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">
-            {activePayment.name} sequence
+          <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle" data-queue-sequence="">
+            {`${activePayment.name} sequence`}
           </div>
           <div className="flex items-center gap-1">
             {STEPS.map((label, i) => (
-              <div
-                key={label}
-                // w-8 and NO shrink-0, both legacy's (components/hero/
-                // RecoveryDemo.tsx stepClass). This row previously carried w-7
-                // plus shrink-0, justified as clearing a 320px viewport. The
-                // measurement inverted that: legacy already handles narrow
-                // viewports, by letting the chips COMPRESS under flex's default
-                // shrink of 1. Legacy sets flex-shrink-0 on the status icons and
-                // deliberately not here. Foxhound had added shrink-0, which turns
-                // a flexible 248px row into a rigid one, and then narrowed the
-                // chips to make the rigid row fit. The narrowing compensated for
-                // a self-inflicted constraint, not for anything legacy does.
-                className={`flex h-5 w-8 items-center justify-center rounded border font-mono text-micro transition-colors duration-300 ${STEP_CLASS[stepStateAt(i, frame.done)]}`}
-              >
+              <div key={label} className={stepClass(i, frame.done)} data-queue-step={i}>
                 {label}
               </div>
             ))}
@@ -326,13 +196,9 @@ export function RecoveryQueueDemo() {
         </div>
 
         <div className="grid grid-cols-3 divide-x divide-border-sub">
-          <Stat
-            label="Recovered"
-            value={`$${frame.recovered.toLocaleString("en-US")}`}
-            tone={frame.recovered > 0 ? "text-green" : "text-text"}
-          />
-          <Stat label="Rate" value={frame.rate} />
-          <Stat label="Active" value={String(frame.active)} />
+          <Stat name="recovered" label="Recovered" value={recoveredText(frame.recovered)} tone={recoveredTone(frame.recovered)} />
+          <Stat name="rate" label="Rate" value={frame.rate} />
+          <Stat name="active" label="Active" value={String(frame.active)} />
         </div>
 
         <div className="border-t border-border-sub bg-bg px-4 py-2">

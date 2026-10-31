@@ -50,6 +50,9 @@ import { readForm } from "~/lib/http/body";
 // tinted mono pill and the covers card's 40px padding are set through the
 // parts' own variables.
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({

@@ -111,6 +111,13 @@ export async function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env), facts: await readFeatureFacts() };
 }
 
+/** How many features each product has, for the filter's screen reader line. */
+function productCounts(features: { product: string }[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const f of features) counts[f.product] = (counts[f.product] ?? 0) + 1;
+  return counts;
+}
+
 export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
   const { facts } = loaderData;
   const sections = useMemo(() => featureSections(facts), [facts]);
@@ -129,7 +136,12 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
       <div className="mx-auto max-w-[1100px] px-5 pb-16 sm:px-8">
         {/* Recova's FeatureFilterShell: the active value on the wrapper, which
             FEATURE_FILTER_CSS reads; no card re-renders on a press. */}
-        <div data-feature-filter={filter}>
+        <div
+          data-feature-filter={filter}
+          // On a page that does not hydrate, the feature-filter island (islands/feature-filter.ts) moves it.
+          data-island="feature-filter"
+          data-props={JSON.stringify({ total: all.length, counts: productCounts(all) })}
+        >
           <FeatureFilter active={filter} onChange={setFilter} shownCount={shown} totalCount={all.length} />
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">

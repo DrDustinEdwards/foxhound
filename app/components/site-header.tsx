@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "capsomer/react/link";
 import type { HeaderAccount, LinkProps } from "capsomer/react/site-header";
-import { themeCookie } from "capsomer/theme-server";
 
 import "~/site-header.css";
 import { switchAccount, switchTargetFromHref } from "~/components/nav/account-switcher";
 import { PLATFORM_LINKS } from "~/lib/nav/manifest";
-import { THEME_COOKIE, type Theme } from "~/lib/theme";
+import type { Theme } from "~/lib/theme";
+import { rememberServerTheme, type ThemeSave, watchThemeChoice } from "~/lib/theme-memory";
 
 // What the public site, the merchant app and the admin share in Capsomer's site
 // header (capsomer/react/site-header; docs/design/design-site-header.md in
@@ -143,39 +143,15 @@ export function merchantAccountMenu({
  *  authenticated merchant's to accounts.theme, so it follows them across
  *  devices, anyone else's to the cookie. Exclusive, as in legacy's
  *  NavThemeToggle. Fire-and-forget: the page has already switched, so a failed
- *  write must not switch it back; the next request reconciles. */
-export function useThemeMemory(serverTheme: Theme, save: "account" | "cookie", onChange?: (theme: Theme) => void): void {
+ *  write must not switch it back; the next request reconciles. The same
+ *  functions run on a page that does not hydrate, from the header island
+ *  (app/islands/header.ts). */
+export function useThemeMemory(serverTheme: Theme, save: ThemeSave, onChange?: (theme: Theme) => void): void {
   useState(() => {
     if (typeof window === "undefined") return null;
-    try {
-      localStorage.setItem(THEME_PREF_KEY, serverTheme);
-    } catch {
-      // Storage blocked: the button falls back to <html data-theme>.
-    }
+    rememberServerTheme(serverTheme, THEME_PREF_KEY);
     return null;
   });
   const showing = useRef<Theme>(serverTheme);
-  useEffect(() => {
-    const onTheme = (e: Event) => {
-      const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
-      if ((choice !== "light" && choice !== "dark") || choice === showing.current) return;
-      showing.current = choice;
-      onChange?.(choice);
-      persistTheme(choice, save);
-    };
-    document.addEventListener("cap-theme", onTheme);
-    return () => document.removeEventListener("cap-theme", onTheme);
-  }, [save, onChange]);
-}
-
-function persistTheme(theme: Theme, save: "account" | "cookie"): void {
-  if (save === "account") {
-    void fetch("/api/theme", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme }),
-    });
-    return;
-  }
-  document.cookie = themeCookie(theme, { name: THEME_COOKIE, secure: location.protocol === "https:" });
+  useEffect(() => watchThemeChoice(showing, save, onChange), [save, onChange]);
 }

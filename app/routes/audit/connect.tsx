@@ -61,6 +61,9 @@ import type { Route } from "./+types/connect";
 // visible difference with no line in parity/APPROVED-DIFFERENCES.md yet; J42
 // left it standing and put it to Dustin rather than choosing a direction.
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta() {
   return [
     { title: "Connect your Stripe account - Foxhound" },

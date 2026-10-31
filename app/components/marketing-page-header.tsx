@@ -50,7 +50,7 @@ export function MarketingPageHeader({
   const reveal = inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4";
 
   return (
-    <div ref={ref} className="mx-auto max-w-[1080px] px-5 pt-16 pb-10 sm:px-8">
+    <div ref={ref} className="mx-auto max-w-[1080px] px-5 pt-16 pb-10 sm:px-8" data-island="reveal" data-props='{"threshold":0.1,"stack":true}'>
       <div
         className={`mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary ${base} ${reveal}`}
         style={{ transitionDelay: "0ms" }}

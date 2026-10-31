@@ -61,6 +61,9 @@ import { readForm } from "~/lib/http/body";
 // the session. The form posts back the id the card showed only
 // so that a switch in another tab is refused rather than silently approved.
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta() {
   return [{ title: "Authorize access - Foxhound" }, NOINDEX];
 }

@@ -20,6 +20,9 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import type { Route } from "./+types/unsubscribe";
 import { readForm } from "~/lib/http/body";
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta() {
   return [{ title: "Unsubscribe - Foxhound" }];
 }

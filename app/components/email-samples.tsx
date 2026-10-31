@@ -97,7 +97,10 @@ function EmailGeneratorView({
   onGenerate: () => void;
 }) {
   return (
-    <div className="cap-panel">
+    // On a page that does not hydrate, the email-generator island (islands/email-generator.ts) runs this
+    // same markup: the picker is native radios, the button posts the same form, and the result is drawn
+    // with the same classes and words.
+    <div className="cap-panel" data-island="email-generator">
       <div className="cap-panel-body" data-flush>
         <div>
           <div className="flex items-center justify-between border-b border-border-sub px-5 py-4">
@@ -137,6 +140,7 @@ function EmailGeneratorView({
               <button
                 type="button"
                 onClick={onGenerate}
+                data-email-generate=""
                 disabled={busy}
                 aria-busy={busy ? "true" : undefined}
                 className="cap-btn w-full px-6 font-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:2.5rem]"
