@@ -86,6 +86,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: HOME_TITLE,
+      fullTitle: true,
       description: HOME_META_DESCRIPTION,
       path: "/",
       siteUrl: url,

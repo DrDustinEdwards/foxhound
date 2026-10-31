@@ -42,7 +42,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // The path is Recova's own /product/audit since J09.
 
 const PATH = "/product/audit";
-const TITLE = "Audit - Foxhound";
+const TITLE = "Audit";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {

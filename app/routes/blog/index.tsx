@@ -15,7 +15,7 @@ import {
 } from "~/lib/blog/queries.server";
 import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
 import { BLOG_COVER_FALLBACK_CSS } from "~/lib/http/inline-styles";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -27,7 +27,6 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Ported from legacy app/(marketing)/blog/page.tsx: a featured-post hero, four
 // curated topic sections, and a "latest" strip of non-featured posts.
@@ -58,19 +57,12 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Blog - Foxhound",
+      title: "Blog",
       description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
       path: "/blog",
+      pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Blog", path: "/blog" },
-          ])),
-        ]
-      : []),
   ];
 }
 

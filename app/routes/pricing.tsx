@@ -52,7 +52,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // comes from the loader's siteUrl.
   return [
     ...marketingMeta({
-      title: "Pricing - Foxhound",
+      title: "Pricing",
       description: PRICING_META_DESCRIPTION,
       path: "/pricing",
       siteUrl: loaderData?.siteUrl ?? "",
@@ -61,7 +61,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       ? [
           jsonLd(faqPageJsonLd(PRICING_FAQS)),
           jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            name: "Pricing - Foxhound",
+            name: "Pricing",
             path: "/pricing",
             selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
           })),

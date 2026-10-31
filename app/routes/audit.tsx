@@ -24,11 +24,10 @@ import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib/estimator/estimate.server";
 import { formatMoney } from "~/lib/money-format";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Real no-auth estimator + audit marketing page (Phase 6 Pass 3). Ported the
 // legacy app/audit/page.tsx marketing structure (Capsid read_repo_file,
@@ -53,20 +52,12 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Free Stripe Revenue Leakage Audit - Foxhound",
+      title: "Free Stripe Revenue Leakage Audit",
       description:
         "Estimate in 30 seconds what your Stripe account loses to failed payments, with no signup or credit card. Connect Stripe afterward to see your real numbers.",
       path: "/audit",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Audit", path: "/audit" },
-          ])),
-        ]
-      : []),
   ];
 }
 
