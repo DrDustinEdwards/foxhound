@@ -200,6 +200,14 @@ describe("PLANT 8: the gateway sends only an anonymous GET or HEAD of a public p
     expect(light.request.headers.get("cookie")).toBe("fh_theme=light");
     expect(light.theme).toBe("light");
   });
+
+  it("a GET's own headers are left alone: on Workers they are immutable, and setting one was a 500 (2026-10-31)", () => {
+    const get = request("/pricing");
+    get.headers.set = () => {
+      throw new TypeError("Can't modify immutable headers.");
+    };
+    expect(edgeRequest(get).request.headers.get("cookie")).toBe("fh_theme=dark");
+  });
 });
 
 describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () => {

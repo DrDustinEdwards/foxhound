@@ -21,15 +21,16 @@ import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 // said "Regenerate", which was not true).
 //
 // Intelligence is free, so the report is a template (narrative.ts) and the
-// button never calls a model: the client factory throws here if it is reached.
+// button never calls a model: ~/lib/ai/client throws here if it is reached.
 
 const createMock = vi.fn();
-vi.mock("~/lib/ai/client", () => ({
-  createAnthropicClient: () => {
+vi.mock("~/lib/ai/client", () => {
+  const refuse = () => {
     createMock();
     throw new Error("Intelligence must not call a model");
-  },
-}));
+  };
+  return { askModel: refuse, askStructured: refuse };
+});
 
 const { generateMonthlyReport } = await import("~/lib/intelligence/report-generate.server");
 

@@ -1,4 +1,4 @@
-import { createAnthropicClient } from "~/lib/ai/client";
+import { askStructured, REWRITE } from "~/lib/ai/client";
 import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { MODEL_MARKETING_EMAIL_SAMPLE } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
@@ -12,8 +12,7 @@ import type { MarketingEmailCategory, MarketingEmailCopy } from "./email-sample"
 // merchant's brand voice, unlike generateDunningEmail in
 // app/lib/recovery/email-generation.ts (which this reuses sanitizeCopy from,
 // the same em-dash/AI-tell stripping every generated customer-facing email
-// gets). Isolated seam: constructs its own Anthropic client per call and
-// throws if ANTHROPIC_API_KEY is unset or the call fails. There is no static
+// gets). Throws if ANTHROPIC_API_KEY is unset or the call fails. There is no static
 // fallback: the route answers { error: true } and the page shows Recova's
 // "Generation failed. Try again." line.
 
@@ -86,37 +85,30 @@ export async function generateMarketingEmailSample(
   if (!env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  const client = createAnthropicClient(env, { source: "marketing_email_sample", accountId: null });
-  const call = (instruction = ""): Promise<MarketingEmailCopy> => draftSample(client, category, instruction);
+  const call = (instruction = ""): Promise<MarketingEmailCopy> => draftSample(env, category, instruction);
   // One retry when the sample reads as machine-written (ai/plain-writing.ts):
   // it is the email a visitor judges Foxhound by.
   return retryStockPhrasing(await call(), (copy) => `${copy.subject}\n\n${copy.body}`, call);
 }
 
-async function draftSample(
-  client: ReturnType<typeof createAnthropicClient>,
-  category: MarketingEmailCategory,
-  instruction: string,
-): Promise<MarketingEmailCopy> {
-  const response = await client.messages.create({
-    model: MODEL_MARKETING_EMAIL_SAMPLE,
-    max_tokens: 400,
-    thinking: { type: "disabled" },
-    // No effort: Haiku 4.5 rejects it with a 400 ("This model does not support
-    // the effort parameter"), which failed every home page generation.
-    output_config: {
-      format: { type: "json_schema", schema: OUTPUT_SCHEMA },
+async function draftSample(env: Env, category: MarketingEmailCategory, instruction: string): Promise<MarketingEmailCopy> {
+  const result = await askStructured<{ subject: string; body: string }>(
+    env,
+    { source: "marketing_email_sample", accountId: null },
+    {
+      model: MODEL_MARKETING_EMAIL_SAMPLE,
+      max_tokens: 400,
+      thinking: { type: "disabled" },
+      // No effort: Haiku 4.5 rejects it with a 400 ("This model does not support
+      // the effort parameter"), which failed every home page generation.
+      messages: [{ role: "user", content: buildPrompt(category) + instruction }],
     },
-    messages: [{ role: "user", content: buildPrompt(category) + instruction }],
-  });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("marketing email sample generation returned no text block");
-  }
-  const parsed = JSON.parse(textBlock.text) as { subject: string; body: string };
+    OUTPUT_SCHEMA,
+    instruction ? REWRITE : {},
+  );
+  if (!result.ok) throw new Error(`marketing email sample generation failed: ${result.kind}`);
   return {
-    subject: sanitizeCopy(parsed.subject),
-    body: sanitizeCopy(parsed.body),
+    subject: sanitizeCopy(String(result.value.subject ?? "")),
+    body: sanitizeCopy(String(result.value.body ?? "")),
   };
 }

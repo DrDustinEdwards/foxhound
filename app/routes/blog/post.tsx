@@ -11,7 +11,7 @@ import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
-import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
+import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost, getSlugRedirect } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
   faqPageJsonLd,
@@ -68,6 +68,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   const post = await getPostBySlug(db, params.slug);
   if (!post) {
+    // A post Carrel renamed: its old address answers a permanent redirect to
+    // the new one (site-api's rename contract). Read only on a miss, so a live
+    // post's own page costs no extra query.
+    const moved = await getSlugRedirect(db, params.slug);
+    if (moved) throw redirect(`/blog/${moved}`, 301);
     throw new Response("Not found", { status: 404 });
   }
 
@@ -181,7 +186,10 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       </Link>
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
-        <article id="blog-post-article">
+        {/* h-entry and e-content name the post's own text for site-api's
+            webmention hook, which sends to the links inside it only (not the
+            share row's). No style reads either class. */}
+        <article id="blog-post-article" className="h-entry">
           {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
               <CoverPicture cover={cover} className="h-full w-full object-cover" />
@@ -231,7 +239,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <TableOfContents items={toc} variant="inline" />
 
-          <div className="blog-prose" dangerouslySetInnerHTML={{ __html: html }} />
+          <div className="blog-prose e-content" dangerouslySetInnerHTML={{ __html: html }} />
         </article>
 
         <TableOfContents items={toc} variant="sidebar" />

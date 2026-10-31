@@ -418,8 +418,22 @@
     {
       "idx": 59,
       "version": "6",
-      "when": 1793435482281,
-      "tag": "0063_cron_runs",
+      "when": 1793435588268,
+      "tag": "0063_blog_trash_and_renames",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1793435608989,
+      "tag": "0064_site_api_store",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1793439906472,
+      "tag": "0065_cron_runs",
       "breakpoints": true
     }
   ]

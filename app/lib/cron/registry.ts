@@ -150,17 +150,21 @@ const intelligenceAi: CronHandler = async (env) => {
   };
 };
 
-/** Scheduled blog publishing (site-api v0.10.0): puts live every post and
- *  every update to a live post whose scheduled time has come, and tells
- *  IndexNow about each. A schedule that fails is logged by site-api and listed
- *  again on the next pass, so the run stays a success and says so. */
+/** Scheduled blog publishing (site-api's runSchedules): puts live every post
+ *  and every update to a live post whose scheduled time has come, with the
+ *  hooks a Carrel publish runs, retries the hooks that failed before, and
+ *  deletes the posts 30 days in the trash. A schedule that fails is logged by
+ *  site-api and listed again on the next pass, so the run stays a success and
+ *  says so. */
 const blogSchedules: CronHandler = async (env) => {
   const run = await runBlogSchedules(env);
   const failed = run.failed > 0 ? `, ${run.failed} failed (retried next pass)` : "";
+  const retried = run.retried ? `, ${run.retried} hooks retried` : "";
+  const emptied = run.emptied ? `, ${run.emptied} trashed posts deleted` : "";
   const more = run.more ? ", more due" : "";
   return {
     rowsProcessed: run.applied.length,
-    message: `${run.applied.length} applied, ${run.skipped} skipped${failed}${more}`,
+    message: `${run.applied.length} applied, ${run.skipped} skipped${failed}${retried}${emptied}${more}`,
   };
 };
 

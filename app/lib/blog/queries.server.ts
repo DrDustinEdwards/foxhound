@@ -9,7 +9,7 @@
 import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { blogPostLinks, blogPosts } from "~/db";
+import { blogPostLinks, blogPosts, blogSlugRedirects } from "~/db";
 
 export interface BlogPostSummary {
   id: string;
@@ -202,6 +202,17 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
     showUpdatedAt: r.showUpdatedAt,
     showPublishedAt: r.showPublishedAt,
   };
+}
+
+/** Where a renamed post's old slug now leads (blog_slug_redirects, written by
+ *  a Carrel rename), or null. */
+export async function getSlugRedirect(db: Db, slug: string): Promise<string | null> {
+  const rows = await db
+    .select({ toSlug: blogSlugRedirects.toSlug })
+    .from(blogSlugRedirects)
+    .where(eq(blogSlugRedirects.fromSlug, slug))
+    .limit(1);
+  return rows[0]?.toSlug ?? null;
 }
 
 // Adjacent-post helpers for the prev/next nav on post detail. Sort key is
