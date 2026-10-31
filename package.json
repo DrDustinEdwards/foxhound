@@ -30,7 +30,7 @@
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.20.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#32bd35a2a045140afcda7afe6f00fbefc8b25253",
-    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#c9a2903eab0a784b9ee17216334be9c3be0309b3",
+    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.17.0",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.43.0",
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.66.0",

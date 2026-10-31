@@ -382,8 +382,10 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates): SiteAdapte
     },
 
     preview: {
+      // A bare body with no front matter still previews, untitled (site-api 0.17.0's
+      // conformance asks it to); a save still refuses it.
       async render(input) {
-        const post = parse(input.source);
+        const post = input.source.startsWith("---") ? parse(input.source) : { title: "Untitled", body: input.source };
         const { html } = await renderMarkdown(db, post.body);
         const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
         return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(post.title)}</title></head><body><article><h1>${esc(post.title)}</h1>${html}</article></body></html>`;
