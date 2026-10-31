@@ -1,11 +1,13 @@
-import { confirmSignInLink } from "@dustinedwards/site-runtime/sign-in";
+import { confirmSignInLink, SIGN_IN_LINK_WORDS, signInLinkProblem } from "@dustinedwards/site-runtime/sign-in";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { data } from "react-router";
 
 import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
-import { signInErrorMessage } from "~/lib/auth/sign-in-link.server";
+import { getSession } from "~/lib/auth/session";
+import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
+import { knownSignInError } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { NOINDEX } from "~/lib/seo/meta";
 
@@ -15,7 +17,8 @@ import type { Route } from "./+types/sign-in-confirm";
 // ./sign-in, CONFIRM_PATH). Its GET only shows this card, so a mail scanner
 // that opens every link spends nothing; the button's POST signs in through
 // confirmSignInLink, on to /passkey and `next`. A spent or expired link comes
-// back here with ?error= (app/lib/auth/sign-in-link.server.ts).
+// back here with ?error= and the time it was mailed, and site-runtime's
+// signInLinkProblem tells used, expired, cut short and failed apart.
 
 export function meta() {
   return [{ title: "Sign in - Foxhound" }, NOINDEX];
@@ -24,10 +27,17 @@ export function meta() {
 // The page's URL holds the token.
 export const headers = () => ({ "Cache-Control": "no-store" });
 
-export function loader({ request }: Route.LoaderArgs) {
-  const params = new URL(request.url).searchParams;
-  const code = params.get("error") ?? (params.get("token") ? null : "INVALID_TOKEN");
-  return { error: signInErrorMessage(code), expired: code === "INVALID_TOKEN" };
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  const error = url.searchParams.get("error");
+  // Only a failed link asks who is signed in: the button's GET reads nothing.
+  const signedIn = error ? Boolean(await getSession(context.get(cloudflareContext).env, request)) : false;
+  const problem = signInLinkProblem(url, { signedIn });
+  if (!problem) return { problem: null };
+  // A refusal that is not the link's own, such as a disposable address, keeps
+  // Foxhound's words for it.
+  const own = problem === "failed" ? knownSignInError(error) : null;
+  return { problem, title: SIGN_IN_LINK_WORDS[problem].title, text: own ?? SIGN_IN_LINK_WORDS[problem].text };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -39,13 +49,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function SignInConfirm({ loaderData, actionData }: Route.ComponentProps) {
-  if (loaderData.error) {
+  if (loaderData.problem) {
+    const signedIn = loaderData.problem === "signed-in";
     return (
       <AuthCard>
-        <AuthHeading title={loaderData.expired ? "This link has expired" : "That sign-in did not complete"} />
-        <Alert tone="crit">{loaderData.error}</Alert>
+        <AuthHeading title={loaderData.title} />
+        <Alert tone={signedIn ? "ok" : "crit"}>{loaderData.text}</Alert>
         <AuthFootnote>
-          <AuthLink to="/login">{loaderData.expired ? "Get a new link" : "Back to sign in"}</AuthLink>
+          {signedIn ? <AuthLink to={DEFAULT_NEXT_PATH}>Go to Foxhound</AuthLink> : <AuthLink to="/login">Get a new link</AuthLink>}
         </AuthFootnote>
       </AuthCard>
     );
