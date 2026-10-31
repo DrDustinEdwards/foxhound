@@ -25,6 +25,7 @@ const OK: LoaderData = {
   redirectUri: "https://claude.ai/api/mcp/auth_callback",
   state: "st",
   codeChallenge: "x".repeat(43),
+  wantsWrite: false,
   accountId: "acct_b",
   accountName: "Acme Supply Co.",
   email: "dana@acme.test",
@@ -43,8 +44,15 @@ function render(loaderData: LoaderData, actionData?: { error: string }): string 
 
 describe("A9: Recova's card, in Recova's order", () => {
 
-  it("offers no scope selector: Foxhound issues the merchant scope only", () => {
+  it("offers one choice, Allow changes, ticked only when the client asked to write", () => {
     const html = render(OK);
-    expect(html).not.toMatch(/All accounts|Scope/);
+    expect(html).not.toMatch(/All accounts/);
+    const box = /<input[^>]*name="allow_write"[^>]*>/.exec(html)?.[0] ?? "";
+    expect(box, "the read-only grant is the default").not.toMatch(/checked/);
+    expect(render({ ...OK, wantsWrite: true })).toMatch(/<input[^>]*name="allow_write"[^>]*checked/);
+    // The write line sits beside the box, not in the list every grant gets.
+    const list = /<ul[^>]*aria-labelledby="oauth-can"[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
+    expect(list).not.toMatch(/Change your settings/);
+    expect(html).toMatch(/Change your settings and alerts/);
   });
 });

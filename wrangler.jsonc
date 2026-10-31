@@ -4,7 +4,9 @@
   "main": "./workers/app.ts",
   // No newer than the workerd that @cloudflare/vite-plugin bundles supports, or `npm run dev` refuses to start.
   "compatibility_date": "2026-10-19",
-  "compatibility_flags": ["nodejs_compat"],
+  // global_fetch_strictly_public: a fetch to a hostname on this zone goes out to the internet, never to the origin, and
+  // @cloudflare/workers-oauth-provider refuses to fetch a client metadata document without it (app/lib/oauth/client-metadata.server.ts).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "upload_source_maps": true,
   // The daily 03:00 run syncs every account's Intelligence in one invocation,
   // several Stripe calls per customer, with about fifteen other daily jobs.
