@@ -281,7 +281,7 @@ describe("PLANT 7: the tool module holds no money writer", () => {
     const imports = [...tools.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
     for (const path of imports) {
       expect(path, `${path} is not a read or the settings apply module`).toMatch(
-        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|\/render|settings\/apply\.server|\.\/registry)$/,
+        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|\/render|settings\/apply\.server|\.\/confirm\.server|\.\/registry)$/,
       );
     }
     // persist.server holds a writer too (saveAuditRun, above); only its two

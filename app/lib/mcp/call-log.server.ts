@@ -34,8 +34,9 @@ import { maskEmailsInText } from "./redact";
 // is not a state this path can reach. The finished rows are written after,
 // sharing each call's id and correlation id.
 
-/** Arguments that are credentials: kept as "[redacted]" wherever they appear. */
-const CREDENTIAL_ARGUMENTS = new Set(["slack_webhook_url"]);
+/** Arguments that are credentials: kept as "[redacted]" wherever they appear.
+ *  A confirm code approves one exact call (./confirm.server.ts), so it is one. */
+const CREDENTIAL_ARGUMENTS = new Set(["slack_webhook_url", "confirm"]);
 
 type McpCallOutcome = "ok" | "tool_error" | "protocol_error";
 

@@ -33,6 +33,7 @@ import {
   listAccountConnections,
 } from "~/lib/settings/queries.server";
 
+import { CONFIRM_ARGUMENT, CONFIRM_PROPERTY, CONFIRM_RESULT_FIELDS, confirmationNeeded } from "./confirm.server";
 import {
   defineToolRegistry,
   type McpTool,
@@ -735,6 +736,18 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
 
 const SECTION_NAMES = Object.keys(SETTINGS_SECTIONS);
 
+/** What a settings call would do, in words the merchant can approve. A Slack
+ *  webhook URL is a credential, so it is named, never shown. */
+function describeSettingsChange(name: string, section: ToolArgs): string {
+  const shown = Object.entries(section).map(([field, value]) =>
+    field === "slack_webhook_url" ? `${field}: ${value ? "a new Slack webhook URL" : "cleared"}` : `${field}: ${JSON.stringify(value)}`,
+  );
+  const cleared = name === "notifications" && section.slack_webhook_url === undefined ? ["slack_webhook_url: cleared"] : [];
+  return `Overwrite the ${name} settings with ${[...shown, ...cleared].join(", ") || "nothing"}.${
+    name === "notifications" ? " Every notification field is replaced, and clearing the email turns every notification off." : ""
+  }`;
+}
+
 const ALERT_ACTIONS = ["create", "enable", "disable", "delete"] as const;
 
 const WRITE_TOOLS: McpTool[] = [
@@ -742,7 +755,7 @@ const WRITE_TOOLS: McpTool[] = [
     name: "foxhound_update_settings",
     title: "Change settings",
     description:
-      "Change one group of this account's settings per call: send exactly one of audit, features, notifications, sender_name, brand_voice or intelligence_context. Read the current values first with foxhound_get_settings. Values overwrite what is there: in notifications every field is replaced and an omitted Slack webhook is cleared; in brand_voice and intelligence_context an omitted field is left alone and an empty string clears it. Connection ids come from foxhound_get_settings and must belong to this account.",
+      "Change one group of this account's settings per call: send exactly one of audit, features, notifications, sender_name, brand_voice or intelligence_context. Read the current values first with foxhound_get_settings. Values overwrite what is there: in notifications every field is replaced and an omitted Slack webhook is cleared; in brand_voice and intelligence_context an omitted field is left alone and an empty string clears it. Connection ids come from foxhound_get_settings and must belong to this account. Every change is confirmed first: the first call changes nothing and answers what it would change and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
       type: "object",
       properties: {
@@ -816,13 +829,15 @@ const WRITE_TOOLS: McpTool[] = [
           },
           required: [],
         },
+        [CONFIRM_ARGUMENT]: CONFIRM_PROPERTY,
       },
       required: [],
     },
     // Destructive because a value is overwritten, and clearing the notification
-    // email silences every notification. Idempotent because the same call twice
-    // leaves the same settings.
-    outputSchema: result(["section", "updated", "state"], ["section", "updated"]),
+    // email silences every notification, so it is confirmed first
+    // (./confirm.server.ts). Idempotent because the same call twice leaves the
+    // same settings.
+    outputSchema: result(["section", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     scope: "write",
     execute: async (ctx, args) => {
@@ -837,6 +852,8 @@ const WRITE_TOOLS: McpTool[] = [
       if (!section || typeof section !== "object" || Array.isArray(section)) {
         throw new ToolInputError(`${name} must be an object of that group's fields.`);
       }
+      const pending = await confirmationNeeded(ctx, "foxhound_update_settings", args, describeSettingsChange(name, section as ToolArgs));
+      if (pending) return pending;
       return { section: name, ...((await SETTINGS_SECTIONS[name](ctx, section as ToolArgs)) as object) };
     },
   },
@@ -846,7 +863,7 @@ const WRITE_TOOLS: McpTool[] = [
     // DELETION IS NAMED rather than left to be discovered, because it takes the
     // alert's firing history with it and that is not recoverable.
     description:
-      "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day.",
+      "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day. delete is confirmed first: the first call deletes nothing and answers what it would delete and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
       type: "object",
       properties: {
@@ -860,12 +877,14 @@ const WRITE_TOOLS: McpTool[] = [
         },
         label: { type: "string", description: "For create: an optional name for the alert." },
         channel: { type: "string", enum: ["email", "slack"], description: "For create: where a breach is sent. Defaults to email." },
+        [CONFIRM_ARGUMENT]: { ...CONFIRM_PROPERTY, description: `For delete. ${CONFIRM_PROPERTY.description}` },
       },
       required: ["action"],
     },
-    // Destructive because delete is; not idempotent because create makes a new
-    // alert each time.
-    outputSchema: result(["action", "updated", "state"], ["action", "updated"]),
+    // Destructive because delete is, so delete is confirmed first
+    // (./confirm.server.ts); not idempotent because create makes a new alert
+    // each time.
+    outputSchema: result(["action", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     scope: "write",
     execute: async (ctx, args) => {
@@ -888,7 +907,16 @@ const WRITE_TOOLS: McpTool[] = [
         };
       }
       if (action === "enable" || action === "disable" || action === "delete") {
-        required(args, "alert_id", "Take one from foxhound_get_intelligence.");
+        const alertId = required(args, "alert_id", "Take one from foxhound_get_intelligence.");
+        if (action === "delete") {
+          const pending = await confirmationNeeded(
+            ctx,
+            "foxhound_manage_alerts",
+            args,
+            `Delete alert ${alertId} and every breach recorded for it. This cannot be undone.`,
+          );
+          if (pending) return pending;
+        }
         return {
           action,
           ...applied(
