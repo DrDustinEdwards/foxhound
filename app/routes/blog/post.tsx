@@ -9,7 +9,7 @@ import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
+import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
@@ -70,16 +70,14 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc }, previous, next, related] = await Promise.all([
+  const [{ html, toc, faq }, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     post.publishedAt ? getNextPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     getPostLinks(db, post.id),
   ]);
 
-  const faqPairs = extractFaqPairs(post.body);
-
-  return { siteUrl: siteUrl(env), post, html, toc, previous, next, related, faqPairs };
+  return { siteUrl: siteUrl(env), post, html, toc, previous, next, related, faq };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -144,9 +142,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
         authorName: post.author,
       }),
     ),
-    ...(loaderData.faqPairs.length > 0
-      ? [jsonLd(faqPageJsonLd(loaderData.faqPairs.map((f) => ({ question: f.question, answer: f.answer }))))]
-      : []),
+    ...(loaderData.faq.length > 0 ? [jsonLd(faqPageJsonLd(loaderData.faq))] : []),
   ];
 }
 
