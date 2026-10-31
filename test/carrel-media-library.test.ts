@@ -171,7 +171,7 @@ describe("the media library through Carrel's site-api mount", () => {
     const { html } = await renderMarkdown(t.db, `![Declines by reason](/media/${id})\n`);
     expect(html).toContain("<picture>");
     // Named by its bytes, so the route serves each size immutable.
-    expect(html).toMatch(new RegExp(`/media/${id}\\?v=[0-9a-f]{12}&#x26;w=680 `));
+    expect(html).toMatch(new RegExp(`/media/${id}\\.(?:avif|webp)\\?v=[0-9a-f]{12}&#x26;w=680 `));
     expect(html).toContain('width="1600" height="900"');
 
     const detail = await t.json(t.at(id));

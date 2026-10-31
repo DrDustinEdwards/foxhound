@@ -1,3 +1,5 @@
+import { originalKey } from "@dustinedwards/site-runtime/image";
+
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { images, UPLOAD_KEY, VERSION_LENGTH } from "~/lib/media/images";
@@ -22,7 +24,8 @@ import type { Route } from "./+types/media";
 const UNVERSIONED_CACHE_CONTROL = "public, max-age=300";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
-  const key = params["*"] ?? "";
+  // A size URL ends in its own format (`photo.png.webp?w=640`); the stored key is `photo.png`.
+  const key = originalKey(params["*"] ?? "", request);
   if (!UPLOAD_KEY.test(key)) return new Response("Not found", { status: 404 });
   const { env } = context.get(cloudflareContext);
   const version = new URL(request.url).searchParams.get("v");
