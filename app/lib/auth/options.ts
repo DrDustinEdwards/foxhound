@@ -1,3 +1,4 @@
+import type { signInOptions } from "@dustinedwards/site-runtime/sign-in";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 
@@ -17,26 +18,10 @@ import { isDisposableEmail } from "./disposable-emails";
 const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
 const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 
-/** What every Better Auth account write stores in place of Google's tokens. */
-const NO_OAUTH_TOKENS = {
-  accessToken: null,
-  refreshToken: null,
-  idToken: null,
-  accessTokenExpiresAt: null,
-  refreshTokenExpiresAt: null,
-};
-
 export const authOptions = {
   appName: "Foxhound",
+  // Foxhound's own hooks only; withSignIn merges them with the shared ones.
   databaseHooks: {
-    account: {
-      // Google and Apple are sign-in only and nothing reads their tokens, so none
-      // are stored (FH-5). Every account write Better Auth makes on a social sign-in
-      // (createOAuthUser, linkAccount, updateAccount) runs these hooks; the
-      // clear_oauth_tokens migration cleared the rows from before.
-      create: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
-      update: { before: async () => ({ data: NO_OAUTH_TOKENS }) },
-    },
     user: {
       create: {
         // Disposable-email blocklist at account creation (legacy rule). Applies
@@ -109,3 +94,18 @@ export const authOptions = {
     },
   },
 } satisfies BetterAuthOptions;
+
+/** Foxhound's options over the family sign-in's (site-runtime ./sign-in). The
+ *  hooks are merged, not replaced: the shared databaseHooks.account store no
+ *  Google or Apple tokens (FH-5), the shared session keeps freshAge (a sign-in
+ *  from the last 10 minutes to add a passkey or unlink), and the shared
+ *  advanced settings read the client IP from cf-connecting-ip. */
+export function withSignIn(signIn: Awaited<ReturnType<typeof signInOptions>>) {
+  return {
+    ...signIn,
+    ...authOptions,
+    databaseHooks: { ...signIn.databaseHooks, ...authOptions.databaseHooks },
+    session: { ...signIn.session, ...authOptions.session },
+    advanced: { ...signIn.advanced, ...authOptions.advanced },
+  };
+}

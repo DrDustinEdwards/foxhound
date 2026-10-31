@@ -12,20 +12,16 @@ import {
   SignInLinkSent,
   SocialContinue,
 } from "~/components/auth-card";
-import {
-  checkAuthLimit,
-  limitedData,
-  RATE_LIMITED_ERROR,
-  SIGN_IN_LIMITED,
-} from "~/lib/auth/rate-limit.server";
-import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
+import { checkAuthLimit, limitedData, SIGN_IN_LIMITED } from "~/lib/auth/rate-limit.server";
+import { DEFAULT_NEXT_PATH, REAUTH_PARAM, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
-import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
+import { answerSignInForm, signInErrorMessage } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/login";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // Row A2, /login: Recova's app/(auth)/login/page.tsx (blob ec09cd24),
 // read whole, for the frame: one card, "Welcome back", the line under it, the
@@ -37,26 +33,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 // Supabase client calls.
 
 export function meta() {
-  return [{ title: "Log in - Foxhound" }, NOINDEX];
+  return [{ title: "Sign in - Foxhound" }, NOINDEX];
 }
-
-/** The ?error= codes something sends here: the limiter's, and Better Auth's
- *  from a spent link or a refused Google or Apple sign-in. */
-const LINK_SPENT = "That sign-in link has expired or was already used. Send yourself a new one.";
-const ERROR_MESSAGES: Record<string, string> = {
-  [RATE_LIMITED_ERROR]: SIGN_IN_LIMITED,
-  EXPIRED_TOKEN: LINK_SPENT,
-  INVALID_TOKEN: LINK_SPENT,
-  ATTEMPTS_EXCEEDED: LINK_SPENT,
-  // The disposable-address refusal (app/lib/auth/options.ts), in Recova's words
-  // (app/(auth)/login/page.tsx).
-  disposable_email: "Please use a real email address. Disposable email providers are not allowed.",
-  // Accounts are joined only by a signed-in person (site-runtime ./sign-in),
-  // never by a matching email at sign-in, so this one has a way forward.
-  account_not_linked:
-    "That email already has a Foxhound account. Sign in with an email link, then connect Google or Apple in My account.",
-};
-const SIGN_IN_FAILED = "That sign-in did not complete. Try again or use another way.";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -70,13 +48,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Same session read appShellMiddleware uses (guards.ts): a signed-in
   // visitor hitting /login otherwise saw the sign-in form while the header
   // already showed them authenticated.
+  // ?reauth (signInAgainIfStale) lets a signed-in person sign in again: adding
+  // a passkey or unlinking needs a sign-in from the last 10 minutes.
+  const reauth = params.has(REAUTH_PARAM);
   const session = await getSession(env, request);
-  if (session) throw redirect(await signedInLanding(env, session, next));
+  if (session && !reauth) throw redirect(await signedInLanding(env, session, next));
   const code = params.get("error");
   return {
     next,
+    reauth,
     methods: signInMethods(env, { social: true }),
-    error: code ? (ERROR_MESSAGES[code] ?? SIGN_IN_FAILED) : null,
+    error: signInErrorMessage(code),
   };
 }
 
@@ -87,7 +69,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
-  return answerSignInForm(env, request, await request.formData(), { isCode, limited: SIGN_IN_LIMITED });
+  return answerSignInForm(env, request, await readForm(request), { isCode, limited: SIGN_IN_LIMITED });
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
@@ -99,7 +81,10 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
 
   return (
     <AuthCard>
-      <AuthHeading title="Welcome back" subtitle="Log in to your Foxhound account" />
+      <AuthHeading
+        title={loaderData.reauth ? "Sign in again" : "Welcome back"}
+        subtitle={loaderData.reauth ? "To change how you sign in, sign in again." : "Sign in to your Foxhound account"}
+      />
 
       {actionData?.sent ? (
         <SignInLinkSent

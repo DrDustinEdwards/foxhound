@@ -31,7 +31,6 @@ vi.mock("~/lib/auth", async (importOriginal) => ({
 vi.mock("~/lib/auth/rate-limit.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth/rate-limit.server")>()),
   checkAuthLimit: async () => null,
-  checkEmailLimit: async () => null,
 }));
 
 const login = await import("~/routes/auth/login");

@@ -311,7 +311,7 @@ export function SignInLinkForm({
           label="Email"
           name="email"
           type="email"
-          autoComplete="email webauthn"
+          autoComplete="username webauthn"
         />
       </div>
       {turnstileSiteKey ? <div ref={widget} className="mb-4" /> : null}

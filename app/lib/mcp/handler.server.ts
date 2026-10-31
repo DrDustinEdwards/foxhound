@@ -1,3 +1,4 @@
+import { readCapped } from "@dustinedwards/site-runtime/body";
 import { getDb } from "~/db";
 import {
   DEMO_ACCOUNT_ID_PREFIX,
@@ -6,6 +7,7 @@ import {
 } from "~/lib/constants";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { mcpWwwAuthenticate } from "~/lib/oauth/metadata";
 
 import { answersIn, recordToolCalls, toolCallsIn } from "./call-log.server";
@@ -227,19 +229,21 @@ export async function handleMcpRequest(
     return errorResponse(429, null, MCP_ERROR.INVALID_REQUEST, "Too many requests");
   }
 
-  // THE TOOL CALLS IN THIS REQUEST, read from a clone before the SDK reads the
+  // THE TOOL CALLS IN THIS REQUEST, read to a ceiling before the SDK sees the
   // body, so the call log (rule 12.4) sees every call that got past the door.
   // A body that is not JSON holds no call; the SDK answers it with a parse error.
+  const text = await readCapped(request, BODY_MAX_BYTES);
+  if (text === null) return errorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
   let body: unknown = null;
   try {
-    body = await request.clone().json();
+    body = JSON.parse(text);
   } catch {
     body = null;
   }
   const calls = toolCallsIn(body);
 
   const now = new Date();
-  const response = await serveMcp(request, registry, {
+  const response = await serveMcp(new Request(request, { body: text }), registry, {
     env,
     db: getDb(env),
     accountId: authenticated.auth.accountId,

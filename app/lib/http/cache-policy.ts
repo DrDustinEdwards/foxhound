@@ -1,4 +1,4 @@
-import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { forRenderer, publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { readThemeCookie } from "capsomer/theme-server";
 
 import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
@@ -175,8 +175,9 @@ export function resolveCacheControl(request: Request, edge = false): string {
 /**
  * Should the gateway send this request through the cacheable Renderer?
  *
- * Only a GET of a public page or files route (a HEAD is answered with an
- * empty body by app/entry.server.tsx, which must never be stored), never /media (its own
+ * Only a GET or HEAD of a public page or files route (a HEAD reaches the
+ * Renderer as a GET, site-runtime forRenderer, so what is stored is a whole
+ * page and forReader gives the HEAD reader no body), never /media (its own
  * route keeps each size in caches.default), and only when every cookie the
  * request carries is the theme cookie. A session cookie, the demo cookie, the
  * audit cookie, an OAuth state cookie or anything else sends it to the gateway's
@@ -184,7 +185,7 @@ export function resolveCacheControl(request: Request, edge = false): string {
  * never a leak.
  */
 export function edgeCacheable(request: Request): boolean {
-  if (request.method !== "GET") return false;
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
   const pathname = new URL(request.url).pathname;
   const cacheClass = classifyPath(pathname);
   if (cacheClass === "private" || pathname.startsWith("/media/")) return false;
@@ -209,7 +210,9 @@ function cookieNames(request: Request): string[] {
  */
 export function edgeRequest(request: Request): { request: Request; theme: string } {
   const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
-  const forwarded = new Request(request);
+  // A HEAD goes on as a GET (site-runtime forRenderer): app/entry.server.tsx answers a HEAD with an empty body, which
+  // must never be stored.
+  const forwarded = forRenderer(request);
   forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
   return { request: forwarded, theme };
 }
@@ -286,6 +289,8 @@ export const NO_TRANSFORM_PREFIXES = [
   "/invite/",
   // Where the emailed sign-in link lands, carrying a signed-in session.
   "/passkey",
+  // Where the emailed sign-in link opens: its query carries the link's token.
+  "/sign-in/",
   // The OAuth consent page: its query carries a client's id and state.
   "/oauth/",
 ];

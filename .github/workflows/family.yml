@@ -18,4 +18,4 @@ concurrency:
 
 jobs:
   family:
-    uses: DrDustinEdwards/devkit/.github/workflows/family.yml@64997ae3facf4360eb676c57b7a5b5e8ec3350de # v0.18.0
+    uses: DrDustinEdwards/devkit/.github/workflows/family.yml@9919c4b7d8f616ec56f668e60e1e9f24796ef8a8 # v0.20.6

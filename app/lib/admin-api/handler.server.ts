@@ -35,6 +35,7 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import { redactToolResult } from "~/lib/mcp/redact";
 import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
+import { readJson } from "~/lib/http/body";
 
 // THE FOXHOUND ADMIN API at /api/admin/v1 (MCP ruling 2026-10-10, rule 9
 // amendment; job_21de68b30fc2 PR 1).
@@ -556,7 +557,7 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
   let body: Json = {};
   if (request.method === "POST") {
     try {
-      const parsed: unknown = await request.json();
+      const parsed: unknown = await readJson(request);
       body = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Json) : {};
     } catch {
       body = {};

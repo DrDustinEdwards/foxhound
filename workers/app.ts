@@ -1,6 +1,6 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { generateNonce } from "@dustinedwards/site-runtime/csp";
+import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
@@ -15,7 +15,7 @@ import { runCronJob } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
-import { applyHashedSecurityHeaders, applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -111,7 +111,7 @@ export default withSentry<Env>(
       // THE EDGE PAGE CACHE (site-runtime ./edge-cache). This default export
       // has the Workers cache disabled, so it runs on every request, hits
       // included, and decides here, before the cache is consulted, what may be
-      // served from it: only an anonymous GET of a public page (cache-policy.ts,
+      // served from it: only an anonymous GET or HEAD of a public page (cache-policy.ts,
       // edgeCacheable). A request carrying a session cookie, or any cookie but
       // the theme, never reaches the Renderer and is rendered below with its own
       // nonce, stored nowhere. The key leaves out tracking parameters and holds
@@ -121,7 +121,7 @@ export default withSentry<Env>(
         const edge = edgeRequest(request);
         const key = cacheKey(request.url, { dimensions: { theme: edge.theme } });
         const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: key } });
-        return forReader(page, request, { publicCookies: [THEME_COOKIE] });
+        return forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] });
       }
 
       const context = new RouterContextProvider();
@@ -193,20 +193,22 @@ export default withSentry<Env>(
  * GET of a public page or files route whose one cookie, if any, is the theme.
  * Its responses are stored by the Workers cache under the key the gateway
  * names, so every header a stored page leaves with is set here, or it is
- * missing from every hit. The page is rendered with no nonce and its inline
- * scripts trusted by hash, since every reader of a stored page would share one.
- * settleCacheHeaders runs last: anything but a shared 200, or a response
- * setting a cookie, leaves `private, no-store` and is stored nowhere. It is not
- * given the request, whose theme cookie is public and in the key. purgePages
+ * missing from every hit. The page is stored with the nonce it was rendered
+ * with, and the gateway renews it for every reader (renewNonce).
+ * settleCacheHeaders runs last: anything but a shared 200, a response setting a
+ * cookie, or one rendered for a HEAD or for a cookie other than the theme (which
+ * the key holds) leaves `private, no-store` and is stored nowhere. purgePages
  * (withPurgePages) runs here because a purge only reaches the cache of the
  * entrypoint that calls it.
  */
 export class Renderer extends withPurgePages(WorkerEntrypoint<Env>) {
   override async fetch(request: Request): Promise<Response> {
+    const storedNonce = generateNonce();
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined });
+    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined, storedNonce });
     const origin = new URL(request.url).origin;
-    const rendered = await timedRender(async () => applyHashedSecurityHeaders(await requestHandler(request, context), origin));
-    return settleCacheHeaders(withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader()));
+    const rendered = await timedRender(async () => applySecurityHeaders(await requestHandler(request, context), storedNonce, origin));
+    const page = withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader());
+    return settleCacheHeaders(page, request, { publicCookies: [THEME_COOKIE] });
   }
 }
