@@ -37,6 +37,9 @@ export const media = sqliteTable(
     licenseExpires: text("license_expires"),
     /** As the picture's embedded metadata says, with an offset where it names one. */
     takenAt: text("taken_at"),
+    /** A 16 px blurred WebP data: URI and the main color (#rrggbb), from site-api's prepareUpload for the current bytes. */
+    placeholder: text("placeholder"),
+    color: text("color"),
     trashedAt: ts("trashed_at"),
     uploadedAt: ts("uploaded_at").notNull(),
     /** Moved by every write in the statement that checks it, so a stale write is refused, never lost. */
