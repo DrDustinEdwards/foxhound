@@ -1,7 +1,8 @@
 import { useCallback } from "react";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { Pill, type Tone } from "capsomer/react/status";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { PreviewStatCard } from "~/components/stat-card";
 import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
@@ -46,7 +47,7 @@ function CardLabel({ children }: { children: React.ReactNode }) {
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
   const draw = useCallback(
-    (width: number) => drawPlans(dashboard.plans, dashboard.currency, width),
+    (width: number) => drawPlans(dashboard.plans, dashboard.currency, width, { name: "Foxhound demo account (sample data)" }),
     [dashboard.plans, dashboard.currency],
   );
   return (
@@ -78,10 +79,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">
           <div className="cap-panel-body">
-            <div className="min-w-0">
-              <CardLabel>MRR by plan</CardLabel>
-              <EnarratioFigure draw={draw} />
-            </div>
+            <ChartFrame draw={draw} />
           </div>
         </div>
       ) : null}

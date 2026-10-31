@@ -45,6 +45,7 @@ import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S27, /settings/account, legacy's hub entry 12, "My account".
 //
@@ -162,7 +163,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("_action") ?? "");
 
   switch (intent) {
@@ -661,7 +662,7 @@ function DangerZone({
             </Alert>
             <div className="flex flex-wrap gap-2.5">
               <Button type="submit" variant="danger" pending={running === "cancel-account"}>
-                {running === "cancel-account" ? "Canceling..." : "Yes, cancel my account"}
+                {running === "cancel-account" ? "Canceling..." : "Cancel my account"}
               </Button>
               {running === "cancel-account" ? null : keep}
             </div>
@@ -674,7 +675,7 @@ function DangerZone({
             </Alert>
             <div className="flex flex-wrap gap-2.5">
               <Button type="submit" variant="danger" pending={running === "delete-account"}>
-                {running === "delete-account" ? "Deleting..." : "Yes, delete my account"}
+                {running === "delete-account" ? "Deleting..." : "Delete my account"}
               </Button>
               {running === "delete-account" ? null : keep}
             </div>

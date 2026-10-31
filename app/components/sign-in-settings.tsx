@@ -3,7 +3,7 @@ import { Button } from "capsomer/react/button";
 import { useState } from "react";
 import { useRevalidator } from "react-router";
 
-import { authClient } from "~/lib/auth/client";
+import { authClient, signInAgainIfStale } from "~/lib/auth/client";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
 
 /** What /settings/account's loader reads for this panel. */
@@ -38,6 +38,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
     setBusy(key);
     try {
       const res = await change();
+      if (signInAgainIfStale(res?.error)) return;
       if (res?.error) {
         const message = (res.error as { message?: string }).message;
         setError(message ? `${failed} ${message}` : failed);
@@ -72,7 +73,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                     void run(p.id, () => authClient.passkey.deletePasskey({ id: p.id }), "The passkey was not removed.")
                   }
                 >
-                  Remove<span className="sr-only"> {p.name}</span>
+                  Remove passkey<span className="sr-only"> {p.name}</span>
                 </Button>
               </li>
             ))}
@@ -83,7 +84,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
           pending={busy === "add"}
           onClick={() => void run("add", () => authClient.passkey.addPasskey(), "The passkey was not saved.")}
         >
-          {busy === "add" ? "Waiting for your device..." : "Add a passkey"}
+          {busy === "add" ? "Waiting for your device..." : "Create a passkey"}
         </Button>
 
         {initial.providers.length > 0 ? (
@@ -105,7 +106,7 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                       )
                     }
                   >
-                    Disconnect<span className="sr-only"> {provider.label}</span>
+                    Disconnect {provider.label}
                   </Button>
                 ) : (
                   <Button

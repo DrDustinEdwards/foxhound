@@ -1,10 +1,13 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { generateNonce } from "@dustinedwards/site-runtime/csp";
-import { cacheKey, forReader, PAGES_CACHE_TAG, purgeTags, settleCacheHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
+import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
+import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
+import { timedRender } from "@dustinedwards/site-runtime/server-timing";
+import { canonicalRedirect } from "@dustinedwards/site-runtime/url";
 import { withSentry } from "@sentry/cloudflare";
-import { createRequestHandler, RouterContextProvider } from "react-router";
+import { createRequestHandler, RouterContextProvider, type ServerBuild } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
@@ -12,11 +15,12 @@ import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
-import { applyHashedSecurityHeaders, applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { applySecurityHeaders } from "~/lib/http/content-security-policy";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
-import { PRELOADS } from "~/lib/preloads";
+import { FONT_PRELOADS } from "~/lib/preloads";
+import { THEME_COOKIE } from "~/lib/theme";
 
 // Durable Objects exported from the worker entry so wrangler can bind them.
 export { MoneyWriteDurableObject } from "./money-writer";
@@ -35,21 +39,15 @@ export class RateLimiterDurableObject extends RateLimiter {}
 // (FH-20); the public fetch below does not route it.
 export { AdminApi } from "./admin-api";
 
-// The preloads root.tsx links, on every HTML page as the `Link` header
-// Cloudflare Early Hints reads. Appended, so a route's own Link stays. It runs
-// after applySecurityHeaders, which always returns a response on a fresh,
-// writable Headers (applyCachePolicy keeps that one or builds another).
-function withPreloads(response: Response): Response {
-  if ((response.headers.get("Content-Type") ?? "").startsWith("text/html")) {
-    response.headers.append("Link", PRELOADS.header);
-  }
-  return response;
-}
+const serverBuild = () => import("virtual:react-router/server-build") as Promise<ServerBuild>;
+const requestHandler = createRequestHandler(serverBuild, import.meta.env.MODE);
 
-const requestHandler = createRequestHandler(
-  () => import("virtual:react-router/server-build"),
-  import.meta.env.MODE,
-);
+// The root stylesheets and the fonts root.tsx links, on every HTML page as the
+// `Link` header Cloudflare Early Hints reads (site-runtime withPreloadHeader
+// appends it, so a route's own Link stays).
+async function preloadHeader(): Promise<string> {
+  return preloads([...rootStylesheets(await serverBuild()), ...FONT_PRELOADS]).header;
+}
 
 export default withSentry<Env>(
   sentryOptions,
@@ -62,6 +60,9 @@ export default withSentry<Env>(
       // same value (TASK-foxhound-csp-nonce-hydration.md).
       const nonce = generateNonce();
       const { origin } = new URL(request.url);
+      // One hop to the canonical address: https, the bare host, no trailing slash.
+      const redirect = canonicalRedirect(request, { host: "foxhoundapp.com" });
+      if (redirect) return applySecurityHeaders(redirect, nonce, origin);
 
       // Checked before the route handler runs (not after). The public bucket
       // only: sign-in, signup, reset and Better Auth's own endpoints are
@@ -81,9 +82,7 @@ export default withSentry<Env>(
           // Any write Carrel makes (a post, its schedule, a media library
           // picture a post shows) can change a stored page, so they are all
           // dropped. Never awaited, never throws.
-          if (request.method !== "GET" && request.method !== "HEAD" && carrel.ok) {
-            ctx.waitUntil(ctx.exports.Renderer.purgePages(`carrel ${request.method} ${new URL(request.url).pathname}`));
-          }
+          purgeAfterWrite(request, carrel, ctx, `carrel ${request.method} ${new URL(request.url).pathname}`);
           return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
         }
       }
@@ -112,15 +111,17 @@ export default withSentry<Env>(
       // THE EDGE PAGE CACHE (site-runtime ./edge-cache). This default export
       // has the Workers cache disabled, so it runs on every request, hits
       // included, and decides here, before the cache is consulted, what may be
-      // served from it: only an anonymous GET of a public page (cache-policy.ts,
+      // served from it: only an anonymous GET or HEAD of a public page (cache-policy.ts,
       // edgeCacheable). A request carrying a session cookie, or any cookie but
       // the theme, never reaches the Renderer and is rendered below with its own
-      // nonce, stored nowhere. forReader tells the browser no-store when the
-      // request carried a cookie at all.
+      // nonce, stored nowhere. The key leaves out tracking parameters and holds
+      // the theme. forReader tells the browser no-store when the request
+      // carried any cookie but the theme, and answers a returning reader 304.
       if (edgeCacheable(request)) {
-        const edge = edgeRequest(request, cacheKey(request.url));
-        const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: edge.cacheKey } });
-        return forReader(page, request);
+        const edge = edgeRequest(request);
+        const key = cacheKey(request.url, { dimensions: { theme: edge.theme } });
+        const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: key } });
+        return forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] });
       }
 
       const context = new RouterContextProvider();
@@ -130,7 +131,7 @@ export default withSentry<Env>(
       // passes through. A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
-      return withPreloads(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)));
+      return withPreloadHeader(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)), await preloadHeader());
     },
     // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
     // foxhound-email (no producer; live sends are synchronous in the recovery
@@ -190,23 +191,22 @@ export default withSentry<Env>(
  * GET of a public page or files route whose one cookie, if any, is the theme.
  * Its responses are stored by the Workers cache under the key the gateway
  * names, so every header a stored page leaves with is set here, or it is
- * missing from every hit. The page is rendered with no nonce and its inline
- * scripts trusted by hash, since every reader of a stored page would share one.
- * settleCacheHeaders runs last: anything but a shared 200 leaves
- * `private, no-store` and is stored nowhere.
+ * missing from every hit. The page is stored with the nonce it was rendered
+ * with, and the gateway renews it for every reader (renewNonce).
+ * settleCacheHeaders runs last: anything but a shared 200, a response setting a
+ * cookie, or one rendered for a HEAD or for a cookie other than the theme (which
+ * the key holds) leaves `private, no-store` and is stored nowhere. purgePages
+ * (withPurgePages) runs here because a purge only reaches the cache of the
+ * entrypoint that calls it.
  */
-export class Renderer extends WorkerEntrypoint<Env> {
+export class Renderer extends withPurgePages(WorkerEntrypoint<Env>) {
   override async fetch(request: Request): Promise<Response> {
+    const storedNonce = generateNonce();
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined });
-    const response = await requestHandler(request, context);
-    const secured = await applyHashedSecurityHeaders(response, new URL(request.url).origin);
-    return settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)));
-  }
-
-  /** Drops every stored page. Here, not in the gateway, because a purge only
-   *  reaches the cache of the entrypoint that calls it. Never throws. */
-  async purgePages(why: string): Promise<boolean | null> {
-    return purgeTags(this.ctx.cache, [PAGES_CACHE_TAG], why);
+    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined, storedNonce });
+    const origin = new URL(request.url).origin;
+    const rendered = await timedRender(async () => applySecurityHeaders(await requestHandler(request, context), storedNonce, origin));
+    const page = withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader());
+    return settleCacheHeaders(page, request, { publicCookies: [THEME_COOKIE] });
   }
 }

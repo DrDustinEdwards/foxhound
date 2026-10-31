@@ -38,6 +38,8 @@ async function buildAuth(env: Env) {
         throw new Error(`sign-in link email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
       }
     },
+    // Five sign-in links an hour and ten typed codes a day per address.
+    emailLimiter: env.AUTH_RATE_LIMITER,
   });
 
   const google = signIn.socialProviders.google;

@@ -9,11 +9,10 @@ import {
   getPublishedTagSet,
 } from "~/lib/blog/queries.server";
 import { CANONICAL_TAGS, labelForTag } from "~/lib/blog/tags";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/archive";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
 // back-link, an H1 that names the active filter, an article count, a row of
@@ -39,22 +38,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const label = loaderData?.activeTag ? labelForTag(loaderData.activeTag) : null;
   return [
     ...marketingMeta({
-      title: label ? `${label} - Foxhound Blog` : "All articles - Foxhound Blog",
+      title: label ?? "All articles",
+      suffix: " - Foxhound Blog",
       description: label
         ? `All Foxhound articles on ${label}.`
         : "Every published guide on Stripe payment recovery, dispute handling, and subscription intelligence.",
       path: loaderData?.activeTag ? `/blog/archive?tag=${loaderData.activeTag}` : "/blog/archive",
+      pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Blog", path: "/blog" },
-            { name: "All articles", path: "/blog/archive" },
-          ])),
-        ]
-      : []),
   ];
 }
 

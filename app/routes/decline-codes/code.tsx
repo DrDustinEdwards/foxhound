@@ -8,7 +8,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone, recoveryApproach } from "~/lib/decline-codes/presentation";
-import { breadcrumbListJsonLd, faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
@@ -36,16 +36,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: `${view.displayName} (${view.code}) decline code`,
-      suffix: " - Foxhound",
       description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
       path: `/decline-codes/${view.code}`,
       siteUrl: url,
     }),
-    jsonLd(breadcrumbListJsonLd(url, [
-      { name: "Home", path: "/" },
-      { name: "Decline codes", path: "/decline-codes" },
-      { name: view.displayName, path: `/decline-codes/${view.code}` },
-    ])),
     jsonLd(faqPageJsonLd(loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer })))),
   ];
 }

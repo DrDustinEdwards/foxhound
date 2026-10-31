@@ -39,6 +39,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       # The second half of the 2026-10-15 ruling above. A merge to main whose
       # tree is byte for byte the tree its pull request already passed verify
@@ -130,15 +132,13 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@dfdb60397d24f15c80b9468059d7d601b2caa6bf # v0.20.1
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@a0fbcb5c7f65e4183a97989511f9d352950ad90b # v0.20.7
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
       pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
       sha-var: DEPLOY_SHA
-      # Its Time Travel bookmark is read before the migrations, so a bad one is one restore to undo.
-      d1-database: foxhound
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
