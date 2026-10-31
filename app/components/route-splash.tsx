@@ -26,7 +26,7 @@
 export function RouteSplash() {
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center">
-      <img src="/favicon.png" alt="Foxhound" width={96} height={96} className="mb-6" />
+      <img src="/icon-512.png" alt="Foxhound" width={96} height={96} className="mb-6" />
       <div className="text-text-subtle font-mono text-label tracking-wider">Loading...</div>
     </div>
   );

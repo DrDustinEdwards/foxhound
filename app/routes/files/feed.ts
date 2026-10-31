@@ -44,7 +44,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     origin: url,
     itemPath: "/blog",
     lastBuildDate: newestPublishedAt,
-    image: { url: `${url}/favicon.png`, title: "Foxhound Blog", link: `${url}/blog` },
+    image: { url: `${url}/icon-512.png`, title: "Foxhound Blog", link: `${url}/blog` },
     posts: posts.map((post) => ({
       slug: post.slug,
       title: post.title,

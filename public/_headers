@@ -40,6 +40,10 @@
 /*/
   Content-Type: text/html; charset=utf-8
 
+/*.ico
+  ! Cross-Origin-Resource-Policy
+  Cross-Origin-Resource-Policy: cross-origin
+
 /*.png
   ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin
