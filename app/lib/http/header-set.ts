@@ -18,17 +18,6 @@
 // camera/microphone/geolocation/payment denied) or Recova's next.config.ts
 // (blob 8cf9b0c7).
 //
-// What the standard brings over the pre-J22 set, taken as is: HSTS two years
-// (no preload, as before: add it only once the foxhoundapp.com apex is verified
-// HTTPS-only, TASK-foxhound-security-headers.md), Cross-Origin-Opener-Policy
-// same-origin (Stripe Checkout and Connect are top-level redirects, Turnstile is
-// an iframe, so nothing relies on a cross-origin opener), Cross-Origin-Resource-
-// Policy same-origin as the default (the images other origins embed are opened
-// up below, by file type; a webmail client that loads the email
-// open pixel directly still makes the request the open is recorded from),
-// X-DNS-Prefetch-Control off (Recova sent "on"), X-Permitted-Cross-Domain-
-// Policies none, and OWASP's full Permissions-Policy list.
-
 import { TDM_RESERVATION_HEADERS } from "@drdustinedwards/site-helpers/robots";
 import { buildSecurityHeaders, corpFor, headersFile } from "@dustinedwards/site-runtime/headers";
 import { foxhound } from "@dustinedwards/site-runtime/sites";
@@ -44,17 +33,11 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = Object.freeze(
   ...TDM_RESERVATION_HEADERS,
 });
 
-// Cross-Origin-Resource-Policy by file type (site-runtime's corpFor): the
-// images, scripts, styles and fonts here may be loaded by other origins (the
-// favicons beside a Foxhound link, the RSS channel image); a page keeps the
+// Cross-Origin-Resource-Policy by file type (site-runtime's corpFor): headersFile
+// opens up scripts, styles, SVG and fonts; the favicons and PNGs (beside a
+// Foxhound link, the RSS channel image) are added here. A page keeps the
 // standard's same-origin. The og cards are Worker responses and set it there.
-const STATIC_TYPES: Readonly<Record<string, string>> = {
-  png: "image/png",
-  svg: "image/svg+xml",
-  css: "text/css",
-  js: "text/javascript",
-  woff2: "font/woff2",
-};
+const STATIC_IMAGES: Readonly<Record<string, string>> = { ico: "image/x-icon", png: "image/png" };
 
 /** The whole of public/_headers, through site-runtime's headersFile; the build writes it (scripts/gen-headers.mjs). */
 export function renderStaticHeadersFile(): string {
@@ -67,7 +50,7 @@ export function renderStaticHeadersFile(): string {
     charset: true,
     paths: {
       ...Object.fromEntries(
-        Object.entries(STATIC_TYPES).map(([ext, type]) => [`/*.${ext}`, { "Cross-Origin-Resource-Policy": corpFor(type) }]),
+        Object.entries(STATIC_IMAGES).map(([ext, type]) => [`/*.${ext}`, { "Cross-Origin-Resource-Policy": corpFor(type) }]),
       ),
       "/assets/*": { "Cache-Control": "public, max-age=31536000, immutable" },
     },

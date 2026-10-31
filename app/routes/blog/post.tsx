@@ -76,15 +76,17 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc, faq }, cover, previous, next, related] = await Promise.all([
+  const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
     coverPicture(db, post, "content"),
+    // The share image Carrel set (site-api's image and imageAlt search fields), read the way the cover is.
+    coverPicture(db, { coverImageUrl: post.ogImageUrl, coverImageAlt: post.ogImageAlt, title: post.title }, "content"),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     post.publishedAt ? getNextPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     getPostLinks(db, post.id),
   ]);
 
-  return { siteUrl: siteUrl(env), post, cover, html, toc, previous, next, related, faq };
+  return { siteUrl: siteUrl(env), post, cover, share, html, version, toc, previous, next, related, faq };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -98,14 +100,15 @@ function ogImageUrl(url: string, title: string, description: string | undefined)
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Blog - Foxhound" }];
-  const { post, cover, siteUrl: url } = loaderData;
+  const { post, cover, share, siteUrl: url } = loaderData;
   const title = post.ogTitle ?? post.title;
   const description = post.ogDescription ?? post.excerpt;
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
-  // The cover at its real size (a library file's stored one), else the
-  // generated 1200x630 card.
-  const image = cover
-    ? { ...cover.original, url: new URL(cover.original.url, url).href }
+  // The share image Carrel set, else the cover, each at its real size (a
+  // library file's stored one), else the generated 1200x630 card.
+  const card = share ?? cover;
+  const image = card
+    ? { ...card.original, url: new URL(card.original.url, url).href }
     : { url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt), width: 1200, height: 630, type: "image/png", alt: title };
 
   // JSON-LD goes through meta, which React Router escapes, because the title,
@@ -128,6 +131,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       image,
       ogTitle: title,
       ogType: "article",
+      noindex: post.noindex,
     }),
     jsonLd(organizationJsonLd(url)),
     ...(byDustin
@@ -157,7 +161,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, cover, html, toc, previous, next, related } = loaderData;
+  const { siteUrl: url, post, cover, html, version, toc, previous, next, related } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
 
@@ -239,7 +243,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <TableOfContents items={toc} variant="inline" />
 
-          <div className="blog-prose e-content" dangerouslySetInnerHTML={{ __html: html }} />
+          <div className="blog-prose e-content" data-render-version={version} dangerouslySetInnerHTML={{ __html: html }} />
         </article>
 
         <TableOfContents items={toc} variant="sidebar" />

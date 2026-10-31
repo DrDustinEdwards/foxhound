@@ -268,6 +268,7 @@ const READ_TOOLS: McpTool[] = [
       "Start here. Read this account's recurring-revenue overview (MRR, movement, customer counts, the latest report summary), the failed-payment counts by recovery status, and the Stripe accounts connected to it. Access tokens are never returned, and nothing can be connected or disconnected here.",
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [overview, payment_status_counts, connections] = await Promise.all([
         getIntelligenceOverview(ctx.db, ctx.accountId, { forAgent: true }),
@@ -299,6 +300,7 @@ const READ_TOOLS: McpTool[] = [
       required: [],
     },
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_payments";
       const page = decodeCursor(tool, args);
@@ -331,6 +333,7 @@ const READ_TOOLS: McpTool[] = [
       required: ["payment_id"],
     },
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const paymentId = required(args, "payment_id", "Take one from foxhound_list_payments.");
       const detail = await getFailedPaymentDetail(ctx.db, ctx.accountId, paymentId);
@@ -356,6 +359,7 @@ const READ_TOOLS: McpTool[] = [
       required: [],
     },
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_customers";
       const page = decodeCursor(tool, args);
@@ -395,6 +399,7 @@ const READ_TOOLS: McpTool[] = [
       required: ["stripe_customer_id"],
     },
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const customerId = required(args, "stripe_customer_id", "Take one from foxhound_list_customers.");
       const customer = await getCustomerHealthDetail(ctx.db, ctx.accountId, customerId);
@@ -413,6 +418,7 @@ const READ_TOOLS: McpTool[] = [
       "Read this account's subscription intelligence: churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings. Alert ids from here are the ones foxhound_manage_alerts takes.",
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [churn, alerts] = await Promise.all([
         getChurnView(ctx.db, ctx.accountId, ctx.now.getTime()),
@@ -428,6 +434,7 @@ const READ_TOOLS: McpTool[] = [
       "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
     inputSchema: { type: "object", properties: { cursor: CURSOR_PROPERTY }, required: [] },
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_disputes";
       const page = decodeCursor(tool, args);
@@ -450,6 +457,7 @@ const READ_TOOLS: McpTool[] = [
       required: [],
     },
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_review_audits";
       const runId = stringArg(args, "run_id");
@@ -478,6 +486,7 @@ const READ_TOOLS: McpTool[] = [
       "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Read only: cannot issue, pay, adjust or void anything.",
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [ledger, invoices, preview] = await Promise.all([
         getBillingLedger(ctx.db, ctx.accountId),
@@ -498,6 +507,7 @@ const READ_TOOLS: McpTool[] = [
       "Read every setting foxhound_update_settings can change: audit window, the two engine toggles, notification email and toggles, the connected Stripe accounts, the primary connection's sender name and brand voice, and the business context the email writer is given. The Slack webhook URL is never returned, only whether one is set.",
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [account, audit, connections, sender, voices, intelligence_context] = await Promise.all([
         getAccount(ctx.db, ctx.accountId),
@@ -787,6 +797,7 @@ const WRITE_TOOLS: McpTool[] = [
     // email silences every notification. Idempotent because the same call twice
     // leaves the same settings.
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    scope: "write",
     execute: async (ctx, args) => {
       const sent = SECTION_NAMES.filter((name) => args[name] !== undefined);
       if (sent.length !== 1) {
@@ -828,6 +839,7 @@ const WRITE_TOOLS: McpTool[] = [
     // Destructive because delete is; not idempotent because create makes a new
     // alert each time.
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    scope: "write",
     execute: async (ctx, args) => {
       const action = args["action"];
       if (action === "create") {

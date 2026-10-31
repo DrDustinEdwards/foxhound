@@ -19,7 +19,8 @@ import {
   OAUTH_REFRESH_TOKEN_TTL_MS,
 } from "~/lib/constants";
 
-import { OAUTH_SCOPE } from "./metadata";
+import { isMetadataDocumentClientId, resolveMetadataDocumentClient } from "./client-metadata.server";
+import { keyScopes, mcpResource, requestsWrite } from "./metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode } from "./redirects";
 import { readJson, readText } from "~/lib/http/body";
 
@@ -183,9 +184,17 @@ export type AuthorizeCheck =
       ok: true;
       clientId: string;
       clientName: string;
+      /** Every redirect URI the client registered or its document lists. */
+      redirectUris: string[];
       redirectUri: string;
       state: string | null;
       codeChallenge: string;
+      /** The client asked for merchant.write, so the consent page starts
+       *  "Allow changes" ticked. The owner's tick decides; this never does. */
+      wantsWrite: boolean;
+      /** Set when the client is known from its metadata document, so the code
+       *  can record it as a client row (the codes and grants name one). */
+      metadataDocument: boolean;
     }
   | { ok: false; title: string; message: string };
 
@@ -195,7 +204,7 @@ export type AuthorizeCheck =
  * and the approve step runs it again on the posted fields, so nothing the page
  * carried in hidden inputs is trusted.
  */
-export async function checkAuthorizeRequest(db: Db, params: URLSearchParams): Promise<AuthorizeCheck> {
+export async function checkAuthorizeRequest(db: Db, params: URLSearchParams, origin: string): Promise<AuthorizeCheck> {
   const clientId = asString(params.get("client_id"));
   const redirectUri = asString(params.get("redirect_uri"));
   const state = asString(params.get("state"));
@@ -217,15 +226,29 @@ export async function checkAuthorizeRequest(db: Db, params: URLSearchParams): Pr
     };
   }
 
-  const rows =
-    clientId.length > MAX_FIELD
-      ? []
-      : await db
-          .select({ id: oauthClients.id, clientName: oauthClients.clientName, redirectUris: oauthClients.redirectUris })
-          .from(oauthClients)
-          .where(eq(oauthClients.id, clientId))
-          .limit(1);
-  const client = rows[0];
+  // RFC 8707: the one resource this server issues tokens for is /mcp. A
+  // request naming another is refused rather than handed a token that would
+  // not be good there.
+  const resource = asString(params.get("resource"));
+  if (resource && resource !== mcpResource(origin)) {
+    return { ok: false, title: "Invalid request", message: "This server issues access to its /mcp endpoint only." };
+  }
+
+  // A client_id that is an https URL is a metadata document, fetched and
+  // checked each time (the library caches what the document allows); any
+  // other is one this server minted at registration.
+  const metadataDocument = clientId.length <= MAX_FIELD && isMetadataDocumentClientId(clientId);
+  const client = metadataDocument
+    ? await resolveMetadataDocumentClient(clientId, mcpResource(origin))
+    : clientId.length > MAX_FIELD
+      ? undefined
+      : (
+          await db
+            .select({ clientName: oauthClients.clientName, redirectUris: oauthClients.redirectUris })
+            .from(oauthClients)
+            .where(eq(oauthClients.id, clientId))
+            .limit(1)
+        )[0];
   if (!client) {
     return { ok: false, title: "Unknown client", message: "This client is not registered with Foxhound." };
   }
@@ -240,17 +263,34 @@ export async function checkAuthorizeRequest(db: Db, params: URLSearchParams): Pr
     return { ok: false, title: "Invalid request", message: "The state parameter is too long." };
   }
 
-  return { ok: true, clientId, clientName: client.clientName, redirectUri, state, codeChallenge };
+  return {
+    ok: true,
+    clientId,
+    clientName: client.clientName,
+    redirectUris: client.redirectUris,
+    redirectUri,
+    state,
+    codeChallenge,
+    wantsWrite: requestsWrite(params.get("scope")),
+    metadataDocument,
+  };
 }
 
 export interface IssueCodeInput {
   clientId: string;
+  /** A metadata-document client's name and redirect URIs, recorded as its
+   *  client row so the code and the grant can name it. */
+  metadataDocument: { clientName: string; redirectUris: string[] } | null;
   redirectUri: string;
   state: string | null;
   codeChallenge: string;
   /** The session's active account, resolved by the caller from the session. */
   accountId: string;
   userId: string;
+  /** What the owner granted on the consent page (grantedScopes). */
+  scopes: string[];
+  /** This authorization server's issuer, sent back as iss (RFC 9207). */
+  issuer: string;
   now: Date;
 }
 
@@ -263,6 +303,15 @@ export interface IssueCodeInput {
 export async function issueAuthorizationCode(db: Db, input: IssueCodeInput): Promise<string | null> {
   if (input.accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) return null;
   const code = generateSecret();
+  if (input.metadataDocument) {
+    // The document is the client's own word on its name and redirect URIs, and
+    // it was fetched for this request, so the row follows it.
+    const row = { clientName: input.metadataDocument.clientName, redirectUris: input.metadataDocument.redirectUris };
+    await db
+      .insert(oauthClients)
+      .values({ id: input.clientId, ...row, createdAt: input.now })
+      .onConflictDoUpdate({ target: oauthClients.id, set: row });
+  }
   await db.insert(oauthAuthorizationCodes).values({
     id: crypto.randomUUID(),
     codeHash: await hashMcpToken(code),
@@ -271,21 +320,24 @@ export async function issueAuthorizationCode(db: Db, input: IssueCodeInput): Pro
     userId: input.userId,
     redirectUri: input.redirectUri,
     codeChallenge: input.codeChallenge,
+    scopes: input.scopes,
     expiresAt: plusMs(input.now, OAUTH_CODE_TTL_MS),
     createdAt: input.now,
   });
   const target = new URL(input.redirectUri);
   target.searchParams.set("code", code);
   if (input.state) target.searchParams.set("state", input.state);
+  target.searchParams.set("iss", input.issuer);
   return target.toString();
 }
 
-/** Deny: back to the client with access_denied and its state, as Recova's
+/** Deny: back to the client with access_denied, its state and iss, as Recova's
  *  deny() built it. The URI was checked against the client's registration. */
-export function denyRedirect(redirectUri: string, state: string | null): string {
+export function denyRedirect(redirectUri: string, state: string | null, issuer: string): string {
   const target = new URL(redirectUri);
   target.searchParams.set("error", "access_denied");
   if (state) target.searchParams.set("state", state);
+  target.searchParams.set("iss", issuer);
   return target.toString();
 }
 
@@ -310,13 +362,13 @@ async function revokeGrant(db: Db, grant: Pick<GrantRow, "id" | "apiKeyId">, now
   ]);
 }
 
-function tokenBody(access: string, refresh: string): Record<string, unknown> {
+function tokenBody(access: string, refresh: string, scopes: readonly string[]): Record<string, unknown> {
   return {
     access_token: access,
     token_type: "Bearer",
     expires_in: OAUTH_ACCESS_TOKEN_TTL_SECONDS,
     refresh_token: refresh,
-    scope: OAUTH_SCOPE,
+    scope: scopes.join(" "),
   };
 }
 
@@ -382,6 +434,8 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   const access = mintMcpTokenValue();
   const refresh = `${OAUTH_REFRESH_TOKEN_PREFIX}${generateSecret()}`;
   const keyId = crypto.randomUUID();
+  // A code minted before the read and write split carries none: read only.
+  const scopes = keyScopes(row.scopes);
   await db.batch([
     db.insert(apiKeys).values({
       id: keyId,
@@ -391,6 +445,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
       // the consent page, so they can find this connection in Settings.
       label: `${client?.clientName ?? DEFAULT_CLIENT_NAME} (OAuth)`,
       scope: MCP_TOKEN_SCOPE.MERCHANT,
+      scopes,
       createdAt: now,
       expiresAt: plusMs(now, OAUTH_ACCESS_TOKEN_TTL_SECONDS * 1000),
     }),
@@ -406,7 +461,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
       createdAt: now,
     }),
   ]);
-  return { status: 200, body: tokenBody(access, refresh) };
+  return { status: 200, body: tokenBody(access, refresh, scopes) };
 }
 
 async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Promise<OAuthResult> {
@@ -435,7 +490,7 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
   }
 
   const [key] = await db
-    .select({ id: apiKeys.id, revokedAt: apiKeys.revokedAt })
+    .select({ id: apiKeys.id, revokedAt: apiKeys.revokedAt, scopes: apiKeys.scopes })
     .from(apiKeys)
     .where(eq(apiKeys.id, grant.apiKeyId))
     .limit(1);
@@ -475,7 +530,8 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
     await revokeGrant(db, grant, now);
     return oauthError(400, "invalid_grant");
   }
-  return { status: 200, body: tokenBody(access, nextRefresh) };
+  // The grant keeps what was approved: a refresh never widens it.
+  return { status: 200, body: tokenBody(access, nextRefresh, keyScopes(key.scopes)) };
 }
 
 /**

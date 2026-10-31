@@ -53,6 +53,7 @@ function throwing(name: string, error: () => Error): McpTool {
     description: "d",
     inputSchema: { type: "object", properties: {}, required: [] },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    scope: "read",
     execute: async () => {
       throw error();
     },
