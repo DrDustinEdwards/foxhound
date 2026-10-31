@@ -1,9 +1,9 @@
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useFetcher, useRevalidator } from "react-router";
 import { needsSecondPasskey, type AccountPasskey, type SecurityHistoryEntry } from "@dustinedwards/site-runtime/sign-in";
-import { signalUnknownCredential } from "@dustinedwards/site-runtime/sign-in-client";
+import { signalPasskeys, signalUnknownCredential } from "@dustinedwards/site-runtime/sign-in-client";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
 import { formatDateShort } from "~/lib/date-format";
@@ -18,7 +18,8 @@ export type SignedInDevices =
       signedInAt: Date;
       lastActiveAt: Date;
       current: boolean;
-      /** The rough place of the sign-in (session.location), null when unknown. */
+      /** Where the session was last used (session.location, kept by
+       *  site-runtime's sessionDetails), null when unknown. */
       location: string | null;
     }[]
   | "stale"
@@ -35,6 +36,9 @@ export type SignInSettings = {
   /** The latest sign-ins and sign-in changes (site-runtime securityHistory),
    *  newest first; null when not shown. */
   history: SecurityHistoryEntry[] | null;
+  /** The address the passkey providers show (the Signal API); null when the
+   *  page is not this person's own (the demo, an admin's view). */
+  signalAs: string | null;
 };
 
 const WAY_IN: Record<string, string> = {
@@ -87,6 +91,15 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
         ? "Sign in again, then sign that device out."
         : "That device was not signed out."
       : null;
+
+  // Each time the list loads, the passkey providers learn which of this
+  // account's passkeys Foxhound still accepts, and its address, so a passkey
+  // removed elsewhere leaves the browser's list (site-runtime's signalPasskeys).
+  const credentialIds = initial.passkeys.map((p) => p.credentialId).join(" ");
+  useEffect(() => {
+    if (!initial.signalAs) return;
+    void signalPasskeys({ credentialIds: credentialIds.split(" ").filter(Boolean), name: initial.signalAs });
+  }, [credentialIds, initial.signalAs]);
 
   async function run(key: string, change: () => Promise<{ error?: unknown } | null | undefined>, failed: string) {
     // One change at a time; Capsomer's buttons are never disabled, so a

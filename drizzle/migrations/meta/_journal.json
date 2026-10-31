@@ -470,6 +470,13 @@
       "when": 1793463841689,
       "tag": "0070_mcp_calls_client_id",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1793463842689,
+      "tag": "0071_session_device",
+      "breakpoints": true
     }
   ]
 }

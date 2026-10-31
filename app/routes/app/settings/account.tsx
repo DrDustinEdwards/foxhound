@@ -114,13 +114,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       ...(await signInSettings(env, auth.userId, auth.isDemo)),
       devices: await signedInDevices(env, request, auth),
       history: auth.isDemo || auth.viewingAs ? null : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
+      // The address the passkey providers are told (the Signal API), only on
+      // this person's own page: an admin's view names someone else's passkeys.
+      signalAs: auth.isDemo || auth.viewingAs ? null : auth.email,
     },
     account,
     cancelledAt: account.cancelledAt,
     // The signed-in address, which legacy's AccountSection displays beside its
     // sign-out control.
     userEmail: auth.email,
-    emailChange: emailChangeStatus(request),
     // Every account this person owns, which a deletion clears, so the
     // confirmation can say which (S40 review fix F2). From the session's
     // memberships, so this loader reads no other account's rows.
@@ -151,7 +153,7 @@ async function signInSettings(
   env: Env,
   userId: string,
   isDemo: boolean,
-): Promise<Omit<SignInSettings, "devices" | "history">> {
+): Promise<Omit<SignInSettings, "devices" | "history" | "signalAs">> {
   const methods = signInMethods(env, { social: true });
   const offered = [
     methods.google ? { id: "google" as const, label: "Google" } : null,
@@ -180,15 +182,6 @@ async function signInSettings(
     passkeys: passkeyRows(stored, lastUsed).map((p) => ({ ...p, credentialId: credentialOf.get(p.id) ?? "" })),
     providers: offered.map((p) => ({ ...p, accountId: byProvider.get(p.id) ?? null })),
   };
-}
-
-/** Where an email-change link landed (app/routes/auth/email-confirm.tsx): the
- *  first link confirmed, the change made, or a link that did not work. */
-function emailChangeStatus(request: Request): "confirmed" | "changed" | "failed" | null {
-  const params = new URL(request.url).searchParams;
-  const step = params.get("email");
-  if (step !== "confirmed" && step !== "changed") return null;
-  return params.get("error") ? "failed" : step;
 }
 
 /**
@@ -388,7 +381,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (!fresh.user.emailVerified) return refuse("Sign in with an email link first, then change your address.");
       try {
         await (await getAuth(env)).api.changeEmail({
-          body: { newEmail, callbackURL: "/settings/account?email=confirmed" },
+          body: { newEmail },
           headers: request.headers,
         });
       } catch (error) {
@@ -706,27 +699,13 @@ function SignedIn({ userEmail }: { userEmail: string }) {
   );
 }
 
-/** Where each step of an email change stands, in words: after the form, and
- *  after each of the two links (emailChangeStatus). */
-const EMAIL_CHANGE_SAID = {
-  confirmed: "Change confirmed. We sent a link to the new address: open it to finish. Until then you sign in with this one.",
-  changed: "Your email address is changed. Your other devices were signed out.",
-  failed: "That link has expired or was already used. Start the change again.",
-} as const;
-
 /**
  * E1: change the sign-in address. The form asks Better Auth for the change
  * (the action's change-email), which mails the CURRENT address first; its link
  * then mails the new one, and that link makes the change. It needs a sign-in
  * from the last 10 minutes, as Delete account does.
  */
-function ChangeEmail({
-  landed,
-  result,
-}: {
-  landed: "confirmed" | "changed" | "failed" | null;
-  result?: ActionResult;
-}) {
+function ChangeEmail({ result }: { result?: ActionResult }) {
   const navigation = useNavigation();
   const sending = navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
   const [open, setOpen] = useState(false);
@@ -738,7 +717,6 @@ function ChangeEmail({
 
   return (
     <div className="mt-4 flex flex-col gap-3">
-      {landed ? <Alert tone={landed === "failed" ? "crit" : "ok"}>{EMAIL_CHANGE_SAID[landed]}</Alert> : null}
       {mine?.ok ? (
         <Alert tone="ok">
           We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the new address.
@@ -955,7 +933,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SignedIn userEmail={userEmail} />
-            {isDemo ? null : <ChangeEmail landed={loaderData.emailChange} result={result} />}
+            {isDemo ? null : <ChangeEmail result={result} />}
             <DangerZone
               cancelledAt={cancelledAt}
               isOwner={Boolean(isOwner)}
