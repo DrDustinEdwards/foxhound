@@ -132,6 +132,13 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm test
 
+      # The official MCP conformance suite against the admin MCP's real
+      # protocol layer and door under wrangler dev (.conformance.json; area 11,
+      # P2 to P7 and P10). A scenario with a recorded count must not move.
+      - name: MCP conformance
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:conformance
+
   # devkit's shared deploy (worker-deploy.yml). Its deploy job applies the D1
   # migrations first (schema before code: a failing migration never reaches the
   # Worker, and old code against an old schema still works) through
