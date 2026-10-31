@@ -48,6 +48,8 @@ export interface MarketingMetaInput {
   ogType?: "website" | "article";
   /** The WebPage subtype: `CollectionPage` for an index. */
   pageType?: string;
+  /** robots noindex (a blog post's search field). */
+  noindex?: boolean;
 }
 
 /** Prelum's head: the tags, and the page's WebPage and BreadcrumbList (from `SECTIONS`) joined to the site's WebSite node. */
@@ -63,6 +65,7 @@ export function marketingMeta({
   ogTitle,
   ogType = "website",
   pageType,
+  noindex,
 }: MarketingMetaInput) {
   return defineHead({
     origin: siteUrl,
@@ -80,5 +83,6 @@ export function marketingMeta({
     image,
     type: ogType,
     pageType,
+    noindex,
   });
 }
