@@ -16,6 +16,10 @@
 # Content-Security-Policy is deliberately NOT here. Foxhound's CSP carries a
 # per-request nonce and cannot be expressed as a static header; ruling 93 protects
 # that strength as class 2(a) and it is never traded away for uniformity.
+#
+# Images other origins embed (the RSS channel image, the favicons) send
+# Cross-Origin-Resource-Policy: cross-origin; each rule detaches the /* value
+# with "!", since Cloudflare JOINS a header that two matching rules set.
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
@@ -28,9 +32,6 @@
   X-Permitted-Cross-Domain-Policies: none
   tdm-reservation: 1
 
-# Images other origins embed (the RSS channel image, the favicons) send
-# Cross-Origin-Resource-Policy: cross-origin. Cloudflare JOINS a header that
-# two matching rules set, so each rule first detaches the /* value with "!".
 /favicon.png
   ! Cross-Origin-Resource-Policy
   Cross-Origin-Resource-Policy: cross-origin

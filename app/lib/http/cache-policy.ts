@@ -105,11 +105,12 @@ const MARKETING_EXACT = new Set([
   "/products",
   "/compare",
   "/decline-codes",
+  // The estimator and the demo's door. Their GETs read nothing per reader and
+  // write nothing: the estimator's Turnstile-gated POST and the /demos/* entries
+  // that set the demo cookie are other requests, which never reach the Renderer.
+  "/audit",
+  "/demos",
 ]);
-// NOT /audit and NOT /demos, though both sit under the marketing layout: /audit
-// is the estimator, whose form posts to a Turnstile-gated action and whose page
-// leads into the Stripe audit flow, and /demos is where the demo begins (its
-// entries set the demo cookie). Both stay private, rendered per request.
 
 /** Prefixes that are PUBLIC marketing, with their own index covered above. */
 // "/product/" is Recova's product pages; "/products/" stays for the four
@@ -200,19 +201,17 @@ function cookieNames(request: Request): string[] {
 }
 
 /**
- * The request the Renderer sees, and its cache key. The theme is the one
- * cookie a public page reads (<html data-theme> and the toggle), so it is
- * resolved here, handed on as the only cookie, and written into the key: one
- * stored copy per theme, and a stored dark page can never answer a light
- * reader. The suffix is appended, never set, so a query that already holds the
- * same name still keys apart.
+ * The request the Renderer sees, and the theme its cache key holds. The theme
+ * is the one cookie a public page reads (<html data-theme> and the toggle), so
+ * it is resolved here and handed on as the only cookie; the gateway adds it to
+ * site-runtime's cacheKey as a dimension: one stored copy per theme, and a
+ * stored dark page can never answer a light reader.
  */
-export function edgeRequest(request: Request, key: string): { request: Request; cacheKey: string } {
+export function edgeRequest(request: Request): { request: Request; theme: string } {
   const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
   const forwarded = new Request(request);
   forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
-  const separator = key.includes("?") ? "&" : "?";
-  return { request: forwarded, cacheKey: `${key}${separator}fh-theme-key=${theme}` };
+  return { request: forwarded, theme };
 }
 
 /**

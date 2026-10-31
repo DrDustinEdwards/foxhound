@@ -45,6 +45,8 @@ const PUBLIC_ROUTES = [
   ["/compare/chargeflow", "marketing"],
   ["/decline-codes", "marketing"],
   ["/decline-codes/card_declined", "marketing"],
+  ["/audit", "marketing"],
+  ["/demos", "marketing"],
   ["/docs", "docs"],
   ["/docs/recovery", "docs"],
   ["/blog", "blog"],
@@ -113,9 +115,7 @@ const PRIVATE_ROUTES = [
   "/e/c/tok",
   "/webhooks/stripe",
   "/marketing/generate-email-sample",
-  // Under the marketing layout, but the estimator and the demo's door.
-  "/audit",
-  "/demos",
+  // A demo entry sets the demo cookie.
   "/demos/dashboard",
   "/recovery/payments/export.csv",
 ];
@@ -187,13 +187,13 @@ describe("PLANT 8: the gateway sends only an anonymous GET of a public page to t
     expect(edgeCacheable(request("/media/a.png"))).toBe(false);
   });
 
-  it("the Renderer sees only the theme, and the theme is in the key", () => {
-    const dark = edgeRequest(request("/pricing"), "/pricing");
-    const light = edgeRequest(request("/pricing?x=1", "fh_theme=light"), "/pricing?x=1");
+  it("the Renderer sees only the theme, the one the key holds", () => {
+    const dark = edgeRequest(request("/pricing"));
+    const light = edgeRequest(request("/pricing?x=1", "fh_theme=light"));
     expect(dark.request.headers.get("cookie")).toBe("fh_theme=dark");
-    expect(dark.cacheKey).toBe("/pricing?fh-theme-key=dark");
+    expect(dark.theme).toBe("dark");
     expect(light.request.headers.get("cookie")).toBe("fh_theme=light");
-    expect(light.cacheKey).toBe("/pricing?x=1&fh-theme-key=light");
+    expect(light.theme).toBe("light");
   });
 });
 
@@ -243,6 +243,6 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
     const source = readFileSync("workers/app.ts", "utf8");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))");
     expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))");
-    expect(source).toContain("settleCacheHeaders(withPreloads(applyCachePolicy(request, secured, true)))");
+    expect(source).toContain("settleCacheHeaders(withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader()))");
   });
 });
