@@ -27,7 +27,7 @@ import {
 // accent color: the MRR line and the plan bars are amber, and the
 // "Medium risk" band takes the caution color every other band in the app uses.
 //
-// Enarratio 0.3.1 has no tick formatter, so Recova's "$1,200" and "102%" ticks
+// Enarratio has no tick formatter, so Recova's "$1,200" and "102%" ticks
 // read as plain numbers under an axis label naming the unit, as on the churn
 // chart (an Enarratio gap, named in the J67 pull request).
 
@@ -47,6 +47,7 @@ export interface TrendPoint {
 export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number): string {
   const yLabel = `MRR (${unit(currency)})`;
   return areaChart({
+    title: "MRR trend",
     data: points.map((p) => ({ Date: p.at, mrr: whole(p.totalMrrCents, currency) })),
     x: "Date",
     y: "mrr",
@@ -69,6 +70,7 @@ export interface NrrPoint {
 export function drawNrr(points: readonly NrrPoint[], width: number): string {
   const yLabel = "NRR (%)";
   return lineChart({
+    title: "Net Revenue Retention",
     data: points.map((p) => ({ Date: p.at, nrr: p.nrrPct === null ? null : Math.round(p.nrrPct * 10) / 10 })),
     x: "Date",
     y: "nrr",
@@ -120,6 +122,7 @@ function movementRows(points: readonly MovementPoint[], currency: string) {
 
 export function drawMovement(points: readonly MovementPoint[], currency: string, width: number): string {
   return barChart({
+    title: "MRR movement by week",
     data: movementRows(points, currency),
     x: "Week",
     // One bar per week (weeklyMovements), named by its Monday.
@@ -144,9 +147,11 @@ function planChartHeight(planCount: number): number {
   return Math.max(140, 64 + planCount * 36);
 }
 
-export function drawPlans(rows: readonly PlanRow[], currency: string, width: number): string {
+export function drawPlans(rows: readonly PlanRow[], currency: string, width: number, source?: { name: string }): string {
   const yLabel = `MRR (${unit(currency)})`;
   return barChart({
+    title: "MRR by plan",
+    source,
     data: rows.map((r) => ({ Plan: r.plan, mrr: whole(r.mrrCents, currency) })),
     x: "Plan",
     y: "mrr",
@@ -179,6 +184,7 @@ const HEALTH_COLORS: Record<(typeof HEALTH_SERIES)[number], string> = {
 export function drawHealth(days: readonly HealthDay[], width: number): string {
   const label = (d: HealthDay) => formatDateMonthDay(new Date(`${d.date}T00:00:00Z`));
   return barChart({
+    title: "Customer health distribution",
     data: days.flatMap((d) => [
       { Day: label(d), band: "High risk", count: d.atRisk },
       { Day: label(d), band: "Medium risk", count: d.watch },

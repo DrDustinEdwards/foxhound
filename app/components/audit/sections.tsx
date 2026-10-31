@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import {
   anyAbove,
   formatBps,
@@ -221,11 +222,8 @@ function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<stri
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
   return (
-    // min-w-0: the panel body is a grid, and without it the chart's first
-    // 640px draw sets the column's width, pushing every figure in the panel
-    // past a phone's edge before the redraw can measure.
     <div className="mt-4 min-w-0">
-      <EnarratioFigure draw={(width) => drawExpiringCardsTimeline(months, width)} initialWidth={640} />
+      <ChartFrame draw={(width) => drawExpiringCardsTimeline(months, width)} />
     </div>
   );
 }

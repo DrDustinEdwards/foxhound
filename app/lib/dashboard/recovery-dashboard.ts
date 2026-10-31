@@ -85,16 +85,6 @@ export function formatLongDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
-/**
- * Enarratio draws a <title> inside every bar and point, which browsers show as
- * a hover tooltip. Recova's chart tooltips were struck (193) and this page adds
- * none, so they are removed. The chart keeps its accessible name (aria-label on
- * the SVG) and its data table, which carry the same numbers as text.
- */
-export function withoutHoverTitles(html: string): string {
-  return html.replace(/<title>[\s\S]*?<\/title>/g, "");
-}
-
 // ---- Recovery rate chart ----
 
 /** The sentence a reader without the chart gets: where the running rate
