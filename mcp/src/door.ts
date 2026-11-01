@@ -10,7 +10,7 @@ import {
   registrationLimited,
   registrationRefusal,
 } from "@dustinedwards/site-runtime/mcp-login";
-import { audienceRefusal, checkRateLimit, mcpOriginRefusal, refuse, withMcpHeaders } from "@dustinedwards/site-runtime/mcp-server";
+import { audienceRefusal, checkRateLimit, mcpOriginRefusal, probeDoor, refuse, withMcpHeaders } from "@dustinedwards/site-runtime/mcp-server";
 import type { AdminMcpEnv } from "./env";
 import { adminMcpOrigin, isFoxhoundAdmin, MCP_ROUTE, type DoorProps } from "./guard";
 import { currentScopes, SCOPE_READ, SCOPE_WRITE, SCOPES_SUPPORTED } from "./scopes";
@@ -32,7 +32,8 @@ import { SERVER, serveAdminMcp } from "./server";
 // door on their next call, whatever grant this Worker still holds.
 //
 // Routes, outermost first:
-//   /mcp                      a foreign Origin is refused first (403), then the
+//   /mcp                      a foreign Origin is refused first (403), then a wrong
+//                             Host, then the list-only test key (probeDoor), then the
 //                             provider checks the token, then apiHandler checks
 //                             its audience, rate-limits the person and hands it
 //                             to server.ts
@@ -175,6 +176,15 @@ async function route(request: Request, env: AdminMcpEnv, ctx: ExecutionContext):
       new URL(adminMcpOrigin(env)).hostname,
     ]);
     if (!host.ok) return refuse("Forbidden. This is not a host this server answers on.", 403);
+    // THE LIST-ONLY TEST KEY (Dustin 2026-11-01, "do the best practice"): the secret MCP_PROBE_KEY lets the daily live
+    // check connect and list tools, and nothing else; it never reaches the admin API. Before the provider, which
+    // answers 401 to any token it did not mint. No key, or no secret set, is null and goes on to OAuth.
+    const probed = await probeDoor(request, env, {
+      server: SERVER,
+      limiter: env.MCP_RATE_LIMIT,
+      serve: (req, caller) => serveAdminMcp(req, env, { actor: caller.principal, client: "the list-only test key", scopes: [], probe: true }),
+    });
+    if (probed) return probed;
   }
   if (pathname === REGISTER_PATH && request.method === "POST") {
     const limited = await registrationLimited(request, env.OAUTH_KV);

@@ -1,1 +1,1 @@
-{ "raw_kib": 530, "gzip_kib": 149, "args": ["--config", "mcp/wrangler.jsonc"] }
+{ "raw_kib": 534, "gzip_kib": 151, "args": ["--config", "mcp/wrangler.jsonc"] }

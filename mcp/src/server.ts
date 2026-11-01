@@ -47,6 +47,8 @@ export interface AdminSession {
   scopes: readonly string[];
   /** The verified token, so the SDK can send a write's 403 step-up before the tool runs. */
   authInfo?: AuthInfo;
+  /** The list-only test key (door.ts): listed the read tools, refused every call. */
+  probe?: boolean;
 }
 
 function result(data: Record<string, unknown>, isError = false) {
@@ -64,7 +66,9 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
   // sign-in and checks it again on every call. The shared ownership check is
   // handed that same email, so here it proves only that the grant names someone.
   const checkEnv = { ...env, ADMIN_EMAIL: session.actor };
-  const caller = { kind: "admin" as const, props: { email: session.actor, client: session.client, clientId: session.clientId }, scopes: session.scopes };
+  const caller = session.probe
+    ? { kind: "probe" as const, principal: session.actor, scopes: [] }
+    : { kind: "admin" as const, props: { email: session.actor, client: session.client, clientId: session.clientId }, scopes: session.scopes };
   // site-runtime's registerTools: only the tools the grant can call are listed (T7), each with the server's icon (T9),
   // the 403 step-up before a tool runs, and invokeTool, which still checks the scope, logs the call and hands the run
   // the request's abort signal (P11), which reaches the admin API call (api-client.ts).
