@@ -66,6 +66,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
       { to: "/privacy", label: "Privacy" },
       { to: "/terms", label: "Terms" },
       { to: "/security", label: "Security" },
+      { to: "/accessibility", label: "Accessibility" },
     ],
   },
 ];
