@@ -477,6 +477,13 @@
       "when": 1793463842689,
       "tag": "0071_session_device",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1793517222028,
+      "tag": "0072_site_api_media_uploads",
+      "breakpoints": true
     }
   ]
 }

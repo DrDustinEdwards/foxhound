@@ -155,7 +155,7 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@8390c62de180aa316f12d141a0cc42d00a714f74 # v0.20.23
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@454002f526e5e8e645a9c110605880e220b611a0 # v0.21.0
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
@@ -178,7 +178,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@8390c62de180aa316f12d141a0cc42d00a714f74 # v0.20.23
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@454002f526e5e8e645a9c110605880e220b611a0 # v0.21.0
     with:
       worker-name: foxhound-admin-mcp
       working-directory: mcp
