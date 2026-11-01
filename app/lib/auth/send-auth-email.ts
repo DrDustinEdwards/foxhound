@@ -93,6 +93,8 @@ export async function sendEmailChangeConfirmation(
   const rendered = renderFoxhoundEmailChangeEmail({
     to: change.to,
     url: link,
+    step: "current",
+    newEmail: change.newEmail,
     expiresIn: EMAIL_CHANGE_EXPIRES_IN_WORDS,
     copy: {
       subject: "Confirm the change to your Foxhound email address",
@@ -113,6 +115,7 @@ export async function sendNewEmailVerification(env: Env, change: { to: string; u
   const rendered = renderFoxhoundEmailChangeEmail({
     to: change.to,
     url: link,
+    step: "new",
     expiresIn: EMAIL_CHANGE_EXPIRES_IN_WORDS,
     copy: {
       subject: "Confirm your new Foxhound email address",

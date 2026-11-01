@@ -1,18 +1,18 @@
 import type { NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import {
   alert,
+  type AlertLevel,
+  type Block,
   checkUrl,
+  type Copy,
+  emailChange,
   escapeHtml,
-  notice,
+  type FooterLine,
   magicLink,
+  notice,
+  type Rendered,
   renderEmail,
   securityNotice,
-  verification,
-  type AlertLevel,
-  type Copy,
-  type Block,
-  type FooterLine,
-  type Rendered,
   type Template,
 } from "capsomer/email";
 
@@ -206,10 +206,19 @@ export function renderFoxhoundSecurityNoticeEmail(to: string, detail: NoticeDeta
   return renderEmail(securityNotice, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, to, ...detail, url });
 }
 
-/** Render one of an email change's two mails on Capsomer's verification
- *  template, in the words `copy` gives (send-auth-email.ts). */
-export function renderFoxhoundEmailChangeEmail(input: { to: string; url: string; expiresIn: string; copy: Copy }): Rendered {
-  return renderEmail(verification, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, ...input });
+/** Render one of an email change's two mails on Capsomer's emailChange
+ *  template: `step` "current" asks the current address to approve (and names
+ *  `newEmail`), "new" asks the new address to confirm. The words are `copy`'s
+ *  (send-auth-email.ts). */
+export function renderFoxhoundEmailChangeEmail(input: {
+  to: string;
+  url: string;
+  step: "current" | "new";
+  newEmail?: string;
+  expiresIn: string;
+  copy: Copy;
+}): Rendered {
+  return renderEmail(emailChange, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, ...input });
 }
 
 // ---- operator alerts (E26, E27) ------------------------------------------------
