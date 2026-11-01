@@ -74,6 +74,9 @@ const SITE = {
   styleHashes: INLINE_STYLE_HASHES,
   styleAttributesInline: true,
   cloudflareWebAnalytics: true,
+  // The post players a page may frame (YouTube, Spotify and the rest of Dustin's list), loaded only on the reader's click;
+  // the registry entry's `embeds` opt-in delegates their features in the Permissions-Policy.
+  embeds: true,
   // Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
   formTargets: ["https://checkout.stripe.com", "https://connect.stripe.com"],
 } as const;
