@@ -1,4 +1,3 @@
-import { ArrowLeft } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { getDb } from "~/db";
@@ -13,6 +12,7 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/archive";
+import { SectionTrail } from "~/components/section-trail";
 
 // Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
 // back-link, an H1 that names the active filter, an article count, a row of
@@ -41,7 +41,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       title: label ?? "All articles",
       suffix: " - Foxhound Blog",
       description: label
-        ? `All Foxhound articles on ${label}.`
+        ? `Every Foxhound blog article on ${label}, with practical steps for Stripe merchants who want to keep more of their revenue.`
         : "Every published guide on Stripe payment recovery, dispute handling, and subscription intelligence.",
       path: loaderData?.activeTag ? `/blog/archive?tag=${loaderData.activeTag}` : "/blog/archive",
       pageType: "CollectionPage",
@@ -77,18 +77,7 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <Link
-        to="/blog"
-        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary transition-colors hover:text-text"
-      >
-        <ArrowLeft
-          className="transition-transform group-hover:-translate-x-0.5"
-          size={13}
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        Blog
-      </Link>
+      <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: activeLabel }]} />
 
       <h1 className="mt-3 text-2xl font-bold text-text">{activeLabel}</h1>
       <p className="mt-1 font-mono text-sm text-text-secondary">

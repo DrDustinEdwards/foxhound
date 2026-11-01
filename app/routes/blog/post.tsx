@@ -5,6 +5,7 @@ import { Link } from "capsomer/react/link";
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
 import { CoverPicture } from "~/components/blog/cover-picture";
+import { SectionTrail } from "~/components/section-trail";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
@@ -182,18 +183,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
       <ReadingProgressBar targetId="blog-post-article" />
 
-      <Link
-        to="/blog"
-        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary transition-colors hover:text-text"
-      >
-        <ArrowLeft
-          className="transition-transform group-hover:-translate-x-0.5"
-          size={13}
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        Back to blog
-      </Link>
+      <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
         {/* h-entry and e-content name the post's own text for site-api's

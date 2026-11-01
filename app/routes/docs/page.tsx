@@ -1,15 +1,13 @@
 import { slugify } from "@drdustinedwards/site-helpers/slug";
-import { Breadcrumb } from "capsomer/react/breadcrumb";
-import { Link } from "capsomer/react/link";
 
 import { DocBlocks } from "~/components/docs/doc-blocks";
+import { SectionTrail } from "~/components/section-trail";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDocGuide } from "~/lib/marketing/docs-content";
 import { siteUrl, techArticleJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/banner.css";
-import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
@@ -79,17 +77,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
-      {/* Recova's crumbs are quiet: tertiary, the link lighting up under the pointer. */}
-      <div className="mb-8 [&_.cap-breadcrumb]:text-micro [&_.cap-breadcrumb]:text-text-tertiary [&_.cap-breadcrumb-page]:font-normal [&_.cap-breadcrumb-page]:text-text-tertiary [&_a:hover]:text-text [&_a]:text-text-tertiary [&_a]:no-underline">
-        <Breadcrumb
-          items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]}
-          renderLink={({ href, className, children }) => (
-            <Link to={href} className={className}>
-              {children}
-            </Link>
-          )}
-        />
-      </div>
+      <SectionTrail items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]} />
 
       <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">User Guide</div>
       <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{guide.heading}</h1>
