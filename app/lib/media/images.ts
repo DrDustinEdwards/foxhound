@@ -13,6 +13,8 @@ export const images = defineImages({
     content: { layout: "constrained", width: 680 },
     featured: { layout: "constrained", width: 976, sizes: "(min-width: 1280px) 592px, (min-width: 1024px) calc(50vw - 48px), calc(100vw - 48px)" },
   },
+  // The share crop and the Article image set (16:9, 4:3 and 1:1 at 1200 wide) for a post's structured data.
+  shareImages: true,
 });
 
 /** Where the library's files are served. */

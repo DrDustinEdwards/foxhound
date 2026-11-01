@@ -36,6 +36,8 @@ import { SERVER, serveAdminMcp } from "./server";
 //                             its audience, rate-limits the person and hands it
 //                             to server.ts
 //   /authorize  /callback     the consent page and the Access sign-in
+//   /owner                    the owner page: your grants with Revoke, the agent keys and the tool-call log
+//                             (site-runtime ./owner-page, mounted by the same login handler)
 //   /register                 tightened registration (rule 13), rate limited here first
 //   /token, /.well-known/*    served by the provider
 //   /health                   liveness, and the deployed commit CI's live gate waits for

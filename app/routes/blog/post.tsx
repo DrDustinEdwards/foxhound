@@ -151,6 +151,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
         description,
         path: `/blog/${post.slug}`,
         imageUrl: image.url,
+        // The cover's crops, else the share image's.
+        images: (cover?.article.length ? cover.article : (share?.article ?? [])).map((crop) => ({
+          url: new URL(crop.url, url).href,
+          width: crop.width,
+          height: crop.height,
+        })),
         datePublished: post.publishedAt?.toISOString() ?? null,
         dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
         authorName: post.author,
