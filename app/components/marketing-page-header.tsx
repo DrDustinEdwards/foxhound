@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { SectionTrail } from "~/components/section-trail";
+
 // Ported from legacy components/MarketingPageHeader.tsx: the shared
 // eyebrow/title/subtext block. Legacy uses it on exactly seven marketing pages
 // (pricing, products, demos, docs, features, privacy, terms), verified against
@@ -22,10 +24,13 @@ export function MarketingPageHeader({
   eyebrow,
   title,
   subtext,
+  trail,
 }: {
   eyebrow: string;
   title: React.ReactNode;
   subtext?: string;
+  /** A page inside a section shows its trail above the eyebrow (SectionTrail). */
+  trail?: { label: string; href?: string }[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -51,6 +56,7 @@ export function MarketingPageHeader({
 
   return (
     <div ref={ref} className="mx-auto max-w-[1080px] px-5 pt-16 pb-10 sm:px-8" data-island="reveal" data-props='{"threshold":0.1,"stack":true}'>
+      {trail ? <SectionTrail items={trail} className="mb-6" /> : null}
       <div
         className={`mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary ${base} ${reveal}`}
         style={{ transitionDelay: "0ms" }}

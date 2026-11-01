@@ -1,4 +1,3 @@
-import { ArrowLeft } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { Badge } from "~/components/badge";
@@ -50,20 +49,13 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <MarketingPageHeader
+        trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
         eyebrow="Decline code"
         title={view.displayName}
         subtext={content.meaning}
       />
 
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
-        <Link
-          to="/decline-codes"
-          className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
-        >
-          <ArrowLeft className="transition-transform group-hover:-translate-x-0.5" size={13} strokeWidth={1.5} aria-hidden />
-          Back to decline codes
-        </Link>
-
         <div className="mb-8 flex flex-wrap items-center gap-2">
           <span className="rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-micro text-text-tertiary">
             {view.code}
