@@ -36,6 +36,7 @@ export function drawLatestMovement(m: MovementTotals, currency: string, width: n
     yLabel: currency.toUpperCase(),
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: mrrMovementAlt(m, currency),
+    hoverTitles: false,
     width,
     height: 200,
   });
@@ -68,6 +69,7 @@ export function drawCohorts(rows: readonly CohortRow[], width: number): string {
     colors: { [yLabel]: "var(--brand-ui)" },
     formatValue: (v) => `${v}%`,
     alt: cohortAlt(rows),
+    hoverTitles: false,
     width,
     height: cohortChartHeight(rows.length),
   });

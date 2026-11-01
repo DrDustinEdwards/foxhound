@@ -1,3 +1,4 @@
+import { barChart } from "enarratio/lite/bar";
 import { EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 
 import type { StepPerformancePoint } from "./sequence-performance";
@@ -44,3 +45,35 @@ export function stepPerformanceAlt(chart: readonly StepPerformancePoint[]): stri
  * reported to Dustin in the J12 pull request.
  */
 export const STEP_PERFORMANCE_NOTE = `Recovery counts a payment only when the customer clicked the email's link within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before paying. Clicks flagged as automated do not count.`;
+
+// Recova's plot is 220px high (StepPerformanceChart.tsx, h-[220px]).
+const CHART_HEIGHT = 220;
+// About the width of the longest step name ("Revocation email") at the axis's text size.
+const X_LABEL_WIDTH = 110;
+
+/** The step performance chart at a width: Open, Click and Recovery rate per step, grouped. */
+export function drawStepPerformance(chart: readonly StepPerformancePoint[], width: number): string {
+  return barChart({
+    title: "Step performance",
+    data: stepPerformanceRows(chart),
+    x: "Step",
+    xDomain: chart.map((c) => c.label),
+    y: "rate",
+    series: "series",
+    layout: "grouped",
+    // Recova's funnel order, Open then Click then Recovery, in its
+    // colors, except that Recovery rate takes Foxhound's amber.
+    seriesDomain: STEP_PERFORMANCE_SERIES,
+    colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)", "Recovery rate": "var(--brand-ui)" },
+    xLabel: null,
+    yLabel: "Rate (%)",
+    formatValue: (v) => `${v}%`,
+    // Recharts, which drew Recova's chart, skips x labels that would
+    // overlap; this prints every nth label once the steps no longer fit.
+    maxXTicks: Math.max(2, Math.floor(width / X_LABEL_WIDTH)),
+    alt: stepPerformanceAlt(chart),
+    hoverTitles: false,
+    width,
+    height: CHART_HEIGHT,
+  });
+}

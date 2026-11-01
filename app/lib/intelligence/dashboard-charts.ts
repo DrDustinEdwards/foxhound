@@ -57,6 +57,7 @@ export function drawMrrTrend(points: readonly TrendPoint[], currency: string, wi
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     formatX: (v) => formatDateMonthDay(new Date(v)),
     alt: mrrTrendAlt(points, currency),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.trend,
   });
@@ -84,6 +85,7 @@ export function drawNrr(points: readonly NrrPoint[], width: number): string {
     formatValue: formatPct,
     formatX: (v) => formatDateMonthDay(new Date(v)),
     alt: nrrAlt(points),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.nrr,
   });
@@ -137,6 +139,7 @@ export function drawMovement(points: readonly MovementPoint[], currency: string,
     yLabel: unit(currency),
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: movementAlt(points, currency),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.movement,
   });
@@ -162,6 +165,7 @@ export function drawPlans(rows: readonly PlanRow[], currency: string, width: num
     colors: { [yLabel]: "var(--brand-ui)" },
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: planAlt(rows, currency),
+    hoverTitles: false,
     width,
     height: planChartHeight(rows.length),
   });
@@ -199,6 +203,7 @@ export function drawHealth(days: readonly HealthDay[], width: number): string {
     xLabel: null,
     yLabel: "Customers",
     alt: healthAlt(days),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.health,
   });
