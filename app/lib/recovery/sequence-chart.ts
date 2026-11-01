@@ -9,15 +9,15 @@ import type { StepPerformancePoint } from "./sequence-performance";
 // read the same rows.
 
 /** Recova's series, in its funnel order: each depends on the one before. */
-export const STEP_PERFORMANCE_SERIES = ["Open rate", "Click rate", "Recovery rate"] as const;
+const STEP_PERFORMANCE_SERIES = ["Open rate", "Click rate", "Recovery rate"] as const;
 
-export interface StepPerformanceRow {
+interface StepPerformanceRow {
   Step: string;
   series: (typeof STEP_PERFORMANCE_SERIES)[number];
   rate: number;
 }
 
-export function stepPerformanceRows(chart: readonly StepPerformancePoint[]): StepPerformanceRow[] {
+function stepPerformanceRows(chart: readonly StepPerformancePoint[]): StepPerformanceRow[] {
   return chart.flatMap((c) => [
     { Step: c.label, series: "Open rate" as const, rate: c.openRatePct },
     { Step: c.label, series: "Click rate" as const, rate: c.clickRatePct },
@@ -26,7 +26,7 @@ export function stepPerformanceRows(chart: readonly StepPerformancePoint[]): Ste
 }
 
 /** Every step with its three rates and its sends, for a reader who cannot see the bars. */
-export function stepPerformanceAlt(chart: readonly StepPerformancePoint[]): string {
+function stepPerformanceAlt(chart: readonly StepPerformancePoint[]): string {
   const parts = chart.map(
     (c) =>
       `${c.label} ${c.openRatePct}% opened, ${c.clickRatePct}% clicked, ${c.recoveryRatePct}% recovered (${c.sent} sent)`,

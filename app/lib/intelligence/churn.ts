@@ -31,12 +31,12 @@ const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric"
 
 /** "Sep 2025": a snapshot's month, pinned to UTC so the server and browser agree.
  *  Shared by the chart's axis table and its text alternative. */
-export function formatChurnMonth(date: Date | number): string {
+function formatChurnMonth(date: Date | number): string {
   return MONTH.format(date);
 }
 
 /** A churn rate in percent, to at most two decimals: 2.756 reads "2.76%". */
-export function formatChurnPct(value: number): string {
+function formatChurnPct(value: number): string {
   return `${Math.round(value * 100) / 100}%`;
 }
 
