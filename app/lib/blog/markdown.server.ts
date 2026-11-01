@@ -121,6 +121,8 @@ export async function coverPicture(
       use,
     ),
     original: { url: src, width: row?.width ?? undefined, height: row?.height ?? undefined, type: row?.contentType, alt },
+    // The Article's image set: Google's 16:9, 4:3 and 1:1 crops at 1200 wide around the focal point (site-relative).
+    article: row ? images.articleImages({ src, width: row.width, height: row.height, focus: row.focus }) : [],
   };
 }
 
