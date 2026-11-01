@@ -1,7 +1,8 @@
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { validateHostHeader } from "@modelcontextprotocol/server";
 
-import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { auditLogCheck, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { healthResponse } from "@dustinedwards/site-runtime/health";
 import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
 import {
   DCR_CALLBACKS,
@@ -9,7 +10,7 @@ import {
   registrationLimited,
   registrationRefusal,
 } from "@dustinedwards/site-runtime/mcp-login";
-import { audienceRefusal, checkRateLimit, mcpOriginRefusal, refuse, withMcpHeaders } from "@dustinedwards/site-runtime/mcp-server";
+import { audienceRefusal, checkRateLimit, mcpOriginRefusal, probeDoor, refuse, withMcpHeaders } from "@dustinedwards/site-runtime/mcp-server";
 import type { AdminMcpEnv } from "./env";
 import { adminMcpOrigin, isFoxhoundAdmin, MCP_ROUTE, type DoorProps } from "./guard";
 import { currentScopes, SCOPE_READ, SCOPE_WRITE, SCOPES_SUPPORTED } from "./scopes";
@@ -31,7 +32,8 @@ import { SERVER, serveAdminMcp } from "./server";
 // door on their next call, whatever grant this Worker still holds.
 //
 // Routes, outermost first:
-//   /mcp                      a foreign Origin is refused first (403), then the
+//   /mcp                      a foreign Origin is refused first (403), then a wrong
+//                             Host, then the list-only test key (probeDoor), then the
 //                             provider checks the token, then apiHandler checks
 //                             its audience, rate-limits the person and hands it
 //                             to server.ts
@@ -40,7 +42,7 @@ import { SERVER, serveAdminMcp } from "./server";
 //                             (site-runtime ./owner-page, mounted by the same login handler)
 //   /register                 tightened registration (rule 13), rate limited here first
 //   /token, /.well-known/*    served by the provider
-//   /health                   liveness, and the deployed commit CI's live gate waits for
+//   /health                   liveness, the deployed commit CI's live gate waits for, and the tool-call log's check
 //   anything else             404
 
 type DoorEnv = AdminMcpEnv & { OAUTH_PROVIDER: OAuthHelpers };
@@ -59,8 +61,9 @@ const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
   admit: (env, user) => isFoxhoundAdmin(env, user.email.toLowerCase()),
   // Every sign-in, admitted or refused, is a row in the tool-call log.
   audit: { name: SERVER.name, version: SERVER.version },
-  // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it.
-  health: (env) => Response.json({ ok: true, sha: env.DEPLOY_SHA ?? null }),
+  // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it. The tool-call log's
+  // check (L8) warns on a call started and never finished, a spike, or rows uncopied for two days.
+  health: (env) => healthResponse({ sha: env.DEPLOY_SHA, checks: [auditLogCheck(env as Parameters<typeof auditLogCheck>[0])] }),
 });
 
 /** The provider's defaultHandler: the shared consent and sign-in, with this Worker's origin for the callback. */
@@ -173,6 +176,15 @@ async function route(request: Request, env: AdminMcpEnv, ctx: ExecutionContext):
       new URL(adminMcpOrigin(env)).hostname,
     ]);
     if (!host.ok) return refuse("Forbidden. This is not a host this server answers on.", 403);
+    // THE LIST-ONLY TEST KEY (Dustin 2026-11-01, "do the best practice"): the secret MCP_PROBE_KEY lets the daily live
+    // check connect and list tools, and nothing else; it never reaches the admin API. Before the provider, which
+    // answers 401 to any token it did not mint. No key, or no secret set, is null and goes on to OAuth.
+    const probed = await probeDoor(request, env, {
+      server: SERVER,
+      limiter: env.MCP_RATE_LIMIT,
+      serve: (req, caller) => serveAdminMcp(req, env, { actor: caller.principal, client: "the list-only test key", scopes: [], probe: true }),
+    });
+    if (probed) return probed;
   }
   if (pathname === REGISTER_PATH && request.method === "POST") {
     const limited = await registrationLimited(request, env.OAUTH_KV);

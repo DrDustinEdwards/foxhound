@@ -11,7 +11,7 @@ Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscri
 ## Commands
 
 - `npm run check:all` (typecheck, lint, test, tokens, gates) before a push. `npm run db:generate` and `npm run db:migrate` for migrations.
-- One Worker `foxhound` and one D1 `foxhound`, no `--env` anywhere: every deploy is production. The only second Worker is the admin MCP in `mcp/`, whose only bindings are a service binding to `foxhound` and its own OAuth KV, so it can never touch Stripe, D1 or money.
+- One Worker `foxhound` and one D1 `foxhound`, no `--env` anywhere: every deploy is production. The only second Worker is the admin MCP in `mcp/`, whose only bindings are a service binding to `foxhound`, its own OAuth KV, rate limit and tool-call log, and the R2 bucket for that log's copies, so it can never touch Stripe, D1 or money.
 - Read legacy code through Capsid's repo tools (`repo: "legacy"` or `"legacy-mcp"`), never by cloning it here. Legacy Supabase is read-only reference.
 - Public repo: never commit a key or real merchant data.
 

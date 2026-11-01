@@ -84,6 +84,11 @@ interface Env {
   // helper types cleanly). Connected-account endpoint + platform endpoint.
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PLATFORM_WEBHOOK_SECRET?: string;
+  // The merchant MCP's list-only test key for the daily live check
+  // (app/lib/mcp/handler.server.ts, site-runtime probeDoor): it lists the read
+  // tools and runs none, and it never resolves to an account. OPTIONAL: unset,
+  // /mcp admits only merchant keys, as before.
+  MCP_PROBE_KEY?: string;
 
   // ---- Phase 4b: AI dunning-copy generation ----
   // Anthropic API key for Sonnet dunning-copy generation. Dustin-gated secret

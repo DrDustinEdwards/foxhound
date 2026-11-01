@@ -1,7 +1,7 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
-import { checkRateLimit, mcpOriginRefusal, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
+import { checkRateLimit, mcpOriginRefusal, probeDoor, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
 import { getDb } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
@@ -63,6 +63,18 @@ function mcpErrorBody(id: string | number | null, code: number, message: string)
 
 /** The server as the shared log names it. */
 const AUDIT_SERVER = { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
+
+/** The server as the list-only test key's door names it in a refusal and the log. */
+const PROBE_SERVER = { site: "Foxhound", scopes: MERCHANT_SCOPES, ...AUDIT_SERVER };
+
+/** The registry as the list-only test key sees it: the read tools only, as a read grant would see them. */
+function readToolsOnly(registry: McpToolRegistry): McpToolRegistry {
+  const read = (name: string) => {
+    const tool = registry.get(name);
+    return tool?.scope === "read" ? tool : null;
+  };
+  return { list: () => registry.list().filter((tool) => read(tool.name)), get: read };
+}
 
 /** What the endpoint resolved before dispatching. */
 interface McpAuthContext {
@@ -227,6 +239,34 @@ export async function handleMcpRequest(
   // origin but this one.
   const foreign = mcpOriginRefusal(request);
   if (foreign) return foreign;
+
+  // THE LIST-ONLY TEST KEY (Dustin 2026-11-01, "do the best practice"): the
+  // secret MCP_PROBE_KEY lets the daily live check connect and list the read
+  // tools, and nothing else. It is not a merchant key: it names no account and
+  // no D1 lookup happens for it. site-runtime's probeDoor refuses any method but
+  // the handshake, ping or a list before the SDK runs, and logs it; past that,
+  // the key holds no scope, so a tool that somehow ran would refuse itself.
+  // No key in the request, or no secret set, is null: on to the merchant keys.
+  const probed = await probeDoor(request, env, {
+    server: PROBE_SERVER,
+    limiter: env.RATE_LIMITER,
+    serve: (req, caller) => {
+      const now = new Date();
+      return serveMcp(req, readToolsOnly(registry), {
+        env,
+        db: getDb(env),
+        accountId: "",
+        now,
+        trace: { apiKeyId: caller.principal, tool: "", now },
+      }, {
+        token: "",
+        clientId: caller.principal,
+        scopes: [],
+        resource: new URL(mcpResource(url.origin)),
+      });
+    },
+  });
+  if (probed) return probed;
 
   const authenticated = await authenticate(request, env);
   if (!authenticated.ok) return authenticated.response;
