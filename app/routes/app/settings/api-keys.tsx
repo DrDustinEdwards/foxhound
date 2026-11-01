@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 import { Link } from "capsomer/react/link";
 import { ArrowLeft } from "lucide-react";
 import { Alert } from "capsomer/react/banner";
@@ -30,13 +31,16 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import {
   createAccountApiKey,
   listAccountApiKeys,
+  listAccountMcpCalls,
+  type AccountMcpCallRow,
   revokeAccountApiKey,
 } from "~/lib/settings/api-keys.server";
 import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
 
 import type { Route } from "./+types/api-keys";
 import { NOINDEX } from "~/lib/seo/meta";
-import { formatDateShort } from "~/lib/date-format";
+import { formatDateShort, formatTimestamp } from "~/lib/date-format";
+import { MCP_CALLS_SHOWN, outcomeWords } from "~/lib/admin/mcps";
 import { readForm } from "~/lib/http/body";
 
 // S29, /settings/api-keys. Legacy: api-keys/page.tsx (blob b50fb228, 624 bytes)
@@ -81,15 +85,39 @@ function isOwner(auth: { membership: { role: string } }): boolean {
   return auth.membership.role === MEMBER_ROLE.OWNER;
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+/** The owner's own call log, or why it is not shown: a failed read says so rather than looking like no calls. */
+type CallLog =
+  | { state: "owner-only" }
+  | { state: "failed" }
+  | { state: "ok"; calls: AccountMcpCallRow[]; more: boolean; newer: boolean };
+
+// THE CALL LOG (area 11, A15 and L9). Beside the keys an owner can revoke, what their agents did with them: every call
+// the merchant /mcp logged for this account, newest first, a page at a time. Owners only, as creating and revoking are.
+async function readCallLog(env: Env, accountId: string, owner: boolean, request: Request): Promise<CallLog> {
+  if (!owner) return { state: "owner-only" };
+  const raw = new URL(request.url).searchParams.get("calls_before");
+  // `<ms>.<id>`, the last row of the page before; anything else is the first page.
+  const cursor = raw ? /^(\d{1,15})\.([\w-]{1,64})$/.exec(raw) : null;
+  const before = cursor ? { at: new Date(Number(cursor[1])), id: cursor[2]! } : undefined;
+  try {
+    const { calls, more } = await listAccountMcpCalls(getDb(env), accountId, before);
+    return { state: "ok", calls, more, newer: before !== undefined };
+  } catch (err) {
+    logEvent("mcp_call_log_read_failed", { error: err instanceof Error ? err.message : "unknown error" }, { level: "error" });
+    return { state: "failed" };
+  }
+}
+
+export async function loader({ context, request }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
+  const callLog = await readCallLog(env, auth.membership.accountId, isOwner(auth), request);
   try {
     const keys = await listAccountApiKeys(
       getDb(env),
       auth.membership.accountId,
     );
-    return { keys, loadError: false, isAdmin: auth.isAdmin, isOwner: isOwner(auth) };
+    return { keys, loadError: false, isAdmin: auth.isAdmin, isOwner: isOwner(auth), callLog };
   } catch (err) {
     // Legacy's page shows "Couldn't load your API keys" when its read fails,
     // rather than an error page; this is that state. The message names the
@@ -98,7 +126,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       "api keys read failed:",
       err instanceof Error ? err.message : "unknown error",
     );
-    return { keys: null, loadError: true, isAdmin: auth.isAdmin, isOwner: isOwner(auth) };
+    return { keys: null, loadError: true, isAdmin: auth.isAdmin, isOwner: isOwner(auth), callLog };
   }
 }
 
@@ -379,7 +407,7 @@ export default function ApiKeySettings({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { keys, loadError, isAdmin, isOwner: owner } = loaderData;
+  const { keys, loadError, isAdmin, isOwner: owner, callLog } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
   const revoking =
@@ -515,6 +543,64 @@ export default function ApiKeySettings({
           ) : null}
         </div>
       </section>
+
+      {callLog.state === "owner-only" ? null : <CallLogPanel log={callLog} />}
     </>
+  );
+}
+
+/** What the account's agents did, newest first: the time, the tool, the key and whether it worked. */
+function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> }) {
+  const headingId = useId();
+  const last = log.state === "ok" ? log.calls.at(-1) : undefined;
+  return (
+    <section className="cap-panel mt-6" aria-labelledby={headingId}>
+      <div className="cap-panel-body">
+        <h2 id={headingId} className="text-heading">
+          Agent activity
+        </h2>
+        <p className="text-label text-text-secondary">
+          Every call an agent made with this account&apos;s keys, newest first, {MCP_CALLS_SHOWN} at a time. Revoke a
+          key above to stop an agent.
+        </p>
+        {log.state === "failed" ? (
+          <Alert tone="crit">{"Couldn't load the agent activity. Refresh the page or try again later."}</Alert>
+        ) : log.calls.length === 0 ? (
+          <Empty kind="nothing-yet" flush title={log.newer ? "No older calls." : "No agent has called Foxhound with these keys yet."} />
+        ) : (
+          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Agent activity" tabIndex={0}>
+            <table className="cap-table">
+              <thead>
+                <tr>
+                  <th scope="col">Time</th>
+                  <th scope="col">Tool</th>
+                  <th scope="col">Key</th>
+                  <th scope="col">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {log.calls.map((call) => (
+                  <tr key={call.id}>
+                    <th scope="row">{formatTimestamp(new Date(call.createdAt))}</th>
+                    <td data-label="Tool" className="font-mono">{call.tool}</td>
+                    <td data-label="Key">{call.keyLabel ?? "A deleted key"}</td>
+                    <td data-label="Result">
+                      {outcomeWords(call.outcome)}
+                      {call.error ? <span className="block text-text-secondary">{call.error}</span> : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {log.state === "ok" && (log.more || log.newer) ? (
+          <div className="flex flex-wrap gap-3">
+            {log.newer ? <Link to="?">Newest calls</Link> : null}
+            {log.more && last ? <Link to={`?calls_before=${new Date(last.createdAt).getTime()}.${last.id}`}>Older calls</Link> : null}
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
