@@ -151,6 +151,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
         description,
         path: `/blog/${post.slug}`,
         imageUrl: image.url,
+        // The cover's crops, else the share image's.
+        images: (cover?.article.length ? cover.article : (share?.article ?? [])).map((crop) => ({
+          url: new URL(crop.url, url).href,
+          width: crop.width,
+          height: crop.height,
+        })),
         datePublished: post.publishedAt?.toISOString() ?? null,
         dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
         authorName: post.author,
@@ -274,7 +280,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
-        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} className="h-11 w-11 shrink-0 rounded-[10px]" />
+        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} loading="lazy" decoding="async" className="h-11 w-11 shrink-0 rounded-[10px]" />
         <div>
           <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Published by</p>
           <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>
