@@ -1,6 +1,7 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
 import { checkRateLimit, mcpOriginRefusal, probeDoor, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
 import { getDb } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
@@ -125,15 +126,6 @@ function unauthorized(origin: string): Response {
   });
 }
 
-function bearerToken(request: Request): string | null {
-  const header = request.headers.get("authorization");
-  if (!header) return null;
-  const [scheme, ...rest] = header.split(" ");
-  if (scheme.toLowerCase() !== "bearer") return null;
-  const token = rest.join(" ").trim();
-  return token.length > 0 ? token : null;
-}
-
 /**
  * Resolve the caller, or refuse.
  *
@@ -170,7 +162,7 @@ async function authenticate(
     return unauthorized(new URL(request.url).origin);
   };
 
-  const token = bearerToken(request);
+  const token = bearerToken(request.headers.get("authorization"));
   if (!token) return { ok: false, response: await refuse("no bearer token") };
   if (!token.startsWith(MCP_TOKEN_PREFIX)) {
     return { ok: false, response: await refuse("wrong token prefix") };

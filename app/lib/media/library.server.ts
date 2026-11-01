@@ -2,7 +2,7 @@ import { NotFoundError, RefusedError, sha256Hex, toArrayBuffer, type PreparedUpl
 import { replaceObject, type R2BucketLike } from "@dustinedwards/site-api/r2";
 
 import type { Db } from "~/db";
-import { generateSlug } from "~/lib/blog/format";
+import { slugify } from "@drdustinedwards/site-helpers/slug";
 
 import { EXTENSIONS, UPLOAD_KEY } from "./images";
 import {
@@ -38,7 +38,7 @@ const copyKeyOf = (key: string, revision: number) => `revisions/${key}/${revisio
 async function freshKey(db: Db, filename: string, sha256: string, contentType: string): Promise<string> {
   const now = new Date();
   const month = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  const name = generateSlug(filename.replace(/\.[^.]*$/, "")).slice(0, 60).replace(/^-+|-+$/g, "") || "picture";
+  const name = slugify(filename.replace(/\.[^.]*$/, ""), { max: 60 }) || "picture";
   for (const length of [8, 12, 16, 64]) {
     const key = `${month}/${name}-${sha256.slice(0, length)}.${EXTENSIONS[contentType]}`;
     if (!UPLOAD_KEY.test(key)) throw new RefusedError(`${filename} cannot be stored under a library address.`);

@@ -1,7 +1,7 @@
 import { isRouteErrorResponse } from "react-router";
 
 import { WITHDRAWN_BLOG_HEADING, WITHDRAWN_BLOG_REASON } from "~/lib/blog/withdrawn";
-import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
+import { errorDetails } from "~/lib/errors/boundary-message";
 import "~/error-page.css";
 
 import { headerLogo } from "./header-logo";
@@ -67,7 +67,7 @@ export function recovaWords(error: unknown, isDev: boolean): { title: string; te
   if (isRouteErrorResponse(error) && error.status === 404) {
     return { title: "Page not found", text: "The page you're looking for doesn't exist or has been moved." };
   }
-  return { title: "Something went wrong", text: resolveErrorBoundaryDetails(error, isDev).details };
+  return { title: "Something went wrong", text: errorDetails(error, isDev) };
 }
 
 // Recova's ways out beyond home (its not-found.tsx and error.tsx): the dashboard, and on a 404 the
