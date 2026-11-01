@@ -35,7 +35,7 @@
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.66.0",
     "better-auth": "1.7.12",
-    "capsomer": "github:DrDustinEdwards/capsomer#v0.57.0",
+    "capsomer": "github:DrDustinEdwards/capsomer#v0.60.0",
     "drizzle-orm": "0.45.2",
     "enarratio": "0.6.0",
     "hast-util-to-string": "3.0.1",
@@ -85,13 +85,5 @@
     "vite": "8.3.5",
     "vitest": "3.2.7",
     "wrangler": "4.152.0"
-  },
-  "overrides": {
-    "@drdustinedwards/site-helpers": {
-      "enarratio": "$enarratio"
-    },
-    "capsomer": {
-      "enarratio": "$enarratio"
-    }
   }
 }

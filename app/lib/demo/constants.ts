@@ -64,3 +64,15 @@ export const DEMO_ACTIVE_ACCOUNT_COOKIE = "__Host-fh_demo_account";
 // so the two callers can never drift apart and silently stop excluding each
 // other.
 export const DEMO_RESET_CRON_NAME = "demo-reset";
+
+/**
+ * The one copy of the message a demo visitor sees when a control they clicked
+ * would have mutated something (TASK-foxhound-demo-system-completion.md
+ * Phase 1). appShellMiddleware throws this as the body of its 405, and
+ * app/root.tsx's ErrorBoundary reads it back off the thrown response so the
+ * rejection reads as a normal product message instead of a raw framework
+ * error page. It lives here, beside the other demo constants, because client components show it too and
+ * session.ts imports the database: importing it from there put Drizzle in the browser bundle.
+ */
+export const DEMO_READ_ONLY_MESSAGE =
+  "Actions are disabled in this demo. Explore freely; nothing here can be changed.";

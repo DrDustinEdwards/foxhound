@@ -16,7 +16,7 @@ import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
-import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import {
   GENERATE_REPORT_ERROR_STATUS,
   dayOverDayCents,
