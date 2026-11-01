@@ -750,7 +750,7 @@ describe("least scope: read unless the owner allows changes, with a step-up for 
     name,
     title: name,
     description: name,
-    inputSchema: { type: "object" },
+    inputSchema: { type: "object", additionalProperties: false },
     annotations: { readOnlyHint: scope === "read", destructiveHint: scope === "write", idempotentHint: true, openWorldHint: false },
     scope,
     execute: async () => {

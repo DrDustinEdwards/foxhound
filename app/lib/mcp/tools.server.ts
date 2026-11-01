@@ -283,7 +283,7 @@ const READ_TOOLS: McpTool[] = [
     title: "Account overview",
     description:
       "Start here. Read this account's recurring-revenue overview (MRR, movement, customer counts, the latest report summary), the failed-payment counts by recovery status, and the Stripe accounts connected to it. Access tokens are never returned, and nothing can be connected or disconnected here.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: result(["overview", "payment_status_counts", "connections"], []),
     annotations: READ,
     scope: "read",
@@ -303,6 +303,7 @@ const READ_TOOLS: McpTool[] = [
       "List this account's failed payments, newest first, with amount, decline category and recovery status. Filter by status or decline category. Paginated: pass next_cursor back to read on. Customer emails are masked and no name is returned. Use foxhound_get_payment with an id from here for one payment's recovery steps.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         status: {
           type: "string",
@@ -348,6 +349,7 @@ const READ_TOOLS: McpTool[] = [
       "Read one of this account's failed payments with its recovery steps in order (what ran, when and how the customer engaged; never the email text), the recovery if there was one, the same customer's previous failures and any open disputes. Payment ids come from foxhound_list_payments. Cannot retry, pause, resume or cancel recovery; that stays in the Foxhound app.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: { payment_id: { type: "string", description: "The failed payment's id, from foxhound_list_payments." } },
       required: ["payment_id"],
     },
@@ -372,6 +374,7 @@ const READ_TOOLS: McpTool[] = [
       "List this account's customers with health score, plan tier and MRR, lowest health first, plus the plan tiers present. tier filters to one plan tier. Paginated, 50 a page: pass next_cursor back to read on. Names are never returned and emails are masked; the Stripe customer id is the key for foxhound_get_customer.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         tier: { type: "string", description: "Only customers on this plan tier, as listed in tiers." },
         cursor: CURSOR_PROPERTY,
@@ -414,6 +417,7 @@ const READ_TOOLS: McpTool[] = [
       "Read one of this account's customers: health score, its factors, its history and the churn predictions, with when they became a customer, their current plan name and tier, monthly MRR contribution and lifetime value (null until Foxhound computes it). The name is never returned and the email is masked. Customer ids come from foxhound_list_customers.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         stripe_customer_id: { type: "string", description: "The Stripe customer id, from foxhound_list_customers." },
       },
@@ -438,7 +442,7 @@ const READ_TOOLS: McpTool[] = [
     title: "Churn and alerts",
     description:
       "Read this account's subscription intelligence: churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings. Alert ids from here are the ones foxhound_manage_alerts takes.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: result(["churn", "alerts", "alert_history"], []),
     annotations: READ,
     scope: "read",
@@ -455,7 +459,7 @@ const READ_TOOLS: McpTool[] = [
     title: "List disputes",
     description:
       "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
-    inputSchema: { type: "object", properties: { cursor: CURSOR_PROPERTY }, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: { cursor: CURSOR_PROPERTY }, required: [] },
     outputSchema: result(["disputes", "total", "has_more", "next_cursor"], ["disputes", "has_more"]),
     annotations: READ,
     scope: "read",
@@ -474,6 +478,7 @@ const READ_TOOLS: McpTool[] = [
       "Read this account's audit settings and its stored audit runs, newest first, with each scope's figures or null where a scope could not be read. Pass run_id for one run in full. Paginated, 12 a page: pass next_cursor back to read on.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         run_id: { type: "string", description: "One audit run's id, from an earlier answer. Omit to list runs." },
         cursor: CURSOR_PROPERTY,
@@ -509,7 +514,7 @@ const READ_TOOLS: McpTool[] = [
     title: "Foxhound billing",
     description:
       "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Read only: cannot issue, pay, adjust or void anything.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: result(["ledger", "invoices", "preview"], []),
     annotations: READ,
     scope: "read",
@@ -531,7 +536,7 @@ const READ_TOOLS: McpTool[] = [
     title: "Read settings",
     description:
       "Read every setting foxhound_update_settings can change: audit window, the two engine toggles, notification email and toggles, the connected Stripe accounts, the primary connection's sender name and brand voice, and the business context the email writer is given. The Slack webhook URL is never returned, only whether one is set.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: result(["audit", "features", "notifications", "connections", "sender", "brand_voice", "intelligence_context"], ["features", "notifications"]),
     annotations: READ,
     scope: "read",
@@ -758,6 +763,7 @@ const WRITE_TOOLS: McpTool[] = [
       "Change one group of this account's settings per call: send exactly one of audit, features, notifications, sender_name, brand_voice or intelligence_context. Read the current values first with foxhound_get_settings. Values overwrite what is there: in notifications every field is replaced and an omitted Slack webhook is cleared; in brand_voice and intelligence_context an omitted field is left alone and an empty string clears it. Connection ids come from foxhound_get_settings and must belong to this account. Every change is confirmed first: the first call changes nothing and answers what it would change and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         audit: {
           type: "object",
@@ -866,6 +872,7 @@ const WRITE_TOOLS: McpTool[] = [
       "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day. delete is confirmed first: the first call deletes nothing and answers what it would delete and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         action: { type: "string", enum: [...ALERT_ACTIONS], description: "What to do." },
         alert_id: { type: "string", description: "For enable, disable and delete: from foxhound_get_intelligence." },
