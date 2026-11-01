@@ -6,7 +6,8 @@ import { setSessionActiveAccount, safeReturnPath } from "~/lib/auth/active-accou
 import { findActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { DEMO_READ_ONLY_MESSAGE, hasDemoCookie } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
+import { hasDemoCookie } from "~/lib/demo/session";
 
 import type { Route } from "./+types/account-switch";
 import { readForm, readJson } from "~/lib/http/body";

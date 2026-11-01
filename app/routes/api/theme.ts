@@ -3,7 +3,8 @@ import { getDb } from "~/db";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { DEMO_READ_ONLY_MESSAGE, hasDemoCookie } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
+import { hasDemoCookie } from "~/lib/demo/session";
 import { setAccountTheme } from "~/lib/theme.server";
 import { isTheme } from "~/lib/theme";
 

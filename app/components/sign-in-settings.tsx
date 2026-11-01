@@ -7,7 +7,7 @@ import { signalPasskeys, signalUnknownCredential } from "@dustinedwards/site-run
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
 import { formatDateShort } from "~/lib/date-format";
-import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 /** Where this person is signed in (site-runtime's sessionRows, current first);
  *  "stale" when listing them needs a fresh sign-in; null when not shown. */

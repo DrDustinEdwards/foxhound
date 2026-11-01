@@ -8,7 +8,7 @@ import routes from "~/routes";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DEMO_SESSION_COOKIE, DEMO_SESSION_COOKIE_VALUE } from "~/lib/demo/constants";
-import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { getSession } from "~/lib/auth/session";
 
 // getSession makes a real Better Auth call (app/lib/auth/session.ts); the
