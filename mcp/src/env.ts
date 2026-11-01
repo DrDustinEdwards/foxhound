@@ -33,4 +33,6 @@ export interface AdminMcpEnv {
   DEPLOY_SHA?: string;
   /** Extra exact registration callbacks, space or comma separated, beside site-runtime's DCR_CALLBACKS (door.ts). */
   DCR_REDIRECT_URIS?: string;
+  /** The list-only test key for the daily live check (door.ts, site-runtime probeDoor): lists tools, runs none. Secret. */
+  MCP_PROBE_KEY?: string;
 }
