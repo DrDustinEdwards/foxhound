@@ -3,21 +3,21 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "9c432fa",
+    "measured_at": "b44ab94",
     "knip": {},
     "jscpd": {
-      "clones": 117,
-      "lines": 1289,
-      "percentage": 1.18
+      "clones": 116,
+      "lines": 1283,
+      "percentage": 1.17
     },
     "tests": {
       "files": 341,
-      "cases": 2060
+      "cases": 2061
     },
     "comments": {
-      "lines": 34020,
-      "code": 125711,
-      "percentage": 21.3
+      "lines": 34188,
+      "code": 126030,
+      "percentage": 21.34
     }
   }
 }

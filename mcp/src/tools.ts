@@ -25,6 +25,8 @@ interface AdminToolSession {
   env: AdminMcpEnv;
   /** The signed-in admin, re-checked by the API on every call. */
   actor: string;
+  /** The call's abort signal (P11): a client that leaves cancels the request to the admin API. */
+  signal?: AbortSignal;
 }
 
 export interface AdminTool {
@@ -37,6 +39,12 @@ export interface AdminTool {
   annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
   /** The scope a call needs (rule 12.3), declared here and never read from readOnlyHint. */
   scope: "read" | "write";
+  /**
+   * Set when the answer can carry text someone outside Foxhound's admins wrote (merchant names and notes, customer
+   * and webhook error text, request paths): the result then goes through site-runtime's outsideResult under this
+   * label (checklist S2).
+   */
+  outside?: string;
   run: (session: AdminToolSession, args: Record<string, unknown>) => Promise<ApiResult>;
 }
 
@@ -63,7 +71,7 @@ const text = (args: Record<string, unknown>, name: string): string | undefined =
 const refuse = (error: string): ApiResult => ({ ok: false, status: 400, error });
 
 const get = (session: AdminToolSession, path: string, query?: Record<string, string | undefined>) =>
-  callAdminApi(session.env, session.actor, { method: "GET", path, query });
+  callAdminApi(session.env, session.actor, { signal: session.signal, method: "GET", path, query });
 
 export const ADMIN_TOOLS: AdminTool[] = [
   {
@@ -73,6 +81,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Start here. What on Foxhound needs an admin now: whether the emergency brake is engaged, accounts with stale brake markers, crons that are off or failed their last run, webhook failures in the last day, and the staged changes waiting for confirmation in /admin/staged.",
     inputSchema: { type: "object", properties: {}, required: [] },
     outputSchema: output({ brake: OBJECT, stale_markers: OBJECT, crons_needing_attention: LIST, webhooks: OBJECT, pending_staged: LIST }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session) => get(session, "/whats-next"),
@@ -102,6 +111,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: [],
     },
     outputSchema: output({ merchant: OBJECT, merchants: LIST, ...PAGE }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
@@ -121,6 +131,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: ["account_id"],
     },
     outputSchema: output({ overview: OBJECT, payment_status_counts: OBJECT, disputes: LIST, disputes_total: { type: "number" } }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
@@ -136,6 +147,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Check Foxhound's health: webhook delivery in the last day, every cron's state and last run, which migrations are applied, the D1 database size, and the most-hit missing pages this week.",
     inputSchema: { type: "object", properties: {}, required: [] },
     outputSchema: output({ webhooks: OBJECT, crons: LIST, migrations: OBJECT, d1_size_bytes: { type: "number" }, top_404s_7d: LIST }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session) => get(session, "/health"),
@@ -147,6 +159,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Read the admin audit log, newest first: who did what and when, including every pause, staging and confirmation. Paginated: pass next_cursor back to read on.",
     inputSchema: { type: "object", properties: { cursor: CURSOR }, required: [] },
     outputSchema: output({ entries: LIST, ...PAGE }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => get(session, "/audit-log", { cursor: text(args, "cursor") }),
@@ -172,10 +185,10 @@ export const ADMIN_TOOLS: AdminTool[] = [
     run: (session, args) => {
       const accountId = text(args, "account_id");
       if (args.all === true && !accountId) {
-        return callAdminApi(session.env, session.actor, { method: "POST", path: "/pause", body: { all: true } });
+        return callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/pause", body: { all: true } });
       }
       if (accountId && args.all !== true) {
-        return callAdminApi(session.env, session.actor, { method: "POST", path: "/pause", body: { account_id: accountId } });
+        return callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/pause", body: { account_id: accountId } });
       }
       return Promise.resolve(refuse("Send account_id to pause one merchant, or all: true to pause every merchant, not both."));
     },
@@ -206,6 +219,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     run: async (session, args) => {
       const result = await callAdminApi(session.env, session.actor, {
+        signal: session.signal,
         method: "POST",
         path: "/staged",
         body: {
@@ -240,6 +254,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: [],
     },
     outputSchema: output({ staged: LIST, ...PAGE }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => get(session, "/staged", { status: text(args, "status"), cursor: text(args, "cursor") }),
@@ -259,12 +274,14 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: [],
     },
     outputSchema: output({ types: LIST, recipients: OBJECT, preview: OBJECT, merchant: { type: ["object", "null"] }, note: { type: "string" } }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
       const type = text(args, "type");
       if (!type) return get(session, "/emails");
       return callAdminApi(session.env, session.actor, {
+        signal: session.signal,
         method: "POST",
         path: "/emails/preview",
         body: { type, account_id: text(args, "account_id"), to: text(args, "to") },
@@ -295,6 +312,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     run: (session, args) =>
       callAdminApi(session.env, session.actor, {
+        signal: session.signal,
         method: "POST",
         path: "/emails/send",
         body: { types: args.types, account_id: text(args, "account_id"), to: text(args, "to") },
