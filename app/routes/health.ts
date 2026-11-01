@@ -1,3 +1,4 @@
+import { auditLogCheck } from "@dustinedwards/site-runtime/audit-log";
 import { cronCheck } from "@dustinedwards/site-runtime/cron";
 import {
   aiCheck,
@@ -31,7 +32,8 @@ import type { Route } from "./+types/health";
 // their own writes and sign-ins, CRON_LOCK and CRON_TICKER the crons, which the cron check reports as well).
 // durableObjectCheck mints an id and sends nothing, so no object is woken or billed. Left out: EMAIL (send_email has
 // no read to probe, and a probe would send mail; a failed send is recorded in email_sends and alerted) and the
-// Renderer entrypoint (the home page check of the deploy's live gate covers it).
+// Renderer entrypoint (the home page check of the deploy's live gate covers it). The tool-call-log check covers the
+// merchant MCP's log and its daily copy.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return healthResponse({
@@ -53,6 +55,9 @@ export async function loader({ context }: Route.LoaderArgs) {
       durableObjectCheck("auth-rate-limiter", env.AUTH_RATE_LIMITER),
       cronJobsCheck(env),
       authSpikeCheck(env.DB),
+      // The merchant MCP's tool-call log (area 11, L8): a call started and never finished, a spike, or rows not
+      // copied to AUDIT_BUCKET for two days.
+      auditLogCheck(env),
     ].map((check) => ({ ...check, level: "warn" as const })),
   });
 }

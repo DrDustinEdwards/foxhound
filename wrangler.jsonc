@@ -144,6 +144,15 @@
       // THE BUCKET MUST EXIST BEFORE THIS DEPLOYS (a merge to main deploys).
       "binding": "MEDIA",
       "bucket_name": "foxhound-media"
+    },
+    {
+      // The merchant MCP's tool-call log copies (area 11, L6-L7): the daily
+      // tool-call-log-export job copies new TOOL_CALL_LOG rows here as
+      // tool-calls/<first>-<last>.json, then the log drops copied rows older
+      // than 90 days. A lock rule on tool-calls/ keeps a copy from being
+      // changed or removed. THE BUCKET MUST EXIST BEFORE THIS DEPLOYS.
+      "binding": "AUDIT_BUCKET",
+      "bucket_name": "foxhound-tool-calls"
     }
   ],
   // Cloudflare Images, through site-runtime ./image only: the blog's responsive
