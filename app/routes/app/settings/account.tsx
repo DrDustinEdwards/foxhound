@@ -52,7 +52,7 @@ import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy
 import { isDisposableEmail } from "~/lib/auth/disposable-emails";
 import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
-import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { chooseTheme } from "~/lib/settings/theme-choice";
 import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
 

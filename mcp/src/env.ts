@@ -3,7 +3,8 @@
 // this Worker shares no binding with the app: no D1, no Stripe key, no money
 // writer, no queue. Its one way into Foxhound is FOXHOUND, a service binding to
 // the foxhound Worker, and the admin API behind it. Its two Durable Objects are
-// its own (index.ts): the door's rate limit and the tool-call log.
+// its own (index.ts): the door's rate limit and the tool-call log; its one R2
+// bucket holds only that log's copies.
 
 interface ServiceBinding {
   fetch(request: Request): Promise<Response>;
@@ -20,6 +21,8 @@ export interface AdminMcpEnv {
   MCP_RATE_LIMIT?: DurableObjectNamespace;
   /** The append-only, hash-chained tool-call log, site-runtime's ToolCallLog. No tool runs unlogged. */
   TOOL_CALL_LOG?: DurableObjectNamespace;
+  /** The tool-call log's copies (index.ts's daily export, L6-L7). It holds nothing of Foxhound's. */
+  AUDIT_BUCKET?: R2Bucket;
   /** Cloudflare Access for SaaS, the upstream sign-in (@dustinedwards/site-runtime/access-login). */
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_SAAS_CLIENT_ID?: string;
@@ -30,4 +33,6 @@ export interface AdminMcpEnv {
   DEPLOY_SHA?: string;
   /** Extra exact registration callbacks, space or comma separated, beside site-runtime's DCR_CALLBACKS (door.ts). */
   DCR_REDIRECT_URIS?: string;
+  /** The list-only test key for the daily live check (door.ts, site-runtime probeDoor): lists tools, runs none. Secret. */
+  MCP_PROBE_KEY?: string;
 }

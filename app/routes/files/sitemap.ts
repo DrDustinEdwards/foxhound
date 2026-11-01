@@ -71,6 +71,7 @@ export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
   { path: "/terms", changefreq: "yearly", priority: 0.3 },
   { path: "/security", changefreq: "yearly", priority: 0.3 },
+  { path: "/accessibility", changefreq: "yearly", priority: 0.3 },
   { path: "/blog", changefreq: "weekly", priority: 0.8 },
   // TASK-foxhound-parity-cluster-b.md fix 3: restores legacy's archive page.
   { path: "/blog/archive", changefreq: "weekly", priority: 0.7 },

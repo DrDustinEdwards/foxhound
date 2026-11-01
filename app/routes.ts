@@ -74,6 +74,7 @@ export default [
     route("privacy", "./routes/privacy.tsx"),
     route("terms", "./routes/terms.tsx"),
     route("security", "./routes/security.tsx"),
+    route("accessibility", "./routes/accessibility.tsx"),
 
     // Stripe connect and invites stay under the site header: Recova mounts
     // them outside its (auth) group.

@@ -37,6 +37,11 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RateLimiter", "ToolCallLog"] }],
+  // The tool-call log's copies (checklist L6-L7), and nothing of Foxhound's: the daily cron copies new rows here as
+  // tool-calls/<first>-<last>.json, then the log drops copied rows older than 90 days. The bucket's lock rule on
+  // tool-calls/ keeps a copy from being changed or removed.
+  "r2_buckets": [{ "binding": "AUDIT_BUCKET", "bucket_name": "foxhound-admin-mcp-tool-calls" }],
+  "triggers": { "crons": ["29 4 * * *"] },
   "vars": {
     "ADMIN_MCP_ORIGIN": "https://admin-mcp.foxhoundapp.com",
     // The Cloudflare Access team domain: Dustin's, the same team Capsid and

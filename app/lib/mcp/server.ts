@@ -109,6 +109,8 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
         inputSchema: fromJsonSchema(descriptor.inputSchema as JsonSchemaType),
         ...(descriptor.outputSchema ? { outputSchema: fromJsonSchema(descriptor.outputSchema as JsonSchemaType) } : {}),
         annotations: descriptor.annotations,
+        // Each tool wears the site's icon, as on every network server (area 11, T9).
+        icons: MCP_SERVER_INFO.icons,
         // A key without the scope the tool needs gets the SDK's 403
         // insufficient_scope, naming every scope the call needs and where to
         // find the authorization server, before the tool runs, so the client

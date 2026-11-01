@@ -1,4 +1,5 @@
 import { appendAudit, correlationId, loggedArgs, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { callerName } from "@dustinedwards/site-runtime/mcp-server";
 
 import type { Db } from "~/db";
 import { mcpCalls } from "~/db/schema";
@@ -132,9 +133,9 @@ function redactArguments(value: unknown): unknown {
   );
 }
 
-/** The shared log's name for the caller: the key, never the token. */
-function callerName(caller: McpCaller): string {
-  return `agent:key_${caller.apiKeyId}`;
+/** The shared log's name for the caller: the key, never the token ("agent:key_<id>", site-runtime's callerName). */
+function logName(caller: McpCaller): string {
+  return callerName({ kind: "agent", principal: `key_${caller.apiKeyId}`, scopes: [] });
 }
 
 /**
@@ -153,7 +154,7 @@ export async function startToolCalls(
     await appendAudit(env, {
       ...ids,
       phase: "started",
-      caller: callerName(caller),
+      caller: logName(caller),
       tool: call.tool,
       args: await loggedArgs(redactArguments(call.arguments) as Record<string, unknown>),
       server,
@@ -200,7 +201,7 @@ export async function recordToolCalls(
     await recordAudit(env, {
       callId: started[i]?.callId ?? crypto.randomUUID(),
       phase: row.outcome === "protocol_error" ? "refused" : "finished",
-      caller: callerName(caller),
+      caller: logName(caller),
       tool: row.tool,
       args: await loggedArgs(row.arguments),
       result: { isError: row.outcome !== "ok", text: row.error ?? "ok" },

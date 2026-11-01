@@ -1,4 +1,3 @@
-import { ArrowLeft } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -48,25 +47,13 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <MarketingPageHeader
+        trail={[{ label: "Compare", href: "/compare" }, { label: `Foxhound vs ${competitor.name}` }]}
         eyebrow="Compare"
         title={`Foxhound vs ${competitor.name}`}
         subtext={competitor.oneLiner}
       />
 
       <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-8">
-        <Link
-          to="/compare"
-          className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
-        >
-          <ArrowLeft
-            className="transition-transform group-hover:-translate-x-0.5"
-            size={13}
-            strokeWidth={1.5}
-            aria-hidden
-          />
-          Back to comparisons
-        </Link>
-
         <div
           className="cap-table-wrap mb-10 rounded-lg border border-border"
           data-cap="table"

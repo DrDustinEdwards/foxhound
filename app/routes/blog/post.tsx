@@ -5,6 +5,7 @@ import { Link } from "capsomer/react/link";
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
 import { CoverPicture } from "~/components/blog/cover-picture";
+import { SectionTrail } from "~/components/section-trail";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
@@ -151,6 +152,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
         description,
         path: `/blog/${post.slug}`,
         imageUrl: image.url,
+        // The cover's crops, else the share image's.
+        images: (cover?.article.length ? cover.article : (share?.article ?? [])).map((crop) => ({
+          url: new URL(crop.url, url).href,
+          width: crop.width,
+          height: crop.height,
+        })),
         datePublished: post.publishedAt?.toISOString() ?? null,
         dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
         authorName: post.author,
@@ -176,18 +183,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
       <ReadingProgressBar targetId="blog-post-article" />
 
-      <Link
-        to="/blog"
-        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary transition-colors hover:text-text"
-      >
-        <ArrowLeft
-          className="transition-transform group-hover:-translate-x-0.5"
-          size={13}
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        Back to blog
-      </Link>
+      <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
         {/* h-entry and e-content name the post's own text for site-api's
@@ -274,7 +270,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
-        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} className="h-11 w-11 shrink-0 rounded-[10px]" />
+        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} loading="lazy" decoding="async" className="h-11 w-11 shrink-0 rounded-[10px]" />
         <div>
           <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Published by</p>
           <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>

@@ -167,6 +167,8 @@ export function articleJsonLd(
     description: string;
     path: string;
     imageUrl: string;
+    /** The picture's Article crops, absolute, written in place of imageUrl where there are any. */
+    images?: Array<{ url: string; width: number; height: number }>;
     datePublished: string | null;
     dateModified: string;
     authorName: string;
@@ -184,7 +186,7 @@ export function articleJsonLd(
     url: `${url}${opts.path}`,
     headline: opts.headline,
     description: opts.description,
-    image: opts.imageUrl,
+    image: opts.images?.length ? opts.images : opts.imageUrl,
     published: opts.datePublished,
     modified: opts.dateModified,
     author,

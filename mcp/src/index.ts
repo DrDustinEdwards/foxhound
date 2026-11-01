@@ -1,3 +1,6 @@
+import { exportAuditLog } from "@dustinedwards/site-runtime/audit-log";
+import { logEvent } from "@dustinedwards/site-runtime/log";
+
 import { adminDoor } from "./door";
 import type { AdminMcpEnv } from "./env";
 
@@ -15,4 +18,11 @@ export { ToolCallLog } from "@dustinedwards/site-runtime/audit-log";
 
 export default {
   fetch: (request: Request, env: AdminMcpEnv, ctx: ExecutionContext) => adminDoor(request, env, ctx),
+  // The daily copy of the tool-call log to AUDIT_BUCKET and the 90-day prune of copied rows (L6-L7). A failed write
+  // throws, so the run shows failed; /health's tool-call-log check alerts once rows go uncopied for two days (L8).
+  scheduled: async (_controller: ScheduledController, env: AdminMcpEnv) => {
+    if (!env.AUDIT_BUCKET) throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
+    const done = await exportAuditLog(env as Parameters<typeof exportAuditLog>[0], env.AUDIT_BUCKET);
+    logEvent("tool_call_log_exported", { exported: done.exported, pruned: done.pruned });
+  },
 } satisfies ExportedHandler<AdminMcpEnv>;

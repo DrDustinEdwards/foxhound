@@ -130,7 +130,7 @@ function setup() {
     return { status: response.status, body: (await response.json()) as Answer };
   };
   const upload = (bytes: Uint8Array, name = "declines-chart.png", query = "") =>
-    json(`/media?filename=${name}&alt=&changeId=up-${++uploads}${query}`, { method: "POST", headers: { "content-type": "image/png" }, body: new Blob([bytes as BlobPart]) });
+    json(`/media?filename=${name}&decorative=yes&changeId=up-${++uploads}${query}`, { method: "POST", headers: { "content-type": "image/png" }, body: new Blob([bytes as BlobPart]) });
   const at = (id: string) => `/media/${encodeURIComponent(id)}`;
   return { db, sqlite, env, bucket, api, call, json, upload, at };
 }
@@ -171,7 +171,7 @@ describe("the media library through Carrel's site-api mount", () => {
     const { html } = await renderMarkdown(t.db, `![Declines by reason](/media/${id})\n`);
     expect(html).toContain("<picture>");
     // Named by its bytes, so the route serves each size immutable.
-    expect(html).toMatch(new RegExp(`/media/${id}\\?v=[0-9a-f]{12}&#x26;w=680 `));
+    expect(html).toMatch(new RegExp(`/media/${id}\\.webp\\?v=[0-9a-f]{12}&#x26;w=680 `));
     expect(html).toContain('width="1600" height="900"');
 
     const detail = await t.json(t.at(id));
@@ -227,7 +227,7 @@ describe("the media library through Carrel's site-api mount", () => {
     const kept = (await t.upload(png(800, 600, 1), "kept.png")).body;
     const gone = (await t.upload(png(800, 600, 2), "gone.png")).body;
     const cursor = (await t.json("/media?limit=1")).body.changeCursor;
-    await t.json(`${t.at(kept.id)}/alt`, { method: "PUT", body: JSON.stringify({ alt: "Kept", expectedVersion: kept.version, changeId: "a1" }) });
+    await t.json(`${t.at(kept.id)}/alt`, { method: "PUT", body: JSON.stringify({ alt: "A bar chart of declines by month", expectedVersion: kept.version, changeId: "a1" }) });
     await t.call(`${t.at(gone.id)}?changeId=d1`, { method: "DELETE" });
     const changes = await t.json(`/media?changedSince=${cursor}`);
     expect(changes.body.items.map((i) => i.id)).toEqual([kept.id]);

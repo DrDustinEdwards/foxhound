@@ -25,18 +25,27 @@ interface AdminToolSession {
   env: AdminMcpEnv;
   /** The signed-in admin, re-checked by the API on every call. */
   actor: string;
+  /** The call's abort signal (P11): a client that leaves cancels the request to the admin API. */
+  signal?: AbortSignal;
 }
 
 export interface AdminTool {
   name: string;
   title: string;
   description: string;
-  inputSchema: { type: "object"; properties: Record<string, unknown>; required: string[] };
+  /** additionalProperties false: an unknown argument is refused, never dropped (checklist T4). */
+  inputSchema: { type: "object"; additionalProperties: false; properties: Record<string, unknown>; required: string[] };
   /** What structuredContent holds on success; the SDK validates it there. */
   outputSchema: { type: "object"; properties: Record<string, unknown>; required: string[] };
   annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
   /** The scope a call needs (rule 12.3), declared here and never read from readOnlyHint. */
   scope: "read" | "write";
+  /**
+   * Set when the answer can carry text someone outside Foxhound's admins wrote (merchant names and notes, customer
+   * and webhook error text, request paths): the result then goes through site-runtime's outsideResult under this
+   * label (checklist S2).
+   */
+  outside?: string;
   run: (session: AdminToolSession, args: Record<string, unknown>) => Promise<ApiResult>;
 }
 
@@ -63,7 +72,7 @@ const text = (args: Record<string, unknown>, name: string): string | undefined =
 const refuse = (error: string): ApiResult => ({ ok: false, status: 400, error });
 
 const get = (session: AdminToolSession, path: string, query?: Record<string, string | undefined>) =>
-  callAdminApi(session.env, session.actor, { method: "GET", path, query });
+  callAdminApi(session.env, session.actor, { signal: session.signal, method: "GET", path, query });
 
 export const ADMIN_TOOLS: AdminTool[] = [
   {
@@ -71,8 +80,9 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "What needs me",
     description:
       "Start here. What on Foxhound needs an admin now: whether the emergency brake is engaged, accounts with stale brake markers, crons that are off or failed their last run, webhook failures in the last day, and the staged changes waiting for confirmation in /admin/staged.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: output({ brake: OBJECT, stale_markers: OBJECT, crons_needing_attention: LIST, webhooks: OBJECT, pending_staged: LIST }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session) => get(session, "/whats-next"),
@@ -81,7 +91,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     name: "foxhound_admin_get_platform",
     title: "Platform overview",
     description: "Read the platform overview: merchant count, active recoveries, MRR by currency and cron health.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: output({ platform: OBJECT }),
     scope: "read",
     annotations: READ,
@@ -94,6 +104,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Find merchants by name or account id, or pass account_id for one merchant in full: its account state, Stripe connections (never their tokens), subscriptions, recovery and dispute activity and recent invoices. Paginated: pass next_cursor back to read on.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         query: { type: "string", description: "Part of a merchant's name or account id." },
         account_id: { type: "string", description: "One merchant's account id, for its full detail." },
@@ -102,6 +113,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: [],
     },
     outputSchema: output({ merchant: OBJECT, merchants: LIST, ...PAGE }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
@@ -117,10 +129,12 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Read one merchant's own data as an admin: their recurring-revenue overview, failed-payment counts by status and their latest disputes. Customer names are never returned and emails are masked. Read only.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: { account_id: { type: "string", description: "From foxhound_admin_find_merchant." } },
       required: ["account_id"],
     },
     outputSchema: output({ overview: OBJECT, payment_status_counts: OBJECT, disputes: LIST, disputes_total: { type: "number" } }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
@@ -134,8 +148,9 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Check health",
     description:
       "Check Foxhound's health: webhook delivery in the last day, every cron's state and last run, which migrations are applied, the D1 database size, and the most-hit missing pages this week.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: output({ webhooks: OBJECT, crons: LIST, migrations: OBJECT, d1_size_bytes: { type: "number" }, top_404s_7d: LIST }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session) => get(session, "/health"),
@@ -145,8 +160,9 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Read the audit log",
     description:
       "Read the admin audit log, newest first: who did what and when, including every pause, staging and confirmation. Paginated: pass next_cursor back to read on.",
-    inputSchema: { type: "object", properties: { cursor: CURSOR }, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: { cursor: CURSOR }, required: [] },
     outputSchema: output({ entries: LIST, ...PAGE }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => get(session, "/audit-log", { cursor: text(args, "cursor") }),
@@ -158,6 +174,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Pause recovery and dispute processing now, for one merchant (account_id) or for every merchant through the emergency brake (all: true). Pausing stops money moving, so it happens at once and is recorded under your name. Resuming is not offered here: stage it with foxhound_admin_stage_change and confirm it in /admin/staged.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         account_id: { type: "string", description: "The merchant to pause." },
         all: { type: "boolean", description: "True to pause every merchant through the brake." },
@@ -172,10 +189,10 @@ export const ADMIN_TOOLS: AdminTool[] = [
     run: (session, args) => {
       const accountId = text(args, "account_id");
       if (args.all === true && !accountId) {
-        return callAdminApi(session.env, session.actor, { method: "POST", path: "/pause", body: { all: true } });
+        return callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/pause", body: { all: true } });
       }
       if (accountId && args.all !== true) {
-        return callAdminApi(session.env, session.actor, { method: "POST", path: "/pause", body: { account_id: accountId } });
+        return callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/pause", body: { account_id: accountId } });
       }
       return Promise.resolve(refuse("Send account_id to pause one merchant, or all: true to pause every merchant, not both."));
     },
@@ -187,6 +204,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Ask for a change that starts or changes money, for an admin to confirm in /admin/staged. Nothing changes until then. kind is resume_account (account_id), release_brake, cron_enable (cron_name) or billing_exempt (account_id and exempt true or false). Add a note saying why.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         kind: {
           type: "string",
@@ -206,6 +224,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     run: async (session, args) => {
       const result = await callAdminApi(session.env, session.actor, {
+        signal: session.signal,
         method: "POST",
         path: "/staged",
         body: {
@@ -233,6 +252,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "List staged changes, newest first, with who asked, when, and whether each is pending, confirmed, rejected or failed. Paginated: pass next_cursor back to read on.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         status: { type: "string", enum: ["pending", "confirmed", "rejected", "failed"] },
         cursor: CURSOR,
@@ -240,6 +260,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: [],
     },
     outputSchema: output({ staged: LIST, ...PAGE }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => get(session, "/staged", { status: text(args, "status"), cursor: text(args, "cursor") }),
@@ -251,6 +272,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "See any email Foxhound sends exactly as it would arrive (From, Reply-To, subject, HTML and text), without sending it. Call with no type for the list of types. Customer emails (recovery, the manual resend, win-back, expiring card, the merchant's test email) and the weekly digest need account_id: they render with that merchant's sender name and Reply-To, on sample customer data. Read only.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         type: { type: "string", description: "An email type, e.g. recovery_day1. Omit to list the types." },
         account_id: { type: "string", description: "The merchant whose settings to render with. From foxhound_admin_find_merchant." },
@@ -259,12 +281,14 @@ export const ADMIN_TOOLS: AdminTool[] = [
       required: [],
     },
     outputSchema: output({ types: LIST, recipients: OBJECT, preview: OBJECT, merchant: { type: ["object", "null"] }, note: { type: "string" } }),
+    outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
       const type = text(args, "type");
       if (!type) return get(session, "/emails");
       return callAdminApi(session.env, session.actor, {
+        signal: session.signal,
         method: "POST",
         path: "/emails/preview",
         body: { type, account_id: text(args, "account_id"), to: text(args, "to") },
@@ -278,6 +302,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
       "Send one, several or all email types to your own inbox (or a test inbox on Foxhound's allow list) to check delivery, links, unsubscribe and Reply-To, for example after a deploy. types is a list of types or \"all\"; customer emails need account_id and use that merchant's sender name and Reply-To on sample customer data. Buttons go to a stand-in page and record no clicks; nothing is billed and no recovery changes. Each send is in the admin audit log.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         types: {
           description: 'A list of email types, or "all". foxhound_admin_preview_email with no type lists them.',
@@ -295,6 +320,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     run: (session, args) =>
       callAdminApi(session.env, session.actor, {
+        signal: session.signal,
         method: "POST",
         path: "/emails/send",
         body: { types: args.types, account_id: text(args, "account_id"), to: text(args, "to") },

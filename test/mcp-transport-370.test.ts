@@ -104,7 +104,7 @@ function tool(name: string): McpTool {
     name,
     title: "t",
     description: "d",
-    inputSchema: { type: "object" },
+    inputSchema: { type: "object", additionalProperties: false },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     scope: "read",
     execute: async () => ({}),
