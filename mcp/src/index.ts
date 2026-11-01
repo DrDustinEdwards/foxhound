@@ -1,4 +1,5 @@
 import { exportAuditLog } from "@dustinedwards/site-runtime/audit-log";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { adminDoor } from "./door";
 import type { AdminMcpEnv } from "./env";
@@ -22,6 +23,6 @@ export default {
   scheduled: async (_controller: ScheduledController, env: AdminMcpEnv) => {
     if (!env.AUDIT_BUCKET) throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
     const done = await exportAuditLog(env as Parameters<typeof exportAuditLog>[0], env.AUDIT_BUCKET);
-    console.log(JSON.stringify({ event: "tool_call_log_exported", exported: done.exported, pruned: done.pruned }));
+    logEvent("tool_call_log_exported", { exported: done.exported, pruned: done.pruned });
   },
 } satisfies ExportedHandler<AdminMcpEnv>;
