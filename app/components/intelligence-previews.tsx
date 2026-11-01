@@ -1,5 +1,4 @@
-import { useCallback } from "react";
-import { ChartFrame } from "capsomer/react/chart-frame";
+import { frameHtml } from "capsomer/behavior/chart-frame";
 import { Pill, type Tone } from "capsomer/react/status";
 
 import "~/components/charts.css";
@@ -17,7 +16,12 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 // (components/docs/ChurnRiskSummary.tsx, ba1fbb51).
 //
 // Content and layout are Recova's; the parts are Capsomer's and the one
-// chart is Enarratio's, drawn by the dashboard's own drawPlans. Every
+// chart is Enarratio's, drawn by the dashboard's own drawPlans. The page
+// does not hydrate, so the chart is drawn on the server twice, at the frame's
+// width and narrow, in Capsomer's server frame: the charts island
+// (app/islands/charts.ts, Capsomer's chart-enhance) swaps in the narrow
+// drawing in a column under 30rem, so a phone keeps 12 px text, and adds
+// Enarratio's enhancement layer as on every other chart. Every
 // figure and row is the demo seed read through Foxhound's own Intelligence
 // code (app/lib/marketing/intelligence-preview.server.ts), never a merchant's
 // rows.
@@ -43,13 +47,22 @@ function CardLabel({ children }: { children: React.ReactNode }) {
   return <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{children}</p>;
 }
 
+/** The width a 320 px phone leaves the chart inside the preview's two panels. */
+const NARROW_WIDTH = 196;
+
+/** The plans chart in Capsomer's server frame, with its narrow drawing as Enarratio's redraw spec. */
+function planFrame(draw: (width: number) => string): string {
+  const narrow = draw(NARROW_WIDTH);
+  const start = narrow.indexOf('<div class="enarratio-frame');
+  const end = narrow.indexOf("</svg></div>", start) + "</svg></div>".length;
+  return frameHtml(draw(480), { gridlines: "x", ...(start >= 0 && end > start ? { redraw: { narrow: narrow.slice(start, end) } } : {}) });
+}
+
 /** Block 1: Recova's dashboard preview, four cards, MRR by plan, the narrative. */
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
-  const draw = useCallback(
-    (width: number) => drawPlans(dashboard.plans, dashboard.currency, width, { name: "Foxhound demo account (sample data)" }),
-    [dashboard.plans, dashboard.currency],
-  );
+  const draw = (width: number) => drawPlans(dashboard.plans, dashboard.currency, width, { name: "Foxhound demo account (sample data)" });
+  const chart = dashboard.plans.length > 0 ? planFrame(draw) : "";
   return (
     <div className="flex flex-col gap-5 p-5">
       <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4" aria-label="MRR figures">
@@ -79,7 +92,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">
           <div className="cap-panel-body">
-            <ChartFrame draw={draw} />
+            <div data-island="charts" dangerouslySetInnerHTML={{ __html: chart }} />
           </div>
         </div>
       ) : null}

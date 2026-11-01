@@ -1,3 +1,5 @@
+import { lineChart } from "enarratio/lite/line";
+
 // Pure churn-surface helpers. Separate from views.server.ts because the churn
 // route's COMPONENT needs this, and a value import from a *.server.ts module in
 // a component fails the client build ("Server-only module referenced by
@@ -29,12 +31,12 @@ const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric"
 
 /** "Sep 2025": a snapshot's month, pinned to UTC so the server and browser agree.
  *  Shared by the chart's axis table and its text alternative. */
-export function formatChurnMonth(date: Date | number): string {
+function formatChurnMonth(date: Date | number): string {
   return MONTH.format(date);
 }
 
 /** A churn rate in percent, to at most two decimals: 2.756 reads "2.76%". */
-export function formatChurnPct(value: number): string {
+function formatChurnPct(value: number): string {
   return `${Math.round(value * 100) / 100}%`;
 }
 
@@ -65,3 +67,47 @@ export function churnRateAlt(points: readonly ChurnRatePointLike[]): string {
   return `Monthly churn rate, ${window}. ${involuntary}; ${voluntary}.`;
 }
 
+// Recova's ResponsiveContainer is 180px tall with its axes inside; Enarratio
+// draws its legend outside the SVG and keeps 64px of the height for its axes.
+const CHART_HEIGHT = 220;
+
+interface ChurnRow {
+  // Capitalized because Enarratio names the data table's first column after it.
+  Month: string;
+  series: "Involuntary" | "Voluntary";
+  rate: number | null;
+}
+
+export function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): string {
+  const data: ChurnRow[] = points.flatMap((p) => {
+    const Month = p.at.toISOString().slice(0, 10);
+    return [
+      { Month, series: "Involuntary" as const, rate: p.involuntaryPct },
+      { Month, series: "Voluntary" as const, rate: p.voluntaryPct },
+    ];
+  });
+  return lineChart({
+    title: "Churn rate over time",
+    data,
+    x: "Month",
+    y: "rate",
+    series: "series",
+    // Recova's legend order: Involuntary, then Voluntary.
+    seriesDomain: ["Involuntary", "Voluntary"],
+    // Recova's colors, through Enarratio's own option: Involuntary on the
+    // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
+    // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio has no
+    // per-series dash (enarratio gap).
+    colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },
+    xLabel: null,
+    // Enarratio has no tick format, so Recova's "2%" ticks read as "2"
+    // under this axis label until it does (enarratio gap).
+    yLabel: "Churn rate (%)",
+    formatValue: formatChurnPct,
+    formatX: formatChurnMonth,
+    alt: churnRateAlt(points),
+    hoverTitles: false,
+    width,
+    height: CHART_HEIGHT,
+  });
+}

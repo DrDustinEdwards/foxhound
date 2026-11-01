@@ -157,6 +157,7 @@ export function drawHealthHistory(readings: readonly HealthReading[], width: num
     colors: { [yLabel]: BAND_COLOR[healthScoreBand(latest)] },
     formatX: (v) => formatDateMonthDay(new Date(v)),
     alt: healthHistoryAlt(readings),
+    hoverTitles: false,
     width,
     height: HEALTH_CHART_HEIGHT,
   });
