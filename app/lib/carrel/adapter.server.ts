@@ -15,6 +15,7 @@ import {
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { desc, eq } from "drizzle-orm";
 
 import { blogPostVersions, blogPosts, type Db } from "~/db";
@@ -546,10 +547,9 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       async render(input) {
         const post = parse(input.source, { preview: true });
         const { html } = await renderMarkdown(db, post.body);
-        const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
         return previewDocument({
           title: post.title,
-          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${esc(post.title)}</h1><div class="blog-prose e-content">${html}</div></article></main>`,
+          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${escapeHtml(post.title)}</h1><div class="blog-prose e-content">${html}</div></article></main>`,
           origin: SITE_ORIGIN,
           stylesheets,
           attributes: { "data-theme": "light" },

@@ -4,6 +4,10 @@
     "jose": "test only: test/admin-access.test.ts signs Access tokens to drive the real verifier",
     "mdast-util-directive": "types only: app/lib/blog/markdown.server.ts imports its mdast type augmentation for directive nodes; the parsing itself is Prelum's ./render"
   },
+  "copies": {
+    "app/lib/blog/format.ts": "generateSlug makes the blog's heading ids, which must stay legacy Recova's so links to a section made before the move still land; Prelum's slugify hyphenates where it drops punctuation (stripe-s-fees, not stripes-fees). Post slugs and media names use slugify",
+    "public/_headers": "not by hand: the build's site-runtime-headers writes it from Foxhound's registry entry, the set buildSecurityHeaders({ site: foxhound }) gives the Worker; committed so the /assets/* cache rule can be read"
+  },
   "spelling": {
     "contracts": [
       "[\"'`]cancelled[\"'`]",

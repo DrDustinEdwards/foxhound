@@ -4,18 +4,19 @@
 // The editor's list, version and related-post helpers went with it. The public
 // read path (queries.server.ts) is untouched.
 
+import { slugify } from "@drdustinedwards/site-helpers/slug";
 import { and, eq, ne, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { blogPostLinks, blogPostVersions, blogPosts, blogSlugRedirects } from "~/db";
 
-import { estimateReadingTime, generateSlug } from "./format";
+import { estimateReadingTime } from "./format";
 
 /** A slug candidate derived from a title, deduped against existing slugs by
  *  appending -2, -3, ... Bounded loop (100 tries) so a pathological input
  *  can never spin forever. */
 export async function uniqueSlugFromTitle(db: Db, title: string, excludePostId?: string): Promise<string> {
-  const base = generateSlug(title) || "post";
+  const base = slugify(title, { max: 80 }) || "post";
   for (let i = 0; i < 100; i++) {
     const candidate = i === 0 ? base : `${base}-${i + 1}`;
     const where = excludePostId

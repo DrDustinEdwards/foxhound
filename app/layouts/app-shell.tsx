@@ -8,7 +8,6 @@ import {
   useSubmit,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
-import { Link } from "capsomer/react/link";
 import {
   ArrowLeft,
   BarChart3,
@@ -29,6 +28,7 @@ import {
 } from "lucide-react";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { ErrorPage } from "capsomer/react/error-page";
 import { Banner } from "capsomer/react/banner";
 import "capsomer/admin-shell.css";
 import "capsomer/banner.css";
@@ -56,7 +56,7 @@ import { authContext } from "~/lib/auth/context";
 import { adminPageName as routePageName } from "~/lib/admin/page";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
+import { errorDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER, type ProductKey, type ProductNavLink } from "~/lib/nav/manifest";
@@ -454,23 +454,25 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 // root.tsx, so a thrown data(message, {status}) still reads as its own
 // message rather than a generic HTTP reason phrase.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
   // The header's theme button still saves where the layout's did.
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
   useThemeMemory(rootTheme, "account");
 
+  // Capsomer's error page (its failed Empty), as the root boundary draws it (app/root.tsx), under the shell's header.
   return (
-    <div>
-      <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="amber">
-        <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
-      </div>
-      <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-        <h1 className="text-title font-medium text-text">{message}</h1>
-        <p className="max-w-md text-body text-text-secondary">{details}</p>
-        <Link to="/console" className="text-label text-brand-text hover:underline">
-          Back to Foxhound
-        </Link>
-      </main>
+    <div className="fh-cap fh-error-page" data-cap-site="foxhound" data-family="amber">
+      <ErrorPage
+        error={error}
+        home="/console"
+        homeLabel="Back to Foxhound"
+        text={errorDetails(error, import.meta.env.DEV)}
+        siteHeader={
+          <div className="fh-site-header">
+            <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
+          </div>
+        }
+        dev={import.meta.env.DEV}
+      />
     </div>
   );
 }

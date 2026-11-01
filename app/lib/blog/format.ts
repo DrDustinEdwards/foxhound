@@ -2,9 +2,11 @@
 // no D1) so both server modules and presentational components can import
 // them without pulling in server-only weight.
 
-// Ported from legacy lib/blog-utils.ts generateSlug. Used for heading ids
-// (TOC anchors); post slugs themselves come from the imported data, not
-// this function.
+// Ported from legacy lib/blog-utils.ts generateSlug. Used only for heading ids
+// (TOC anchors), which must match legacy's so links to a section made before
+// the move still land: it drops punctuation where Prelum's slugify makes a
+// hyphen ("Stripe's fees" is stripes-fees here, stripe-s-fees there). New post
+// slugs and media names use slugify (.shared.json "copies").
 export function generateSlug(title: string): string {
   return title
     .toLowerCase()
