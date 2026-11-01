@@ -239,7 +239,12 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <TableOfContents items={toc} variant="inline" />
 
-          <div className="blog-prose e-content" data-render-version={version} dangerouslySetInnerHTML={{ __html: html }} />
+          <div
+            className="blog-prose e-content"
+            data-render-version={version}
+            data-island={html.includes("embed-link") ? "embeds" : undefined}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         </article>
 
         <TableOfContents items={toc} variant="sidebar" />
