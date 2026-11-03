@@ -108,6 +108,13 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run check:console && npm run check:migrations
 
+      # Every server-side Better Auth session read goes through site-runtime
+      # sessionLookup, which always sets asResponse: false (without it a
+      # signed-in person reads as signed out; site-runtime-session-check).
+      - name: Session reads go through sessionLookup
+        if: steps.tested.outputs.same != 'true'
+        run: npm run --silent check:session
+
       # Knip (unused files, exports, dependencies) and jscpd (duplication)
       # against .no-bloat.json: a count above its baseline fails. Lower it with
       # `npx devkit-no-bloat --write-baseline` when a count goes down.
