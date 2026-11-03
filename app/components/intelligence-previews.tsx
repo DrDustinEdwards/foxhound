@@ -61,7 +61,7 @@ function planFrame(draw: (width: number) => string): string {
 /** Block 1: Recova's dashboard preview, four cards, MRR by plan, the narrative. */
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
-  const draw = (width: number) => drawPlans(dashboard.plans, dashboard.currency, width, { name: "Foxhound demo account (sample data)" });
+  const draw = (width: number) => drawPlans(dashboard.plans, dashboard.currency, width, {}, { name: "Foxhound demo account (sample data)" });
   const chart = dashboard.plans.length > 0 ? planFrame(draw) : "";
   return (
     <div className="flex flex-col gap-5 p-5">

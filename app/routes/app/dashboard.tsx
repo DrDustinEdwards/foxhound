@@ -152,7 +152,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
               <ChartFrame
                 gridlines="none"
                 width={560}
-                draw={(width) => drawMrrTrend(trend, latest.currency, width)}
+                draw={(width, fit) => drawMrrTrend(trend, latest.currency, width, fit)}
               />
             </Panel>
 
@@ -160,7 +160,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
               <ChartFrame
                 gridlines="none"
                 width={560}
-                draw={(width) => drawLatestMovement(latest, latest.currency, width)}
+                draw={(width, fit) => drawLatestMovement(latest, latest.currency, width, fit)}
               />
             </Panel>
 
@@ -176,7 +176,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
                 <ChartFrame
                   gridlines="none"
                   width={560}
-                  draw={(width) => drawCohorts(cohortRows, width)}
+                  draw={(width, fit) => drawCohorts(cohortRows, width, fit)}
                 />
               </Panel>
             ) : null}

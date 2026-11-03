@@ -223,7 +223,7 @@ function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<stri
   if (months.length === 0) return null;
   return (
     <div className="mt-4 min-w-0">
-      <ChartFrame draw={(width) => drawExpiringCardsTimeline(months, width)} />
+      <ChartFrame draw={(width, fit) => drawExpiringCardsTimeline(months, width, fit)} />
     </div>
   );
 }

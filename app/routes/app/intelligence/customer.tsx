@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
-import { ChartFrame } from "capsomer/react/chart-frame";
+import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
@@ -345,7 +345,7 @@ function SignalCard({ title, fields, empty }: { title: string; fields: SignalFie
  *  with two readings or more, the chart of the last 30, oldest first. */
 function HealthScoreCard({ score, history }: { score: number | null; history: HealthReading[] }) {
   const readings = useMemo(() => [...history].reverse(), [history]);
-  const draw = useCallback((w: number) => drawHealthHistory(readings, w), [readings]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawHealthHistory(readings, w, fit), [readings]);
   return (
     <Panel title="Health score">
       <p className="m-0 flex items-baseline justify-end gap-3">

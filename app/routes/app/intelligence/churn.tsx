@@ -198,5 +198,5 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
 }
 
 export function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
-  return <ChartFrame gridlines="none" draw={(width) => drawChurnRate(points, width)} />;
+  return <ChartFrame gridlines="none" draw={(width, fit) => drawChurnRate(points, width, fit)} />;
 }

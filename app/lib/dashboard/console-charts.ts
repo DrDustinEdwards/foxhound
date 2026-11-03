@@ -1,4 +1,5 @@
 import { barChart } from "enarratio/lite/bar";
+import type { ChartFit } from "capsomer/react/chart-frame";
 
 import type { CohortRow } from "~/lib/intelligence/mrr";
 import { formatMoneyShort, fromMajorUnits } from "~/lib/money-format";
@@ -21,7 +22,7 @@ const MOVEMENT_COLORS: Record<string, string> = {
   Reactivate: "var(--purple)",
 };
 
-export function drawLatestMovement(m: MovementTotals, currency: string, width: number): string {
+export function drawLatestMovement(m: MovementTotals, currency: string, width: number, fit: ChartFit = {}): string {
   const bars = mrrMovementBars(m, currency);
   return barChart({
     title: "MRR movements, latest month",
@@ -39,6 +40,7 @@ export function drawLatestMovement(m: MovementTotals, currency: string, width: n
     hoverTitles: false,
     width,
     height: 200,
+    ...fit,
   });
 }
 
@@ -53,7 +55,7 @@ function cohortChartHeight(count: number): number {
   return Math.max(140, 64 + count * 22);
 }
 
-export function drawCohorts(rows: readonly CohortRow[], width: number): string {
+export function drawCohorts(rows: readonly CohortRow[], width: number, fit: ChartFit = {}): string {
   const yLabel = "Still paying (%)";
   return barChart({
     title: "Customer cohorts still paying",
@@ -72,5 +74,6 @@ export function drawCohorts(rows: readonly CohortRow[], width: number): string {
     hoverTitles: false,
     width,
     height: cohortChartHeight(rows.length),
+    ...fit,
   });
 }

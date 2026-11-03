@@ -1,4 +1,5 @@
 import { areaChart } from "enarratio/lite/area";
+import type { ChartFit } from "capsomer/react/chart-frame";
 import { barChart } from "enarratio/lite/bar";
 import { lineChart } from "enarratio/lite/line";
 
@@ -44,7 +45,7 @@ export interface TrendPoint {
   totalMrrCents: number;
 }
 
-export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number): string {
+export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number, fit: ChartFit = {}): string {
   const yLabel = `MRR (${unit(currency)})`;
   return areaChart({
     title: "MRR trend",
@@ -60,6 +61,7 @@ export function drawMrrTrend(points: readonly TrendPoint[], currency: string, wi
     hoverTitles: false,
     width,
     height: CHART_HEIGHTS.trend,
+    ...fit,
   });
 }
 
@@ -68,7 +70,7 @@ export interface NrrPoint {
   nrrPct: number | null;
 }
 
-export function drawNrr(points: readonly NrrPoint[], width: number): string {
+export function drawNrr(points: readonly NrrPoint[], width: number, fit: ChartFit = {}): string {
   const yLabel = "NRR (%)";
   return lineChart({
     title: "Net Revenue Retention",
@@ -88,6 +90,7 @@ export function drawNrr(points: readonly NrrPoint[], width: number): string {
     hoverTitles: false,
     width,
     height: CHART_HEIGHTS.nrr,
+    ...fit,
   });
 }
 
@@ -122,7 +125,7 @@ function movementRows(points: readonly MovementPoint[], currency: string) {
   ]);
 }
 
-export function drawMovement(points: readonly MovementPoint[], currency: string, width: number): string {
+export function drawMovement(points: readonly MovementPoint[], currency: string, width: number, fit: ChartFit = {}): string {
   return barChart({
     title: "MRR movement by week",
     data: movementRows(points, currency),
@@ -142,6 +145,7 @@ export function drawMovement(points: readonly MovementPoint[], currency: string,
     hoverTitles: false,
     width,
     height: CHART_HEIGHTS.movement,
+    ...fit,
   });
 }
 
@@ -150,7 +154,7 @@ function planChartHeight(planCount: number): number {
   return Math.max(140, 64 + planCount * 36);
 }
 
-export function drawPlans(rows: readonly PlanRow[], currency: string, width: number, source?: { name: string }): string {
+export function drawPlans(rows: readonly PlanRow[], currency: string, width: number, fit: ChartFit = {}, source?: { name: string }): string {
   const yLabel = `MRR (${unit(currency)})`;
   return barChart({
     title: "MRR by plan",
@@ -168,6 +172,7 @@ export function drawPlans(rows: readonly PlanRow[], currency: string, width: num
     hoverTitles: false,
     width,
     height: planChartHeight(rows.length),
+    ...fit,
   });
 }
 
@@ -185,7 +190,7 @@ const HEALTH_COLORS: Record<(typeof HEALTH_SERIES)[number], string> = {
   Healthy: "var(--green)",
 };
 
-export function drawHealth(days: readonly HealthDay[], width: number): string {
+export function drawHealth(days: readonly HealthDay[], width: number, fit: ChartFit = {}): string {
   const label = (d: HealthDay) => formatDateMonthDay(new Date(`${d.date}T00:00:00Z`));
   return barChart({
     title: "Customer health distribution",
@@ -206,5 +211,6 @@ export function drawHealth(days: readonly HealthDay[], width: number): string {
     hoverTitles: false,
     width,
     height: CHART_HEIGHTS.health,
+    ...fit,
   });
 }

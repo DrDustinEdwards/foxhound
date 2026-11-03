@@ -4,7 +4,7 @@ import { data, useFetcher } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
-import { ChartFrame } from "capsomer/react/chart-frame";
+import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
 import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
@@ -263,7 +263,7 @@ function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; 
 
 /** Recova's MRRTrendChart: total MRR, every daily snapshot of the 90 days. */
 function MrrTrend({ series, currency }: { series: Series; currency: string }) {
-  const draw = useCallback((w: number) => drawMrrTrend(series, currency, w), [series, currency]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawMrrTrend(series, currency, w, fit), [series, currency]);
   return (
     <Panel title="MRR trend (90 days)">
       <ChartFrame draw={draw} />
@@ -276,7 +276,7 @@ function MrrTrend({ series, currency }: { series: Series; currency: string }) {
  *  series, so no legend. */
 function NrrCard({ series }: { series: Series }) {
   const sampled = useMemo(() => sampleEveryNth(series), [series]);
-  const draw = useCallback((w: number) => drawNrr(sampled, w), [sampled]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawNrr(sampled, w, fit), [sampled]);
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
   return (
     <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn (90 days)">
@@ -289,7 +289,7 @@ function NrrCard({ series }: { series: Series }) {
  *  non-zero movement, one bar per week of summed daily movement. */
 function MovementCard({ series, currency }: { series: Series; currency: string }) {
   const weeks = useMemo(() => weeklyMovements(series), [series]);
-  const draw = useCallback((w: number) => drawMovement(weeks, currency, w), [weeks, currency]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawMovement(weeks, currency, w, fit), [weeks, currency]);
   const moved = weeks.some(
     (p) =>
       Math.round(toMajorUnits(p.newMrrCents, currency)) !== 0 ||
@@ -314,7 +314,7 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
  */
 function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string }) {
   const rows = useMemo(() => planBreakdownRows(perPlan), [perPlan]);
-  const draw = useCallback((w: number) => drawPlans(rows, currency, w), [rows, currency]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawPlans(rows, currency, w, fit), [rows, currency]);
   if (rows.length === 0) return null;
   return (
     <Panel title="MRR by plan">
@@ -327,7 +327,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
  *  90 days (intelligence-ai is daily, so the window is true here), in
  *  Foxhound's bands (healthScoreBand, 78/79). */
 function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["healthDistribution"] }) {
-  const draw = useCallback((w: number) => drawHealth(days, w), [days]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawHealth(days, w, fit), [days]);
   if (days.length === 0) return null;
   return (
     <Panel title="Customer health distribution" description="Customer count per health band over 90 days">
