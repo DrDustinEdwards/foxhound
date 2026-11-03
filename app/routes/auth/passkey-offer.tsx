@@ -1,4 +1,4 @@
-import { dismissPasskeyOffer, shouldOfferPasskey } from "@dustinedwards/site-runtime/sign-in";
+import { dismissPasskeyOffer, sessionLookup, shouldOfferPasskey } from "@dustinedwards/site-runtime/sign-in";
 import { canOfferPasskey } from "@dustinedwards/site-runtime/sign-in-client";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -33,7 +33,7 @@ export function meta() {
  *  rather than an empty console. */
 async function signedIn(request: Request, env: Env) {
   const auth = await getAuth(env);
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await auth.api.getSession(sessionLookup(request));
   if (!session) throw redirect("/login");
   const next = await signedInLanding(env, session, safeNextPath(new URL(request.url).searchParams.get("next")));
   return { auth, session, next };
