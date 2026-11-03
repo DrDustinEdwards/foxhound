@@ -1,4 +1,5 @@
 import { lineChart } from "enarratio/lite/line";
+import type { ChartFit } from "capsomer/react/chart-frame";
 
 // Pure churn-surface helpers. Separate from views.server.ts because the churn
 // route's COMPONENT needs this, and a value import from a *.server.ts module in
@@ -78,7 +79,7 @@ interface ChurnRow {
   rate: number | null;
 }
 
-export function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): string {
+export function drawChurnRate(points: readonly ChurnRatePointLike[], width: number, fit: ChartFit = {}): string {
   const data: ChurnRow[] = points.flatMap((p) => {
     const Month = p.at.toISOString().slice(0, 10);
     return [
@@ -109,5 +110,6 @@ export function drawChurnRate(points: readonly ChurnRatePointLike[], width: numb
     hoverTitles: false,
     width,
     height: CHART_HEIGHT,
+    ...fit,
   });
 }

@@ -1,4 +1,5 @@
 import { barChart } from "enarratio/lite/bar";
+import type { ChartFit } from "capsomer/react/chart-frame";
 
 // Recova's ExpiringCardsTimeline (components/audit/ExpiringCardsTimeline.tsx,
 // blob 33537a84), drawn by Enarratio in place of recharts. Pure and
@@ -44,7 +45,7 @@ function expiringCardsAlt(months: readonly ExpiringMonth[]): string {
   return `Cards expiring by month: ${months.map((m) => `${m.label} ${m.count}`).join(", ")}.`;
 }
 
-export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], width: number): string {
+export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], width: number, fit: ChartFit = {}): string {
   const max = Math.max(...months.map((m) => m.count));
   const series = months.some((m) => m.count !== max) ? [PEAK, OTHER] : [PEAK];
   return barChart({
@@ -66,5 +67,6 @@ export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], widt
     hoverTitles: false,
     width,
     height: 120,
+    ...fit,
   });
 }

@@ -1,4 +1,5 @@
 import { barChart } from "enarratio/lite/bar";
+import type { ChartFit } from "capsomer/react/chart-frame";
 import { EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 
 import type { StepPerformancePoint } from "./sequence-performance";
@@ -52,7 +53,7 @@ const CHART_HEIGHT = 220;
 const X_LABEL_WIDTH = 110;
 
 /** The step performance chart at a width: Open, Click and Recovery rate per step, grouped. */
-export function drawStepPerformance(chart: readonly StepPerformancePoint[], width: number): string {
+export function drawStepPerformance(chart: readonly StepPerformancePoint[], width: number, fit: ChartFit = {}): string {
   return barChart({
     title: "Step performance",
     data: stepPerformanceRows(chart),
@@ -75,5 +76,6 @@ export function drawStepPerformance(chart: readonly StepPerformancePoint[], widt
     hoverTitles: false,
     width,
     height: CHART_HEIGHT,
+    ...fit,
   });
 }

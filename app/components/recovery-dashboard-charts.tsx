@@ -54,7 +54,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
       <ChartFrame
         gridlines="none"
         width={HALF_WIDTH}
-        draw={(width) =>
+        draw={(width, fit) =>
           areaChart({
             title,
             data: rows,
@@ -70,6 +70,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
             hoverTitles: false,
             width,
             height: RATE_HEIGHT,
+            ...fit,
           })
         }
       />
@@ -93,7 +94,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         <ChartFrame
           gridlines="none"
           width={SIDE_WIDTH}
-          draw={(width) =>
+          draw={(width, fit) =>
             barChart({
               title,
               data: rows,
@@ -114,6 +115,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
               hoverTitles: false,
               width,
               height: REVENUE_HEIGHT,
+              ...fit,
             })
           }
         />
@@ -218,7 +220,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
       <ChartFrame
         gridlines="none"
         width={SIDE_WIDTH}
-        draw={(width) =>
+        draw={(width, fit) =>
           barChart({
             title,
             data: rows,
@@ -237,6 +239,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
             hoverTitles: false,
             width,
             height: EMAIL_HEIGHT,
+            ...fit,
           })
         }
       />
@@ -262,7 +265,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
       <ChartFrame
         gridlines="none"
         width={HALF_WIDTH}
-        draw={(width) =>
+        draw={(width, fit) =>
           barChart({
             title,
             data: rows,
@@ -277,6 +280,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
             hoverTitles: false,
             width,
             height: TIMING_HEIGHT,
+            ...fit,
           })
         }
       />

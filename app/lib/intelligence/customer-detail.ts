@@ -1,4 +1,5 @@
 import { areaChart } from "enarratio/lite/area";
+import type { ChartFit } from "capsomer/react/chart-frame";
 
 import { formatDateMonthDay, formatDateShort } from "~/lib/date-format";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
@@ -144,7 +145,7 @@ const HEALTH_CHART_HEIGHT = 184;
 
 /** Recova's HealthSparkline: an area chart of the readings, oldest first, with
  *  short dates along the bottom. Readings arrive oldest first. */
-export function drawHealthHistory(readings: readonly HealthReading[], width: number): string {
+export function drawHealthHistory(readings: readonly HealthReading[], width: number, fit: ChartFit = {}): string {
   const yLabel = "Health score (0-100)";
   const latest = readings[readings.length - 1]?.healthScore ?? 0;
   return areaChart({
@@ -160,5 +161,6 @@ export function drawHealthHistory(readings: readonly HealthReading[], width: num
     hoverTitles: false,
     width,
     height: HEALTH_CHART_HEIGHT,
+    ...fit,
   });
 }

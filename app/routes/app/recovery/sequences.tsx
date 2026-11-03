@@ -131,7 +131,7 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
       <ChartFrame
         gridlines="none"
         width={CHART_WIDTH}
-        draw={(width) => drawStepPerformance(chart, width)}
+        draw={(width, fit) => drawStepPerformance(chart, width, fit)}
       />
     </Panel>
   );
