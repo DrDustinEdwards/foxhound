@@ -136,7 +136,8 @@ export async function backupFilesNow(env: Env) {
     { name: MEDIA_BACKUP.name, source: env.MEDIA },
     { name: EVIDENCE_BACKUP.name, source: env.EVIDENCE },
   ];
-  const results = await Promise.allSettled(passes.map((p) => backupFiles(p.source, requireBucket(env), { name: p.name })));
+  requireBucket(env);
+  const results = await Promise.allSettled(passes.map((p) => backupFiles(p.source, env.BACKUPS, { name: p.name })));
   const failed = results.flatMap((r, i) => (r.status === "rejected" ? [`${passes[i]?.name}: ${String(r.reason)}`] : []));
   if (failed.length > 0) throw new Error(`files backup failed: ${failed.join("; ")}`);
   return results.map((r) => {
