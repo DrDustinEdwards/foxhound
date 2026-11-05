@@ -128,6 +128,23 @@ async function runFilesBackup(source: Env["MEDIA"], env: Env, options: { name: s
 export const runMediaBackup = (env: Env) => runFilesBackup(env.MEDIA, env, MEDIA_BACKUP);
 export const runEvidenceBackup = (env: Env) => runFilesBackup(env.EVIDENCE, env, EVIDENCE_BACKUP);
 
+/** Both files passes now, for the admin API's "run the backup now" (the admin MCP). The same backupFiles calls as the
+ *  media-backup and evidence-backup cron jobs, copy only: nothing is written or deleted in MEDIA or EVIDENCE. A failed
+ *  pass throws after the other has run. */
+export async function backupFilesNow(env: Env) {
+  const passes = [
+    { name: MEDIA_BACKUP.name, source: env.MEDIA },
+    { name: EVIDENCE_BACKUP.name, source: env.EVIDENCE },
+  ];
+  const results = await Promise.allSettled(passes.map((p) => backupFiles(p.source, requireBucket(env), { name: p.name })));
+  const failed = results.flatMap((r, i) => (r.status === "rejected" ? [`${passes[i]?.name}: ${String(r.reason)}`] : []));
+  if (failed.length > 0) throw new Error(`files backup failed: ${failed.join("; ")}`);
+  return results.map((r) => {
+    const run = (r as PromiseFulfilledResult<Awaited<ReturnType<typeof backupFiles>>>).value;
+    return { name: run.name, complete: run.complete, ...run.counts };
+  });
+}
+
 /** The unauthenticated health fields: age of the newest complete dump, with each files copy's; any one's warning warns. */
 export async function backupStatus(
   env: Env,
