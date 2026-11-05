@@ -138,6 +138,7 @@ describe("PLANT 2: the tools", () => {
         "foxhound_admin_check_health",
         "foxhound_admin_read_audit_log",
         "foxhound_admin_pause",
+        "foxhound_admin_backup_media",
         "foxhound_admin_stage_change",
         "foxhound_admin_list_staged",
         "foxhound_admin_preview_email",
@@ -154,9 +155,9 @@ describe("PLANT 2: the tools", () => {
     }
   });
 
-  it("only pause, stage_change and the test-mail send need the write scope, and their hints say so", () => {
+  it("only pause, the files backup, stage_change and the test-mail send need the write scope, and their hints say so", () => {
     const writes = ADMIN_TOOLS.filter((t) => t.scope === "write").map((t) => t.name).sort();
-    expect(writes).toEqual(["foxhound_admin_pause", "foxhound_admin_send_test_email", "foxhound_admin_stage_change"]);
+    expect(writes).toEqual(["foxhound_admin_backup_media", "foxhound_admin_pause", "foxhound_admin_send_test_email", "foxhound_admin_stage_change"]);
     for (const tool of ADMIN_TOOLS) expect(tool.annotations.readOnlyHint, tool.name).toBe(tool.scope === "read");
   });
 
@@ -177,6 +178,7 @@ describe("PLANT 2: the tools", () => {
       ["foxhound_admin_read_audit_log", {}, "GET", "/api/admin/v1/audit-log"],
       ["foxhound_admin_list_staged", {}, "GET", "/api/admin/v1/staged"],
       ["foxhound_admin_pause", { account_id: "acct_a" }, "POST", "/api/admin/v1/pause"],
+      ["foxhound_admin_backup_media", {}, "POST", "/api/admin/v1/backup/media"],
       ["foxhound_admin_stage_change", { kind: "resume_account", account_id: "acct_a" }, "POST", "/api/admin/v1/staged"],
     ];
     for (const [tool, args, method, path] of cases) {

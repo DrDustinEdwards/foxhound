@@ -33,6 +33,10 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
+vi.mock("~/lib/backup/d1-backup", () => ({
+  backupFilesNow: async () => [{ name: "media", complete: true, copied: 2 }],
+}));
+
 const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
 const { confirmStagedChange, rejectStagedChange } = await import("~/lib/admin/staged.server");
@@ -238,6 +242,18 @@ describe("PLANT 3: pause is a direct write, audited under the acting admin", () 
       expect(String(json.error).length).toBeGreaterThan(10);
     }
     expect((await db.select().from(accounts)).some((r) => r.processingPaused)).toBe(false);
+  });
+});
+
+describe("the files backup", () => {
+  it("runs now for an admin and leaves an audit row; a merchant key is refused", async () => {
+    const { db, keys } = await seed();
+    const ok = await api("/backup/media", { ...asAdmin(keys.admin), method: "POST" });
+    expect(ok.status).toBe(200);
+    expect((ok.json.data as { files: unknown[] }).files).toEqual([{ name: "media", complete: true, copied: 2 }]);
+    expect((await db.select().from(adminAuditLog)).map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "backup.media"]);
+    const refused = await api("/backup/media", { key: keys.merchant, actor: ADMIN, method: "POST" });
+    expect(refused.status).toBeGreaterThanOrEqual(401);
   });
 });
 
