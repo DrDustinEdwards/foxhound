@@ -12,7 +12,7 @@
     "gen:recova-map": "vitest run test/redirect-map.test.ts --update",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "auth:generate": "npx auth@1.7.12 generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
+    "auth:generate": "npx auth@1.7.17 generate --config app/lib/auth/generate.config.ts --output app/db/auth-schema.ts --yes",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/db-migrate.mjs",
     "check-gates": "node scripts/check-gates.mjs",
@@ -27,7 +27,7 @@
     "check:all": "npm run typecheck && npm run lint && npm run test && npm run check-tokens && npm run check:console && npm run check:migrations && npm run check-gates"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.7.12",
+    "@better-auth/passkey": "1.7.17",
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.32.8",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.10.1",
@@ -35,7 +35,7 @@
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.73.0",
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.66.0",
-    "better-auth": "1.7.12",
+    "better-auth": "1.7.17",
     "capsomer": "github:DrDustinEdwards/capsomer#v0.70.0",
     "drizzle-orm": "0.45.2",
     "enarratio": "0.7.3",
