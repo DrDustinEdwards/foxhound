@@ -86,6 +86,8 @@ export const cronRunHistory = sqliteTable(
     // the five-minute ticks fill at 576 rows a day.
     index("cron_run_history_cron_status_finished_idx").on(t.cronName, t.status, t.finishedAt),
     index("cron_run_history_status_finished_idx").on(t.status, t.finishedAt),
+    // runJobs reads each cron's newest finish (cron/run.ts) without a status.
+    index("cron_run_history_cron_finished_idx").on(t.cronName, t.finishedAt),
   ],
 );
 
