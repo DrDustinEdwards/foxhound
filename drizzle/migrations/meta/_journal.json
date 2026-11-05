@@ -484,6 +484,13 @@
       "when": 1793517222028,
       "tag": "0072_site_api_media_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1793603622028,
+      "tag": "0073_cron_run_history_cron_finished_idx",
+      "breakpoints": true
     }
   ]
 }
