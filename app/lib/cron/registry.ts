@@ -26,7 +26,7 @@ import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
 import { pruneAuthEvents } from "@dustinedwards/site-runtime/sign-in";
 
-import { runD1Backup, runMediaBackup } from "~/lib/backup/d1-backup";
+import { runD1Backup, runEvidenceBackup, runMediaBackup } from "~/lib/backup/d1-backup";
 import {
   deauthorizeRetryFailureError,
   describeDeauthorizeRetry,
@@ -249,6 +249,7 @@ const expiringCards: CronHandler = async (env) => {
  *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
 const mediaBackup: CronHandler = (env) => runMediaBackup(env);
+const evidenceBackup: CronHandler = (env) => runEvidenceBackup(env);
 
 /** The 404 count's retention, by site-runtime's pruneNotFound at Foxhound's own window. It does not count what it
  *  deletes. */
@@ -393,6 +394,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
   { name: "media-backup", schedule: CRON_SCHEDULE_DAILY, handler: mediaBackup },
+  { name: "evidence-backup", schedule: CRON_SCHEDULE_DAILY, handler: evidenceBackup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },

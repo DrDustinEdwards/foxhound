@@ -110,27 +110,37 @@ export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
   };
 }
 
-/** The blog's media library (MEDIA), copied beside the dumps under files/media/ by d1-dump's backupFiles; each
- *  run goes on where the last stopped. Its own job, so a failed copy never marks the D1 dump failed. */
+/** The bucket copies beside the dumps, each under files/<name>/ by d1-dump's backupFiles; each run goes on where the
+ *  last stopped, and Capsid's nightly off-account copy takes all of files/ to Amazon. MEDIA is the blog's media
+ *  library. EVIDENCE is the merchants' dispute evidence files, which exist nowhere else once uploaded. Each has its
+ *  own job, so a failed copy never marks the D1 dump or the other copy failed. */
 const MEDIA_BACKUP = { name: "media" };
+const EVIDENCE_BACKUP = { name: "evidence" };
 
-export async function runMediaBackup(env: Env): Promise<CronJobResult> {
-  const run = await backupFiles(env.MEDIA, env.BACKUPS, MEDIA_BACKUP);
+async function runFilesBackup(source: Env["MEDIA"], env: Env, options: { name: string }): Promise<CronJobResult> {
+  const run = await backupFiles(source, env.BACKUPS, options);
   return {
     rowsProcessed: run.worked,
     message: `${run.counts.copied} copied, ${run.counts.skipped} unchanged, ${run.counts.removed} removed${run.complete ? ", pass complete" : ", resumes next run"}`,
   };
 }
 
-/** The unauthenticated health fields: age of the newest complete dump, with the media copy's; either one's warning warns. */
-export async function backupStatus(env: Env, now = new Date()): Promise<BackupHealth & { files?: { media: BackupHealth } }> {
+export const runMediaBackup = (env: Env) => runFilesBackup(env.MEDIA, env, MEDIA_BACKUP);
+export const runEvidenceBackup = (env: Env) => runFilesBackup(env.EVIDENCE, env, EVIDENCE_BACKUP);
+
+/** The unauthenticated health fields: age of the newest complete dump, with each files copy's; any one's warning warns. */
+export async function backupStatus(
+  env: Env,
+  now = new Date(),
+): Promise<BackupHealth & { files?: { media: BackupHealth; evidence: BackupHealth } }> {
   if (!env.BACKUPS) {
     return { last_ok: null, age_hours: null, warning: "no backup bucket is bound" } as BackupHealth;
   }
-  const [dump, media] = await Promise.all([
+  const [dump, media, evidence] = await Promise.all([
     backupHealth(env.BACKUPS, { now }),
     filesHealth(env.BACKUPS, { ...MEDIA_BACKUP, now }),
+    filesHealth(env.BACKUPS, { ...EVIDENCE_BACKUP, now }),
   ]);
-  const warning = [dump.warning, media.warning].filter(Boolean).join("; ");
-  return { ...dump, files: { media }, ...(warning ? { warning } : {}) };
+  const warning = [dump.warning, media.warning, evidence.warning].filter(Boolean).join("; ");
+  return { ...dump, files: { media, evidence }, ...(warning ? { warning } : {}) };
 }
