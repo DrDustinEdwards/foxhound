@@ -18,11 +18,11 @@ concurrency:
 
 jobs:
   worker-size:
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@4d0c8fdb2f1794272b31d3c4354059eb2f19a26a # v0.22.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@e2914d9fdd2b2ef4eb7d393db739c3bb2a808583 # v0.23.0
     with:
       prepare: npm run build
 
   admin-mcp:
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@4d0c8fdb2f1794272b31d3c4354059eb2f19a26a # v0.22.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-size.yml@e2914d9fdd2b2ef4eb7d393db739c3bb2a808583 # v0.23.0
     with:
       config: .worker-size.mcp.json
