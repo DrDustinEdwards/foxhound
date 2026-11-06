@@ -19,7 +19,7 @@ import {
 // THE ONE EMAIL TEMPLATES MODULE. Every mail Foxhound sends is rendered
 // here, on Capsomer's shared email component (RULES.md 3.16; Q3, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQL1VeHhPyiYfFgdd86VozbJD).
-// send.ts calls renderFoxhoundEmail for both sendEmail and sendTransactionalEmail,
+// send.ts calls renderFoxhoundEmail for both sendJobEmail and sendTransactionalEmail,
 // so the frame is applied in exactly one place. The sign-in link and the
 // security notice are the exceptions to foxhoundMail: they are rendered on
 // Capsomer's `magicLink` and `securityNotice` templates below, still in this
@@ -43,7 +43,7 @@ import {
 // reader below), because a generated body is cached and re-sent, and a throw
 // would fail that step on every retry. A refused URL Foxhound itself supplies
 // outside the body (the unsubscribe link, the tracking URLs) still throws inside
-// the render, and that throw is NOT caught here: it propagates through sendEmail
+// the render, and that throw is NOT caught here: it propagates through sendJobEmail
 // into processEmailJob, which records it on the email_sends claim like any other
 // send failure.
 
