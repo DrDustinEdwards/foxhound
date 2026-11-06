@@ -109,6 +109,17 @@ const site = withSentry<Env>(
         }
       }
 
+      // THE OPERATOR API (site-runtime ./operator): Capsid Admin's backups, behind the OPERATOR_TOKEN bearer. Before
+      // the router, like the two mounts beside it, and imported only on its path.
+      if (pathname === "/api/operator") {
+        const [{ operatorResponse }, { operatorTools }] = await Promise.all([
+          import("@dustinedwards/site-runtime/operator"),
+          import("~/lib/operator.server"),
+        ]);
+        const answer = await operatorResponse(request, { token: env.OPERATOR_TOKEN, limiter: env.RATE_LIMITER, tools: operatorTools(env) });
+        return applyCachePolicy(request, applySecurityHeaders(answer, nonce, origin));
+      }
+
       // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
       // It is JSON-RPC over POST with its own header contract and its own bearer
       // auth; none of the router's loader/action machinery applies, and mounting

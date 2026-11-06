@@ -128,7 +128,7 @@ describe("PLANT 2: the tools", () => {
   // The ruling's nine, plus the owner's test mail (preview and send), which
   // Dustin approved on 2026-10-15 (cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ).
   // test/admin-email-send-preview.test.ts holds those two to their own rules.
-  it("are exactly the ruling's nine, the two test-mail tools and the two backup tools, foxhound_admin_ named, with all four hints", () => {
+  it("are exactly the ruling's nine, and the two test-mail tools, foxhound_admin_ named, with all four hints", () => {
     expect([...ADMIN_TOOL_NAMES].sort()).toEqual(
       [
         "foxhound_admin_whats_next",
@@ -138,8 +138,6 @@ describe("PLANT 2: the tools", () => {
         "foxhound_admin_check_health",
         "foxhound_admin_read_audit_log",
         "foxhound_admin_pause",
-        "foxhound_admin_check_backup",
-        "foxhound_admin_backup_media",
         "foxhound_admin_stage_change",
         "foxhound_admin_list_staged",
         "foxhound_admin_preview_email",
@@ -156,9 +154,9 @@ describe("PLANT 2: the tools", () => {
     }
   });
 
-  it("only pause, the files backup, stage_change and the test-mail send need the write scope, and their hints say so", () => {
+  it("only pause, stage_change and the test-mail send need the write scope, and their hints say so", () => {
     const writes = ADMIN_TOOLS.filter((t) => t.scope === "write").map((t) => t.name).sort();
-    expect(writes).toEqual(["foxhound_admin_backup_media", "foxhound_admin_pause", "foxhound_admin_send_test_email", "foxhound_admin_stage_change"]);
+    expect(writes).toEqual(["foxhound_admin_pause", "foxhound_admin_send_test_email", "foxhound_admin_stage_change"]);
     for (const tool of ADMIN_TOOLS) expect(tool.annotations.readOnlyHint, tool.name).toBe(tool.scope === "read");
   });
 
@@ -179,8 +177,6 @@ describe("PLANT 2: the tools", () => {
       ["foxhound_admin_read_audit_log", {}, "GET", "/api/admin/v1/audit-log"],
       ["foxhound_admin_list_staged", {}, "GET", "/api/admin/v1/staged"],
       ["foxhound_admin_pause", { account_id: "acct_a" }, "POST", "/api/admin/v1/pause"],
-      ["foxhound_admin_check_backup", {}, "GET", "/api/admin/v1/backup"],
-      ["foxhound_admin_backup_media", {}, "POST", "/api/admin/v1/backup/media"],
       ["foxhound_admin_stage_change", { kind: "resume_account", account_id: "acct_a" }, "POST", "/api/admin/v1/staged"],
     ];
     for (const [tool, args, method, path] of cases) {

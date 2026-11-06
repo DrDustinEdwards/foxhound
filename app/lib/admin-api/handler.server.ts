@@ -25,7 +25,6 @@ import {
 import { countStaleMarkers, engageBrake, getBrakeStatus } from "~/lib/admin/brake.server";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { getMerchantDetail, listMerchants, setProcessingPaused } from "~/lib/admin/merchants.server";
-import { backupFilesNow, backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import { describeStaged, listStagedChanges, stageChange, type StagedRow } from "~/lib/admin/staged.server";
@@ -57,7 +56,7 @@ import { readJson } from "~/lib/http/body";
 // next call, whatever the MCP still believes. The key failures share one 401
 // body so a guess cannot tell a revoked key from an unknown one.
 //
-// WHAT IT OFFERS. Reads, the files backup run now (copy only), a pause (one merchant, or every merchant through the
+// WHAT IT OFFERS. Reads, a pause (one merchant, or every merchant through the
 // brake), staging, and the owner's test mail (/emails: preview any email, or
 // send it to the caller's own inbox; ../admin/email-send.server.ts, approved by
 // Dustin 2026-10-15). Test mail moves no money and writes no recovery state. Pausing stops money moving, so it is a direct write;
@@ -369,28 +368,6 @@ const ROUTES: ApiRoute[] = [
       const rows = await listAuditLog(db, 500);
       const { items, ...rest } = slice("/audit-log", rows, page(url, "/audit-log"));
       return { entries: items, ...rest };
-    },
-  },
-  {
-    // The backup state now, uncached: the newest complete dump and each files pass, warning past 26 hours. The same
-    // read as /health's backup field, which /health caches for an hour.
-    method: "GET",
-    pattern: "/backup",
-    handler: async ({ env, now }) => ({ ...(await backupStatus(env, now)) }),
-  },
-  {
-    // Runs the files backup now, the same passes as the nightly cron (backupFilesNow). Copy only: it writes
-    // nothing but the backups bucket and moves no money, so it is a direct write and safe to repeat.
-    method: "POST",
-    pattern: "/backup/media",
-    handler: async ({ db, env, caller }) => {
-      const files = await backupFilesNow(env);
-      await logAdminAction(db, {
-        actorEmail: caller.actorEmail,
-        action: "backup.media",
-        metadata: { passes: files.map((f) => f.name), via: "admin-api", keyId: caller.keyId },
-      });
-      return { files };
     },
   },
   {

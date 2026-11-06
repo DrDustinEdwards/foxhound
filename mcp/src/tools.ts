@@ -198,28 +198,6 @@ export const ADMIN_TOOLS: AdminTool[] = [
     },
   },
   {
-    name: "foxhound_admin_check_backup",
-    title: "Check the backups",
-    description:
-      "Read the backup state now, uncached: the newest complete D1 dump's age and each files pass (the blog media and the dispute evidence) with when it last completed, and a warning when any is past 26 hours. /health reports the same fields but caches the read for an hour; this does not. Run foxhound_admin_backup_media to back up now.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: output({ files: OBJECT }),
-    scope: "read",
-    annotations: READ,
-    run: (session) => get(session, "/backup"),
-  },
-  {
-    name: "foxhound_admin_backup_media",
-    title: "Back up the files now",
-    description:
-      "Run the nightly files backup now: one pass each over the blog media and the merchants' dispute evidence files into the backups bucket (files/media/ and files/evidence/), which Capsid copies to Amazon. It copies new and changed files and drops a copy only 30 days after its file is gone; it never writes or deletes in the media or evidence buckets and moves no money. A pass stops at its write or time budget and the next goes on from there. Reports each backup's counts and whether its pass completed. /health caches the backup read for an hour, so its backup fields may take up to an hour to show this run.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: output({ files: LIST }),
-    scope: "write",
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    run: (session) => callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/backup/media" }),
-  },
-  {
     name: "foxhound_admin_stage_change",
     title: "Stage a change",
     description:
