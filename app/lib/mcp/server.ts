@@ -7,8 +7,9 @@ import {
   McpServer,
   requireScopes,
 } from "@modelcontextprotocol/server";
-import { probeCaller } from "@dustinedwards/site-runtime/agent-keys";
-import { invokeTool, mcpCacheHints, routeMcpEra } from "@dustinedwards/site-runtime/mcp-server";
+import { PROBE_PRINCIPAL } from "@dustinedwards/site-runtime/agent-keys";
+import { correlationId, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import { mcpCacheHints, routeMcpEra } from "@dustinedwards/site-runtime/mcp-server";
 
 import { MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
@@ -51,6 +52,9 @@ export const MCP_SERVER_INFO = {
 
 /** The server as site-runtime's refusals and the shared log name it. */
 export const MCP_SERVER = { site: "Foxhound", scopes: MERCHANT_SCOPES, name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
+
+/** site-runtime's words for the list-only test key, which lists tools and runs none. */
+const PROBE_REFUSAL = "Refused: this is the list-only test key for Foxhound. It can list tools and never runs one.";
 
 const INSTRUCTIONS = [
   "Foxhound recovers failed Stripe payments and tracks disputes and subscription health for one merchant: the account this key belongs to, and no other.",
@@ -134,18 +138,21 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
           : {}),
       },
       async (args: unknown, extra: { mcpReq?: { _meta?: Record<string, unknown> } }) => {
-        // THE LIST-ONLY TEST KEY RUNS NOTHING. site-runtime's invokeTool
-        // refuses it in words before `run`, with a `refused` row in the shared
-        // log, as every family server refuses it; `run` throws in case it is
-        // ever reached.
+        // THE LIST-ONLY TEST KEY RUNS NOTHING. It is refused in words, with a
+        // `refused` row in the shared log, as site-runtime's invokeTool refuses
+        // it on the other family servers (not imported here: the Worker sits at
+        // its size budget, and recordAudit is already in the bundle).
         if (!scopes) {
-          return invokeTool(ctx.env, MCP_SERVER, {
-            caller: probeCaller(),
-            tool: { name: descriptor.name, scope: tool.scope },
-            args: (args ?? {}) as Record<string, unknown>,
-            meta: extra?.mcpReq?._meta,
-            run: () => Promise.reject(new Error("the list-only test key never runs a tool")),
+          await recordAudit(ctx.env, {
+            callId: crypto.randomUUID(),
+            phase: "refused",
+            caller: `probe:${PROBE_PRINCIPAL}`,
+            tool: descriptor.name,
+            result: { isError: true, text: PROBE_REFUSAL },
+            server: { name: MCP_SERVER.name, version: MCP_SERVER.version },
+            correlationId: correlationId(extra?.mcpReq?._meta),
           });
+          return toolResult({ error: PROBE_REFUSAL, tool: descriptor.name }, true);
         }
         // The challenge above runs only when the transport is handed the key's
         // scopes; this check holds whatever path reaches the tool.
