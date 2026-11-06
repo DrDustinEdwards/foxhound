@@ -71,6 +71,7 @@ function fakeBucket() {
     async delete(keys: string | string[]) {
       for (const key of [keys].flat()) objects.delete(key);
     },
+    list: async ({ prefix }: { prefix: string }) => ({ objects: [...objects.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })), truncated: false }),
   };
 }
 
