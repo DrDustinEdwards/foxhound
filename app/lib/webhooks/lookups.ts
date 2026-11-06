@@ -357,11 +357,16 @@ export interface DisputedRecoveryLink {
  * enrichment seam (Phase 8 live): mapping a dispute's payment_intent to our
  * invoice-keyed failed_payments row needs a live connected-account read (the
  * charge/paymentIntent -> invoice resolution deferred elsewhere in this module,
- * see the stamp_refund/stamp_dispute-resolution comment below). Fails safe: a
- * missing connection token, a missing payment_intent, "not found", or any
- * Stripe/DB error all resolve to null so dispute intake still proceeds
- * (without the recovery link and its evidence facts), never blocked by this
- * seam.
+ * see the stamp_refund/stamp_dispute-resolution comment below).
+ *
+ * Returns null ONLY for a clean miss: no payment_intent, or Stripe and D1
+ * answered and no recovery matches. A transient failure (no stored token, a
+ * decrypt failure, any Stripe or D1 error) THROWS, per
+ * resolveInvoiceIdForPaymentIntent's contract. It used to return null, which
+ * saved the dispute unlinked: the disputed recovery was never stamped, so it
+ * stayed billable, and Stripe's redelivery came back a duplicate and could not
+ * repair it. Now the webhook 500s with nothing claimed and Stripe redelivers,
+ * exactly as the refund path does.
  *
  * EXPORTED under ruling 400 for the manual dispute import
  * (app/lib/disputes/manual-import.server.ts), which enriches a hand-imported
@@ -378,40 +383,36 @@ export async function resolveDisputedRecovery(
 ): Promise<DisputedRecoveryLink | null> {
   if (!paymentIntentId) return null;
   const db = getDb(env);
-  try {
-    const invoiceId = await resolveInvoiceIdForPaymentIntent(env, connectionId, paymentIntentId);
-    if (!invoiceId) return null;
+  const invoiceId = await resolveInvoiceIdForPaymentIntent(env, connectionId, paymentIntentId);
+  if (!invoiceId) return null;
 
-    const [failedPayment] = await db
-      .select({
-        id: failedPayments.id,
-        stripeCustomerId: failedPayments.stripeCustomerId,
-        customerEmail: failedPayments.customerEmail,
-        customerName: failedPayments.customerName,
-        planName: failedPayments.planName,
-        subscriptionStart: failedPayments.subscriptionStart,
-        detectedAt: failedPayments.detectedAt,
-      })
-      .from(failedPayments)
-      .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)))
-      .orderBy(desc(failedPayments.detectedAt))
-      .limit(1);
-    if (!failedPayment) return null;
+  const [failedPayment] = await db
+    .select({
+      id: failedPayments.id,
+      stripeCustomerId: failedPayments.stripeCustomerId,
+      customerEmail: failedPayments.customerEmail,
+      customerName: failedPayments.customerName,
+      planName: failedPayments.planName,
+      subscriptionStart: failedPayments.subscriptionStart,
+      detectedAt: failedPayments.detectedAt,
+    })
+    .from(failedPayments)
+    .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)))
+    .orderBy(desc(failedPayments.detectedAt))
+    .limit(1);
+  if (!failedPayment) return null;
 
-    const steps = await db
-      .select({
-        stepType: recoverySteps.stepType,
-        executedAt: recoverySteps.executedAt,
-        openedAt: recoverySteps.openedAt,
-        clickedAt: recoverySteps.clickedAt,
-      })
-      .from(recoverySteps)
-      .where(eq(recoverySteps.failedPaymentId, failedPayment.id));
+  const steps = await db
+    .select({
+      stepType: recoverySteps.stepType,
+      executedAt: recoverySteps.executedAt,
+      openedAt: recoverySteps.openedAt,
+      clickedAt: recoverySteps.clickedAt,
+    })
+    .from(recoverySteps)
+    .where(eq(recoverySteps.failedPaymentId, failedPayment.id));
 
-    return { failedPayment, steps };
-  } catch {
-    return null;
-  }
+  return { failedPayment, steps };
 }
 
 /** Find a dispute by its Stripe dispute id (5c resolution stamping target).

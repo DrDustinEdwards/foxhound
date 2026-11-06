@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/cloudflare";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
+import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { constructStripeEvent } from "~/lib/stripe/webhook";
 import { processConnectedWebhook } from "~/lib/webhooks/process";
 
@@ -22,6 +24,8 @@ export function loader() {
   return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
 }
 
+const SIGNATURE_REPORTS_PER_HOUR = 5;
+
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
@@ -41,10 +45,18 @@ export async function action({ request, context }: Route.ActionArgs) {
     event = await constructStripeEvent(env, payload, signature, secret);
   } catch (err) {
     // A secret-rotation slip stops payment ingestion; make it visible. Context
-    // carries no secret material.
-    Sentry.captureException(err, {
-      extra: { scope: "stripe-webhook-signature", hasSignature: signature.length > 0 },
-    });
+    // carries no secret material. But the endpoint is public, so every junk
+    // POST lands here too: report at most SIGNATURE_REPORTS_PER_HOUR across the
+    // whole Worker (one shared key, so no caller can spread around it), which
+    // is enough to show a rotation slip and cannot spend the Sentry quota or
+    // bury real alerts. The rest go to the Workers log only.
+    if (await isWithinRateLimit(env, "sentry", "stripe-webhook-signature", SIGNATURE_REPORTS_PER_HOUR, 3_600_000)) {
+      Sentry.captureException(err, {
+        extra: { scope: "stripe-webhook-signature", hasSignature: signature.length > 0 },
+      });
+    } else {
+      logEvent("stripe_webhook_signature_invalid", { reported: false }, { level: "warn" });
+    }
     return new Response("invalid signature", { status: 400 });
   }
 

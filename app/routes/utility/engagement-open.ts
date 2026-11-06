@@ -1,3 +1,6 @@
+import * as Sentry from "@sentry/cloudflare";
+import { logEvent } from "@dustinedwards/site-runtime/log";
+
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
 import { recordOpen } from "~/lib/engagement/record";
@@ -29,8 +32,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     try {
       const result = await recordOpen(env, payload, source);
       if (!result.recorded) console.debug("engagement open skipped:", result.reason);
-    } catch {
-      /* swallow */
+    } catch (err) {
+      // Still best-effort for the customer, who gets the same response, but a
+      // failed write loses an open from Intelligence, so it must be seen, not
+      // swallowed. The step id is enough to trace it; the token stays out.
+      logEvent("engagement_open_failed", { stepId: payload.stepId, error: err instanceof Error ? err.message : String(err) }, { level: "error" });
+      Sentry.captureException(err, { extra: { scope: "engagement-open", stepId: payload.stepId } });
     }
   }
   return new Response(PIXEL, {

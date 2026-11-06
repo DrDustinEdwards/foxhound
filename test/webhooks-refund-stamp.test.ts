@@ -348,4 +348,23 @@ describe("refund resolution failure semantics", () => {
     const [recovery] = await db.select().from(schema.recoveredPayments);
     expect(recovery.refundedAt).toBeNull();
   });
+
+  it("a TRANSIENT failure on dispute intake saves no unlinked dispute, so Stripe redelivers", async () => {
+    // Before: resolveDisputedRecovery swallowed the error and returned null, so
+    // the dispute was saved with no recovery link, the recovery was never
+    // stamped disputed and stayed billable, and the redelivery was a duplicate.
+    const { db } = await seedRecoveredPayment();
+    harness.invoicePaymentsError = new Error("stripe unavailable");
+    const disputeCreated = {
+      id: "evt_dispute_flaky",
+      type: "charge.dispute.created",
+      account: "acct_connected_1",
+      data: { object: { id: "dp_flaky", charge: "ch_1", payment_intent: "pi_1", amount: 10_000, currency: "usd" } },
+    } as unknown as Stripe.Event;
+
+    const outcome = await processConnectedWebhook({} as Env, disputeCreated, REFUNDED_AT);
+    expect(outcome.status).toBe("error");
+    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
+    expect(await db.select().from(schema.disputes)).toHaveLength(0);
+  });
 });

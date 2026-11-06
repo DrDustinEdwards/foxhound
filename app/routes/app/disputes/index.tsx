@@ -14,6 +14,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
@@ -166,13 +167,20 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data(result.data, { status: result.status });
   }
   const posted = form.get("stripe_dispute_id");
-  const result = await importDisputeFromStripe(
-    env,
-    auth.membership.accountId,
-    typeof posted === "string" ? posted : "",
-    new Date(),
-  );
-  return { sync: SYNC_RESULT_MESSAGES[result.status] };
+  try {
+    const result = await importDisputeFromStripe(
+      env,
+      auth.membership.accountId,
+      typeof posted === "string" ? posted : "",
+      new Date(),
+    );
+    return { sync: SYNC_RESULT_MESSAGES[result.status] };
+  } catch (err) {
+    // A transient Stripe or D1 failure throws (resolveDisputedRecovery's
+    // contract) and writes nothing, the same answer the detail page gives.
+    logEvent("dispute_sync_failed", { error: err instanceof Error ? err.message : String(err) }, { level: "error" });
+    return data({ sync: { ok: false, message: "Could not import the dispute. Please try again." } }, { status: 500 });
+  }
 }
 
 /** The status tones on Capsomer's pill: won is ok, lost is critical, every
