@@ -1,5 +1,6 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { d1SiteApiStore, tombstoned } from "@dustinedwards/site-api/store";
 import { withAdminIdle } from "@dustinedwards/site-runtime/access";
 import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
 import { cacheKey, forReader, purgeAfterWrite, settleCacheHeaders, withPurgePages } from "@dustinedwards/site-runtime/edge-cache";
@@ -19,7 +20,6 @@ import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
 import { applySecurityHeaders } from "~/lib/http/content-security-policy";
-import { tombstoned } from "~/lib/http/tombstone";
 import { SPECULATION_OPTIONS, withSpeculationRules } from "~/lib/http/speculation-rules";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
@@ -143,7 +143,7 @@ const site = withSentry<Env>(
         const edge = edgeRequest(request);
         const key = cacheKey(request.url, { dimensions: { theme: edge.theme } });
         const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: key } });
-        return tombstoned(forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] }), new URL(request.url).pathname, env.DB);
+        return tombstoned(forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] }), new URL(request.url).pathname, d1SiteApiStore(env.DB));
       }
 
       const context = new RouterContextProvider();
@@ -156,7 +156,7 @@ const site = withSentry<Env>(
       return tombstoned(
         withPreloadHeader(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)), await preloadHeader()),
         new URL(request.url).pathname,
-        env.DB,
+        d1SiteApiStore(env.DB),
       );
     },
     // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
