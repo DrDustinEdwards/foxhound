@@ -47,8 +47,12 @@ export interface RoiColumn {
  * so those claims are not copied (ROWS-S S5, 181).
  */
 export function roiColumn(rows: readonly { amountCents: number; currency: string }[]): RoiColumn {
-  const recovered = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
-  const fee = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })));
+  const recovered = groupSumByCurrency(
+    rows.map((r) => ({ currency: r.currency, cents: r.amountCents })),
+  );
+  const fee = groupSumByCurrency(
+    rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })),
+  );
   const kept = recovered.map((r) => ({
     currency: r.currency,
     cents: r.cents - (fee.find((f) => f.currency === r.currency)?.cents ?? 0),
@@ -68,7 +72,10 @@ export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
  * divided, because an MRR estimate is one number in one currency and a sum
  * across currencies is meaningless.
  */
-export function atRiskPctOfMrr(atRisk: readonly CurrencyCents[], mrrEstimateCents: number | null): number | null {
+export function atRiskPctOfMrr(
+  atRisk: readonly CurrencyCents[],
+  mrrEstimateCents: number | null,
+): number | null {
   if (!mrrEstimateCents || mrrEstimateCents <= 0 || atRisk.length !== 1) return null;
   return Math.round((atRisk[0]!.cents / mrrEstimateCents) * 1000) / 10;
 }
@@ -82,7 +89,12 @@ export function formatShortDate(day: string | Date): string {
 
 /** "Oct 3, 2026", in UTC, for the Detected column. */
 export function formatLongDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 // ---- Recovery rate chart ----
@@ -91,10 +103,12 @@ export function formatLongDate(date: Date): string {
  *  started and ended over the range. */
 export function recoveryRateAlt(points: readonly DailyRatePoint[], rangeLabel: string): string {
   const present = points.filter((p): p is { date: string; rate: number } => p.rate !== null);
-  if (present.length === 0) return `Recovery rate, ${rangeLabel}: no failed payments in this range yet.`;
+  if (present.length === 0)
+    return `Recovery rate, ${rangeLabel}: no failed payments in this range yet.`;
   const first = present[0]!;
   const last = present[present.length - 1]!;
-  if (present.length === 1) return `Recovery rate, ${rangeLabel}: ${first.rate}% on ${formatShortDate(first.date)}.`;
+  if (present.length === 1)
+    return `Recovery rate, ${rangeLabel}: ${first.rate}% on ${formatShortDate(first.date)}.`;
   return `Running recovery rate, ${rangeLabel}: ${first.rate}% on ${formatShortDate(first.date)} and ${last.rate}% on ${formatShortDate(last.date)}.`;
 }
 
@@ -128,7 +142,11 @@ export function dailyRecoveredRows(
   for (let i = days - 1; i >= 0; i--) {
     const Day = dayKey(new Date(nowMs - i * DAY_MS));
     for (const currency of currencies) {
-      rows.push({ Day, currency: currency.toUpperCase(), amount: toMajorUnits(byKey.get(`${Day}|${currency}`) ?? 0, currency) });
+      rows.push({
+        Day,
+        currency: currency.toUpperCase(),
+        amount: toMajorUnits(byKey.get(`${Day}|${currency}`) ?? 0, currency),
+      });
     }
   }
   return { rows, currencies: currencies.map((c) => c.toUpperCase()) };
@@ -172,7 +190,12 @@ export interface EmailCategoryRow {
  * (DECLINE_CATEGORIES), labeled by its own names, never the raw value.
  */
 export function emailCategoryRows(
-  performance: readonly { category: DeclineCategory; openRatePct: number; clickRatePct: number; emailCount: number }[],
+  performance: readonly {
+    category: DeclineCategory;
+    openRatePct: number;
+    clickRatePct: number;
+    emailCount: number;
+  }[],
 ): { rows: EmailCategoryRow[]; totalSent: number } {
   const byCategory = new Map(performance.map((p) => [p.category, p]));
   const rows: EmailCategoryRow[] = [];
@@ -186,7 +209,12 @@ export function emailCategoryRows(
 }
 
 export function emailCategoryAlt(
-  performance: readonly { category: DeclineCategory; openRatePct: number; clickRatePct: number; emailCount: number }[],
+  performance: readonly {
+    category: DeclineCategory;
+    openRatePct: number;
+    clickRatePct: number;
+    emailCount: number;
+  }[],
 ): string {
   const sent = performance.filter((p) => p.emailCount > 0);
   const parts = sent.map(
@@ -225,7 +253,8 @@ export function declineRows(input: {
       count,
       pct: input.totalFailedCount > 0 ? Math.round((count / input.totalFailedCount) * 100) : 0,
       // Recova's own rule: a rate only once a category has two failures.
-      recoveredPct: stats && stats.total >= 2 ? Math.round((stats.recovered / stats.total) * 100) : null,
+      recoveredPct:
+        stats && stats.total >= 2 ? Math.round((stats.recovered / stats.total) * 100) : null,
       spark: (input.categorySparkline[category] ?? []).map((p) => p.count),
     };
   });
@@ -274,7 +303,12 @@ export interface PaymentStepSummary {
  * is never "next").
  */
 export function paymentStepSummary(
-  steps: readonly { stepNumber: number | null; stepType: string; executedAt: Date | null; result: string | null }[],
+  steps: readonly {
+    stepNumber: number | null;
+    stepType: string;
+    executedAt: Date | null;
+    result: string | null;
+  }[],
   label: (stepType: string) => string,
 ): PaymentStepSummary {
   const sorted = [...steps].sort((a, b) => (a.stepNumber ?? 0) - (b.stepNumber ?? 0));
@@ -303,7 +337,11 @@ export interface OnboardingChecklistState {
 }
 
 export function onboardingChecklistState(
-  profile: { senderName: string | null; notificationEmail: string | null; onboardingCompleted: boolean },
+  profile: {
+    senderName: string | null;
+    notificationEmail: string | null;
+    onboardingCompleted: boolean;
+  },
   connected: boolean,
 ): OnboardingChecklistState {
   return {
@@ -330,8 +368,18 @@ export interface DeliverabilityFigures {
  * rounded them. There is no delivered rate: Foxhound stores no delivered
  * event (app/lib/email/events.ts ignores it).
  */
-export function deliverabilityFigures(c: { sent: number; bounced: number; complaints: number }): DeliverabilityFigures | null {
+export function deliverabilityFigures(c: {
+  sent: number;
+  bounced: number;
+  complaints: number;
+}): DeliverabilityFigures | null {
   if (c.bounced + c.complaints === 0) return null;
   const pct = (n: number) => (c.sent > 0 ? Math.round((n / c.sent) * 100) : null);
-  return { sent: c.sent, bounced: c.bounced, complaints: c.complaints, bounceRatePct: pct(c.bounced), spamRatePct: pct(c.complaints) };
+  return {
+    sent: c.sent,
+    bounced: c.bounced,
+    complaints: c.complaints,
+    bounceRatePct: pct(c.bounced),
+    spamRatePct: pct(c.complaints),
+  };
 }

@@ -49,7 +49,9 @@ function switchAccountHref(accountId: string, switchAccountUrl: string): string 
   return `${SWITCH_PREFIXES[switchAccountUrl] ?? SWITCH_PREFIXES[ACCOUNT_SWITCH_URL]}${accountId}`;
 }
 
-export function switchTargetFromHref(href: string): { accountId: string; switchAccountUrl: string } | null {
+export function switchTargetFromHref(
+  href: string,
+): { accountId: string; switchAccountUrl: string } | null {
   for (const [switchAccountUrl, prefix] of Object.entries(SWITCH_PREFIXES)) {
     if (href.startsWith(prefix)) return { accountId: href.slice(prefix.length), switchAccountUrl };
   }
@@ -64,7 +66,10 @@ let switching = false;
  *  Pathname plus search, so a switch does not carry a fragment across accounts.
  *  `assign()` rather than legacy's `location.href = ...`: identical behavior,
  *  and the react-hooks/immutability rule rejects the assignment form. */
-export async function switchAccount(accountId: string, switchAccountUrl = ACCOUNT_SWITCH_URL): Promise<void> {
+export async function switchAccount(
+  accountId: string,
+  switchAccountUrl = ACCOUNT_SWITCH_URL,
+): Promise<void> {
   // One switch at a time, as the old menu's disabled rows had it: a second
   // click before the reload would race two POSTs for the session marker.
   if (switching) return;

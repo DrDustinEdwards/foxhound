@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import { accountMembers, accounts, session, user } from "~/db";
@@ -41,7 +40,9 @@ interface UserRow {
 
 async function list(db: unknown): Promise<UserRow[]> {
   expect(typeof serverLib.listPlatformUsers).toBe("function");
-  return (serverLib.listPlatformUsers as (db: unknown, env: Env, nowMs: number) => Promise<UserRow[]>)(db, ENV, NOW);
+  return (
+    serverLib.listPlatformUsers as (db: unknown, env: Env, nowMs: number) => Promise<UserRow[]>
+  )(db, ENV, NOW);
 }
 
 async function seed() {
@@ -49,9 +50,29 @@ async function seed() {
   await db.insert(user).values([
     // Invites are matched only to a verified email, so both people with one
     // are verified.
-    { id: "u_rosa", name: "Rosa Park", email: "rosa@example.com", emailVerified: true, createdAt: at(30 * DAY), updatedAt: at(30 * DAY) },
-    { id: "u_sam", name: "Sam Ortiz", email: "sam@example.com", emailVerified: true, createdAt: at(10 * DAY), updatedAt: at(10 * DAY) },
-    { id: "u_admin", name: "Admin Person", email: "admin@example.com", createdAt: at(60 * DAY), updatedAt: at(60 * DAY) },
+    {
+      id: "u_rosa",
+      name: "Rosa Park",
+      email: "rosa@example.com",
+      emailVerified: true,
+      createdAt: at(30 * DAY),
+      updatedAt: at(30 * DAY),
+    },
+    {
+      id: "u_sam",
+      name: "Sam Ortiz",
+      email: "sam@example.com",
+      emailVerified: true,
+      createdAt: at(10 * DAY),
+      updatedAt: at(10 * DAY),
+    },
+    {
+      id: "u_admin",
+      name: "Admin Person",
+      email: "admin@example.com",
+      createdAt: at(60 * DAY),
+      updatedAt: at(60 * DAY),
+    },
   ]);
   await db.insert(accounts).values([
     { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
@@ -59,8 +80,22 @@ async function seed() {
     { id: "acct_harbor", name: "Harbor Yoga", createdAt: at(20 * DAY) },
   ]);
   await db.insert(accountMembers).values([
-    { id: "m1", accountId: "acct_north", userId: "u_rosa", role: "owner", status: "active", createdAt: at(30 * DAY) },
-    { id: "m2", accountId: "acct_lumen", userId: "u_rosa", role: "member", status: "active", createdAt: at(20 * DAY) },
+    {
+      id: "m1",
+      accountId: "acct_north",
+      userId: "u_rosa",
+      role: "owner",
+      status: "active",
+      createdAt: at(30 * DAY),
+    },
+    {
+      id: "m2",
+      accountId: "acct_lumen",
+      userId: "u_rosa",
+      role: "member",
+      status: "active",
+      createdAt: at(20 * DAY),
+    },
     // A pending invite has no user id yet: it is matched by the invited email.
     {
       id: "m3",
@@ -105,12 +140,14 @@ async function seed() {
     createdAt,
     updatedAt: createdAt,
   });
-  await db.insert(session).values([
-    sess("s1", "u_rosa", at(5 * DAY)),
-    sess("s2", "u_rosa", at(2 * 60 * 60 * 1000)),
-    sess("s3", "u_rosa", at(3 * DAY)),
-    sess("s4", "u_admin", at(1 * DAY)),
-  ]);
+  await db
+    .insert(session)
+    .values([
+      sess("s1", "u_rosa", at(5 * DAY)),
+      sess("s2", "u_rosa", at(2 * 60 * 60 * 1000)),
+      sess("s3", "u_rosa", at(3 * DAY)),
+      sess("s4", "u_admin", at(1 * DAY)),
+    ]);
   return db;
 }
 
@@ -131,13 +168,17 @@ describe("listPlatformUsers", () => {
     ]);
     const sam = rows.find((r) => r.id === "u_sam")!;
     expect(sam.memberships).toEqual([
-      { accountId: "acct_north", accountName: "Northwind Coffee", role: "member", status: "pending", inviteExpired: true },
+      {
+        accountId: "acct_north",
+        accountName: "Northwind Coffee",
+        role: "member",
+        status: "pending",
+        inviteExpired: true,
+      },
     ]);
     expect(rows.find((r) => r.id === "u_admin")!.memberships).toEqual([]);
   });
 });
-
-
 
 const invite = (id: string, accountId: string, email: string, expiresAt: Date) => ({
   id,
@@ -155,15 +196,36 @@ describe("listPlatformUsers, invites (code review)", () => {
   async function seedInvites() {
     const { db } = createInMemoryDb();
     await db.insert(user).values([
-      { id: "u_rosa", name: "Rosa Park", email: "rosa@example.com", emailVerified: true, createdAt: at(30 * DAY), updatedAt: at(30 * DAY) },
-      { id: "u_eve", name: "Eve Unverified", email: "eve@example.com", emailVerified: false, createdAt: at(20 * DAY), updatedAt: at(20 * DAY) },
+      {
+        id: "u_rosa",
+        name: "Rosa Park",
+        email: "rosa@example.com",
+        emailVerified: true,
+        createdAt: at(30 * DAY),
+        updatedAt: at(30 * DAY),
+      },
+      {
+        id: "u_eve",
+        name: "Eve Unverified",
+        email: "eve@example.com",
+        emailVerified: false,
+        createdAt: at(20 * DAY),
+        updatedAt: at(20 * DAY),
+      },
     ]);
     await db.insert(accounts).values([
       { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
       { id: "acct_harbor", name: "Harbor Yoga", createdAt: at(20 * DAY) },
     ]);
     await db.insert(accountMembers).values([
-      { id: "m1", accountId: "acct_north", userId: "u_rosa", role: "owner", status: "active", createdAt: at(30 * DAY) },
+      {
+        id: "m1",
+        accountId: "acct_north",
+        userId: "u_rosa",
+        role: "owner",
+        status: "active",
+        createdAt: at(30 * DAY),
+      },
       // Already an active member here: the invite says nothing more.
       invite("i1", "acct_north", "rosa@example.com", at(-3 * DAY)),
       // Two invites to one account: one row, the one that can still be accepted.
@@ -180,8 +242,20 @@ describe("listPlatformUsers, invites (code review)", () => {
     const rows = await list(await seedInvites());
     const rosa = rows.find((r) => r.id === "u_rosa")!;
     expect(rosa.memberships).toEqual([
-      { accountId: "acct_north", accountName: "Northwind Coffee", role: "owner", status: "active", inviteExpired: false },
-      { accountId: "acct_harbor", accountName: "Harbor Yoga", role: "member", status: "pending", inviteExpired: false },
+      {
+        accountId: "acct_north",
+        accountName: "Northwind Coffee",
+        role: "owner",
+        status: "active",
+        inviteExpired: false,
+      },
+      {
+        accountId: "acct_harbor",
+        accountName: "Harbor Yoga",
+        role: "member",
+        status: "pending",
+        inviteExpired: false,
+      },
     ]);
   });
 
@@ -199,9 +273,19 @@ describe("pagePending (shared by the admin pages)", () => {
       r: string,
       pathname: string,
     ) => boolean;
-    expect(pending({ state: "loading", location: { pathname: "/admin/users/" } }, "idle", "/admin/users")).toBe(true);
-    expect(pending({ state: "loading", location: { pathname: "/admin/" } }, "idle", "/admin")).toBe(true);
-    expect(pending({ state: "loading", location: { pathname: "/admin/users" } }, "idle", "/admin")).toBe(false);
+    expect(
+      pending(
+        { state: "loading", location: { pathname: "/admin/users/" } },
+        "idle",
+        "/admin/users",
+      ),
+    ).toBe(true);
+    expect(pending({ state: "loading", location: { pathname: "/admin/" } }, "idle", "/admin")).toBe(
+      true,
+    );
+    expect(
+      pending({ state: "loading", location: { pathname: "/admin/users" } }, "idle", "/admin"),
+    ).toBe(false);
     expect(pending({ state: "idle" }, "loading", "/admin/users")).toBe(true);
   });
 });

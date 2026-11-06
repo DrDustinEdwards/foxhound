@@ -157,7 +157,10 @@ describe("/sitemap.xml stays in sync with the real route tree", () => {
 
   it("every STATIC_PAGES entry is a real route", () => {
     for (const page of STATIC_PAGES) {
-      expect(realPaths.has(page.path), `${page.path} (sitemap STATIC_PAGES) is not in routes.ts`).toBe(true);
+      expect(
+        realPaths.has(page.path),
+        `${page.path} (sitemap STATIC_PAGES) is not in routes.ts`,
+      ).toBe(true);
     }
   });
 });

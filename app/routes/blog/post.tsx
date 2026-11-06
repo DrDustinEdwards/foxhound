@@ -12,7 +12,13 @@ import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
-import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost, getSlugRedirect } from "~/lib/blog/queries.server";
+import {
+  getNextPost,
+  getPostBySlug,
+  getPostLinks,
+  getPreviousPost,
+  getSlugRedirect,
+} from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
   faqPageJsonLd,
@@ -81,13 +87,29 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     renderMarkdown(db, post.body),
     coverPicture(db, post, "content"),
     // The share image Carrel set (site-api's image and imageAlt search fields), read the way the cover is.
-    coverPicture(db, { coverImageUrl: post.ogImageUrl, coverImageAlt: post.ogImageAlt, title: post.title }, "content"),
+    coverPicture(
+      db,
+      { coverImageUrl: post.ogImageUrl, coverImageAlt: post.ogImageAlt, title: post.title },
+      "content",
+    ),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     post.publishedAt ? getNextPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     getPostLinks(db, post.id),
   ]);
 
-  return { siteUrl: siteUrl(env), post, cover, share, html, version, toc, previous, next, related, faq };
+  return {
+    siteUrl: siteUrl(env),
+    post,
+    cover,
+    share,
+    html,
+    version,
+    toc,
+    previous,
+    next,
+    related,
+    faq,
+  };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -110,7 +132,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const card = share ?? cover;
   const image = card
     ? { ...card.original, url: new URL(card.original.url, url).href }
-    : { url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt), width: 1200, height: 630, type: "image/png", alt: title };
+    : {
+        url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt),
+        width: 1200,
+        height: 630,
+        type: "image/png",
+        alt: title,
+      };
 
   // JSON-LD goes through meta, which React Router escapes, because the title,
   // excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>`
@@ -141,7 +169,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
             personJsonLd(url, {
               name: "Dustin Edwards",
               jobTitle: "Founder",
-              description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
+              description:
+                "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
             }),
           ),
         ]
@@ -211,11 +240,18 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           ) : null}
 
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
-            {showPublished ? <time dateTime={post.publishedAt!.toISOString()}>{formatDateShort(post.publishedAt)}</time> : null}
+            {showPublished ? (
+              <time dateTime={post.publishedAt!.toISOString()}>
+                {formatDateShort(post.publishedAt)}
+              </time>
+            ) : null}
             {showPublished && showUpdated ? <span aria-hidden="true"> &middot; </span> : null}
             {showUpdated ? (
               <>
-                Updated <time dateTime={post.updatedAt!.toISOString()}>{formatDateShort(post.updatedAt)}</time>
+                Updated{" "}
+                <time dateTime={post.updatedAt!.toISOString()}>
+                  {formatDateShort(post.updatedAt)}
+                </time>
               </>
             ) : null}
             {showPublished || showUpdated ? (
@@ -230,7 +266,9 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             <span>{post.author}</span>
           </div>
 
-          <h1 className="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">{post.title}</h1>
+          <h1 className="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">
+            {post.title}
+          </h1>
           <p className="mb-8 border-b border-border pb-8 text-product-sub leading-relaxed text-text-secondary">
             {post.excerpt}
           </p>
@@ -251,8 +289,13 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       </div>
 
       {related.length > 0 ? (
-        <section aria-label="Further reading" className="mt-12 max-w-[680px] border-t border-border pt-8">
-          <p className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Further reading</p>
+        <section
+          aria-label="Further reading"
+          className="mt-12 max-w-[680px] border-t border-border pt-8"
+        >
+          <p className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+            Further reading
+          </p>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {related.map((r) => (
               <li key={r.id}>
@@ -275,13 +318,24 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
-        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} loading="lazy" decoding="async" className="h-11 w-11 shrink-0 rounded-[10px]" />
+        <img
+          src="/favicon.svg"
+          alt="Foxhound"
+          width={44}
+          height={44}
+          loading="lazy"
+          decoding="async"
+          className="h-11 w-11 shrink-0 rounded-[10px]"
+        />
         <div>
-          <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Published by</p>
+          <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+            Published by
+          </p>
           <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>
           <p className="m-0 text-copy leading-relaxed text-text-secondary">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
-            intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing until then.
+            intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing
+            until then.
           </p>
         </div>
       </div>
@@ -305,7 +359,9 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                 />
                 Previous post
               </div>
-              <div className="text-item-title font-medium leading-snug text-text">{previous.title}</div>
+              <div className="text-item-title font-medium leading-snug text-text">
+                {previous.title}
+              </div>
             </Link>
           ) : (
             <span />
@@ -333,7 +389,9 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center">
-        <h2 className="mb-2 text-feature-title font-medium text-text">Run your free Stripe audit</h2>
+        <h2 className="mb-2 text-feature-title font-medium text-text">
+          Run your free Stripe audit
+        </h2>
         <p className="mx-auto mb-6 max-w-[480px] text-item-title leading-relaxed text-text-secondary">
           See exactly what your account is leaking. Free, no account required.
         </p>

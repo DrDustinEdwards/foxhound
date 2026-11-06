@@ -80,9 +80,7 @@ function activeMemberships(db: Db) {
   return db
     .select({ id: accountMembers.id, accountId: accountMembers.accountId })
     .from(accountMembers)
-    .where(
-      and(eq(accountMembers.userId, USER), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)),
-    );
+    .where(and(eq(accountMembers.userId, USER), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)));
 }
 
 // createAccountForUser now commits through the money-write Durable Object,
@@ -292,7 +290,10 @@ describe("MEDIUM #4: concurrent invite acceptance cannot land two active members
               injected = true;
               runStatement(
                 sqlite,
-                db.update(accountMembers).set({ inviteToken: "tok_A_new" }).where(eq(accountMembers.id, "mem_A")),
+                db
+                  .update(accountMembers)
+                  .set({ inviteToken: "tok_A_new" })
+                  .where(eq(accountMembers.id, "mem_A")),
               );
             }
             return (db.update as (...a: unknown[]) => unknown)(...args);
@@ -405,7 +406,11 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
           })();
         },
       });
-      const statements = write.build(db).map((item) => (item as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL());
+      const statements = write
+        .build(db)
+        .map((item) =>
+          (item as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL(),
+        );
       return committer.commit({ idempotencyKey: write.idempotencyKey, statements });
     });
 

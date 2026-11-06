@@ -139,10 +139,7 @@ async function priorTotals(
       .select({ totals: auditDigestRuns.totals })
       .from(auditDigestRuns)
       .where(
-        and(
-          eq(auditDigestRuns.accountId, accountId),
-          lt(auditDigestRuns.periodMonth, periodMonth),
-        ),
+        and(eq(auditDigestRuns.accountId, accountId), lt(auditDigestRuns.periodMonth, periodMonth)),
       )
       .orderBy(desc(auditDigestRuns.periodMonth))
       .limit(1)
@@ -293,10 +290,7 @@ export async function enqueueMonthlyAudits(
  *  delivery: a merchant who switched the audit off, paused processing or
  *  canceled after the cron queued them is not audited, and the demo firewall
  *  (`accountProcessingEligibleCondition`) sits on this path too. */
-async function eligibleAccount(
-  db: Db,
-  accountId: string,
-): Promise<MonthlyAuditAccountRow | null> {
+async function eligibleAccount(db: Db, accountId: string): Promise<MonthlyAuditAccountRow | null> {
   const [row] = await db
     .select({
       id: accounts.id,
@@ -476,7 +470,10 @@ export async function auditAccountForMonth(
     if (mailed) {
       // The merchant has the email. The claim row may still read "pending",
       // which every later delivery treats as taken, so nothing is sent twice.
-      console.error(`monthly audit: account ${accountId} (${periodMonth}) mailed, then failed:`, err);
+      console.error(
+        `monthly audit: account ${accountId} (${periodMonth}) mailed, then failed:`,
+        err,
+      );
       return { status: "sent", ran };
     }
     const error = err instanceof Error ? err.message : "monthly audit failed";

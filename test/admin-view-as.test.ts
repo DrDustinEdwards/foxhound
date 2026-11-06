@@ -4,7 +4,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { accountMembers, accounts, adminAuditLog, adminImpersonations, user, type Db } from "~/db";
 import { adminContext } from "~/lib/admin/context";
-import { IMPERSONATION_COOKIE, IMPERSONATION_READ_ONLY_MESSAGE } from "~/lib/admin/impersonation.server";
+import {
+  IMPERSONATION_COOKIE,
+  IMPERSONATION_READ_ONLY_MESSAGE,
+} from "~/lib/admin/impersonation.server";
 import { authContext } from "~/lib/auth/context";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -86,7 +89,9 @@ beforeAll(async () => {
   harness.db = db;
   await db.insert(accounts).values({ id: ACCOUNT, name: "North Supply" });
   await db.insert(user).values({ id: "u_owner", name: "Nora North", email: "nora@north.test" });
-  await db.insert(accountMembers).values({ accountId: ACCOUNT, userId: "u_owner", role: "owner", status: "active" });
+  await db
+    .insert(accountMembers)
+    .values({ accountId: ACCOUNT, userId: "u_owner", role: "owner", status: "active" });
 });
 
 afterAll(() => {
@@ -144,15 +149,26 @@ describe("View as merchant", () => {
     expect(((await caught(late.run)) as Response).headers.get("Location")).toBe("/login");
     expect(late.next).not.toHaveBeenCalled();
 
-    const rows = await db.select().from(adminImpersonations).orderBy(asc(adminImpersonations.startedAt));
+    const rows = await db
+      .select()
+      .from(adminImpersonations)
+      .orderBy(asc(adminImpersonations.startedAt));
     expect(rows.map((r) => r.endReason)).toEqual(["stopped", "expired"]);
     const audit = await db.select().from(adminAuditLog).orderBy(asc(adminAuditLog.createdAt));
-    expect(audit.map((a) => [a.actorEmail, a.action, (a.metadata as { reason?: string }).reason ?? null])).toEqual([
+    expect(
+      audit.map((a) => [
+        a.actorEmail,
+        a.action,
+        (a.metadata as { reason?: string }).reason ?? null,
+      ]),
+    ).toEqual([
       [ADMIN, "impersonation_start", null],
       [ADMIN, "impersonation_stop", "stopped"],
       [ADMIN, "impersonation_start", null],
       [ADMIN, "impersonation_stop", "expired"],
     ]);
-    expect(audit.every((a) => (a.metadata as { accountId: string }).accountId === ACCOUNT)).toBe(true);
+    expect(audit.every((a) => (a.metadata as { accountId: string }).accountId === ACCOUNT)).toBe(
+      true,
+    );
   });
 });

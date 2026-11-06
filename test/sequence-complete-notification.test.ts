@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,7 +34,13 @@ const env = {
   BETTER_AUTH_URL: "https://foxhoundapp.test",
   PHYSICAL_ADDRESS: "1 Test Way, Austin TX",
   EMAIL: {
-    send: async (m: { from: string; to: string; subject: string; html: string; headers?: unknown }) => {
+    send: async (m: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      headers?: unknown;
+    }) => {
       harness.sent.push(m);
       return { id: "msg_1" };
     },
@@ -88,7 +93,6 @@ function seedPayment(opts: {
     );
 }
 
-
 function sendRows() {
   return sqlite
     .prepare("SELECT status, template, error FROM email_sends WHERE account_id = ?")
@@ -123,7 +127,9 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
     seedAccount({ enabled: null });
     seedPayment({});
     sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at, notification_email) VALUES ('acct_other', 'O', 1000, 'them@o.test')")
+      .prepare(
+        "INSERT INTO accounts (id, name, created_at, notification_email) VALUES ('acct_other', 'O', 1000, 'them@o.test')",
+      )
       .run();
     const result = await sendSequenceCompleteNotification(env, {
       accountId: "acct_other",
@@ -134,9 +140,12 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
 });
 
 describe("PLANT 3: the demo refusal and a send failure", () => {
-
   it("a database failure is caught and named, never thrown at the tick", async () => {
-    harness.db = { select() { throw new Error("d1 exploded"); } };
+    harness.db = {
+      select() {
+        throw new Error("d1 exploded");
+      },
+    };
     const result = await sendSequenceCompleteNotification(env, {
       accountId: ACCOUNT,
       failedPaymentId: FP,

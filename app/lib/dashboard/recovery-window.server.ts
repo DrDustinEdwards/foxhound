@@ -1,8 +1,25 @@
 import type { Db } from "~/db";
 import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory, HOUR_MS } from "~/lib/constants";
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
-import { listExpiringCardAlerts, listActiveFailedPayments, type FailedPaymentRow } from "~/lib/recovery/queries.server";
-import { countActiveWinbacks, countFailuresByCustomer, getConnectionSummary, getMostRecentRecoveryAt, listExecutedEmailSteps, listFailuresWithOutcome, listRecentFailedPayments, listRecoveredWithFailureContext, listReactivatedWinbacks, listUpcomingSteps, type ConnectionSummary, type UpcomingStepRow } from "~/lib/recovery/dashboard-queries.server";
+import {
+  listExpiringCardAlerts,
+  listActiveFailedPayments,
+  type FailedPaymentRow,
+} from "~/lib/recovery/queries.server";
+import {
+  countActiveWinbacks,
+  countFailuresByCustomer,
+  getConnectionSummary,
+  getMostRecentRecoveryAt,
+  listExecutedEmailSteps,
+  listFailuresWithOutcome,
+  listRecentFailedPayments,
+  listRecoveredWithFailureContext,
+  listReactivatedWinbacks,
+  listUpcomingSteps,
+  type ConnectionSummary,
+  type UpcomingStepRow,
+} from "~/lib/recovery/dashboard-queries.server";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   bestCategory,
@@ -71,7 +88,12 @@ export interface RecoveryDashboardWindow {
 
   // Email engagement: UNSCOPED by range (verified against legacy's actual
   // source, which carries no date filter on this query at all).
-  emailCategoryPerformance: { category: DeclineCategory; openRatePct: number; clickRatePct: number; emailCount: number }[];
+  emailCategoryPerformance: {
+    category: DeclineCategory;
+    openRatePct: number;
+    clickRatePct: number;
+    emailCount: number;
+  }[];
   totalEmailsSent: number;
   openRatePct: number;
   clickRatePct: number;
@@ -127,11 +149,9 @@ export async function getRecoveryDashboardWindow(
     listRecentFailedPayments(db, accountId, cutoffMs),
   ]);
 
-  const previousFailureCounts = await countFailuresByCustomer(
-    db,
-    accountId,
-    [...new Set(recentPayments.map((p) => p.stripeCustomerId))],
-  );
+  const previousFailureCounts = await countFailuresByCustomer(db, accountId, [
+    ...new Set(recentPayments.map((p) => p.stripeCustomerId)),
+  ]);
 
   // ---- Category breakdown / stats: ONE cohort (failures detected in this
   // window, per listFailuresWithOutcome), never legacy's mismatch of a
@@ -164,7 +184,9 @@ export async function getRecoveryDashboardWindow(
     .map((r) => (r.recoveredAt.getTime() - r.detectedAt.getTime()) / DAY_MS)
     .filter((d) => d >= 0);
   const avgDaysToRecovery =
-    recoveryDays.length > 0 ? Math.round((recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length) * 10) / 10 : null;
+    recoveryDays.length > 0
+      ? Math.round((recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length) * 10) / 10
+      : null;
 
   // ---- Daily recovery-rate trend: this chart sits beside recoveryRatePct, so
   // it must share that stat's cohort. Legacy built recoveredByDay from its
@@ -182,14 +204,21 @@ export async function getRecoveryDashboardWindow(
       .filter((r): r is typeof r & { recoveredAt: Date } => r.recoveredAt !== null)
       .map((r) => r.recoveredAt),
   );
-  const recoveryRateDaily = cumulativeRecoveryRateDaily(failedByDay, recoveredByDay, rangeDays, nowMs);
+  const recoveryRateDaily = cumulativeRecoveryRateDaily(
+    failedByDay,
+    recoveredByDay,
+    rangeDays,
+    nowMs,
+  );
 
   // ---- Category sparkline: ALWAYS trailing 30 days, independent of `range` ----
   const sparklineByCatByDay = countByDayAndCategory(sparklineFailures);
   const categorySparkline = categorySparklineWindow(sparklineByCatByDay, nowMs);
 
   // ---- Email engagement (unscoped by range) ----
-  const emailBuckets: Partial<Record<DeclineCategory, { sent: number; opened: number; clicked: number }>> = {};
+  const emailBuckets: Partial<
+    Record<DeclineCategory, { sent: number; opened: number; clicked: number }>
+  > = {};
   for (const step of emailSteps) {
     const bucket = emailBuckets[step.declineCategory] ?? { sent: 0, opened: 0, clicked: 0 };
     bucket.sent++;
@@ -197,32 +226,44 @@ export async function getRecoveryDashboardWindow(
     if (step.clickedAt) bucket.clicked++;
     emailBuckets[step.declineCategory] = bucket;
   }
-  const emailCategoryPerformance = DECLINE_CATEGORIES.filter((c) => emailBuckets[c]).map((category) => {
-    const b = emailBuckets[category]!;
-    return {
-      category,
-      openRatePct: Math.round((b.opened / b.sent) * 100),
-      clickRatePct: Math.round((b.clicked / b.sent) * 100),
-      emailCount: b.sent,
-    };
-  });
+  const emailCategoryPerformance = DECLINE_CATEGORIES.filter((c) => emailBuckets[c]).map(
+    (category) => {
+      const b = emailBuckets[category]!;
+      return {
+        category,
+        openRatePct: Math.round((b.opened / b.sent) * 100),
+        clickRatePct: Math.round((b.clicked / b.sent) * 100),
+        emailCount: b.sent,
+      };
+    },
+  );
   const totalEmailsSent = emailSteps.length;
   const totalOpened = emailSteps.filter((s) => s.openedAt).length;
   const totalClicked = emailSteps.filter((s) => s.clickedAt).length;
   const openRatePct = totalEmailsSent > 0 ? Math.round((totalOpened / totalEmailsSent) * 100) : 0;
   const clickRatePct = totalEmailsSent > 0 ? Math.round((totalClicked / totalEmailsSent) * 100) : 0;
   const stepsInRange =
-    cutoffMs === null ? emailSteps : emailSteps.filter((s) => s.executedAt !== null && s.executedAt.getTime() >= cutoffMs);
+    cutoffMs === null
+      ? emailSteps
+      : emailSteps.filter((s) => s.executedAt !== null && s.executedAt.getTime() >= cutoffMs);
   const sentInRange = stepsInRange.length;
   const emailsSentInRange = {
     sent: sentInRange,
-    openRatePct: sentInRange > 0 ? Math.round((stepsInRange.filter((s) => s.openedAt).length / sentInRange) * 100) : 0,
-    clickRatePct: sentInRange > 0 ? Math.round((stepsInRange.filter((s) => s.clickedAt).length / sentInRange) * 100) : 0,
+    openRatePct:
+      sentInRange > 0
+        ? Math.round((stepsInRange.filter((s) => s.openedAt).length / sentInRange) * 100)
+        : 0,
+    clickRatePct:
+      sentInRange > 0
+        ? Math.round((stepsInRange.filter((s) => s.clickedAt).length / sentInRange) * 100)
+        : 0,
   };
 
   // ---- Current-state facts (range-invariant) ----
   const activePaymentsCount = activePayments.length;
-  const atRiskRevenue = groupSumByCurrency(activePayments.map((r) => ({ currency: r.currency, cents: r.amountCents })));
+  const atRiskRevenue = groupSumByCurrency(
+    activePayments.map((r) => ({ currency: r.currency, cents: r.amountCents })),
+  );
   const expiringCardsCount = expiringCards.filter((c) =>
     isCardExpiringSoon(c.expiresYear, c.expiresMonth, new Date(nowMs)),
   ).length;
@@ -235,8 +276,12 @@ export async function getRecoveryDashboardWindow(
     totalFailedCount: failuresWithOutcome.length,
     recoveredCount: recoveredInCohortCount,
     recoveryRatePct:
-      failuresWithOutcome.length > 0 ? Math.round((recoveredInCohortCount / failuresWithOutcome.length) * 100) : null,
-    recoveredRevenue: groupSumByCurrency(recovered.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
+      failuresWithOutcome.length > 0
+        ? Math.round((recoveredInCohortCount / failuresWithOutcome.length) * 100)
+        : null,
+    recoveredRevenue: groupSumByCurrency(
+      recovered.map((r) => ({ currency: r.currency, cents: r.amountCents })),
+    ),
     recoveryDaysCount: recoveryDays.length,
     avgDaysToRecovery,
     recoveryTimingBuckets: recoveryTimingBuckets(recoveryDays),
@@ -261,7 +306,10 @@ export async function getRecoveryDashboardWindow(
     reactivatedCount: reactivated.length,
     reactivatedRevenue: groupSumByCurrency(
       reactivated
-        .filter((r): r is { amountCents: number; currency: string } => r.amountCents != null && r.currency != null)
+        .filter(
+          (r): r is { amountCents: number; currency: string } =>
+            r.amountCents != null && r.currency != null,
+        )
         .map((r) => ({ cents: r.amountCents, currency: r.currency })),
     ),
     recentPayments,

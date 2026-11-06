@@ -20,8 +20,7 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-const withCookie = (cookie: string) =>
-  new Request("https://x/dashboard", { headers: { cookie } });
+const withCookie = (cookie: string) => new Request("https://x/dashboard", { headers: { cookie } });
 
 describe("demo cookie", () => {
   it("detects the demo cookie, and only the demo cookie", () => {
@@ -45,8 +44,12 @@ describe("demo cookie", () => {
 // account; it falls back to Teamflow.
 describe("active demo business", () => {
   it("honors a demo business id and nothing else", () => {
-    expect(activeDemoBusiness(withCookie(`${DEMO_ACTIVE_ACCOUNT_COOKIE}=${BOLT_DEMO.accountId}`))).toBe(BOLT_DEMO);
-    expect(activeDemoBusiness(withCookie(`${DEMO_ACTIVE_ACCOUNT_COOKIE}=acct_real_merchant`))).toBe(TEAMFLOW_DEMO);
+    expect(
+      activeDemoBusiness(withCookie(`${DEMO_ACTIVE_ACCOUNT_COOKIE}=${BOLT_DEMO.accountId}`)),
+    ).toBe(BOLT_DEMO);
+    expect(activeDemoBusiness(withCookie(`${DEMO_ACTIVE_ACCOUNT_COOKIE}=acct_real_merchant`))).toBe(
+      TEAMFLOW_DEMO,
+    );
     expect(activeDemoBusiness(new Request("https://x/dashboard"))).toBe(TEAMFLOW_DEMO);
   });
 });
@@ -78,7 +81,6 @@ describe("demo read-only gate", () => {
 // demoBlocksMethod above: no Request/session mocking needed), covering
 // exactly the cases the task calls out by name.
 describe("isAdminPath", () => {
-
   it("does not match non-admin paths, including a prefix lookalike", () => {
     expect(isAdminPath("/dashboard")).toBe(false);
     expect(isAdminPath("/administrator")).toBe(false);
@@ -87,7 +89,6 @@ describe("isAdminPath", () => {
 });
 
 describe("resolvesToDemo (demo-over-session precedence)", () => {
-
   it("cookie + real session on /admin resolves real, not demo", () => {
     expect(resolvesToDemo(true, true, "/admin")).toBe(false);
     expect(resolvesToDemo(true, true, "/admin/merchants")).toBe(false);

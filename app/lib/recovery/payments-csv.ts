@@ -78,7 +78,8 @@ function csvRow(cells: Cell[]): string {
 }
 
 const text = (value: string): Cell => ({ text: value });
-const produced = (value: string, pattern: RegExp): Cell => (value === "" ? { text: "" } : { produced: value, pattern });
+const produced = (value: string, pattern: RegExp): Cell =>
+  value === "" ? { text: "" } : { produced: value, pattern };
 
 /** Build the full CSV text (header + one row per payment) for a set of
  *  already-filtered failed payments. A payment missing from `stepCounts` has

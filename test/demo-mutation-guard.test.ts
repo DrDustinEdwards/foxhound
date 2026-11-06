@@ -96,9 +96,10 @@ describe("every action route in the app shell is guarded by appShellMiddleware",
     const guardedFiles = new Set(collectFiles(appShellNode!.children ?? []));
 
     for (const file of actionFiles) {
-      expect(guardedFiles.has(file), `${file} exports an action but is not nested under app-shell.tsx`).toBe(
-        true,
-      );
+      expect(
+        guardedFiles.has(file),
+        `${file} exports an action but is not nested under app-shell.tsx`,
+      ).toBe(true);
     }
   });
 });
@@ -143,7 +144,10 @@ describe("appShellMiddleware still refuses a mutating request in demo mode", () 
     const { action: switchAction } = await import("~/routes/api/account-switch");
     const context = new RouterContextProvider();
     context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
-    for (const [path, action] of [["/api/theme", themeAction], ["/api/account/switch", switchAction]] as const) {
+    for (const [path, action] of [
+      ["/api/theme", themeAction],
+      ["/api/account/switch", switchAction],
+    ] as const) {
       const request = new Request(`http://localhost${path}`, {
         method: "POST",
         headers: { cookie: `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}` },

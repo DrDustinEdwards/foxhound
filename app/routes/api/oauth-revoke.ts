@@ -17,7 +17,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
   const { env } = context.get(cloudflareContext);
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  if (!(await isWithinRateLimit(env, "oauth-revoke", ip, RATE_LIMIT_OAUTH_REVOKE.max, RATE_LIMIT_OAUTH_REVOKE.windowMs))) {
+  if (
+    !(await isWithinRateLimit(
+      env,
+      "oauth-revoke",
+      ip,
+      RATE_LIMIT_OAUTH_REVOKE.max,
+      RATE_LIMIT_OAUTH_REVOKE.windowMs,
+    ))
+  ) {
     return new Response(null, { status: 429 });
   }
   const params = await parseOAuthBody(request);

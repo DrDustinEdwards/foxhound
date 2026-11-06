@@ -35,14 +35,15 @@ vi.mock("~/db", async (importOriginal) => ({
 
 // Cancel account's Stripe revoke and session move, neither of which this file
 // is about: the revoke always succeeds and there is no session to move.
-vi.mock("~/lib/stripe/connect", () => ({ deauthorizeConnectedAccount: async () => ({ ok: true }) }));
+vi.mock("~/lib/stripe/connect", () => ({
+  deauthorizeConnectedAccount: async () => ({ ok: true }),
+}));
 vi.mock("~/lib/auth/session", () => ({ getSession: async () => null }));
 
 const route = await import("~/routes/app/settings/account");
 const { MRR_ERROR } = await import("~/lib/settings/apply.server");
 /** Loaded per test, so a missing module fails these tests and not the file. */
 const loadChooseTheme = async () => (await import("~/lib/settings/theme-choice")).chooseTheme;
-
 
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
@@ -85,14 +86,7 @@ function render(opts: RenderOpts = {}): string {
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/settings/account"] }));
 }
 
-
-
-
-
-
-
 describe("J32 account: the profile form", () => {
-
   it("keeps an industry stored outside Recova's list, so a save does not erase it", () => {
     // The merchant's agent tool takes free text through the same apply layer.
     const html = render({ industry: "Veterinary" });
@@ -109,7 +103,8 @@ describe("J32 account: the profile form", () => {
 function ctx(role: "owner" | "member" = "owner") {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
       if (key === authContext) {
         return {
           userId: "user_1",
@@ -125,12 +120,18 @@ function ctx(role: "owner" | "member" = "owner") {
 
 type Result = { data: Record<string, unknown>; init?: { status?: number } };
 
-async function post(fields: Record<string, string>, role: "owner" | "member" = "owner"): Promise<Result> {
+async function post(
+  fields: Record<string, string>,
+  role: "owner" | "member" = "owner",
+): Promise<Result> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   return (await route.action({
     context: ctx(role),
-    request: new Request("https://foxhoundapp.test/settings/account", { method: "POST", body: form }),
+    request: new Request("https://foxhoundapp.test/settings/account", {
+      method: "POST",
+      body: form,
+    }),
     params: {},
   } as never)) as unknown as Result;
 }
@@ -157,7 +158,12 @@ describe("J32 account: one save writes the name and the three context fields", (
       .prepare(
         "SELECT name, merchant_industry AS industry, primary_customer_type AS type, merchant_mrr_self_reported AS mrr FROM accounts WHERE id = ?",
       )
-      .get(id) as { name: string; industry: string | null; type: string | null; mrr: number | null };
+      .get(id) as {
+      name: string;
+      industry: string | null;
+      type: string | null;
+      mrr: number | null;
+    };
 
   it("writes all four from one post, MRR in cents, and touches no other account", async () => {
     const res = await post({
@@ -181,12 +187,22 @@ describe("J32 account: one save writes the name and the three context fields", (
       merchantMrrSelfReported: "-5",
     });
     expect(res.init?.status).toBe(400);
-    expect(res.data).toEqual({ action: "profile", ok: false, error: MRR_ERROR, field: "merchantMrrSelfReported" });
+    expect(res.data).toEqual({
+      action: "profile",
+      ok: false,
+      error: MRR_ERROR,
+      field: "merchantMrrSelfReported",
+    });
     expect(row()).toEqual({ name: "Old Name", industry: "Finance", type: "B2C", mrr: 100 });
   });
 
   it("refuses an empty name beside the field and writes nothing at all", async () => {
-    const res = await post({ _action: "profile", name: "  ", merchantIndustry: "SaaS", merchantMrrSelfReported: "1" });
+    const res = await post({
+      _action: "profile",
+      name: "  ",
+      merchantIndustry: "SaaS",
+      merchantMrrSelfReported: "1",
+    });
     expect(res.init?.status).toBe(400);
     expect(res.data).toMatchObject({ action: "profile", ok: false, field: "name" });
     expect(row()).toEqual({ name: "Old Name", industry: "Finance", type: "B2C", mrr: 100 });
@@ -240,9 +256,15 @@ describe("J32 review: only the owner can cancel the account", () => {
   });
 
   const state = () => ({
-    cancelledAt: (sqlite.prepare("SELECT cancelled_at AS c FROM accounts WHERE id = 'acct_1'").get() as { c: unknown }).c,
+    cancelledAt: (
+      sqlite.prepare("SELECT cancelled_at AS c FROM accounts WHERE id = 'acct_1'").get() as {
+        c: unknown;
+      }
+    ).c,
     disconnectedAt: (
-      sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = 'conn_1'").get() as { d: unknown }
+      sqlite
+        .prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = 'conn_1'")
+        .get() as { d: unknown }
     ).d,
   });
 
@@ -278,8 +300,16 @@ describe("J32 review: the theme choice in the demo", () => {
     const chooseTheme = await loadChooseTheme();
     const ok = vi.fn(async () => new Response("{}", { status: 200 }));
     expect(await chooseTheme("light", { isDemo: false, fetcher: ok })).toBe("saved");
-    expect(ok).toHaveBeenCalledWith("/api/theme", expect.objectContaining({ method: "POST", body: JSON.stringify({ theme: "light" }) }));
-    expect(await chooseTheme("dark", { isDemo: false, fetcher: async () => new Response("", { status: 500 }) })).toBe("failed");
+    expect(ok).toHaveBeenCalledWith(
+      "/api/theme",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ theme: "light" }) }),
+    );
+    expect(
+      await chooseTheme("dark", {
+        isDemo: false,
+        fetcher: async () => new Response("", { status: 500 }),
+      }),
+    ).toBe("failed");
     expect(
       await chooseTheme("dark", {
         isDemo: false,

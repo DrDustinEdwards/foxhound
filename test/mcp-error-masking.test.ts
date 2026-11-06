@@ -53,7 +53,12 @@ function throwing(name: string, error: () => Error): McpTool {
     title: "t",
     description: "d",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     scope: "read",
     execute: async () => {
       throw error();
@@ -62,8 +67,14 @@ function throwing(name: string, error: () => Error): McpTool {
 }
 
 const REGISTRY = defineToolRegistry([
-  throwing("foxhound_get_crash", () => new Error(`SQLITE_CONSTRAINT: customer_name='${NAME}' email='${EMAIL}'`)),
-  throwing("foxhound_get_refusal", () => new ToolInputError(`No customer ${EMAIL} on this account.`)),
+  throwing(
+    "foxhound_get_crash",
+    () => new Error(`SQLITE_CONSTRAINT: customer_name='${NAME}' email='${EMAIL}'`),
+  ),
+  throwing(
+    "foxhound_get_refusal",
+    () => new ToolInputError(`No customer ${EMAIL} on this account.`),
+  ),
 ]);
 
 async function seed() {

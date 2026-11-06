@@ -28,9 +28,13 @@ vi.mock("workers-og", () => ({
 
 const { loader } = await import("~/routes/files/og");
 
-async function render(path: string, params: Record<string, string> = {}): Promise<{ response: Response; html: string }> {
+async function render(
+  path: string,
+  params: Record<string, string> = {},
+): Promise<{ response: Response; html: string }> {
   const context = {
-    get: (key: unknown) => (key === cloudflareContext ? { env: { SITE_URL: "https://example.com" } } : undefined),
+    get: (key: unknown) =>
+      key === cloudflareContext ? { env: { SITE_URL: "https://example.com" } } : undefined,
   };
   const response = (await loader({
     params,
@@ -42,8 +46,6 @@ async function render(path: string, params: Record<string, string> = {}): Promis
   return { response, html };
 }
 
-
-
 describe("Recova's /og URL shape (ruling 41)", () => {
   it("/og with no query draws the default card", async () => {
     const { response, html } = await render("/og");
@@ -53,7 +55,9 @@ describe("Recova's /og URL shape (ruling 41)", () => {
   });
 
   it("/og?type=blog draws the blog card with Recova's title and description parameters", async () => {
-    const { html } = await render("/og?type=blog&title=Why%20cards%20fail&description=Soft%20declines%20explained");
+    const { html } = await render(
+      "/og?type=blog&title=Why%20cards%20fail&description=Soft%20declines%20explained",
+    );
     expect(html).toContain("Foxhound Blog");
     expect(html).toContain(">Why cards fail</div>");
     expect(html).toContain(">Soft declines explained</div>");

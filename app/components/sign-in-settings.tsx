@@ -2,8 +2,15 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { useEffect, useId, useState } from "react";
 import { useFetcher, useRevalidator } from "react-router";
-import { needsSecondPasskey, type AccountPasskey, type SecurityHistoryEntry } from "@dustinedwards/site-runtime/sign-in";
-import { signalPasskeys, signalUnknownCredential } from "@dustinedwards/site-runtime/sign-in-client";
+import {
+  needsSecondPasskey,
+  type AccountPasskey,
+  type SecurityHistoryEntry,
+} from "@dustinedwards/site-runtime/sign-in";
+import {
+  signalPasskeys,
+  signalUnknownCredential,
+} from "@dustinedwards/site-runtime/sign-in-client";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
 import { formatDateShort } from "~/lib/date-format";
@@ -80,7 +87,13 @@ function historyLabel({ kind, via }: Pick<SecurityHistoryEntry, "kind" | "via">)
  * Below them, the devices signed in, each of which can be signed out, and the
  * latest sign-ins and sign-in changes.
  */
-export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSettings; isDemo: boolean }) {
+export function SignInMethodsPanel({
+  initial,
+  isDemo,
+}: {
+  initial: SignInSettings;
+  isDemo: boolean;
+}) {
   const revalidator = useRevalidator();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,10 +111,17 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
   const credentialIds = initial.passkeys.map((p) => p.credentialId).join(" ");
   useEffect(() => {
     if (!initial.signalAs) return;
-    void signalPasskeys({ credentialIds: credentialIds.split(" ").filter(Boolean), name: initial.signalAs });
+    void signalPasskeys({
+      credentialIds: credentialIds.split(" ").filter(Boolean),
+      name: initial.signalAs,
+    });
   }, [credentialIds, initial.signalAs]);
 
-  async function run(key: string, change: () => Promise<{ error?: unknown } | null | undefined>, failed: string) {
+  async function run(
+    key: string,
+    change: () => Promise<{ error?: unknown } | null | undefined>,
+    failed: string,
+  ) {
     // One change at a time; Capsomer's buttons are never disabled, so a
     // press while another runs does nothing.
     if (busy !== null) return;
@@ -133,8 +153,8 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
       <div className="cap-panel-body">
         <h2 className="mb-2 text-label font-semibold text-text">Sign-in</h2>
         <p className="mb-4 text-label text-text-tertiary">
-          A passkey signs you in with your face, fingerprint or device PIN. It only works on Foxhound, so it
-          cannot be phished. You can always sign in with an email link too.
+          A passkey signs you in with your face, fingerprint or device PIN. It only works on
+          Foxhound, so it cannot be phished. You can always sign in with an email link too.
         </p>
 
         {initial.passkeys.length > 0 ? (
@@ -160,7 +180,10 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                       // it stops offering it (where the browser can). The
                       // relying party is this host, BETTER_AUTH_URL's.
                       if (!res?.error && p.credentialId) {
-                        await signalUnknownCredential({ rpId: location.hostname, credentialId: p.credentialId });
+                        await signalUnknownCredential({
+                          rpId: location.hostname,
+                          credentialId: p.credentialId,
+                        });
                       }
                       return res;
                     },
@@ -175,15 +198,17 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
           <div className="mb-4">
             {/* A9: one passkey is one device; losing it leaves only the email link. */}
             <Alert tone="info" title="Add a second passkey">
-              Your only passkey is on one device. Add one on another device too, such as your phone or a
-              security key, so losing this one never leaves you waiting on an email.
+              Your only passkey is on one device. Add one on another device too, such as your phone
+              or a security key, so losing this one never leaves you waiting on an email.
             </Alert>
           </div>
         ) : null}
         <Button
           variant="primary"
           pending={busy === "add"}
-          onClick={() => void run("add", () => authClient.passkey.addPasskey(), "The passkey was not saved.")}
+          onClick={() =>
+            void run("add", () => authClient.passkey.addPasskey(), "The passkey was not saved.")
+          }
         >
           {busy === "add"
             ? "Waiting for your device..."
@@ -220,7 +245,11 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                     onClick={() =>
                       void run(
                         provider.id,
-                        () => authClient.linkSocial({ provider: provider.id, callbackURL: "/settings/account" }),
+                        () =>
+                          authClient.linkSocial({
+                            provider: provider.id,
+                            callbackURL: "/settings/account",
+                          }),
                         `${provider.label} was not connected.`,
                       )
                     }
@@ -236,7 +265,9 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
         {initial.devices === "stale" ? (
           <div className="mt-5 border-t border-border pt-5">
             <h3 className="mb-2 text-label font-semibold text-text">Signed-in devices</h3>
-            <p className="mb-3 text-label text-text-tertiary">Sign in again to see where you are signed in.</p>
+            <p className="mb-3 text-label text-text-tertiary">
+              Sign in again to see where you are signed in.
+            </p>
             <Button size="sm" onClick={signInAgain}>
               Sign in again
             </Button>
@@ -252,14 +283,19 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
                     {d.current ? " (this device)" : null}
                     <span className="block text-text-tertiary">
                       Signed in {formatDateShort(d.signedInAt)}
-                      {d.location ? ` near ${d.location}` : null}, last active {formatDateShort(d.lastActiveAt)}
+                      {d.location ? ` near ${d.location}` : null}, last active{" "}
+                      {formatDateShort(d.lastActiveAt)}
                     </span>
                   </span>
                   {d.current ? null : (
                     <signOut.Form method="post">
                       <input type="hidden" name="_action" value="sign-out-device" />
                       <input type="hidden" name="session" value={d.id} />
-                      <Button type="submit" size="sm" pending={signOut.formData?.get("session") === d.id}>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        pending={signOut.formData?.get("session") === d.id}
+                      >
                         Sign out<span className="sr-only"> {d.device ?? "Unknown device"}</span>
                       </Button>
                     </signOut.Form>
@@ -271,7 +307,11 @@ export function SignInMethodsPanel({ initial, isDemo }: { initial: SignInSetting
               <Button
                 pending={busy === "others"}
                 onClick={() =>
-                  void run("others", () => authClient.revokeOtherSessions(), "The other devices were not signed out.")
+                  void run(
+                    "others",
+                    () => authClient.revokeOtherSessions(),
+                    "The other devices were not signed out.",
+                  )
                 }
               >
                 Sign out all other devices
@@ -333,7 +373,9 @@ function PasskeyItem({
   const facts = [
     passkey.provider !== passkey.name ? passkey.provider : null,
     passkey.createdAt ? `added ${formatDateShort(passkey.createdAt)}` : null,
-    passkey.lastUsedAt ? `last used ${formatDateShort(passkey.lastUsedAt)}` : "not used to sign in yet",
+    passkey.lastUsedAt
+      ? `last used ${formatDateShort(passkey.lastUsedAt)}`
+      : "not used to sign in yet",
   ].filter(Boolean);
 
   if (renaming) {
@@ -388,7 +430,11 @@ function PasskeyItem({
         <span className="block text-text-tertiary">{facts.join(", ")}</span>
       </span>
       <span className="flex gap-2">
-        <Button size="sm" pending={busy === `rename-${passkey.id}`} onClick={() => setRenaming(true)}>
+        <Button
+          size="sm"
+          pending={busy === `rename-${passkey.id}`}
+          onClick={() => setRenaming(true)}
+        >
           Rename<span className="sr-only"> {passkey.name}</span>
         </Button>
         <Button size="sm" pending={busy === passkey.id} onClick={onRemove}>

@@ -3,7 +3,20 @@
 // surface) and excludes demo accounts (DEMO_ACCOUNT_ID_PREFIX), matching the
 // accountBillingEligibleCondition demo-exclusion convention in app/db/billable.ts.
 
-import { and, asc, count, desc, eq, gte, inArray, isNull, lt, notInArray, notLike, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  notLike,
+  sql,
+} from "drizzle-orm";
 
 import type { Db } from "~/db";
 import {
@@ -185,7 +198,11 @@ async function cronHealth(db: Db, nowMs: number): Promise<PlatformOverview["cron
       .from(cronRunHistory)
       .where(and(eq(cronRunHistory.status, "failed"), gte(cronRunHistory.finishedAt, since)))
       .orderBy(desc(cronRunHistory.finishedAt)),
-    db.select({ finishedAt: cronRunHistory.finishedAt }).from(cronRunHistory).orderBy(desc(cronRunHistory.finishedAt)).limit(1),
+    db
+      .select({ finishedAt: cronRunHistory.finishedAt })
+      .from(cronRunHistory)
+      .orderBy(desc(cronRunHistory.finishedAt))
+      .limit(1),
     db.select({ n: count() }).from(cronConfig).where(eq(cronConfig.enabled, false)),
   ]);
   return {
@@ -196,7 +213,11 @@ async function cronHealth(db: Db, nowMs: number): Promise<PlatformOverview["cron
   };
 }
 
-const RESUMABLE = and(eq(accounts.processingPaused, true), isNull(accounts.cancelledAt), isNull(accounts.deletedAt));
+const RESUMABLE = and(
+  eq(accounts.processingPaused, true),
+  isNull(accounts.cancelledAt),
+  isNull(accounts.deletedAt),
+);
 
 /** Every paused merchant, uncapped: the group links on to /admin/merchants
  *  with Capsomer's "All N", which counts the rows given, so they must all be
@@ -210,7 +231,10 @@ async function pausedMerchants(db: Db): Promise<PausedMerchant[]> {
 }
 
 async function countBillingExempt(db: Db): Promise<number> {
-  const rows = await db.select({ n: count() }).from(accounts).where(and(eq(accounts.billingExempt, true), NOT_DEMO));
+  const rows = await db
+    .select({ n: count() })
+    .from(accounts)
+    .where(and(eq(accounts.billingExempt, true), NOT_DEMO));
   return rows[0]?.n ?? 0;
 }
 
@@ -220,7 +244,13 @@ async function countNewConnections(db: Db, nowMs: number): Promise<number> {
     .select({ n: count() })
     .from(stripeConnections)
     .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
-    .where(and(gte(stripeConnections.connectedAt, since), isNull(stripeConnections.disconnectedAt), NOT_DEMO));
+    .where(
+      and(
+        gte(stripeConnections.connectedAt, since),
+        isNull(stripeConnections.disconnectedAt),
+        NOT_DEMO,
+      ),
+    );
   return rows[0]?.n ?? 0;
 }
 
@@ -231,14 +261,23 @@ async function openDisputes(
   nowMs: number,
 ): Promise<{ count: number; staleCount: number; stale: StaleDispute[] }> {
   const staleBefore = new Date(nowMs - STALE_DISPUTE_DAYS * DAY_MS);
-  const STALE = and(OPEN_DISPUTE, isNull(disputes.submittedAt), lt(disputes.createdAt, staleBefore), NOT_DEMO);
+  const STALE = and(
+    OPEN_DISPUTE,
+    isNull(disputes.submittedAt),
+    lt(disputes.createdAt, staleBefore),
+    NOT_DEMO,
+  );
   const [countRows, staleCountRows, stale] = await Promise.all([
     db
       .select({ n: count() })
       .from(disputes)
       .innerJoin(accounts, eq(accounts.id, disputes.accountId))
       .where(and(OPEN_DISPUTE, NOT_DEMO)),
-    db.select({ n: count() }).from(disputes).innerJoin(accounts, eq(accounts.id, disputes.accountId)).where(STALE),
+    db
+      .select({ n: count() })
+      .from(disputes)
+      .innerJoin(accounts, eq(accounts.id, disputes.accountId))
+      .where(STALE),
     db
       .select({
         id: disputes.id,
@@ -275,7 +314,10 @@ const FEE_ATTENTION_STATUSES = ["payment_failed", "gave_up", "uncollectible"] as
  *  its month on the Overview. */
 const FEE_ATTENTION_DAYS = 30;
 
-async function failedFeeInvoices(db: Db, nowMs: number): Promise<{ count: number; rows: FailedFeeInvoice[] }> {
+async function failedFeeInvoices(
+  db: Db,
+  nowMs: number,
+): Promise<{ count: number; rows: FailedFeeInvoice[] }> {
   const failedAt = sql<number>`coalesce(${billingInvoices.lastChargeAttemptAt}, ${billingInvoices.createdAt})`;
   const FAILED = and(
     inArray(billingInvoices.status, [...FEE_ATTENTION_STATUSES]),
@@ -307,11 +349,17 @@ async function failedFeeInvoices(db: Db, nowMs: number): Promise<{ count: number
   ]);
   return {
     count: countRows[0]?.n ?? 0,
-    rows: rows.map(({ failedAtMs, ...row }) => ({ ...row, failedAt: new Date(Number(failedAtMs)) })),
+    rows: rows.map(({ failedAtMs, ...row }) => ({
+      ...row,
+      failedAt: new Date(Number(failedAtMs)),
+    })),
   };
 }
 
-async function recoveredThisMonth(db: Db, nowMs: number): Promise<AdminOverview["recoveredThisMonth"]> {
+async function recoveredThisMonth(
+  db: Db,
+  nowMs: number,
+): Promise<AdminOverview["recoveredThisMonth"]> {
   // Summed and counted per currency in SQL; the per-currency rows still pass
   // through groupSumByCurrency, the one money-total path.
   const rows = await db
@@ -332,34 +380,47 @@ async function recoveredThisMonth(db: Db, nowMs: number): Promise<AdminOverview[
     )
     .groupBy(recoveredPayments.currency);
   return {
-    byCurrency: groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))),
+    byCurrency: groupSumByCurrency(
+      rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) })),
+    ),
     paymentCount: rows.reduce((n, r) => n + r.n, 0),
   };
 }
 
 /** GET /platform's read (the admin API): unchanged in shape, four fields. */
-export async function getPlatformOverview(db: Db, nowMs: number = Date.now()): Promise<PlatformOverview> {
-  const [merchantCount, activeRecoveriesCount, mrrByCurrency, cronHealthSummary] = await Promise.all([
-    countMerchants(db),
-    countActiveRecoveries(db),
-    mrrUnderManagement(db),
-    cronHealth(db, nowMs),
-  ]);
+export async function getPlatformOverview(
+  db: Db,
+  nowMs: number = Date.now(),
+): Promise<PlatformOverview> {
+  const [merchantCount, activeRecoveriesCount, mrrByCurrency, cronHealthSummary] =
+    await Promise.all([
+      countMerchants(db),
+      countActiveRecoveries(db),
+      mrrUnderManagement(db),
+      cronHealth(db, nowMs),
+    ]);
   return { merchantCount, activeRecoveriesCount, mrrByCurrency, cronHealth: cronHealthSummary };
 }
 
 /** The /admin Overview's read, all of it from one clock. */
 export async function getAdminOverview(db: Db, nowMs: number): Promise<AdminOverview> {
-  const [platform, paused, billingExemptCount, newConnectionsCount, disputeSummary, feeInvoices, recovered] =
-    await Promise.all([
-      getPlatformOverview(db, nowMs),
-      pausedMerchants(db),
-      countBillingExempt(db),
-      countNewConnections(db, nowMs),
-      openDisputes(db, nowMs),
-      failedFeeInvoices(db, nowMs),
-      recoveredThisMonth(db, nowMs),
-    ]);
+  const [
+    platform,
+    paused,
+    billingExemptCount,
+    newConnectionsCount,
+    disputeSummary,
+    feeInvoices,
+    recovered,
+  ] = await Promise.all([
+    getPlatformOverview(db, nowMs),
+    pausedMerchants(db),
+    countBillingExempt(db),
+    countNewConnections(db, nowMs),
+    openDisputes(db, nowMs),
+    failedFeeInvoices(db, nowMs),
+    recoveredThisMonth(db, nowMs),
+  ]);
   return {
     ...platform,
     pausedCount: paused.length,

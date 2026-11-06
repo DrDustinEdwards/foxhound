@@ -26,7 +26,11 @@ export const auth = betterAuth({
       deviceId: { type: "string", required: false, input: false, returned: false },
     },
   },
-  plugins: [magicLink({ sendMagicLink: () => {} }), emailOTP({ sendVerificationOTP: async () => {} }), passkey()],
+  plugins: [
+    magicLink({ sendMagicLink: () => {} }),
+    emailOTP({ sendVerificationOTP: async () => {} }),
+    passkey(),
+  ],
   rateLimit: { enabled: true, storage: "database" },
   database: drizzleAdapter({} as never, { provider: "sqlite" }),
 });

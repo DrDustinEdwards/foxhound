@@ -1,4 +1,10 @@
-import type { MediaLibraryStore, MediaRecord, MediaRecordFields, MediaRevisionRecord, MediaRecordWrite } from "@dustinedwards/site-api";
+import type {
+  MediaLibraryStore,
+  MediaRecord,
+  MediaRecordFields,
+  MediaRevisionRecord,
+  MediaRecordWrite,
+} from "@dustinedwards/site-api";
 import { and, asc, desc, eq, gt, inArray, lte, max, notExists, sql } from "drizzle-orm";
 
 import { media, mediaChanges, mediaRevisions, type Db } from "~/db";
@@ -25,7 +31,12 @@ export async function mediaRow(db: Db, key: string): Promise<MediaRow | null> {
 export async function mediaRowsByKey(db: Db, keys: readonly string[]): Promise<MediaRow[]> {
   const rows: MediaRow[] = [];
   for (let i = 0; i < keys.length; i += IN_CHUNK) {
-    rows.push(...(await db.select().from(media).where(inArray(media.key, keys.slice(i, i + IN_CHUNK)))));
+    rows.push(
+      ...(await db
+        .select()
+        .from(media)
+        .where(inArray(media.key, keys.slice(i, i + IN_CHUNK)))),
+    );
   }
   return rows;
 }
@@ -82,9 +93,13 @@ const PLAIN = [
 function fieldsOf(fields: MediaRecordFields): MediaFields {
   const { uploadedAt, trashedAt, sha256 } = fields;
   return {
-    ...Object.fromEntries(PLAIN.filter((name) => fields[name] !== undefined).map((name) => [name, fields[name]])),
+    ...Object.fromEntries(
+      PLAIN.filter((name) => fields[name] !== undefined).map((name) => [name, fields[name]]),
+    ),
     ...(uploadedAt !== undefined ? { uploadedAt: new Date(uploadedAt) } : {}),
-    ...(trashedAt !== undefined ? { trashedAt: trashedAt === null ? null : new Date(trashedAt) } : {}),
+    ...(trashedAt !== undefined
+      ? { trashedAt: trashedAt === null ? null : new Date(trashedAt) }
+      : {}),
     ...(sha256 ? { sha256 } : {}),
   };
 }
@@ -114,15 +129,26 @@ export function mediaStore(db: Db): MediaLibraryStore {
 
     records: async (keys) => (await mediaRowsByKey(db, keys)).map(recordOf),
 
-    all: async () => (await db.select().from(media).orderBy(desc(media.uploadedAt), media.key)).map(recordOf),
+    all: async () =>
+      (await db.select().from(media).orderBy(desc(media.uploadedAt), media.key)).map(recordOf),
 
     async byHash(sha256) {
-      const [current] = await db.select().from(media).where(eq(media.sha256, sha256)).orderBy(asc(media.uploadedAt), asc(media.key)).limit(1);
+      const [current] = await db
+        .select()
+        .from(media)
+        .where(eq(media.sha256, sha256))
+        .orderBy(asc(media.uploadedAt), asc(media.key))
+        .limit(1);
       if (current) return recordOf(current);
       const [sent] = await db
         .select({ key: mediaRevisions.mediaKey })
         .from(mediaRevisions)
-        .where(and(eq(mediaRevisions.sha256, sha256), inArray(mediaRevisions.reason, ["upload", "import"])))
+        .where(
+          and(
+            eq(mediaRevisions.sha256, sha256),
+            inArray(mediaRevisions.reason, ["upload", "import"]),
+          ),
+        )
         .orderBy(asc(mediaRevisions.id))
         .limit(1);
       return sent ? record(sent.key) : null;
@@ -131,7 +157,15 @@ export function mediaStore(db: Db): MediaLibraryStore {
     async insert(input) {
       const { key, filename, contentType, bytes, sha256, ...rest } = input;
       if (!sha256) throw new Error(`${key} has no hash to store`);
-      await db.insert(media).values({ ...fieldsOf(rest), key, filename, contentType, bytes, sha256, uploadedAt: new Date(input.uploadedAt) });
+      await db.insert(media).values({
+        ...fieldsOf(rest),
+        key,
+        filename,
+        contentType,
+        bytes,
+        sha256,
+        uploadedAt: new Date(input.uploadedAt),
+      });
     },
 
     // One statement, so two writers can never both pass the check.
@@ -148,7 +182,10 @@ export function mediaStore(db: Db): MediaLibraryStore {
 
     async follow(key, fields) {
       const set = fieldsOf(fields);
-      const [row] = Object.keys(set).length === 0 ? [await mediaRow(db, key)] : await db.update(media).set(set).where(eq(media.key, key)).returning();
+      const [row] =
+        Object.keys(set).length === 0
+          ? [await mediaRow(db, key)]
+          : await db.update(media).set(set).where(eq(media.key, key)).returning();
       if (!row) throw new Error(`${key} changed its bytes, but its row is gone`);
       return recordOf(row);
     },
@@ -156,13 +193,25 @@ export function mediaStore(db: Db): MediaLibraryStore {
     async addRevision(key, revision) {
       const [added] = await db
         .insert(mediaRevisions)
-        .values({ ...revision, mediaKey: key, at: new Date(revision.at), sha256: revision.sha256 ?? "" })
+        .values({
+          ...revision,
+          mediaKey: key,
+          at: new Date(revision.at),
+          sha256: revision.sha256 ?? "",
+        })
         .returning({ id: mediaRevisions.id });
       return added!.id;
     },
 
     revisions: async (key, limit = 100) =>
-      (await db.select().from(mediaRevisions).where(eq(mediaRevisions.mediaKey, key)).orderBy(desc(mediaRevisions.id)).limit(limit)).map(revisionOf),
+      (
+        await db
+          .select()
+          .from(mediaRevisions)
+          .where(eq(mediaRevisions.mediaKey, key))
+          .orderBy(desc(mediaRevisions.id))
+          .limit(limit)
+      ).map(revisionOf),
 
     async keepCopy(revisionId, copyKey) {
       await db.update(mediaRevisions).set({ copyKey }).where(eq(mediaRevisions.id, revisionId));
@@ -177,7 +226,12 @@ export function mediaStore(db: Db): MediaLibraryStore {
           .returning({ key: media.key }),
         db
           .delete(mediaRevisions)
-          .where(and(eq(mediaRevisions.mediaKey, key), notExists(db.select({ key: media.key }).from(media).where(eq(media.key, key))))),
+          .where(
+            and(
+              eq(mediaRevisions.mediaKey, key),
+              notExists(db.select({ key: media.key }).from(media).where(eq(media.key, key))),
+            ),
+          ),
       ]);
       if (gone.length > 0) return "removed";
       return (await mediaRow(db, key)) ? "stale" : "missing";

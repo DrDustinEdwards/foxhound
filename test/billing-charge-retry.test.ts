@@ -69,9 +69,8 @@ vi.mock("~/lib/stripe/client", () => ({
   }),
 }));
 
-const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKeyOf } = await import(
-  "~/lib/billing/charge-retry"
-);
+const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKeyOf } =
+  await import("~/lib/billing/charge-retry");
 const { describeSweepRun, runMonthlyBilling } = await import("~/lib/billing/run");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
@@ -203,7 +202,6 @@ beforeEach(() => {
 });
 
 describe("mode 1: the create threw, Stripe has nothing", () => {
-
   // RULING 377(6). The pay path has always counted a failed attempt; the CREATE
   // path did not, so a throw here reached the sweep's per-invoice catch with
   // NOTHING written. charge_attempt_count never moved, decideFeeRetryAction's
@@ -373,12 +371,15 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
   it("finalizes a stranded send_invoice draft so Stripe emails it, and never pays it", async () => {
     const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
     const seen: unknown[] = [];
-    const { calls, deps } = stripeDeps({ id: "in_platform_draft", status: "draft", collection_method: "send_invoice" } as never, {
-      finalize: async (_env: Env, id: string, _billingInvoiceId: string, opts?: unknown) => {
-        seen.push(opts);
-        return { id, status: "open", hosted_invoice_url: "https://pay/open" } as never;
+    const { calls, deps } = stripeDeps(
+      { id: "in_platform_draft", status: "draft", collection_method: "send_invoice" } as never,
+      {
+        finalize: async (_env: Env, id: string, _billingInvoiceId: string, opts?: unknown) => {
+          seen.push(opts);
+          return { id, status: "open", hosted_invoice_url: "https://pay/open" } as never;
+        },
       },
-    });
+    );
     const [invoice] = await queryStrandedInvoices({} as Env, 100);
 
     await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
@@ -395,7 +396,11 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 
   it("leaves an open emailed invoice to Stripe: no pay, no failed attempt", async () => {
     const db = await seed({ status: "finalized", stripeInvoiceId: "in_emailed" });
-    const { calls, deps } = stripeDeps({ id: "in_emailed", status: "open", collection_method: "send_invoice" } as never);
+    const { calls, deps } = stripeDeps({
+      id: "in_emailed",
+      status: "open",
+      collection_method: "send_invoice",
+    } as never);
     const [invoice] = await queryStrandedInvoices({} as Env, 100);
 
     const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
@@ -408,7 +413,11 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 
   it("syncs an emailed invoice the merchant paid", async () => {
     const db = await seed({ status: "finalized", stripeInvoiceId: "in_emailed" });
-    const { calls, deps } = stripeDeps({ id: "in_emailed", status: "paid", collection_method: "send_invoice" } as never);
+    const { calls, deps } = stripeDeps({
+      id: "in_emailed",
+      status: "paid",
+      collection_method: "send_invoice",
+    } as never);
     const [invoice] = await queryStrandedInvoices({} as Env, 100);
 
     await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
@@ -459,7 +468,11 @@ describe("guards", () => {
     const [invoice] = await queryStrandedInvoices({} as Env, 100);
 
     const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
-    expect(result).toEqual({ invoiceId: "binv_1", outcome: "skipped", reason: "no_platform_customer" });
+    expect(result).toEqual({
+      invoiceId: "binv_1",
+      outcome: "skipped",
+      reason: "no_platform_customer",
+    });
     expect(calls).toEqual([]); // Stripe never touched for the invoice
   });
 
@@ -486,7 +499,6 @@ describe("guards", () => {
 });
 
 describe("stranded-invoice-recovers-on-next-run", () => {
-
   it("runMonthlyBilling runs the sweep, so the recovery needs no separate cron", async () => {
     // The wiring. Pre-fix runMonthlyBilling went straight to billing the new
     // period and never looked at prior stranded invoices, which is why a
@@ -714,11 +726,17 @@ describe("gate review 7.4: an aborted sweep is visible, and stops exactly where 
     // The wording is the whole point of the fix, so it is asserted rather than
     // eyeballed after a deploy.
     expect(
-      describeSweepRun({ status: "aborted", tally: {}, abortReason: "billing guard unreadable: d1 gone" }),
+      describeSweepRun({
+        status: "aborted",
+        tally: {},
+        abortReason: "billing guard unreadable: d1 gone",
+      }),
     ).toBe("sweep ABORTED (billing guard unreadable: d1 gone)");
 
     // The two states that used to be indistinguishable from the cron row.
-    expect(describeSweepRun({ status: "completed", tally: {} })).toBe("sweep found nothing stranded");
+    expect(describeSweepRun({ status: "completed", tally: {} })).toBe(
+      "sweep found nothing stranded",
+    );
     expect(describeSweepRun({ status: "completed", tally: { charged: 2, skipped: 1 } })).toBe(
       "sweep 2 charged, 1 skipped",
     );

@@ -6,7 +6,11 @@ import { HOUR_MS } from "~/lib/constants";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 import { sendDisputeAutoSubmittedNotice } from "~/lib/disputes/notices.server";
-import { approveAndSubmitDispute, getConnectionAccessToken, getDisputeDetail } from "~/lib/disputes/queries.server";
+import {
+  approveAndSubmitDispute,
+  getConnectionAccessToken,
+  getDisputeDetail,
+} from "~/lib/disputes/queries.server";
 import { recordOutcome } from "~/lib/engine/outcomes";
 
 // DISPUTE AUTO-SUBMIT, opt-in and off by default. Recova's spec is
@@ -80,7 +84,10 @@ async function dueForAutoSubmit(env: Env, now: Date) {
         isNull(disputes.submittedAt),
         eq(disputes.status, "needs_response"),
         gt(disputes.evidenceDeadline, now),
-        lte(disputes.evidenceDeadline, new Date(now.getTime() + DISPUTE_AUTO_SUBMIT_HOURS * HOUR_MS)),
+        lte(
+          disputes.evidenceDeadline,
+          new Date(now.getTime() + DISPUTE_AUTO_SUBMIT_HOURS * HOUR_MS),
+        ),
         isNotNull(disputes.stripeConnectionId),
         eq(accounts.disputeAutoSubmit, true),
         isNotNull(accounts.disputeAutoSubmitAt),
@@ -116,19 +123,30 @@ export async function runDisputeAutoSubmit(
       // Recova's per-dispute catch: log, count, go on to the next.
       result.failed++;
       console.error(`dispute auto-submit failed for dispute ${dispute.id}:`, err);
-      Sentry.captureException(err, { extra: { scope: "dispute-auto-submit", disputeId: dispute.id } });
+      Sentry.captureException(err, {
+        extra: { scope: "dispute-auto-submit", disputeId: dispute.id },
+      });
     }
   }
   return result;
 }
 
 /** One automatic submission. True when Stripe took it and it is recorded. */
-async function autoSubmitOne(env: Env, now: Date, cronRunId: string | null, dispute: DueDispute): Promise<boolean> {
+async function autoSubmitOne(
+  env: Env,
+  now: Date,
+  cronRunId: string | null,
+  dispute: DueDispute,
+): Promise<boolean> {
   const db = getDb(env);
-  const token = dispute.stripeConnectionId ? await getConnectionAccessToken(db, dispute.stripeConnectionId) : null;
+  const token = dispute.stripeConnectionId
+    ? await getConnectionAccessToken(db, dispute.stripeConnectionId)
+    : null;
   const detail = await getDisputeDetail(db, dispute.accountId, dispute.id);
   if (!token || !detail || !dispute.optInEmail || !dispute.optInAt) {
-    console.error(`dispute auto-submit skipped dispute ${dispute.id}: no Stripe connection or opt-in`);
+    console.error(
+      `dispute auto-submit skipped dispute ${dispute.id}: no Stripe connection or opt-in`,
+    );
     return false;
   }
 
@@ -156,7 +174,8 @@ async function autoSubmitOne(env: Env, now: Date, cronRunId: string | null, disp
     return false;
   }
 
-  const hoursLeft = ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
+  const hoursLeft =
+    ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
   // Recova's outcome, keyed so it is written once.
   await recordOutcome(env, {
     accountId: dispute.accountId,
@@ -168,7 +187,11 @@ async function autoSubmitOne(env: Env, now: Date, cronRunId: string | null, disp
     idempotencyKey: `dispute_auto_submitted:${dispute.id}`,
   });
   // Never throws; a mail failure does not unwind the submission.
-  await sendDisputeAutoSubmittedNotice(env, { accountId: dispute.accountId, disputeId: dispute.id, cronRunId });
+  await sendDisputeAutoSubmittedNotice(env, {
+    accountId: dispute.accountId,
+    disputeId: dispute.id,
+    cronRunId,
+  });
   return true;
 }
 

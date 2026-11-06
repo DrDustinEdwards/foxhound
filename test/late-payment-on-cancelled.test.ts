@@ -5,7 +5,11 @@ import {
   FAILED_PAYMENT_STATUS_CANCELLED,
   RECOVERABLE_FAILED_PAYMENT_STATUSES,
 } from "~/lib/constants";
-import { findAttributionSignals, isBillableAttribution, resolveAttribution } from "~/lib/recovery/attribution";
+import {
+  findAttributionSignals,
+  isBillableAttribution,
+  resolveAttribution,
+} from "~/lib/recovery/attribution";
 import { buildRecoverBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
@@ -155,17 +159,32 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
       }),
     );
     const steps = sqlite
-      .prepare("select id, step_type as stepType, result, clicked_at as clickedAt from recovery_steps where failed_payment_id = ?")
-      .all("fp_pure") as { id: string; stepType: string; result: string | null; clickedAt: Date | null }[];
+      .prepare(
+        "select id, step_type as stepType, result, clicked_at as clickedAt from recovery_steps where failed_payment_id = ?",
+      )
+      .all("fp_pure") as {
+      id: string;
+      stepType: string;
+      result: string | null;
+      clickedAt: Date | null;
+    }[];
     const attribution = resolveAttribution(findAttributionSignals(steps, now));
 
     expect(attribution.kind).toBe("stripe_baseline");
     expect(isBillableAttribution(attribution.kind)).toBe(false);
 
-    expect(commitBatch(sqlite, buildRecoverBatch(db, recoverInput("fp_pure", attribution))).applied).toBe(true);
+    expect(
+      commitBatch(sqlite, buildRecoverBatch(db, recoverInput("fp_pure", attribution))).applied,
+    ).toBe(true);
     const rec = sqlite
-      .prepare("select attribution_kind, attributed_at, amount_cents from recovered_payments where failed_payment_id = ?")
-      .get("fp_pure") as { attribution_kind: string; attributed_at: number | null; amount_cents: number };
+      .prepare(
+        "select attribution_kind, attributed_at, amount_cents from recovered_payments where failed_payment_id = ?",
+      )
+      .get("fp_pure") as {
+      attribution_kind: string;
+      attributed_at: number | null;
+      amount_cents: number;
+    };
     // attributed_at NULL is what makes it free: the billing query keys on it.
     expect(rec.attribution_kind).toBe("stripe_baseline");
     expect(rec.attributed_at).toBeNull();

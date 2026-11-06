@@ -1,4 +1,3 @@
-
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,7 +25,9 @@ vi.mock("~/db", async (importOriginal) => ({
 // Looked up so a missing module or export fails the assertion that names it,
 // not the whole file.
 const route: Record<string, unknown> = await import("~/routes/admin/operations").catch(() => ({}));
-const lib: Record<string, unknown> = await import("~/lib/admin/operations.server").catch(() => ({}));
+const lib: Record<string, unknown> = await import("~/lib/admin/operations.server").catch(
+  () => ({}),
+);
 const lockState: Record<string, unknown> = await import("~/lib/cron/lock-state").catch(() => ({}));
 
 const NOW = Date.UTC(2026, 9, 15, 18, 0, 0);
@@ -41,7 +42,10 @@ describe("the cron lock's read-only view", () => {
   it("leaves the holder's token out, since the token is the fence", () => {
     const view = lockState.cronLockView as (s: unknown) => Record<string, unknown>;
     expect(typeof view).toBe("function");
-    const v = view({ lock: { heldUntil: NOW + MIN, token: "secret-token" }, legacyHeldUntil: null });
+    const v = view({
+      lock: { heldUntil: NOW + MIN, token: "secret-token" },
+      legacyHeldUntil: null,
+    });
     expect(v).toEqual({ heldUntil: NOW + MIN, legacyHeldUntil: null });
     expect(JSON.stringify(v)).not.toContain("secret-token");
   });
@@ -49,7 +53,10 @@ describe("the cron lock's read-only view", () => {
   it("says idle with no record, running while the lease holds, and not released after it ran out", () => {
     const health = lockState.cronLockHealth as (v: unknown, now: number) => Record<string, unknown>;
     expect(typeof health).toBe("function");
-    expect(health({ heldUntil: null, legacyHeldUntil: null }, NOW)).toEqual({ state: "idle", heldUntil: null });
+    expect(health({ heldUntil: null, legacyHeldUntil: null }, NOW)).toEqual({
+      state: "idle",
+      heldUntil: null,
+    });
     expect(health({ heldUntil: NOW + 5 * MIN, legacyHeldUntil: null }, NOW)).toEqual({
       state: "running",
       heldUntil: NOW + 5 * MIN,
@@ -66,8 +73,13 @@ describe("the cron lock's read-only view", () => {
 
   it("reads the pre-fence key too, the later of the two winning", () => {
     const health = lockState.cronLockHealth as (v: unknown, now: number) => Record<string, unknown>;
-    expect(health({ heldUntil: null, legacyHeldUntil: NOW + MIN }, NOW)).toEqual({ state: "running", heldUntil: NOW + MIN });
-    expect(health({ heldUntil: NOW - MIN, legacyHeldUntil: NOW + 2 * MIN }, NOW).state).toBe("running");
+    expect(health({ heldUntil: null, legacyHeldUntil: NOW + MIN }, NOW)).toEqual({
+      state: "running",
+      heldUntil: NOW + MIN,
+    });
+    expect(health({ heldUntil: NOW - MIN, legacyHeldUntil: NOW + 2 * MIN }, NOW).state).toBe(
+      "running",
+    );
   });
 });
 
@@ -92,7 +104,10 @@ function lockNamespace(views: Record<string, unknown>, failing: string[] = []) {
 
 describe("readCronLocks", () => {
   it("reads every registered cron's lock, in the registry's order", async () => {
-    const read = lib.readCronLocks as (env: unknown, now: number) => Promise<Array<Record<string, unknown>>>;
+    const read = lib.readCronLocks as (
+      env: unknown,
+      now: number,
+    ) => Promise<Array<Record<string, unknown>>>;
     expect(typeof read).toBe("function");
     const { ns, asked } = lockNamespace({
       "recovery-tick": { heldUntil: NOW + 3 * MIN, legacyHeldUntil: null },
@@ -107,7 +122,11 @@ describe("readCronLocks", () => {
       heldUntil: new Date(NOW + 3 * MIN),
     });
     expect(locks.find((l) => l.name === "weekly-digest")).toMatchObject({ state: "not-released" });
-    expect(locks.find((l) => l.name === "d1-backup")).toEqual({ name: "d1-backup", state: "idle", heldUntil: null });
+    expect(locks.find((l) => l.name === "d1-backup")).toEqual({
+      name: "d1-backup",
+      state: "idle",
+      heldUntil: null,
+    });
   });
 });
 
@@ -125,7 +144,10 @@ describe("readCronLocks with a lock that never answers", () => {
     expect(timeout).toBeLessThanOrEqual(5000);
 
     vi.useFakeTimers();
-    const read = lib.readCronLocks as (env: unknown, now: number) => Promise<Array<Record<string, unknown>>>;
+    const read = lib.readCronLocks as (
+      env: unknown,
+      now: number,
+    ) => Promise<Array<Record<string, unknown>>>;
     const ns = {
       idFromName: (name: string) => ({ name }),
       get: (id: { name: string }) => ({
@@ -148,7 +170,11 @@ describe("readCronLocks with a lock that never answers", () => {
     expect(settled).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     const locks = await pending;
-    expect(locks.find((l) => l.name === "d1-backup")).toEqual({ name: "d1-backup", state: "unreadable", heldUntil: null });
+    expect(locks.find((l) => l.name === "d1-backup")).toEqual({
+      name: "d1-backup",
+      state: "unreadable",
+      heldUntil: null,
+    });
     expect(locks.find((l) => l.name === "recovery-tick")?.state).toBe("running");
     expect(locks.filter((l) => l.state === "unreadable")).toHaveLength(1);
     // Every timer is cleared once its read is settled, the answered ones included.
@@ -157,7 +183,10 @@ describe("readCronLocks with a lock that never answers", () => {
 
   it("clears each timer when its lock answers in time", async () => {
     vi.useFakeTimers();
-    const read = lib.readCronLocks as (env: unknown, now: number) => Promise<Array<Record<string, unknown>>>;
+    const read = lib.readCronLocks as (
+      env: unknown,
+      now: number,
+    ) => Promise<Array<Record<string, unknown>>>;
     const { ns } = lockNamespace({});
     await read({ CRON_LOCK: ns }, NOW);
     expect(vi.getTimerCount()).toBe(0);
@@ -169,7 +198,9 @@ describe("readCronLocks with a lock that never answers", () => {
 function seedQueue(sqlite: Sqlite) {
   const account = (id: string, paused = 0, cancelled: number | null = null) =>
     sqlite
-      .prepare("insert into accounts (id, name, processing_paused, cancelled_at) values (?, ?, ?, ?)")
+      .prepare(
+        "insert into accounts (id, name, processing_paused, cancelled_at) values (?, ?, ?, ?)",
+      )
       .run(id, id, paused, cancelled);
   account("acc_live");
   account("acc_paused", 1);
@@ -185,7 +216,13 @@ function seedQueue(sqlite: Sqlite) {
   payment("fp_3", "acc_live", "recovered");
   payment("fp_4", "acc_paused", "active");
   payment("fp_demo", "demo_acc", "active");
-  const step = (id: string, fp: string, accountId: string, scheduledAt: number, over: { nextRetryAt?: number; executedAt?: number } = {}) =>
+  const step = (
+    id: string,
+    fp: string,
+    accountId: string,
+    scheduledAt: number,
+    over: { nextRetryAt?: number; executedAt?: number } = {},
+  ) =>
     sqlite
       .prepare(
         "insert into recovery_steps (id, failed_payment_id, step_type, scheduled_at, account_id, next_retry_at, executed_at) values (?, ?, 'email', ?, ?, ?, ?)",
@@ -206,7 +243,10 @@ function seedQueue(sqlite: Sqlite) {
 
 describe("getRecoveryQueueDepth", () => {
   it("counts payments in recovery as the Overview does, and the steps the tick would run now", async () => {
-    const depth = lib.getRecoveryQueueDepth as (db: unknown, now: number) => Promise<Record<string, unknown>>;
+    const depth = lib.getRecoveryQueueDepth as (
+      db: unknown,
+      now: number,
+    ) => Promise<Record<string, unknown>>;
     expect(typeof depth).toBe("function");
     const { db, sqlite } = createInMemoryDb();
     seedQueue(sqlite);
@@ -220,7 +260,10 @@ describe("getRecoveryQueueDepth", () => {
   });
 
   it("is empty on an empty database", async () => {
-    const depth = lib.getRecoveryQueueDepth as (db: unknown, now: number) => Promise<Record<string, unknown>>;
+    const depth = lib.getRecoveryQueueDepth as (
+      db: unknown,
+      now: number,
+    ) => Promise<Record<string, unknown>>;
     const { db } = createInMemoryDb();
     expect(await depth(db, NOW)).toEqual({ activePayments: 0, dueSteps: 0, oldestDueAt: null });
   });
@@ -237,7 +280,9 @@ describe("the loader", () => {
 
   it("reads the queue and the locks with Foxhound's own engine", async () => {
     expect(typeof route.loader).toBe("function");
-    const { ns } = lockNamespace({ "recovery-tick": { heldUntil: Date.now() + 5 * MIN, legacyHeldUntil: null } });
+    const { ns } = lockNamespace({
+      "recovery-tick": { heldUntil: Date.now() + 5 * MIN, legacyHeldUntil: null },
+    });
     const env = {
       CRON_LOCK: ns,
       DB: {
@@ -248,9 +293,17 @@ describe("the loader", () => {
       },
     };
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: env as unknown as Env, ctx: {} as ExecutionContext, nonce: "" });
+    context.set(cloudflareContext, {
+      env: env as unknown as Env,
+      ctx: {} as ExecutionContext,
+      nonce: "",
+    });
     const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
-    const data = await loader({ request: new Request("https://foxhoundapp.com/admin/operations"), context, params: {} });
+    const data = await loader({
+      request: new Request("https://foxhoundapp.com/admin/operations"),
+      context,
+      params: {},
+    });
     expect(data.queue).toMatchObject({ activePayments: 3 });
     const locks = data.locks as Array<Record<string, unknown>>;
     expect(locks).toHaveLength(CRON_JOBS.length);
@@ -258,8 +311,3 @@ describe("the loader", () => {
     expect(data.sizeBytes).toBe(4096);
   });
 });
-
-
-
-
-

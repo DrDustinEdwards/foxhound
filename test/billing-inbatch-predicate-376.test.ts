@@ -103,7 +103,6 @@ async function invoiceTotal(db: Awaited<ReturnType<typeof seedBillableRecovery>>
 }
 
 describe("the billable predicate is evaluated inside the batch", () => {
-
   it("a refund stamped BETWEEN the read and the write bills nothing", async () => {
     const db = await seedBillableRecovery();
 

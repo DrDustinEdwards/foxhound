@@ -17,7 +17,11 @@
 import { eq } from "drizzle-orm";
 
 import { getDb, stripeConnections } from "~/db";
-import { buildCandidateUpsert, expiresBeforeCharge, type CandidateInput } from "~/lib/cron/expiring-cards";
+import {
+  buildCandidateUpsert,
+  expiresBeforeCharge,
+  type CandidateInput,
+} from "~/lib/cron/expiring-cards";
 import { chargePaymentMethodId } from "~/lib/engine/card-change";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -30,7 +34,15 @@ type RenewalIntent = IntentOf<"renewal_card_check">;
 
 /** What the Stripe reads found, before any date is compared. */
 type RenewalCharge =
-  | { kind: "card"; email: string; name: string | null; expMonth: number; expYear: number; brand: string | null; last4: string | null }
+  | {
+      kind: "card";
+      email: string;
+      name: string | null;
+      expMonth: number;
+      expYear: number;
+      brand: string | null;
+      last4: string | null;
+    }
   | { kind: "no_payment_method"; email: string; name: string | null }
   | { kind: "skip"; reason: string };
 
@@ -43,7 +55,11 @@ type RenewalCharge =
  * Stripe falls back to one when nothing else is set, and calling such a
  * customer cardless would put an untrue sentence in their inbox.
  */
-async function resolveRenewalCharge(env: Env, connectionId: string, intent: RenewalIntent): Promise<RenewalCharge> {
+async function resolveRenewalCharge(
+  env: Env,
+  connectionId: string,
+  intent: RenewalIntent,
+): Promise<RenewalCharge> {
   const [connection] = await getDb(env)
     .select({ accessToken: stripeConnections.stripeAccessToken })
     .from(stripeConnections)
@@ -65,7 +81,9 @@ async function resolveRenewalCharge(env: Env, connectionId: string, intent: Rene
     customer,
   });
   if (!pmId) {
-    return customer.default_source ? { kind: "skip", reason: "legacy_source" } : { kind: "no_payment_method", email, name };
+    return customer.default_source
+      ? { kind: "skip", reason: "legacy_source" }
+      : { kind: "no_payment_method", email, name };
   }
   const pm = await stripe.paymentMethods.retrieve(pmId);
   // A bank debit or wallet balance has no expiry to check.
@@ -90,7 +108,11 @@ function candidateFor(
   now: Date,
 ): { candidate: Omit<CandidateInput, "accountId" | "connectionId"> } | { reason: string } {
   if (charge.kind === "skip") return { reason: charge.reason };
-  const base = { stripeCustomerId: intent.customerId, customerEmail: charge.email, customerName: charge.name };
+  const base = {
+    stripeCustomerId: intent.customerId,
+    customerEmail: charge.email,
+    customerName: charge.name,
+  };
   if (charge.kind === "no_payment_method") {
     if (intent.source !== "trial_will_end") return { reason: "no_payment_method" };
     return {
@@ -119,7 +141,10 @@ function candidateFor(
   };
 }
 
-export async function handleRenewalCardCheck(ctx: WebhookContext, intent: RenewalIntent): Promise<WebhookOutcome> {
+export async function handleRenewalCardCheck(
+  ctx: WebhookContext,
+  intent: RenewalIntent,
+): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
   let charge: RenewalCharge;
   try {

@@ -28,7 +28,6 @@ import { showingCountFor } from "~/lib/recovery/payments-stats";
 //     never a ratified divergence.
 
 describe("S6 Showing card: legacy's global count, responding only to the pill", () => {
-
   it("each pill reads its own global count, never a filtered one", () => {
     const counts = { all: 10, active: 4, recovered: 3, cancelled: 2, failedUnrecovered: 1 };
     expect(showingCountFor(counts, "active")).toBe(4);

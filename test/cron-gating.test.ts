@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { isDueByInterval } from "~/lib/cron/gating";
 
-
 const now = new Date("2026-07-12T03:00:00.000Z");
 const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000);
 

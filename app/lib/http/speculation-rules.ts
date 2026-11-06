@@ -1,4 +1,7 @@
-import { SPECULATION_RULES_HEADER, type SpeculationOptions } from "@dustinedwards/site-runtime/prefetch";
+import {
+  SPECULATION_RULES_HEADER,
+  type SpeculationOptions,
+} from "@dustinedwards/site-runtime/prefetch";
 
 // LINK PREFETCH WITHOUT A SCRIPT (site-runtime ./prefetch). The public pages no longer hydrate (root.tsx),
 // so React Router's hover prefetch is gone from them; Chrome and Edge read these speculation rules instead,

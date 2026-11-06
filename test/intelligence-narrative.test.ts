@@ -21,7 +21,6 @@ const EMPTY_FACTS: NarrativeFacts = {
 };
 
 describe("hasNarrativeFacts", () => {
-
   it("is true when there is an at-risk customer even with zero MRR recorded", () => {
     expect(
       hasNarrativeFacts({

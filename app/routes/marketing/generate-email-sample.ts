@@ -3,7 +3,10 @@ import { data, redirect } from "react-router";
 
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import { MARKETING_EMAIL_CATEGORIES, type MarketingEmailCategory } from "~/lib/marketing/email-sample";
+import {
+  MARKETING_EMAIL_CATEGORIES,
+  type MarketingEmailCategory,
+} from "~/lib/marketing/email-sample";
 import { generateMarketingEmailSample } from "~/lib/marketing/home-email-sample.server";
 
 import type { Route } from "./+types/generate-email-sample";

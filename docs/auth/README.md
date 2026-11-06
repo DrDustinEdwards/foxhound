@@ -72,15 +72,15 @@ deleted the old password rows.
 Guards are RR8 **server** middleware (`app/lib/auth/guards.ts`), attached to the
 app-shell layout and a pathless admin-guard layout.
 
-| Route tree | Requires | Unauthenticated | Authed, no account | Authed, non-admin |
-|---|---|---|---|---|
-| Marketing (`/`, `/pricing`, `/products/*`, `/audit`, `/blog/*`, `/docs/*`, `/demos`, `/privacy`, `/terms`, file routes) | nothing | open | open | open |
-| Auth (`/login`, `/signup`, `/passkey`, `/api/auth/*`, `/auth/google`, `/auth/apple`, `/auth/google/callback`, `/logout`) | nothing (self-guard where relevant; `/passkey` -> `/login` without a session) | open | open | open |
-| `/connect` | session only (self-guarded in its loader) | -> `/login` | shows setup form | n/a |
-| `/invite/:token` | session only to accept | view open; accept -> `/login` | can accept (this is how they get an account) | n/a |
-| Public utility (`/u/:token`, `/p/:token`, `/e/o/:token`, `/e/c/:token`) | nothing | open | open | open |
-| App shell (`/console`, `/recovery/*`, `/disputes/*`, `/intelligence/*`, `/billing/*`, `/settings/*`, `/help`, `/welcome`) | session + account | -> `/login` | -> `/connect` | open |
-| Admin (`/admin/*`) | Access JWT + `ADMIN_EMAIL` allowlist (no merchant session needed) | Access sign-in | n/a | **404** (not 403; existence hiding) |
+| Route tree                                                                                                                | Requires                                                                      | Unauthenticated               | Authed, no account                           | Authed, non-admin                   |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------- | ----------------------------------- |
+| Marketing (`/`, `/pricing`, `/products/*`, `/audit`, `/blog/*`, `/docs/*`, `/demos`, `/privacy`, `/terms`, file routes)   | nothing                                                                       | open                          | open                                         | open                                |
+| Auth (`/login`, `/signup`, `/passkey`, `/api/auth/*`, `/auth/google`, `/auth/apple`, `/auth/google/callback`, `/logout`)  | nothing (self-guard where relevant; `/passkey` -> `/login` without a session) | open                          | open                                         | open                                |
+| `/connect`                                                                                                                | session only (self-guarded in its loader)                                     | -> `/login`                   | shows setup form                             | n/a                                 |
+| `/invite/:token`                                                                                                          | session only to accept                                                        | view open; accept -> `/login` | can accept (this is how they get an account) | n/a                                 |
+| Public utility (`/u/:token`, `/p/:token`, `/e/o/:token`, `/e/c/:token`)                                                   | nothing                                                                       | open                          | open                                         | open                                |
+| App shell (`/console`, `/recovery/*`, `/disputes/*`, `/intelligence/*`, `/billing/*`, `/settings/*`, `/help`, `/welcome`) | session + account                                                             | -> `/login`                   | -> `/connect`                                | open                                |
+| Admin (`/admin/*`)                                                                                                        | Access JWT + `ADMIN_EMAIL` allowlist (no merchant session needed)             | Access sign-in                | n/a                                          | **404** (not 403; existence hiding) |
 
 The app-shell middleware publishes the caller's identity, membership, and admin
 flag on `authContext`; app loaders/actions read it instead of re-querying.
@@ -141,16 +141,16 @@ Owners can remove members (not the owner) at `/settings/team`.
 
 ## Environment variables
 
-| name | kind | purpose |
-|---|---|---|
-| `BETTER_AUTH_SECRET` | secret (`wrangler secret`) | session/cookie signing key. Required in staging/production. |
-| `BETTER_AUTH_URL` | var (`wrangler.jsonc`) | canonical origin for callbacks/redirects. |
-| `GOOGLE_CLIENT_ID` | secret/ambient | Google OAuth client id (public value; kept ambient for typing). |
-| `GOOGLE_CLIENT_SECRET` | secret (`wrangler secret`) | Google OAuth client secret. |
-| `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | secrets (`wrangler secret`) | Sign in with Apple: the Services ID, the team, and the key's id and PEM. |
-| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | var / secret | the check on the emailed link (and the estimator). |
-| `ADMIN_EMAIL` | secret (`wrangler secret`) | comma-separated platform-admin allowlist. Unset => no admins. |
-| `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` | secrets (`wrangler secret`) | the Access team and the admin app's audience tag. Either unset => no admins. |
+| name                                                                    | kind                        | purpose                                                                      |
+| ----------------------------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`                                                    | secret (`wrangler secret`)  | session/cookie signing key. Required in staging/production.                  |
+| `BETTER_AUTH_URL`                                                       | var (`wrangler.jsonc`)      | canonical origin for callbacks/redirects.                                    |
+| `GOOGLE_CLIENT_ID`                                                      | secret/ambient              | Google OAuth client id (public value; kept ambient for typing).              |
+| `GOOGLE_CLIENT_SECRET`                                                  | secret (`wrangler secret`)  | Google OAuth client secret.                                                  |
+| `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | secrets (`wrangler secret`) | Sign in with Apple: the Services ID, the team, and the key's id and PEM.     |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY`                           | var / secret                | the check on the emailed link (and the estimator).                           |
+| `ADMIN_EMAIL`                                                           | secret (`wrangler secret`)  | comma-separated platform-admin allowlist. Unset => no admins.                |
+| `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`                                      | secrets (`wrangler secret`) | the Access team and the admin app's audience tag. Either unset => no admins. |
 
 Never commit secret values; they live only in `wrangler secret`.
 

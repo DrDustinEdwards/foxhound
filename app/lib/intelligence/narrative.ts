@@ -74,18 +74,25 @@ function movementSentence(facts: NarrativeFacts): string {
     [facts.contractionMrrCents, "contraction"],
     [facts.churnMrrCents, "churned"],
   ] as const;
-  const moved = parts.filter(([cents]) => cents !== 0).map(([cents, label]) => `${money(cents)} ${label}`);
+  const moved = parts
+    .filter(([cents]) => cents !== 0)
+    .map(([cents, label]) => `${money(cents)} ${label}`);
   if (moved.length === 0) return "No MRR moved since the day before.";
   const net =
-    facts.newMrrCents + facts.expansionMrrCents + facts.reactivationMrrCents -
-    facts.contractionMrrCents - facts.churnMrrCents;
-  const netText = net === 0 ? "no net change" : `a net ${net > 0 ? "gain" : "loss"} of ${money(Math.abs(net))}`;
+    facts.newMrrCents +
+    facts.expansionMrrCents +
+    facts.reactivationMrrCents -
+    facts.contractionMrrCents -
+    facts.churnMrrCents;
+  const netText =
+    net === 0 ? "no net change" : `a net ${net > 0 ? "gain" : "loss"} of ${money(Math.abs(net))}`;
   return `Since the day before: ${moved.join(", ")}, ${netText}.`;
 }
 
 function riskSentence(facts: NarrativeFacts): string {
   if (facts.atRiskCustomerCount === 0) return "No customer is at risk right now.";
-  const who = facts.atRiskCustomerCount === 1 ? "1 customer" : `${facts.atRiskCustomerCount} customers`;
+  const who =
+    facts.atRiskCustomerCount === 1 ? "1 customer" : `${facts.atRiskCustomerCount} customers`;
   const lowest = facts.topAtRiskCustomers[0];
   const lowestText = lowest
     ? ` The lowest health score is ${lowest.customerName ?? lowest.stripeCustomerId} at ${lowest.healthScore}/100.`
@@ -129,14 +136,16 @@ export function narrativeFactsFor(input: {
   const atRisk = scored
     .filter((c) => c.score < HEALTH_SCORE_AT_RISK_THRESHOLD)
     .sort((a, b) => a.score - b.score);
-  const topAtRiskCustomers: AtRiskCustomerFact[] = atRisk.slice(0, INTELLIGENCE_NARRATIVE_TOP_N).map((c) => ({
-    stripeCustomerId: c.stripeCustomerId,
-    customerName: c.customerName,
-    healthScore: c.score,
-    mrrContributionCents: c.mrrContributionCents,
-    currency,
-    factorDetails: c.factors.map((f) => f.detail),
-  }));
+  const topAtRiskCustomers: AtRiskCustomerFact[] = atRisk
+    .slice(0, INTELLIGENCE_NARRATIVE_TOP_N)
+    .map((c) => ({
+      stripeCustomerId: c.stripeCustomerId,
+      customerName: c.customerName,
+      healthScore: c.score,
+      mrrContributionCents: c.mrrContributionCents,
+      currency,
+      factorDetails: c.factors.map((f) => f.detail),
+    }));
   return {
     currency,
     totalMrrCents: mrrLatest?.totalMrrCents ?? 0,
@@ -188,7 +197,10 @@ export function narrativeWithCustomerIds(
   customers: readonly { stripeCustomerId: string; customerName: string | null }[],
 ): string {
   const named = customers
-    .filter((c): c is { stripeCustomerId: string; customerName: string } => (c.customerName?.trim().length ?? 0) > 1)
+    .filter(
+      (c): c is { stripeCustomerId: string; customerName: string } =>
+        (c.customerName?.trim().length ?? 0) > 1,
+    )
     .sort((a, b) => b.customerName.length - a.customerName.length);
   let text = narrative;
   for (const c of named) text = text.split(c.customerName.trim()).join(c.stripeCustomerId);

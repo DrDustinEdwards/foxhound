@@ -9,9 +9,7 @@ import {
   intelligenceReports,
   type Db,
 } from "~/db";
-import {
-  PREDICTION_HORIZON_DAYS,
-} from "~/lib/constants";
+import { PREDICTION_HORIZON_DAYS } from "~/lib/constants";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 
 import {
@@ -169,7 +167,11 @@ export async function runIntelligenceAiForAccount(
   const now = new Date(nowMs);
 
   const [account, scored] = await Promise.all([
-    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
+    db
+      .select({ currency: accounts.currency })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1),
     scoreAccountCustomers(db, accountId, nowMs),
   ]);
   const currency = account[0]?.currency ?? "usd";
@@ -200,13 +202,19 @@ export async function runIntelligenceAiForAccount(
  *  batch. */
 export async function writeNarrativeReport(
   db: Db,
-  input: { accountId: string; now: Date; result: NarrativeResult; scored: readonly NarrativeCustomer[] },
+  input: {
+    accountId: string;
+    now: Date;
+    result: NarrativeResult;
+    scored: readonly NarrativeCustomer[];
+  },
 ): Promise<void> {
   const { accountId, now, result, scored } = input;
   const reportMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const idByCustomer = new Map(scored.map((c) => [c.stripeCustomerId, c.customerContextId]));
   const narrativeBatch: BatchItem<"sqlite">[] = [
-    db.insert(intelligenceReports)
+    db
+      .insert(intelligenceReports)
       .values({ accountId, reportMonth, narrative: result.narrative, generatedAt: now })
       .onConflictDoUpdate({
         target: [intelligenceReports.accountId, intelligenceReports.reportMonth],
@@ -217,7 +225,8 @@ export async function writeNarrativeReport(
     const customerContextId = idByCustomer.get(a.stripeCustomerId);
     if (!customerContextId) continue; // structural guard: never write an id we did not send
     narrativeBatch.push(
-      db.update(customerContext)
+      db
+        .update(customerContext)
         .set({ aiAssessment: a.assessment, aiAssessmentGeneratedAt: now })
         .where(eq(customerContext.id, customerContextId)),
     );
@@ -233,7 +242,10 @@ export async function runIntelligenceAiForAllAccounts(
   nowMs: number,
 ): Promise<AccountAiRunResult[]> {
   const db = getDb(env);
-  const eligible = await db.select({ id: accounts.id }).from(accounts).where(accountProcessingEligible());
+  const eligible = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(accountProcessingEligible());
 
   const results: AccountAiRunResult[] = [];
   for (const { id } of eligible) {
@@ -245,7 +257,10 @@ export async function runIntelligenceAiForAllAccounts(
         customersScored: 0,
         error: err instanceof Error ? err.message : "run failed",
       });
-      console.error(`intelligence run failed for account ${id}:`, err instanceof Error ? err.message : err);
+      console.error(
+        `intelligence run failed for account ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
     }
   }
   return results;

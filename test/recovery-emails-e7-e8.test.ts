@@ -42,9 +42,7 @@ const schema = await import("~/db/schema");
 const constants = await import("~/lib/constants");
 const { RECOVERY_SCHEDULES, planRecoverySteps } = await import("~/lib/recovery/schedule");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
-const { hasTimingWord } = await import(
-  "~/lib/recovery/email-generation"
-);
+const { hasTimingWord } = await import("~/lib/recovery/email-generation");
 const { htmlToBlocks } = await import("~/lib/email/templates");
 const { processEmailJob } = await import("~/lib/email/dispatch");
 const { executeEmailStep, buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
@@ -117,7 +115,6 @@ const RECOVA: Record<"email_day14" | "email_day30", RecovaStep> = {
     ],
   },
 };
-
 
 const STEPS = Object.keys(RECOVA) as (keyof typeof RECOVA)[];
 // Every category that schedules these steps. Recova's fallback is per step,
@@ -206,7 +203,12 @@ describe("E7 and E8: the executor sends Recova's step template when generation c
       expect(jobs).toHaveLength(1);
       expect(jobs[0].subject).toBe(RECOVA[stepType].subject);
       expect(htmlToBlocks(jobs[0].bodyHtml)).toEqual(
-        RECOVA[stepType].blocks({ name: "Jane Buyer", amount: "$49.00", url: minted, sender: "Teamflow" }),
+        RECOVA[stepType].blocks({
+          name: "Jane Buyer",
+          amount: "$49.00",
+          url: minted,
+          sender: "Teamflow",
+        }),
       );
     });
 
@@ -282,10 +284,11 @@ describe("E7 and E8 end to end: a due step sends to the customer at Recova's off
 
   const at = (hours: number) => new Date(T0.getTime() + hours * HOUR);
 
-
   it("a missing customer name greets 'there', read through the tick's own query", async () => {
     await seedPayment("expired", null);
-    const row = (await queryDueRecoverySteps(env, at(720))).find((r) => r.stepType === "email_day30");
+    const row = (await queryDueRecoverySteps(env, at(720))).find(
+      (r) => r.stepType === "email_day30",
+    );
     expect(row?.customerName).toBeNull();
     await executeEmailStep(env, toEmailContext(row!), {
       generate: async () => {

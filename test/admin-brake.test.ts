@@ -23,7 +23,6 @@ import {
 import { setProcessingPaused } from "~/lib/admin/merchants.server";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
-
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // The global emergency brake (parity ruling 34). The load-bearing property is
@@ -42,7 +41,12 @@ async function seedAccounts(db: Awaited<ReturnType<typeof createInMemoryDb>>["db
     // is a billing flag, never a processing one, so the brake reaches it.
     { id: "acc_exempt", name: "Exempt", billingExempt: true, processingPaused: false },
     // Not eligible: demo, the firewall every job honors.
-    { id: `${DEMO_ACCOUNT_ID_PREFIX}teamflow`, name: "Demo", billingExempt: false, processingPaused: false },
+    {
+      id: `${DEMO_ACCOUNT_ID_PREFIX}teamflow`,
+      name: "Demo",
+      billingExempt: false,
+      processingPaused: false,
+    },
     // Not eligible: already paused BY A HUMAN. The whole point of the marker.
     { id: "acc_individually_paused", name: "Held", billingExempt: false, processingPaused: true },
   ]);
@@ -50,14 +54,16 @@ async function seedAccounts(db: Awaited<ReturnType<typeof createInMemoryDb>>["db
 
 async function paused(db: Awaited<ReturnType<typeof createInMemoryDb>>["db"], id: string) {
   const rows = await db
-    .select({ processingPaused: schema.accounts.processingPaused, pauseReason: schema.accounts.pauseReason })
+    .select({
+      processingPaused: schema.accounts.processingPaused,
+      pauseReason: schema.accounts.pauseReason,
+    })
     .from(schema.accounts)
     .where(eq(schema.accounts.id, id));
   return rows[0];
 }
 
 describe("confirm phrases (pure)", () => {
-
   it("tolerates surrounding whitespace only", () => {
     expect(isConfirmPhraseValid("release", "  RESUME ALL  ")).toBe(true);
     expect(isConfirmPhraseValid("release", "RESUME  ALL")).toBe(false);
@@ -77,7 +83,9 @@ describe("INFO-2: the panel accounts for a count that differs from what it promi
   });
 
   it("distinguishes 'nothing was eligible' from 'everything got taken in the window'", () => {
-    expect(engageResultMessage({ affectedCount: 0, intendedCount: 0 })).toMatch(/No accounts were eligible/);
+    expect(engageResultMessage({ affectedCount: 0, intendedCount: 0 })).toMatch(
+      /No accounts were eligible/,
+    );
     const raced = engageResultMessage({ affectedCount: 0, intendedCount: 2 });
     expect(raced).not.toMatch(/No accounts were eligible/);
     expect(raced).toContain("2 account(s) were no longer eligible");
@@ -94,7 +102,6 @@ describe("INFO-2: the panel accounts for a count that differs from what it promi
 });
 
 describe("engage", () => {
-
   it("is idempotent: a second engage pauses nothing more", async () => {
     const { db } = createInMemoryDb();
     await seedAccounts(db);
@@ -107,13 +114,14 @@ describe("engage", () => {
     expect(await listBrakePausedAccountIds(db)).toHaveLength(3);
     // The umbrella row is still written: hitting the brake twice in an incident
     // is a fact worth keeping, even when it changed nothing.
-    const engages = (await db.select().from(schema.adminAuditLog)).filter((r) => r.action === "brake.engage");
+    const engages = (await db.select().from(schema.adminAuditLog)).filter(
+      (r) => r.action === "brake.engage",
+    );
     expect(engages).toHaveLength(2);
   });
 });
 
 describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () => {
-
   it("chunks cover every account exactly once, with no empty trailing batch", () => {
     const ids = Array.from({ length: 501 }, (_, i) => `acc_${i}`);
     const chunks = chunkAccountIds(ids);
@@ -282,7 +290,6 @@ describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", 
 });
 
 describe("a manual pause is positively marked and never claimed by release", () => {
-
   it("resuming clears any marker, so no stale marker survives", async () => {
     const { db } = createInMemoryDb();
     await db
@@ -301,7 +308,6 @@ describe("a manual pause is positively marked and never claimed by release", () 
 });
 
 describe("LOW-2: a stale per-merchant form cannot strip the brake marker", () => {
-
   it("a manual pause on an already-manually-paused account is idempotent", async () => {
     const { db } = createInMemoryDb();
     await db

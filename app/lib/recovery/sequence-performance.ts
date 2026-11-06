@@ -53,7 +53,8 @@ const STEP_ORDER_HOURS: Record<string, number> = {};
 for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
   for (const step of schedule) {
     const seen = STEP_ORDER_HOURS[step.stepType];
-    if (seen === undefined || step.offsetHours < seen) STEP_ORDER_HOURS[step.stepType] = step.offsetHours;
+    if (seen === undefined || step.offsetHours < seen)
+      STEP_ORDER_HOURS[step.stepType] = step.offsetHours;
   }
 }
 
@@ -77,7 +78,9 @@ export function sequenceStepLabel(stepType: string, offsetHours: number | null):
   const emailDay = /^email_day(\d+)$/.exec(stepType);
   if (emailDay) return `Day ${emailDay[1]} email`;
   if (isRetryStep(stepType) && offsetHours !== null) {
-    return offsetHours <= 48 ? `${offsetHours}hr retry` : `Day ${Math.round(offsetHours / 24)} retry`;
+    return offsetHours <= 48
+      ? `${offsetHours}hr retry`
+      : `Day ${Math.round(offsetHours / 24)} retry`;
   }
   return formatStepType(stepType);
 }
@@ -97,7 +100,10 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
   const avgOpenRatePct = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
   const avgClickRatePct = totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0;
 
-  const byType = new Map<string, { sent: number; opened: number; clicked: number; recovered: number }>();
+  const byType = new Map<
+    string,
+    { sent: number; opened: number; clicked: number; recovered: number }
+  >();
   for (const s of emailSteps) {
     const bucket = byType.get(s.stepType) ?? { sent: 0, opened: 0, clicked: 0, recovered: 0 };
     bucket.sent++;
@@ -116,7 +122,10 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
       clickRatePct: Math.round((b.clicked / b.sent) * 100),
       recoveryRatePct: Math.round((b.recovered / b.sent) * 100),
     }))
-    .sort((a, b) => (STEP_ORDER_HOURS[a.stepType] ?? Infinity) - (STEP_ORDER_HOURS[b.stepType] ?? Infinity));
+    .sort(
+      (a, b) =>
+        (STEP_ORDER_HOURS[a.stepType] ?? Infinity) - (STEP_ORDER_HOURS[b.stepType] ?? Infinity),
+    );
 
   let bestStep: BestPerformingStep | null = null;
   for (const point of chart) {
@@ -174,7 +183,11 @@ export interface StepCardRow {
  * `offsetHours` is this step's offset in THIS category's schedule, or null for
  * a step no schedule defines (no timing is invented).
  */
-export function buildStepCard(stepType: string, rows: StepCardRow[], offsetHours: number | null): StepCard {
+export function buildStepCard(
+  stepType: string,
+  rows: StepCardRow[],
+  offsetHours: number | null,
+): StepCard {
   const label = sequenceStepLabel(stepType, offsetHours);
   const timingLabel = offsetHours === null ? null : formatStepTiming(offsetHours);
 

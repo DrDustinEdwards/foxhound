@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import { auditLookupIds, auditTarget } from "~/lib/admin/audit-describe";
@@ -14,14 +13,16 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // schedules, every failed run linked and shown on its cron, and the audit log
 // in plain English with real targets.
 
-
 describe("adminPageName", () => {
   it("takes the deepest named route, from a string or from its loader data", () => {
     expect(adminPageName([{ handle: undefined }, { handle: { page: "Crons" } }])).toBe("Crons");
     expect(
       adminPageName([
         { handle: { page: "Merchants" } },
-        { handle: { page: (d: { name: string }) => d.name }, loaderData: { name: "Northwind Coffee" } },
+        {
+          handle: { page: (d: { name: string }) => d.name },
+          loaderData: { name: "Northwind Coffee" },
+        },
       ]),
     ).toBe("Northwind Coffee");
     expect(adminPageName([{ handle: undefined }])).toBeNull();
@@ -29,7 +30,6 @@ describe("adminPageName", () => {
 });
 
 describe("describeCronSchedule", () => {
-
   it("names the interval, the day and the UTC time", () => {
     expect(describeCronSchedule("*/5 * * * *")).toBe("Every 5 minutes");
     expect(describeCronSchedule("*/1 * * * *")).toBe("Every minute");
@@ -56,12 +56,26 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
 
   function seed(now = NOW) {
     const { db, sqlite } = createInMemoryDb();
-    const run = (id: string, cronName: string, status: string, hoursAgo: number, message: string | null = null) =>
+    const run = (
+      id: string,
+      cronName: string,
+      status: string,
+      hoursAgo: number,
+      message: string | null = null,
+    ) =>
       sqlite
         .prepare(
           "insert into cron_run_history (id, cron_name, started_at, finished_at, status, rows_processed, message, created_at) values (?, ?, ?, ?, ?, 0, ?, ?)",
         )
-        .run(id, cronName, now - hoursAgo * HOUR - 1000, now - hoursAgo * HOUR, status, message, now - hoursAgo * HOUR);
+        .run(
+          id,
+          cronName,
+          now - hoursAgo * HOUR - 1000,
+          now - hoursAgo * HOUR,
+          status,
+          message,
+          now - hoursAgo * HOUR,
+        );
     run("r-ok", "weekly-digest", "success", 1);
     run("r-fail", "weekly-digest", "failed", 5, "Email binding unavailable");
     run("r-old", "weekly-digest", "failed", 30, "too old to count");
@@ -93,7 +107,6 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
 });
 
 describe("the audit log in plain English", () => {
-
   const lookups = {
     merchantNames: new Map([["acct_b", "Northwind Coffee"]]),
     postTitles: new Map([["post_1", "Why cards fail"]]),
@@ -110,19 +123,33 @@ describe("the audit log in plain English", () => {
       label: "recovery-tick",
       href: "/admin/platform/crons#cron-recovery-tick",
     });
-    expect(auditTarget(entry("merchant.cancel", { accountId: "acct_b", deauthorizeErrors: [] }), lookups)).toEqual({
+    expect(
+      auditTarget(
+        entry("merchant.cancel", { accountId: "acct_b", deauthorizeErrors: [] }),
+        lookups,
+      ),
+    ).toEqual({
       label: "Northwind Coffee",
       href: "/admin/merchants/acct_b",
     });
-    expect(auditTarget(entry("merchant.cancel", { accountId: "acct_gone" }), lookups)?.label).toBe("acct_gone");
+    expect(auditTarget(entry("merchant.cancel", { accountId: "acct_gone" }), lookups)?.label).toBe(
+      "acct_gone",
+    );
     expect(auditTarget(entry("blog.publish", { postId: "post_1", slug: "why" }), lookups)).toEqual({
       label: "Why cards fail",
     });
-    expect(auditTarget(entry("brake.engage", { intendedCount: 3, sample: ["a"] }), lookups)).toEqual({
+    expect(
+      auditTarget(entry("brake.engage", { intendedCount: 3, sample: ["a"] }), lookups),
+    ).toEqual({
       label: "All merchants (3)",
       href: "/admin/brake",
     });
-    expect(auditTarget(entry("staged.confirm", { stagedId: "s1", summary: "Resume processing for acct_b" }), lookups)).toEqual({
+    expect(
+      auditTarget(
+        entry("staged.confirm", { stagedId: "s1", summary: "Resume processing for acct_b" }),
+        lookups,
+      ),
+    ).toEqual({
       label: "Resume processing for acct_b",
       href: "/admin/staged",
     });

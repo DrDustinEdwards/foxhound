@@ -53,12 +53,13 @@ describe("getGlobalPaymentStatusCounts", () => {
     expect(counts.all).toBe(all.length);
     expect(counts.active).toBe(all.filter((p) => p.status === "active").length);
     expect(counts.recovered).toBe(all.filter((p) => p.status === "recovered").length);
-    expect(counts.failedUnrecovered).toBe(all.filter((p) => p.status === "failed_unrecovered").length);
+    expect(counts.failedUnrecovered).toBe(
+      all.filter((p) => p.status === "failed_unrecovered").length,
+    );
   });
 });
 
 describe("listPaymentSummaryRows", () => {
-
   it("respects declineCategory, so pill counts reflect the OTHER active filters", async () => {
     const db = await seededDb();
     const rows = await listPaymentSummaryRows(db, DEMO_ACCOUNT_ID, {

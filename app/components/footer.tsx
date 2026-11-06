@@ -159,7 +159,12 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
             </div>
             <div className="grid grid-cols-2 gap-6 sm:col-span-3 lg:col-span-4 lg:grid-cols-4">
               {COLUMNS.map((col) => (
-                <LinkColumn key={col.heading} heading={col.heading} links={col.links} pathname={pathname} />
+                <LinkColumn
+                  key={col.heading}
+                  heading={col.heading}
+                  links={col.links}
+                  pathname={pathname}
+                />
               ))}
             </div>
           </div>
@@ -176,7 +181,16 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
         >
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <img src="/favicon.svg" alt="" width={28} height={28} loading="lazy" decoding="async" className="shrink-0" aria-hidden />
+              <img
+                src="/favicon.svg"
+                alt=""
+                width={28}
+                height={28}
+                loading="lazy"
+                decoding="async"
+                className="shrink-0"
+                aria-hidden
+              />
               <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
                 © 2026 Foxhound.
               </span>

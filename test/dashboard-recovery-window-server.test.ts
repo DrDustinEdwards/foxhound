@@ -79,7 +79,6 @@ describe("getRecoveryDashboardWindow structural sanity", () => {
 });
 
 describe("getRecoveryDashboardWindow: the dual-range shape", () => {
-
   it("calling with '30d' twice (simulating the reused-single-fetch case) is deterministic", async () => {
     const db = await seededDb();
     const a = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "30d", now.getTime());
@@ -112,7 +111,9 @@ describe("getRecoveryDashboardWindow: single-cohort recovery-rate math", () => {
       for (const category of DECLINE_CATEGORIES) {
         const stat = w.categoryStats[category];
         if (!stat) continue;
-        expect(stat.recovered, `${range} ${category}: recovered <= total`).toBeLessThanOrEqual(stat.total);
+        expect(stat.recovered, `${range} ${category}: recovered <= total`).toBeLessThanOrEqual(
+          stat.total,
+        );
       }
 
       if (w.bestCategory) {

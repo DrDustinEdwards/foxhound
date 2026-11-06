@@ -10,7 +10,12 @@
 
 export type MarketingEmailCategory = "soft" | "network" | "expired" | "fraud";
 
-export const MARKETING_EMAIL_CATEGORIES: MarketingEmailCategory[] = ["soft", "network", "expired", "fraud"];
+export const MARKETING_EMAIL_CATEGORIES: MarketingEmailCategory[] = [
+  "soft",
+  "network",
+  "expired",
+  "fraud",
+];
 
 export interface MarketingEmailCopy {
   subject: string;

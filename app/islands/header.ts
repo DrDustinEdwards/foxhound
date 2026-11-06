@@ -10,7 +10,10 @@ import { rememberServerTheme, type ThemeSave, watchThemeChoice } from "../lib/th
 // menu sheet, any panel, each icon's tip, and the theme button. The theme is kept as useThemeMemory keeps
 // it: the button's browser memory set to the server's answer first, every switch saved to the cookie
 // (or, signed in, the account).
-export default function start(el: HTMLElement, props: { theme: Theme; save: ThemeSave; prefKey: string }): void {
+export default function start(
+  el: HTMLElement,
+  props: { theme: Theme; save: ThemeSave; prefKey: string },
+): void {
   rememberServerTheme(props.theme, props.prefKey);
   const header = el.querySelector<HTMLElement>("[data-cap='site-header']");
   const button = el.querySelector<HTMLElement>("[data-cap='theme-switch']");

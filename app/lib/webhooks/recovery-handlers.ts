@@ -12,7 +12,12 @@ import {
   refundedRecoveryIdsFor,
 } from "~/lib/billing/credit-note";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { applyNetworkAdvice, classifyDecline, isHardDecline, pickDeclineCode } from "~/lib/recovery/decline";
+import {
+  applyNetworkAdvice,
+  classifyDecline,
+  isHardDecline,
+  pickDeclineCode,
+} from "~/lib/recovery/decline";
 import { sendRecoveryNotification } from "~/lib/recovery/merchant-notification.server";
 import { buildCandidateUpsert, isInsideLeadWindow } from "~/lib/cron/expiring-cards";
 import { retryOnUpdatedCard } from "~/lib/cron/recovery-tick";
@@ -49,10 +54,16 @@ function bestDecline(
   eventCode: string | null,
   facts: DeclineFacts | null,
   stored?: { declineCategory: string; networkAdviceCode: string | null },
-): { declineCode: string | null; declineCategory: DeclineCategory; chargeFacts: ChargeFacts | null } {
+): {
+  declineCode: string | null;
+  declineCategory: DeclineCategory;
+  chargeFacts: ChargeFacts | null;
+} {
   const declineCode = pickDeclineCode([facts?.declineCode, eventCode]);
   const fromCode =
-    declineCode || !stored ? classifyDecline(declineCode) : (stored.declineCategory as DeclineCategory);
+    declineCode || !stored
+      ? classifyDecline(declineCode)
+      : (stored.declineCategory as DeclineCategory);
   const advice = facts ? facts.networkAdviceCode : (stored?.networkAdviceCode ?? null);
   return {
     declineCode,
@@ -272,8 +283,11 @@ export async function handleRecover(
     });
     return applied ? { status: "ignored", reason: "no_active_failure" } : { status: "duplicate" };
   }
-  const { attribution, recoveredByStepId, recoveryMethod } =
-    await resolveRecoveryAttribution(env, failedPaymentId, recoveredAt);
+  const { attribution, recoveredByStepId, recoveryMethod } = await resolveRecoveryAttribution(
+    env,
+    failedPaymentId,
+    recoveredAt,
+  );
   // What Stripe took, read BEFORE the batch and outside it, as intake reads its
   // decline facts: the Durable Object batch makes no Stripe call. The read
   // never throws, and a failed one records the recovery with the fee columns

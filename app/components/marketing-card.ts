@@ -6,4 +6,5 @@ export const CARD = "cap-panel [--gap:1.5rem] [--pad-card:1.5rem]";
 
 // Recova's closing call to action: px-6 py-3 at 1rem semibold, a size up from
 // Capsomer's large button.
-export const CTA_BUTTON = "cap-btn px-6 font-semibold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3rem]";
+export const CTA_BUTTON =
+  "cap-btn px-6 font-semibold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3rem]";

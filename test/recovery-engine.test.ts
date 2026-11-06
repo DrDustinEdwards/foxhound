@@ -10,10 +10,7 @@ import {
   selectDueSteps,
   type SchedulableStep,
 } from "~/lib/engine/scheduler";
-import {
-  decideEmailStep,
-  decideRetryStep,
-} from "~/lib/engine/step-runner";
+import { decideEmailStep, decideRetryStep } from "~/lib/engine/step-runner";
 import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
 
@@ -31,7 +28,6 @@ function step(overrides: Partial<SchedulableStep>): SchedulableStep {
 }
 
 describe("scheduler due-step selection", () => {
-
   it("an executed or resolved step is never due", () => {
     expect(isStepDue(step({ executedAt: now }), now)).toBe(false);
     expect(isStepDue(step({ result: "email_sent" }), now)).toBe(false);
@@ -62,7 +58,6 @@ describe("scheduler due-step selection", () => {
 });
 
 describe("step-runner: retry deciders", () => {
-
   it("a paid invoice is a recovered retry (record foxhound_retry)", () => {
     const d = decideRetryStep({ invoiceStatus: "paid" }, now);
     expect(d.retryResult).toBe("retry_succeeded");

@@ -29,12 +29,17 @@ vi.mock("~/db", async (importOriginal) => ({
 // no-op, and a batch that throws (the webhook_events unique index on a replay)
 // rolls back whole and reports applied=false.
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
     const sqlite = harness.sqlite as Database.Database;
     sqlite.exec("BEGIN");
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       sqlite.exec("COMMIT");
     } catch (err) {
       sqlite.exec("ROLLBACK");
@@ -55,9 +60,7 @@ vi.mock("~/lib/billing/credit-note", async (importOriginal) => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { DISPUTE_CREATED_TEMPLATE, nextDisputeBillingRun } = await import(
-  "~/lib/disputes/notices"
-);
+const { DISPUTE_CREATED_TEMPLATE, nextDisputeBillingRun } = await import("~/lib/disputes/notices");
 
 const ACCOUNT = "acct_1";
 const RECEIVED = new Date("2026-11-10T12:00:00Z");
@@ -86,7 +89,9 @@ beforeEach(() => {
   harness.creditNotes = 0;
 });
 
-function seedAccount(opts: { notificationEmail?: string | null; paused?: boolean; liveSends?: boolean } = {}) {
+function seedAccount(
+  opts: { notificationEmail?: string | null; paused?: boolean; liveSends?: boolean } = {},
+) {
   sqlite
     .prepare(
       "INSERT INTO accounts (id, name, created_at, notification_email, processing_paused, live_sends_enabled) VALUES (?, 'Acme', 1000, ?, ?, ?)",
@@ -104,12 +109,19 @@ function seedAccount(opts: { notificationEmail?: string | null; paused?: boolean
     .run(ACCOUNT);
 }
 
-function seedDispute(opts: { state?: string; submitted?: boolean; customerName?: string | null } = {}) {
+function seedDispute(
+  opts: { state?: string; submitted?: boolean; customerName?: string | null } = {},
+) {
   sqlite
     .prepare(
       "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, customer_name, customer_email, amount_cents, currency, reason, status, state, submitted_at, created_at, stripe_connection_id) VALUES ('d1', ?, 'dp_1', 'ch_1', ?, 'buyer@acme.test', 5000, 'usd', 'product_not_received', 'needs_response', ?, ?, 1000, 'c1')",
     )
-    .run(ACCOUNT, opts.customerName === undefined ? "Jane Buyer" : opts.customerName, opts.state ?? "pending_review", opts.submitted ? 2000 : null);
+    .run(
+      ACCOUNT,
+      opts.customerName === undefined ? "Jane Buyer" : opts.customerName,
+      opts.state ?? "pending_review",
+      opts.submitted ? 2000 : null,
+    );
 }
 
 function createdEvent(id = "evt_c1") {
@@ -139,7 +151,16 @@ function closedEvent(status: "won" | "lost", id = "evt_x1") {
     id,
     type: "charge.dispute.closed",
     account: "acct_stripe",
-    data: { object: { id: "dp_1", object: "dispute", charge: "ch_1", amount: 5000, currency: "usd", status } },
+    data: {
+      object: {
+        id: "dp_1",
+        object: "dispute",
+        charge: "ch_1",
+        amount: 5000,
+        currency: "usd",
+        status,
+      },
+    },
   } as never;
 }
 
@@ -150,13 +171,21 @@ function sendRows() {
 }
 
 function disputeRowId(): string {
-  return (sqlite.prepare("SELECT id FROM disputes WHERE stripe_dispute_id = 'dp_1'").get() as { id: string }).id;
+  return (
+    sqlite.prepare("SELECT id FROM disputes WHERE stripe_dispute_id = 'dp_1'").get() as {
+      id: string;
+    }
+  ).id;
 }
 
 function outcomeNotifiedAt(): number | null {
-  return (sqlite.prepare("SELECT outcome_notified_at AS at FROM disputes WHERE stripe_dispute_id = 'dp_1'").get() as {
-    at: number | null;
-  }).at;
+  return (
+    sqlite
+      .prepare("SELECT outcome_notified_at AS at FROM disputes WHERE stripe_dispute_id = 'dp_1'")
+      .get() as {
+      at: number | null;
+    }
+  ).at;
 }
 
 describe("NOTICE 1: a new dispute notifies the merchant", () => {
@@ -176,7 +205,9 @@ describe("NOTICE 1: a new dispute notifies the merchant", () => {
     expect(mail.html).toContain("Product Not Received");
     expect(mail.html).toContain("2026-11-24");
     // The account never turned auto-submit on, so Recova's off sentence.
-    expect(mail.html).toContain("Auto-submit is off. We will remind you 3 days before the deadline.");
+    expect(mail.html).toContain(
+      "Auto-submit is off. We will remind you 3 days before the deadline.",
+    );
     expect(mail.html).toContain(`https://foxhoundapp.test/disputes/${disputeRowId()}`);
     // A merchant notice: no unsubscribe link.
     expect(mail.html.toLowerCase()).not.toContain("unsubscribe");
@@ -208,7 +239,6 @@ describe("NOTICE 1: a new dispute notifies the merchant", () => {
 });
 
 describe("NOTICE 2 and 3: a closed dispute tells the merchant it was won or lost", () => {
-
   it("lost: Recova's lost notice, no fee", async () => {
     seedAccount();
     seedDispute();
@@ -236,16 +266,21 @@ describe("NOTICE 2 and 3: a closed dispute tells the merchant it was won or lost
     await processConnectedWebhook(env, closedEvent("lost"), RECEIVED);
     expect(harness.sent).toHaveLength(0);
     expect(outcomeNotifiedAt()).toBeNull();
-    const state = sqlite.prepare("SELECT state FROM disputes WHERE id = 'd1'").get() as { state: string };
+    const state = sqlite.prepare("SELECT state FROM disputes WHERE id = 'd1'").get() as {
+      state: string;
+    };
     expect(state.state).toBe("resolved_lost");
   });
 });
 
 describe("the invoice date is the next monthly billing run after resolution", () => {
-
   it("a win resolved on the 1st before the run is billed by that same run", () => {
-    expect(nextDisputeBillingRun(new Date("2026-12-01T01:00:00Z")).toISOString().slice(0, 10)).toBe("2026-12-01");
-    expect(nextDisputeBillingRun(new Date("2026-12-01T05:00:00Z")).toISOString().slice(0, 10)).toBe("2027-01-01");
+    expect(nextDisputeBillingRun(new Date("2026-12-01T01:00:00Z")).toISOString().slice(0, 10)).toBe(
+      "2026-12-01",
+    );
+    expect(nextDisputeBillingRun(new Date("2026-12-01T05:00:00Z")).toISOString().slice(0, 10)).toBe(
+      "2027-01-01",
+    );
   });
 });
 
@@ -256,7 +291,9 @@ describe("PR 149 review: the notices hold when a delivery is cut short or the ac
     seedAccount({ notificationEmail: null });
     await processConnectedWebhook(env, createdEvent(), RECEIVED);
     expect(harness.sent).toHaveLength(0);
-    sqlite.prepare("UPDATE accounts SET notification_email = 'ops@acme.test' WHERE id = ?").run(ACCOUNT);
+    sqlite
+      .prepare("UPDATE accounts SET notification_email = 'ops@acme.test' WHERE id = ?")
+      .run(ACCOUNT);
 
     const replay = await processConnectedWebhook(env, createdEvent(), RECEIVED);
     expect(replay).toEqual({ status: "duplicate" });

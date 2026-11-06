@@ -166,8 +166,8 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                     Monthly audit digest
                   </div>
                   <p id={digestHelp} className="m-0 text-micro text-text-subtle">
-                    On the 1st of each month, we run a fresh audit and email you a comparison
-                    versus the prior month. No extra charge.
+                    On the 1st of each month, we run a fresh audit and email you a comparison versus
+                    the prior month. No extra charge.
                   </p>
                 </div>
                 {/* Unchecked posts nothing, which the action reads as off, so

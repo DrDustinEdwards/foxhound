@@ -149,11 +149,18 @@ function expectInOrder(part: string, sentences: string[]): void {
 async function expectRecovaFooter(m: SentMessage, senderName: string): Promise<void> {
   const sentence = `You're receiving this from ${senderName} about a recent payment. © ${YEAR}`;
   expectInOrder(m.text ?? "", [sentence, "Unsubscribe", ADDRESS]);
-  expectInOrder(m.html, [`You&#39;re receiving this from ${senderName} about a recent payment.`, "Unsubscribe", ADDRESS]);
+  expectInOrder(m.html, [
+    `You&#39;re receiving this from ${senderName} about a recent payment.`,
+    "Unsubscribe",
+    ADDRESS,
+  ]);
   expect(m.headers?.["List-Unsubscribe"]).toMatch(/^<https:\/\/foxhoundapp\.test\/u\//);
   expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
   const token = (m.headers?.["List-Unsubscribe"] ?? "").match(/\/u\/([^>]+)>/)?.[1] ?? "";
-  expect(await verifyUnsubscribeToken(env, token)).toEqual({ email: "buyer@acme.test", accountId: ACCOUNT });
+  expect(await verifyUnsubscribeToken(env, token)).toEqual({
+    email: "buyer@acme.test",
+    accountId: ACCOUNT,
+  });
   expect(m.html).toContain(`/u/${token}"`);
 }
 
@@ -220,7 +227,10 @@ describe("J91: each win-back email says and carries what Recova's does", () => {
     describe(`${r.row}, win-back step ${r.stepNumber}`, () => {
       it("sends at Recova's offset to the sequence's customer, and not before", async () => {
         seed({ stepNumber: r.stepNumber, offsetHours: r.offsetHours });
-        expect(await runWinbackSends(env, at(r.offsetHours - 0.1))).toEqual({ sent: 0, skipped: 0 });
+        expect(await runWinbackSends(env, at(r.offsetHours - 0.1))).toEqual({
+          sent: 0,
+          skipped: 0,
+        });
         expect(harness.sent).toHaveLength(0);
         expect(await runWinbackSends(env, at(r.offsetHours))).toEqual({ sent: 1, skipped: 0 });
         expect(only().to).toBe("buyer@acme.test");
@@ -260,17 +270,26 @@ describe("J91: the AI copy path is on the same component and carries the same fo
     seed({ stepNumber: 2, offsetHours: 96 });
     harness.generated = {
       subject: "Something new for you, Jane",
-      bodyHtml: '<p>Hi Jane,</p><p>We made it better.</p><p><a href="{{url}}">Come Back</a></p><p>Thanks,<br>Teamflow</p>',
+      bodyHtml:
+        '<p>Hi Jane,</p><p>We made it better.</p><p><a href="{{url}}">Come Back</a></p><p>Thanks,<br>Teamflow</p>',
     };
     const keyed = { ...env, ANTHROPIC_API_KEY: "sk-example" } as unknown as Env;
     expect(await runWinbackSends(keyed, at(96))).toEqual({ sent: 1, skipped: 0 });
     const m = only();
     expect(m.subject).toBe("Something new for you, Jane");
-    expectInOrder(m.text ?? "", ["Hi Jane,", "We made it better.", "Come Back", "Thanks,", "Teamflow"]);
+    expectInOrder(m.text ?? "", [
+      "Hi Jane,",
+      "We made it better.",
+      "Come Back",
+      "Thanks,",
+      "Teamflow",
+    ]);
     expect(m.from).toMatch(/^Teamflow </);
     expect(m.replyTo).toBe(REPLY);
     await expectRecovaFooter(m, "Teamflow");
-    const row = sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as { result: string };
+    const row = sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as {
+      result: string;
+    };
     expect(row.result).toBe("email_sent_ai");
   });
 });
@@ -287,7 +306,9 @@ describe("J91: the prompt states the real delay before each email (truthfulness 
 
   it("step 1 on an Intelligence account goes at 4 hours, and the prompt says 4 hours, not 1", () => {
     const p = buildWinbackPrompt({ ...base, stepNumber: 1, offsetHours: 4 });
-    expect(p).toContain("This is a first win-back email sent 4 hours after cancellation, warm, empathetic, not pushy.");
+    expect(p).toContain(
+      "This is a first win-back email sent 4 hours after cancellation, warm, empathetic, not pushy.",
+    );
     expect(p).not.toContain("1 hour");
   });
 

@@ -33,7 +33,11 @@ function seed() {
   return { sqlite, db };
 }
 
-function updatedEvent(id: string, object: Record<string, unknown>, previous: Record<string, unknown>) {
+function updatedEvent(
+  id: string,
+  object: Record<string, unknown>,
+  previous: Record<string, unknown>,
+) {
   return {
     id,
     type: "customer.subscription.updated",
@@ -44,7 +48,15 @@ function updatedEvent(id: string, object: Record<string, unknown>, previous: Rec
         id: "sub_1",
         customer: "cus_1",
         currency: "usd",
-        items: { data: [{ quantity: 1, current_period_end: periodEnd, price: { unit_amount: 4900, recurring: { interval: "month" } } }] },
+        items: {
+          data: [
+            {
+              quantity: 1,
+              current_period_end: periodEnd,
+              price: { unit_amount: 4900, recurring: { interval: "month" } },
+            },
+          ],
+        },
         ...object,
       },
       previous_attributes: previous,
@@ -72,7 +84,9 @@ async function record(db: ReturnType<typeof seed>["db"], event: ReturnType<typeo
 }
 
 async function health(sqlite: ReturnType<typeof seed>["sqlite"]) {
-  return sqlite.prepare("select health_score as score, health_factors as factors from customer_context").get() as {
+  return sqlite
+    .prepare("select health_score as score, health_factors as factors from customer_context")
+    .get() as {
     score: number;
     factors: string;
   };
@@ -82,7 +96,14 @@ describe("customer.subscription.updated feeds the health score the same day", ()
   it("a scheduled cancellation puts the customer in the alerts' high-risk band, and taking it back undoes it", async () => {
     const { sqlite, db } = seed();
 
-    const scheduled = await record(db, updatedEvent("evt_cancel", { cancel_at_period_end: true, cancel_at: periodEnd }, { cancel_at_period_end: false, cancel_at: null }));
+    const scheduled = await record(
+      db,
+      updatedEvent(
+        "evt_cancel",
+        { cancel_at_period_end: true, cancel_at: periodEnd },
+        { cancel_at_period_end: false, cancel_at: null },
+      ),
+    );
     expect(scheduled.applied).toBe(true);
     await rescoreCustomer(db, "acc_1", "cus_1", now);
     const after = await health(sqlite);
@@ -90,23 +111,56 @@ describe("customer.subscription.updated feeds the health score the same day", ()
     expect(after.factors).toContain("cancellation scheduled for Nov 30, 2026");
 
     // A redelivery records nothing twice.
-    const replay = await record(db, updatedEvent("evt_cancel", { cancel_at_period_end: true, cancel_at: periodEnd }, { cancel_at_period_end: false, cancel_at: null }));
+    const replay = await record(
+      db,
+      updatedEvent(
+        "evt_cancel",
+        { cancel_at_period_end: true, cancel_at: periodEnd },
+        { cancel_at_period_end: false, cancel_at: null },
+      ),
+    );
     expect(replay.applied).toBe(false);
 
-    const reversed = await record(db, updatedEvent("evt_undo", { cancel_at_period_end: false, cancel_at: null }, { cancel_at_period_end: true, cancel_at: periodEnd }));
+    const reversed = await record(
+      db,
+      updatedEvent(
+        "evt_undo",
+        { cancel_at_period_end: false, cancel_at: null },
+        { cancel_at_period_end: true, cancel_at: periodEnd },
+      ),
+    );
     expect(reversed.intent).toMatchObject({ changes: [{ kind: "cancel_reversed" }] });
     await rescoreCustomer(db, "acc_1", "cus_1", now);
     expect((await health(sqlite)).score).toBe(HEALTH_SCORE_BASELINE);
   });
 
   it("records a pause and a lower monthly amount, and ignores an update that changed neither", async () => {
-    const paused = classifyStripeEvent(updatedEvent("evt_p", { pause_collection: { behavior: "void", resumes_at: null } }, { pause_collection: null }));
-    expect(paused).toMatchObject({ kind: "record_subscription_change", changes: [{ kind: "paused" }] });
+    const paused = classifyStripeEvent(
+      updatedEvent(
+        "evt_p",
+        { pause_collection: { behavior: "void", resumes_at: null } },
+        { pause_collection: null },
+      ),
+    );
+    expect(paused).toMatchObject({
+      kind: "record_subscription_change",
+      changes: [{ kind: "paused" }],
+    });
 
     const downgrade = classifyStripeEvent(
-      updatedEvent("evt_d", {}, { items: { data: [{ quantity: 1, price: { unit_amount: 9900, recurring: { interval: "month" } } }] } }),
+      updatedEvent(
+        "evt_d",
+        {},
+        {
+          items: {
+            data: [{ quantity: 1, price: { unit_amount: 9900, recurring: { interval: "month" } } }],
+          },
+        },
+      ),
     );
-    expect(downgrade).toMatchObject({ changes: [{ kind: "downgraded", previousMrrCents: 9900, currentMrrCents: 4900 }] });
+    expect(downgrade).toMatchObject({
+      changes: [{ kind: "downgraded", previousMrrCents: 9900, currentMrrCents: 4900 }],
+    });
 
     expect(classifyStripeEvent(updatedEvent("evt_m", {}, { metadata: { a: "b" } }))).toEqual({
       kind: "ignore",

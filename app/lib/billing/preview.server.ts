@@ -27,7 +27,6 @@ import { recoveryFeeCents } from "~/lib/billing/fees";
 // Everything here is evaluated at the NEXT RUN INSTANT, not at now. See
 // nextBillingRunAtMs.
 
-
 export interface AccountBillingState {
   billingExempt: boolean;
   processingPaused: boolean;
@@ -174,7 +173,10 @@ export async function getBillingPreview(
           },
         ],
   );
-  const disputeFeeRows = pendingDisputeFees.map((d) => ({ currency: d.currency, cents: d.feeCents }));
+  const disputeFeeRows = pendingDisputeFees.map((d) => ({
+    currency: d.currency,
+    cents: d.feeCents,
+  }));
   const attributed = new Set<string>(BILLABLE_ATTRIBUTION_KINDS);
 
   return {

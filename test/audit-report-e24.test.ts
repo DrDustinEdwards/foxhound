@@ -4,7 +4,14 @@ import { fileURLToPath } from "node:url";
 import type Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts, auditDigestRuns, auditRuns, emailSends, emailSuppressions, stripeConnections } from "~/db/schema";
+import {
+  accounts,
+  auditDigestRuns,
+  auditRuns,
+  emailSends,
+  emailSuppressions,
+  stripeConnections,
+} from "~/db/schema";
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -92,7 +99,9 @@ function fresh() {
         ]),
     },
     subscriptions: { list: () => fakeList([]) },
-    disputes: { list: () => fakeList([{ amount: 9900, currency: "usd", status: "needs_response" }]) },
+    disputes: {
+      list: () => fakeList([{ amount: 9900, currency: "usd", status: "needs_response" }]),
+    },
     events: { list: () => fakeList([]) },
   } as unknown as Stripe;
   return db;
@@ -123,14 +132,30 @@ async function seed(db: ReturnType<typeof fresh>, id: string, row: Record<string
 
 type EmailInput = Parameters<typeof buildMonthlyAuditEmail>[0];
 type EmailResult = EmailInput["result"];
-const ok = <T,>(data: T) => ({ ok: true as const, data });
+const ok = <T>(data: T) => ({ ok: true as const, data });
 
 const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
   ({
-    failedInvoices: ok({ count: 2, totalCents: 4200, totals: [{ currency: "usd", cents: 4200 }], byCategory: {}, byCategoryTotals: {} }),
-    expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }], expiresByMonth: {} }),
+    failedInvoices: ok({
+      count: 2,
+      totalCents: 4200,
+      totals: [{ currency: "usd", cents: 4200 }],
+      byCategory: {},
+      byCategoryTotals: {},
+    }),
+    expiringCards: ok({
+      count: 1,
+      mrrAtRiskCents: 1500,
+      mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }],
+      expiresByMonth: {},
+    }),
     pastDueSubscriptions: ok({ count: 0, totalCents: 0, totals: [] }),
-    cardUpdater: ok({ eventsInWindow: 0, expiredCardDeclinesInWindow: 0, advisory: null, windowDays: 30 }),
+    cardUpdater: ok({
+      eventsInWindow: 0,
+      expiredCardDeclinesInWindow: 0,
+      advisory: null,
+      windowDays: 30,
+    }),
     disputes: ok({
       open: { count: 1, totalCents: 9900, totals: [{ currency: "usd", cents: 9900 }] },
       acceptedWithoutFighting: { count: 0, totalCents: 0, totals: [] },
@@ -159,13 +184,11 @@ const emailFor = (over: Partial<EmailInput> = {}) =>
     ...over,
   });
 
-const texts = (blocks: WordsBlock[]) =>
-  blocks.map((b) => blockText(b) || (b.label ?? ""));
+const texts = (blocks: WordsBlock[]) => blocks.map((b) => blockText(b) || (b.label ?? ""));
 
 // ============================================================================
 
 describe("E24 says what Recova's says", () => {
-
   it("Open disputes shows only when the count is above zero, as Recova's does", () => {
     const none = emailFor({
       result: resultWith({
@@ -188,7 +211,11 @@ describe("E24 says what Recova's says", () => {
         result: resultWith({
           disputes: ok({
             open: { count: 1, totalCents: 9900, totals: [{ currency: "usd", cents: 9900 }] },
-            acceptedWithoutFighting: { count: 2, totalCents: 5000, totals: [{ currency: "usd", cents: 5000 }] },
+            acceptedWithoutFighting: {
+              count: 2,
+              totalCents: 5000,
+              totals: [{ currency: "usd", cents: 5000 }],
+            },
             historical: { won: 3, lost: 1 },
           }),
         }),
@@ -214,7 +241,9 @@ describe("E24 says what Recova's says", () => {
       }).blocks,
     );
     const win = lines.indexOf("Dispute win rate: 75% (3W / 1L)");
-    expect(lines[win + 1]).toBe("Card Updater: 3 expired-card declines and no Card Updater events.");
+    expect(lines[win + 1]).toBe(
+      "Card Updater: 3 expired-card declines and no Card Updater events.",
+    );
   });
 });
 
@@ -245,7 +274,11 @@ describe("E24 carries what Recova's carries, and sends when Recova's does", () =
     // Both parts, the one button a real link with visible text.
     const [run] = await db.select().from(auditRuns);
     expect(m.text).toContain(`View full audit:\n${BASE}/audit/results/${run.id}`);
-    expect(m.html).toMatch(new RegExp(`<a class="e-btn" href="${BASE}/audit/results/${run.id}"[^>]*>View full audit</a>`));
+    expect(m.html).toMatch(
+      new RegExp(
+        `<a class="e-btn" href="${BASE}/audit/results/${run.id}"[^>]*>View full audit</a>`,
+      ),
+    );
     expect(m.html).toContain('<html lang="en">');
     expect(m.html).toContain("<title>Your monthly Foxhound report</title>");
   });
@@ -266,7 +299,11 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
     });
     const { sent, env } = collector();
 
-    const outcome = await monthly.auditAccountForMonth(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, NOW);
+    const outcome = await monthly.auditAccountForMonth(
+      env,
+      { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null },
+      NOW,
+    );
 
     expect(outcome.status).toBe("suppressed");
     expect(sent).toHaveLength(0);
@@ -303,7 +340,11 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
     });
     const { sent, env } = collector();
 
-    const outcome = await monthly.auditAccountForMonth(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, NOW);
+    const outcome = await monthly.auditAccountForMonth(
+      env,
+      { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null },
+      NOW,
+    );
 
     expect(outcome.status).toBe("already_sent");
     expect(sent).toHaveLength(0);
@@ -317,7 +358,11 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
       throw new Error("mailbox full");
     });
 
-    const outcome = await monthly.auditAccountForMonth(env, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, NOW);
+    const outcome = await monthly.auditAccountForMonth(
+      env,
+      { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null },
+      NOW,
+    );
     expect(outcome.status).toBe("failed");
     expect((outcome.error as Error).message).toBe("mailbox full");
     const [claim] = await db.select().from(auditDigestRuns);
@@ -325,7 +370,12 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
 
     // The next delivery retakes the month and sends once.
     const { sent, env: ok2 } = collector();
-    const action = await processMonthlyAuditMessage(ok2, { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null }, 2, NOW);
+    const action = await processMonthlyAuditMessage(
+      ok2,
+      { accountId: "acct_on", periodMonth: PERIOD, cronRunId: null },
+      2,
+      NOW,
+    );
     expect(action).toBe("ack");
     expect(sent).toHaveLength(1);
   });
@@ -363,12 +413,18 @@ describe("the demo firewall on the consumer side (PR 160 re-review)", () => {
       for (const entry of readdirSync(dir)) {
         const full = `${dir}/${entry}`;
         if (statSync(full).isDirectory()) walk(full);
-        else if (/\.tsx?$/.test(entry) && /liveSendGate:\s*"skip"/.test(readFileSync(full, "utf8"))) {
+        else if (
+          /\.tsx?$/.test(entry) &&
+          /liveSendGate:\s*"skip"/.test(readFileSync(full, "utf8"))
+        ) {
           hits.push(full.slice(full.indexOf("app/")));
         }
       }
     };
     walk(root);
-    expect(hits.sort()).toEqual(["app/lib/audit/monthly.server.ts", "app/lib/settings/team-invite-email.server.ts"]);
+    expect(hits.sort()).toEqual([
+      "app/lib/audit/monthly.server.ts",
+      "app/lib/settings/team-invite-email.server.ts",
+    ]);
   });
 });

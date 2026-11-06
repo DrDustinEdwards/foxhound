@@ -22,7 +22,11 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
-import { estimateLeakage, recordEstimatorRun, type EstimatorResult } from "~/lib/estimator/estimate.server";
+import {
+  estimateLeakage,
+  recordEstimatorRun,
+  type EstimatorResult,
+} from "~/lib/estimator/estimate.server";
 import { formatMoney } from "~/lib/money-format";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -111,10 +115,16 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
   if (!Number.isFinite(customerCount) || customerCount <= 0) {
-    return data<ActionResult>({ ok: false, error: "Enter a customer count greater than 0." }, { status: 400 });
+    return data<ActionResult>(
+      { ok: false, error: "Enter a customer count greater than 0." },
+      { status: 400 },
+    );
   }
   if (!turnstileToken) {
-    return data<ActionResult>({ ok: false, error: "Please complete the verification challenge." }, { status: 400 });
+    return data<ActionResult>(
+      { ok: false, error: "Please complete the verification challenge." },
+      { status: 400 },
+    );
   }
 
   // site-runtime's verifyTurnstile fails closed and never throws: an
@@ -123,7 +133,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     remoteIp: request.headers.get("CF-Connecting-IP"),
   });
   if (!verification.ok) {
-    return data<ActionResult>({ ok: false, error: "Verification failed. Please try again." }, { status: 400 });
+    return data<ActionResult>(
+      { ok: false, error: "Verification failed. Please try again." },
+      { status: 400 },
+    );
   }
 
   const mrrCents = Math.round(mrrDollars * 100);
@@ -131,7 +144,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const result = await estimateLeakage(db, { mrrCents, customerCount, currency });
   if (!result) {
     return data<ActionResult>(
-      { ok: false, error: "The estimator cannot estimate this amount yet. Try a different MRR amount." },
+      {
+        ok: false,
+        error: "The estimator cannot estimate this amount yet. Try a different MRR amount.",
+      },
       { status: 200 },
     );
   }
@@ -140,7 +156,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   return data<ActionResult>({ ok: true, result, mrrCents, currency });
 }
-
 
 // The four lines of Recova's covers card.
 //
@@ -181,7 +196,8 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
     // and /pricing), comfortable density so each panel takes Capsomer's roomier
     // padding.
     <div
-      className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20" data-cap-site="foxhound"
+      className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20"
+      data-cap-site="foxhound"
       data-family="amber"
       data-density="comfortable"
     >
@@ -229,7 +245,10 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                   {actionData && !actionData.ok ? <Alert>{actionData.error}</Alert> : null}
 
                   {actionData?.ok ? (
-                    <EstimatorResultCard result={actionData.result} currency={actionData.currency} />
+                    <EstimatorResultCard
+                      result={actionData.result}
+                      currency={actionData.currency}
+                    />
                   ) : (
                     <EstimatorForm busy={busy} siteKey={turnstileSiteKey} attempt={actionData} />
                   )}
@@ -257,7 +276,10 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               <ul className="m-0 mb-8 list-none p-0">
                 {COVERS.map(([title, desc]) => (
                   <li key={title} className="mb-3 flex items-start gap-3 text-left">
-                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" aria-hidden="true" />
+                    <span
+                      className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]"
+                      aria-hidden="true"
+                    />
                     <span>
                       <span className="mb-0.5 block text-copy font-medium text-text">{title}</span>
                       <span className="block text-label text-text-subtle">{desc}</span>
@@ -295,8 +317,12 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         <div className="cap-panel">
           <div className="cap-panel-body">
             <div>
-              <p className="m-0 mb-1 font-mono text-display font-bold text-green">{AUDIT_LOOKBACK_DAYS} days</p>
-              <p className="m-0 text-caption text-text-subtle">of failed invoices the audit reads</p>
+              <p className="m-0 mb-1 font-mono text-display font-bold text-green">
+                {AUDIT_LOOKBACK_DAYS} days
+              </p>
+              <p className="m-0 text-caption text-text-subtle">
+                of failed invoices the audit reads
+              </p>
             </div>
           </div>
         </div>
@@ -327,12 +353,14 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 what the RESULTS page offers afterwards, which is where Recova
                 puts it too. */}
             <div>
-              <p className="m-0 mb-2 text-body font-medium text-text">Want your real numbers instead of an estimate?</p>
+              <p className="m-0 mb-2 text-body font-medium text-text">
+                Want your real numbers instead of an estimate?
+              </p>
               <p className="m-0 mb-5 text-label leading-relaxed text-text-secondary">
-                Connect Stripe and Foxhound runs the full audit on the spot: what failed and why, what
-                is expiring, where your disputes stand, and your recurring revenue. No account needed.
-                Foxhound only reads, writes nothing back to Stripe, and disconnects itself after{" "}
-                {AUDIT_GRANT_MINUTES} minutes.
+                Connect Stripe and Foxhound runs the full audit on the spot: what failed and why,
+                what is expiring, where your disputes stand, and your recurring revenue. No account
+                needed. Foxhound only reads, writes nothing back to Stripe, and disconnects itself
+                after {AUDIT_GRANT_MINUTES} minutes.
               </p>
               <Link to="/audit/connect" className="cap-btn" data-variant="primary">
                 Run the free audit
@@ -351,7 +379,15 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
 /** The estimator's form: Capsomer's field, select and primary button. The
  *  Turnstile widget is site-runtime's, drawn again after each answer from the
  *  action because a token is good for one verify. */
-function EstimatorForm({ busy, siteKey, attempt }: { busy: boolean; siteKey: string; attempt: unknown }) {
+function EstimatorForm({
+  busy,
+  siteKey,
+  attempt,
+}: {
+  busy: boolean;
+  siteKey: string;
+  attempt: unknown;
+}) {
   const currencyId = useId();
   const widget = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -364,7 +400,13 @@ function EstimatorForm({ busy, siteKey, attempt }: { busy: boolean; siteKey: str
         <input className="cap-input" name="mrr" type="number" autoComplete="off" required />
       </Field>
       <Field label="Active customer count">
-        <input className="cap-input" name="customerCount" type="number" autoComplete="off" required />
+        <input
+          className="cap-input"
+          name="customerCount"
+          type="number"
+          autoComplete="off"
+          required
+        />
       </Field>
       <div className="cap-field">
         <label className="cap-field-label" htmlFor={currencyId}>

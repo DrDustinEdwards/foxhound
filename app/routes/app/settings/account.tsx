@@ -36,7 +36,11 @@ import { isAPIError } from "better-auth/api";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SignInMethodsPanel, type SignedInDevices, type SignInSettings } from "~/components/sign-in-settings";
+import {
+  SignInMethodsPanel,
+  type SignedInDevices,
+  type SignInSettings,
+} from "~/components/sign-in-settings";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
@@ -113,7 +117,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     signIn: {
       ...(await signInSettings(env, auth.userId, auth.isDemo)),
       devices: await signedInDevices(env, request, auth),
-      history: auth.isDemo || auth.viewingAs ? null : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
+      history:
+        auth.isDemo || auth.viewingAs
+          ? null
+          : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
       // The address the passkey providers are told (the Signal API), only on
       // this person's own page: an admin's view names someone else's passkeys.
       signalAs: auth.isDemo || auth.viewingAs ? null : auth.email,
@@ -173,13 +180,19 @@ async function signInSettings(
       .from(passkey)
       .where(eq(passkey.userId, userId)),
     passkeyLastUsed(env.DB, userId),
-    db.select({ id: authAccount.id, providerId: authAccount.providerId }).from(authAccount).where(eq(authAccount.userId, userId)),
+    db
+      .select({ id: authAccount.id, providerId: authAccount.providerId })
+      .from(authAccount)
+      .where(eq(authAccount.userId, userId)),
   ]);
   const credentialOf = new Map(stored.map((p) => [p.id, p.credentialId]));
   // The joined account's own id, which Disconnect names.
   const byProvider = new Map(joined.map((a) => [a.providerId, a.id]));
   return {
-    passkeys: passkeyRows(stored, lastUsed).map((p) => ({ ...p, credentialId: credentialOf.get(p.id) ?? "" })),
+    passkeys: passkeyRows(stored, lastUsed).map((p) => ({
+      ...p,
+      credentialId: credentialOf.get(p.id) ?? "",
+    })),
     providers: offered.map((p) => ({ ...p, accountId: byProvider.get(p.id) ?? null })),
   };
 }
@@ -190,7 +203,11 @@ async function signInSettings(
  * one, as adding a passkey does. The demo and an admin's read-only view list
  * none: the request's session is not this person's.
  */
-async function signedInDevices(env: Env, request: Request, auth: AuthContext): Promise<SignedInDevices> {
+async function signedInDevices(
+  env: Env,
+  request: Request,
+  auth: AuthContext,
+): Promise<SignedInDevices> {
   if (auth.isDemo || auth.viewingAs) return null;
   return (await accountSessions(await getAuth(env), request)) ?? "stale";
 }
@@ -313,7 +330,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       // signed-in empty state at /connect the way an accountless session does.
       const session = await getSession(env, request);
       if (session) {
-        const remaining = (await listMemberships(db, auth.userId)).filter((m) => m.accountId !== accountId);
+        const remaining = (await listMemberships(db, auth.userId)).filter(
+          (m) => m.accountId !== accountId,
+        );
         if (remaining.length > 0) {
           await setSessionActiveAccount(db, session.session.id, remaining[0].accountId);
         }
@@ -334,7 +353,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       // answers as signing a device out does, and the page asks for a new
       // sign-in.
       const fresh = await freshSession(env, request);
-      if (!fresh) return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
+      if (!fresh)
+        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
       // Better Auth's own delete (/delete-user), for the SIGNED-IN user only:
       // it takes no id, so a person deletes themselves and nobody else, as
       // Recova's route does with supabase.auth.getUser(). Foxhound's deletion
@@ -343,12 +363,15 @@ export async function action({ request, context }: Route.ActionArgs) {
       // Recova then sends the person to "/".
       let deleted: Response | null = null;
       try {
-        deleted = await (await getAuth(env)).api.deleteUser({ body: {}, headers: request.headers, asResponse: true });
+        deleted = await (
+          await getAuth(env)
+        ).api.deleteUser({ body: {}, headers: request.headers, asResponse: true });
       } catch (err) {
         console.error("account deletion failed:", err);
       }
       if (!deleted?.ok) {
-        if (deleted) logEvent("account_deletion_failed", { status: deleted.status }, { level: "error" });
+        if (deleted)
+          logEvent("account_deletion_failed", { status: deleted.status }, { level: "error" });
         // Recova's own words for this failure (AccountSection.tsx, blob a154ac8f).
         return data<ActionResult>(
           {
@@ -369,18 +392,26 @@ export async function action({ request, context }: Route.ActionArgs) {
       // first, as for delete; site-runtime refuses the endpoint without one
       // too.
       const fresh = await freshSession(env, request);
-      if (!fresh) return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      const newEmail = String(form.get("newEmail") ?? "").trim().toLowerCase();
-      const refuse = (error: string) => data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
+      if (!fresh)
+        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
+      const newEmail = String(form.get("newEmail") ?? "")
+        .trim()
+        .toLowerCase();
+      const refuse = (error: string) =>
+        data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
       if (!EMAIL_SHAPE.test(newEmail)) return refuse("Enter an email address.");
-      if (newEmail === fresh.user.email.toLowerCase()) return refuse("That is already your address.");
+      if (newEmail === fresh.user.email.toLowerCase())
+        return refuse("That is already your address.");
       if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
       // An address nobody has confirmed would get the link at the new address
       // alone (Better Auth's other branch), so it is refused: every way into
       // Foxhound confirms the address, so this is only ever an old account.
-      if (!fresh.user.emailVerified) return refuse("Sign in with an email link first, then change your address.");
+      if (!fresh.user.emailVerified)
+        return refuse("Sign in with an email link first, then change your address.");
       try {
-        await (await getAuth(env)).api.changeEmail({
+        await (
+          await getAuth(env)
+        ).api.changeEmail({
           body: { newEmail },
           headers: request.headers,
         });
@@ -388,7 +419,11 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
           return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
         }
-        logEvent("email_change_failed", { error: error instanceof Error ? error.message : String(error) }, { level: "error" });
+        logEvent(
+          "email_change_failed",
+          { error: error instanceof Error ? error.message : String(error) },
+          { level: "error" },
+        );
         return data<ActionResult>(
           { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
           { status: 500 },
@@ -401,7 +436,11 @@ export async function action({ request, context }: Route.ActionArgs) {
     case "sign-out-device": {
       // By the session's id, so no session token reaches the page (site-runtime ./sign-in).
       try {
-        const ok = await revokeSessionById(await getAuth(env), request, String(form.get("session") ?? ""));
+        const ok = await revokeSessionById(
+          await getAuth(env),
+          request,
+          String(form.get("session") ?? ""),
+        );
         return data<ActionResult>({ action: intent, ok }, { status: ok ? 200 : 404 });
       } catch (error) {
         if (!isAPIError(error) || error.body?.code !== "SESSION_NOT_FRESH") throw error;
@@ -467,7 +506,8 @@ function RecovaField({
   const id = `${base}-control`;
   const helpId = `${base}-help`;
   const errorId = `${base}-error`;
-  const describedBy = [error ? errorId : null, help ? helpId : null].filter(Boolean).join(" ") || undefined;
+  const describedBy =
+    [error ? errorId : null, help ? helpId : null].filter(Boolean).join(" ") || undefined;
   return (
     <div className="cap-field" data-invalid={error ? "true" : undefined}>
       <label className="cap-field-label" htmlFor={id}>
@@ -483,7 +523,12 @@ function RecovaField({
           {help}
         </p>
       ) : null}
-      <p className="cap-field-error" id={errorId} role={error ? "alert" : undefined} hidden={!error}>
+      <p
+        className="cap-field-error"
+        id={errorId}
+        role={error ? "alert" : undefined}
+        hidden={!error}
+      >
         {error ?? null}
       </p>
     </div>
@@ -504,7 +549,8 @@ function ProfileForm({
   result?: ActionResult;
 }) {
   const navigation = useNavigation();
-  const saving = navigation.state === "submitting" && navigation.formData?.get("_action") === "profile";
+  const saving =
+    navigation.state === "submitting" && navigation.formData?.get("_action") === "profile";
   const fieldError = (field: ProfileField) => (result?.field === field ? result.error : undefined);
   const barFailed = result && !result.ok && !result.field;
 
@@ -707,7 +753,8 @@ function SignedIn({ userEmail }: { userEmail: string }) {
  */
 function ChangeEmail({ result }: { result?: ActionResult }) {
   const navigation = useNavigation();
-  const sending = navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
+  const sending =
+    navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
   const [open, setOpen] = useState(false);
   const fieldId = useId();
   const mine = result?.action === "change-email" ? result : undefined;
@@ -719,7 +766,8 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
     <div className="mt-4 flex flex-col gap-3">
       {mine?.ok ? (
         <Alert tone="ok">
-          We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the new address.
+          We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the
+          new address.
         </Alert>
       ) : null}
       {stale ? (
@@ -731,7 +779,8 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
             </a>
           }
         >
-          Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change it.
+          Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change
+          it.
         </Alert>
       ) : null}
       {showForm ? (
@@ -751,7 +800,12 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
               aria-invalid={refused ? true : undefined}
               aria-describedby={refused ? `${fieldId}-error` : undefined}
             />
-            <p className="cap-field-error" id={`${fieldId}-error`} role={refused ? "alert" : undefined} hidden={!refused}>
+            <p
+              className="cap-field-error"
+              id={`${fieldId}-error`}
+              role={refused ? "alert" : undefined}
+              hidden={!refused}
+            >
               {refused ?? null}
             </p>
           </div>
@@ -802,7 +856,8 @@ function DangerZone({
   result?: ActionResult;
 }) {
   const navigation = useNavigation();
-  const running = navigation.state !== "idle" ? String(navigation.formData?.get("_action") ?? "") : "";
+  const running =
+    navigation.state !== "idle" ? String(navigation.formData?.get("_action") ?? "") : "";
   const [confirming, setConfirming] = useState<Confirming>(null);
   const opener = useRef<Confirming>(null);
   const moved = useRef(false);
@@ -828,9 +883,11 @@ function DangerZone({
     </Button>
   );
   const deleteStale = result?.action === "delete-account" && result.error === "stale";
-  const deleteFailed = result?.action === "delete-account" && !result.ok && !deleteStale ? result.error : undefined;
+  const deleteFailed =
+    result?.action === "delete-account" && !result.ok && !deleteStale ? result.error : undefined;
   const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
-  const cancelRefused = result?.action === "cancel-account" && !result.ok ? result.error : undefined;
+  const cancelRefused =
+    result?.action === "cancel-account" && !result.ok ? result.error : undefined;
 
   return (
     <div className="mt-5 border-t border-border pt-5">
@@ -839,8 +896,8 @@ function DangerZone({
       <div className="flex flex-col gap-3">
         {cancelledAt ? (
           <p className="text-label text-text-tertiary">
-            This account is canceled. Recovery processing is stopped. Fees already earned on recoveries
-            Foxhound attributed remain owed.
+            This account is canceled. Recovery processing is stopped. Fees already earned on
+            recoveries Foxhound attributed remain owed.
           </p>
         ) : null}
         {cancelWarning ? <Alert tone="warn">{cancelWarning}</Alert> : null}
@@ -854,7 +911,8 @@ function DangerZone({
               </a>
             }
           >
-            Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then delete it.
+            Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then
+            delete it.
           </Alert>
         ) : null}
         {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
@@ -890,11 +948,19 @@ function DangerZone({
             {/* The owner's control only: a member cannot cancel (the action
                 refuses with a 403), so a member is not offered it. */}
             {cancelledAt || !isOwner ? null : (
-              <Button id={openerId("cancel-account")} variant="danger" onClick={() => open("cancel-account")}>
+              <Button
+                id={openerId("cancel-account")}
+                variant="danger"
+                onClick={() => open("cancel-account")}
+              >
                 Cancel account
               </Button>
             )}
-            <Button id={openerId("delete-account")} variant="danger" onClick={() => open("delete-account")}>
+            <Button
+              id={openerId("delete-account")}
+              variant="danger"
+              onClick={() => open("delete-account")}
+            >
               Delete account
             </Button>
           </div>

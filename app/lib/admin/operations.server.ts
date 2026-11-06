@@ -89,7 +89,11 @@ export function diffMigrations(
 ): { rows: MigrationStatusRow[]; unexpectedApplied: string[] } {
   const rows: MigrationStatusRow[] = known.map((name) => {
     const appliedAt = appliedByName.get(name);
-    return { name, applied: appliedAt !== undefined, appliedAt: appliedAt ? new Date(appliedAt) : null };
+    return {
+      name,
+      applied: appliedAt !== undefined,
+      appliedAt: appliedAt ? new Date(appliedAt) : null,
+    };
   });
   const knownSet = new Set(known);
   const unexpectedApplied = [...appliedByName.keys()].filter((name) => !knownSet.has(name));
@@ -105,7 +109,9 @@ export async function getMigrationStatus(env: Env): Promise<{
   rows: MigrationStatusRow[];
   unexpectedApplied: string[];
 }> {
-  const result = await env.DB.prepare("SELECT name, applied_at FROM d1_migrations ORDER BY id").all<{
+  const result = await env.DB.prepare(
+    "SELECT name, applied_at FROM d1_migrations ORDER BY id",
+  ).all<{
     name: string;
     applied_at: string;
   }>();
@@ -144,14 +150,42 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
   ]);
 
   return [
-    { label: "Engagement events", retentionPolicy: "180 days, then monthly aggregates", rowCount: engagementEventsCount[0]?.n ?? 0 },
+    {
+      label: "Engagement events",
+      retentionPolicy: "180 days, then monthly aggregates",
+      rowCount: engagementEventsCount[0]?.n ?? 0,
+    },
     { label: "Email sends", retentionPolicy: "180 days", rowCount: emailSendsCount[0]?.n ?? 0 },
-    { label: "Webhook events", retentionPolicy: "90 days", rowCount: webhookEventsCount[0]?.n ?? 0 },
-    { label: "Health score history", retentionPolicy: "90 days raw, weekly rollups after", rowCount: healthScoreHistoryCount[0]?.n ?? 0 },
-    { label: "Cron run history", retentionPolicy: "90 days", rowCount: cronRunHistoryCount[0]?.n ?? 0 },
-    { label: "Social leads (non-actioned)", retentionPolicy: "180 days", rowCount: socialLeadsCount[0]?.n ?? 0 },
-    { label: "Page 404s (daily aggregate)", retentionPolicy: "365 days", rowCount: page404DailyCount[0]?.n ?? 0 },
-    { label: "AI calls", retentionPolicy: "90 days raw, monthly cost aggregates after", rowCount: aiCallsCount[0]?.n ?? 0 },
+    {
+      label: "Webhook events",
+      retentionPolicy: "90 days",
+      rowCount: webhookEventsCount[0]?.n ?? 0,
+    },
+    {
+      label: "Health score history",
+      retentionPolicy: "90 days raw, weekly rollups after",
+      rowCount: healthScoreHistoryCount[0]?.n ?? 0,
+    },
+    {
+      label: "Cron run history",
+      retentionPolicy: "90 days",
+      rowCount: cronRunHistoryCount[0]?.n ?? 0,
+    },
+    {
+      label: "Social leads (non-actioned)",
+      retentionPolicy: "180 days",
+      rowCount: socialLeadsCount[0]?.n ?? 0,
+    },
+    {
+      label: "Page 404s (daily aggregate)",
+      retentionPolicy: "365 days",
+      rowCount: page404DailyCount[0]?.n ?? 0,
+    },
+    {
+      label: "AI calls",
+      retentionPolicy: "90 days raw, monthly cost aggregates after",
+      rowCount: aiCallsCount[0]?.n ?? 0,
+    },
   ];
 }
 
@@ -270,7 +304,10 @@ export interface RecoveryQueueDepth {
  *  disagree about what is waiting. A step's due time is its next_retry_at when a
  *  send backoff set one, else its scheduled_at; the two are read apart and the
  *  earlier taken, so no SQL expression is written by hand. Read only. */
-export async function getRecoveryQueueDepth(db: Db, now: number = Date.now()): Promise<RecoveryQueueDepth> {
+export async function getRecoveryQueueDepth(
+  db: Db,
+  now: number = Date.now(),
+): Promise<RecoveryQueueDepth> {
   const at = new Date(now);
   const due = and(
     stepDueCondition(at),
@@ -330,7 +367,10 @@ export async function readCronLocks(env: Env, now: number = Date.now()): Promise
   const ns = env.CRON_LOCK;
   const reads = await Promise.allSettled(
     CRON_JOBS.map((job) =>
-      withTimeout(ns.get(ns.idFromName(job.name)).peek() as Promise<CronLockView>, CRON_LOCK_PEEK_TIMEOUT_MS),
+      withTimeout(
+        ns.get(ns.idFromName(job.name)).peek() as Promise<CronLockView>,
+        CRON_LOCK_PEEK_TIMEOUT_MS,
+      ),
     ),
   );
   return CRON_JOBS.map((job, i) => {

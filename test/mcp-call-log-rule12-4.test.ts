@@ -89,7 +89,15 @@ async function seed() {
 }
 
 async function callTool(token: string | null, name: string, args: unknown) {
-  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args as Record<string, unknown>));
+  const res = await confirmedCall(
+    (a) =>
+      handleMcpRequest(
+        mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }),
+        env(),
+        MERCHANT_TOOLS,
+      ),
+    args as Record<string, unknown>,
+  );
   return readMcp(res);
 }
 
@@ -110,7 +118,6 @@ function logRows(sqlite: ReturnType<typeof createInMemoryDb>["sqlite"]): LogRow[
 // ============================================================================
 
 describe("PLANT 1: every tool call leaves one row", () => {
-
   it("a call the tool refused is logged as tool_error with the refusal", async () => {
     const { sqlite, token } = await seed();
     await callTool(token, "foxhound_get_payment", { payment_id: "fp_nope" });
@@ -150,21 +157,30 @@ describe("PLANT 2: what the log never keeps", () => {
     const { sqlite, token } = await seed();
     auditRows.length = 0;
     const url = "https://hooks.slack.com/services/T0LOG/B0LOG/logPangolinSecret";
-    await callTool(token, "foxhound_update_settings", { notifications: { slack_webhook_url: url } });
+    await callTool(token, "foxhound_update_settings", {
+      notifications: { slack_webhook_url: url },
+    });
     const [row] = logRows(sqlite);
     expect(row.outcome).toBe("ok");
     expect(row.arguments).not.toContain("logPangolinSecret");
-    expect(JSON.parse(row.arguments)).toEqual({ notifications: { slack_webhook_url: "[redacted]" } });
+    expect(JSON.parse(row.arguments)).toEqual({
+      notifications: { slack_webhook_url: "[redacted]" },
+    });
     // The shared log gets a started row before the call and a finished row
     // after, one call id between them, both redacted the same way.
     // The call is made twice, the second time with the confirm code
     // (app/lib/mcp/confirm.server.ts), which is stored as [redacted] too.
     expect(auditRows.map((r) => r.phase)).toEqual(["started", "finished", "started", "finished"]);
-    expect(auditRows[3]).toMatchObject({ tool: "foxhound_update_settings", result: { isError: false, text: "ok" } });
+    expect(auditRows[3]).toMatchObject({
+      tool: "foxhound_update_settings",
+      result: { isError: false, text: "ok" },
+    });
     expect(auditRows[3].callId).toBe(auditRows[2].callId);
     expect(JSON.parse(logRows(sqlite)[1].arguments).confirm).toBe("[redacted]");
     expect(JSON.stringify(auditRows)).not.toContain("logPangolinSecret");
-    const stored = sqlite.prepare("SELECT slack_webhook_url FROM accounts WHERE id = ?").get(MINE) as {
+    const stored = sqlite
+      .prepare("SELECT slack_webhook_url FROM accounts WHERE id = ?")
+      .get(MINE) as {
       slack_webhook_url: string;
     };
     expect(stored.slack_webhook_url).toBe(url);
@@ -172,7 +188,9 @@ describe("PLANT 2: what the log never keeps", () => {
 
   it("an email address inside a stored error is masked", async () => {
     const { sqlite, token } = await seed();
-    await callTool(token, "foxhound_get_customer", { stripe_customer_id: "wanda.lowell@example.test" });
+    await callTool(token, "foxhound_get_customer", {
+      stripe_customer_id: "wanda.lowell@example.test",
+    });
     const [row] = logRows(sqlite);
     expect(row.outcome).toBe("tool_error");
     expect(row.error).not.toContain("wanda.lowell@example.test");
@@ -185,20 +203,33 @@ describe("PLANT 4: a call that cannot be logged is not run", () => {
     const { sqlite, token } = await seed();
     const broken = {
       ...env(),
-      TOOL_CALL_LOG: { idFromName: () => "tool-calls", get: () => ({ fetch: async () => new Response(null, { status: 500 }) }) },
+      TOOL_CALL_LOG: {
+        idFromName: () => "tool-calls",
+        get: () => ({ fetch: async () => new Response(null, { status: 500 }) }),
+      },
     } as unknown as Env;
     const res = (await handleMcpRequest(
       mcpRequest({
         token,
         method: "tools/call",
-        params: { name: "foxhound_update_settings", arguments: { features: { winback_notifications_enabled: false, expiring_card_notifications_enabled: false } } },
+        params: {
+          name: "foxhound_update_settings",
+          arguments: {
+            features: {
+              winback_notifications_enabled: false,
+              expiring_card_notifications_enabled: false,
+            },
+          },
+        },
       }),
       broken,
       MERCHANT_TOOLS,
     )) as Response;
     expect(res.status).toBe(503);
     expect(logRows(sqlite)).toEqual([]);
-    const account = sqlite.prepare("SELECT winback_notifications_enabled AS w FROM accounts WHERE id = ?").get(MINE) as { w: number };
+    const account = sqlite
+      .prepare("SELECT winback_notifications_enabled AS w FROM accounts WHERE id = ?")
+      .get(MINE) as { w: number };
     expect(account.w).not.toBe(0);
   });
 });
@@ -208,7 +239,9 @@ describe("PLANT 3: append-only in the database itself", () => {
     const { sqlite, token } = await seed();
     await callTool(token, "foxhound_get_overview", {});
     expect(logRows(sqlite)).toHaveLength(1);
-    expect(() => sqlite.prepare("UPDATE mcp_calls SET tool = 'rewritten'").run()).toThrow(/append-only/);
+    expect(() => sqlite.prepare("UPDATE mcp_calls SET tool = 'rewritten'").run()).toThrow(
+      /append-only/,
+    );
     expect(() => sqlite.prepare("DELETE FROM mcp_calls").run()).toThrow(/append-only/);
     // Both refusals left the row as it was, so the triggers are the guard.
     expect(logRows(sqlite).map((r) => r.tool)).toEqual(["foxhound_get_overview"]);

@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J35, row S30, under Dustin's Q10 and Q11 rulings of
@@ -26,7 +25,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route = await import("~/routes/app/settings/audit");
-
 
 const Page = route.default as unknown as (props: {
   loaderData: { lookbackDays: number; autoRun: boolean };
@@ -60,7 +58,10 @@ describe("J35 review: a write that throws reaches the merchant and the log", () 
     const boom = new Error("D1_ERROR: database is locked");
     harness.db = new Proxy(db, {
       get(target, prop, receiver) {
-        if (prop === "batch") return async () => { throw boom; };
+        if (prop === "batch")
+          return async () => {
+            throw boom;
+          };
         return Reflect.get(target, prop, receiver);
       },
     });

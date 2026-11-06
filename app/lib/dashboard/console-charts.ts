@@ -22,7 +22,12 @@ const MOVEMENT_COLORS: Record<string, string> = {
   Reactivate: "var(--purple)",
 };
 
-export function drawLatestMovement(m: MovementTotals, currency: string, width: number, fit: ChartFit = {}): string {
+export function drawLatestMovement(
+  m: MovementTotals,
+  currency: string,
+  width: number,
+  fit: ChartFit = {},
+): string {
   const bars = mrrMovementBars(m, currency);
   return barChart({
     title: "MRR movements, latest month",

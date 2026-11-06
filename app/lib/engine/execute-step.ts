@@ -269,7 +269,12 @@ export interface EmailStepDeps {
   /** Resolve + send. Default: content resolution + processEmailJob (suppression + send + log). */
   send: (env: Env, job: EmailJob) => Promise<EmailJobResult>;
   /** Persist the operational step patch. Default: plain db.update. */
-  persistPatch: (env: Env, stepId: string, patch: StepStatePatch, cache?: EmailCopy) => Promise<void>;
+  persistPatch: (
+    env: Env,
+    stepId: string,
+    patch: StepStatePatch,
+    cache?: EmailCopy,
+  ) => Promise<void>;
   /** Generate dunning copy. Default: generateDunningEmail (Anthropic seam). */
   generate: (env: Env, updateUrl: string, ctx: EmailStepContext) => Promise<EmailCopy>;
 }
@@ -357,7 +362,11 @@ export interface EmailStepResult {
 
 /** Build the deterministic fallback for this step, honoring a merchant custom
  *  body exactly as generated copy would. */
-function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: string | null): EmailCopy {
+function templateCopyFor(
+  ctx: EmailStepContext,
+  updateUrl: string,
+  customBody: string | null,
+): EmailCopy {
   return applyCustomBody(
     buildTemplateEmail({
       merchantName: ctx.merchantName,
@@ -377,7 +386,11 @@ function templateCopyFor(ctx: EmailStepContext, updateUrl: string, customBody: s
  *  means the copy that would have gone out did not link the update page. */
 type TemplateReason = "generation_failed" | "quality_gate" | "missing_update_link";
 
-type ResolvedCopy = { copy: EmailCopy; usedTemplate: boolean; templateReason: TemplateReason | null };
+type ResolvedCopy = {
+  copy: EmailCopy;
+  usedTemplate: boolean;
+  templateReason: TemplateReason | null;
+};
 
 /**
  * Resolve the copy to send, falling back to the deterministic template when
@@ -565,7 +578,11 @@ export async function executeEmailStep(
     // Isolate: a token-signing or send throw is a transient failure for THIS step
     // only, rescheduled by the backoff machine; it must not halt the sweep.
     // A GENERATION throw no longer reaches here; it falls back to the template.
-    attempt = { ok: false, permanent: false, error: err instanceof Error ? err.message : "send error" };
+    attempt = {
+      ok: false,
+      permanent: false,
+      error: err instanceof Error ? err.message : "send error",
+    };
   }
 
   const patch = decideEmailStep({ attemptCount: ctx.attemptCount }, attempt, now);

@@ -217,21 +217,44 @@ describe("PLANT 5: a denied claim is OK to the step machine, not a failure", () 
     // the step would back off and retry with `stepId:attemptCount + 1`, a key
     // the claim has never seen, and send the very email the claim exists to
     // prevent. The claim would then be a guard that causes the thing it guards.
-    expect(sendResultToAttempt({ status: "duplicate", providerMessageId: null, error: null, retryable: false })).toEqual({ ok: true });
+    expect(
+      sendResultToAttempt({
+        status: "duplicate",
+        providerMessageId: null,
+        error: null,
+        retryable: false,
+      }),
+    ).toEqual({ ok: true });
     // The statuses either side of it are unchanged, so this is a widening and
     // not a rewrite.
-    expect(sendResultToAttempt({ status: "sent", providerMessageId: "p", error: null, retryable: false })).toEqual({ ok: true });
     expect(
-      sendResultToAttempt({ status: "failed", providerMessageId: null, error: "boom", retryable: true }).ok,
+      sendResultToAttempt({
+        status: "sent",
+        providerMessageId: "p",
+        error: null,
+        retryable: false,
+      }),
+    ).toEqual({ ok: true });
+    expect(
+      sendResultToAttempt({
+        status: "failed",
+        providerMessageId: null,
+        error: "boom",
+        retryable: true,
+      }).ok,
     ).toBe(false);
     expect(
-      sendResultToAttempt({ status: "blocked", providerMessageId: null, error: "off", retryable: true }).ok,
+      sendResultToAttempt({
+        status: "blocked",
+        providerMessageId: null,
+        error: "off",
+        retryable: true,
+      }).ok,
     ).toBe(false);
   });
 });
 
 describe("PLANT 6: the gates before the claim still hold, and claim nothing", () => {
-
   it("an EMPTY key is refused rather than sent unclaimed", async () => {
     // An empty string is a real value to a unique index, so it would collide
     // with every other keyless send and start refusing unrelated mail. Fail

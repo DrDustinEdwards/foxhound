@@ -1,4 +1,8 @@
-import { emailConfirmURL, SIGN_IN_EXPIRES_IN_WORDS, type NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
+import {
+  emailConfirmURL,
+  SIGN_IN_EXPIRES_IN_WORDS,
+  type NoticeDetail,
+} from "@dustinedwards/site-runtime/sign-in";
 import type { Rendered } from "capsomer/email";
 
 import { sendRenderedTransactionalEmail, type TransactionalSendOutcome } from "~/lib/email/send";
@@ -50,7 +54,11 @@ export async function sendSignInLinkEmail(
   try {
     rendered = renderSignInLinkEmail(to, url, code);
   } catch {
-    return { status: "failed", reason: isHttps(url) ? "render_failed" : "link_refused", error: null };
+    return {
+      status: "failed",
+      reason: isHttps(url) ? "render_failed" : "link_refused",
+      error: null,
+    };
   }
   return sendRenderedTransactionalEmail(env, { to, rendered, redact: [url, token, code, to] });
 }
@@ -64,11 +72,21 @@ const SIGN_IN_SETTINGS_PATH = "/settings/account";
  * and logs a throw as `security_notice_failed` without undoing the change, so a
  * refusal is thrown by name, with the recipient cut out of the provider's words.
  */
-export async function sendSecurityNoticeEmail(env: Env, to: string, detail: NoticeDetail): Promise<void> {
-  const rendered = renderFoxhoundSecurityNoticeEmail(to, detail, `${env.BETTER_AUTH_URL}${SIGN_IN_SETTINGS_PATH}`);
+export async function sendSecurityNoticeEmail(
+  env: Env,
+  to: string,
+  detail: NoticeDetail,
+): Promise<void> {
+  const rendered = renderFoxhoundSecurityNoticeEmail(
+    to,
+    detail,
+    `${env.BETTER_AUTH_URL}${SIGN_IN_SETTINGS_PATH}`,
+  );
   const sent = await sendRenderedTransactionalEmail(env, { to, rendered, redact: [to] });
   if (sent.status !== "sent") {
-    throw new Error(`security notice email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
+    throw new Error(
+      `security notice email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`,
+    );
   }
 }
 
@@ -101,7 +119,8 @@ export async function sendEmailChangeConfirmation(
       heading: "Change your email address?",
       intro: `Someone signed in to Foxhound asked to change this account's address from ${change.to} to ${change.newEmail}. Confirm it here, and we then send a link to the new address to finish.`,
       button: "Confirm the change",
-      ignore: "If this was not you, do not confirm it, and sign out your other devices from Foxhound's account settings. Your address stays as it is.",
+      ignore:
+        "If this was not you, do not confirm it, and sign out your other devices from Foxhound's account settings. Your address stays as it is.",
     },
   });
   await sendOrThrow(env, change.to, rendered, [change.url, change.token, link, change.newEmail]);
@@ -110,7 +129,10 @@ export async function sendEmailChangeConfirmation(
 /** Mail the NEW address the link that makes the change, once the current one
  *  has confirmed it. Better Auth's sendVerificationEmail; /send-verification-
  *  email is off (auth.server.ts), so an email change is the only caller. */
-export async function sendNewEmailVerification(env: Env, change: { to: string; url: string; token: string }): Promise<void> {
+export async function sendNewEmailVerification(
+  env: Env,
+  change: { to: string; url: string; token: string },
+): Promise<void> {
   const link = emailConfirmURL(change.url);
   const rendered = renderFoxhoundEmailChangeEmail({
     to: change.to,
@@ -128,10 +150,21 @@ export async function sendNewEmailVerification(env: Env, change: { to: string; u
   await sendOrThrow(env, change.to, rendered, [change.url, change.token, link]);
 }
 
-async function sendOrThrow(env: Env, to: string, rendered: Rendered, secrets: string[]): Promise<void> {
-  const sent = await sendRenderedTransactionalEmail(env, { to, rendered, redact: [...secrets, to] });
+async function sendOrThrow(
+  env: Env,
+  to: string,
+  rendered: Rendered,
+  secrets: string[],
+): Promise<void> {
+  const sent = await sendRenderedTransactionalEmail(env, {
+    to,
+    rendered,
+    redact: [...secrets, to],
+  });
   if (sent.status !== "sent") {
-    throw new Error(`email change mail not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
+    throw new Error(
+      `email change mail not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`,
+    );
   }
 }
 

@@ -1,11 +1,16 @@
-
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts, alertHistory, alerts, apiKeys, mcpWrites, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
-import { mcpRequest, readMcp, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
+import {
+  mcpRequest,
+  readMcp,
+  toolCallLogStub,
+  confirmedCall,
+  TEST_LINK_KEY,
+} from "./helpers/mcp-client";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // SESSION 80: THE FOUR SURGERIES, AND ITEM 4 CLOSES.
@@ -47,14 +52,9 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import(
-  "~/lib/mcp/tools.server"
-);
-const { applyIntelligenceContext } = await import(
-  "~/lib/settings/apply.server"
-);
-
-
+const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } =
+  await import("~/lib/mcp/tools.server");
+const { applyIntelligenceContext } = await import("~/lib/settings/apply.server");
 
 const MINE = "acct_mine";
 const THEIRS = "acct_theirs";
@@ -168,7 +168,15 @@ async function seed() {
 
 /** One tools/call through the real handler, the SDK and the registry. */
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
-  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args));
+  const res = await confirmedCall(
+    (a) =>
+      handleMcpRequest(
+        mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }),
+        env(),
+        MERCHANT_TOOLS,
+      ),
+    args,
+  );
   const answer = await readMcp(res);
   return { status: answer.status, text: answer.text, json: answer.json as never };
 }
@@ -178,16 +186,23 @@ const updateSettings = (token: string, section: string, body: Record<string, unk
   callTool(token, UPDATE, { [section]: body });
 
 /** One foxhound_manage_alerts call. */
-const manageAlerts = (token: string, args: Record<string, unknown>) => callTool(token, ALERTS, args);
+const manageAlerts = (token: string, args: Record<string, unknown>) =>
+  callTool(token, ALERTS, args);
 
 const resultOf = (json: never) =>
-  (json as unknown as {
-    result: { isError?: boolean; structuredContent: Record<string, unknown> };
-  }).result;
+  (
+    json as unknown as {
+      result: { isError?: boolean; structuredContent: Record<string, unknown> };
+    }
+  ).result;
 
 const connectionOf = async (db: Awaited<ReturnType<typeof seed>>["db"], account: string) =>
-  (await db.select().from(stripeConnections).where(eq(stripeConnections.id, `sc_${account}`)))[0];
-
+  (
+    await db
+      .select()
+      .from(stripeConnections)
+      .where(eq(stripeConnections.id, `sc_${account}`))
+  )[0];
 
 // ============================================================================
 
@@ -248,10 +263,23 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
 
   it("action disable turns MINE's alert off and leaves THEIRS enabled", async () => {
     const { db, tokens } = await seed();
-    const { json } = await manageAlerts(tokens[MINE], { action: "disable", alert_id: `al_${MINE}` });
+    const { json } = await manageAlerts(tokens[MINE], {
+      action: "disable",
+      alert_id: `al_${MINE}`,
+    });
     expect(resultOf(json).isError).toBeUndefined();
-    const mine = (await db.select().from(alerts).where(eq(alerts.id, `al_${MINE}`)))[0];
-    const theirs = (await db.select().from(alerts).where(eq(alerts.id, `al_${THEIRS}`)))[0];
+    const mine = (
+      await db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.id, `al_${MINE}`))
+    )[0];
+    const theirs = (
+      await db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.id, `al_${THEIRS}`))
+    )[0];
     expect(mine.enabled).toBe(false);
     expect(theirs.enabled).toBe(true);
   });
@@ -268,7 +296,12 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
       enabled: true,
       deleted: false,
     });
-    const mine = (await db.select().from(alerts).where(eq(alerts.id, `al_${MINE}`)))[0];
+    const mine = (
+      await db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.id, `al_${MINE}`))
+    )[0];
     expect(mine.enabled).toBe(true);
   });
 });
@@ -286,7 +319,12 @@ describe("PLANT 3b: the action verb is checked, and a wrong shape writes nothing
     expect(result.isError).toBe(true);
     expect(JSON.stringify(result)).toContain("action");
 
-    const mine = (await db.select().from(alerts).where(eq(alerts.id, `al_${MINE}`)))[0];
+    const mine = (
+      await db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.id, `al_${MINE}`))
+    )[0];
     expect(mine.enabled).toBe(true);
     expect(await db.select().from(mcpWrites)).toHaveLength(0);
 
@@ -304,7 +342,14 @@ describe("PLANT 3b: the action verb is checked, and a wrong shape writes nothing
         { action: "pause", alert_id: `al_${MINE}` },
       ),
     ).rejects.toThrow("action must be one of create, enable, disable, delete.");
-    expect((await db.select().from(alerts).where(eq(alerts.id, `al_${MINE}`)))[0].enabled).toBe(true);
+    expect(
+      (
+        await db
+          .select()
+          .from(alerts)
+          .where(eq(alerts.id, `al_${MINE}`))
+      )[0].enabled,
+    ).toBe(true);
     expect(await db.select().from(mcpWrites)).toHaveLength(0);
   });
 
@@ -318,7 +363,12 @@ describe("PLANT 3b: the action verb is checked, and a wrong shape writes nothing
     }
     // Nothing on either account moved.
     for (const account of [MINE, THEIRS]) {
-      const row = (await db.select().from(alerts).where(eq(alerts.id, `al_${account}`)))[0];
+      const row = (
+        await db
+          .select()
+          .from(alerts)
+          .where(eq(alerts.id, `al_${account}`))
+      )[0];
       expect(row.enabled).toBe(true);
     }
     expect(await db.select().from(alertHistory)).toHaveLength(2);
@@ -345,7 +395,6 @@ describe("PLANT 3b: the action verb is checked, and a wrong shape writes nothing
 });
 
 describe("PLANT 4: omitting a field leaves it alone, clearing it clears it", () => {
-
   it("and an EMPTY STRING clears an intelligence_context field through the tool", async () => {
     // The tool-side positive control for the omission plant above, on this
     // section: "" reaches the column as null, the others stay.
@@ -443,20 +492,36 @@ describe("PLANT 9: a destructive call is confirmed first, by a code tied to that
     const { db, tokens } = await seed();
     const send = async (args: Record<string, unknown>) =>
       resultOf(
-        (await readMcp((await handleMcpRequest(
-          mcpRequest({ token: tokens[MINE], method: "tools/call", params: { name: ALERTS, arguments: args } }),
-          env(),
-          MERCHANT_TOOLS,
-        )) as Response)).json as never,
+        (
+          await readMcp(
+            (await handleMcpRequest(
+              mcpRequest({
+                token: tokens[MINE],
+                method: "tools/call",
+                params: { name: ALERTS, arguments: args },
+              }),
+              env(),
+              MERCHANT_TOOLS,
+            )) as Response,
+          )
+        ).json as never,
       );
     const asked = await send({ action: "delete", alert_id: `al_${MINE}` });
     expect(asked.structuredContent).toMatchObject({ confirmation_required: true });
     expect(await db.select().from(mcpWrites)).toHaveLength(0);
     // A code for one alert does not delete another.
-    const other = await send({ action: "delete", alert_id: `al_${THEIRS}`, confirm: asked.structuredContent.confirm });
+    const other = await send({
+      action: "delete",
+      alert_id: `al_${THEIRS}`,
+      confirm: asked.structuredContent.confirm,
+    });
     expect(other.structuredContent).toMatchObject({ confirmation_required: true });
     expect(await db.select().from(mcpWrites)).toHaveLength(0);
-    const done = await send({ action: "delete", alert_id: `al_${MINE}`, confirm: asked.structuredContent.confirm });
+    const done = await send({
+      action: "delete",
+      alert_id: `al_${MINE}`,
+      confirm: asked.structuredContent.confirm,
+    });
     expect(done.structuredContent).toMatchObject({ action: "delete" });
     expect(await db.select().from(mcpWrites)).toHaveLength(1);
   });

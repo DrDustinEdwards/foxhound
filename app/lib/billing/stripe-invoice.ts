@@ -128,9 +128,15 @@ export function lineItemIdempotencyKey(
   ctx: { accountId: string; periodKey: string; currency: string },
 ): string {
   if (row.type === "recovery_fee" && row.recoveredPaymentId) {
-    return recoveryFeeItemIdempotencyKey(ctx.accountId, ctx.periodKey, ctx.currency, row.recoveredPaymentId);
+    return recoveryFeeItemIdempotencyKey(
+      ctx.accountId,
+      ctx.periodKey,
+      ctx.currency,
+      row.recoveredPaymentId,
+    );
   }
-  if (row.type === "dispute_fee" && row.disputeId) return disputeFeeItemIdempotencyKey(row.disputeId);
+  if (row.type === "dispute_fee" && row.disputeId)
+    return disputeFeeItemIdempotencyKey(row.disputeId);
   return `line_item_${row.id}`;
 }
 
@@ -168,7 +174,11 @@ function hasDefaultPaymentMethod(customer: CustomerPaymentMethodFields): boolean
  *  (Recova process-recovery-billing, `Recova: ${monthLabel}`). In UTC, as the
  *  billing period is. Pure. */
 function platformInvoiceDescription(periodStart: Date): string {
-  const month = periodStart.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const month = periodStart.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
   return `Foxhound: ${month}`;
 }
 
@@ -232,7 +242,10 @@ export async function createPlatformInvoice(
       currency: input.currency,
       description: platformInvoiceDescription(input.periodStart),
       ...(sendByEmail
-        ? { collection_method: "send_invoice" as const, days_until_due: SEND_INVOICE_DAYS_UNTIL_DUE }
+        ? {
+            collection_method: "send_invoice" as const,
+            days_until_due: SEND_INVOICE_DAYS_UNTIL_DUE,
+          }
         : { collection_method: "charge_automatically" as const }),
       // Held as a draft while items attach, on both paths: a half-built
       // invoice must never advance, and for send_invoice never be emailed. The
@@ -264,11 +277,9 @@ export async function createPlatformInvoice(
   // invoice when there is none. The retry sweep never re-creates an invoice
   // Stripe already has (findPlatformInvoiceByBillingId), so this is the one
   // invoice Stripe collects on.
-  const finalized = await stripe.invoices.finalizeInvoice(
-    invoice.id,
-    FINALIZE_PARAMS,
-    { idempotencyKey: platformInvoiceFinalizeIdempotencyKey(input.billingInvoiceId) },
-  );
+  const finalized = await stripe.invoices.finalizeInvoice(invoice.id, FINALIZE_PARAMS, {
+    idempotencyKey: platformInvoiceFinalizeIdempotencyKey(input.billingInvoiceId),
+  });
   return {
     stripeInvoiceId: finalized.id ?? invoice.id,
     hostedInvoiceUrl: finalized.hosted_invoice_url ?? null,
@@ -433,10 +444,15 @@ export async function createCreditNote(
   input: CreditNoteInput,
 ): Promise<{ creditNoteId: string }> {
   const stripe = getStripe(env);
-  for await (const existing of stripe.creditNotes.list({ invoice: input.stripeInvoiceId, limit: 100 })) {
+  for await (const existing of stripe.creditNotes.list({
+    invoice: input.stripeInvoiceId,
+    limit: 100,
+  })) {
     if (existing.metadata?.fee_line_item_id !== input.feeLineItemId) continue;
     if (existing.status === "void") {
-      throw new Error(`credit note ${existing.id} for fee line ${input.feeLineItemId} was voided at Stripe`);
+      throw new Error(
+        `credit note ${existing.id} for fee line ${input.feeLineItemId} was voided at Stripe`,
+      );
     }
     return { creditNoteId: existing.id };
   }

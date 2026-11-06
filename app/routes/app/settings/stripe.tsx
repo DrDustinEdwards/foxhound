@@ -18,19 +18,13 @@ import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import {
-  listAccountConnections,
-  listConnectionHealth,
-} from "~/lib/settings/queries.server";
+import { listAccountConnections, listConnectionHealth } from "~/lib/settings/queries.server";
 import {
   currentHealthProblems,
   healthProblemLines,
   STRIPE_DASHBOARD_URL,
 } from "~/lib/stripe/account-health";
-import {
-  disconnectConnection,
-  findLiveConnection,
-} from "~/lib/admin/merchant-cancel.server";
+import { disconnectConnection, findLiveConnection } from "~/lib/admin/merchant-cancel.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import {
   disconnectFeedback,
@@ -87,10 +81,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const warnings = new Map(
     health.map((h) => {
       const problems = currentHealthProblems(h);
-      return [
-        h.id,
-        problems.length > 0 ? healthProblemLines(problems, h) : [],
-      ] as const;
+      return [h.id, problems.length > 0 ? healthProblemLines(problems, h) : []] as const;
     }),
   );
   return {
@@ -162,10 +153,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         try {
           return await deauthorizeConnectedAccount(e, stripeUserId);
         } catch (err) {
-          console.error(
-            "stripe deauthorize threw after the disconnect committed:",
-            err,
-          );
+          console.error("stripe deauthorize threw after the disconnect committed:", err);
           return {
             ok: false,
             error: err instanceof Error ? err.message : String(err),
@@ -186,8 +174,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  if (warning)
-    return data<DisconnectResult>({ action: intent, ok: true, warning });
+  if (warning) return data<DisconnectResult>({ action: intent, ok: true, warning });
   // Recova's success: `window.location.href = '/settings'`.
   return redirect("/settings");
 }
@@ -238,8 +225,7 @@ function StripeSection({
 }) {
   const navigation = useNavigation();
   const runningId =
-    navigation.state !== "idle" &&
-    navigation.formData?.get("_action") === "disconnect-stripe"
+    navigation.state !== "idle" && navigation.formData?.get("_action") === "disconnect-stripe"
       ? String(navigation.formData.get("connectionId") ?? "")
       : null;
   // The question belongs to the result it was asked under. A new result (a
@@ -294,28 +280,16 @@ function StripeSection({
                   <div className="cap-panel-body">
                     <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <div className="mb-0.5 text-label text-text">
-                          {label}
-                        </div>
+                        <div className="mb-0.5 text-label text-text">{label}</div>
                         {connected ? (
-                          <div className="text-micro text-text-subtle">
-                            {connected}
-                          </div>
+                          <div className="text-micro text-text-subtle">{connected}</div>
                         ) : null}
                       </div>
                       {isOwner ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <DemoGuardedForm method="post">
-                            <input
-                              type="hidden"
-                              name="_action"
-                              value="disconnect-stripe"
-                            />
-                            <input
-                              type="hidden"
-                              name="connectionId"
-                              value={conn.id}
-                            />
+                            <input type="hidden" name="_action" value="disconnect-stripe" />
+                            <input type="hidden" name="connectionId" value={conn.id} />
                             <Button
                               id={buttonId(conn.id)}
                               variant={isConfirming ? "danger" : "default"}
@@ -340,9 +314,7 @@ function StripeSection({
                             </Button>
                           </DemoGuardedForm>
                           {isConfirming && !isDisconnecting ? (
-                            <Button onClick={() => keep(conn.id)}>
-                              Keep connected
-                            </Button>
+                            <Button onClick={() => keep(conn.id)}>Keep connected</Button>
                           ) : null}
                         </div>
                       ) : (
@@ -364,7 +336,8 @@ function StripeSection({
                               rel="noreferrer"
                             >
                               Open Stripe dashboard
-                            <span className="cap-sr-only"> (opens in a new tab)</span></a>
+                              <span className="cap-sr-only"> (opens in a new tab)</span>
+                            </a>
                           }
                         >
                           {conn.healthWarning.join(" ")}
@@ -387,10 +360,7 @@ function StripeSection({
   );
 }
 
-export default function StripeSettings({
-  loaderData,
-  actionData,
-}: Route.ComponentProps) {
+export default function StripeSettings({ loaderData, actionData }: Route.ComponentProps) {
   const { connections, isOwner } = loaderData;
   const result = actionData as DisconnectResult | undefined;
 
@@ -409,11 +379,7 @@ export default function StripeSettings({
           }
         />
       </div>
-      <StripeSection
-        connections={connections}
-        result={result}
-        isOwner={isOwner}
-      />
+      <StripeSection connections={connections} result={result} isOwner={isOwner} />
     </>
   );
 }

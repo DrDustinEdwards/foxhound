@@ -115,7 +115,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // unknown-client request is refused without a sign-in detour, with a 400
   // (area 11, A8): the card is the same, and the status says it is a refusal.
   const check = await checkAuthorizeRequest(db, params, new URL(request.url).origin);
-  if (!check.ok) return data<Refusal>({ ok: false, title: check.title, message: check.message }, { status: 400 });
+  if (!check.ok)
+    return data<Refusal>(
+      { ok: false, title: check.title, message: check.message },
+      { status: 400 },
+    );
 
   const session = await getSession(env, request);
   if (!session) throw loginRedirect(params);
@@ -129,7 +133,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // The grant carries write tools, so only the account owner approves one, as
   // only an owner creates an API key (/settings/api-keys).
   if (membership.role !== MEMBER_ROLE.OWNER) {
-    return data<Refusal>({ ok: false, title: "Owner approval needed", message: OWNER_ONLY }, { status: 403 });
+    return data<Refusal>(
+      { ok: false, title: "Owner approval needed", message: OWNER_ONLY },
+      { status: 403 },
+    );
   }
 
   const redirectTo = describeRedirect(check.redirectUri);
@@ -153,11 +160,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 /** The words for a refusal on the card. Recova showed its raw error codes
  *  (authorize_failed, unknown_client); a raw code is a Recova bug not copied. */
-const EXPIRED_REQUEST = "This request is no longer valid. Start again from the app you are connecting.";
+const EXPIRED_REQUEST =
+  "This request is no longer valid. Start again from the app you are connecting.";
 const TOO_MANY = "Too many attempts. Wait a minute and try again.";
 const DEMO_REFUSED = "The demo account cannot be connected.";
 const OWNER_ONLY = "Only the account owner can connect an app to this account.";
-const ACCOUNT_CHANGED ="Your active account changed in another tab. Check the account above and approve again.";
+const ACCOUNT_CHANGED =
+  "Your active account changed in another tab. Check the account above and approve again.";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -220,7 +229,9 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const target = await issueAuthorizationCode(db, {
     clientId: check.clientId,
-    metadataDocument: check.metadataDocument ? { clientName: check.clientName, redirectUris: check.redirectUris } : null,
+    metadataDocument: check.metadataDocument
+      ? { clientName: check.clientName, redirectUris: check.redirectUris }
+      : null,
     redirectUri: check.redirectUri,
     state: check.state,
     codeChallenge: check.codeChallenge,
@@ -248,7 +259,8 @@ function ConsentCard({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div
-        className="fh-cap w-full max-w-[460px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
+        className="fh-cap w-full max-w-[460px] [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
         data-family="amber"
         data-oauth-consent=""
       >
@@ -263,9 +275,20 @@ function ConsentCard({ children }: { children: ReactNode }) {
 }
 
 /** Recova's small mono label over a block (its 11px uppercase eyebrow). */
-function Eyebrow({ id, children, className = "" }: { id?: string; children: ReactNode; className?: string }) {
+function Eyebrow({
+  id,
+  children,
+  className = "",
+}: {
+  id?: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <p id={id} className={`font-mono text-micro uppercase tracking-wide text-text-tertiary ${className}`}>
+    <p
+      id={id}
+      className={`font-mono text-micro uppercase tracking-wide text-text-tertiary ${className}`}
+    >
       {children}
     </p>
   );
@@ -311,7 +334,8 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         ) : (
           "This app registered itself, so its name is its own claim, not checked."
         )}{" "}
-        Its access will be sent to <strong className="font-medium text-text">{consent.redirectHost}</strong>.
+        Its access will be sent to{" "}
+        <strong className="font-medium text-text">{consent.redirectHost}</strong>.
       </p>
 
       {consent.redirectWarning ? (
@@ -323,14 +347,19 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
       <div className="mb-5 rounded-lg border border-border-sub bg-bg px-4 py-3">
         <Eyebrow className="mb-1">Account</Eyebrow>
         <p className="text-label font-medium text-text">{consent.accountName}</p>
-        {consent.email ? <p className="mt-0.5 font-mono text-micro text-text-subtle">{consent.email}</p> : null}
+        {consent.email ? (
+          <p className="mt-0.5 font-mono text-micro text-text-subtle">{consent.email}</p>
+        ) : null}
       </div>
 
       <div className="mb-6">
         <Eyebrow id="oauth-can" className="mb-2">
           What {consent.clientName} can do
         </Eyebrow>
-        <ul aria-labelledby="oauth-can" className="m-0 list-disc pl-4 text-label leading-relaxed text-text-secondary">
+        <ul
+          aria-labelledby="oauth-can"
+          className="m-0 list-disc pl-4 text-label leading-relaxed text-text-secondary"
+        >
           {CONSENT_CAPABILITIES.filter((c) => !c.write).map((c) => (
             <li key={c.text}>{c.text}</li>
           ))}
@@ -353,7 +382,13 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         {consent.state ? <input type="hidden" name="state" value={consent.state} /> : null}
         <div className="mb-6 rounded-lg border border-border-sub bg-bg px-4 py-3">
           <label className="cap-check items-start text-label">
-            <input type="checkbox" name="allow_write" value="1" defaultChecked={consent.wantsWrite} className="mt-1" />
+            <input
+              type="checkbox"
+              name="allow_write"
+              value="1"
+              defaultChecked={consent.wantsWrite}
+              className="mt-1"
+            />
             <span>
               <span className="font-medium">Allow changes</span>
               {CONSENT_CAPABILITIES.filter((c) => c.write).map((c) => (
@@ -361,8 +396,12 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
                   {c.text}
                 </span>
               ))}
-              <span className="mt-0.5 block text-text-subtle">Without this, {consent.clientName} can only read.</span>
-              <span className="mt-0.5 block font-mono text-micro text-text-subtle">{MERCHANT_SCOPES.write}</span>
+              <span className="mt-0.5 block text-text-subtle">
+                Without this, {consent.clientName} can only read.
+              </span>
+              <span className="mt-0.5 block font-mono text-micro text-text-subtle">
+                {MERCHANT_SCOPES.write}
+              </span>
             </span>
           </label>
         </div>

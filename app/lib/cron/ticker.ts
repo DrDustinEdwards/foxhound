@@ -48,7 +48,10 @@ export interface TickerAlarmStorage {
  *  ONLY IF NONE IS SET, and that matters: every queue batch calls this, and an
  *  arm that always reset the alarm would keep pushing the next tick five minutes
  *  away, so a busy queue would stop the jobs it is meant to keep running. */
-export async function armTickerIfIdle(storage: TickerAlarmStorage, now: number = Date.now()): Promise<boolean> {
+export async function armTickerIfIdle(
+  storage: TickerAlarmStorage,
+  now: number = Date.now(),
+): Promise<boolean> {
   if ((await storage.getAlarm()) !== null) return false;
   await storage.setAlarm(now + CRON_TICKER_INTERVAL_MS);
   return true;
@@ -67,7 +70,10 @@ const defaultDeps: TickerDeps = {
   run: runCronJob,
   jobs: async () => {
     const { jobsForSchedule } = await import("./registry");
-    return [...jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK), ...jobsForSchedule(CRON_SCHEDULE_BLOG)];
+    return [
+      ...jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK),
+      ...jobsForSchedule(CRON_SCHEDULE_BLOG),
+    ];
   },
 };
 

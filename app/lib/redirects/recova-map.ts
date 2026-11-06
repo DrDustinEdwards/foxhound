@@ -30,12 +30,32 @@ export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [
   { from: "/blog/:slug", to: "/blog/:slug" },
   { from: "/blog/archive", to: "/blog/archive" },
   { from: "/blog/tag/:tag", to: "/blog/tag/:tag" },
-  { from: "/blog/rss.xml", to: "/feed.rss", note: "Foxhound has one RSS route, /feed.rss, not a separate per-section feed." },
-  { from: "/blog/sitemap.xml", to: "/sitemap.xml", note: "Foxhound has one sitemap that already includes every blog post, not a separate per-section sitemap." },
+  {
+    from: "/blog/rss.xml",
+    to: "/feed.rss",
+    note: "Foxhound has one RSS route, /feed.rss, not a separate per-section feed.",
+  },
+  {
+    from: "/blog/sitemap.xml",
+    to: "/sitemap.xml",
+    note: "Foxhound has one sitemap that already includes every blog post, not a separate per-section sitemap.",
+  },
   { from: "/audit", to: "/audit" },
-  { from: "/recovery/demo", to: "/demos", note: "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain." },
-  { from: "/disputes/demo", to: "/demos", note: "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain." },
-  { from: "/intelligence/demo", to: "/demos", note: "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain." },
+  {
+    from: "/recovery/demo",
+    to: "/demos",
+    note: "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain.",
+  },
+  {
+    from: "/disputes/demo",
+    to: "/demos",
+    note: "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain.",
+  },
+  {
+    from: "/intelligence/demo",
+    to: "/demos",
+    note: "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain.",
+  },
   { from: "/feed.rss", to: "/feed.rss" },
   { from: "/sitemap.xml", to: "/sitemap.xml" },
   { from: "/robots.txt", to: "/robots.txt" },
@@ -43,12 +63,36 @@ export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [
   { from: "/llms-full.txt", to: "/llms-full.txt" },
   { from: "/og", to: "/og" },
   { from: "/console", to: "/console" },
-  { from: "/recovery/audit", to: "/audit", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
-  { from: "/recovery/audit/connect", to: "/audit/connect", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
-  { from: "/recovery/audit/results", to: "/audit/results", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
-  { from: "/user-guides/:path*", to: "/docs/:path*", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
-  { from: "/user-guides", to: "/docs", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
-  { from: "/sitemap_index.xml", to: "/sitemap.xml", note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop." },
+  {
+    from: "/recovery/audit",
+    to: "/audit",
+    note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
+  },
+  {
+    from: "/recovery/audit/connect",
+    to: "/audit/connect",
+    note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
+  },
+  {
+    from: "/recovery/audit/results",
+    to: "/audit/results",
+    note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
+  },
+  {
+    from: "/user-guides/:path*",
+    to: "/docs/:path*",
+    note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
+  },
+  {
+    from: "/user-guides",
+    to: "/docs",
+    note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
+  },
+  {
+    from: "/sitemap_index.xml",
+    to: "/sitemap.xml",
+    note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
+  },
 ];
 
 // The Recova hosts that answer with this map, path kept: the apex, and each

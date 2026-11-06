@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db";
-import { activeConnectionWhere, activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
+import {
+  activeConnectionWhere,
+  activePrimaryConnectionWhere,
+} from "~/lib/stripe/connections.server";
 
 // Settings read models (Phase 5 slice 5f). Added for the perf-audit ORM-leak
 // fix (foxhound-audit-perf.md M-1): these were previously inline db.select()
@@ -137,7 +140,10 @@ export interface MerchantContext {
  * The account comes from the caller's credential, so there is no foreign-id case
  * to refuse here, which is the same reason the writer has none.
  */
-export async function getMerchantContext(db: Db, accountId: string): Promise<MerchantContext | null> {
+export async function getMerchantContext(
+  db: Db,
+  accountId: string,
+): Promise<MerchantContext | null> {
   const rows = await db
     .select({
       merchantIndustry: accounts.merchantIndustry,

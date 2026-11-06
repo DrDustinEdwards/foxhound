@@ -67,7 +67,9 @@ export default function DeclineCodesIndex() {
                   to={`/decline-codes/${code.code}`}
                   className="group block rounded-lg border border-border bg-surface p-4 hover:border-border-i"
                 >
-                  <div className="mb-2 font-mono text-label font-medium text-text">{code.displayName}</div>
+                  <div className="mb-2 font-mono text-label font-medium text-text">
+                    {code.displayName}
+                  </div>
                   <div className="mb-3 font-mono text-micro text-text-tertiary">{code.code}</div>
                   <div className="text-label text-brand-text">
                     Read more{" "}

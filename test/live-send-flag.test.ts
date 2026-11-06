@@ -21,10 +21,7 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
 function seedAccount(over: { liveSendsEnabled?: boolean } = {}) {
   const { sqlite, db } = createInMemoryDb();
-  runStatement(
-    sqlite,
-    db.insert(accounts).values({ id: "acc_1", name: "Acme", ...over }),
-  );
+  runStatement(sqlite, db.insert(accounts).values({ id: "acc_1", name: "Acme", ...over }));
   return { sqlite, db };
 }
 
@@ -59,4 +56,3 @@ describe("live-send flag: the column defaults OFF against the real schema", () =
     expect(await liveSendsEnabled(db, null)).toBe(false);
   });
 });
-

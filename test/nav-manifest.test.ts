@@ -59,7 +59,11 @@ const NAV_EXCLUDED_ROUTES = new Set([
   "/recovery/payments/export.csv", // CSV download resource route, not a nav destination
 ]);
 
-function collectNavCandidatePaths(entries: RouteConfigEntry[], parentPath: string, out: Set<string>): void {
+function collectNavCandidatePaths(
+  entries: RouteConfigEntry[],
+  parentPath: string,
+  out: Set<string>,
+): void {
   for (const entry of entries) {
     let path = parentPath;
     if (entry.path) {
@@ -80,16 +84,20 @@ describe("nav manifest matches routes.ts", () => {
 
   it("every product manifest href is a real route", () => {
     for (const product of Object.values(PRODUCT_MANIFEST)) {
-      expect(realPaths.has(product.href), `${product.href} (product: ${product.key}) is not in routes.ts`).toBe(
-        true,
-      );
+      expect(
+        realPaths.has(product.href),
+        `${product.href} (product: ${product.key}) is not in routes.ts`,
+      ).toBe(true);
     }
   });
 
   it("every product manifest sub-link is a real route", () => {
     for (const product of Object.values(PRODUCT_MANIFEST)) {
       for (const link of product.links) {
-        expect(realPaths.has(link.to), `${link.to} (product: ${product.key}) is not in routes.ts`).toBe(true);
+        expect(
+          realPaths.has(link.to),
+          `${link.to} (product: ${product.key}) is not in routes.ts`,
+        ).toBe(true);
       }
     }
   });
@@ -101,7 +109,10 @@ describe("nav manifest matches routes.ts", () => {
   });
 
   it("every real app-shell route (minus admin, dynamic segments, and the explicit onboarding exclusion) has a manifest entry", () => {
-    const appShellNode = findByFile(routes as unknown as RouteConfigEntry[], "./layouts/app-shell.tsx");
+    const appShellNode = findByFile(
+      routes as unknown as RouteConfigEntry[],
+      "./layouts/app-shell.tsx",
+    );
     expect(appShellNode).not.toBeNull();
 
     const candidatePaths = new Set<string>();
@@ -111,7 +122,10 @@ describe("nav manifest matches routes.ts", () => {
     expect(candidatePaths.size).toBeGreaterThan(5);
 
     const manifestPaths = new Set<string>([
-      ...Object.values(PRODUCT_MANIFEST).flatMap((product) => [product.href, ...product.links.map((l) => l.to)]),
+      ...Object.values(PRODUCT_MANIFEST).flatMap((product) => [
+        product.href,
+        ...product.links.map((l) => l.to),
+      ]),
       ...PLATFORM_LINKS.map((link) => link.to),
     ]);
 

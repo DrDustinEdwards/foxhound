@@ -6,9 +6,21 @@ import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { type DueStepRow } from "~/lib/cron/due-steps";
 import { buildEmailStepPatch } from "~/lib/engine/execute-step";
-import { dispatchManualAction, manualActionIdempotencyKey, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
-import { type ResendDeps, type ResendSendInput, type TriggerDeps } from "~/lib/recovery/manual-action-deps.server";
-import { buildStopRecoveryBatch, noteContentToken, resendRepeatToken } from "~/lib/recovery/manual-action-batches.server";
+import {
+  dispatchManualAction,
+  manualActionIdempotencyKey,
+  type ManualActionCommit,
+} from "~/lib/recovery/manual-actions.server";
+import {
+  type ResendDeps,
+  type ResendSendInput,
+  type TriggerDeps,
+} from "~/lib/recovery/manual-action-deps.server";
+import {
+  buildStopRecoveryBatch,
+  noteContentToken,
+  resendRepeatToken,
+} from "~/lib/recovery/manual-action-batches.server";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
@@ -90,7 +102,11 @@ function seed(opts: { status?: string; steps?: StepSeed[]; notes?: string | null
 
 /** Runs the batch's compiled statements in ONE transaction, the way the money
  *  DO commits them. Records every key it saw so idempotency can be asserted. */
-function inMemoryCommit(sqlite: Database.Database, db: Db, keys: string[] = []): ManualActionCommit {
+function inMemoryCommit(
+  sqlite: Database.Database,
+  db: Db,
+  keys: string[] = [],
+): ManualActionCommit {
   return async (_accountId, idempotencyKey, build) => {
     keys.push(idempotencyKey);
     const batch = build(db);
@@ -185,7 +201,6 @@ function request(db: Db, commit: ManualActionCommit, over: Record<string, unknow
 }
 
 describe("manual actions: ownership is the same 404 as a missing payment", () => {
-
   it("an unknown intent is refused BEFORE any payment is loaded", async () => {
     const { sqlite, db } = seed();
     const commit = inMemoryCommit(sqlite, db);
@@ -200,7 +215,6 @@ describe("manual actions: ownership is the same 404 as a missing payment", () =>
 });
 
 describe("manual actions: per-intent preconditions", () => {
-
   it("resend needs an executed email step carrying generated copy", async () => {
     const none = seed({ steps: [PENDING] });
     expect(
@@ -245,7 +259,6 @@ describe("manual actions: per-intent preconditions", () => {
 });
 
 describe("note save: legacy's contract, through the money DO seam", () => {
-
   it("a missing note field is treated as empty rather than crashing", async () => {
     const { sqlite, db } = seed({ notes: "previous" });
     expect(
@@ -259,9 +272,9 @@ describe("note save: legacy's contract, through the money DO seam", () => {
     const failing: ManualActionCommit = async () => {
       throw new Error("d1 unavailable");
     };
-    expect(
-      await dispatchManualAction(request(db, failing, { intent: "note", note: "x" })),
-    ).toEqual({ ok: false, reason: "write_failed", intent: "note" });
+    expect(await dispatchManualAction(request(db, failing, { intent: "note", note: "x" }))).toEqual(
+      { ok: false, reason: "write_failed", intent: "note" },
+    );
   });
 
   it("the key collapses a resubmitted SAME note and varies when the text changes", async () => {
@@ -324,7 +337,9 @@ describe("trigger: legacy's six statuses, ported", () => {
   }
 
   it("a step that is neither an email nor a retry is a 400, before any executor runs", async () => {
-    const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "card_update_signal" }] });
+    const { sqlite, db } = seed({
+      steps: [{ id: "step_pending", stepType: "card_update_signal" }],
+    });
     expect(await dispatchManualAction(triggerReq(db, sqlite, {}))).toEqual({
       ok: false,
       reason: "unknown_step_type",
@@ -342,7 +357,11 @@ describe("trigger: legacy's six statuses, ported", () => {
             sqlite,
             db
               .update(recoverySteps)
-              .set({ executedAt: now, result: "retry_card_declined", retryResult: "retry_card_declined" })
+              .set({
+                executedAt: now,
+                result: "retry_card_declined",
+                retryResult: "retry_card_declined",
+              })
               .where(eq(recoverySteps.id, "step_pending")),
           );
           return {
@@ -679,9 +698,10 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
     expect(row.status).toBe("cancelled");
     expect(row.resolved_at).toBe(now.getTime());
 
-    const steps = sqlite
-      .prepare("select id, result from recovery_steps order by id")
-      .all() as { id: string; result: string | null }[];
+    const steps = sqlite.prepare("select id, result from recovery_steps order by id").all() as {
+      id: string;
+      result: string | null;
+    }[];
     expect(steps).toEqual([
       { id: "step_pending", result: "cancelled" },
       // The executed step keeps its real outcome; only unexecuted work is stopped.
@@ -729,7 +749,10 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
     const racing: ManualActionCommit = async (_accountId, _key, build) => {
       runStatement(
         sqlite,
-        db.update(failedPayments).set({ status: "recovered" }).where(eq(failedPayments.id, "fp_mine")),
+        db
+          .update(failedPayments)
+          .set({ status: "recovered" })
+          .where(eq(failedPayments.id, "fp_mine")),
       );
       const batch = build(db);
       sqlite.transaction(() => {

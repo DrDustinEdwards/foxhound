@@ -18,18 +18,22 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: "About",
-      description: "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
+      description:
+        "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
       path: "/about",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
     ...(loaderData
       ? [
           jsonLd(organizationJsonLd(loaderData.siteUrl)),
-          jsonLd(personJsonLd(loaderData.siteUrl, {
-            name: "Dustin Edwards",
-            jobTitle: "Founder",
-            description: "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
-          })),
+          jsonLd(
+            personJsonLd(loaderData.siteUrl, {
+              name: "Dustin Edwards",
+              jobTitle: "Founder",
+              description:
+                "Founder of Foxhound, a pay-on-lift Stripe recovery, disputes, and intelligence platform.",
+            }),
+          ),
         ]
       : []),
   ];
@@ -53,17 +57,17 @@ export default function AboutPage() {
       <div className="mx-auto max-w-2xl px-4 pb-20 sm:px-8">
         <div className="flex flex-col gap-6 text-body leading-relaxed text-text-secondary">
           <p>
-            Foxhound is built and run by Dustin Edwards. It started as a rebuild of an earlier payment
-            recovery product, this time built around a stricter promise: Foxhound only earns money when
-            it creates money the merchant can verify they would not otherwise have.
+            Foxhound is built and run by Dustin Edwards. It started as a rebuild of an earlier
+            payment recovery product, this time built around a stricter promise: Foxhound only earns
+            money when it creates money the merchant can verify they would not otherwise have.
           </p>
           <p>
-            That promise shows up in the product, not just the pricing page. Every billed dollar links
-            back to the evidence that earned it, a retry that succeeded, an email that was actually
-            clicked, a card that was actually updated. Recoveries Stripe&apos;s own tools would have
-            gotten anyway are recorded and shown for free. Dispute evidence is drafted automatically, but
-            nothing reaches Stripe without a person&apos;s approval: they sign off on each dispute, or
-            turn on auto-submit themselves, and it is off by default.
+            That promise shows up in the product, not just the pricing page. Every billed dollar
+            links back to the evidence that earned it, a retry that succeeded, an email that was
+            actually clicked, a card that was actually updated. Recoveries Stripe&apos;s own tools
+            would have gotten anyway are recorded and shown for free. Dispute evidence is drafted
+            automatically, but nothing reaches Stripe without a person&apos;s approval: they sign
+            off on each dispute, or turn on auto-submit themselves, and it is off by default.
           </p>
           <p>
             The company is US-based and operates under US jurisdiction. Foxhound is built on Stripe
@@ -71,7 +75,10 @@ export default function AboutPage() {
           </p>
           <p>
             Questions, bug reports, or just curious how something works: reach out at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-text underline underline-offset-2 hover:opacity-80">
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="text-brand-text underline underline-offset-2 hover:opacity-80"
+            >
               {SUPPORT_EMAIL}
             </a>
             .

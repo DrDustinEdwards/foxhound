@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db";
-import {
-  buildPaymentParams,
-  type PaymentFilterState,
-} from "~/lib/recovery/payment-filters";
+import { buildPaymentParams, type PaymentFilterState } from "~/lib/recovery/payment-filters";
 import { listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -29,7 +26,6 @@ const build = (f: PaymentFilterState, overrides?: Record<string, string>) =>
   buildPaymentParams(f, { bounds: BOUNDS, defaultPageSize: 50, overrides });
 
 describe("buildPaymentParams carries the amount range", () => {
-
   it("keeps the range across a status-pill override", () => {
     const params = build(filters({ amountMinCents: 5_000, amountMaxCents: 40_000 }), {
       status: "active",
@@ -50,7 +46,13 @@ describe("buildPaymentParams carries the amount range", () => {
 
   it("still round-trips the other dimensions", () => {
     const params = build(
-      filters({ search: "acme", declineCategory: "soft", time: "30d", sort: "amount_desc", pageSize: 25 }),
+      filters({
+        search: "acme",
+        declineCategory: "soft",
+        time: "30d",
+        sort: "amount_desc",
+        pageSize: 25,
+      }),
     );
     expect(params.get("q")).toBe("acme");
     expect(params.get("category")).toBe("soft");
@@ -97,11 +99,13 @@ describe("listExecutedEmailSteps counts sends whose result is not yet recorded",
       executedAt: now,
       result,
     });
-    await db.insert(recoverySteps).values([
-      step("st_null", null),
-      step("st_sent", "email_sent"),
-      step("st_cancelled", "cancelled"),
-    ]);
+    await db
+      .insert(recoverySteps)
+      .values([
+        step("st_null", null),
+        step("st_sent", "email_sent"),
+        step("st_cancelled", "cancelled"),
+      ]);
     return db;
   }
 

@@ -1,6 +1,14 @@
 import { and, count, desc, eq, gte, inArray, isNull, like } from "drizzle-orm";
 
-import { accounts, customerContext, engagementEvents, failedPayments, recommendationLog, recoverySteps, type Db } from "~/db";
+import {
+  accounts,
+  customerContext,
+  engagementEvents,
+  failedPayments,
+  recommendationLog,
+  recoverySteps,
+  type Db,
+} from "~/db";
 import { D1_MAX_BOUND_PARAMS, DAY_MS } from "~/lib/constants";
 
 import {
@@ -71,7 +79,10 @@ async function loadEngagementTallies(
       )
       .groupBy(failedPayments.stripeCustomerId),
     db
-      .select({ stripeCustomerId: failedPayments.stripeCustomerId, occurredAt: engagementEvents.occurredAt })
+      .select({
+        stripeCustomerId: failedPayments.stripeCustomerId,
+        occurredAt: engagementEvents.occurredAt,
+      })
       .from(engagementEvents)
       .innerJoin(recoverySteps, eq(recoverySteps.id, engagementEvents.recoveryStepId))
       .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
@@ -160,7 +171,12 @@ export async function recommendOneCustomer(
       currency: customerContext.currency,
     })
     .from(customerContext)
-    .where(and(eq(customerContext.accountId, accountId), eq(customerContext.stripeCustomerId, stripeCustomerId)))
+    .where(
+      and(
+        eq(customerContext.accountId, accountId),
+        eq(customerContext.stripeCustomerId, stripeCustomerId),
+      ),
+    )
     .limit(1);
   if (!subject) return null;
   const [everyMrr, tallies] = await Promise.all([
@@ -211,7 +227,13 @@ export async function personalOutreachCustomerIds(
  *  money write; the outcome slot is left null for a later grading pass. */
 export function buildRecommendationLogInsert(
   db: Db,
-  input: { accountId: string; stripeCustomerId: string; result: CustomerRecommendation; currency: string; now: Date },
+  input: {
+    accountId: string;
+    stripeCustomerId: string;
+    result: CustomerRecommendation;
+    currency: string;
+    now: Date;
+  },
 ) {
   const { result } = input;
   return db.insert(recommendationLog).values({
@@ -278,7 +300,10 @@ export async function listActionableRecommendations(
       .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
       .where(where)
       // Recova's order('mrr_contribution_cents', { ascending: false, nullsFirst: false })
-      .orderBy(isNull(customerContext.mrrContributionCents), desc(customerContext.mrrContributionCents))
+      .orderBy(
+        isNull(customerContext.mrrContributionCents),
+        desc(customerContext.mrrContributionCents),
+      )
       .limit(RECOMMENDATIONS_PAGE_SIZE)
       .offset((page - 1) * RECOMMENDATIONS_PAGE_SIZE),
   ]);

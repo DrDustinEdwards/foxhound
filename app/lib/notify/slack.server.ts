@@ -111,10 +111,7 @@ export async function resolveSlackTarget(
  * a false promise. Nothing is disabled and nothing is retried, which IS
  * legacy's behavior.
  */
-export async function postToSlack(
-  webhookUrl: string,
-  event: SlackEvent,
-): Promise<SlackOutcome> {
+export async function postToSlack(webhookUrl: string, event: SlackEvent): Promise<SlackOutcome> {
   return postSlackBody(webhookUrl, buildSlackPayload(event));
 }
 
@@ -139,10 +136,7 @@ async function postSlackBody(webhookUrl: string, body: { text: string }): Promis
   } catch (err) {
     // Never the error object: a thrown fetch can carry the webhook URL, which
     // is a credential.
-    console.error(
-      "slack notification failed:",
-      err instanceof Error ? err.message : "unknown",
-    );
+    console.error("slack notification failed:", err instanceof Error ? err.message : "unknown");
     return { status: "failed", reason: "threw" };
   }
 }
@@ -163,7 +157,11 @@ export async function postSlackNotification(
  * Stripe account health notice, app/lib/stripe/account-health.server.ts). The
  * same gate as the two legacy posts, so NULL is OFF here too.
  */
-export async function postSlackText(env: Env, accountId: string, text: string): Promise<SlackOutcome> {
+export async function postSlackText(
+  env: Env,
+  accountId: string,
+  text: string,
+): Promise<SlackOutcome> {
   const target = await resolveSlackTarget(env, accountId);
   if (target.status !== "ready") return target;
   return postSlackBody(target.webhookUrl, { text });

@@ -14,7 +14,6 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-
 // Admin Pass 2: money-adjacent operator actions. Proves the resolution of the
 // processing-vs-billing conflict the task surfaced: cancelledAt (and
 // processing_paused) stop future processing, but cancelledAt alone must NEVER
@@ -25,13 +24,15 @@ const fakeDb = drizzle({} as never, { schema });
 const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
 
 describe("cancelMerchant orchestration (injected deps, no live DB/Stripe)", () => {
-
   it("a deauthorize failure never rolls back or throws: the merchant stays canceled locally, the failure is surfaced", async () => {
     // The connection rows the retry stamp lands on.
     const { sqlite, db } = createInMemoryDb();
     harness.db = db;
     sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acc_1', 'A', 1000)").run();
-    for (const [id, user] of [["conn_1", "acct_1"], ["conn_2", "acct_2"]]) {
+    for (const [id, user] of [
+      ["conn_1", "acct_1"],
+      ["conn_2", "acct_2"],
+    ]) {
       sqlite
         .prepare(
           "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, connected_at, disconnected_at, created_at) VALUES (?, 'acc_1', ?, 1, 1000, 2000, 1000)",
@@ -60,7 +61,9 @@ describe("cancelMerchant against the real schema", () => {
   it("an unknown account id fails and disconnects nothing (zero-row UPDATE is not a cancel)", async () => {
     const { sqlite, db } = createInMemoryDb();
     harness.db = db;
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acc_real', 'Real', 1000)").run();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acc_real', 'Real', 1000)")
+      .run();
     sqlite
       .prepare(
         "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, connected_at, created_at) VALUES ('conn_1', 'acc_real', 'acct_1', 1, 1000, 1000)",
@@ -71,16 +74,19 @@ describe("cancelMerchant against the real schema", () => {
     sqlite.prepare("UPDATE stripe_connections SET account_id = 'acc_gone'").run();
     const deauthorize = vi.fn(async () => ({ ok: true }));
 
-    await expect(cancelMerchant({} as Env, "acc_gone", { deauthorize })).rejects.toThrow(/no account/);
+    await expect(cancelMerchant({} as Env, "acc_gone", { deauthorize })).rejects.toThrow(
+      /no account/,
+    );
 
-    const row = sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections").get() as { d: number | null };
+    const row = sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections").get() as {
+      d: number | null;
+    };
     expect(row.d).toBeNull();
     expect(deauthorize).not.toHaveBeenCalled();
   });
 });
 
 describe("cancelledAt is a PROCESSING gate only, never a billing gate", () => {
-
   it("intelligence sync's processing gate excludes a canceled account", () => {
     const sql = sqlOf(fakeDb.select().from(accounts).where(intelligenceProcessingEligible()));
     expect(sql.sql).toMatch(/cancelled_at/i);

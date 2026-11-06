@@ -27,7 +27,10 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 vi.mock("~/lib/email/dispatch", () => ({
-  processEmailJob: async (_env: Env, job: { to: string; subject: string; idempotencyKey: string }) => {
+  processEmailJob: async (
+    _env: Env,
+    job: { to: string; subject: string; idempotencyKey: string },
+  ) => {
     harness.mail.push({ to: job.to, subject: job.subject, idempotencyKey: job.idempotencyKey });
     return { status: "sent", providerMessageId: "m", error: null, retryable: false };
   },
@@ -85,11 +88,22 @@ describe("account.updated stores the health and tells the merchant once per new 
     const off = {
       charges_enabled: false,
       payouts_enabled: true,
-      requirements: { past_due: ["individual.verification.document"], disabled_reason: "requirements.past_due", current_deadline: null },
+      requirements: {
+        past_due: ["individual.verification.document"],
+        disabled_reason: "requirements.past_due",
+        current_deadline: null,
+      },
     };
 
-    expect(await processConnectedWebhook(env, accountEvent("evt_1", 2000, off), received)).toEqual({ status: "applied" });
-    expect(health()).toEqual({ charges: 0, payouts: 1, reason: "requirements.past_due", pastDue: 1 });
+    expect(await processConnectedWebhook(env, accountEvent("evt_1", 2000, off), received)).toEqual({
+      status: "applied",
+    });
+    expect(health()).toEqual({
+      charges: 0,
+      payouts: 1,
+      reason: "requirements.past_due",
+      pastDue: 1,
+    });
     expect(harness.mail).toHaveLength(1);
     expect(harness.mail[0]).toMatchObject({ to: "ops@acme.test" });
     expect(harness.mail[0].subject).toContain("turned off charges");
@@ -102,7 +116,9 @@ describe("account.updated stores the health and tells the merchant once per new 
 
     // An older event delivered late does not overwrite the newer state.
     const older = { charges_enabled: true, payouts_enabled: true, requirements: { past_due: [] } };
-    expect(await processConnectedWebhook(env, accountEvent("evt_0", 1500, older), received)).toEqual({
+    expect(
+      await processConnectedWebhook(env, accountEvent("evt_0", 1500, older), received),
+    ).toEqual({
       status: "ignored",
       reason: "stale_account_event",
     });

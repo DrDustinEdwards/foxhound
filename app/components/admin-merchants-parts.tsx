@@ -110,7 +110,11 @@ export function MerchantsList({
 
       {figures ? <PlatformFigures figures={figures} pending={pending} reading={reading} /> : null}
 
-      <TabsNav aria-label="Filter merchants" variant="line" renderLink={({ href, ...props }) => <Link to={href} {...props} />}>
+      <TabsNav
+        aria-label="Filter merchants"
+        variant="line"
+        renderLink={({ href, ...props }) => <Link to={href} {...props} />}
+      >
         {MERCHANT_VIEWS.map((v) => (
           <TabLink key={v.view} href={v.path} current={v.view === view} count={counts[v.view]}>
             {v.label}
@@ -159,8 +163,15 @@ export function MerchantsList({
               </Empty>
             )
           ) : (
-            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-cap="table" data-reflow="wide" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-cap="table"
+              data-reflow="wide"
+              role="region"
+              aria-labelledby={HEADING_ID}
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <caption className="cap-sr-only">{words.caption}</caption>
                 <thead>
@@ -196,7 +207,15 @@ export function MerchantsList({
   );
 }
 
-function PlatformFigures({ figures, pending, reading }: { figures: Figures; pending: boolean; reading: ReactNode }) {
+function PlatformFigures({
+  figures,
+  pending,
+  reading,
+}: {
+  figures: Figures;
+  pending: boolean;
+  reading: ReactNode;
+}) {
   const mrrAccounts = figures.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
   return (
     <div aria-busy={pending || undefined}>
@@ -208,14 +227,22 @@ function PlatformFigures({ figures, pending, reading }: { figures: Figures; pend
               figures.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })),
               "No data",
             )}
-            detail={mrrAccounts === 0 ? "No MRR snapshots yet" : `Across ${plural(mrrAccounts, "merchant", "merchants")}`}
+            detail={
+              mrrAccounts === 0
+                ? "No MRR snapshots yet"
+                : `Across ${plural(mrrAccounts, "merchant", "merchants")}`
+            }
           />
           <Figure
             label="Connected to Stripe"
             figure={String(figures.connectedCount)}
             detail={`${figures.connectedCount} of ${plural(figures.merchantCount, "merchant", "merchants")}`}
           />
-          <Figure label="Total recovered" figure={moneyWords(figures.totalRecovered, "$0.00")} detail="All time" />
+          <Figure
+            label="Total recovered"
+            figure={moneyWords(figures.totalRecovered, "$0.00")}
+            detail="All time"
+          />
           <Figure
             label="Recovery fees this month"
             figure={moneyWords(figures.recoveryFeesThisMonth, "$0.00")}
@@ -256,7 +283,10 @@ function useUndoPost(action: string): UndoPost {
     const settle = waiting.current;
     waiting.current = null;
     if (answer?.ok) settle.resolve();
-    else settle.reject(new Error(answer && !answer.ok ? answer.error : "The server did not answer. Try again."));
+    else
+      settle.reject(
+        new Error(answer && !answer.ok ? answer.error : "The server did not answer. Try again."),
+      );
   }, [state, answer]);
 
   return useCallback(
@@ -268,13 +298,24 @@ function useUndoPost(action: string): UndoPost {
           return;
         }
         waiting.current = { resolve, reject };
-        void submit({ intent, accountId, value: String(value), undo: "1" }, { method: "post", action });
+        void submit(
+          { intent, accountId, value: String(value), undo: "1" },
+          { method: "post", action },
+        );
       }),
     [submit, action],
   );
 }
 
-function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantRow; view: MerchantView; undoPost: UndoPost }) {
+function MerchantRow({
+  merchant: m,
+  view,
+  undoPost,
+}: {
+  merchant: AdminMerchantRow;
+  view: MerchantView;
+  undoPost: UndoPost;
+}) {
   const fetcher = useFetcher<ActionData>();
   const { say, fail } = useMessage();
   const busy = fetcher.state !== "idle";
@@ -313,7 +354,9 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
         <Status tone={status.tone}>{status.word}</Status>
       </td>
       <td data-label="Stripe">
-        <Status tone={m.connectionStatus === "connected" ? "ok" : "nodata"}>{CONNECTION_WORDS[m.connectionStatus]}</Status>
+        <Status tone={m.connectionStatus === "connected" ? "ok" : "nodata"}>
+          {CONNECTION_WORDS[m.connectionStatus]}
+        </Status>
       </td>
       <td data-label="Recovery rate">
         {m.recoveryRatePct === null ? (
@@ -321,12 +364,17 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
         ) : (
           // The band as words beside the rate: a hover title would sit under
           // the row's stretched link and never reach a mouse (PR 140 review).
-          <Status tone={RATE_TONE[recoveryRateTone(m.recoveryRatePct)]} reason={recoveryRateBand(m.recoveryRatePct)}>
+          <Status
+            tone={RATE_TONE[recoveryRateTone(m.recoveryRatePct)]}
+            reason={recoveryRateBand(m.recoveryRatePct)}
+          >
             {`${m.recoveryRatePct}%`}
           </Status>
         )}
       </td>
-      <td data-num="" data-label="Recovered">{moneyWords(m.recovered, "None yet")}</td>
+      <td data-num="" data-label="Recovered">
+        {moneyWords(m.recovered, "None yet")}
+      </td>
       <td data-num="" data-drop="1" data-label="Active recoveries">
         {m.activeRecoveriesCount}
       </td>
@@ -377,7 +425,12 @@ function MerchantRow({ merchant: m, view, undoPost }: { merchant: AdminMerchantR
           </fetcher.Form>
           <ViewAsForm accountId={m.id} who={who} />
           {m.cancelledAt ? null : (
-            <Link to={merchantCancelHref(m.id, view)} className="cap-btn" data-size="sm" data-variant="danger">
+            <Link
+              to={merchantCancelHref(m.id, view)}
+              className="cap-btn"
+              data-size="sm"
+              data-variant="danger"
+            >
               Cancel merchant<span className="cap-sr-only"> {who}</span>
             </Link>
           )}

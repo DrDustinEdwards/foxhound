@@ -52,7 +52,7 @@ const FP = "fp_e9";
 const CUSTOMER = "buyer@example.com";
 const SUBJECT = "Quick note about your Acme payment";
 const BODY =
-  '<p>Hi Jane,</p><p>Your last payment of $99.00 did not go through.</p>' +
+  "<p>Hi Jane,</p><p>Your last payment of $99.00 did not go through.</p>" +
   '<p><a href="https://foxhound.example.com/e/c/stored-click-token">Update payment method</a></p>' +
   "<p>Thanks,<br>Acme</p>";
 
@@ -71,7 +71,9 @@ const env = {
 let sqlite: Database.Database;
 let db: ReturnType<typeof createInMemoryDb>["db"];
 
-function seed(opts: { senderName?: string | null; replyTo?: string | null; status?: string } = {}): void {
+function seed(
+  opts: { senderName?: string | null; replyTo?: string | null; status?: string } = {},
+): void {
   sqlite
     .prepare(
       "INSERT INTO accounts (id, name, created_at, notification_email, live_sends_enabled) VALUES (?, 'Acme', 1000, 'ops@example.com', 1)",
@@ -142,7 +144,6 @@ function only(): SentMessage {
 }
 
 describe("E9: what it says (the stored copy, resent as it was)", () => {
-
   it("every sentence and the button of the stored body are resent, with no regeneration", async () => {
     // The timing-word gate and the update-link check ran when this
     // copy was generated and first sent. Recova resends the stored copy as it
@@ -150,7 +151,12 @@ describe("E9: what it says (the stored copy, resent as it was)", () => {
     seed();
     await resend();
     const m = only();
-    for (const sentence of ["Hi Jane,", "Your last payment of $99.00 did not go through.", "Thanks,", "Acme"]) {
+    for (const sentence of [
+      "Hi Jane,",
+      "Your last payment of $99.00 did not go through.",
+      "Thanks,",
+      "Acme",
+    ]) {
       expect(m.text).toContain(sentence);
       expect(m.html).toContain(sentence);
     }
@@ -160,7 +166,6 @@ describe("E9: what it says (the stored copy, resent as it was)", () => {
 });
 
 describe("E9: what it carries", () => {
-
   it("Reply-To is the merchant's reply-to address (J03), none when unset", async () => {
     seed({ replyTo: "help@example.com" });
     await resend();

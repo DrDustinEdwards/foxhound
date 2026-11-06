@@ -33,7 +33,11 @@ function toRouteObjects(entries: RouteConfigEntry[]): RouteObject[] {
   return entries.map((e, i) => {
     const base = { id: `${e.file}#${i}`, handle: { file: e.file } };
     if (e.index) return { ...base, index: true, path: e.path } as RouteObject;
-    return { ...base, path: e.path, children: e.children ? toRouteObjects(e.children) : undefined } as RouteObject;
+    return {
+      ...base,
+      path: e.path,
+      children: e.children ? toRouteObjects(e.children) : undefined,
+    } as RouteObject;
   });
 }
 
@@ -137,7 +141,10 @@ describe("J09: Foxhound's old paths behave as ruled", () => {
     };
     let res: Response | undefined;
     try {
-      res = mod.loader({ request: new Request("https://foxhoundapp.com/products/nope"), params: { spoke: "nope" } });
+      res = mod.loader({
+        request: new Request("https://foxhoundapp.com/products/nope"),
+        params: { spoke: "nope" },
+      });
     } catch (thrown) {
       res = thrown as Response;
     }
@@ -146,7 +153,6 @@ describe("J09: Foxhound's old paths behave as ruled", () => {
 });
 
 describe("J09: the nav, the caches and the machine files name the new paths", () => {
-
   it("the sitemap lists /product/* and no /products/<spoke>", () => {
     const paths = STATIC_PAGES.map((p) => p.path);
     for (const spoke of SITEMAP_PUBLISHED_SPOKES) {
@@ -165,10 +171,6 @@ describe("J09: the nav, the caches and the machine files name the new paths", ()
 // a template (`${base}/dashboard`) is. The one file allowed to name an old path
 // is the redirect module that retires it.
 
-
 // A path segment boundary: the old path must not be the tail of a longer path
 // ("/demos/dashboard", "/recovery/dashboard") or of a module specifier
 // ("./routes/admin/crons.tsx", "~/lib/admin/crons").
-
-
-

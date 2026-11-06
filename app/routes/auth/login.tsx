@@ -69,7 +69,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
-  return answerSignInForm(env, request, await readForm(request), { isCode, limited: SIGN_IN_LIMITED });
+  return answerSignInForm(env, request, await readForm(request), {
+    isCode,
+    limited: SIGN_IN_LIMITED,
+  });
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
@@ -83,7 +86,11 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
     <AuthCard>
       <AuthHeading
         title={loaderData.reauth ? "Sign in again" : "Welcome back"}
-        subtitle={loaderData.reauth ? "To change how you sign in, sign in again." : "Sign in to your Foxhound account"}
+        subtitle={
+          loaderData.reauth
+            ? "To change how you sign in, sign in again."
+            : "Sign in to your Foxhound account"
+        }
       />
 
       {actionData?.sent ? (

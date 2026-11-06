@@ -59,12 +59,14 @@ export function meta({ loaderData }: Route.MetaArgs) {
       path: `/docs/${guide.slug}`,
       siteUrl: url,
     }),
-    jsonLd(techArticleJsonLd(url, {
-      headline: guide.heading,
-      description: guide.description,
-      path: `/docs/${guide.slug}`,
-      datePublished: guide.datePublished,
-    })),
+    jsonLd(
+      techArticleJsonLd(url, {
+        headline: guide.heading,
+        description: guide.description,
+        path: `/docs/${guide.slug}`,
+        datePublished: guide.datePublished,
+      }),
+    ),
   ];
 }
 
@@ -76,18 +78,29 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
-    <div className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <SectionTrail items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]} />
 
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">User Guide</div>
+      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
+        User Guide
+      </div>
       <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{guide.heading}</h1>
       <p className="mb-10 text-subhead leading-relaxed text-text-secondary">{guide.lead}</p>
 
       {guide.sections.length > 1 ? (
-        <nav aria-label="Contents" className="cap-panel mb-12 rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]">
+        <nav
+          aria-label="Contents"
+          className="cap-panel mb-12 rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]"
+        >
           <div className="cap-panel-body">
             <div>
-              <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</div>
+              <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                Contents
+              </div>
               <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
                 {guide.sections.map((section, i) => (
                   <li key={section.heading} className="text-label leading-6">

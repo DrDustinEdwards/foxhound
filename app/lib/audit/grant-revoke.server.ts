@@ -92,6 +92,8 @@ export async function processAuditGrantRevokeMessage(
     return "ack";
   }
   const retry = attempts <= 1;
-  console.error(`audit grant revoke: failed on attempt ${attempts}${retry ? ", retrying once" : ", giving up"}`);
+  console.error(
+    `audit grant revoke: failed on attempt ${attempts}${retry ? ", retrying once" : ", giving up"}`,
+  );
   return retry ? "retry" : "ack";
 }

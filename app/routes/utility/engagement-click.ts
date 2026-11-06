@@ -68,7 +68,11 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     // Still best-effort for the customer, who gets the same response, but a
     // failed write loses an attribution signal, so it must be seen, not
     // swallowed. The step id is enough to trace it; the token and URL stay out.
-    logEvent("engagement_click_failed", { stepId: payload.stepId, error: err instanceof Error ? err.message : String(err) }, { level: "error" });
+    logEvent(
+      "engagement_click_failed",
+      { stepId: payload.stepId, error: err instanceof Error ? err.message : String(err) },
+      { level: "error" },
+    );
     Sentry.captureException(err, { extra: { scope: "engagement-click", stepId: payload.stepId } });
   }
   return noStoreRedirect(payload.url);

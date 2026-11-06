@@ -1,12 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  accounts,
-  engagementEvents,
-  failedPayments,
-  recoverySteps,
-} from "~/db/schema";
+import { accounts, engagementEvents, failedPayments, recoverySteps } from "~/db/schema";
 import { AUTOMATED_AGENT_TOKENS, isAutomatedUserAgent } from "~/lib/engagement/agents";
 import { ALLOWED_BOTS } from "~/routes/files/robots";
 
@@ -115,7 +110,6 @@ const stepRow = async (db: Awaited<ReturnType<typeof seed>>["db"], id: string) =
 // ============================================================================
 
 describe("PLANT 1: every listed agent is refused the write", () => {
-
   it("every agent 368 names by hand is in the shipped list", () => {
     // The ruling's minimum, asserted against the constant so a future trim of
     // the list cannot silently drop one of the named fetchers.
@@ -168,10 +162,12 @@ describe("PLANT 1: every listed agent is refused the write", () => {
 
 describe("PLANT 2: request shape, not only the user agent", () => {
   it("HEAD IS NOT A CLICK, which nothing in this repo checked before", () => {
-    expect(classifyEngagementRequest(request({ "user-agent": HUMAN_UA }, "HEAD"), "click")).toEqual({
-      automated: true,
-      reason: "not_a_get",
-    });
+    expect(classifyEngagementRequest(request({ "user-agent": HUMAN_UA }, "HEAD"), "click")).toEqual(
+      {
+        automated: true,
+        reason: "not_a_get",
+      },
+    );
   });
 
   it("a PREFETCH is not a click, on all four header spellings", () => {
@@ -245,7 +241,11 @@ describe("PLANT 3: the write, against the real schema", () => {
     expect(await db.select().from(engagementEvents)).toHaveLength(0);
     expect((await stepRow(db, STEP_A)).openedAt).toBeNull();
 
-    await recordOpen(ENV, { stepId: STEP_A, accountId: ACCOUNT_A, kind: "open" }, { automated: false });
+    await recordOpen(
+      ENV,
+      { stepId: STEP_A, accountId: ACCOUNT_A, kind: "open" },
+      { automated: false },
+    );
     expect(await db.select().from(engagementEvents)).toHaveLength(1);
   });
 });

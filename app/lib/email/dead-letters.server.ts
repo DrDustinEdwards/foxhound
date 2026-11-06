@@ -39,7 +39,12 @@ interface DeadLetterRecord {
  *  shape is assertable without a queue or a database. */
 async function buildDeadLetterRecord(
   job: EmailJob,
-  input: { queueMessageId: string | null; attempts: number | null; error: string | null; now: Date },
+  input: {
+    queueMessageId: string | null;
+    attempts: number | null;
+    error: string | null;
+    now: Date;
+  },
 ): Promise<DeadLetterRecord> {
   return {
     id: crypto.randomUUID(),

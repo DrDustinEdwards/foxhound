@@ -56,7 +56,17 @@ const SOURCE = jsonSource(FIELDS, { required: ["title"] });
 /** A preview reads a draft that may have no title, or no front matter at all, yet. */
 const PREVIEW_SOURCE = jsonSource(FIELDS);
 
-export function serializePostSource({ body, slug, searchTitle, description, canonical, image, imageAlt, noindex, ...post }: PostSource): string {
+export function serializePostSource({
+  body,
+  slug,
+  searchTitle,
+  description,
+  canonical,
+  image,
+  imageAlt,
+  noindex,
+  ...post
+}: PostSource): string {
   return SOURCE.write(
     {
       ...post,
@@ -73,7 +83,11 @@ export function serializePostSource({ body, slug, searchTitle, description, cano
 }
 
 /** With `preview`, a missing title reads as "Untitled"; a save still refuses a source without one. */
-export function parsePostSource(source: string, defaults: { author: string }, { preview = false } = {}): PostSource {
+export function parsePostSource(
+  source: string,
+  defaults: { author: string },
+  { preview = false } = {},
+): PostSource {
   const { values: v, body } = (preview ? PREVIEW_SOURCE : SOURCE).read(source);
   return {
     title: v.title?.trim() ? v.title : preview ? "Untitled" : "",

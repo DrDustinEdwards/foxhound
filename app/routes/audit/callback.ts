@@ -72,7 +72,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   // The whole trust decision before the code is exchanged: byte-identical to the
   // HttpOnly cookie, parses to a known action, and that action is this flow's.
-  const action = verifyConnectState(url.searchParams.get("state"), readAuditStateCookie(request))?.action;
+  const action = verifyConnectState(
+    url.searchParams.get("state"),
+    readAuditStateCookie(request),
+  )?.action;
   if (action !== AUDIT_ACTION) return bounce("invalid_state");
 
   try {

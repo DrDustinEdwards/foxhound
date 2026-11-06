@@ -51,9 +51,8 @@ const {
   hasTimingWord,
   passesQualityGate,
 } = await import("~/lib/recovery/email-generation");
-const { buildWinbackPrompt, generateWinbackEmail } = await import(
-  "~/lib/recovery/winback-generation"
-);
+const { buildWinbackPrompt, generateWinbackEmail } =
+  await import("~/lib/recovery/winback-generation");
 
 /** Legacy's nine phrases, in the order its regex names them. */
 const NINE = [
@@ -109,7 +108,6 @@ beforeEach(() => {
 });
 
 describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
-
   it.each(NINE)("'%s' in the SUBJECT is caught by the detector and the gate", (phrase) => {
     const copy = { subject: `Update your card ${phrase}`, bodyHtml: CLEAN_BODY };
     expect(hasTimingWord(copy.subject)).toBe(true);
@@ -128,7 +126,6 @@ describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
 });
 
 describe("LAYER 4: hardStripTimingWords", () => {
-
   it("ports legacy's replacements in order", () => {
     expect(hardStripTimingWords("Your trial closes tonight")).toBe("Your trial will close soon");
     expect(hardStripTimingWords("Your access ends today")).toBe("Your access is ending");
@@ -244,7 +241,8 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
   it("a BODY-only leak: one call, the body hard-stripped, the subject untouched", async () => {
     queue({
       subject: "Your Acme payment needs a quick fix",
-      bodyHtml: '<p>Please fix it today. <a href="https://foxhoundapp.test/u/today-1">Update</a></p>',
+      bodyHtml:
+        '<p>Please fix it today. <a href="https://foxhoundapp.test/u/today-1">Update</a></p>',
     });
 
     const copy = await seam.run();

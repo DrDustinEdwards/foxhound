@@ -176,7 +176,9 @@ function intelligenceSection(input: DigestInput): Block[] {
     out.push(
       { type: "paragraph", text: "Top at-risk customers" },
       ...input.highRiskCustomers.map((c): Block =>
-        c.mrrCents != null ? row(c.name, `${formatAmount(c.mrrCents, c.currency ?? input.currency)}/mo`) : { type: "paragraph", text: c.name },
+        c.mrrCents != null
+          ? row(c.name, `${formatAmount(c.mrrCents, c.currency ?? input.currency)}/mo`)
+          : { type: "paragraph", text: c.name },
       ),
     );
   }
@@ -211,11 +213,18 @@ export function buildDigestBlocks(input: DigestInput): Block[] {
     row("Active recovery sequences", String(input.activeCount)),
     row("Recovery emails sent", String(input.emailsSent)),
     row("Active win-back sequences", String(input.winBackCount)),
-    ...(input.expiringCardCount > 0 ? [row("Cards expiring soon", String(input.expiringCardCount))] : []),
+    ...(input.expiringCardCount > 0
+      ? [row("Cards expiring soon", String(input.expiringCardCount))]
+      : []),
     // Recova writes "{n} &mdash; {amount}"; a comma here, as the dash is kept
     // out of Foxhound's copy.
     ...(input.disputesActive && input.openDisputeCount > 0
-      ? [row("Open disputes", `${input.openDisputeCount}, ${formatAmounts(input.openDisputeAmounts, input.currency)}`)]
+      ? [
+          row(
+            "Open disputes",
+            `${input.openDisputeCount}, ${formatAmounts(input.openDisputeAmounts, input.currency)}`,
+          ),
+        ]
       : []),
     ...disputesSection(input),
     ...intelligenceSection(input),
@@ -241,6 +250,9 @@ export function digestContent(input: DigestInput): {
     fromName: DIGEST_FROM_NAME,
     subject: digestSubject(input),
     blocks: buildDigestBlocks(input),
-    footerNote: recoveryFooterNote(input.senderName?.trim() || DIGEST_SENDER_FALLBACK, input.now.getUTCFullYear()),
+    footerNote: recoveryFooterNote(
+      input.senderName?.trim() || DIGEST_SENDER_FALLBACK,
+      input.now.getUTCFullYear(),
+    ),
   };
 }

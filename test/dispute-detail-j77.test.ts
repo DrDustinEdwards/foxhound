@@ -53,7 +53,9 @@ vi.mock("~/lib/disputes/manual-import.server", () => ({
 
 const route = await import("~/routes/app/disputes/detail");
 const { ApproveButton } = await import("~/components/dispute-detail-parts");
-const Page = route.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
+const Page = route.default as unknown as (
+  props: Record<string, unknown>,
+) => ReturnType<typeof createElement>;
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const HOUR = 3_600_000;
@@ -67,7 +69,11 @@ function contextFor(accountId: string, isDemo = false, role = "owner"): unknown 
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env: {} as Env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
+        return {
+          env: {} as Env,
+          ctx: { waitUntil() {} } as unknown as ExecutionContext,
+          nonce: "n",
+        };
       }
       if (key === authContext) {
         return {
@@ -115,7 +121,11 @@ function seedDispute(over: Partial<typeof disputes.$inferInsert> = {}): string {
   return id;
 }
 
-function seedEvidence(fieldName: string, fieldValue: string, over: Partial<typeof disputeEvidence.$inferInsert> = {}) {
+function seedEvidence(
+  fieldName: string,
+  fieldValue: string,
+  over: Partial<typeof disputeEvidence.$inferInsert> = {},
+) {
   runStatement(
     sqlite,
     db.insert(disputeEvidence).values({
@@ -150,7 +160,6 @@ function seedFailedPayment(over: Partial<typeof failedPayments.$inferInsert> & {
     }),
   );
 }
-
 
 function seedConnection(): void {
   runStatement(
@@ -190,7 +199,10 @@ async function act(
   return { status: r.init?.status ?? 200, body: r.data ?? result };
 }
 
-function render(loaderData: LoaderData, opts: { actionData?: unknown; isDemo?: boolean } = {}): string {
+function render(
+  loaderData: LoaderData,
+  opts: { actionData?: unknown; isDemo?: boolean } = {},
+): string {
   try {
     const Stub = createRoutesStub([
       {
@@ -248,10 +260,14 @@ afterEach(() => {
 // ---- What Foxhound found ----
 
 describe("J77: What Foxhound found (Recova's DisputeEvidenceSummary)", () => {
-
   it("reads only the active account's rows for the same customer", async () => {
     seedDispute();
-    seedFailedPayment({ id: "fp_b", accountId: B, declineCategory: "fraud", declineCode: "stolen_card" });
+    seedFailedPayment({
+      id: "fp_b",
+      accountId: B,
+      declineCategory: "fraud",
+      declineCode: "stolen_card",
+    });
     runStatement(
       sqlite,
       db.insert(customerContext).values({
@@ -273,14 +289,19 @@ describe("J77: What Foxhound found (Recova's DisputeEvidenceSummary)", () => {
 // ---- Staged evidence and Additional evidence ----
 
 describe("J77: Staged evidence and Additional evidence", () => {
-
   it("saves the narrative over its row and adds the IP as Stripe's customer_purchase_ip", async () => {
     seedDispute();
     seedEvidence("uncategorized_text", "Old.");
-    const res = await act({ intent: "save", narrative: "New narrative.", customer_ip: "198.51.100.14" });
+    const res = await act({
+      intent: "save",
+      narrative: "New narrative.",
+      customer_ip: "198.51.100.14",
+    });
     expect(res.status).toBe(200);
     const rows = sqlite
-      .prepare("select field_name, field_value, account_id from dispute_evidence where dispute_id = 'dsp_1' order by field_name")
+      .prepare(
+        "select field_name, field_value, account_id from dispute_evidence where dispute_id = 'dsp_1' order by field_name",
+      )
       .all();
     expect(rows).toEqual([
       { field_name: "customer_purchase_ip", field_value: "198.51.100.14", account_id: A },
@@ -296,7 +317,9 @@ describe("J77: Staged evidence and Additional evidence", () => {
 
   it("refuses to save another account's dispute", async () => {
     seedDispute();
-    await expect(act({ intent: "save", narrative: "x" }, "dsp_1", B)).rejects.toMatchObject({ status: 404 });
+    await expect(act({ intent: "save", narrative: "x" }, "dsp_1", B)).rejects.toMatchObject({
+      status: 404,
+    });
   });
 
   it("logs the whole error and answers 500 with Recova's line when a save fails", async () => {
@@ -321,12 +344,13 @@ describe("J77: Staged evidence and Additional evidence", () => {
 // ---- Sync, approve, order ----
 
 describe("J77: Recova's sync form and the approve card", () => {
-
   it("imports through the same importer and reports in its words", async () => {
     seedDispute();
     harness.importResult = { status: "not_found" };
     const res = await act({ intent: "sync_dispute", stripe_dispute_id: "dp_x" });
-    expect(res.body).toMatchObject({ sync: { ok: false, message: "No dispute with that ID on your Stripe account." } });
+    expect(res.body).toMatchObject({
+      sync: { ok: false, message: "No dispute with that ID on your Stripe account." },
+    });
   });
 
   it("keeps the approval gate: the approver's user id goes to approveAndSubmitDispute", async () => {
@@ -395,14 +419,22 @@ describe("J77 review: the draft cannot change after an approval exists", () => {
     );
   }
   const evidenceRows = () =>
-    sqlite.prepare("select field_name, field_value from dispute_evidence order by field_name").all();
+    sqlite
+      .prepare("select field_name, field_value from dispute_evidence order by field_name")
+      .all();
 
   it("refuses a save on a submitted dispute with 409 and changes nothing", async () => {
-    seedDispute({ state: "submitted", submittedAt: new Date(NOW - HOUR), submittedBy: "owner@alpha.test" });
+    seedDispute({
+      state: "submitted",
+      submittedAt: new Date(NOW - HOUR),
+      submittedBy: "owner@alpha.test",
+    });
     seedEvidence("uncategorized_text", "Approved text.");
     const res = await act({ intent: "save", narrative: "Edited.", customer_ip: "198.51.100.14" });
     expect(res.status).toBe(409);
-    expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
+    expect(evidenceRows()).toEqual([
+      { field_name: "uncategorized_text", field_value: "Approved text." },
+    ]);
   });
 
   it("refuses a save with 409 once a pending approval row exists, though the state is still approvable", async () => {
@@ -411,8 +443,13 @@ describe("J77 review: the draft cannot change after an approval exists", () => {
     seedApproval();
     const res = await act({ intent: "save", narrative: "Edited.", customer_ip: "198.51.100.14" });
     expect(res.status).toBe(409);
-    expect(res.body).toMatchObject({ intent: "save", error: "This dispute has been approved, so its evidence is locked." });
-    expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
+    expect(res.body).toMatchObject({
+      intent: "save",
+      error: "This dispute has been approved, so its evidence is locked.",
+    });
+    expect(evidenceRows()).toEqual([
+      { field_name: "uncategorized_text", field_value: "Approved text." },
+    ]);
   });
 
   it("writes nothing when the approval lands between the read and the write (the guard is joined to the write)", async () => {
@@ -421,23 +458,48 @@ describe("J77 review: the draft cannot change after an approval exists", () => {
     const { saveDisputeDraft } = await import("~/lib/disputes/queries.server");
     const existing = [{ id: "ev_uncategorized_text_acct_alpha", fieldName: "uncategorized_text" }];
     seedApproval(); // after the caller's read, before its write
-    await saveDisputeDraft(db, A, "dsp_1", existing, [
-      { fieldName: "uncategorized_text", fieldValue: "Edited." },
-      { fieldName: "customer_purchase_ip", fieldValue: "198.51.100.14" },
-    ], new Date(NOW));
-    expect(evidenceRows()).toEqual([{ field_name: "uncategorized_text", field_value: "Approved text." }]);
+    await saveDisputeDraft(
+      db,
+      A,
+      "dsp_1",
+      existing,
+      [
+        { fieldName: "uncategorized_text", fieldValue: "Edited." },
+        { fieldName: "customer_purchase_ip", fieldValue: "198.51.100.14" },
+      ],
+      new Date(NOW),
+    );
+    expect(evidenceRows()).toEqual([
+      { field_name: "uncategorized_text", field_value: "Approved text." },
+    ]);
   });
 });
 
 describe("J77 review: Approve never sends a draft with unsaved edits", () => {
   it("blocks Approve and says why while the draft has unsaved edits", () => {
-    const html = renderToStaticMarkup(createElement(ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: true }));
-    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-describedby="dispute_approve_unsaved"/);
-    expect(text(html)).toContain("You have unsaved changes. Save your draft first: Approve submits the saved draft.");
+    const html = renderToStaticMarkup(
+      createElement(ApproveButton, {
+        label: "Approve and submit (fee $24.00)",
+        approving: false,
+        dirty: true,
+      }),
+    );
+    expect(html).toMatch(
+      /<button[^>]*aria-disabled="true"[^>]*aria-describedby="dispute_approve_unsaved"/,
+    );
+    expect(text(html)).toContain(
+      "You have unsaved changes. Save your draft first: Approve submits the saved draft.",
+    );
   });
 
   it("lets Approve through once the draft is saved", () => {
-    const html = renderToStaticMarkup(createElement(ApproveButton, { label: "Approve and submit (fee $24.00)", approving: false, dirty: false }));
+    const html = renderToStaticMarkup(
+      createElement(ApproveButton, {
+        label: "Approve and submit (fee $24.00)",
+        approving: false,
+        dirty: false,
+      }),
+    );
     expect(html).not.toContain("aria-disabled");
     expect(html).not.toContain("unsaved changes");
   });
@@ -473,7 +535,8 @@ describe("J77 review: one row per field, the same one everywhere", () => {
 // ---- Re-review of a297ac1 (CHANGES): a guarded write that wrote nothing is not "Saved." ----
 
 describe("J77 re-review: a save that wrote nothing is reported, never Saved (RULES.md 3.9)", () => {
-  const NOT_SAVED = "Your draft was not saved: this dispute changed. Reload to see the current evidence.";
+  const NOT_SAVED =
+    "Your draft was not saved: this dispute changed. Reload to see the current evidence.";
 
   it("answers 409 when an approval lands between the read and the write", async () => {
     seedDispute();
@@ -529,10 +592,12 @@ describe("PR 149 review (J06): Accept beside an approval, and the confirmation's
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({
       intent: "accept",
-      error: "This dispute's evidence has been approved for submission, so it cannot be accepted here.",
+      error:
+        "This dispute's evidence has been approved for submission, so it cannot be accepted here.",
     });
-    expect((sqlite.prepare("select state from disputes where id = 'dsp_1'").get() as { state: string }).state).not.toBe(
-      "resolved_lost",
-    );
+    expect(
+      (sqlite.prepare("select state from disputes where id = 'dsp_1'").get() as { state: string })
+        .state,
+    ).not.toBe("resolved_lost");
   });
 });

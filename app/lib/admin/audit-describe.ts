@@ -35,7 +35,8 @@ const ACTIONS: Record<string, string> = {
   // Written outside the admin pages. Recova labeled the first "Account deleted
   // (self)" (app/admin/platform/audit-log/page.tsx, blob 5003157c).
   user_self_deleted_account: "Deleted their own account",
-  user_self_deleted_account_deauthorize_failed: "Could not revoke a deleted account's Stripe connection",
+  user_self_deleted_account_deauthorize_failed:
+    "Could not revoke a deleted account's Stripe connection",
   "email.test_send": "Sent a test email",
   // Recova's codes, written again by Foxhound's read-only "View as merchant"
   // (app/lib/admin/impersonation.server.ts); Recova's own rows read the same.
@@ -87,7 +88,10 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 /** The ids the loader looks up names for. */
-export function auditLookupIds(entries: ReadonlyArray<AuditEntryLike>): { accountIds: string[]; postIds: string[] } {
+export function auditLookupIds(entries: ReadonlyArray<AuditEntryLike>): {
+  accountIds: string[];
+  postIds: string[];
+} {
   const accountIds = new Set<string>();
   const postIds = new Set<string>();
   for (const e of entries) {
@@ -197,7 +201,9 @@ export function auditDetail(entry: AuditEntryLike): string | null {
       const failed = Array.isArray(m.deauthorizeErrors) ? m.deauthorizeErrors.length : 0;
       const parts: string[] = [];
       if (disconnected !== null) {
-        parts.push(`${plural(disconnected, "Stripe connection", "Stripe connections")} disconnected`);
+        parts.push(
+          `${plural(disconnected, "Stripe connection", "Stripe connections")} disconnected`,
+        );
       }
       if (failed > 0) parts.push(`${failed} could not be revoked`);
       return parts.length > 0 ? parts.join(", ") : null;
@@ -216,7 +222,9 @@ export function auditDetail(entry: AuditEntryLike): string | null {
     case "impersonation_stop":
       return m.reason === "expired" ? "Ended on its own after 30 minutes" : null;
     case "blog.set-links":
-      return Array.isArray(m.targetIds) ? plural(m.targetIds.length, "related link", "related links") : null;
+      return Array.isArray(m.targetIds)
+        ? plural(m.targetIds.length, "related link", "related links")
+        : null;
     case "email.test_send": {
       const type = str(m.type);
       if (!type) return null;
@@ -232,14 +240,19 @@ export function auditDetail(entry: AuditEntryLike): string | null {
     case "user_self_deleted_account": {
       const parts: string[] = [];
       if (Array.isArray(m.account_ids)) {
-        parts.push(`${plural(m.account_ids.length, "merchant account", "merchant accounts")} deleted`);
+        parts.push(
+          `${plural(m.account_ids.length, "merchant account", "merchant accounts")} deleted`,
+        );
       }
       const disconnected = count(m.stripe_connections_disconnected);
       if (disconnected !== null) {
-        parts.push(`${plural(disconnected, "Stripe connection", "Stripe connections")} disconnected`);
+        parts.push(
+          `${plural(disconnected, "Stripe connection", "Stripe connections")} disconnected`,
+        );
       }
       const kept = count(m.kept_recovered_payments);
-      if (kept !== null) parts.push(`${plural(kept, "recovered payment", "recovered payments")} kept`);
+      if (kept !== null)
+        parts.push(`${plural(kept, "recovered payment", "recovered payments")} kept`);
       return parts.length > 0 ? parts.join(", ") : null;
     }
   }

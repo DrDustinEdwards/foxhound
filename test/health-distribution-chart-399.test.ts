@@ -49,14 +49,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // its labeled rule, its data table. What each one guards is unchanged. The
 // J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
 
-
 // The page shows its sections once there is an MRR snapshot (legacy's gate),
 // so one flat snapshot carries this render; it draws no movement, NRR or plan
 // chart of its own.
-
-
-
-
 
 describe("getHealthDistribution", () => {
   const NOW = Date.UTC(2026, 7, 29, 12, 0, 0);

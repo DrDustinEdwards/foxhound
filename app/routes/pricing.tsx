@@ -5,7 +5,11 @@ import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
-import { PRICING_CARDS, PRICING_FAQS, PRICING_META_DESCRIPTION } from "~/lib/marketing/pricing-copy";
+import {
+  PRICING_CARDS,
+  PRICING_FAQS,
+  PRICING_META_DESCRIPTION,
+} from "~/lib/marketing/pricing-copy";
 import { PRODUCTS } from "~/lib/marketing/products";
 import { faqPageJsonLd, siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -60,10 +64,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
     ...(loaderData
       ? [
           jsonLd(faqPageJsonLd(PRICING_FAQS)),
-          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            path: "/pricing",
-            selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
-          })),
+          jsonLd(
+            speakableWebPageJsonLd(loaderData.siteUrl, {
+              path: "/pricing",
+              selectors: [".speakable-pricing-cards", ".speakable-pricing-faq"],
+            }),
+          ),
         ]
       : []),
   ];
@@ -79,7 +85,11 @@ export default function PricingPage() {
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <MarketingPageHeader
         eyebrow="Pricing"
         title="Pricing"
@@ -111,11 +121,15 @@ export default function PricingPage() {
                         </span>
                       </div>
                       {card.priceLabel ? (
-                        <div className="mb-4 font-mono text-caption text-text-tertiary">{card.priceLabel}</div>
+                        <div className="mb-4 font-mono text-caption text-text-tertiary">
+                          {card.priceLabel}
+                        </div>
                       ) : (
                         <div className="mb-4">&nbsp;</div>
                       )}
-                      <p className="m-0 mb-5 text-label leading-[1.55] text-text-secondary">{card.description}</p>
+                      <p className="m-0 mb-5 text-label leading-[1.55] text-text-secondary">
+                        {card.description}
+                      </p>
                       <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-[1.45] text-text-secondary">
                         {card.features.map((feature) => (
                           <li key={feature} className="flex items-start gap-2">
@@ -165,7 +179,9 @@ export default function PricingPage() {
 
       <section className="speakable-pricing-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
-          <h2 className="mb-10 text-center text-subsection font-medium tracking-[-0.01em] text-text sm:text-section">Questions</h2>
+          <h2 className="mb-10 text-center text-subsection font-medium tracking-[-0.01em] text-text sm:text-section">
+            Questions
+          </h2>
           {/* Static list, not the shared FaqAccordion. Legacy makes this choice
               per surface: pricing/page.tsx:181-188 is a plain ul with every
               answer always visible, while its home page does use an accordion
@@ -195,8 +211,8 @@ export default function PricingPage() {
             See what your Stripe account is leaking
           </h2>
           <p className="mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
-            Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
-            business health. Results in <span className="font-mono">30</span> seconds.
+            Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes,
+            and business health. Results in <span className="font-mono">30</span> seconds.
           </p>
           <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
             Connect Stripe, it is free

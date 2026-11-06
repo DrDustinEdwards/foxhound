@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveRateLimitBinding } from "~/lib/http/rate-limit";
 import { encryptToken } from "~/lib/stripe/encryption";
+import { AUDIT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
 import {
-  AUDIT_ACTION,
-  buildConnectState,
-} from "~/lib/stripe/connect-state";
-import { AUDIT_OAUTH_STATE_COOKIE, AUDIT_TOKEN_COOKIE, AUDIT_TOKEN_TTL_SECONDS, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
+  AUDIT_OAUTH_STATE_COOKIE,
+  AUDIT_TOKEN_COOKIE,
+  AUDIT_TOKEN_TTL_SECONDS,
+  STRIPE_AUDIT_SCOPE,
+} from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -207,13 +209,16 @@ async function mintGrant(stripeUserId: string = STRIPE_A): Promise<string> {
   url.searchParams.set("code", "ac_mint");
   url.searchParams.set("state", state);
   const response = (await callbackRoute.loader({
-    request: new Request(url, { headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) } }),
+    request: new Request(url, {
+      headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) },
+    }),
     context: routeContext(),
     params: {},
   } as never)) as Response;
   exchangeSpy.impl = previous;
   const cookie = setCookies(response).find((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`));
-  if (!cookie) throw new Error(`the callback set no token cookie (${response.headers.get("Location")})`);
+  if (!cookie)
+    throw new Error(`the callback set no token cookie (${response.headers.get("Location")})`);
   return cookie.split(";")[0].slice(AUDIT_TOKEN_COOKIE.length + 1);
 }
 
@@ -290,7 +295,9 @@ describe("PLANT 3: the callback, and what it refuses", () => {
     url.searchParams.set("code", "ac_1");
     url.searchParams.set("state", state);
     const response = (await callbackRoute.loader({
-      request: new Request(url, { headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) } }),
+      request: new Request(url, {
+        headers: { Cookie: cookieHeader({ [AUDIT_OAUTH_STATE_COOKIE]: state }) },
+      }),
       context: routeContext(env),
       params: {},
     } as never)) as Response;
@@ -409,11 +416,15 @@ describe("PLANT 6b: the audited account is the one STRIPE named, never the query
     }
 
     // No row under either id, and no Stripe read under the stranger's token.
-    expect(runsInDb().map((r) => [r.account_id, r.stripe_account_id, r.failed_invoices_cents])).toEqual([]);
+    expect(
+      runsInDb().map((r) => [r.account_id, r.stripe_account_id, r.failed_invoices_cents]),
+    ).toEqual([]);
     expect(called).toBe(false);
     // Refused the way an expired link is, naming nobody.
     expect(outcome).toBeInstanceOf(Response);
-    expect((outcome as Response).headers.get("Location")).toBe("/audit/connect?error=invalid_state");
+    expect((outcome as Response).headers.get("Location")).toBe(
+      "/audit/connect?error=invalid_state",
+    );
   });
 
   it("SEALED JSON THAT IS NOT AN AUDIT GRANT is refused, even under the same key", async () => {

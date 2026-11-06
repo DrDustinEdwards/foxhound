@@ -30,26 +30,82 @@ function fakeStripe(overrides: { chargeThrows?: boolean } = {}) {
           created: day("2026-09-01"),
           customer: "cus_1",
           receipt_email: "payer@example.com",
-          billing_details: { name: "Pat Payer", email: null, address: { line1: "1 Main St", city: "Austin", state: "TX", postal_code: "78701", country: "US" } },
+          billing_details: {
+            name: "Pat Payer",
+            email: null,
+            address: {
+              line1: "1 Main St",
+              city: "Austin",
+              state: "TX",
+              postal_code: "78701",
+              country: "US",
+            },
+          },
           metadata: {},
           outcome: { risk_score: 12, risk_level: "normal" },
           payment_method_details: {
-            card: { checks: { address_line1_check: "pass", address_postal_code_check: "pass", cvc_check: "pass" }, three_d_secure: { result: "authenticated" } },
+            card: {
+              checks: {
+                address_line1_check: "pass",
+                address_postal_code_check: "pass",
+                cvc_check: "pass",
+              },
+              three_d_secure: { result: "authenticated" },
+            },
           },
         };
       },
       // Auto-paginated, as Stripe's list is when walked with for await.
-      list: () => pages([
-          { id: "ch_disputed", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-09-01") },
-          { id: "ch_a", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-08-01") },
-          { id: "ch_b", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-07-01") },
-          { id: "ch_c", amount: 5000, currency: "usd", status: "succeeded", created: day("2026-06-01") },
-          { id: "ch_failed", amount: 5000, currency: "usd", status: "failed", created: day("2026-05-01") },
-      ]),
+      list: () =>
+        pages([
+          {
+            id: "ch_disputed",
+            amount: 5000,
+            currency: "usd",
+            status: "succeeded",
+            created: day("2026-09-01"),
+          },
+          {
+            id: "ch_a",
+            amount: 5000,
+            currency: "usd",
+            status: "succeeded",
+            created: day("2026-08-01"),
+          },
+          {
+            id: "ch_b",
+            amount: 5000,
+            currency: "usd",
+            status: "succeeded",
+            created: day("2026-07-01"),
+          },
+          {
+            id: "ch_c",
+            amount: 5000,
+            currency: "usd",
+            status: "succeeded",
+            created: day("2026-06-01"),
+          },
+          {
+            id: "ch_failed",
+            amount: 5000,
+            currency: "usd",
+            status: "failed",
+            created: day("2026-05-01"),
+          },
+        ]),
     },
     subscriptions: {
       list: async () => ({
-        data: [{ id: "sub_1", status: "active", start_date: day("2026-06-01"), canceled_at: null, items: { data: [{ price: { unit_amount: 5000 } }] } }],
+        data: [
+          {
+            id: "sub_1",
+            status: "active",
+            start_date: day("2026-06-01"),
+            canceled_at: null,
+            items: { data: [{ price: { unit_amount: 5000 } }] },
+          },
+        ],
       }),
     },
   } as unknown as Stripe;
@@ -57,7 +113,11 @@ function fakeStripe(overrides: { chargeThrows?: boolean } = {}) {
 
 describe("dispute context and triage from Stripe", () => {
   it("reads the charge, prior charges and subscription, and recommends fighting a well-verified fraud claim", async () => {
-    const context = await fetchDisputeContextWith(fakeStripe(), { stripeDisputeId: "dp_1", chargeId: "ch_disputed", customerId: null });
+    const context = await fetchDisputeContextWith(fakeStripe(), {
+      stripeDisputeId: "dp_1",
+      chargeId: "ch_disputed",
+      customerId: null,
+    });
 
     expect(context).toMatchObject({
       customerId: "cus_1",
@@ -97,7 +157,9 @@ describe("dispute context and triage from Stripe", () => {
       triage,
       autoSubmit: false,
     });
-    expect(mail.notice.body).toContain("Recommendation: FIGHT (85/100). 3 prior successful charges, AVS and CVV both passed.");
+    expect(mail.notice.body).toContain(
+      "Recommendation: FIGHT (85/100). 3 prior successful charges, AVS and CVV both passed.",
+    );
   });
 
   it("an unreadable charge leaves the context empty and the intake goes on", async () => {

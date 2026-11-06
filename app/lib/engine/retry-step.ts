@@ -109,11 +109,7 @@ export function buildRetryStepPatch(
  *  a terminal result. Same conditional claim-on-write as buildRetryStepPatch, so
  *  a redelivered tick cannot double-write. retryResult mirrors result and stays
  *  null while the step is still being retried. */
-export function buildRetryAttemptPatch(
-  db: Db,
-  stepId: string,
-  patch: StepStatePatch,
-) {
+export function buildRetryAttemptPatch(db: Db, stepId: string, patch: StepStatePatch) {
   return db
     .update(recoverySteps)
     .set({
@@ -241,7 +237,11 @@ async function defaultStopRecovery(env: Env, ctx: RetryStepContext, now: Date): 
     accountId: ctx.accountId,
     idempotencyKey: `invoice-void-stop:${ctx.failedPaymentId}`,
     build: (db) =>
-      buildStopRecoveryBatch(db, { accountId: ctx.accountId, failedPaymentId: ctx.failedPaymentId, now }),
+      buildStopRecoveryBatch(db, {
+        accountId: ctx.accountId,
+        failedPaymentId: ctx.failedPaymentId,
+        now,
+      }),
   });
 }
 
@@ -249,7 +249,9 @@ async function defaultStopRecovery(env: Env, ctx: RetryStepContext, now: Date): 
  *  sequence started: an earlier retry's decline can move the row there. An
  *  expired card is not one: its retry is guarded on a changed card instead. */
 function retryCannotHelp(declineCategory: string): boolean {
-  return !isRetryable(declineCategory as DeclineCategory) && !retryNeedsChangedCard(declineCategory);
+  return (
+    !isRetryable(declineCategory as DeclineCategory) && !retryNeedsChangedCard(declineCategory)
+  );
 }
 
 export interface RetryStepResult {
@@ -279,7 +281,11 @@ export async function executeRetryStep(
 
   const now = new Date();
   const skip = async (skipped: RetryResult): Promise<RetryStepResult> => {
-    const claimed = await persistPatch(env, ctx.stepId, { executedAt: now, result: skipped, retryResult: skipped });
+    const claimed = await persistPatch(env, ctx.stepId, {
+      executedAt: now,
+      result: skipped,
+      retryResult: skipped,
+    });
     return { action: "retry", executed: claimed, recovered: false, retryResult: skipped };
   };
   // THE NETWORK'S STOP, before any charge. The card network said this card
@@ -295,7 +301,9 @@ export async function executeRetryStep(
   if (retryNeedsChangedCard(ctx.declineCategory)) {
     const verdict = await checkChanged(env, ctx);
     if (verdict !== "changed") {
-      return skip(verdict === "unchanged" ? "retry_skipped_card_unchanged" : "retry_skipped_unverified");
+      return skip(
+        verdict === "unchanged" ? "retry_skipped_card_unchanged" : "retry_skipped_unverified",
+      );
     }
   }
   const attempt = await payInvoice(env, ctx);
@@ -310,7 +318,8 @@ export async function executeRetryStep(
     // A void invoice can never be paid, so recovery ends here. A paid one is
     // left alone: invoice.payment_succeeded records the recovery and flips
     // the status, and stopping first would erase it.
-    if (result.executed && attempt.invoiceClosedStatus === "void") await stopRecovery(env, ctx, now);
+    if (result.executed && attempt.invoiceClosedStatus === "void")
+      await stopRecovery(env, ctx, now);
     return result;
   }
   const decision = decideRetryStep(attempt, now);
@@ -323,7 +332,12 @@ export async function executeRetryStep(
   // step first, and it owns the reconciliation and the Slack post.
   if (!(await persistPatch(env, ctx.stepId, decision.patch))) {
     console.error("retry step already executed by another run:", ctx.stepId);
-    return { action: "retry", executed: false, recovered: false, retryResult: decision.retryResult };
+    return {
+      action: "retry",
+      executed: false,
+      recovered: false,
+      retryResult: decision.retryResult,
+    };
   }
   if (decision.recovered) {
     await reconcileRecovery(env, buildRetryReconciliationInput(ctx, now));

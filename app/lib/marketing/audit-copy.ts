@@ -105,12 +105,24 @@ export const AUDIT_SECTION_LABEL = "What you get";
 /** Recova's AuditScopeCard: a glyph, a title and one line per scope. */
 export const AUDIT_SCOPES = [
   // Truthfulness: Recova reads "and estimated recovery value". See above.
-  { icon: "↯", title: "Failed invoices", desc: "Unrecovered failed payments and their total value" },
+  {
+    icon: "↯",
+    title: "Failed invoices",
+    desc: "Unrecovered failed payments and their total value",
+  },
   // Truthfulness: Recova reads "Cards expiring within 30 days". See above.
-  { icon: "⊘", title: "Expiring cards", desc: "Cards expired or expiring by the end of next month, and MRR at risk" },
+  {
+    icon: "⊘",
+    title: "Expiring cards",
+    desc: "Cards expired or expiring by the end of next month, and MRR at risk",
+  },
   // Truthfulness: Recova reads "Active disputes, deadlines, and historical win
   // rate". The read carries no deadline; it carries the amount.
-  { icon: "⚖", title: "Open disputes", desc: "Active disputes, the amount at stake, and historical win rate" },
+  {
+    icon: "⚖",
+    title: "Open disputes",
+    desc: "Active disputes, the amount at stake, and historical win rate",
+  },
   { icon: "◎", title: "Business health", desc: "MRR, ARR, active subscriptions, and churn rate" },
 ];
 
@@ -208,8 +220,11 @@ export const AUDIT_HISTORY_EXAMPLE = [
   { month: 3, summary: "4 failed · 1 expiring · 1 dispute" },
   { month: 2, summary: "2 failed · 0 expiring · 0 disputes" },
 ].map((run) => ({
-  date: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(
-    new Date(Date.UTC(2026, run.month, AUDIT_AUTO_RUN_DAY)),
-  ),
+  date: new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, run.month, AUDIT_AUTO_RUN_DAY))),
   summary: run.summary,
 }));

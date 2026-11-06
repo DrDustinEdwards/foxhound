@@ -206,7 +206,13 @@ async function seed() {
 
 async function api(
   path: string,
-  opts: { key?: string | null; actor?: string | null; method?: string; body?: unknown; env?: Env } = {},
+  opts: {
+    key?: string | null;
+    actor?: string | null;
+    method?: string;
+    body?: unknown;
+    env?: Env;
+  } = {},
 ) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.key) headers.Authorization = `Bearer ${opts.key}`;
@@ -220,24 +226,43 @@ async function api(
     opts.env ?? env(),
   )) as Response;
   const text = await res.text();
-  return { status: res.status, text, json: (text ? JSON.parse(text) : null) as Record<string, unknown> };
+  return {
+    status: res.status,
+    text,
+    json: (text ? JSON.parse(text) : null) as Record<string, unknown>,
+  };
 }
 
-const post = (key: string, path: string, body: unknown, extra: { actor?: string; env?: Env } = {}) =>
-  api(path, { key, actor: extra.actor ?? ADMIN, method: "POST", body, env: extra.env });
+const post = (
+  key: string,
+  path: string,
+  body: unknown,
+  extra: { actor?: string; env?: Env } = {},
+) => api(path, { key, actor: extra.actor ?? ADMIN, method: "POST", body, env: extra.env });
 
 /** Every table's row count, so a test can prove nothing else was written. */
-function tableCounts(sqlite: ReturnType<typeof createInMemoryDb>["sqlite"]): Record<string, number> {
+function tableCounts(
+  sqlite: ReturnType<typeof createInMemoryDb>["sqlite"],
+): Record<string, number> {
   const tables = sqlite
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle%'")
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle%'",
+    )
     .all() as { name: string }[];
   return Object.fromEntries(
-    tables.map(({ name }) => [name, (sqlite.prepare(`SELECT count(*) AS n FROM "${name}"`).get() as { n: number }).n]),
+    tables.map(({ name }) => [
+      name,
+      (sqlite.prepare(`SELECT count(*) AS n FROM "${name}"`).get() as { n: number }).n,
+    ]),
   );
 }
 
 function withoutLogs(counts: Record<string, number>) {
-  return Object.fromEntries(Object.entries(counts).filter(([name]) => name !== "admin_audit_log" && name !== "admin_api_calls"));
+  return Object.fromEntries(
+    Object.entries(counts).filter(
+      ([name]) => name !== "admin_audit_log" && name !== "admin_api_calls",
+    ),
+  );
 }
 
 beforeEach(() => {
@@ -268,7 +293,12 @@ describe("PLANT 1: the admin API's two credentials guard both routes", () => {
 
   it("an acting person who is not on ADMIN_EMAIL is a 403 and nothing is sent", async () => {
     const { keys } = await seed();
-    const { status } = await post(keys.admin, "/emails/send", { type: "recovery_day1" }, { actor: STRANGER });
+    const { status } = await post(
+      keys.admin,
+      "/emails/send",
+      { type: "recovery_day1" },
+      { actor: STRANGER },
+    );
     expect(status).toBe(403);
     expect(sent).toEqual([]);
   });
@@ -285,7 +315,10 @@ describe("PLANT 2: mail goes only to the caller or the configured test inboxes",
   it("the caller's own address in any case, and an allow-listed inbox, are accepted", async () => {
     const { keys } = await seed();
     for (const to of [ADMIN.toUpperCase(), TEST_INBOX]) {
-      const { status, json } = await post(keys.admin, "/emails/send", { types: ["sign_in_link"], to });
+      const { status, json } = await post(keys.admin, "/emails/send", {
+        types: ["sign_in_link"],
+        to,
+      });
       expect(status, `${to}: ${JSON.stringify(json)}`).toBe(200);
     }
     expect(sent.map((m) => m.to)).toEqual([ADMIN, TEST_INBOX]);
@@ -293,10 +326,22 @@ describe("PLANT 2: mail goes only to the caller or the configured test inboxes",
 
   it("any other address, another admin's included, is refused with no send", async () => {
     const { keys } = await seed();
-    for (const to of [STRANGER, SECOND_ADMIN, REAL_CUSTOMER_EMAIL, `${ADMIN}\r\nBcc: ${STRANGER}`, `${ADMIN}, ${STRANGER}`, ""]) {
-      const { status, json } = await post(keys.admin, "/emails/send", { types: ["recovery_day1"], to });
+    for (const to of [
+      STRANGER,
+      SECOND_ADMIN,
+      REAL_CUSTOMER_EMAIL,
+      `${ADMIN}\r\nBcc: ${STRANGER}`,
+      `${ADMIN}, ${STRANGER}`,
+      "",
+    ]) {
+      const { status, json } = await post(keys.admin, "/emails/send", {
+        types: ["recovery_day1"],
+        to,
+      });
       expect(status, JSON.stringify(to)).toBe(400);
-      expect(String(json.error), JSON.stringify(to)).toMatch(/ADMIN_EMAIL_TEST_RECIPIENTS|own address/);
+      expect(String(json.error), JSON.stringify(to)).toMatch(
+        /ADMIN_EMAIL_TEST_RECIPIENTS|own address/,
+      );
     }
     expect(sent).toEqual([]);
   });
@@ -304,8 +349,19 @@ describe("PLANT 2: mail goes only to the caller or the configured test inboxes",
   it("with the allow list unset, only the caller's own address is accepted", async () => {
     const { keys } = await seed();
     const bare = env({ ADMIN_EMAIL_TEST_RECIPIENTS: undefined });
-    expect((await post(keys.admin, "/emails/send", { types: ["sign_in_link"], to: TEST_INBOX }, { env: bare })).status).toBe(400);
-    expect((await post(keys.admin, "/emails/send", { types: ["sign_in_link"] }, { env: bare })).status).toBe(200);
+    expect(
+      (
+        await post(
+          keys.admin,
+          "/emails/send",
+          { types: ["sign_in_link"], to: TEST_INBOX },
+          { env: bare },
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await post(keys.admin, "/emails/send", { types: ["sign_in_link"] }, { env: bare })).status,
+    ).toBe(200);
     expect(sent.map((m) => m.to)).toEqual([ADMIN]);
   });
 });
@@ -315,7 +371,9 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
     const { keys } = await seed();
     const { status, json } = await api("/emails", { key: keys.admin, actor: ADMIN });
     expect(status).toBe(200);
-    const types = (json.data as { types: { type: string; audience: string; description: string }[] }).types;
+    const types = (
+      json.data as { types: { type: string; audience: string; description: string }[] }
+    ).types;
     expect(types.map((t) => t.type)).toEqual(ALL_TYPES);
     for (const t of types) {
       expect(["customer", "merchant", "platform"], t.type).toContain(t.audience);
@@ -327,9 +385,16 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
     const { sqlite, keys } = await seed();
     const before = withoutLogs(tableCounts(sqlite));
     for (const type of ALL_TYPES) {
-      const { status, json } = await post(keys.admin, "/emails/preview", { type, account_id: MERCHANT });
+      const { status, json } = await post(keys.admin, "/emails/preview", {
+        type,
+        account_id: MERCHANT,
+      });
       expect(status, `${type}: ${JSON.stringify(json)}`).toBe(200);
-      const preview = (json.data as { preview: { subject: string; html: string; text: string; from: string; to: string } }).preview;
+      const preview = (
+        json.data as {
+          preview: { subject: string; html: string; text: string; from: string; to: string };
+        }
+      ).preview;
       expect(preview.subject.length, type).toBeGreaterThan(3);
       expect(preview.html, type).toMatch(/<html|<body|<table/i);
       expect(preview.text.length, type).toBeGreaterThan(20);
@@ -344,9 +409,17 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
 
   it("a customer email previews with the merchant's From name, Reply-To, footer and brand voice", async () => {
     const { keys } = await seed();
-    const { json } = await post(keys.admin, "/emails/preview", { type: "recovery_day1", account_id: MERCHANT });
+    const { json } = await post(keys.admin, "/emails/preview", {
+      type: "recovery_day1",
+      account_id: MERCHANT,
+    });
     const data = json.data as {
-      preview: { from: string; reply_to: string | null; text: string; headers: Record<string, string> };
+      preview: {
+        from: string;
+        reply_to: string | null;
+        text: string;
+        headers: Record<string, string>;
+      };
       merchant: { brand_voice: Record<string, string | null> };
     };
     expect(data.preview.from).toMatch(new RegExp(`^${SENDER_NAME} <`));
@@ -361,7 +434,10 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
     const unknown = await post(keys.admin, "/emails/preview", { type: "dispute_notice" });
     expect(unknown.status).toBe(400);
     expect(String(unknown.json.error)).toMatch(/recovery_day1/);
-    const nobody = await post(keys.admin, "/emails/preview", { type: "recovery_day1", account_id: "acct_nope" });
+    const nobody = await post(keys.admin, "/emails/preview", {
+      type: "recovery_day1",
+      account_id: "acct_nope",
+    });
     expect(nobody.status).toBe(400);
     expect(String(nobody.json.error)).toMatch(/merchants/);
   });
@@ -370,7 +446,10 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
 describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and is audited", () => {
   it("sending every type delivers each one through the send module", async () => {
     const { keys } = await seed();
-    const { status, json } = await post(keys.admin, "/emails/send", { types: "all", account_id: MERCHANT });
+    const { status, json } = await post(keys.admin, "/emails/send", {
+      types: "all",
+      account_id: MERCHANT,
+    });
     expect(status, JSON.stringify(json)).toBe(200);
     const results = (json.data as { results: { type: string; status: string }[] }).results;
     expect(results.map((r) => [r.type, r.status])).toEqual(ALL_TYPES.map((t) => [t, "sent"]));
@@ -378,14 +457,19 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
     expect(sent.every((m) => m.to === ADMIN)).toBe(true);
     // Customer and merchant mail through sendJobEmail, platform mail through the
     // module's transactional senders: the binding is reached from nowhere else.
-    expect(sendSpies.sendJobEmail).toHaveBeenCalledTimes(ALL_TYPES.length - RENDERED_TYPES.length - TRANSACTIONAL_TYPES.length);
+    expect(sendSpies.sendJobEmail).toHaveBeenCalledTimes(
+      ALL_TYPES.length - RENDERED_TYPES.length - TRANSACTIONAL_TYPES.length,
+    );
     expect(sendSpies.sendRenderedTransactionalEmail).toHaveBeenCalledTimes(RENDERED_TYPES.length);
     expect(sendSpies.sendTransactionalEmail).toHaveBeenCalledTimes(TRANSACTIONAL_TYPES.length);
   });
 
   it("customer mail carries the merchant's sender name and Reply-To; merchant notices carry none", async () => {
     const { keys } = await seed();
-    await post(keys.admin, "/emails/send", { types: ["recovery_day3", "winback_step1", "recovery_notification"], account_id: MERCHANT });
+    await post(keys.admin, "/emails/send", {
+      types: ["recovery_day3", "winback_step1", "recovery_notification"],
+      account_id: MERCHANT,
+    });
     const [dunning, winback, notice] = sent;
     for (const message of [dunning, winback]) {
       expect(message.from).toMatch(new RegExp(`^${SENDER_NAME} <`));
@@ -398,23 +482,37 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
 
   it("each send leaves an admin_audit_log row naming the acting admin, the type and the merchant", async () => {
     const { db, keys } = await seed();
-    await post(keys.admin, "/emails/send", { types: ["recovery_day1", "sign_in_link"], account_id: MERCHANT, to: TEST_INBOX });
-    const rows = (await db.select().from(adminAuditLog)).filter((r) => r.action === "email.test_send");
+    await post(keys.admin, "/emails/send", {
+      types: ["recovery_day1", "sign_in_link"],
+      account_id: MERCHANT,
+      to: TEST_INBOX,
+    });
+    const rows = (await db.select().from(adminAuditLog)).filter(
+      (r) => r.action === "email.test_send",
+    );
     expect(rows).toHaveLength(2);
     for (const row of rows) {
       expect(row.actorEmail).toBe(ADMIN);
       expect(row.targetEmail).toBe(TEST_INBOX);
       expect((row.metadata as { accountId: string }).accountId).toBe(MERCHANT);
     }
-    expect(rows.map((r) => (r.metadata as { type: string }).type).sort()).toEqual(["recovery_day1", "sign_in_link"]);
+    expect(rows.map((r) => (r.metadata as { type: string }).type).sort()).toEqual([
+      "recovery_day1",
+      "sign_in_link",
+    ]);
   });
 
   it("a suppressed test inbox is reported, not sent to, for customer mail", async () => {
     const { sqlite, keys } = await seed();
     sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'unsubscribe', ?)")
+      .prepare(
+        "INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'unsubscribe', ?)",
+      )
       .run(ADMIN, NOW.getTime());
-    const { json } = await post(keys.admin, "/emails/send", { types: ["recovery_day1"], account_id: MERCHANT });
+    const { json } = await post(keys.admin, "/emails/send", {
+      types: ["recovery_day1"],
+      account_id: MERCHANT,
+    });
     const results = (json.data as { results: { status: string }[] }).results;
     expect(results.map((r) => r.status)).toEqual(["suppressed"]);
     expect(sent).toEqual([]);
@@ -428,7 +526,9 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
       { types: ["recovery_day1", "sign_in_link"], account_id: MERCHANT },
       { env: env({ PHYSICAL_ADDRESS: undefined }) },
     );
-    const results = (json.data as { results: { type: string; status: string; error: string | null }[] }).results;
+    const results = (
+      json.data as { results: { type: string; status: string; error: string | null }[] }
+    ).results;
     expect(results[0]).toMatchObject({ type: "recovery_day1", status: "failed" });
     expect(String(results[0].error)).toMatch(/physical address/);
     expect(results[1]).toMatchObject({ type: "sign_in_link", status: "sent" });
@@ -461,7 +561,9 @@ describe("PLANT 7: no tracking, no billable record, no real customer data", () =
     const { keys } = await seed();
     const previews: string[] = [];
     for (const type of ALL_TYPES) {
-      previews.push((await post(keys.admin, "/emails/preview", { type, account_id: MERCHANT })).text);
+      previews.push(
+        (await post(keys.admin, "/emails/preview", { type, account_id: MERCHANT })).text,
+      );
     }
     await post(keys.admin, "/emails/send", { types: CUSTOMER_TYPES, account_id: MERCHANT });
     for (const body of [...previews, ...sent.map((m) => JSON.stringify(m))]) {
@@ -489,16 +591,27 @@ function fakeFoxhound() {
           path: new URL(request.url).pathname,
           body: request.method === "POST" ? await request.json() : null,
         });
-        return new Response(JSON.stringify({ ok: true, data: {} }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ ok: true, data: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       },
     },
   };
 }
 
 /** A TOOL_CALL_LOG that accepts every row: no tool runs unlogged. */
-const toolCallLog = { idFromName: () => "log", get: () => ({ fetch: async () => new Response(null, { status: 204 }) }) };
+const toolCallLog = {
+  idFromName: () => "log",
+  get: () => ({ fetch: async () => new Response(null, { status: 204 }) }),
+};
 
-async function callTool(fox: ReturnType<typeof fakeFoxhound>, name: string, args: Record<string, unknown>, scopes: string[]) {
+async function callTool(
+  fox: ReturnType<typeof fakeFoxhound>,
+  name: string,
+  args: Record<string, unknown>,
+  scopes: string[],
+) {
   const res = await serveAdminMcp(
     mcpRequest({ method: "tools/call", params: { name, arguments: args } }),
     { FOXHOUND: fox.binding, FOXHOUND_ADMIN_API_KEY: KEY, TOOL_CALL_LOG: toolCallLog } as never,
@@ -512,13 +625,22 @@ describe("PLANT 8: the admin MCP's preview and send tools", () => {
     const preview = ADMIN_TOOLS.find((t) => t.name === "foxhound_admin_preview_email");
     const send = ADMIN_TOOLS.find((t) => t.name === "foxhound_admin_send_test_email");
     expect(preview?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(send?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: false });
+    expect(send?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    });
   });
 
   it("preview calls the catalog with no type, and the preview route with one", async () => {
     const fox = fakeFoxhound();
     await callTool(fox, "foxhound_admin_preview_email", {}, [SCOPE_READ]);
-    await callTool(fox, "foxhound_admin_preview_email", { type: "recovery_day1", account_id: MERCHANT }, [SCOPE_READ]);
+    await callTool(
+      fox,
+      "foxhound_admin_preview_email",
+      { type: "recovery_day1", account_id: MERCHANT },
+      [SCOPE_READ],
+    );
     expect(fox.calls.map((c) => [c.method, c.path])).toEqual([
       ["GET", "/api/admin/v1/emails"],
       ["POST", "/api/admin/v1/emails/preview"],
@@ -529,7 +651,9 @@ describe("PLANT 8: the admin MCP's preview and send tools", () => {
   it("send needs the write grant, and passes types, merchant and recipient to the send route", async () => {
     // A read grant is never offered the send tool (registerTools, T7): the call is an unknown tool and sends nothing.
     const readOnly = fakeFoxhound();
-    await expect(callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ])).rejects.toThrow(/not found/);
+    await expect(
+      callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ]),
+    ).rejects.toThrow(/not found/);
     expect(readOnly.calls).toEqual([]);
 
     const fox = fakeFoxhound();
@@ -541,7 +665,11 @@ describe("PLANT 8: the admin MCP's preview and send tools", () => {
     );
     expect(out.isError).toBe(false);
     expect(fox.calls).toEqual([
-      { method: "POST", path: "/api/admin/v1/emails/send", body: { types: ["recovery_day1"], account_id: MERCHANT, to: TEST_INBOX } },
+      {
+        method: "POST",
+        path: "/api/admin/v1/emails/send",
+        body: { types: ["recovery_day1"], account_id: MERCHANT, to: TEST_INBOX },
+      },
     ]);
   });
 });

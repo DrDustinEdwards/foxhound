@@ -1,5 +1,13 @@
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
-import { type Db, accountFirstCreations, accountMembers, accounts, apiKeys, oauthGrants, user } from "~/db";
+import {
+  type Db,
+  accountFirstCreations,
+  accountMembers,
+  accounts,
+  apiKeys,
+  oauthGrants,
+  user,
+} from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
@@ -37,10 +45,7 @@ export interface Membership {
  * Distinct from `listMembers` at the bottom of this file, which goes the other
  * way: the MEMBERS of one account, for the team settings view.
  */
-export async function listMemberships(
-  db: Db,
-  userId: string,
-): Promise<Membership[]> {
+export async function listMemberships(db: Db, userId: string): Promise<Membership[]> {
   return db
     .select({
       memberId: accountMembers.id,
@@ -50,12 +55,7 @@ export async function listMemberships(
     })
     .from(accountMembers)
     .innerJoin(accounts, eq(accountMembers.accountId, accounts.id))
-    .where(
-      and(
-        eq(accountMembers.userId, userId),
-        eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
-      ),
-    )
+    .where(and(eq(accountMembers.userId, userId), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)))
     .orderBy(accountMembers.createdAt, accountMembers.id);
 }
 
@@ -185,10 +185,7 @@ export async function resolveActiveMembershipFrom(
  * because legacy resolves both its halves through `resolveAccount`, its own
  * active-account resolver, so the active account was always the spec.
  */
-export async function resolveMembership(
-  db: Db,
-  userId: string,
-): Promise<Membership | null> {
+export async function resolveMembership(db: Db, userId: string): Promise<Membership | null> {
   return resolveActiveMembership(db, userId, null);
 }
 
@@ -283,9 +280,7 @@ export async function createAccountForUser(
       if (first[0]) return { ok: true, accountId: first[0].accountId };
       const existing = await listMemberships(db, userId);
       const won = existing[0];
-      return won
-        ? { ok: true, accountId: won.accountId }
-        : { ok: false, reason: "already_member" };
+      return won ? { ok: true, accountId: won.accountId } : { ok: false, reason: "already_member" };
     }
   } catch (err) {
     // The backstop the database can still provide: a second ACTIVE membership on
@@ -368,7 +363,11 @@ export async function listMembers(db: Db, accountId: string) {
     .from(accountMembers)
     .leftJoin(user, eq(accountMembers.userId, user.id))
     .where(eq(accountMembers.accountId, accountId))
-    .orderBy(asc(isNull(accountMembers.createdAt)), asc(accountMembers.createdAt), asc(accountMembers.id));
+    .orderBy(
+      asc(isNull(accountMembers.createdAt)),
+      asc(accountMembers.createdAt),
+      asc(accountMembers.id),
+    );
 }
 
 /**
@@ -392,9 +391,7 @@ export async function listMembers(db: Db, accountId: string) {
  * may sign in to an account, never an outcome, an attributed fee or a webhook
  * claim (333's line, and `cancelMerchant`'s precedent).
  */
-export type RemoveMemberResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "is_owner" };
+export type RemoveMemberResult = { ok: true } | { ok: false; reason: "not_found" | "is_owner" };
 
 export async function removeMember(
   db: Db,
@@ -432,11 +429,17 @@ export async function removeMember(
       .set({ revokedAt: now })
       .where(
         and(
-          inArray(apiKeys.id, db.select({ id: oauthGrants.apiKeyId }).from(oauthGrants).where(theirGrants)),
+          inArray(
+            apiKeys.id,
+            db.select({ id: oauthGrants.apiKeyId }).from(oauthGrants).where(theirGrants),
+          ),
           isNull(apiKeys.revokedAt),
         ),
       ),
-    db.update(oauthGrants).set({ revokedAt: now }).where(and(theirGrants, isNull(oauthGrants.revokedAt))),
+    db
+      .update(oauthGrants)
+      .set({ revokedAt: now })
+      .where(and(theirGrants, isNull(oauthGrants.revokedAt))),
     db.delete(accountMembers).where(eq(accountMembers.id, memberId)),
   ]);
   return { ok: true };

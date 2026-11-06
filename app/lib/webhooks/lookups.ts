@@ -332,7 +332,9 @@ export async function resolveRefundedFailedPayment(
   const rows = await db
     .select({ id: failedPayments.id })
     .from(failedPayments)
-    .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)))
+    .where(
+      and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)),
+    )
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   return rows[0]?.id ?? null;
@@ -348,7 +350,12 @@ export interface DisputedRecoveryLink {
     subscriptionStart: Date | null;
     detectedAt: Date;
   };
-  steps: { stepType: string; executedAt: Date | null; openedAt: Date | null; clickedAt: Date | null }[];
+  steps: {
+    stepType: string;
+    executedAt: Date | null;
+    openedAt: Date | null;
+    clickedAt: Date | null;
+  }[];
 }
 
 /**
@@ -397,7 +404,9 @@ export async function resolveDisputedRecovery(
       detectedAt: failedPayments.detectedAt,
     })
     .from(failedPayments)
-    .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)))
+    .where(
+      and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)),
+    )
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   if (!failedPayment) return null;
@@ -501,8 +510,16 @@ export async function resolveRecoveryAttribution(
 export async function resolveExpiringCard(
   env: Env,
   connectionId: string,
-  intent: { card: { expMonth: number; expYear: number; brand: string | null; last4: string | null } | null; paymentMethodId: string | null },
-): Promise<{ expMonth: number; expYear: number; brand: string | null; last4: string | null } | null> {
+  intent: {
+    card: { expMonth: number; expYear: number; brand: string | null; last4: string | null } | null;
+    paymentMethodId: string | null;
+  },
+): Promise<{
+  expMonth: number;
+  expYear: number;
+  brand: string | null;
+  last4: string | null;
+} | null> {
   if (intent.card) return intent.card;
   if (!intent.paymentMethodId) return null;
   try {
@@ -590,7 +607,10 @@ export async function resolveFailureFacts(
   try {
     stripe = await connectedStripeFor(env, connectionId);
   } catch (err) {
-    console.error("intake connection read failed:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "intake connection read failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
     return { decline: null, invoiceStatus: null };
   }
   if (!stripe) return { decline: null, invoiceStatus: null };
@@ -598,7 +618,10 @@ export async function resolveFailureFacts(
   try {
     invoiceStatus = (await stripe.invoices.retrieve(invoiceId)).status ?? null;
   } catch (err) {
-    console.error("intake invoice read failed:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "intake invoice read failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
   }
   return { decline: await readDeclineFacts(stripe, invoiceId), invoiceStatus };
 }
@@ -623,7 +646,10 @@ async function readDeclineFacts(stripe: Stripe, invoiceId: string): Promise<Decl
       cardCountry: card?.country ?? null,
     };
   } catch (err) {
-    console.error("intake decline facts read failed:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "intake decline facts read failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
     return null;
   }
 }
@@ -657,7 +683,10 @@ export async function resolveRecoveredChargeFee(
       netCurrency: bt.currency,
     };
   } catch (err) {
-    console.error("recovered charge fee read failed:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "recovered charge fee read failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
     return null;
   }
 }

@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,8 +49,12 @@ vi.mock("~/lib/stripe/client", () => ({
   }),
 }));
 
-const { runExpiringCards, scanExpiringCards, sendExpiringCardAlerts, EXPIRING_CARD_SCAN_SOFT_LIMIT } =
-  await import("~/lib/cron/expiring-cards");
+const {
+  runExpiringCards,
+  scanExpiringCards,
+  sendExpiringCardAlerts,
+  EXPIRING_CARD_SCAN_SOFT_LIMIT,
+} = await import("~/lib/cron/expiring-cards");
 
 const ACCOUNT = "acct_1";
 const NOW = new Date("2026-11-01T00:00:00Z");
@@ -64,7 +67,13 @@ const env = {
   BETTER_AUTH_URL: "https://foxhoundapp.test",
   PHYSICAL_ADDRESS: "1 Test Way, Austin TX",
   EMAIL: {
-    send: async (m: { from: string; to: string; subject: string; html: string; headers?: unknown }) => {
+    send: async (m: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      headers?: unknown;
+    }) => {
       harness.sent.push(m);
       return { id: "msg_1" };
     },
@@ -78,12 +87,18 @@ beforeEach(() => {
   harness.subscriptions = [];
 });
 
-function seedAccount(opts: { enabled?: number | null; liveSends?: number; senderName?: string | null } = {}): void {
+function seedAccount(
+  opts: { enabled?: number | null; liveSends?: number; senderName?: string | null } = {},
+): void {
   sqlite
     .prepare(
       "INSERT INTO accounts (id, name, created_at, expiring_card_notifications_enabled, live_sends_enabled) VALUES (?, 'Acme', 1000, ?, ?)",
     )
-    .run(ACCOUNT, opts.enabled === undefined ? null : opts.enabled, opts.liveSends === undefined ? 1 : opts.liveSends);
+    .run(
+      ACCOUNT,
+      opts.enabled === undefined ? null : opts.enabled,
+      opts.liveSends === undefined ? 1 : opts.liveSends,
+    );
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES ('c1', ?, 'acct_s', 1, 'cipher', ?, 1000, 1000)",
@@ -91,11 +106,18 @@ function seedAccount(opts: { enabled?: number | null; liveSends?: number; sender
     .run(ACCOUNT, opts.senderName === undefined ? "Acme Billing" : opts.senderName);
 }
 
-function subscription(expMonth: number, expYear: number, customerId = "cus_1", email: string | null = "buyer@acme.test") {
+function subscription(
+  expMonth: number,
+  expYear: number,
+  customerId = "cus_1",
+  email: string | null = "buyer@acme.test",
+) {
   return {
     id: `sub_${customerId}`,
     customer: { id: customerId, email, name: "Jane Buyer" },
-    default_payment_method: { card: { exp_month: expMonth, exp_year: expYear, brand: "visa", last4: "4242" } },
+    default_payment_method: {
+      card: { exp_month: expMonth, exp_year: expYear, brand: "visa", last4: "4242" },
+    },
   };
 }
 
@@ -115,12 +137,13 @@ function sendRows() {
 
 function outcomeRows() {
   return sqlite
-    .prepare("SELECT event_type AS eventType, outcome, event_data AS eventData FROM outcomes WHERE account_id = ?")
+    .prepare(
+      "SELECT event_type AS eventType, outcome, event_data AS eventData FROM outcomes WHERE account_id = ?",
+    )
     .all(ACCOUNT) as { eventType: string; outcome: string | null; eventData: string | null }[];
 }
 
 describe("PLANT 1: the band guard, ported as found", () => {
-
   it("the scan records only the cards inside the band", async () => {
     seedAccount();
     harness.subscriptions = [
@@ -242,7 +265,11 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
     await seedCandidate();
     const failing = {
       ...env,
-      EMAIL: { send: async () => { throw new Error("provider exploded"); } },
+      EMAIL: {
+        send: async () => {
+          throw new Error("provider exploded");
+        },
+      },
     } as unknown as Env;
 
     const result = await sendExpiringCardAlerts(failing, NOW);
@@ -262,7 +289,6 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
 });
 
 describe("PLANT 5: the cron is registered and shaped like the others", () => {
-
   it("one run does both passes", async () => {
     seedAccount({ enabled: null });
     harness.subscriptions = [subscription(11, 2026)];
@@ -323,7 +349,9 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
 
     // customer_name -> "there", card_brand -> "Card", card_last4 -> "****",
     // sender_name -> "Support". All four are legacy's.
-    expect(harness.sent[0].subject).toBe("Action required: Your Card card ending in **** is expiring");
+    expect(harness.sent[0].subject).toBe(
+      "Action required: Your Card card ending in **** is expiring",
+    );
     // J02: words, not markup. "Thanks," and the sender are two paragraphs in
     // Capsomer's frame, and two lines in the text part.
     const text = (harness.sent[0] as { text?: string }).text ?? "";

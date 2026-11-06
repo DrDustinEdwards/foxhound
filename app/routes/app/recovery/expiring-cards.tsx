@@ -17,7 +17,9 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const alerts = await listExpiringCardAlerts(db, auth.membership.accountId, { includeNoPaymentMethod: true });
+  const alerts = await listExpiringCardAlerts(db, auth.membership.accountId, {
+    includeNoPaymentMethod: true,
+  });
   return { alerts, nowMs: Date.now() };
 }
 
@@ -91,7 +93,9 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                       )}
                     </td>
                     <td data-label="Alert" className="text-text-tertiary">
-                      {alert.alertSentAt ? `Sent ${alert.alertSentAt.toLocaleDateString()}` : "Not sent yet"}
+                      {alert.alertSentAt
+                        ? `Sent ${alert.alertSentAt.toLocaleDateString()}`
+                        : "Not sent yet"}
                     </td>
                   </tr>
                 );

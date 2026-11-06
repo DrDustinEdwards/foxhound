@@ -162,12 +162,7 @@ async function queryDueWinbackSteps(
 }
 
 /** Stamp a step terminal with legacy's result string, without claiming a send. */
-async function stampStep(
-  db: Db,
-  stepId: string,
-  result: string,
-  now: Date,
-): Promise<void> {
+async function stampStep(db: Db, stepId: string, result: string, now: Date): Promise<void> {
   await db
     .update(winBackSteps)
     .set({ executedAt: now, result })
@@ -207,11 +202,7 @@ export async function claimStepSent(
  * 344 binding 4: an exhausted sequence stays RESUBSCRIBABLE, because step 3's
  * own button must outlive the flip its own send causes.
  */
-async function claimSequenceExhausted(
-  db: Db,
-  sequenceId: string,
-  now: Date,
-): Promise<void> {
+async function claimSequenceExhausted(db: Db, sequenceId: string, now: Date): Promise<void> {
   await db
     .update(winBackSequences)
     .set({ status: WINBACK_STATUS.EXHAUSTED, resolvedAt: now })
@@ -219,8 +210,6 @@ async function claimSequenceExhausted(
       and(eq(winBackSequences.id, sequenceId), eq(winBackSequences.status, WINBACK_STATUS.ACTIVE)),
     );
 }
-
-
 
 /** What went out, and which of legacy's two result strings records it. The
  *  template is Capsomer's blocks; generated and cached copy is the model's HTML,
@@ -304,17 +293,21 @@ export async function resolveWinbackCopy(
   if (!env.ANTHROPIC_API_KEY) return template();
 
   try {
-    const generated = await generateWinbackEmail(env, {
-      stepNumber: step.stepNumber,
-      offsetHours: (step.scheduledAt.getTime() - step.sequenceCreatedAt.getTime()) / HOUR_MS,
-      customerName: step.customerName || WINBACK_FALLBACKS.customerName,
-      planName: step.planName || WINBACK_FALLBACKS.planName,
-      cancelReason: step.cancelReason,
-      brandVoice: step.brandVoice,
-      voiceSamples: readVoiceSamples(step.brandVoiceSamples),
-      senderName: step.senderName || WINBACK_FALLBACKS.senderName,
-      resubscribeUrl,
-    }, { source: "winback_email", accountId: step.accountId, relatedId: step.stepId });
+    const generated = await generateWinbackEmail(
+      env,
+      {
+        stepNumber: step.stepNumber,
+        offsetHours: (step.scheduledAt.getTime() - step.sequenceCreatedAt.getTime()) / HOUR_MS,
+        customerName: step.customerName || WINBACK_FALLBACKS.customerName,
+        planName: step.planName || WINBACK_FALLBACKS.planName,
+        cancelReason: step.cancelReason,
+        brandVoice: step.brandVoice,
+        voiceSamples: readVoiceSamples(step.brandVoiceSamples),
+        senderName: step.senderName || WINBACK_FALLBACKS.senderName,
+        resubscribeUrl,
+      },
+      { source: "winback_email", accountId: step.accountId, relatedId: step.stepId },
+    );
     if (!passesQualityGate(generated)) return template();
     if (!linksTo(generated.bodyHtml, resubscribeUrl)) return template();
 
@@ -376,7 +369,10 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           // CUSTOMER audience: footer, unsubscribe headers and the suppression
           // gate all apply, because this is commercial mail sent on the
           // merchant's behalf.
-          unsubscribeToken: await signUnsubscribeToken(env, { email: step.customerEmail, accountId: step.accountId }),
+          unsubscribeToken: await signUnsubscribeToken(env, {
+            email: step.customerEmail,
+            accountId: step.accountId,
+          }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `winback-step:${step.stepId}`,
           cronRunId: null,

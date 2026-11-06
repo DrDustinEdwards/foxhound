@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
-import { listFilteredFailedPayments, type FailedPaymentFilters } from "~/lib/recovery/queries.server";
+import {
+  listFilteredFailedPayments,
+  type FailedPaymentFilters,
+} from "~/lib/recovery/queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -34,28 +37,39 @@ const BASE_FILTERS: FailedPaymentFilters = {
 };
 
 describe("listFilteredFailedPayments against the seeded demo account", () => {
-
   it("finds Acme Industries' scripted failures by name search", async () => {
     const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, search: "Acme" });
+    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...BASE_FILTERS,
+      search: "Acme",
+    });
     expect(result.totalCount).toBe(3);
     expect(result.payments.every((p) => p.customerName === "Acme Industries")).toBe(true);
   });
 
   it("sorts by amount ascending and descending", async () => {
     const db = await seededDb();
-    const desc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, sort: "amount_desc" });
+    const desc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...BASE_FILTERS,
+      sort: "amount_desc",
+    });
     const amounts = desc.payments.map((p) => p.amountCents);
     expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
 
-    const asc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, sort: "amount_asc" });
+    const asc = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...BASE_FILTERS,
+      sort: "amount_asc",
+    });
     const ascAmounts = asc.payments.map((p) => p.amountCents);
     expect(ascAmounts).toEqual([...ascAmounts].sort((a, b) => a - b));
   });
 
   it("sorts oldest-first as the reverse of newest-first", async () => {
     const db = await seededDb();
-    const oldest = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, { ...BASE_FILTERS, sort: "oldest" });
+    const oldest = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...BASE_FILTERS,
+      sort: "oldest",
+    });
     const dates = oldest.payments.map((p) => p.detectedAt.getTime());
     expect(dates).toEqual([...dates].sort((a, b) => a - b));
   });

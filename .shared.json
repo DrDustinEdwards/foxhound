@@ -14,10 +14,7 @@
       "\\.cancelled\\b|\\b(let|const|var)\\s+cancelled\\b|\\bcancelled(?=\\s*(\\??:|\\+\\+|;|\\);|\\}|=[^=]))",
       "\\w+[cC]ancelled\\w*|[cC]ancelled[A-Z_]\\w*|CANCELLED"
     ],
-    "skip": [
-      "drizzle/migrations/**",
-      "docs/research/kill-matrix.json"
-    ]
+    "skip": ["drizzle/migrations/**", "docs/research/kill-matrix.json"]
   },
   "tokens": {
     "--surface": "Foxhound keeps Recova's amber look on its own domain (Dustin 2026-10-25/26); its public tokens are Recova's",

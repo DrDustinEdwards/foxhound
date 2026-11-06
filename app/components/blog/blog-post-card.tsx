@@ -23,7 +23,10 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
   const Title = level === 2 ? "h2" : "h3";
   const tag = post.tags[0] ? formatTagChip(post.tags[0]) : null;
   return (
-    <Link to={`/blog/${post.slug}`} className="cap-panel [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]">
+    <Link
+      to={`/blog/${post.slug}`}
+      className="cap-panel [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]"
+    >
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div className="flex flex-col gap-3">
@@ -34,9 +37,15 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
               </span>
             </span>
           ) : null}
-          <Title className="line-clamp-2 text-copy font-semibold leading-snug text-text">{post.title}</Title>
-          <p className="line-clamp-3 text-caption leading-relaxed text-text-secondary">{post.excerpt}</p>
-          <span className="font-mono text-micro text-text-tertiary">{post.readingTimeMinutes} min read</span>
+          <Title className="line-clamp-2 text-copy font-semibold leading-snug text-text">
+            {post.title}
+          </Title>
+          <p className="line-clamp-3 text-caption leading-relaxed text-text-secondary">
+            {post.excerpt}
+          </p>
+          <span className="font-mono text-micro text-text-tertiary">
+            {post.readingTimeMinutes} min read
+          </span>
         </div>
       </div>
     </Link>

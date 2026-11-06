@@ -1,0 +1,3 @@
+# Formatting-only commits, which GitHub blame skips.
+# Format foxhound with the shared Oxfmt config.
+9d593fdafaa3feb4286ea239db61adb683b29390

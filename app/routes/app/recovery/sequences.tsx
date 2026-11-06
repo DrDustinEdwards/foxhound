@@ -86,7 +86,11 @@ function StatCard({
 }) {
   return (
     <Panel size="sm" title={label}>
-      <p className={`m-0 font-mono text-title font-semibold tabular-nums ${valueClassName ?? "text-text"}`}>{value}</p>
+      <p
+        className={`m-0 font-mono text-title font-semibold tabular-nums ${valueClassName ?? "text-text"}`}
+      >
+        {value}
+      </p>
       {sub ? <p className="m-0 text-micro text-text-subtle">{sub}</p> : null}
     </Panel>
   );
@@ -109,7 +113,9 @@ function StatRow({ performance }: { performance: StepPerformanceSummary }) {
       <StatCard
         label="Best step"
         value={performance.bestStep ? performance.bestStep.label : "-"}
-        sub={performance.bestStep ? `${performance.bestStep.clickRatePct}% click rate` : "min 3 sends"}
+        sub={
+          performance.bestStep ? `${performance.bestStep.clickRatePct}% click rate` : "min 3 sends"
+        }
       />
     </div>
   );
@@ -119,15 +125,14 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
   if (chart.length === 0) {
     return (
       <Panel title="Step performance">
-        <ChartFrame noData={{ title: "Step performance", reason: "No step performance to show yet." }} />
+        <ChartFrame
+          noData={{ title: "Step performance", reason: "No step performance to show yet." }}
+        />
       </Panel>
     );
   }
   return (
-    <Panel
-      title="Step performance"
-      description={STEP_PERFORMANCE_NOTE}
-    >
+    <Panel title="Step performance" description={STEP_PERFORMANCE_NOTE}>
       <ChartFrame
         gridlines="none"
         width={CHART_WIDTH}
@@ -137,10 +142,22 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
   );
 }
 
-function Figure({ value, label, className }: { value: string | number; label: string; className?: string }) {
+function Figure({
+  value,
+  label,
+  className,
+}: {
+  value: string | number;
+  label: string;
+  className?: string;
+}) {
   return (
     <div className="text-right">
-      <p className={`m-0 font-mono text-body font-semibold tabular-nums ${className ?? "text-text"}`}>{value}</p>
+      <p
+        className={`m-0 font-mono text-body font-semibold tabular-nums ${className ?? "text-text"}`}
+      >
+        {value}
+      </p>
       <p className="m-0 text-micro uppercase tracking-wide text-text-tertiary">{label}</p>
     </div>
   );
@@ -153,7 +170,9 @@ function StepFigures({ card }: { card: StepCard }) {
     }
     return (
       <div className="text-right">
-        <p className={`m-0 font-mono text-body font-semibold tabular-nums ${sequenceRateClassName(card.successRatePct, "click")}`}>
+        <p
+          className={`m-0 font-mono text-body font-semibold tabular-nums ${sequenceRateClassName(card.successRatePct, "click")}`}
+        >
           {card.successRatePct}%
         </p>
         <p className="m-0 text-micro text-text-subtle">
@@ -168,14 +187,23 @@ function StepFigures({ card }: { card: StepCard }) {
   return (
     <div className="flex gap-5">
       <Figure value={card.sent} label="sent" />
-      <Figure value={`${card.openRatePct}%`} label="opened" className={sequenceRateClassName(card.openRatePct, "open")} />
-      <Figure value={`${card.clickRatePct}%`} label="clicked" className={sequenceRateClassName(card.clickRatePct, "click")} />
+      <Figure
+        value={`${card.openRatePct}%`}
+        label="opened"
+        className={sequenceRateClassName(card.openRatePct, "open")}
+      />
+      <Figure
+        value={`${card.clickRatePct}%`}
+        label="clicked"
+        className={sequenceRateClassName(card.clickRatePct, "click")}
+      />
     </div>
   );
 }
 
 function StepCardView({ card }: { card: StepCard }) {
-  const preview = card.kind === "email" && card.sent > 0 && card.latestBodyHtml ? card.latestBodyHtml : null;
+  const preview =
+    card.kind === "email" && card.sent > 0 && card.latestBodyHtml ? card.latestBodyHtml : null;
   const line =
     card.kind === "retry" ? (
       "Automatic retry. No email sent."
@@ -222,7 +250,9 @@ function CategorySectionView({ section }: { section: CategorySection }) {
       <h2 id={headingId} className="m-0 mb-1.5">
         <Pill variant="outline">{SEQUENCE_CATEGORY_NAMES[section.category]}</Pill>
       </h2>
-      <p className="m-0 mb-3 text-label text-text-subtle">{SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}</p>
+      <p className="m-0 mb-3 text-label text-text-subtle">
+        {SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}
+      </p>
       <div className="flex flex-col gap-3">
         {section.stepCards.map((card) => (
           <StepCardView key={card.stepType} card={card} />
@@ -239,7 +269,10 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
     <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-8">
       <div className="mb-6">
-        <PageHead title="Recovery sequence" lead="Live performance data from your recovery emails" />
+        <PageHead
+          title="Recovery sequence"
+          lead="Live performance data from your recovery emails"
+        />
       </div>
 
       {performance.totalSent === 0 ? (

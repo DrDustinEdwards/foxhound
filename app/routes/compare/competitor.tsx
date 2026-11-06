@@ -47,7 +47,10 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <MarketingPageHeader
-        trail={[{ label: "Compare", href: "/compare" }, { label: `Foxhound vs ${competitor.name}` }]}
+        trail={[
+          { label: "Compare", href: "/compare" },
+          { label: `Foxhound vs ${competitor.name}` },
+        ]}
         eyebrow="Compare"
         title={`Foxhound vs ${competitor.name}`}
         subtext={competitor.oneLiner}
@@ -77,10 +80,16 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
                   <th scope="row" className="align-top font-medium text-text">
                     {row.dimension}
                   </th>
-                  <td data-label="Foxhound" className="align-top leading-relaxed text-text-secondary">
+                  <td
+                    data-label="Foxhound"
+                    className="align-top leading-relaxed text-text-secondary"
+                  >
                     {row.foxhound}
                   </td>
-                  <td data-label={competitor.name} className="align-top leading-relaxed text-text-secondary">
+                  <td
+                    data-label={competitor.name}
+                    className="align-top leading-relaxed text-text-secondary"
+                  >
                     {row.competitor}
                   </td>
                 </tr>
@@ -90,9 +99,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         </div>
 
         <section className="mb-10 rounded-lg border border-border bg-surface p-5">
-          <h2 className="mb-3 text-title font-medium text-text">
-            Where Foxhound is behind
-          </h2>
+          <h2 className="mb-3 text-title font-medium text-text">Where Foxhound is behind</h2>
           <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-relaxed text-text-secondary">
             {competitor.foxhoundCons.map((con) => (
               <li key={con} className="flex items-start gap-2">
@@ -109,11 +116,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         {competitor.priceSource ? (
           <p className="mb-4 text-label text-text-tertiary">
             {competitor.name} pricing:{" "}
-            <a
-              href={competitor.priceSource.url}
-              rel="noopener noreferrer"
-              className="underline"
-            >
+            <a href={competitor.priceSource.url} rel="noopener noreferrer" className="underline">
               {competitor.priceSource.url}
             </a>
             , read {competitor.priceSource.checked}.
@@ -121,20 +124,15 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         ) : null}
 
         {competitor.omittedNote ? (
-          <p className="mb-10 text-label text-text-tertiary">
-            {competitor.omittedNote}
-          </p>
+          <p className="mb-10 text-label text-text-tertiary">{competitor.omittedNote}</p>
         ) : null}
 
         <div className="rounded-lg border border-border bg-surface p-6 text-center">
-          <p className="mb-2 text-body font-medium text-text">
-            See Foxhound's pricing in full
-          </p>
+          <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
           <p className="mb-5 text-label text-text-secondary">
-            {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries,{" "}
-            {DISPUTE_FEE_PERCENT}% of won disputes with a cap, and Intelligence
-            free. No fee until a recovery has matured {RECOVERY_MATURITY_DAYS}{" "}
-            days.
+            {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of won
+            disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
+            {RECOVERY_MATURITY_DAYS} days.
           </p>
           <Link
             to="/pricing"

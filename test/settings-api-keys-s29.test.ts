@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,8 +37,12 @@ let db: ReturnType<typeof createInMemoryDb>["db"];
 beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(OTHER, "Other");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(ACCOUNT, "Acme");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(OTHER, "Other");
 });
 
 function keyRows(accountId: string | null) {
@@ -59,7 +62,8 @@ function keyRows(accountId: string | null) {
 function ctxFor(isAdmin: boolean, role = "owner") {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
       if (key === authContext) {
         return {
           userId: "user_1",
@@ -92,7 +96,10 @@ async function post(
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   const res = (await action({
     context: ctxFor(isAdmin, role),
-    request: new Request("https://foxhoundapp.test/settings/api-keys", { method: "POST", body: form }),
+    request: new Request("https://foxhoundapp.test/settings/api-keys", {
+      method: "POST",
+      body: form,
+    }),
     params: {},
   } as never)) as unknown as { data: Record<string, unknown>; init?: { status?: number } };
   return { status: res.init?.status ?? 200, body: res.data };
@@ -112,7 +119,9 @@ describe("PLANT 1: creating a key stores a hash and returns the secret once", ()
     expect(rows[0].scope).toBe(MCP_TOKEN_SCOPE.MERCHANT);
 
     // The plaintext is never stored: only its hash, which is what verify uses.
-    const stored = sqlite.prepare("SELECT key_hash AS h FROM api_keys WHERE id = ?").get(rows[0].id) as {
+    const stored = sqlite
+      .prepare("SELECT key_hash AS h FROM api_keys WHERE id = ?")
+      .get(rows[0].id) as {
       h: string;
     };
     expect(stored.h).not.toContain(raw);
@@ -219,10 +228,21 @@ describe("PLANT 6: the owner's call log is this account's calls only (rule 8)", 
       "INSERT INTO mcp_calls (id, account_id, api_key_id, tool, outcome, error, created_at) VALUES (?, ?, 'k', ?, ?, ?, ?)",
     );
     call.run("c1", ACCOUNT, "get_overview", "ok", null, 2000);
-    call.run("c2", ACCOUNT, "update_settings", "tool_error", "Refused for someone@example.com", 3000);
+    call.run(
+      "c2",
+      ACCOUNT,
+      "update_settings",
+      "tool_error",
+      "Refused for someone@example.com",
+      3000,
+    );
     call.run("c3", OTHER, "get_overview", "ok", null, 4000);
     const read = async (role: string) =>
-      (await loader({ context: ctxFor(false, role), request: new Request("https://foxhoundapp.test/settings/api-keys"), params: {} } as never)) as {
+      (await loader({
+        context: ctxFor(false, role),
+        request: new Request("https://foxhoundapp.test/settings/api-keys"),
+        params: {},
+      } as never)) as {
         callLog: { state: string; calls?: { id: string; error: string | null }[] };
       };
     const owner = await read("owner");

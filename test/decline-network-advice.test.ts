@@ -25,7 +25,9 @@ describe("applyNetworkAdvice", () => {
 
 describe("pickDeclineCode", () => {
   it("prefers a specific code over the generic card_declined, in the order given", () => {
-    expect(pickDeclineCode([null, "card_declined", "insufficient_funds"])).toBe("insufficient_funds");
+    expect(pickDeclineCode([null, "card_declined", "insufficient_funds"])).toBe(
+      "insufficient_funds",
+    );
     expect(pickDeclineCode(["expired_card", "insufficient_funds"])).toBe("expired_card");
     expect(pickDeclineCode([undefined, "card_declined"])).toBe("card_declined");
     expect(pickDeclineCode([null, undefined])).toBeNull();

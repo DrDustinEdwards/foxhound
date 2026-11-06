@@ -33,7 +33,8 @@ export interface TeamPending {
 export function pendingState(formData: FormData | undefined): TeamPending {
   if (!formData) return { invite: false, removing: null };
   const intent = String(formData.get("_action") ?? "invite");
-  if (intent === "remove") return { invite: false, removing: String(formData.get("memberId") ?? "") || null };
+  if (intent === "remove")
+    return { invite: false, removing: String(formData.get("memberId") ?? "") || null };
   return { invite: intent === "invite", removing: null };
 }
 

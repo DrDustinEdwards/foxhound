@@ -18,7 +18,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // behaviourally through the real loader and action. What is NOT proven here is
 // that React paints the toggle; that rests on the demo probe.
 
-
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -38,7 +37,10 @@ function ctx() {
   } as never;
 }
 
-async function seedAccount(db: ReturnType<typeof createInMemoryDb>["db"], row: Record<string, unknown>) {
+async function seedAccount(
+  db: ReturnType<typeof createInMemoryDb>["db"],
+  row: Record<string, unknown>,
+) {
   await db.insert(accounts).values({ id: ACCOUNT, name: "Acme", createdAt: new Date(), ...row });
 }
 
@@ -46,7 +48,10 @@ describe("315: the toggle round-trips through the REAL action", () => {
   function post(fields: Record<string, string>) {
     const body = new FormData();
     for (const [k, v] of Object.entries(fields)) body.append(k, v);
-    return action({ request: new Request("http://x/settings/audit", { method: "POST", body }), context: ctx() } as never);
+    return action({
+      request: new Request("http://x/settings/audit", { method: "POST", body }),
+      context: ctx(),
+    } as never);
   }
 
   it("turning the digest ON writes true, and the loader reads it back", async () => {

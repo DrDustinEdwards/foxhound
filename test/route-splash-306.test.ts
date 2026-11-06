@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import { isSplashPath, shouldShowRouteSplash } from "~/lib/navigation/route-splash";
@@ -17,12 +16,7 @@ import { isSplashPath, shouldShowRouteSplash } from "~/lib/navigation/route-spla
 // is client-chunk discrimination in the probe, and that is said plainly rather
 // than implied by these source assertions.
 
-
-
-
-
 describe("306: the splash covers legacy's whole set", () => {
-
   it("REGRESSION GUARD: export.csv still never splashes", () => {
     // A resource route returns a file, not a page. 305 established this and the
     // extension must not have widened past it.

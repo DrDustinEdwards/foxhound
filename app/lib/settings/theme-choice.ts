@@ -31,7 +31,9 @@ export async function chooseTheme(
   try {
     // The global fetch is called as itself, never as a detached reference,
     // which some browsers refuse ("Illegal invocation").
-    const res = opts.fetcher ? await opts.fetcher("/api/theme", init) : await fetch("/api/theme", init);
+    const res = opts.fetcher
+      ? await opts.fetcher("/api/theme", init)
+      : await fetch("/api/theme", init);
     return res.ok ? "saved" : "failed";
   } catch {
     return "failed";

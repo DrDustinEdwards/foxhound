@@ -34,7 +34,9 @@ function render(): string {
     [
       {
         path: "*",
-        element: createElement(PricingPage as never, { loaderData: { siteUrl: "https://example.com" } }),
+        element: createElement(PricingPage as never, {
+          loaderData: { siteUrl: "https://example.com" },
+        }),
       },
     ],
     { initialEntries: ["/pricing"] },
@@ -49,9 +51,9 @@ describe("/pricing follows the engine constants (J54)", () => {
     expect(html).toContain(">No fee until the recovery has matured 45 days<");
     expect(html).toContain("recoveries you&#x27;ve held for 45 or more days");
     const tags = meta({ loaderData: { siteUrl: "https://example.com" } } as never);
-    const description = tags.find((t) => (t as { name?: string }).name === "description") as { content?: string } | undefined;
-    expect(description?.content).toContain(
-      "matured for 45 days",
-    );
+    const description = tags.find((t) => (t as { name?: string }).name === "description") as
+      | { content?: string }
+      | undefined;
+    expect(description?.content).toContain("matured for 45 days");
   });
 });

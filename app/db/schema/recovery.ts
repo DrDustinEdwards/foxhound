@@ -56,7 +56,9 @@ export const failedPayments = sqliteTable(
     amountTier: text("amount_tier"),
     abTestGroup: text("ab_test_group"),
     customerAgeDays: integer("customer_age_days"),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     isRenewalNoise: bool("is_renewal_noise").notNull().default(false),
     /**
@@ -97,7 +99,9 @@ export const recoverySteps = sqliteTable(
   "recovery_steps",
   {
     id: id(),
-    failedPaymentId: text("failed_payment_id").notNull().references(() => failedPayments.id),
+    failedPaymentId: text("failed_payment_id")
+      .notNull()
+      .references(() => failedPayments.id),
     stepType: text("step_type").notNull(),
     stepNumber: integer("step_number"),
     scheduledAt: ts("scheduled_at").notNull(),
@@ -122,7 +126,9 @@ export const recoverySteps = sqliteTable(
     retryResult: text("retry_result"),
     abVariant: text("ab_variant"),
     customBody: text("custom_body"),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     attemptCount: integer("attempt_count").notNull().default(0),
     lastAttemptError: text("last_attempt_error"),
     nextRetryAt: ts("next_retry_at"),
@@ -137,7 +143,9 @@ export const recoveredPayments = sqliteTable(
   "recovered_payments",
   {
     id: id(),
-    failedPaymentId: text("failed_payment_id").notNull().references(() => failedPayments.id),
+    failedPaymentId: text("failed_payment_id")
+      .notNull()
+      .references(() => failedPayments.id),
     recoveredAt: ts("recovered_at").notNull(),
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull(),
@@ -148,7 +156,9 @@ export const recoveredPayments = sqliteTable(
     daysToRecover: integer("days_to_recover"),
     recoveryAttemptNumber: integer("recovery_attempt_number"),
     recoveryTrigger: text("recovery_trigger"),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     refundedAt: ts("refunded_at"),
     // Attribution spine (SCHEMA.md #1). CHECK enforces the four canon values.
     attributionKind: text("attribution_kind").notNull().default("stripe_baseline"),
@@ -257,7 +267,9 @@ export const winBackSteps = sqliteTable(
   "win_back_steps",
   {
     id: id(),
-    winBackSequenceId: text("win_back_sequence_id").notNull().references(() => winBackSequences.id),
+    winBackSequenceId: text("win_back_sequence_id")
+      .notNull()
+      .references(() => winBackSequences.id),
     stepNumber: integer("step_number").notNull(),
     scheduledAt: ts("scheduled_at").notNull(),
     executedAt: ts("executed_at"),

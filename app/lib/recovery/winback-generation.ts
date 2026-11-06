@@ -203,6 +203,10 @@ export async function generateWinbackEmail(
   // The stock-phrasing retry comes first, on the same terms (one call at most).
   const samples = input.voiceSamples ?? [];
   const allow = ownPhrasing(samples);
-  const copy = await applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call, allow), call, allow);
+  const copy = await applyTimingWordGuard(
+    await applyStockPhrasingGuard(await call(), call, allow),
+    call,
+    allow,
+  );
   return finishCopy(copy, samples, input.resubscribeUrl);
 }

@@ -45,9 +45,7 @@ describe("evaluateAcceptInvite (the team invite/role decision, pure)", () => {
   // VERDICT: legacy's app/api/invite/accept/route.ts:47-57 (blob `13708537`)
   // answers { success: true, redirect: '/console' } on this branch.
   it("treats an invite to an account the user ALREADY holds as success, writing nothing", () => {
-    expect(
-      evaluateAcceptInvite(invite, membershipOnInvitedAccount, "teammate@acme.com"),
-    ).toEqual({
+    expect(evaluateAcceptInvite(invite, membershipOnInvitedAccount, "teammate@acme.com")).toEqual({
       ok: true,
       accountId: "acc_1",
       alreadyMember: true,

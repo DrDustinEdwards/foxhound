@@ -1,4 +1,7 @@
-import { scrubText as scrubSharedText, scrubUrl as scrubSharedUrl } from "@dustinedwards/site-runtime/log";
+import {
+  scrubText as scrubSharedText,
+  scrubUrl as scrubSharedUrl,
+} from "@dustinedwards/site-runtime/log";
 import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 
 // J05 (job_f1f5ebd7fe50): the Sentry posture, set before Dustin puts in

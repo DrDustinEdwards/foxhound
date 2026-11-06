@@ -84,7 +84,10 @@ function seed(opts: { customerName?: string | null; enabled?: number | null } = 
 }
 
 async function sendOne(): Promise<SentMessage> {
-  const out = await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
+  const out = await sendSequenceCompleteNotification(env, {
+    accountId: ACCOUNT,
+    failedPaymentId: FP,
+  });
   expect(out.kind).toBe("sent");
   expect(out.kind === "sent" && out.result.status).toBe("sent");
   expect(harness.sent).toHaveLength(1);
@@ -96,12 +99,15 @@ async function sendOne(): Promise<SentMessage> {
 // ============================================================================
 
 describe("E11 says Recova's words, as a title, one sentence and a View payment button", () => {
-
   it("a customer name is shown as written, never read as markup", async () => {
     seed({ customerName: "Tom & Jerry <Co>" });
     const m = await sendOne();
-    expect(m.subject).toBe("Recovery sequence ended: $99.00 from Tom & Jerry <Co> was not recovered");
-    expect(m.html).toContain(`>The recovery sequence for ${escapeHtml("Tom & Jerry <Co>")} ($99.00) has ended`);
+    expect(m.subject).toBe(
+      "Recovery sequence ended: $99.00 from Tom & Jerry <Co> was not recovered",
+    );
+    expect(m.html).toContain(
+      `>The recovery sequence for ${escapeHtml("Tom & Jerry <Co>")} ($99.00) has ended`,
+    );
     expect(m.html).not.toContain("<Co>");
     expect(m.text).toContain("The recovery sequence for Tom & Jerry <Co> ($99.00) has ended");
   });

@@ -10,7 +10,6 @@ import { categoryGuidance } from "~/lib/recovery/email-generation";
 import type { DeclineCategory } from "~/lib/constants";
 
 describe("recovery schedules (silent-first)", () => {
-
   it("schedules are strictly increasing in time", () => {
     for (const category of Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]) {
       const offsets = RECOVERY_SCHEDULES[category].map((s) => s.offsetHours);

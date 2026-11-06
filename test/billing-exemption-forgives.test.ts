@@ -29,13 +29,17 @@ const ACCOUNT = "acct_exempt";
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 0, 1);
 const day = (n: number) => new Date(T0 + n * DAY);
-const ENV = { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env;
+const ENV = {
+  MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
+} as unknown as Env;
 
 async function seed() {
   const made = createInMemoryDb();
   harness.db = made.db;
   harness.sqlite = made.sqlite;
-  await made.db.insert(schema.accounts).values({ id: ACCOUNT, name: "Exempt Co", createdAt: day(0) });
+  await made.db
+    .insert(schema.accounts)
+    .values({ id: ACCOUNT, name: "Exempt Co", createdAt: day(0) });
   return made.db;
 }
 
@@ -105,7 +109,9 @@ describe("a billing exemption forgives the fees that came due while exempt", () 
     await wonDispute(db, "dp_won_after", 90);
 
     // With no exemption it would be billable once matured.
-    expect(ids(await getBillableRecoveries(db, ACCOUNT, day(46).getTime()))).toEqual(["rp_matured_while_exempt"]);
+    expect(ids(await getBillableRecoveries(db, ACCOUNT, day(46).getTime()))).toEqual([
+      "rp_matured_while_exempt",
+    ]);
 
     expect(await setBillingExempt(ENV, ACCOUNT, true, day(40))).toBe(true);
     expect(await setBillingExempt(ENV, ACCOUNT, false, day(70))).toBe(true);

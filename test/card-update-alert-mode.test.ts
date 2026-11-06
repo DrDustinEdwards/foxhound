@@ -36,7 +36,10 @@ vi.mock("~/lib/card-update/service", () => ({
     harness.sessions.push({ customerId: input.customerId, successUrl: input.successUrl });
     return { url: "https://checkout.stripe.test/s/1" };
   },
-  finalizeCardUpdateSession: async (input: { sessionId: string; subscriptionId?: string | null }) => {
+  finalizeCardUpdateSession: async (input: {
+    sessionId: string;
+    subscriptionId?: string | null;
+  }) => {
     harness.finalized.push({ sessionId: input.sessionId, subscriptionId: input.subscriptionId });
     return { ok: true };
   },
@@ -63,7 +66,9 @@ beforeEach(() => {
   harness.db = db;
   harness.sessions = [];
   harness.finalized = [];
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(ACCOUNT);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES ('c1', ?, 'acct_s', 1, 'cipher', 1000, 1000)",
@@ -71,12 +76,20 @@ beforeEach(() => {
     .run(ACCOUNT);
 });
 
-function seedAlert(id = "al_1", opts: { deleted?: boolean; connectionId?: string | null } = {}): void {
+function seedAlert(
+  id = "al_1",
+  opts: { deleted?: boolean; connectionId?: string | null } = {},
+): void {
   sqlite
     .prepare(
       "INSERT INTO expiring_card_alerts (id, account_id, stripe_customer_id, customer_email, expires_month, expires_year, created_at, stripe_connection_id, deleted_at) VALUES (?, ?, 'cus_alert', 'buyer@acme.test', 11, 2026, 1000, ?, ?)",
     )
-    .run(id, ACCOUNT, opts.connectionId === undefined ? "c1" : opts.connectionId, opts.deleted ? 2000 : null);
+    .run(
+      id,
+      ACCOUNT,
+      opts.connectionId === undefined ? "c1" : opts.connectionId,
+      opts.deleted ? 2000 : null,
+    );
 }
 
 function seedFailedPayment(id = "fp_1", status = "active"): void {
@@ -97,15 +110,20 @@ async function load(token: string, search = ""): Promise<Record<string, unknown>
 }
 
 function stepRows() {
-  return sqlite
-    .prepare("SELECT id, step_type AS stepType, result FROM recovery_steps")
-    .all() as { id: string; stepType: string; result: string | null }[];
+  return sqlite.prepare("SELECT id, step_type AS stepType, result FROM recovery_steps").all() as {
+    id: string;
+    stepType: string;
+    result: string | null;
+  }[];
 }
 
 describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
   it("renders ready with NO amount line, because nothing has failed", async () => {
     seedAlert();
-    const token = await signCardUpdateToken(ENV, { expiringCardAlertId: "al_1", accountId: ACCOUNT });
+    const token = await signCardUpdateToken(ENV, {
+      expiringCardAlertId: "al_1",
+      accountId: ACCOUNT,
+    });
 
     const state = await load(token);
 
@@ -116,7 +134,10 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
 
   it("opens a Checkout session for the ALERT's customer", async () => {
     seedAlert();
-    const token = await signCardUpdateToken(ENV, { expiringCardAlertId: "al_1", accountId: ACCOUNT });
+    const token = await signCardUpdateToken(ENV, {
+      expiringCardAlertId: "al_1",
+      accountId: ACCOUNT,
+    });
 
     const res = (await action({
       context: ctx,
@@ -131,7 +152,10 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
 
   it("FINALIZES WITH NO SUBSCRIPTION AND WRITES NO RECOVERY STEP", async () => {
     seedAlert();
-    const token = await signCardUpdateToken(ENV, { expiringCardAlertId: "al_1", accountId: ACCOUNT });
+    const token = await signCardUpdateToken(ENV, {
+      expiringCardAlertId: "al_1",
+      accountId: ACCOUNT,
+    });
 
     await expect(load(token, "?session_id=cs_1")).rejects.toMatchObject({ status: 302 });
 
@@ -145,13 +169,15 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
 
   it("a soft-deleted alert is invalid, not an invitation to update a card", async () => {
     seedAlert("al_1", { deleted: true });
-    const token = await signCardUpdateToken(ENV, { expiringCardAlertId: "al_1", accountId: ACCOUNT });
+    const token = await signCardUpdateToken(ENV, {
+      expiringCardAlertId: "al_1",
+      accountId: ACCOUNT,
+    });
     expect(await load(token)).toEqual({ state: "invalid" });
   });
 });
 
 describe("PLANT 3: the failed-payment mode is unchanged", () => {
-
   it("still finalizes WITH the subscription and DOES write the attribution signal", async () => {
     seedFailedPayment();
     const token = await signCardUpdateToken(ENV, { failedPaymentId: "fp_1", accountId: ACCOUNT });

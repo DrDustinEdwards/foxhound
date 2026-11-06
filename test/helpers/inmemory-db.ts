@@ -110,7 +110,10 @@ export function d1Over(sqlite: Database.Database): D1Like {
   const plain = (sql: string, values: unknown[]): [string, never[]] => {
     if (!/\?\d/.test(sql)) return [sql, values as never[]];
     const ordered: unknown[] = [];
-    const text = sql.replace(/\?(\d+)/g, (_, n: string) => (ordered.push(values[Number(n) - 1]), "?"));
+    const text = sql.replace(
+      /\?(\d+)/g,
+      (_, n: string) => (ordered.push(values[Number(n) - 1]), "?"),
+    );
     return [text, ordered as never[]];
   };
   const statement = (sql: string, values: unknown[] = []): D1StatementLike => {

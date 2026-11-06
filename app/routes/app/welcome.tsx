@@ -50,7 +50,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         senderName: stripeConnections.senderName,
       })
       .from(stripeConnections)
-      .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)))
+      .where(
+        and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)),
+      )
       .limit(1),
     db
       .select({ notificationEmail: accounts.notificationEmail })
@@ -124,7 +126,9 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
           {allDone ? "Go to dashboard" : "Skip for now → Dashboard"}
         </Link>
         {allDone ? null : (
-          <p className="m-0 mt-3 text-caption text-text-subtle">You can finish these later from the dashboard.</p>
+          <p className="m-0 mt-3 text-caption text-text-subtle">
+            You can finish these later from the dashboard.
+          </p>
         )}
       </div>
     </div>

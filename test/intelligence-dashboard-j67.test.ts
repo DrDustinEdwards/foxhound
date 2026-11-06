@@ -28,23 +28,15 @@ import { rollUpByMonth } from "~/lib/intelligence/mrr";
 // snapshot and "New MRR (MTD)" a month-to-date one, and intelligence-sync
 // snapshots once a month. Those cards say so instead of showing a number.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 describe("S16 charts: Enarratio, with Recova's legends and a text equivalent, no tooltips", () => {
-
   it("sorts plans by MRR, largest first, with no engine placeholder shown raw", () => {
-    const rows = planBreakdownRows({ Starter: 200_000, Scale: 600_000, unknown: 50_000, Growth: 300_000, Free: 0 });
+    const rows = planBreakdownRows({
+      Starter: 200_000,
+      Scale: 600_000,
+      unknown: 50_000,
+      Growth: 300_000,
+      Free: 0,
+    });
     expect(rows).toEqual([
       { plan: "Scale", mrrCents: 600_000 },
       { plan: "Growth", mrrCents: 300_000 },
@@ -75,7 +67,9 @@ describe("S16 daily series: Recova's stat cards and weekly movement", () => {
     expect(signedMoney(-300, "usd")).toBe("-$3");
     expect(newMrrMonthToDateCents([day(1, 0, 100), ...points], Date.UTC(2026, 9, 28))).toBe(1000);
     const weeks = weeklyMovements(points);
-    expect(weeks.map((w) => [w.at.toISOString().slice(0, 10), w.newMrrCents, w.churnMrrCents])).toEqual([
+    expect(
+      weeks.map((w) => [w.at.toISOString().slice(0, 10), w.newMrrCents, w.churnMrrCents]),
+    ).toEqual([
       ["2026-10-19", 900, 0],
       ["2026-10-26", 0, 300],
     ]);
@@ -83,15 +77,20 @@ describe("S16 daily series: Recova's stat cards and weekly movement", () => {
 });
 
 describe("S16 monthly summary: Recova's pager and Generate/Regenerate button", () => {
-
   it("speaks every failure, never silently", () => {
-    expect(narrativeErrorMessage("rate_limited")).toBe("You hit the hourly generation limit. Try again later.");
+    expect(narrativeErrorMessage("rate_limited")).toBe(
+      "You hit the hourly generation limit. Try again later.",
+    );
     expect(narrativeErrorMessage("invalid_month")).toBe("Invalid month.");
     // Recova's server-500 sentence for an error thrown on the server; its
     // "Network error." was for a request that never got an answer.
-    expect(narrativeErrorMessage("server_error")).toBe("Could not generate the report. Try again or contact support.");
+    expect(narrativeErrorMessage("server_error")).toBe(
+      "Could not generate the report. Try again or contact support.",
+    );
     expect(narrativeErrorMessage("server_error")).not.toMatch(/Network error/);
-    expect(narrativeErrorMessage(undefined)).toBe("Could not generate the report. Try again or contact support.");
+    expect(narrativeErrorMessage(undefined)).toBe(
+      "Could not generate the report. Try again or contact support.",
+    );
   });
 });
 

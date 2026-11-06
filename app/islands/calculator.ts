@@ -3,7 +3,10 @@ import { calculatorFigures, fmt, rangeFill } from "../lib/marketing/calculator-m
 // An island (devkit ./islands): the home page's recovery calculator (components/recovery-calculator.tsx) on a
 // page that does not hydrate. Each slider moves its figure and every row under it, with the same math and the
 // same words as the React one; the sliders keep Capsomer's fill and their spoken values.
-export default function start(el: HTMLElement, props: { stripeRecoveryRatePercent: number; recoveryFeeBps: number }): void {
+export default function start(
+  el: HTMLElement,
+  props: { stripeRecoveryRatePercent: number; recoveryFeeBps: number },
+): void {
   const slider = (id: string) => el.querySelector<HTMLInputElement>(`#${id}`);
   const mrr = slider("mrr-slider");
   const failure = slider("failure-share-slider");
@@ -16,10 +19,17 @@ export default function start(el: HTMLElement, props: { stripeRecoveryRatePercen
   const sync = (input: HTMLInputElement, text: string) => {
     input.setAttribute("aria-valuenow", input.value);
     input.setAttribute("aria-valuetext", text);
-    input.style.setProperty("--cap-range-fill", rangeFill(Number(input.value), Number(input.min), Number(input.max)));
+    input.style.setProperty(
+      "--cap-range-fill",
+      rangeFill(Number(input.value), Number(input.min), Number(input.max)),
+    );
   };
   const update = () => {
-    const values = { mrr: Number(mrr.value), failureShare: Number(failure.value), recoveryShare: Number(recovery.value) };
+    const values = {
+      mrr: Number(mrr.value),
+      failureShare: Number(failure.value),
+      recoveryShare: Number(recovery.value),
+    };
     const f = calculatorFigures({ ...values, ...props });
     set("mrr", fmt(values.mrr));
     set("failureShare", `${values.failureShare}%`);

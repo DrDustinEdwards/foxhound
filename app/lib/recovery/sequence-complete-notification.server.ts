@@ -141,7 +141,10 @@ async function loadSequenceCompleteData(
       })
       .from(failedPayments)
       .where(
-        and(eq(failedPayments.id, ctx.failedPaymentId), eq(failedPayments.accountId, ctx.accountId)),
+        and(
+          eq(failedPayments.id, ctx.failedPaymentId),
+          eq(failedPayments.accountId, ctx.accountId),
+        ),
       )
       .limit(1),
   ]);
@@ -185,7 +188,11 @@ export async function sendSequenceCompleteNotification(
       {
         accountId: ctx.accountId,
         to: data.notificationEmail,
-        ...sequenceCompleteContent(data, `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`, new Date()),
+        ...sequenceCompleteContent(
+          data,
+          `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`,
+          new Date(),
+        ),
         template: SEQUENCE_COMPLETE_TEMPLATE,
         audience: "merchant",
         unsubscribeToken: "",

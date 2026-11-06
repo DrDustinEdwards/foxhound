@@ -1,14 +1,4 @@
-import {
-  Bell,
-  CircleUser,
-  Key,
-  Mail,
-  Mic,
-  Plug,
-  ScanSearch,
-  Shield,
-  Users,
-} from "lucide-react";
+import { Bell, CircleUser, Key, Mail, Mic, Plug, ScanSearch, Shield, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // S25's settings sub-nav, ported from legacy's SettingsSidebar. On a settings

@@ -55,7 +55,10 @@ export function mcpRequest(init: McpCallInit = {}): Request {
   return new Request(`${TEST_ORIGIN}/mcp`, {
     method: httpMethod,
     headers,
-    body: httpMethod === "GET" || httpMethod === "DELETE" ? undefined : (init.body ?? JSON.stringify(envelope)),
+    body:
+      httpMethod === "GET" || httpMethod === "DELETE"
+        ? undefined
+        : (init.body ?? JSON.stringify(envelope)),
   });
 }
 
@@ -82,8 +85,9 @@ export async function readMcp(res: Response): Promise<McpAnswer> {
 
 /** The structured result of a tools/call, or the tool error it carried. */
 export function toolOutput(answer: McpAnswer): { isError: boolean; data: Record<string, unknown> } {
-  const result = (answer.json as { result?: { isError?: boolean; structuredContent?: Record<string, unknown> } })
-    .result;
+  const result = (
+    answer.json as { result?: { isError?: boolean; structuredContent?: Record<string, unknown> } }
+  ).result;
   if (!result) throw new Error(`not a tool result: ${answer.text}`);
   return { isError: result.isError === true, data: result.structuredContent ?? {} };
 }
@@ -111,8 +115,11 @@ export async function confirmedCall(
 ): Promise<Response> {
   const first = (await send(args)) as Response;
   const answer = await readMcp(first.clone());
-  const pending = (answer.json as { result?: { structuredContent?: { confirmation_required?: boolean; confirm?: string } } } | null)
-    ?.result?.structuredContent;
+  const pending = (
+    answer.json as {
+      result?: { structuredContent?: { confirmation_required?: boolean; confirm?: string } };
+    } | null
+  )?.result?.structuredContent;
   if (!pending?.confirmation_required || !pending.confirm) return first;
   return (await send({ ...args, confirm: pending.confirm })) as Response;
 }

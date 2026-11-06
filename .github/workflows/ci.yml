@@ -96,6 +96,10 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run lint
 
+      - name: Format check
+        if: steps.tested.outputs.same != 'true'
+        run: npm run format:check
+
       - name: Build
         if: steps.tested.outputs.same != 'true'
         run: npm run build

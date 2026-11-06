@@ -28,10 +28,7 @@ import {
   type SignalField,
 } from "~/lib/intelligence/customer-detail";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
-import {
-  getCustomerActivity,
-  getCustomerHealthDetail,
-} from "~/lib/intelligence/views.server";
+import { getCustomerActivity, getCustomerHealthDetail } from "~/lib/intelligence/views.server";
 import { formatMoney } from "~/lib/money-format";
 import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
 import { RecommendationBanner } from "~/components/recommendation-banner";
@@ -103,19 +100,28 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       mrrContributionCents: detail.mrrContributionCents,
       currency: detail.currency,
       ltvCents: detail.ltvCents,
-      scheduled: scheduledChangeLabel(detail.scheduledChangeKind, detail.scheduledChangeAt, new Date(nowMs)),
+      scheduled: scheduledChangeLabel(
+        detail.scheduledChangeKind,
+        detail.scheduledChangeAt,
+        new Date(nowMs),
+      ),
       customerSince: detail.customerSince,
       healthScore: detail.healthScore,
       healthFactors: detail.healthFactors,
       aiAssessment: detail.aiAssessment,
       aiAssessmentGeneratedAt: detail.aiAssessmentGeneratedAt,
-      history: detail.history.map((h) => ({ recordedAt: h.recordedAt, healthScore: h.healthScore })),
+      history: detail.history.map((h) => ({
+        recordedAt: h.recordedAt,
+        healthScore: h.healthScore,
+      })),
       predictions: detail.predictions,
     },
     activity,
     // Recova's IntegrityLayerBanner reads the customer's recommendation. A
     // read failure leaves the banner out rather than failing the page.
-    prediction: await recommendOneCustomer(db, accountId, detail.stripeCustomerId, nowMs).catch(() => null),
+    prediction: await recommendOneCustomer(db, accountId, detail.stripeCustomerId, nowMs).catch(
+      () => null,
+    ),
   };
 }
 
@@ -175,7 +181,12 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
         <HeaderCard customer={customer} lastSeenAt={activity.lastActivityAt} nowMs={nowMs} />
 
         {/* Recova's IntegrityLayerBanner, customers/[id]/page.tsx 133. */}
-        <RecommendationBanner prediction={prediction} surface="customer" nowMs={nowMs} className="" />
+        <RecommendationBanner
+          prediction={prediction}
+          surface="customer"
+          nowMs={nowMs}
+          className=""
+        />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SignalCard
@@ -220,7 +231,10 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             <>
               {" "}
               View their recovery history in{" "}
-              <Link to="/recovery/payments" className="text-accent-text no-underline hover:text-accent-hover">
+              <Link
+                to="/recovery/payments"
+                className="text-accent-text no-underline hover:text-accent-hover"
+              >
                 Recovery
               </Link>
               .
@@ -230,7 +244,10 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             <>
               {" "}
               View their disputes in{" "}
-              <Link to="/disputes/dashboard" className="text-accent-text no-underline hover:text-accent-hover">
+              <Link
+                to="/disputes/dashboard"
+                className="text-accent-text no-underline hover:text-accent-hover"
+              >
                 Disputes
               </Link>
               .
@@ -264,7 +281,10 @@ function HeaderCard({
       label: "LTV",
       // Nothing in Foxhound computes lifetime value (signals.ts), so this says
       // so rather than showing a dash that reads as zero.
-      value: customer.ltvCents != null ? formatMoney(customer.ltvCents, customer.currency) : "Not computed",
+      value:
+        customer.ltvCents != null
+          ? formatMoney(customer.ltvCents, customer.currency)
+          : "Not computed",
     },
     {
       label: "Last seen",
@@ -273,16 +293,22 @@ function HeaderCard({
       // own run time. With no event, Foxhound has not seen them, and says so.
       value: lastSeenAt ? formatDateShort(lastSeenAt) : "Not tracked",
     },
-    { label: "Customer since", value: customer.customerSince ? formatDateShort(customer.customerSince) : "-" },
+    {
+      label: "Customer since",
+      value: customer.customerSince ? formatDateShort(customer.customerSince) : "-",
+    },
   ];
   return (
     <div className="cap-panel">
       <div className="cap-panel-body">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="m-0 text-title font-semibold text-text">{customer.customerName ?? "(no name)"}</h1>
+            <h1 className="m-0 text-title font-semibold text-text">
+              {customer.customerName ?? "(no name)"}
+            </h1>
             <p className="m-0 mt-1 break-all font-mono text-label text-text-subtle">
-              {customer.customerEmail ?? "-"} · <span className="text-text-tertiary">{customer.stripeCustomerId}</span>
+              {customer.customerEmail ?? "-"} ·{" "}
+              <span className="text-text-tertiary">{customer.stripeCustomerId}</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -322,7 +348,15 @@ function HeaderCard({
 
 /** One of Recova's three signal cards: its title, then each field's label and
  *  value on a line, or Recova's empty sentence. */
-function SignalCard({ title, fields, empty }: { title: string; fields: SignalField[] | null; empty: string }) {
+function SignalCard({
+  title,
+  fields,
+  empty,
+}: {
+  title: string;
+  fields: SignalField[] | null;
+  empty: string;
+}) {
   return (
     <Panel title={title} size="sm">
       {fields === null ? (
@@ -345,7 +379,10 @@ function SignalCard({ title, fields, empty }: { title: string; fields: SignalFie
  *  with two readings or more, the chart of the last 30, oldest first. */
 function HealthScoreCard({ score, history }: { score: number | null; history: HealthReading[] }) {
   const readings = useMemo(() => [...history].reverse(), [history]);
-  const draw = useCallback((w: number, fit: ChartFit) => drawHealthHistory(readings, w, fit), [readings]);
+  const draw = useCallback(
+    (w: number, fit: ChartFit) => drawHealthHistory(readings, w, fit),
+    [readings],
+  );
   return (
     <Panel title="Health score">
       <p className="m-0 flex items-baseline justify-end gap-3">
@@ -397,7 +434,9 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
 
       {customer.predictions.length > 0 ? (
         <section className="mt-8">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Predictions</p>
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Predictions
+          </p>
           <div
             className="mt-3 cap-table-wrap rounded-lg border border-border"
             data-cap="table"
@@ -420,9 +459,15 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
                 {customer.predictions.map((p, i) => (
                   <tr key={i}>
                     <td className="text-text-tertiary">{p.predictedAt.toLocaleDateString()}</td>
-                    <td data-label="Score" className="font-mono text-text">{p.score}</td>
-                    <td data-label="Horizon" className="text-text-tertiary">{p.horizonDays}d</td>
-                    <td data-label="Outcome" className="text-text-tertiary">{p.realizedOutcome ?? "pending"}</td>
+                    <td data-label="Score" className="font-mono text-text">
+                      {p.score}
+                    </td>
+                    <td data-label="Horizon" className="text-text-tertiary">
+                      {p.horizonDays}d
+                    </td>
+                    <td data-label="Outcome" className="text-text-tertiary">
+                      {p.realizedOutcome ?? "pending"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -83,7 +83,6 @@ const ROUTED_QUEUE_NAMES: string[] = (() => {
 })();
 
 describe("every queue the worker routes on has a consumer, and the reverse", () => {
-
   it("EVERY queue the code routes on is registered as a consumer", () => {
     for (const queue of ROUTED_QUEUE_NAMES) {
       expect(

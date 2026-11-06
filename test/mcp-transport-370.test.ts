@@ -93,7 +93,11 @@ interface CallOptions extends McpCallInit {
 }
 
 async function call(opts: CallOptions = {}) {
-  const res = (await handleMcpRequest(mcpRequest(opts), env(opts.allowed ?? true), PROBE)) as Response;
+  const res = (await handleMcpRequest(
+    mcpRequest(opts),
+    env(opts.allowed ?? true),
+    PROBE,
+  )) as Response;
   return readMcp(res);
 }
 
@@ -105,7 +109,12 @@ function tool(name: string): McpTool {
     title: "t",
     description: "d",
     inputSchema: { type: "object", additionalProperties: false },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     scope: "read",
     execute: async () => ({}),
   };
@@ -162,13 +171,13 @@ describe("PLANT 1: the endpoint's shape", () => {
 });
 
 describe("PLANT 2: both eras on one route, through the SDK", () => {
-
   it("MODERN: tools/list is a plain JSON body carrying a private cache hint", async () => {
     const { good } = await seed();
     const { status, res, json } = await call({ token: good, era: "modern", method: "tools/list" });
     expect(status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
-    const result = (json as { result: { tools: unknown[]; cacheScope: string; ttlMs: number } }).result;
+    const result = (json as { result: { tools: unknown[]; cacheScope: string; ttlMs: number } })
+      .result;
     expect((result.tools as { name: string }[]).map((t) => t.name)).toEqual(PROBE_NAMES);
     expect(result.cacheScope).toBe("private");
     expect(result.ttlMs).toBeGreaterThan(0);
@@ -180,8 +189,19 @@ describe("PLANT 2: both eras on one route, through the SDK", () => {
     // 403 failed sep-2243-server-accepts-whitespace-header-value.
     await seed();
     const probeKey = "p".repeat(43);
-    const request = mcpRequest({ token: probeKey, era: "modern", method: "tools/call", params: { name: "foxhound_get_probe", arguments: {} } });
-    const { status, json } = await readMcp((await handleMcpRequest(request, { ...env(), MCP_PROBE_KEY: probeKey } as Env, PROBE)) as Response);
+    const request = mcpRequest({
+      token: probeKey,
+      era: "modern",
+      method: "tools/call",
+      params: { name: "foxhound_get_probe", arguments: {} },
+    });
+    const { status, json } = await readMcp(
+      (await handleMcpRequest(
+        request,
+        { ...env(), MCP_PROBE_KEY: probeKey } as Env,
+        PROBE,
+      )) as Response,
+    );
     expect(status).toBe(200);
     const result = (json as { result: { isError: boolean; content: { text: string }[] } }).result;
     expect(result.isError).toBe(true);
@@ -225,7 +245,6 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
 });
 
 describe("PLANT 4: the registry can never hold a denied or unprefixed name", () => {
-
   it("THE DENYLIST THROWS AT CONSTRUCTION, for every HUMAN-FOREVER fragment", () => {
     // 368 ruling 4, ratified at 370. Parameterized over the shipped constant, so
     // a fragment added later is covered without a new case.
@@ -240,8 +259,15 @@ describe("PLANT 4: the registry can never hold a denied or unprefixed name", () 
   });
 
   it("a name off the foxhound_{action}_{resource} pattern throws (ruling rule 5)", () => {
-    for (const name of ["get_overview", "foxhound_overview", "Foxhound_get_overview", "foxhound_get-overview"]) {
-      expect(() => defineToolRegistry([tool(name)]), name).toThrow(/foxhound_\{action\}_\{resource\}/);
+    for (const name of [
+      "get_overview",
+      "foxhound_overview",
+      "Foxhound_get_overview",
+      "foxhound_get-overview",
+    ]) {
+      expect(() => defineToolRegistry([tool(name)]), name).toThrow(
+        /foxhound_\{action\}_\{resource\}/,
+      );
     }
   });
 

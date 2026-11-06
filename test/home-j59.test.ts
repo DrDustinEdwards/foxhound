@@ -28,7 +28,13 @@ interface Post {
 }
 
 const POSTS: Post[] = [
-  { slug: "a-featured", title: "The featured one", tags: ["failed-payments"], readingTimeMinutes: 6, featured: true },
+  {
+    slug: "a-featured",
+    title: "The featured one",
+    tags: ["failed-payments"],
+    readingTimeMinutes: 6,
+    featured: true,
+  },
   { slug: "b-latest", title: "Latest", tags: ["dunning"], readingTimeMinutes: 4, featured: false },
   { slug: "c-second", title: "Second", tags: [], readingTimeMinutes: 3, featured: false },
 ];
@@ -36,15 +42,24 @@ const POSTS: Post[] = [
 function render(blogPosts: Post[] = POSTS): string {
   const Page = Home as unknown as (props: HomeProps) => React.ReactElement;
   const router = createMemoryRouter(
-    [{ path: "*", element: createElement(Page, { loaderData: { siteUrl: "https://foxhoundapp.com", blogPosts, latestPosts: blogPosts } as HomeProps["loaderData"] }) }],
+    [
+      {
+        path: "*",
+        element: createElement(Page, {
+          loaderData: {
+            siteUrl: "https://foxhoundapp.com",
+            blogPosts,
+            latestPosts: blogPosts,
+          } as HomeProps["loaderData"],
+        }),
+      },
+    ],
     { initialEntries: ["/"] },
   );
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-
 describe("the blog strip puts the featured post first (M3 divergence 34)", () => {
-
   it("a database error drops the strip, never the page (review round 1)", async () => {
     const failing = {
       prepare() {
@@ -56,7 +71,12 @@ describe("the blog strip puts the featured post first (M3 divergence 34)", () =>
     };
     const ctx = {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: { DB: failing } as unknown as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext)
+          return {
+            env: { DB: failing } as unknown as Env,
+            ctx: {} as ExecutionContext,
+            nonce: "n",
+          };
         throw new Error("unexpected context key");
       },
     };
@@ -74,17 +94,24 @@ describe("the email generator shows Recova's error when generation fails (M3 div
   it("the action reports a failure instead of passing a canned email off as generated", async () => {
     const fakeContext = {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext)
+          return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
         throw new Error("unexpected context key");
       },
     };
     const form = new FormData();
     form.set("category", "soft");
     const result = (await generateEmailSample({
-      request: new Request("https://foxhoundapp.com/marketing/generate-email-sample", { method: "POST", body: form }),
+      request: new Request("https://foxhoundapp.com/marketing/generate-email-sample", {
+        method: "POST",
+        body: form,
+      }),
       context: fakeContext,
       params: {},
-    } as unknown as Parameters<typeof generateEmailSample>[0])) as { data: unknown; init?: { status?: number } };
+    } as unknown as Parameters<typeof generateEmailSample>[0])) as {
+      data: unknown;
+      init?: { status?: number };
+    };
     expect(result.data).toEqual({ error: true });
     expect(result.init?.status).toBe(503);
   });
@@ -95,14 +122,21 @@ describe("blogStripCards orders the strip as Recova does", async () => {
   const p = (slug: string) => ({ slug });
 
   it("puts the featured post first and drops it from the latest", () => {
-    expect(blogStripCards(p("f"), [p("a"), p("f"), p("b"), p("c")]).map((x) => x.slug)).toEqual(["f", "a", "b"]);
+    expect(blogStripCards(p("f"), [p("a"), p("f"), p("b"), p("c")]).map((x) => x.slug)).toEqual([
+      "f",
+      "a",
+      "b",
+    ]);
   });
 
   it("takes the three most recent when nothing is featured", () => {
-    expect(blogStripCards(null, [p("a"), p("b"), p("c"), p("d")]).map((x) => x.slug)).toEqual(["a", "b", "c"]);
+    expect(blogStripCards(null, [p("a"), p("b"), p("c"), p("d")]).map((x) => x.slug)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 });
-
 
 function actionContext(env: Env) {
   return {
@@ -129,10 +163,16 @@ describe("the generation route's edges (review round 1)", () => {
     const form = new FormData();
     form.set("category", "soft");
     const result = (await generateEmailSample({
-      request: new Request("https://foxhoundapp.com/marketing/generate-email-sample", { method: "POST", body: form }),
+      request: new Request("https://foxhoundapp.com/marketing/generate-email-sample", {
+        method: "POST",
+        body: form,
+      }),
       context: actionContext({ RATE_LIMITER: limiter } as unknown as Env),
       params: {},
-    } as unknown as Parameters<typeof generateEmailSample>[0])) as { data: unknown; init?: { status?: number } };
+    } as unknown as Parameters<typeof generateEmailSample>[0])) as {
+      data: unknown;
+      init?: { status?: number };
+    };
     expect(result.data).toEqual({ error: true });
     expect(result.init?.status).toBe(429);
   });
@@ -142,7 +182,10 @@ describe("the generation route's edges (review round 1)", () => {
       request: post("not a multipart body"),
       context: actionContext({} as Env),
       params: {},
-    } as unknown as Parameters<typeof generateEmailSample>[0])) as { data: unknown; init?: { status?: number } };
+    } as unknown as Parameters<typeof generateEmailSample>[0])) as {
+      data: unknown;
+      init?: { status?: number };
+    };
     expect(result.data).toEqual({ error: true });
     expect(result.init?.status).toBe(400);
   });

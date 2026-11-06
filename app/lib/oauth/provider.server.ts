@@ -1,7 +1,11 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { safeEqual } from "@dustinedwards/site-runtime/compare";
 import { base64url } from "@dustinedwards/site-runtime/encoding";
-import { allowedRedirects, DCR_CALLBACKS, registrationRefusal } from "@dustinedwards/site-runtime/mcp-login";
+import {
+  allowedRedirects,
+  DCR_CALLBACKS,
+  registrationRefusal,
+} from "@dustinedwards/site-runtime/mcp-login";
 
 import type { Db } from "~/db";
 import { findActiveMembership } from "~/lib/auth/account";
@@ -20,7 +24,10 @@ import {
   OAUTH_REFRESH_TOKEN_TTL_MS,
 } from "~/lib/constants";
 
-import { isMetadataDocumentClientId, resolveMetadataDocumentClient } from "./client-metadata.server";
+import {
+  isMetadataDocumentClientId,
+  resolveMetadataDocumentClient,
+} from "./client-metadata.server";
 import { keyScopes, mcpResource, requestsWrite } from "./metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode } from "./redirects";
 import { readJson, readText } from "~/lib/http/body";
@@ -158,7 +165,12 @@ export function registrationCallbacks(env: Pick<Env, "DCR_REDIRECT_URIS">): stri
  * request supplied, so anyone could rewrite a registered client's redirect
  * URIs and collect the codes meant for it. A supplied client_id is ignored.
  */
-export async function registerClient(db: Db, body: unknown, now: Date, allowed: string): Promise<OAuthResult> {
+export async function registerClient(
+  db: Db,
+  body: unknown,
+  now: Date,
+  allowed: string,
+): Promise<OAuthResult> {
   if (!body || typeof body !== "object") return oauthError(400, "invalid_client_metadata");
   const raw = body as Record<string, unknown>;
 
@@ -174,7 +186,10 @@ export async function registerClient(db: Db, body: unknown, now: Date, allowed: 
   const refused = registrationRefusal(allowed, raw);
   if (refused) return oauthError(400, "invalid_redirect_uri", refused);
   const redirectUris = uris as string[];
-  const clientName = (asString(raw.client_name)?.trim() || DEFAULT_CLIENT_NAME).slice(0, MAX_CLIENT_NAME);
+  const clientName = (asString(raw.client_name)?.trim() || DEFAULT_CLIENT_NAME).slice(
+    0,
+    MAX_CLIENT_NAME,
+  );
 
   const id = crypto.randomUUID();
   await db.insert(oauthClients).values({ id, clientName, redirectUris, createdAt: now });
@@ -223,7 +238,11 @@ export type AuthorizeCheck =
  * and the approve step runs it again on the posted fields, so nothing the page
  * carried in hidden inputs is trusted.
  */
-export async function checkAuthorizeRequest(db: Db, params: URLSearchParams, origin: string): Promise<AuthorizeCheck> {
+export async function checkAuthorizeRequest(
+  db: Db,
+  params: URLSearchParams,
+  origin: string,
+): Promise<AuthorizeCheck> {
   const clientId = asString(params.get("client_id"));
   const redirectUri = asString(params.get("redirect_uri"));
   const state = asString(params.get("state"));
@@ -233,11 +252,19 @@ export async function checkAuthorizeRequest(db: Db, params: URLSearchParams, ori
     return { ok: false, title: "Invalid request", message: "Missing client_id or redirect_uri." };
   }
   if (params.get("response_type") !== "code") {
-    return { ok: false, title: "Unsupported response_type", message: "Only response_type=code is supported." };
+    return {
+      ok: false,
+      title: "Unsupported response_type",
+      message: "Only response_type=code is supported.",
+    };
   }
   // PKCE S256 is mandatory; plain is deprecated in OAuth 2.1. A challenge that
   // is not the shape S256 produces is refused here too.
-  if (!codeChallenge || params.get("code_challenge_method") !== "S256" || !CHALLENGE_SHAPE.test(codeChallenge)) {
+  if (
+    !codeChallenge ||
+    params.get("code_challenge_method") !== "S256" ||
+    !CHALLENGE_SHAPE.test(codeChallenge)
+  ) {
     return {
       ok: false,
       title: "PKCE required",
@@ -250,7 +277,11 @@ export async function checkAuthorizeRequest(db: Db, params: URLSearchParams, ori
   // not be good there.
   const resource = asString(params.get("resource"));
   if (resource && resource !== mcpResource(origin)) {
-    return { ok: false, title: "Invalid request", message: "This server issues access to its /mcp endpoint only." };
+    return {
+      ok: false,
+      title: "Invalid request",
+      message: "This server issues access to its /mcp endpoint only.",
+    };
   }
 
   // A client_id that is an https URL is a metadata document, fetched and
@@ -263,13 +294,20 @@ export async function checkAuthorizeRequest(db: Db, params: URLSearchParams, ori
       ? undefined
       : (
           await db
-            .select({ clientName: oauthClients.clientName, redirectUris: oauthClients.redirectUris })
+            .select({
+              clientName: oauthClients.clientName,
+              redirectUris: oauthClients.redirectUris,
+            })
             .from(oauthClients)
             .where(eq(oauthClients.id, clientId))
             .limit(1)
         )[0];
   if (!client) {
-    return { ok: false, title: "Unknown client", message: "This client is not registered with Foxhound." };
+    return {
+      ok: false,
+      title: "Unknown client",
+      message: "This client is not registered with Foxhound.",
+    };
   }
   if (!isRegisteredRedirect(redirectUri, client.redirectUris)) {
     return {
@@ -319,13 +357,19 @@ export interface IssueCodeInput {
  * account is refused: the /mcp door refuses demo keys too, so a grant for one
  * would be a connection that can never work.
  */
-export async function issueAuthorizationCode(db: Db, input: IssueCodeInput): Promise<string | null> {
+export async function issueAuthorizationCode(
+  db: Db,
+  input: IssueCodeInput,
+): Promise<string | null> {
   if (input.accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) return null;
   const code = generateSecret();
   if (input.metadataDocument) {
     // The document is the client's own word on its name and redirect URIs, and
     // it was fetched for this request, so the row follows it.
-    const row = { clientName: input.metadataDocument.clientName, redirectUris: input.metadataDocument.redirectUris };
+    const row = {
+      clientName: input.metadataDocument.clientName,
+      redirectUris: input.metadataDocument.redirectUris,
+    };
     await db
       .insert(oauthClients)
       .values({ id: input.clientId, ...row, createdAt: input.now })
@@ -368,7 +412,11 @@ type GrantRow = typeof oauthGrants.$inferSelect;
 
 /** End a grant and its key. Both guarded on not-yet-revoked, so a second call
  *  changes nothing. */
-async function revokeGrant(db: Db, grant: Pick<GrantRow, "id" | "apiKeyId">, now: Date): Promise<void> {
+async function revokeGrant(
+  db: Db,
+  grant: Pick<GrantRow, "id" | "apiKeyId">,
+  now: Date,
+): Promise<void> {
   await db.batch([
     db
       .update(oauthGrants)
@@ -381,7 +429,11 @@ async function revokeGrant(db: Db, grant: Pick<GrantRow, "id" | "apiKeyId">, now
   ]);
 }
 
-function tokenBody(access: string, refresh: string, scopes: readonly string[]): Record<string, unknown> {
+function tokenBody(
+  access: string,
+  refresh: string,
+  scopes: readonly string[],
+): Record<string, unknown> {
   return {
     access_token: access,
     token_type: "Bearer",
@@ -419,7 +471,8 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   }
   if (row.expiresAt.getTime() <= now.getTime()) return oauthError(400, "invalid_grant");
   if (row.clientId !== clientId) return oauthError(400, "invalid_grant");
-  if (redirectUri && !redirectUriMatchesCode(redirectUri, row.redirectUri)) return oauthError(400, "invalid_grant");
+  if (redirectUri && !redirectUriMatchesCode(redirectUri, row.redirectUri))
+    return oauthError(400, "invalid_grant");
   if (!(await verifyPkceS256(verifier, row.codeChallenge))) return oauthError(400, "invalid_grant");
 
   // The person who approved must still be an active member of the account.
@@ -486,10 +539,15 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
 async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Promise<OAuthResult> {
   const refresh = asString(params.get("refresh_token"));
   const clientId = asString(params.get("client_id"));
-  if (!refresh || !clientId) return oauthError(400, "invalid_request", "Missing required parameter");
+  if (!refresh || !clientId)
+    return oauthError(400, "invalid_request", "Missing required parameter");
 
   const presented = await hashMcpToken(refresh);
-  const [grant] = await db.select().from(oauthGrants).where(eq(oauthGrants.refreshHash, presented)).limit(1);
+  const [grant] = await db
+    .select()
+    .from(oauthGrants)
+    .where(eq(oauthGrants.refreshHash, presented))
+    .limit(1);
 
   if (!grant) {
     // A refresh token that has already been rotated away. Only a replay
@@ -504,7 +562,11 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
     if (replayed) await revokeGrant(db, replayed, now);
     return oauthError(400, "invalid_grant");
   }
-  if (grant.revokedAt || grant.refreshExpiresAt.getTime() <= now.getTime() || grant.clientId !== clientId) {
+  if (
+    grant.revokedAt ||
+    grant.refreshExpiresAt.getTime() <= now.getTime() ||
+    grant.clientId !== clientId
+  ) {
     return oauthError(400, "invalid_grant");
   }
 
@@ -536,13 +598,22 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
       previousRefreshHash: presented,
       refreshExpiresAt: plusMs(now, OAUTH_REFRESH_TOKEN_TTL_MS),
     })
-    .where(and(eq(oauthGrants.id, grant.id), eq(oauthGrants.refreshHash, presented), isNull(oauthGrants.revokedAt)))
+    .where(
+      and(
+        eq(oauthGrants.id, grant.id),
+        eq(oauthGrants.refreshHash, presented),
+        isNull(oauthGrants.revokedAt),
+      ),
+    )
     .returning({ id: oauthGrants.id });
   if (rotated.length === 0) return oauthError(400, "invalid_grant");
 
   const rekeyed = await db
     .update(apiKeys)
-    .set({ keyHash: await hashMcpToken(access), expiresAt: plusMs(now, OAUTH_ACCESS_TOKEN_TTL_SECONDS * 1000) })
+    .set({
+      keyHash: await hashMcpToken(access),
+      expiresAt: plusMs(now, OAUTH_ACCESS_TOKEN_TTL_SECONDS * 1000),
+    })
     .where(and(eq(apiKeys.id, key.id), isNull(apiKeys.revokedAt)))
     .returning({ id: apiKeys.id });
   if (rekeyed.length === 0) {
@@ -557,7 +628,11 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
  * The token endpoint. No parameter names an account: the code carries the
  * account fixed at consent, and a refresh keeps the grant's.
  */
-export async function exchangeToken(db: Db, params: URLSearchParams, now: Date): Promise<OAuthResult> {
+export async function exchangeToken(
+  db: Db,
+  params: URLSearchParams,
+  now: Date,
+): Promise<OAuthResult> {
   const grantType = params.get("grant_type");
   if (grantType === "authorization_code") return exchangeCode(db, params, now);
   if (grantType === "refresh_token") return exchangeRefresh(db, params, now);

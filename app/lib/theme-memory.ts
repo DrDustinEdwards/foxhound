@@ -44,5 +44,8 @@ function persistTheme(theme: Theme, save: ThemeSave): void {
     });
     return;
   }
-  document.cookie = themeCookie(theme, { name: THEME_COOKIE, secure: location.protocol === "https:" });
+  document.cookie = themeCookie(theme, {
+    name: THEME_COOKIE,
+    secure: location.protocol === "https:",
+  });
 }

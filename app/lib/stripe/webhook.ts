@@ -17,9 +17,5 @@ export async function constructStripeEvent(
   signatureHeader: string,
   signingSecret: string,
 ): Promise<Stripe.Event> {
-  return getStripe(env).webhooks.constructEventAsync(
-    payload,
-    signatureHeader,
-    signingSecret,
-  );
+  return getStripe(env).webhooks.constructEventAsync(payload, signatureHeader, signingSecret);
 }

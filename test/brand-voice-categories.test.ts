@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -85,7 +84,6 @@ async function systemPromptFor(category: string, v: Voices): Promise<string> {
 }
 
 describe("PLANT 1: the category's own voice reaches the prompt for that category", () => {
-
   it("each of the four columns is wired to its own category", async () => {
     const cases: [string, Voices, string][] = [
       ["soft", { soft: "voice for soft" }, "voice for soft"],
@@ -104,24 +102,26 @@ describe("PLANT 1: the category's own voice reaches the prompt for that category
 });
 
 describe("PLANT 2: legacy's resolution order, all three rungs", () => {
-
   it("an EMPTY STRING behaves exactly like NULL and falls through", () => {
     // Legacy uses `||` on every rung, so "" and null are the same. That is what
     // lets "Same as main voice" be stored as NULL with no sentinel.
-    expect(resolveBrandVoice({ merchantName: "A", voiceDescription: "g", voiceSoft: "" }, "soft")).toBe("g");
+    expect(
+      resolveBrandVoice({ merchantName: "A", voiceDescription: "g", voiceSoft: "" }, "soft"),
+    ).toBe("g");
     expect(
       resolveBrandVoice({ merchantName: "A", voiceDescription: "g", voiceSoft: "   " }, "soft"),
     ).toBe("g");
-    expect(resolveBrandVoice({ merchantName: "A", voiceDescription: "", voiceSoft: "" }, "soft")).toBe(
-      "Friendly and direct. Write like a real person, not a company.",
-    );
+    expect(
+      resolveBrandVoice({ merchantName: "A", voiceDescription: "", voiceSoft: "" }, "soft"),
+    ).toBe("Friendly and direct. Write like a real person, not a company.");
   });
 });
 
 describe("PLANT 6: the save writes exactly the four columns", () => {
   const ctx = {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
       if (key === authContext) {
         return {
           userId: "user_1",

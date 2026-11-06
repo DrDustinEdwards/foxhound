@@ -1,14 +1,10 @@
-
 import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
-import {
-  BULK_ACTION_CONCURRENCY,
-  BULK_ACTION_MAX_PER_SUBMISSION,
-} from "~/lib/constants";
+import { BULK_ACTION_CONCURRENCY, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
 import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
 import { mapWithConcurrency, runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
@@ -18,7 +14,10 @@ import {
   orderForDisplay,
   toItemResult,
 } from "~/lib/recovery/bulk-results";
-import { manualActionIdempotencyKey, type ManualActionCommit } from "~/lib/recovery/manual-actions.server";
+import {
+  manualActionIdempotencyKey,
+  type ManualActionCommit,
+} from "~/lib/recovery/manual-actions.server";
 import { type ResendDeps, type TriggerDeps } from "~/lib/recovery/manual-action-deps.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
@@ -40,7 +39,6 @@ import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 // an assertion about a stub.
 
 const now = new Date("2026-08-13T00:00:00.000Z");
-
 
 interface PaymentSeed {
   id: string;
@@ -107,7 +105,11 @@ const THEIRS: PaymentSeed = { id: "fp_theirs", accountId: "acc_2" };
  *  statements against the real schema, recording every key it was handed. A
  *  constraint violation therefore throws exactly as the real committer's would,
  *  which is what makes the outcomes-key race below a real race. */
-function inMemoryCommit(sqlite: Database.Database, db: Db, keys: string[] = []): ManualActionCommit {
+function inMemoryCommit(
+  sqlite: Database.Database,
+  db: Db,
+  keys: string[] = [],
+): ManualActionCommit {
   return async (_accountId, idempotencyKey, build) => {
     keys.push(idempotencyKey);
     const batch = build(db);
@@ -181,14 +183,18 @@ function realLoadStepDeps(
 }
 
 function statusOf(sqlite: Database.Database, id: string): string {
-  return (sqlite.prepare("select status from failed_payments where id = ?").get(id) as {
-    status: string;
-  }).status;
+  return (
+    sqlite.prepare("select status from failed_payments where id = ?").get(id) as {
+      status: string;
+    }
+  ).status;
 }
 
 function outcomeRows(sqlite: Database.Database) {
   return sqlite
-    .prepare("select idempotency_key, attribution_kind, outcome from outcomes order by idempotency_key")
+    .prepare(
+      "select idempotency_key, attribution_kind, outcome from outcomes order by idempotency_key",
+    )
     .all() as { idempotency_key: string; attribution_kind: string; outcome: string }[];
 }
 
@@ -310,7 +316,9 @@ describe("bulk trigger: every executor status keeps its own name (267)", () => {
   });
 
   it("a retry with no connected account is step_failed CARRYING its reason", async () => {
-    const { sqlite, db } = seed([{ id: "fp_step", steps: [{ id: "st_step", stepType: "retry_4hr" }] }]);
+    const { sqlite, db } = seed([
+      { id: "fp_step", steps: [{ id: "st_step", stepType: "retry_4hr" }] },
+    ]);
     const out = await run(sqlite, db, "trigger", ["fp_step"], {
       trigger: {
         ...realLoadStepDeps(sqlite, db),
@@ -365,13 +373,7 @@ describe("bulk trigger: every executor status keeps its own name (267)", () => {
 });
 
 describe("bulk mark recovered: through the spine's own recorder (271)", () => {
-  const THREE = [
-    { id: "fp_a" },
-    { id: "fp_b" },
-    { id: "fp_c" },
-    RECOVERED,
-    THEIRS,
-  ];
+  const THREE = [{ id: "fp_a" }, { id: "fp_b" }, { id: "fp_c" }, RECOVERED, THEIRS];
 
   it("records the ones it can and names why it could not record the rest", async () => {
     const { sqlite, db } = seed(THREE);

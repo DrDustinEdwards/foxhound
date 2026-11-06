@@ -83,7 +83,9 @@ export function disputeLiveFields(dispute: Stripe.Dispute): DisputeLiveFields | 
   return {
     stripeDisputeId: dispute.id,
     status: dispute.status ?? "needs_response",
-    evidenceDeadline: dispute.evidence_details?.due_by ? new Date(dispute.evidence_details.due_by * 1000) : null,
+    evidenceDeadline: dispute.evidence_details?.due_by
+      ? new Date(dispute.evidence_details.due_by * 1000)
+      : null,
     hasEvidence: dispute.evidence_details?.has_evidence ?? false,
     submissionCount: dispute.evidence_details?.submission_count ?? 0,
     amountCents: dispute.amount ?? 0,
@@ -113,7 +115,10 @@ export interface DisputeFundsMovement {
  * sign, money out being a withdrawal.
  */
 export function disputeFundsMovements(dispute: Stripe.Dispute): DisputeFundsMovement[] {
-  const transactions = (dispute.balance_transactions ?? []) as (Stripe.BalanceTransaction | string)[];
+  const transactions = (dispute.balance_transactions ?? []) as (
+    | Stripe.BalanceTransaction
+    | string
+  )[];
   const movements: DisputeFundsMovement[] = [];
   for (const bt of transactions) {
     if (typeof bt === "string" || !bt.id) continue;

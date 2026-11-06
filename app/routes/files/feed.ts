@@ -39,7 +39,8 @@ export async function loader({ context }: Route.LoaderArgs) {
   const rss = rssDocument({
     title: "Foxhound Blog",
     link: `${url}/blog`,
-    description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
+    description:
+      "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
     selfUrl: `${url}/feed.rss`,
     origin: url,
     itemPath: "/blog",

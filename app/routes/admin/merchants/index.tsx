@@ -83,7 +83,8 @@ export async function action({ context, request }: Route.ActionArgs) {
   if (!target) return refuse(intent, "That merchant was not found. Nothing was changed.");
 
   if (intent === "cancel") {
-    if (target.cancelledAt) return refuse(intent, `${target.name ?? target.id} is already canceled.`);
+    if (target.cancelledAt)
+      return refuse(intent, `${target.name ?? target.id} is already canceled.`);
     // Checked before the write and before the audit row, so a mistyped word
     // never records an attempt that did not happen. Capsomer's confirm page
     // says "Not done. Nothing was changed." itself.
@@ -114,7 +115,8 @@ export async function action({ context, request }: Route.ActionArgs) {
   }
 
   const raw = String(form.get("value") ?? "");
-  if (raw !== "true" && raw !== "false") return refuse(intent, "Unknown value. Nothing was changed.");
+  if (raw !== "true" && raw !== "false")
+    return refuse(intent, "Unknown value. Nothing was changed.");
   const value = raw === "true";
 
   // An Undo is the same post marked undo=1. It writes only where the flag
@@ -127,14 +129,21 @@ export async function action({ context, request }: Route.ActionArgs) {
   // failed audit insert leaves the flag as it was, never changed with no record.
   // The row records the attempt; a guarded write that matched nothing changes
   // nothing and the answer says so.
-  const wasBrakePause = !value && target.processingPaused && target.pauseReason === PAUSE_REASON_BRAKE;
+  const wasBrakePause =
+    !value && target.processingPaused && target.pauseReason === PAUSE_REASON_BRAKE;
   // Whether the write will change anything, as read just before it, so a
   // stale row's no-op says so in its audit row (PR 140 review). It is the
   // guarded write's own condition: the flag holds the other value, and an Undo
   // of a pause resumes only a manual pause.
   const current = intent === "billing-exempt" ? target.billingExempt : target.processingPaused;
   const willChange =
-    current !== value && !(intent === "processing-paused" && undo && !value && target.pauseReason !== PAUSE_REASON_MANUAL);
+    current !== value &&
+    !(
+      intent === "processing-paused" &&
+      undo &&
+      !value &&
+      target.pauseReason !== PAUSE_REASON_MANUAL
+    );
   await logAdminAction(db, {
     actorEmail: auth.email,
     action:
@@ -145,7 +154,9 @@ export async function action({ context, request }: Route.ActionArgs) {
         : value
           ? "merchant.processing.pause"
           : "merchant.processing.resume",
-    metadata: undo ? { accountId, undo: true, changed: willChange } : { accountId, changed: willChange },
+    metadata: undo
+      ? { accountId, undo: true, changed: willChange }
+      : { accountId, changed: willChange },
   });
   const changed =
     intent === "billing-exempt"
@@ -198,7 +209,8 @@ export default function AdminMerchants({ loaderData, actionData }: Route.Compone
 
   if (confirmCancel) {
     const who = confirmCancel.name ?? confirmCancel.id;
-    const refused = actionData && !actionData.ok && actionData.intent === "cancel" ? actionData.error : null;
+    const refused =
+      actionData && !actionData.ok && actionData.intent === "cancel" ? actionData.error : null;
     return (
       <div className="grid grid-cols-1 gap-6">
         <ConfirmPage

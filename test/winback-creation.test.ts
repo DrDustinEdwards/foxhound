@@ -87,7 +87,9 @@ function subscriptionDeletedEvent(overrides: Record<string, unknown> = {}) {
         id: "sub_1",
         customer: "cus_1",
         cancellation_details: { reason: "cancellation_requested" },
-        items: { data: [{ price: { unit_amount: 4900, currency: "usd", product: { name: "Growth" } } }] },
+        items: {
+          data: [{ price: { unit_amount: 4900, currency: "usd", product: { name: "Growth" } } }],
+        },
         ...overrides,
       },
     },
@@ -133,9 +135,10 @@ describe("290: exactly-once on the SUBSCRIPTION, both sides", () => {
     const seqCount = sqlite
       .prepare("select count(*) as n from win_back_sequences where stripe_subscription_id = ?")
       .get("sub_1") as { n: number };
-    const stepCount = sqlite.prepare("select count(*) as n from win_back_steps").get() as { n: number };
+    const stepCount = sqlite.prepare("select count(*) as n from win_back_steps").get() as {
+      n: number;
+    };
     expect(seqCount.n).toBe(1);
     expect(stepCount.n).toBe(3);
   });
 });
-

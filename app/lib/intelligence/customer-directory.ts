@@ -81,7 +81,11 @@ export function planTierPill(tier: string | null): { label: string; tone?: PlanP
  *  nightly sync from a subscription schedule or cancel_at. Null when nothing
  *  is scheduled, or when the date has already passed and the next sync has
  *  not yet caught up, so a stale plan never reads as upcoming. */
-export function scheduledChangeLabel(kind: string | null, at: Date | null, now: Date): string | null {
+export function scheduledChangeLabel(
+  kind: string | null,
+  at: Date | null,
+  now: Date,
+): string | null {
   if ((kind !== "cancel" && kind !== "change") || !at || at.getTime() <= now.getTime()) return null;
   return `Scheduled to ${kind} on ${formatDateShort(at)}`;
 }

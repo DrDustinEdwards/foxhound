@@ -70,7 +70,10 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   if (intent === "save") {
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data(
-        { error: "This dispute has already been submitted; evidence is locked.", intent: "save" as const },
+        {
+          error: "This dispute has already been submitted; evidence is locked.",
+          intent: "save" as const,
+        },
         { status: 409 },
       );
     }
@@ -80,7 +83,10 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     // same guard inside each write, so a race past this read writes nothing.
     if (detail.approval) {
       return data(
-        { error: "This dispute has been approved, so its evidence is locked.", intent: "save" as const },
+        {
+          error: "This dispute has been approved, so its evidence is locked.",
+          intent: "save" as const,
+        },
         { status: 409 },
       );
     }
@@ -88,16 +94,31 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
       { fieldName: NARRATIVE_FIELD, fieldValue: form.get("narrative") },
       { fieldName: CUSTOMER_IP_FIELD, fieldValue: form.get("customer_ip") },
       // Present only when the shipping inputs are on the page (S32's setting).
-      { fieldName: SHIPPING_TRACKING_FIELD, fieldValue: trimmed(form.get(SHIPPING_TRACKING_FIELD)) },
+      {
+        fieldName: SHIPPING_TRACKING_FIELD,
+        fieldValue: trimmed(form.get(SHIPPING_TRACKING_FIELD)),
+      },
       { fieldName: SHIPPING_CARRIER_FIELD, fieldValue: carrier(form.get(SHIPPING_CARRIER_FIELD)) },
       { fieldName: SHIPPING_DATE_FIELD, fieldValue: trimmed(form.get(SHIPPING_DATE_FIELD)) },
     ]
       // A field the form did not carry is left as it is.
-      .filter((f): f is { fieldName: string; fieldValue: string } => typeof f.fieldValue === "string")
-      .map((f) => ({ fieldName: f.fieldName, fieldValue: f.fieldName === CUSTOMER_IP_FIELD ? f.fieldValue.trim() : f.fieldValue }));
+      .filter(
+        (f): f is { fieldName: string; fieldValue: string } => typeof f.fieldValue === "string",
+      )
+      .map((f) => ({
+        fieldName: f.fieldName,
+        fieldValue: f.fieldName === CUSTOMER_IP_FIELD ? f.fieldValue.trim() : f.fieldValue,
+      }));
     let written: boolean;
     try {
-      written = await saveDisputeDraft(db, accountId, detail.dispute.id, detail.evidence, fields, new Date());
+      written = await saveDisputeDraft(
+        db,
+        accountId,
+        detail.dispute.id,
+        detail.evidence,
+        fields,
+        new Date(),
+      );
     } catch (err) {
       // Recova's line beside Save draft is "Could not save."; the whole error
       // goes to the log, never to the page.
@@ -111,7 +132,8 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     if (!written) {
       return data(
         {
-          error: "Your draft was not saved: this dispute changed. Reload to see the current evidence.",
+          error:
+            "Your draft was not saved: this dispute changed. Reload to see the current evidence.",
           intent: "save" as const,
         },
         { status: 409 },
@@ -149,11 +171,19 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     // on the signed-in account's own Stripe connection.
     const posted = form.get("stripe_dispute_id");
     try {
-      const result = await importDisputeFromStripe(env, accountId, typeof posted === "string" ? posted : "", new Date());
+      const result = await importDisputeFromStripe(
+        env,
+        accountId,
+        typeof posted === "string" ? posted : "",
+        new Date(),
+      );
       return data({ sync: SYNC_RESULT_MESSAGES[result.status] });
     } catch (err) {
       console.error("dispute sync failed", err);
-      return data({ sync: { ok: false, message: "Could not import the dispute. Please try again." } }, { status: 500 });
+      return data(
+        { sync: { ok: false, message: "Could not import the dispute. Please try again." } },
+        { status: 500 },
+      );
     }
   }
 
@@ -167,7 +197,10 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     // Recova's /api/disputes/accept: refuse a dispute that is no longer open,
     // close it at Stripe, then write the accepted state and its outcome.
     if (!canApprove(detail.dispute.state as DisputeState)) {
-      return data({ error: "This dispute is already closed or submitted.", intent: "accept" as const }, { status: 409 });
+      return data(
+        { error: "This dispute is already closed or submitted.", intent: "accept" as const },
+        { status: 409 },
+      );
     }
     // Not while an approval stands (PR 149 review): its submission is in
     // flight, rejected or unconfirmed, and a concession would race it.
@@ -178,7 +211,10 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
       ? await getConnectionAccessToken(db, detail.dispute.stripeConnectionId)
       : null;
     if (!token) {
-      return data({ error: "No connected Stripe account for this dispute.", intent: "accept" as const }, { status: 409 });
+      return data(
+        { error: "No connected Stripe account for this dispute.", intent: "accept" as const },
+        { status: 409 },
+      );
     }
     try {
       const result = await acceptDispute(env, {
@@ -197,9 +233,14 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
       }
     } catch (err) {
       console.error("dispute accept failed", err);
-      Sentry.captureException(err, { extra: { scope: "dispute-accept", disputeId: detail.dispute.id } });
+      Sentry.captureException(err, {
+        extra: { scope: "dispute-accept", disputeId: detail.dispute.id },
+      });
       return data(
-        { error: "Accept failed. Check this dispute in Stripe before trying again.", intent: "accept" as const },
+        {
+          error: "Accept failed. Check this dispute in Stripe before trying again.",
+          intent: "accept" as const,
+        },
         { status: 500 },
       );
     }
@@ -212,7 +253,10 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     // the schema-enforced gate (dispute_approvals is unique per dispute), the
     // app-level check here just fails fast with a readable message.
     if (!canApprove(detail.dispute.state as DisputeState)) {
-      return data({ error: "This dispute has already been submitted.", intent: "approve" as const }, { status: 409 });
+      return data(
+        { error: "This dispute has already been submitted.", intent: "approve" as const },
+        { status: 409 },
+      );
     }
 
     let resolvedToken: string | null = null;
@@ -220,7 +264,10 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
       resolvedToken = await getConnectionAccessToken(db, detail.dispute.stripeConnectionId);
     }
     if (!resolvedToken) {
-      return data({ error: "No connected Stripe account for this dispute.", intent: "approve" as const }, { status: 409 });
+      return data(
+        { error: "No connected Stripe account for this dispute.", intent: "approve" as const },
+        { status: 409 },
+      );
     }
 
     try {
@@ -281,7 +328,11 @@ const UPLOAD_BODY_SLACK_BYTES = 64 * 1024;
 
 /** A file path's answer: its named outcome, the merchant's line, and the
  *  outcome's status. */
-function fileResult(intent: "upload_file" | "delete_file", outcome: EvidenceFileOutcome, status?: number) {
+function fileResult(
+  intent: "upload_file" | "delete_file",
+  outcome: EvidenceFileOutcome,
+  status?: number,
+) {
   const message = EVIDENCE_FILE_MESSAGES[outcome];
   return data(
     message ? { intent, fileOutcome: outcome, error: message } : { intent, fileOutcome: outcome },

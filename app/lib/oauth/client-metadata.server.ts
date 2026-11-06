@@ -34,7 +34,10 @@ export function isMetadataDocumentClientId(clientId: string): boolean {
  * other than "none": Foxhound issues no secrets and verifies no client keys, so
  * only a public client with PKCE can use it, as for a registered client.
  */
-export async function resolveMetadataDocumentClient(clientId: string, resource: string): Promise<MetadataDocumentClient | null> {
+export async function resolveMetadataDocumentClient(
+  clientId: string,
+  resource: string,
+): Promise<MetadataDocumentClient | null> {
   const { getOAuthApi } = await import("@cloudflare/workers-oauth-provider");
   // Only the client lookup is used. The library wants a whole provider to hang
   // it on; nothing here serves its routes or touches its KV, because a
@@ -61,7 +64,11 @@ export async function resolveMetadataDocumentClient(clientId: string, resource: 
   } catch (error) {
     // CimdFetchError and the library's own refusals: the reason goes to the
     // log, and the person sees "Unknown client".
-    console.warn("client metadata document refused:", clientId, error instanceof Error ? error.message : String(error));
+    console.warn(
+      "client metadata document refused:",
+      clientId,
+      error instanceof Error ? error.message : String(error),
+    );
     return null;
   }
 }

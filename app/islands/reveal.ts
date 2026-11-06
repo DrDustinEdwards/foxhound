@@ -3,7 +3,10 @@
 // 15% of it is on screen. The eyebrow, title and line stacks (MarketingPageHeader, BlogHeaderIntro) draw
 // their children with `opacity-0 translate-y-4` and swap them for the shown classes once 10% is on screen:
 // one observer for the stack, the children staggered by their own transition delays.
-export default function start(el: HTMLElement, props: { threshold: number; stack?: boolean }): void {
+export default function start(
+  el: HTMLElement,
+  props: { threshold: number; stack?: boolean },
+): void {
   const observer = new IntersectionObserver(
     ([entry]) => {
       if (!entry?.isIntersecting) return;

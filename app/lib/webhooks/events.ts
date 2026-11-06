@@ -9,7 +9,10 @@ import {
 } from "~/lib/disputes/stripe-dispute";
 
 import { type DeclineCategory } from "~/lib/constants";
-import { detectSubscriptionChanges, type SubscriptionChange } from "~/lib/intelligence/subscription-change";
+import {
+  detectSubscriptionChanges,
+  type SubscriptionChange,
+} from "~/lib/intelligence/subscription-change";
 import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
@@ -147,7 +150,12 @@ export type WebhookIntent =
       customerEmail: string;
       customerName: string | null;
       /** The card, when the event already carries it. */
-      card: { expMonth: number; expYear: number; brand: string | null; last4: string | null } | null;
+      card: {
+        expMonth: number;
+        expYear: number;
+        brand: string | null;
+        last4: string | null;
+      } | null;
       /** Otherwise the payment method to retrieve, per this file's rule that the
        *  classifier makes no Stripe call. */
       paymentMethodId: string | null;
@@ -313,11 +321,16 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       // Only a definitive win/loss resolves our state machine. An inquiry closed
       // as warning_closed is not a chargeback outcome: it closes the inquiry,
       // with nothing won, lost or billable. Any other status is ignored.
-      if (dispute.status === "warning_closed") return { kind: "inquiry_closed", stripeDisputeId: dispute.id };
+      if (dispute.status === "warning_closed")
+        return { kind: "inquiry_closed", stripeDisputeId: dispute.id };
       if (dispute.status !== "won" && dispute.status !== "lost") {
         return { kind: "ignore", reason: "dispute_not_resolved" };
       }
-      return { kind: "dispute_resolved", stripeDisputeId: dispute.id, won: dispute.status === "won" };
+      return {
+        kind: "dispute_resolved",
+        stripeDisputeId: dispute.id,
+        won: dispute.status === "won",
+      };
     }
     case "charge.dispute.updated": {
       const fields = disputeLiveFields(event.data.object as Stripe.Dispute);
@@ -333,7 +346,11 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     case "charge.dispute.funds_reinstated": {
       const dispute = event.data.object as Stripe.Dispute;
       if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
-      return { kind: "dispute_funds", stripeDisputeId: dispute.id, funds: disputeFundsMovements(dispute) };
+      return {
+        kind: "dispute_funds",
+        stripeDisputeId: dispute.id,
+        funds: disputeFundsMovements(dispute),
+      };
     }
     case "customer.subscription.deleted": {
       // Win-back intake. Legacy's handleSubscriptionDeleted is the spec.
@@ -382,9 +399,19 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const email = customer.email ?? "";
       if (!email) return { kind: "ignore", reason: "no_customer_email" };
 
-      const sources = (customer as Stripe.Customer & {
-        sources?: { data?: { object?: string; exp_month?: number; exp_year?: number; brand?: string; last4?: string }[] };
-      }).sources?.data;
+      const sources = (
+        customer as Stripe.Customer & {
+          sources?: {
+            data?: {
+              object?: string;
+              exp_month?: number;
+              exp_year?: number;
+              brand?: string;
+              last4?: string;
+            }[];
+          };
+        }
+      ).sources?.data;
       const source = sources?.[0];
       if (source && source.object === "card" && source.exp_month && source.exp_year) {
         return {
@@ -452,8 +479,13 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const account = event.data.object as Stripe.Account;
       // Only the connected account's own object, which is what Connect sends
       // this event for.
-      if (!account.id || account.id !== event.account) return { kind: "ignore", reason: "not_this_account" };
-      return { kind: "account_health", health: readAccountHealth(account), observedAt: new Date(event.created * 1000) };
+      if (!account.id || account.id !== event.account)
+        return { kind: "ignore", reason: "not_this_account" };
+      return {
+        kind: "account_health",
+        health: readAccountHealth(account),
+        observedAt: new Date(event.created * 1000),
+      };
     }
     case "account.application.deauthorized":
       return { kind: "connection_deauthorized" };
@@ -483,7 +515,8 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         return { kind: "ignore", reason: "not_charged_automatically" };
       }
       if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
-      const chargeAtSeconds = invoice.next_payment_attempt ?? invoice.automatically_finalizes_at ?? null;
+      const chargeAtSeconds =
+        invoice.next_payment_attempt ?? invoice.automatically_finalizes_at ?? null;
       if (!chargeAtSeconds) return { kind: "ignore", reason: "no_charge_date" };
       return {
         kind: "renewal_card_check",
@@ -503,7 +536,10 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       const customerId = asId(subscription.customer);
       if (!customerId) return { kind: "ignore", reason: "no_customer" };
       if (!subscription.trial_end) return { kind: "ignore", reason: "no_trial_end" };
-      if (subscription.cancel_at_period_end || subscription.collection_method !== "charge_automatically") {
+      if (
+        subscription.cancel_at_period_end ||
+        subscription.collection_method !== "charge_automatically"
+      ) {
         return { kind: "ignore", reason: "no_charge_at_trial_end" };
       }
       return {

@@ -59,10 +59,19 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
             A person appears here once they sign up for Foxhound.
           </Empty>
         ) : (
-          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-          <div className="cap-table-wrap" data-cap="table" data-reflow="" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-cap="table"
+            data-reflow=""
+            role="region"
+            aria-labelledby={HEADING_ID}
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+            tabIndex={0}
+          >
             <table className="cap-table">
-              <caption className="cap-sr-only">Everyone who can sign in to Foxhound, one person per row</caption>
+              <caption className="cap-sr-only">
+                Everyone who can sign in to Foxhound, one person per row
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">Person</th>
@@ -96,14 +105,21 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                         </ul>
                       )}
                     </td>
-                    <td data-label="Platform role">{u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}</td>
+                    <td data-label="Platform role">
+                      {u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}
+                    </td>
                     <td data-label="Last sign-in">
                       <AdminTime at={u.lastSignInAt} empty="No sign-in on record" />
                     </td>
                     <td data-label="Joined">
                       <AdminTime at={u.createdAt} />
                     </td>
-                    <td data-label="User ID" className="font-mono text-micro break-all text-text-tertiary">{u.id}</td>
+                    <td
+                      data-label="User ID"
+                      className="font-mono text-micro break-all text-text-tertiary"
+                    >
+                      {u.id}
+                    </td>
                   </tr>
                 ))}
               </tbody>

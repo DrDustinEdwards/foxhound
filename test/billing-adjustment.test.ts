@@ -3,9 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Db, MoneyWrite } from "~/db";
 import * as schema from "~/db/schema";
-import {
-  createAdjustment,
-} from "~/lib/billing/adjustment";
+import { createAdjustment } from "~/lib/billing/adjustment";
 import { SerialMoneyCommitter } from "~/lib/money/serializer";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -16,11 +14,11 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // shape: signed amount, invoice-first ordering, and the DB-enforced
 // admin_audit_log_id requirement (I3, closed here via a real CHECK constraint).
 
-
-
 describe("billing_line_items_adjustment_audit_ck (DB-enforced, real sqlite; closes I3)", () => {
   async function seedInvoice(db: ReturnType<typeof createInMemoryDb>["db"], accountId: string) {
-    await db.insert(schema.accounts).values({ id: accountId, name: "Acme", billingExempt: false, processingPaused: false });
+    await db
+      .insert(schema.accounts)
+      .values({ id: accountId, name: "Acme", billingExempt: false, processingPaused: false });
     await db.insert(schema.billingInvoices).values({
       id: "inv_1",
       accountId,
@@ -120,7 +118,9 @@ describe("createAdjustment idempotency (same token yields exactly one ledger cre
   });
 
   async function seedAccount(db: Db) {
-    await db.insert(schema.accounts).values({ id: "acc_1", name: "Acme", billingExempt: false, processingPaused: false });
+    await db
+      .insert(schema.accounts)
+      .values({ id: "acc_1", name: "Acme", billingExempt: false, processingPaused: false });
   }
   const adjustmentLines = (db: Db) =>
     db.select().from(schema.billingLineItems).where(eq(schema.billingLineItems.type, "adjustment"));
@@ -147,8 +147,14 @@ describe("createAdjustment idempotency (same token yields exactly one ledger cre
     // A fresh committer per call = no shared seen-set: the second batch actually
     // runs and must be rejected by billing_invoices_idempotency_uq, then mapped
     // to applied=false by the serializer.
-    const r1 = await createAdjustment(env, baseCreate(), { db, execute: sqliteExecutor(sqlite, db).execute });
-    const r2 = await createAdjustment(env, baseCreate(), { db, execute: sqliteExecutor(sqlite, db).execute });
+    const r1 = await createAdjustment(env, baseCreate(), {
+      db,
+      execute: sqliteExecutor(sqlite, db).execute,
+    });
+    const r2 = await createAdjustment(env, baseCreate(), {
+      db,
+      execute: sqliteExecutor(sqlite, db).execute,
+    });
 
     expect(r1.applied).toBe(true);
     expect(r2.applied).toBe(false);
@@ -161,7 +167,10 @@ describe("createAdjustment idempotency (same token yields exactly one ledger cre
     const { execute } = sqliteExecutor(sqlite, db);
 
     await createAdjustment(env, baseCreate({ idempotencyToken: "tok-1" }), { db, execute });
-    await createAdjustment(env, baseCreate({ idempotencyToken: "tok-2", amountCents: -300 }), { db, execute });
+    await createAdjustment(env, baseCreate({ idempotencyToken: "tok-2", amountCents: -300 }), {
+      db,
+      execute,
+    });
 
     const lines = await adjustmentLines(db);
     expect(lines).toHaveLength(2);

@@ -1,4 +1,3 @@
-
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,7 +32,14 @@ const DAY = 24 * HOUR;
 
 type Sqlite = ReturnType<typeof createInMemoryDb>["sqlite"];
 
-function insertRun(sqlite: Sqlite, id: string, cronName: string, status: string, at: number, message: string | null = null) {
+function insertRun(
+  sqlite: Sqlite,
+  id: string,
+  cronName: string,
+  status: string,
+  at: number,
+  message: string | null = null,
+) {
   sqlite
     .prepare(
       "insert into cron_run_history (id, cron_name, started_at, finished_at, status, rows_processed, message, created_at) values (?, ?, ?, ?, ?, 0, ?, ?)",
@@ -42,12 +48,18 @@ function insertRun(sqlite: Sqlite, id: string, cronName: string, status: string,
 }
 
 describe("listCronRows reads each cron's own history", () => {
-
   it("says when each cron last succeeded, apart from its last run", async () => {
     const { db, sqlite } = createInMemoryDb();
     insertRun(sqlite, "ok-old", "weekly-digest", "success", NOW - 8 * DAY);
     insertRun(sqlite, "ok-new", "weekly-digest", "success", NOW - 7 * DAY);
-    insertRun(sqlite, "bad", "weekly-digest", "failed", NOW - 2 * HOUR, "Email binding unavailable");
+    insertRun(
+      sqlite,
+      "bad",
+      "weekly-digest",
+      "failed",
+      NOW - 2 * HOUR,
+      "Email binding unavailable",
+    );
     insertRun(sqlite, "bad-only", "d1-backup", "failed", NOW - 3 * HOUR, "R2 down");
 
     const rows = await listCronRows(db, NOW);
@@ -64,8 +76,14 @@ describe("listCronRows reads each cron's own history", () => {
       .prepare("insert into cron_config (cron_name, enabled, updated_at) values (?, ?, ?)")
       .run("weekly-digest", 0, NOW);
     const rows = await listCronRows(db, NOW);
-    expect(rows.find((r) => r.name === "weekly-digest")).toMatchObject({ configured: true, enabled: false });
-    expect(rows.find((r) => r.name === "d1-backup")).toMatchObject({ configured: false, enabled: true });
+    expect(rows.find((r) => r.name === "weekly-digest")).toMatchObject({
+      configured: true,
+      enabled: false,
+    });
+    expect(rows.find((r) => r.name === "d1-backup")).toMatchObject({
+      configured: false,
+      enabled: true,
+    });
   });
 });
 
@@ -77,7 +95,9 @@ describe("the loader", () => {
     const made = createInMemoryDb();
     harness.db = made.db;
     sqlite = made.sqlite;
-    sqlite.prepare("insert into cron_config (cron_name, enabled, updated_at) values (?, ?, ?)").run("weekly-digest", 0, NOW);
+    sqlite
+      .prepare("insert into cron_config (cron_name, enabled, updated_at) values (?, ?, ?)")
+      .run("weekly-digest", 0, NOW);
   });
 
   async function load(search: string) {
@@ -85,7 +105,11 @@ describe("the loader", () => {
     const context = new RouterContextProvider();
     context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
     const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
-    return loader({ request: new Request(`https://foxhoundapp.com/admin/platform/crons${search}`), context, params: {} });
+    return loader({
+      request: new Request(`https://foxhoundapp.com/admin/platform/crons${search}`),
+      context,
+      params: {},
+    });
   }
 
   it("opens the confirm page for a switched-off cron named in the address", async () => {
@@ -99,9 +123,4 @@ describe("the loader", () => {
   });
 });
 
-
 // The page says times relative to the real clock, so its rows are too.
-
-
-
-

@@ -48,12 +48,24 @@ export async function generateMonthlyReport(
   const now = new Date(nowMs);
   if (month !== monthKeyOf(now)) return { ok: false, error: "not_current_month" };
 
-  if (!(await isWithinRateLimit(env, RATE_LIMIT_BUCKET, accountId, INTELLIGENCE_REPORT_HOURLY_LIMIT, HOUR_MS))) {
+  if (
+    !(await isWithinRateLimit(
+      env,
+      RATE_LIMIT_BUCKET,
+      accountId,
+      INTELLIGENCE_REPORT_HOURLY_LIMIT,
+      HOUR_MS,
+    ))
+  ) {
     return { ok: false, error: "rate_limited" };
   }
 
   const [account, rows, mrr] = await Promise.all([
-    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
+    db
+      .select({ currency: accounts.currency })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1),
     db
       .select({
         id: customerContext.id,

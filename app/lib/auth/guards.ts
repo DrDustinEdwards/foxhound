@@ -54,7 +54,11 @@ export function isAdminPath(pathname: string): boolean {
 // The demo-over-session precedence decision itself, as a pure function of
 // the three inputs it actually depends on, so the rule documented on
 // appShellMiddleware below is directly unit-testable.
-export function resolvesToDemo(hasSession: boolean, demoCookiePresent: boolean, pathname: string): boolean {
+export function resolvesToDemo(
+  hasSession: boolean,
+  demoCookiePresent: boolean,
+  pathname: string,
+): boolean {
   if (!demoCookiePresent) return false;
   if (!hasSession) return true; // anonymous demo visitor: unchanged, always demo
   return !isAdminPath(pathname); // signed-in: demo wins everywhere except /admin
@@ -130,7 +134,8 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (args, nex
     response?.headers.append("Set-Cookie", clearImpersonationCookieHeader());
     return response;
   } catch (thrown) {
-    if (thrown instanceof Response) thrown.headers.append("Set-Cookie", clearImpersonationCookieHeader());
+    if (thrown instanceof Response)
+      thrown.headers.append("Set-Cookie", clearImpersonationCookieHeader());
     throw thrown;
   }
 };

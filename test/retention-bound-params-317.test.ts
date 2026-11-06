@@ -104,13 +104,17 @@ const SWEEPERS: Record<string, SweeperCase> = {
       insertMany(
         db,
         engagementEvents,
-        rowsOf(n, (i) => ({
-          id: `ee_${when.getTime()}_${i}`,
-          eventType: "click",
-          idempotencyKey: `k_${when.getTime()}_${i}`,
-          occurredAt: when,
-          createdAt: when,
-        }), when),
+        rowsOf(
+          n,
+          (i) => ({
+            id: `ee_${when.getTime()}_${i}`,
+            eventType: "click",
+            idempotencyKey: `k_${when.getTime()}_${i}`,
+            occurredAt: when,
+            createdAt: when,
+          }),
+          when,
+        ),
       ),
   },
   sweepEmailSends: {
@@ -119,7 +123,11 @@ const SWEEPERS: Record<string, SweeperCase> = {
       insertMany(
         db,
         emailSends,
-        rowsOf(n, (i) => ({ id: `es_${when.getTime()}_${i}`, status: "sent", createdAt: when }), when),
+        rowsOf(
+          n,
+          (i) => ({ id: `es_${when.getTime()}_${i}`, status: "sent", createdAt: when }),
+          when,
+        ),
       ),
   },
   sweepWebhookEvents: {
@@ -128,13 +136,17 @@ const SWEEPERS: Record<string, SweeperCase> = {
       insertMany(
         db,
         webhookEvents,
-        rowsOf(n, (i) => ({
-          id: `we_${when.getTime()}_${i}`,
-          stripeEventId: `evt_${when.getTime()}_${i}`,
-          eventType: "invoice.payment_failed",
-          receivedAt: when,
-          payload: {},
-        }), when),
+        rowsOf(
+          n,
+          (i) => ({
+            id: `we_${when.getTime()}_${i}`,
+            stripeEventId: `evt_${when.getTime()}_${i}`,
+            eventType: "invoice.payment_failed",
+            receivedAt: when,
+            payload: {},
+          }),
+          when,
+        ),
       ),
   },
   sweepHealthScoreHistory: {
@@ -161,16 +173,20 @@ const SWEEPERS: Record<string, SweeperCase> = {
       await insertMany(
         db,
         healthScoreHistory,
-        rowsOf(n, (i) => ({
-          id: `hsh_${when.getTime()}_${i}`,
-          accountId: "acct_317",
-          customerContextId: "cc_317",
-          stripeCustomerId: `cus_${i}`,
-          recordedAt: when,
-          healthScore: 50,
-          healthFactors: {},
-          scoreSource: "deterministic",
-        }), when),
+        rowsOf(
+          n,
+          (i) => ({
+            id: `hsh_${when.getTime()}_${i}`,
+            accountId: "acct_317",
+            customerContextId: "cc_317",
+            stripeCustomerId: `cus_${i}`,
+            recordedAt: when,
+            healthScore: 50,
+            healthFactors: {},
+            scoreSource: "deterministic",
+          }),
+          when,
+        ),
       );
     },
   },
@@ -180,15 +196,19 @@ const SWEEPERS: Record<string, SweeperCase> = {
       insertMany(
         db,
         cronRunHistory,
-        rowsOf(n, (i) => ({
-          id: `crh_${when.getTime()}_${i}`,
-          cronName: "recovery-tick",
-          startedAt: when,
-          finishedAt: when,
-          status: "success",
-          rowsProcessed: 0,
-          createdAt: when,
-        }), when),
+        rowsOf(
+          n,
+          (i) => ({
+            id: `crh_${when.getTime()}_${i}`,
+            cronName: "recovery-tick",
+            startedAt: when,
+            finishedAt: when,
+            status: "success",
+            rowsProcessed: 0,
+            createdAt: when,
+          }),
+          when,
+        ),
       ),
   },
   sweepSocialLeads: {
@@ -197,16 +217,20 @@ const SWEEPERS: Record<string, SweeperCase> = {
       insertMany(
         db,
         socialLeads,
-        rowsOf(n, (i) => ({
-          id: `sl_${when.getTime()}_${i}`,
-          platform: "reddit",
-          postUrl: `https://example.test/${when.getTime()}/${i}`,
-          intentScore: 1,
-          status: "new",
-          scoutRunAt: when,
-          repliedAt: null,
-          createdAt: when,
-        }), when),
+        rowsOf(
+          n,
+          (i) => ({
+            id: `sl_${when.getTime()}_${i}`,
+            platform: "reddit",
+            postUrl: `https://example.test/${when.getTime()}/${i}`,
+            intentScore: 1,
+            status: "new",
+            scoutRunAt: when,
+            repliedAt: null,
+            createdAt: when,
+          }),
+          when,
+        ),
       ),
   },
   sweepAiCalls: {
@@ -216,16 +240,20 @@ const SWEEPERS: Record<string, SweeperCase> = {
       insertMany(
         db,
         aiCalls,
-        rowsOf(n, (i) => ({
-          id: `ai_${when.getTime()}_${i}`,
-          source: "narrative",
-          model: "claude-haiku-4-5",
-          promptTokens: 10,
-          completionTokens: 5,
-          costCents: 1,
-          currency: "usd",
-          createdAt: when,
-        }), when),
+        rowsOf(
+          n,
+          (i) => ({
+            id: `ai_${when.getTime()}_${i}`,
+            source: "narrative",
+            model: "claude-haiku-4-5",
+            promptTokens: 10,
+            completionTokens: 5,
+            costCents: 1,
+            currency: "usd",
+            createdAt: when,
+          }),
+          when,
+        ),
       ),
   },
 };
@@ -282,7 +310,6 @@ describe("317: the predicate sites carry NO id list at all", () => {
 });
 
 describe("317: sweepAiCalls keeps its id list, and batches it", () => {
-
   it("still aggregates into monthly buckets and removes every aged row", async () => {
     // The atomicity contract survives the chunking: aggregate and delete are one
     // batch, so a partial chunk set can never leave rows counted but undeleted.
@@ -305,7 +332,6 @@ describe("317: sweepAiCalls keeps its id list, and batches it", () => {
 // ============================================================================
 
 describe("317: the subquery predicate deletes the aged rows and spares fresh ones", () => {
-
   it("an empty table sweeps to zero and issues no delete at all", async () => {
     const { sqlite, db } = createInMemoryDb();
     harness.db = db;
@@ -340,7 +366,9 @@ describe("317: the ceiling, and the harness gap that hid it", () => {
 
   it("chunkIds handles the boundaries: empty, exactly one chunk, one over", () => {
     expect(retention.chunkIds([])).toEqual([]);
-    expect(retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE }, (_, i) => i))).toHaveLength(1);
+    expect(
+      retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE }, (_, i) => i)),
+    ).toHaveLength(1);
     expect(
       retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE + 1 }, (_, i) => i)),
     ).toHaveLength(2);

@@ -48,12 +48,16 @@ const PREVIEW_PAYMENT_ROWS = 8;
 function money(rows: { amountCents: number; currency: string }[]): string {
   // One computation for a money total. The demo bills in one
   // currency; a second one would be a seed change, and this shows the first.
-  const [first] = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
+  const [first] = groupSumByCurrency(
+    rows.map((r) => ({ currency: r.currency, cents: r.amountCents })),
+  );
   return formatMoney(first?.cents ?? 0, first?.currency ?? "usd");
 }
 
 function roiColumn(rows: { amountCents: number; currency: string }[]): RoiColumn {
-  const [total] = groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: r.amountCents })));
+  const [total] = groupSumByCurrency(
+    rows.map((r) => ({ currency: r.currency, cents: r.amountCents })),
+  );
   const cents = total?.cents ?? 0;
   const currency = total?.currency ?? "usd";
   const fee = recoveryFeeCents(cents);
@@ -78,7 +82,12 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
 
   const failures = seed.failedPayments
     .filter((f) => !f.isRenewalNoise && f.deletedAt == null)
-    .map((f) => ({ ...f, id: f.id as string, detectedAt: f.detectedAt as Date, status: f.status as string }))
+    .map((f) => ({
+      ...f,
+      id: f.id as string,
+      detectedAt: f.detectedAt as Date,
+      status: f.status as string,
+    }))
     .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
   // listRecoveredWithFailureContext joins on renewal noise only, not on a
   // soft-deleted failure, so the recovered total does the same.
@@ -92,7 +101,9 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   const active = failures.filter((f) => f.status === "active");
   const cohort = failures.filter((f) => f.detectedAt.getTime() >= cutoff30);
   const ratePct =
-    cohort.length > 0 ? Math.round((cohort.filter((f) => recoveredIds.has(f.id)).length / cohort.length) * 100) : null;
+    cohort.length > 0
+      ? Math.round((cohort.filter((f) => recoveredIds.has(f.id)).length / cohort.length) * 100)
+      : null;
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
   const firstOfMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -109,7 +120,11 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   );
 
   const failuresByCustomer = new Map<string, number>();
-  for (const f of failures) failuresByCustomer.set(f.stripeCustomerId, (failuresByCustomer.get(f.stripeCustomerId) ?? 0) + 1);
+  for (const f of failures)
+    failuresByCustomer.set(
+      f.stripeCustomerId,
+      (failuresByCustomer.get(f.stripeCustomerId) ?? 0) + 1,
+    );
 
   const rows = failures.slice(0, PREVIEW_PAYMENT_ROWS).map((f): PreviewPaymentRow => {
     const summary = summarizeSequence(
@@ -148,8 +163,12 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   return {
     asOf: now.toISOString(),
     dashboard: {
-      recovered30d: money(recovered30.map((r) => ({ amountCents: r.amountCents, currency: r.currency }))),
-      atRisk: money(active.map((f) => ({ amountCents: f.amountCents, currency: f.currency ?? "usd" }))),
+      recovered30d: money(
+        recovered30.map((r) => ({ amountCents: r.amountCents, currency: r.currency })),
+      ),
+      atRisk: money(
+        active.map((f) => ({ amountCents: f.amountCents, currency: f.currency ?? "usd" })),
+      ),
       ratePct,
       rateBand: recoveryRateBand(ratePct),
       rateTone: ratePct === null ? null : recoveryRateTone(ratePct),
@@ -170,6 +189,7 @@ let cached: { hour: number; preview: RecoveryPreview } | null = null;
 
 export function recoveryPreviewFor(nowMs: number): RecoveryPreview {
   const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour) cached = { hour, preview: buildRecoveryPreview(new Date(hour * HOUR_MS)) };
+  if (cached?.hour !== hour)
+    cached = { hour, preview: buildRecoveryPreview(new Date(hour * HOUR_MS)) };
   return cached.preview;
 }

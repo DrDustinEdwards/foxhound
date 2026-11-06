@@ -51,10 +51,16 @@ export const MCP_SERVER_INFO = {
 };
 
 /** The server as site-runtime's refusals and the shared log name it. */
-export const MCP_SERVER = { site: "Foxhound", scopes: MERCHANT_SCOPES, name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
+export const MCP_SERVER = {
+  site: "Foxhound",
+  scopes: MERCHANT_SCOPES,
+  name: MCP_SERVER_INFO.name,
+  version: MCP_SERVER_INFO.version,
+};
 
 /** site-runtime's words for the list-only test key, which lists tools and runs none. */
-const PROBE_REFUSAL = "Refused: this is the list-only test key for Foxhound. It can list tools and never runs one.";
+const PROBE_REFUSAL =
+  "Refused: this is the list-only test key for Foxhound. It can list tools and never runs one.";
 
 const INSTRUCTIONS = [
   "Foxhound recovers failed Stripe payments and tracks disputes and subscription health for one merchant: the account this key belongs to, and no other.",
@@ -104,9 +110,17 @@ function errorForAgent(tool: string, err: unknown): string {
  * order, so `tools/list` is deterministic. `scopes` is null for the list-only
  * test key, which holds no OAuth token and runs nothing.
  */
-function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: readonly string[] | null): McpServer {
+function buildMcpServer(
+  registry: McpToolRegistry,
+  ctx: McpToolContext,
+  scopes: readonly string[] | null,
+): McpServer {
   // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
-  const server = new McpServer(MCP_SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS, maxToolInputElements: 10_000 });
+  const server = new McpServer(MCP_SERVER_INFO, {
+    instructions: INSTRUCTIONS,
+    cacheHints: CACHE_HINTS,
+    maxToolInputElements: 10_000,
+  });
   for (const descriptor of registry.list()) {
     const tool = registry.get(descriptor.name);
     if (!tool) continue;
@@ -116,7 +130,9 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
         title: descriptor.title,
         description: descriptor.description,
         inputSchema: fromJsonSchema(descriptor.inputSchema as JsonSchemaType),
-        ...(descriptor.outputSchema ? { outputSchema: fromJsonSchema(descriptor.outputSchema as JsonSchemaType) } : {}),
+        ...(descriptor.outputSchema
+          ? { outputSchema: fromJsonSchema(descriptor.outputSchema as JsonSchemaType) }
+          : {}),
         annotations: descriptor.annotations,
         // Each tool wears the site's icon, as on every network server (area 11, T9).
         icons: MCP_SERVER_INFO.icons,
@@ -159,7 +175,10 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
         const needed = tool.scope === "write" ? MERCHANT_SCOPES.write : MERCHANT_SCOPES.read;
         if (!scopes.includes(needed)) {
           return toolResult(
-            { error: `${descriptor.name} needs ${needed}. Reconnect and tick "Allow changes" on the consent page.`, tool: descriptor.name },
+            {
+              error: `${descriptor.name} needs ${needed}. Reconnect and tick "Allow changes" on the consent page.`,
+              tool: descriptor.name,
+            },
             true,
           );
         }
@@ -172,7 +191,10 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
           );
           return toolResult(data);
         } catch (err) {
-          return toolResult({ error: errorForAgent(descriptor.name, err), tool: descriptor.name }, true);
+          return toolResult(
+            { error: errorForAgent(descriptor.name, err), tool: descriptor.name },
+            true,
+          );
         }
       },
     );
@@ -184,13 +206,19 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
  *  can answer it: site-runtime's routeMcpEra, the one era router every family
  *  MCP server runs (area 11, P1). `authInfo` carries the key's scopes, for the
  *  per-tool step-up; null is the list-only test key, which every tool refuses. */
-export function serveMcp(request: Request, registry: McpToolRegistry, ctx: McpToolContext, authInfo: AuthInfo | null) {
+export function serveMcp(
+  request: Request,
+  registry: McpToolRegistry,
+  ctx: McpToolContext,
+  authInfo: AuthInfo | null,
+) {
   // `responseMode` stays the SDK's "auto": one JSON body per modern answer,
   // because no tool here emits a message before its result.
   return routeMcpEra(request, ctx.env, undefined, {
     factory: () => buildMcpServer(registry, ctx, authInfo ? authInfo.scopes : null),
     options: {},
-    createMcpHandler: (factory, options) => (req) => createMcpHandler(factory, options).fetch(req, authInfo ? { authInfo } : {}),
+    createMcpHandler: (factory, options) => (req) =>
+      createMcpHandler(factory, options).fetch(req, authInfo ? { authInfo } : {}),
     isLegacyRequest: (req) => isLegacyRequest(req),
   });
 }

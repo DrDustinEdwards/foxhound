@@ -42,10 +42,19 @@ const subscription = (amount: number, currency: string, customer: string) =>
     currency,
     customer,
     default_payment_method: { card: { exp_month: 10, exp_year: 2026 } },
-    items: { data: [{ price: { unit_amount: amount, recurring: { interval: "month", interval_count: 1 } } }] },
+    items: {
+      data: [
+        { price: { unit_amount: amount, recurring: { interval: "month", interval_count: 1 } } },
+      ],
+    },
   }) as unknown as Stripe.Subscription;
 const dispute = (amount: number, currency: string, status: string) =>
-  ({ amount, currency, status, evidence_details: { submission_count: 0 } }) as unknown as Stripe.Dispute;
+  ({
+    amount,
+    currency,
+    status,
+    evidence_details: { submission_count: 0 },
+  }) as unknown as Stripe.Dispute;
 
 /** $1,240 and EUR 310 failed; $1,000 and EUR 500 MRR; $200 and EUR 50 in open
  *  disputes, and $300 and EUR 70 lost without a response. USD comes first in
@@ -61,7 +70,10 @@ const twoCurrencies = (
     reads: {
       uncollectibleInvoices: ok(failed),
       openInvoices: ok<Stripe.Invoice>([]),
-      subscriptions: ok([subscription(100_000, "usd", "cus_1"), subscription(50_000, "eur", "cus_2")]),
+      subscriptions: ok([
+        subscription(100_000, "usd", "cus_1"),
+        subscription(50_000, "eur", "cus_2"),
+      ]),
       disputes: ok([
         dispute(20_000, "usd", "needs_response"),
         dispute(5_000, "eur", "under_review"),
@@ -110,7 +122,8 @@ const ACCOUNT = "acct_alpha";
 function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
       if (key === authContext) {
         return {
           userId: "user_1",
@@ -134,7 +147,9 @@ describe("audit money figures, one line per currency", () => {
     const made = createInMemoryDb();
     sqlite = made.sqlite;
     harness.db = made.db;
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, ACCOUNT);
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+      .run(ACCOUNT, ACCOUNT);
   });
 
   async function loadRun(id: string): Promise<AuditRunView> {
@@ -197,7 +212,12 @@ describe("audit money figures, one line per currency", () => {
 
   async function save(result: ReturnType<typeof twoCurrencies>, now: Date): Promise<string> {
     const { saveAuditRun } = await import("~/lib/audit/persist.server");
-    return saveAuditRun({} as Env, result, { accountId: ACCOUNT, isAuthenticated: true, summary: "s", now });
+    return saveAuditRun({} as Env, result, {
+      accountId: ACCOUNT,
+      isAuthenticated: true,
+      summary: "s",
+      now,
+    });
   }
 
   async function renderHistory(): Promise<string> {

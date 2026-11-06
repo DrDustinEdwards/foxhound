@@ -126,7 +126,8 @@ export function cumulativeRecoveryRateDaily(
     const key = dayKey(new Date(nowMs - i * DAY_MS));
     cumulativeRecovered += recoveredByDay.get(key) ?? 0;
     cumulativeFailed += failedByDay.get(key) ?? 0;
-    const rate = cumulativeFailed === 0 ? null : Math.round((cumulativeRecovered / cumulativeFailed) * 100);
+    const rate =
+      cumulativeFailed === 0 ? null : Math.round((cumulativeRecovered / cumulativeFailed) * 100);
     points.push({ date: key, rate });
   }
   return points;
@@ -203,9 +204,16 @@ export function bestCategory(
   categoryStats: Partial<Record<DeclineCategory, CategoryStat>>,
 ): BestCategory | null {
   const withRates = (Object.entries(categoryStats) as [DeclineCategory, CategoryStat][]).map(
-    ([cat, v]) => ({ cat, total: v.total, recovered: v.recovered, rate: Math.round((v.recovered / v.total) * 100) }),
+    ([cat, v]) => ({
+      cat,
+      total: v.total,
+      recovered: v.recovered,
+      rate: Math.round((v.recovered / v.total) * 100),
+    }),
   );
-  const strictWinner = withRates.filter((c) => c.total >= 3 && c.recovered >= 2).sort((a, b) => b.rate - a.rate)[0];
+  const strictWinner = withRates
+    .filter((c) => c.total >= 3 && c.recovered >= 2)
+    .sort((a, b) => b.rate - a.rate)[0];
   const fallbackWinner = withRates.filter((c) => c.total >= 2).sort((a, b) => b.rate - a.rate)[0];
   const winner = strictWinner ?? fallbackWinner;
   return winner ? { cat: winner.cat, rate: winner.rate } : null;
@@ -230,7 +238,8 @@ export function classifyWebhookHealth(lastWebhookAt: Date | null, nowMs: number)
   if (!lastWebhookAt) return { tone: "neutral", label: "Waiting for the first webhook" };
   const ageMs = nowMs - lastWebhookAt.getTime();
   if (ageMs <= WEBHOOK_HEALTHY_WITHIN_MS) return { tone: "success", label: "Receiving webhooks" };
-  if (ageMs <= WEBHOOK_QUIET_WITHIN_MS) return { tone: "neutral", label: "No webhook in the last day" };
+  if (ageMs <= WEBHOOK_QUIET_WITHIN_MS)
+    return { tone: "neutral", label: "No webhook in the last day" };
   return { tone: "failure", label: "No webhook in over 3 days" };
 }
 

@@ -40,9 +40,7 @@ function auditWith(over: Partial<AuditInputs> = {}) {
   });
 }
 
-
 describe("PLANT 2: a scope that could not be read says so", () => {
-
   it("an OK scope still renders its numbers, so the absence is not everywhere", () => {
     // BOTH DIRECTIONS: a builder that printed "could not be read" for everything
     // would pass the assertion above.
@@ -52,7 +50,6 @@ describe("PLANT 2: a scope that could not be read says so", () => {
 });
 
 describe("PLANT 3: the fallback", () => {
-
   it("NO KEY YIELDS THE FALLBACK WITH A REASON, never a throw", async () => {
     const { generateAuditSummary } = await import("~/lib/audit/summary.server");
     const outcome = await generateAuditSummary({} as Env, auditWith());
@@ -65,17 +62,15 @@ describe("PLANT 3: the fallback", () => {
 });
 
 describe("PLANT 4: the call", () => {
-
   it("A FAILED CALL FALLS BACK WITH THE REASON, and an EMPTY REPLY does too", async () => {
     vi.doMock("~/lib/ai/client", () => ({
       REWRITE: { maxAttempts: 1 },
       askModel: () => Promise.resolve({ ok: false, kind: "unavailable" }),
     }));
     vi.resetModules();
-    const thrown = await (await import("~/lib/audit/summary.server")).generateAuditSummary(
-      { ANTHROPIC_API_KEY: "sk" } as unknown as Env,
-      auditWith(),
-    );
+    const thrown = await (
+      await import("~/lib/audit/summary.server")
+    ).generateAuditSummary({ ANTHROPIC_API_KEY: "sk" } as unknown as Env, auditWith());
     expect(thrown).toEqual({
       source: "fallback",
       summary: AUDIT_SUMMARY_FALLBACK,
@@ -87,10 +82,9 @@ describe("PLANT 4: the call", () => {
       askModel: () => Promise.resolve({ ok: true, text: "   " }),
     }));
     vi.resetModules();
-    const empty = await (await import("~/lib/audit/summary.server")).generateAuditSummary(
-      { ANTHROPIC_API_KEY: "sk" } as unknown as Env,
-      auditWith(),
-    );
+    const empty = await (
+      await import("~/lib/audit/summary.server")
+    ).generateAuditSummary({ ANTHROPIC_API_KEY: "sk" } as unknown as Env, auditWith());
     // An empty reply is a failure wearing a success, so it takes the same arm.
     expect(empty).toEqual({
       source: "fallback",

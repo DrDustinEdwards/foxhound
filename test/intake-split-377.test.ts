@@ -177,7 +177,6 @@ beforeEach(() => {
 });
 
 describe("ARM ONE: Stripe is still retrying", () => {
-
   it("a second failure while Stripe is STILL retrying stays parked and adds no row", async () => {
     const db = await seed();
     await processConnectedWebhook({} as Env, paymentFailed("evt_1", 1_756_000_000), FIRST_FAILURE);
@@ -292,29 +291,35 @@ describe("hard declines never wait, because Stripe will not retry the same card"
   it.each([
     ["expired_card", "expired"],
     ["fraudulent", "fraud"],
-  ])("%s starts on the first event while Stripe still has an attempt scheduled", async (declineCode) => {
-    const db = await seed();
+  ])(
+    "%s starts on the first event while Stripe still has an attempt scheduled",
+    async (declineCode) => {
+      const db = await seed();
 
-    const outcome = await processConnectedWebhook(
-      {} as Env,
-      paymentFailed("evt_hard", 1_756_000_000, { declineCode }),
-      FIRST_FAILURE,
-    );
-    expect(outcome).toEqual({ status: "applied" });
+      const outcome = await processConnectedWebhook(
+        {} as Env,
+        paymentFailed("evt_hard", 1_756_000_000, { declineCode }),
+        FIRST_FAILURE,
+      );
+      expect(outcome).toEqual({ status: "applied" });
 
-    const [payment] = await payments(db);
-    expect(payment.status).toBe(FAILED_PAYMENT_STATUS_ACTIVE);
-    expect((await steps(db)).length).toBeGreaterThan(0);
-  });
+      const [payment] = await payments(db);
+      expect(payment.status).toBe(FAILED_PAYMENT_STATUS_ACTIVE);
+      expect((await steps(db)).length).toBeGreaterThan(0);
+    },
+  );
 });
-
 
 describe("a closed invoice opens and keeps no dunning", () => {
   it("a late payment_failed for an invoice Stripe now reports paid is claimed and nothing more", async () => {
     const db = await seed();
     harness.invoiceStatus = "paid";
 
-    const outcome = await processConnectedWebhook({} as Env, paymentFailed("evt_late", null), FIRST_FAILURE);
+    const outcome = await processConnectedWebhook(
+      {} as Env,
+      paymentFailed("evt_late", null),
+      FIRST_FAILURE,
+    );
     expect(outcome).toEqual({ status: "ignored", reason: "invoice_closed" });
     expect(await payments(db)).toHaveLength(0);
   });

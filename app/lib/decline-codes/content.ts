@@ -77,11 +77,11 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
 
   do_not_honor: {
     meaning:
-      "`do_not_honor` is the card network's oldest and most common decline reason: the issuing bank said no to the charge without telling Stripe why. It is a soft decline. The name sounds serious, but in practice it functions as a catch-all, not a verdict on the card, the account, or the customer.\n\nUnder the ISO 8583 standard that card networks use to move authorization messages, `do_not_honor` maps to response code \"05,\" the single most frequent decline code seen on card-not-present transactions across the industry. Banks route a wide variety of situations through this code: a temporary fraud flag, a spending limit reached, several declines stacking on the same card in a short span, a velocity trigger, or an internal bank system issue. None of those mean the card is closed or the account is fraudulent. The bank is simply declining right now, for a reason it has chosen not to share.",
+      '`do_not_honor` is the card network\'s oldest and most common decline reason: the issuing bank said no to the charge without telling Stripe why. It is a soft decline. The name sounds serious, but in practice it functions as a catch-all, not a verdict on the card, the account, or the customer.\n\nUnder the ISO 8583 standard that card networks use to move authorization messages, `do_not_honor` maps to response code "05," the single most frequent decline code seen on card-not-present transactions across the industry. Banks route a wide variety of situations through this code: a temporary fraud flag, a spending limit reached, several declines stacking on the same card in a short span, a velocity trigger, or an internal bank system issue. None of those mean the card is closed or the account is fraudulent. The bank is simply declining right now, for a reason it has chosen not to share.',
     whyItHappens:
       "Recurring billing triggers this code more than one-time purchases for reasons rooted in timing and pattern recognition. A subscription charge that fires automatically at 3am as part of a merchant's batch billing run looks statistically different to a bank's fraud model than a purchase a customer makes by hand at 2pm. Add in the fact that a customer's card may already have other charges stacking up around the same billing cycle (other subscriptions, other merchants), and the velocity signals a bank watches for are more likely to trip.",
     howToFix:
-      "Yes. This is functionally the twin of `generic_decline`: both are soft, catch-all issuer declines, both correspond to the same underlying \"05\" network response, and the practical difference is only whether the bank returned \"05\" directly or Stripe applied its own broader label over the same underlying signal. The handling is identical. An immediate retry usually fails for the same reason the first attempt did. A retry spaced out by hours, once a temporary hold or fraud flag has had time to clear, succeeds far more often.\n\nTreat it the same way as `generic_decline`: retry on a delay rather than instantly, respect network-imposed retry caps, and reserve customer-facing emails for cases where automated retries have already failed. Sending an alarming \"your payment was declined\" email the moment this code appears, before giving a delayed retry a chance to work, creates unnecessary customer anxiety over what is usually a same-day or next-day resolution.",
+      'Yes. This is functionally the twin of `generic_decline`: both are soft, catch-all issuer declines, both correspond to the same underlying "05" network response, and the practical difference is only whether the bank returned "05" directly or Stripe applied its own broader label over the same underlying signal. The handling is identical. An immediate retry usually fails for the same reason the first attempt did. A retry spaced out by hours, once a temporary hold or fraud flag has had time to clear, succeeds far more often.\n\nTreat it the same way as `generic_decline`: retry on a delay rather than instantly, respect network-imposed retry caps, and reserve customer-facing emails for cases where automated retries have already failed. Sending an alarming "your payment was declined" email the moment this code appears, before giving a delayed retry a chance to work, creates unnecessary customer anxiety over what is usually a same-day or next-day resolution.',
     faqs: [
       {
         question: "Is `do_not_honor` worse than a generic decline?",
@@ -94,7 +94,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Sometimes, but not always. Fraud holds are one of several possible causes, alongside spending limits, velocity triggers, and plain bank system issues.",
       },
       {
-        question: "Why do subscription charges hit `do_not_honor` more than a one-time purchase would?",
+        question:
+          "Why do subscription charges hit `do_not_honor` more than a one-time purchase would?",
         answer:
           "Overnight batch billing runs and stacked recurring charges across multiple merchants both look different to a bank's automated fraud screening than a single customer-initiated purchase.",
       },
@@ -117,7 +118,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
     whyItHappens:
       "Recurring charges hit `generic_decline` more often than one-time purchases for a few reasons. Bank fraud systems apply stricter automated scrutiny to charges that look like recurring billing, and a charge firing at 2am during a batch billing run reads differently to that system than a charge a customer initiates themselves at checkout. Card velocity limits can also contribute: if a customer has been charged several times in a short window across different merchants, the next charge is more likely to get flagged. On top of that, Stripe Radar rules configured by the merchant can themselves produce a `generic_decline` when a transaction matches a risk pattern, even when the bank would have approved it.",
     howToFix:
-      "Yes, but not immediately. Retrying the instant a `generic_decline` comes back rarely works, because the condition that caused the decline (a fraud hold, a limit, a system issue) is usually still present a few seconds or minutes later. Waiting gives those temporary conditions time to clear. Card networks also enforce hard caps on retry volume: Mastercard allows up to 35 retry attempts per card within 30 days, and Visa allows up to 15. Exceeding either threshold triggers network penalty fees, so retry timing and count both matter, not just persistence.\n\nSpace retries out over hours or days rather than firing them back to back. Track how many attempts have been made against network limits. If retries are exhausted without success, move to a direct, low-friction message to the customer asking them to update or confirm their payment method, rather than a generic \"payment failed\" notice that gives them no path forward.",
+      'Yes, but not immediately. Retrying the instant a `generic_decline` comes back rarely works, because the condition that caused the decline (a fraud hold, a limit, a system issue) is usually still present a few seconds or minutes later. Waiting gives those temporary conditions time to clear. Card networks also enforce hard caps on retry volume: Mastercard allows up to 35 retry attempts per card within 30 days, and Visa allows up to 15. Exceeding either threshold triggers network penalty fees, so retry timing and count both matter, not just persistence.\n\nSpace retries out over hours or days rather than firing them back to back. Track how many attempts have been made against network limits. If retries are exhausted without success, move to a direct, low-friction message to the customer asking them to update or confirm their payment method, rather than a generic "payment failed" notice that gives them no path forward.',
     faqs: [
       {
         question: "Does `generic_decline` mean my card is blocked?",
@@ -130,7 +131,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "It rarely helps. Banks typically will not disclose the specific reason behind a `generic_decline`, since the code exists precisely because they chose not to share detail with Stripe.",
       },
       {
-        question: "Why did my subscription renewal fail with this code when my one-time purchase last month went through fine?",
+        question:
+          "Why did my subscription renewal fail with this code when my one-time purchase last month went through fine?",
         answer:
           "Recurring charges get more automated scrutiny from bank fraud systems, and batch billing runs (often overnight) can look unusual compared to a customer-initiated purchase.",
       },
@@ -261,7 +263,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
     whyItHappens:
       "The most common cause is a bank system outage or maintenance window on the issuing side. These are usually short, minutes to a few hours, and resolve on their own. A second cause is a network timeout between Stripe and the issuing bank: if the authorization request doesn't get a response within the timeout threshold, Stripe returns a processing error instead of leaving the charge in limbo. A less common cause is load on Stripe's own infrastructure during peak processing windows, which affects a small percentage of requests and clears up once volume normalizes. For a recurring subscription charge, none of these causes have anything to do with the customer's card, balance, or account standing. The timing is just unlucky.",
     howToFix:
-      "Yes. This is a soft, technical decline, and retrying after a short delay resolves it in the large majority of cases. There is no reason to treat it like a card problem or ask the customer to update their payment method, at least not on the first pass.\n\nA retry window of 2 to 6 hours catches most instances, since that covers typical bank maintenance windows and transient network issues. A second retry at roughly 24 hours catches anything that lingered past the first attempt. Because this decline is never the customer's fault, best practice is to hold off on any customer-facing email until retries are exhausted. Sending a \"please update your card\" message for a problem that had nothing to do with their card creates confusion and unnecessary support tickets.",
+      'Yes. This is a soft, technical decline, and retrying after a short delay resolves it in the large majority of cases. There is no reason to treat it like a card problem or ask the customer to update their payment method, at least not on the first pass.\n\nA retry window of 2 to 6 hours catches most instances, since that covers typical bank maintenance windows and transient network issues. A second retry at roughly 24 hours catches anything that lingered past the first attempt. Because this decline is never the customer\'s fault, best practice is to hold off on any customer-facing email until retries are exhausted. Sending a "please update your card" message for a problem that had nothing to do with their card creates confusion and unnecessary support tickets.',
     faqs: [
       {
         question: "Does `processing_error` mean the customer's card was declined?",
@@ -274,7 +276,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. Since the cause is technical and usually resolves within hours, an immediate email asking them to update their card is misleading and can create support friction. Wait until retries have run their course.",
       },
       {
-        question: "How long should I wait before retrying a charge that failed with `processing_error`?",
+        question:
+          "How long should I wait before retrying a charge that failed with `processing_error`?",
         answer:
           "A first retry between 2 and 6 hours after the failure covers most bank maintenance windows and network timeouts. A second retry around the 24 hour mark catches slower-resolving issues.",
       },
@@ -284,7 +287,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. Fraud declines come from the issuer's risk systems flagging the transaction. `processing_error` comes from a breakdown somewhere in the technical processing chain, unrelated to the transaction's legitimacy.",
       },
       {
-        question: "Will retrying the same charge repeatedly eventually work if `processing_error` keeps recurring?",
+        question:
+          "Will retrying the same charge repeatedly eventually work if `processing_error` keeps recurring?",
         answer:
           "Usually the first or second retry succeeds once the underlying outage or network issue clears. If a charge keeps failing with this code across multiple retries over several days, it's worth treating it more like a persistent card issue and reaching out to the customer.",
       },
@@ -315,7 +319,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. A quick, silent retry that succeeds is invisible to the customer, which is exactly the intent behind treating this as a soft, retryable decline rather than an immediate customer-facing failure.",
       },
       {
-        question: "Should repeated `card_error` failures against the same card ever be treated as a sign the stored card data is bad?",
+        question:
+          "Should repeated `card_error` failures against the same card ever be treated as a sign the stored card data is bad?",
         answer:
           "Yes. If it keeps recurring against the same card across multiple spaced-out retries rather than clearing after one or two attempts, that pattern is worth a direct customer message asking them to re-enter their card, rather than continuing to retry against a record that may be the actual problem.",
       },
@@ -341,7 +346,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. It means Stripe's request never reached the bank, or the bank never responded. There was no yes or no answer from the issuer at all, so nothing about the card was actually evaluated.",
       },
       {
-        question: "Is `issuer_not_available` connected to the customer's account balance or credit standing?",
+        question:
+          "Is `issuer_not_available` connected to the customer's account balance or credit standing?",
         answer:
           "No. It's a connectivity and availability issue on the issuing bank's side, unrelated to whether the customer has enough funds or good standing on the account.",
       },
@@ -351,12 +357,14 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Most instances clear within a few hours as the bank's systems come back online. A small number take closer to a day if the outage or maintenance window runs long.",
       },
       {
-        question: "Should I flag the account or restrict access after an `issuer_not_available` decline?",
+        question:
+          "Should I flag the account or restrict access after an `issuer_not_available` decline?",
         answer:
           "No. Since the cause sits entirely on the bank's side, there's no reason to treat the account as risky or the card as invalid. Retry and move on.",
       },
       {
-        question: "Does Foxhound treat `issuer_not_available` differently from a card-declined-for-funds error?",
+        question:
+          "Does Foxhound treat `issuer_not_available` differently from a card-declined-for-funds error?",
         answer:
           "Yes. Foxhound's classifier routes it into the network bucket rather than the card-condition bucket, which means faster automatic retries and no customer email while those retries are in progress.",
       },
@@ -372,7 +380,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       "Yes. Stripe's own framing (an unknown reason, not a specific hard rejection) combined with how it behaves in practice supports treating it as retryable rather than final. Waiting a short period and attempting the charge again resolves the issue in most cases.\n\nGive it the same retry cadence as other transient technical declines: an early retry in the 2 to 6 hour range, then a follow-up around 24 hours if the first attempt doesn't clear it. Skip the customer email until after retries have been exhausted. Since the decline gives no specific reason and the card itself likely isn't at fault, asking a customer to re-enter their card details prematurely tends to produce confused replies and wasted support time.",
     faqs: [
       {
-        question: "What does it mean when Stripe declines a card for an \"unknown reason\"?",
+        question: 'What does it mean when Stripe declines a card for an "unknown reason"?',
         answer:
           "It means the issuing bank didn't supply Stripe with a specific rejection reason like insufficient funds or a fraud flag. `try_again_later` is Stripe's label for that generic, non-specific decline.",
       },
@@ -382,7 +390,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Not by itself. Nothing in the code indicates the card is closed, expired, or otherwise permanently unusable. It behaves as a temporary block far more often than a permanent one.",
       },
       {
-        question: "Should I ask the customer to switch payment methods after one `try_again_later` decline?",
+        question:
+          "Should I ask the customer to switch payment methods after one `try_again_later` decline?",
         answer:
           "Not immediately. Since the code gives no specific reason and often resolves on retry, it's better to attempt a background retry first and only involve the customer if retries don't succeed.",
       },
@@ -428,7 +437,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "An immediate retry sometimes works, but spacing the first attempt out by a few hours gives the affected system more time to recover, which improves the odds of success.",
       },
       {
-        question: "Does Foxhound distinguish `service_unavailable` from a hard decline like an expired card?",
+        question:
+          "Does Foxhound distinguish `service_unavailable` from a hard decline like an expired card?",
         answer:
           "Yes. Foxhound's classifier routes `service_unavailable` into the retryable network bucket, while expired cards go into their own bucket, which skips the early silent retries and retries once, late in the sequence, only if the card has been updated.",
       },
@@ -459,12 +469,14 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Sometimes, if the block was a temporary network-level restriction. But if the card product structurally doesn't support recurring billing, retries will keep failing and a different payment method is needed.",
       },
       {
-        question: "How should the customer email differ for `card_not_supported` versus a technical network decline?",
+        question:
+          "How should the customer email differ for `card_not_supported` versus a technical network decline?",
         answer:
           "It should be specific: explain that the card doesn't support recurring charges and ask for an alternative payment method, rather than a generic payment failure notice.",
       },
       {
-        question: "Does Foxhound retry `card_not_supported` the same way it retries a technical decline like `processing_error`?",
+        question:
+          "Does Foxhound retry `card_not_supported` the same way it retries a technical decline like `processing_error`?",
         answer:
           "No. A technical decline gets a background retry before any customer email, but `card_not_supported` gets no silent retry: retrying the same card rarely helps, so Foxhound starts with the email asking the customer for a different card.",
       },
@@ -480,7 +492,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       "Yes. Both the code's name and Stripe's definition point toward a transient issue rather than a final rejection. Submitting the charge again, typically after a short wait, is the correct and expected response.\n\nApply the same tiered retry timing used for other unknown-reason and technical declines: an initial retry a few hours after the failure, and a second one around 24 hours later if needed. Because the decline gives no indication of a card or account problem, avoid sending a payment update request to the customer until the retry attempts have run their course. Prematurely asking someone to change their card for an issue that was entirely on the processing side tends to generate confused replies rather than resolved payments.",
     faqs: [
       {
-        question: "What does \"reenter transaction\" actually mean in plain terms?",
+        question: 'What does "reenter transaction" actually mean in plain terms?',
         answer:
           "The issuer's systems couldn't process the payment request as submitted, for reasons that aren't specified, and the expected fix is to submit the transaction again.",
       },
@@ -500,7 +512,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "A few hours after the initial failure is a reasonable first attempt, with a second retry around the one day mark if the charge still hasn't gone through.",
       },
       {
-        question: "Will Foxhound email the customer right away about a `reenter_transaction` decline?",
+        question:
+          "Will Foxhound email the customer right away about a `reenter_transaction` decline?",
         answer:
           "No. Since it's classified as a network decline, Foxhound retries automatically in the background first and only starts the merchant's email sequence if those retries don't succeed.",
       },
@@ -509,7 +522,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
 
   expired_card: {
     meaning:
-      "`expired_card` means Stripe declined the charge because the expiration date on file for the card has already passed. Stripe's own definition is blunt: \"The card has expired.\" The card is not being rejected for fraud, insufficient funds, or a bank-side hold. It is being rejected because the expiration date stored on the payment method is no longer valid.",
+      '`expired_card` means Stripe declined the charge because the expiration date on file for the card has already passed. Stripe\'s own definition is blunt: "The card has expired." The card is not being rejected for fraud, insufficient funds, or a bank-side hold. It is being rejected because the expiration date stored on the payment method is no longer valid.',
     whyItHappens:
       "Subscription billing charges the same stored card weeks or months after the customer first entered it. In that window, cards routinely get reissued: banks send new physical cards with new expiration dates (and sometimes new numbers) ahead of the old card's expiry, for security reasons or simple card-program refreshes. A customer may already be using their new card everywhere else while the old, expired one is still the only payment method on file with your subscription.",
     howToFix:
@@ -526,7 +539,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Sometimes, through card network updater services, but coverage varies by card brand and issuing country. Many expired cards are never silently refreshed, which is why some charges still fail with this code.",
       },
       {
-        question: "Should a merchant keep retrying an `expired_card` decline hoping it eventually clears?",
+        question:
+          "Should a merchant keep retrying an `expired_card` decline hoping it eventually clears?",
         answer:
           "No. The expiration date does not change on its own between retry attempts, so repeated charges just repeat the decline and delay getting the customer to fix it.",
       },
@@ -545,11 +559,11 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
 
   invalid_expiry_month: {
     meaning:
-      "`invalid_expiry_month` means Stripe rejected the charge because the expiration month submitted with the card is not a valid value, not a real month between 01 and 12, or not formatted the way Stripe expects. Stripe's own definition: \"The expiration month is invalid.\" This is usually a form or entry problem rather than proof that the physical card itself is bad.",
+      '`invalid_expiry_month` means Stripe rejected the charge because the expiration month submitted with the card is not a valid value, not a real month between 01 and 12, or not formatted the way Stripe expects. Stripe\'s own definition: "The expiration month is invalid." This is usually a form or entry problem rather than proof that the physical card itself is bad.',
     whyItHappens:
       "Most subscription businesses collect card details once at signup and again whenever a customer updates payment info. `invalid_expiry_month` tends to show up right after one of those update moments: a customer retypes their card into an update-payment form and mistypes the month field, transposes month and year, or a checkout integration passes the expiration data in the wrong format to Stripe. Because the value never reaches the issuing bank for a real authorization check, this decline happens on Stripe's own validation before the transaction gets that far.",
     howToFix:
-      "Retrying the exact same submitted month will fail the exact same way every time, since the problem is the value itself, not network congestion or a temporary bank hold. That said, this is fundamentally a correctable data-entry issue: once the customer or the checkout form supplies a real, correctly formatted month, the charge can succeed immediately. The fix is correction, not persistence.\n\nTreat this as a form problem first. Check whether your checkout or payment-update flow is passing expiration data in the format Stripe's API expects, and whether client-side validation catches an out-of-range month before submission. On the customer-facing side, ask them to re-enter their card details rather than assuming the card is expired or invalid. Because this is squarely a data problem, a fast, specific nudge to fix the input gets more of these resolved than a generic \"payment failed\" message.",
+      'Retrying the exact same submitted month will fail the exact same way every time, since the problem is the value itself, not network congestion or a temporary bank hold. That said, this is fundamentally a correctable data-entry issue: once the customer or the checkout form supplies a real, correctly formatted month, the charge can succeed immediately. The fix is correction, not persistence.\n\nTreat this as a form problem first. Check whether your checkout or payment-update flow is passing expiration data in the format Stripe\'s API expects, and whether client-side validation catches an out-of-range month before submission. On the customer-facing side, ask them to re-enter their card details rather than assuming the card is expired or invalid. Because this is squarely a data problem, a fast, specific nudge to fix the input gets more of these resolved than a generic "payment failed" message.',
     faqs: [
       {
         question: "Does `invalid_expiry_month` mean the card itself is expired?",
@@ -583,7 +597,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
     meaning:
       "`invalid_expiry_year` means Stripe rejected the charge because the expiration year submitted with the card is not a valid value, an unreasonable year, a badly formatted one, or one that doesn't match what Stripe's validation expects. Stripe's own definition: \"The expiration year is invalid.\" Like its sibling code for the month field, this points to a submitted-data problem rather than confirmation that the card is dead.",
     whyItHappens:
-      "This decline clusters around moments when card details get re-entered: a customer updating an expiring card, a manual card-on-file correction after a failed charge, or a migration of stored payment methods between systems. A common cause is a two-digit versus four-digit year mismatch, where a form field expects \"28\" and receives \"2028\" or vice versa, or where a customer simply mistypes the year while updating other fields. Because Stripe validates the year format before the charge reaches the issuing bank, the decline happens early and doesn't reflect anything about the bank's actual records.",
+      'This decline clusters around moments when card details get re-entered: a customer updating an expiring card, a manual card-on-file correction after a failed charge, or a migration of stored payment methods between systems. A common cause is a two-digit versus four-digit year mismatch, where a form field expects "28" and receives "2028" or vice versa, or where a customer simply mistypes the year while updating other fields. Because Stripe validates the year format before the charge reaches the issuing bank, the decline happens early and doesn\'t reflect anything about the bank\'s actual records.',
     howToFix:
       "Resubmitting the same bad year value will not change the outcome. The charge fails for the same reason on the first attempt and every attempt after it. Automated retries add delay without adding any chance of success. Once a correct, properly formatted year is submitted, though, the charge can proceed normally, so the underlying situation is fixable, just not through persistence.\n\nStart by checking your own integration: confirm that whatever collects or updates card details passes the year to Stripe in the expected format, and that any client-side validation rejects obviously wrong years (a year in the past, or a year decades in the future) before submission. On the customer side, the practical move is a direct request to re-enter payment details, framed simply rather than technically. Customers do not need to know the exact validation rule that failed. They need a clear path to fix it.",
     faqs: [
@@ -593,12 +607,14 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Not necessarily. It means the year value submitted with the charge failed Stripe's validation, which is often a formatting mismatch or typo rather than proof the card is actually past its expiration date.",
       },
       {
-        question: "Is there any benefit to retrying a charge that failed with `invalid_expiry_year`?",
+        question:
+          "Is there any benefit to retrying a charge that failed with `invalid_expiry_year`?",
         answer:
           "No. The same invalid year produces the same decline on every attempt. Nothing changes until the value itself is corrected.",
       },
       {
-        question: "What commonly causes this specific decline in a checkout or update-payment form?",
+        question:
+          "What commonly causes this specific decline in a checkout or update-payment form?",
         answer:
           "A two-digit versus four-digit year mismatch is a frequent cause, along with plain typos when a customer re-enters their card during a payment update.",
       },
@@ -653,7 +669,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
 
   lost_card: {
     meaning:
-      "Stripe declined this payment because the cardholder has reported the card lost. The card is gone, the bank has been told, and the card is dead as a payment instrument regardless of who is presenting the number.\n\nStripe's official definition is direct: \"the payment was declined because the card is reported lost.\" The cardholder (or someone with access to their account) told the issuing bank that the physical card is missing, and the bank shut it down. This is not a temporary hold and not a balance issue. It is a permanent block on that specific card number.",
+      'Stripe declined this payment because the cardholder has reported the card lost. The card is gone, the bank has been told, and the card is dead as a payment instrument regardless of who is presenting the number.\n\nStripe\'s official definition is direct: "the payment was declined because the card is reported lost." The cardholder (or someone with access to their account) told the issuing bank that the physical card is missing, and the bank shut it down. This is not a temporary hold and not a balance issue. It is a permanent block on that specific card number.',
     whyItHappens:
       "On a recurring billing product, `lost_card` almost always shows up on a renewal charge for a card that worked fine in the past. The customer lost their wallet, called their bank, and the bank killed the card the same day, sometimes without the customer remembering every subscription tied to it. The customer usually still wants your product. They just have a new card number they haven't gotten around to updating everywhere yet.",
     howToFix:
@@ -675,7 +691,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Something plain and non-alarming: their card on file was reported lost, and they need to add a new payment method to keep their subscription active.",
       },
       {
-        question: "Does Foxhound treat `lost_card` the same as an obvious fraud code like `stolen_card`?",
+        question:
+          "Does Foxhound treat `lost_card` the same as an obvious fraud code like `stolen_card`?",
         answer:
           "For retry and automation purposes, yes, both sit in Foxhound's fraud bucket: no automated retries, and the fraud bucket's own email sequence in place of the standard dunning sequence. The underlying customer story is usually very different, which is why careful handling rather than a form email matters here.",
       },
@@ -732,9 +749,10 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       "No. This is a hard block from the card network reflecting a card the network wants out of use. Retrying is pointless and, as with other permanently-blocked-card codes, repeated attempts can draw unwanted attention from the network toward the merchant account making them.\n\nStop retrying the card immediately. Because the underlying signal overlaps heavily with lost or stolen cards, apply the same account review before reaching out to the customer: check how old the account is, whether the subscription started shortly before the decline, and whether other cards on file were also declined. If the account looks legitimate, ask the customer for a new payment method with a plain, factual message. If the account looks new or shows other red flags, hold off on outreach and get a human to look at it first.",
     faqs: [
       {
-        question: "Why would an online subscription business ever see a point-of-sale code like this?",
+        question:
+          "Why would an online subscription business ever see a point-of-sale code like this?",
         answer:
-          "Card networks reuse the same response codes across in-person and online transactions. `pickup_card` is a network-level instruction tied to lost or stolen cards, and it can surface on an online charge even though there's no terminal to act on the \"pickup\" part.",
+          'Card networks reuse the same response codes across in-person and online transactions. `pickup_card` is a network-level instruction tied to lost or stolen cards, and it can surface on an online charge even though there\'s no terminal to act on the "pickup" part.',
       },
       {
         question: "Is this more serious than a typical decline?",
@@ -819,12 +837,13 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Often yes, by contacting their bank directly, since the block originates from the bank's internal systems and the merchant has no way to clear it from the outside.",
       },
       {
-        question: "Is it safe to send the customer a normal \"update your card\" email?",
+        question: 'Is it safe to send the customer a normal "update your card" email?',
         answer:
           "Yes, this code doesn't carry the same account-fraud risk as a stolen or restricted card, so a straightforward request to verify or update the payment method is reasonable.",
       },
       {
-        question: "Why does Foxhound still classify this as fraud rather than a routine soft decline?",
+        question:
+          "Why does Foxhound still classify this as fraud rather than a routine soft decline?",
         answer:
           "Because the code reflects a bank-side security block rather than a simple temporary failure, and Foxhound treats that as reason enough to never retry the charge and to send the fraud bucket's own email sequence instead of the standard one.",
       },
@@ -917,9 +936,9 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. It isn't one of the codes the classifier names specifically, so it falls through to the classifier's unknown category. That category fails closed rather than defaulting to a silent retry: no automatic retry runs, and recovery goes straight to a card-update email instead.",
       },
       {
-        question: "What does \"velocity exceeded\" actually mean?",
+        question: 'What does "velocity exceeded" actually mean?',
         answer:
-          "Per Stripe, it covers a card exceeding its balance, credit limit, or transaction amount limit. It's broader than just \"too many transactions.\"",
+          'Per Stripe, it covers a card exceeding its balance, credit limit, or transaction amount limit. It\'s broader than just "too many transactions."',
       },
       {
         question: "Can retrying too quickly make this decline worse?",
@@ -953,7 +972,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. It means the specific security code submitted with the charge didn't match the issuing bank's records. The card and account are otherwise unaffected.",
       },
       {
-        question: "Will retrying the same charge eventually get an `incorrect_cvc` decline to succeed?",
+        question:
+          "Will retrying the same charge eventually get an `incorrect_cvc` decline to succeed?",
         answer:
           "No. The same wrong CVC produces the same decline every time. Only a corrected code changes the outcome.",
       },
@@ -984,7 +1004,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       "Resubmitting the identical incorrect code will fail again, and again after that. There is no waiting period, no backoff schedule, and no number of attempts that turns a wrong security code into a right one. The only thing that changes the result is the customer supplying the correct code.\n\nBe straightforward about what your systems actually do here before promising customers anything specific. Foxhound's decline classifier sorts declines into four named buckets: soft, network, expired, and fraud, with an unknown bucket for anything unrecognized. `invalid_cvc` is not one of the codes given a dedicated case in the four named buckets. Anything not specifically recognized falls to the unknown bucket, which fails closed rather than retrying: no automatic retry runs. So today, an `invalid_cvc` failure goes straight to a card-update email rather than a silent retry, which is the correct outcome here since a retry has no real chance of correcting a submitted security code that simply doesn't match.\n\nThat's the same reason skipping straight to a card-update message, rather than a retry, is the right call: framing the outreach plainly, without over-explaining the CVC mismatch, keeps the ask simple, confirm your card details.",
     faqs: [
       {
-        question: "Is `invalid_cvc` different from `incorrect_cvc` in a way that changes how a merchant should respond?",
+        question:
+          "Is `invalid_cvc` different from `incorrect_cvc` in a way that changes how a merchant should respond?",
         answer:
           "Not in practice. Stripe uses the two codes in slightly different situations, but for recovery purposes both mean the submitted security code didn't validate, and both need a corrected code from the customer.",
       },
@@ -994,7 +1015,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. There's nothing time-dependent here. The code either matches the bank's records or it doesn't, and that doesn't change without new input from the customer.",
       },
       {
-        question: "Does Foxhound currently send an immediate, purpose-built email for `invalid_cvc`?",
+        question:
+          "Does Foxhound currently send an immediate, purpose-built email for `invalid_cvc`?",
         answer:
           "Yes, functionally. This code isn't specifically classified in Foxhound's decline handling, so it falls to the unknown bucket, which fails closed rather than retrying: no automatic retry runs, and recovery goes straight to a card-update email instead.",
       },
@@ -1020,7 +1042,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       "No amount of retrying changes a wrong card number into a right one. Every attempt against the same incorrect digits produces the same decline. The only way forward is the customer re-entering the number correctly.\n\nHere's the honest picture of what actually happens today. Foxhound's decline classifier places recognized declines into one of four named buckets: soft, network, expired, or fraud, with an unknown bucket for anything unrecognized. `incorrect_number` does not have a dedicated case in the four named buckets. Anything the classifier doesn't specifically recognize falls to the unknown bucket, which fails closed rather than retrying: no automatic retry runs against it. So an `incorrect_number` failure goes straight to a card-update email rather than a silent retry, which is the right outcome, since a retry has no way of succeeding against a card number that was simply typed wrong.\n\nThat's exactly why going straight to a card-update request works better than a retry ever could: a short, plain message asking the customer to confirm their payment details, without dwelling on the specific reason, tends to get faster action than waiting would.",
     faqs: [
       {
-        question: "Does `incorrect_number` mean the customer's card was declined by their bank for a real reason?",
+        question:
+          "Does `incorrect_number` mean the customer's card was declined by their bank for a real reason?",
         answer:
           "No. The number typically never gets far enough for a genuine bank-side decision. It fails Stripe's own check because the digits don't form a valid, real card number, almost always from a typo.",
       },
@@ -1066,7 +1089,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. A malformed card number stays malformed no matter how many times the same charge runs.",
       },
       {
-        question: "Does Foxhound currently treat `invalid_number` with a dedicated, no-retry email flow?",
+        question:
+          "Does Foxhound currently treat `invalid_number` with a dedicated, no-retry email flow?",
         answer:
           "Yes. It isn't specifically classified in Foxhound's decline handling today, so it falls to the unknown bucket, which fails closed: no automatic retry runs, and it goes straight to a card-update email instead.",
       },
@@ -1102,7 +1126,8 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "No. It isn't one of the codes the classifier explicitly recognizes, so it falls through to the classifier's unknown category, which fails closed: no automatic retry runs, and recovery goes straight to a card-update email instead.",
       },
       {
-        question: "If a code isn't explicitly named in the classifier, does that mean it's treated as risky?",
+        question:
+          "If a code isn't explicitly named in the classifier, does that mean it's treated as risky?",
         answer:
           "Not risky exactly, but cautious. The classifier's default for an unrecognized code is to fail closed rather than retry it silently, which is a more conservative treatment than the named, provenly-retryable network codes get.",
       },
@@ -1169,7 +1194,7 @@ export const DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
           "Call their bank. The issuer has placed a hold that typically requires the cardholder to verify something directly with them before the charge will go through.",
       },
       {
-        question: "Will a generic \"update your card\" email fix this?",
+        question: 'Will a generic "update your card" email fix this?',
         answer:
           "Usually not. If the customer just adds a new card without calling their bank, the same kind of hold can reappear, since the issue is with the bank's verification process, not the card number itself.",
       },

@@ -30,7 +30,6 @@ const DAY = 86_400_000;
 // ---- 1. Step labels ----
 
 describe("step labels say Recova's day where Foxhound's offset makes it true", () => {
-
   it("ties every retry in every schedule to its offset: the day form only when it is exactly that day", () => {
     let checked = 0;
     for (const [category, schedule] of Object.entries(RECOVERY_SCHEDULES)) {
@@ -39,8 +38,12 @@ describe("step labels say Recova's day where Foxhound's offset makes it true", (
         checked++;
         const day = /^retry_day(\d+)$/.exec(step.stepType);
         const expected =
-          day && step.offsetHours === Number(day[1]) * 24 ? `Day ${day[1]} retry` : `${step.offsetHours}hr retry`;
-        expect(paymentStepLabel(category, step.stepType), `${category} ${step.stepType}`).toBe(expected);
+          day && step.offsetHours === Number(day[1]) * 24
+            ? `Day ${day[1]} retry`
+            : `${step.offsetHours}hr retry`;
+        expect(paymentStepLabel(category, step.stepType), `${category} ${step.stepType}`).toBe(
+          expected,
+        );
       }
     }
     // The walk proves it saw the retries it is about.

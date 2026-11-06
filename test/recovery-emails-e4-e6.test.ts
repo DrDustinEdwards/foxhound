@@ -225,7 +225,12 @@ describe("E4 to E6: the executor sends Recova's step template when generation ca
       expect(jobs).toHaveLength(1);
       expect(jobs[0].subject).toBe(RECOVA[stepType].subject);
       expect(htmlToBlocks(jobs[0].bodyHtml)).toEqual(
-        RECOVA[stepType].blocks({ name: "Jane Buyer", amount: "$49.00", url: minted, sender: "Teamflow" }),
+        RECOVA[stepType].blocks({
+          name: "Jane Buyer",
+          amount: "$49.00",
+          url: minted,
+          sender: "Teamflow",
+        }),
       );
     });
 
@@ -237,7 +242,12 @@ describe("E4 to E6: the executor sends Recova's step template when generation ca
       expect(result.templateReason).toBe("missing_update_link");
       expect(jobs[0].subject).toBe(RECOVA[stepType].subject);
       expect(htmlToBlocks(jobs[0].bodyHtml)).toEqual(
-        RECOVA[stepType].blocks({ name: "Jane Buyer", amount: "$49.00", url: minted, sender: "Teamflow" }),
+        RECOVA[stepType].blocks({
+          name: "Jane Buyer",
+          amount: "$49.00",
+          url: minted,
+          sender: "Teamflow",
+        }),
       );
     });
   }
@@ -278,7 +288,10 @@ describe("E4 to E6 end to end: a due step sends to the customer at Recova's offs
     });
   });
 
-  async function seedPayment(category: "expired" | "network" | "fraud" | "soft", customerName: string | null) {
+  async function seedPayment(
+    category: "expired" | "network" | "fraud" | "soft",
+    customerName: string | null,
+  ) {
     const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
     await db.insert(schema.failedPayments).values({
       id: "fp_1",
@@ -306,8 +319,6 @@ describe("E4 to E6 end to end: a due step sends to the customer at Recova's offs
     }
     return planned;
   }
-
-
 
   // ---- a refused send returns its named outcome ----
 

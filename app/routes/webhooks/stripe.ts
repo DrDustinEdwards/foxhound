@@ -50,7 +50,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     // whole Worker (one shared key, so no caller can spread around it), which
     // is enough to show a rotation slip and cannot spend the Sentry quota or
     // bury real alerts. The rest go to the Workers log only.
-    if (await isWithinRateLimit(env, "sentry", "stripe-webhook-signature", SIGNATURE_REPORTS_PER_HOUR, 3_600_000)) {
+    if (
+      await isWithinRateLimit(
+        env,
+        "sentry",
+        "stripe-webhook-signature",
+        SIGNATURE_REPORTS_PER_HOUR,
+        3_600_000,
+      )
+    ) {
       Sentry.captureException(err, {
         extra: { scope: "stripe-webhook-signature", hasSignature: signature.length > 0 },
       });

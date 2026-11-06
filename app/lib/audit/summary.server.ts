@@ -37,7 +37,11 @@ export async function generateAuditSummary(
       const answer = await askModel(
         env,
         { source: "audit_summary", accountId: null },
-        { model: MODEL_AUDIT_SUMMARY, max_tokens: AUDIT_SUMMARY_MAX_TOKENS, messages: [{ role: "user", content: prompt + instruction }] },
+        {
+          model: MODEL_AUDIT_SUMMARY,
+          max_tokens: AUDIT_SUMMARY_MAX_TOKENS,
+          messages: [{ role: "user", content: prompt + instruction }],
+        },
         instruction ? REWRITE : {},
       );
       if (!answer.ok) throw new Error(`the model call failed: ${answer.kind}`);

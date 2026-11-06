@@ -43,4 +43,16 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 
 const favicon = new URL("favicon.svg", pub);
 writeFileSync(favicon, svg);
-execFileSync(process.execPath, [fileURLToPath(bin), "--svg", fileURLToPath(favicon), "--background", AMBER, "--out", fileURLToPath(pub)], { stdio: "inherit" });
+execFileSync(
+  process.execPath,
+  [
+    fileURLToPath(bin),
+    "--svg",
+    fileURLToPath(favicon),
+    "--background",
+    AMBER,
+    "--out",
+    fileURLToPath(pub),
+  ],
+  { stdio: "inherit" },
+);

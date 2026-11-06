@@ -2,7 +2,19 @@
 // processed, which steps are due, the per-payment step choice, exhausted
 // sequences, and the row-to-context mapping the step executors take.
 
-import { and, asc, eq, inArray, isNull, lte, notExists, notLike, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  isNull,
+  lte,
+  notExists,
+  notLike,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { type Db, accounts, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
 import {
   DEMO_ACCOUNT_ID_PREFIX,
@@ -145,9 +157,7 @@ export async function queryExhaustedSequences(env: Env, limit: number): Promise<
   const withSteps = await db
     .selectDistinct({ id: recoverySteps.failedPaymentId })
     .from(recoverySteps)
-    .where(
-      and(inArray(recoverySteps.failedPaymentId, ids), isNull(recoverySteps.deletedAt)),
-    );
+    .where(and(inArray(recoverySteps.failedPaymentId, ids), isNull(recoverySteps.deletedAt)));
   return withSteps.map((r) => r.id);
 }
 
@@ -163,9 +173,7 @@ export function buildExhaustedSequenceFlip(db: Db, failedPaymentIds: string[], n
   return db
     .update(failedPayments)
     .set({ status: FAILED_PAYMENT_STATUS_UNRECOVERED, resolvedAt: now })
-    .where(
-      and(inArray(failedPayments.id, failedPaymentIds), eq(failedPayments.status, "active")),
-    );
+    .where(and(inArray(failedPayments.id, failedPaymentIds), eq(failedPayments.status, "active")));
 }
 
 /** One due step joined to the context the executors need. */

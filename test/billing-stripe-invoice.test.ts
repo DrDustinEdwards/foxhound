@@ -18,7 +18,13 @@ const mockStripe = vi.hoisted(() => {
   const items = { created: new Map<string, { id: string }>(), failOnKey: null as string | null };
   // The platform customer as customers.retrieve returns it. Defaults to a card
   // on file, which is the charge_automatically path every older test assumes.
-  const customer = { value: { id: "cus_1", invoice_settings: { default_payment_method: "pm_1" }, default_source: null } as Record<string, unknown> };
+  const customer = {
+    value: {
+      id: "cus_1",
+      invoice_settings: { default_payment_method: "pm_1" },
+      default_source: null,
+    } as Record<string, unknown>,
+  };
   return {
     calls,
     invoiceItemState: items,
@@ -74,7 +80,11 @@ beforeEach(() => {
   mockStripe.calls.length = 0;
   mockStripe.invoiceItemState.created.clear();
   mockStripe.invoiceItemState.failOnKey = null;
-  mockStripe.customer.value = { id: "cus_1", invoice_settings: { default_payment_method: "pm_1" }, default_source: null };
+  mockStripe.customer.value = {
+    id: "cus_1",
+    invoice_settings: { default_payment_method: "pm_1" },
+    default_source: null,
+  };
   vi.clearAllMocks();
 });
 
@@ -115,7 +125,10 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     ]);
 
     const create = mockStripe.calls.find((c) => c.method === "invoices.create")!;
-    const [createParams, createOptions] = create.args as [Record<string, unknown>, Record<string, unknown>];
+    const [createParams, createOptions] = create.args as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
     expect(createParams.auto_advance).toBe(false);
     expect(createParams.pending_invoice_items_behavior).toBe("exclude");
     expect(createParams.customer).toBe("cus_1");
@@ -153,14 +166,31 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     const threeLines = {
       ...baseInput,
       lines: [
-        { type: "recovery_fee", amountCents: 2_000, description: "Recovery fee", idempotencyKey: "k_rec_1" },
-        { type: "recovery_fee", amountCents: 3_000, description: "Recovery fee", idempotencyKey: "k_rec_2" },
-        { type: "dispute_fee", amountCents: 10_000, description: "Dispute fee", idempotencyKey: "k_dsp_1" },
+        {
+          type: "recovery_fee",
+          amountCents: 2_000,
+          description: "Recovery fee",
+          idempotencyKey: "k_rec_1",
+        },
+        {
+          type: "recovery_fee",
+          amountCents: 3_000,
+          description: "Recovery fee",
+          idempotencyKey: "k_rec_2",
+        },
+        {
+          type: "dispute_fee",
+          amountCents: 10_000,
+          description: "Dispute fee",
+          idempotencyKey: "k_dsp_1",
+        },
       ],
     };
 
     mockStripe.invoiceItemState.failOnKey = "k_rec_2";
-    await expect(createPlatformInvoice({} as Env, threeLines)).rejects.toThrow("stripe unavailable");
+    await expect(createPlatformInvoice({} as Env, threeLines)).rejects.toThrow(
+      "stripe unavailable",
+    );
 
     mockStripe.invoiceItemState.failOnKey = null;
     await createPlatformInvoice({} as Env, threeLines);
@@ -173,7 +203,11 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
       (c) => (c.args[1] as { idempotencyKey?: string })?.idempotencyKey,
     );
     expect(attemptedKeys).toEqual(["k_rec_1", "k_rec_2", "k_rec_1", "k_rec_2", "k_dsp_1"]);
-    expect([...mockStripe.invoiceItemState.created.keys()]).toEqual(["k_rec_1", "k_rec_2", "k_dsp_1"]);
+    expect([...mockStripe.invoiceItemState.created.keys()]).toEqual([
+      "k_rec_1",
+      "k_rec_2",
+      "k_dsp_1",
+    ]);
 
     // Every key is distinct, so no line was swallowed by another's key either.
     expect(new Set(attemptedKeys).size).toBe(3);
@@ -182,32 +216,52 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
   it("a retry for the SAME billing_invoices id derives the identical idempotency keys (Phase 8 retry groundwork)", () => {
     expect(platformInvoiceIdempotencyKey("inv_1")).toBe(platformInvoiceIdempotencyKey("inv_1"));
     expect(platformInvoiceIdempotencyKey("inv_1")).not.toBe(platformInvoiceIdempotencyKey("inv_2"));
-    expect(platformInvoiceIdempotencyKey("inv_1")).not.toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
+    expect(platformInvoiceIdempotencyKey("inv_1")).not.toBe(
+      platformInvoiceFinalizeIdempotencyKey("inv_1"),
+    );
   });
 
   it("gives every committed line its own key, so no line can replay another's item", () => {
     const ctx = { accountId: "acc_1", periodKey: "2026-06", currency: "usd" };
-    const line = (id: string, type: string, recoveredPaymentId: string | null, disputeId: string | null) =>
-      lineItemIdempotencyKey({ id, type, recoveredPaymentId, disputeId }, ctx);
+    const line = (
+      id: string,
+      type: string,
+      recoveredPaymentId: string | null,
+      disputeId: string | null,
+    ) => lineItemIdempotencyKey({ id, type, recoveredPaymentId, disputeId }, ctx);
     // Fee lines keep the keys the first charge already sent Stripe.
     expect(line("li_1", "recovery_fee", "rec_1", null)).toBe(RECOVERY_KEY);
     expect(line("li_2", "dispute_fee", null, "dsp_1")).toBe(DISPUTE_KEY);
     // Two lines with no evidence FK used to share one fallback key.
-    expect(line("li_3", "subscription", null, null)).not.toBe(line("li_4", "subscription", null, null));
+    expect(line("li_3", "subscription", null, null)).not.toBe(
+      line("li_4", "subscription", null, null),
+    );
   });
 
   it("still drops adjustment lines and zero amounts before ever calling Stripe (chargeableLines unchanged)", async () => {
-    await createPlatformInvoice(
-      {} as Env,
-      {
-        ...baseInput,
-        lines: [
-          { type: "recovery_fee", amountCents: 2_000, description: "Recovery fee", idempotencyKey: "k_recovery_fee_2000" },
-          { type: "adjustment", amountCents: -500, description: "Goodwill credit", idempotencyKey: "k_adjustment_neg500" },
-          { type: "recovery_fee", amountCents: 0, description: "Zero", idempotencyKey: "k_recovery_fee_0" },
-        ],
-      },
-    );
+    await createPlatformInvoice({} as Env, {
+      ...baseInput,
+      lines: [
+        {
+          type: "recovery_fee",
+          amountCents: 2_000,
+          description: "Recovery fee",
+          idempotencyKey: "k_recovery_fee_2000",
+        },
+        {
+          type: "adjustment",
+          amountCents: -500,
+          description: "Goodwill credit",
+          idempotencyKey: "k_adjustment_neg500",
+        },
+        {
+          type: "recovery_fee",
+          amountCents: 0,
+          description: "Zero",
+          idempotencyKey: "k_recovery_fee_0",
+        },
+      ],
+    });
     const itemCalls = mockStripe.calls.filter((c) => c.method === "invoiceItems.create");
     expect(itemCalls).toHaveLength(1);
     expect((itemCalls[0].args[0] as Record<string, unknown>).amount).toBe(2_000);
@@ -222,17 +276,29 @@ describe("collection method follows the payment method on file (E25)", () => {
   const callOf = (method: string) => mockStripe.calls.find((c) => c.method === method)!;
 
   it("a customer with no default payment method gets send_invoice, 30 days, and a finalize that lets Stripe email it", async () => {
-    mockStripe.customer.value = { id: "cus_1", email: "billing@example.com", invoice_settings: { default_payment_method: null }, default_source: null };
+    mockStripe.customer.value = {
+      id: "cus_1",
+      email: "billing@example.com",
+      invoice_settings: { default_payment_method: null },
+      default_source: null,
+    };
     await createPlatformInvoice({} as Env, baseInput);
 
-    const [createParams, createOptions] = callOf("invoices.create").args as [Record<string, unknown>, Record<string, unknown>];
+    const [createParams, createOptions] = callOf("invoices.create").args as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
     expect(createParams.collection_method).toBe("send_invoice");
     expect(createParams.days_until_due).toBe(30);
     // Still a held draft while items attach, so a half-built invoice is never emailed.
     expect(createParams.auto_advance).toBe(false);
     expect(createOptions.idempotencyKey).toBe(platformInvoiceIdempotencyKey("inv_1"));
 
-    const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [string, Record<string, unknown>, Record<string, unknown>];
+    const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [
+      string,
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
     // Stripe emails a send_invoice invoice only when it advances automatically.
     expect(finalizeParams).toEqual({ auto_advance: true });
     expect(finalizeOptions.idempotencyKey).toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
@@ -246,7 +312,10 @@ describe("collection method follows the payment method on file (E25)", () => {
   it("a customer with a card on file gets charge_automatically, finalized so Stripe charges the card", async () => {
     await createPlatformInvoice({} as Env, baseInput);
 
-    const [createParams, createOptions] = callOf("invoices.create").args as [Record<string, unknown>, Record<string, unknown>];
+    const [createParams, createOptions] = callOf("invoices.create").args as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
     expect(createParams.collection_method).toBe("charge_automatically");
     expect(createParams).not.toHaveProperty("days_until_due");
     expect(createOptions.idempotencyKey).toBe(platformInvoiceIdempotencyKey("inv_1"));
@@ -254,7 +323,11 @@ describe("collection method follows the payment method on file (E25)", () => {
     // Recova creates with auto_advance true, so Stripe charges the card on its
     // own within about an hour. With auto_advance left off Stripe never tries
     // the card and the fee waits a month for the retry sweep.
-    const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [string, unknown, Record<string, unknown>];
+    const [, finalizeParams, finalizeOptions] = callOf("invoices.finalizeInvoice").args as [
+      string,
+      unknown,
+      Record<string, unknown>,
+    ];
     expect(finalizeParams).toEqual({ auto_advance: true });
     expect(finalizeOptions.idempotencyKey).toBe(platformInvoiceFinalizeIdempotencyKey("inv_1"));
   });
@@ -266,7 +339,11 @@ describe("collection method follows the payment method on file (E25)", () => {
   });
 
   it("a legacy default source counts as a payment method, as in Recova", async () => {
-    mockStripe.customer.value = { id: "cus_1", invoice_settings: { default_payment_method: null }, default_source: "card_1" };
+    mockStripe.customer.value = {
+      id: "cus_1",
+      invoice_settings: { default_payment_method: null },
+      default_source: "card_1",
+    };
     await createPlatformInvoice({} as Env, baseInput);
     const [createParams] = callOf("invoices.create").args as [Record<string, unknown>];
     expect(createParams.collection_method).toBe("charge_automatically");
@@ -280,16 +357,26 @@ describe("an emailed invoice needs an address on the customer (E25)", () => {
 
   it("sets the resolved billing email on a customer with none, before the invoice is created", async () => {
     mockStripe.customer.value = { id: "cus_1", email: null, ...noCard };
-    await createPlatformInvoice({} as Env, { ...baseInput, billingEmail: async () => "billing@example.com" });
+    await createPlatformInvoice({} as Env, {
+      ...baseInput,
+      billingEmail: async () => "billing@example.com",
+    });
     const methods = mockStripe.calls.map((c) => c.method);
-    expect(methods.slice(0, 3)).toEqual(["customers.retrieve", "customers.update", "invoices.create"]);
+    expect(methods.slice(0, 3)).toEqual([
+      "customers.retrieve",
+      "customers.update",
+      "invoices.create",
+    ]);
     const update = mockStripe.calls.find((c) => c.method === "customers.update")!;
     expect(update.args).toEqual(["cus_1", { email: "billing@example.com" }]);
   });
 
   it("leaves a customer that already has an email alone", async () => {
     mockStripe.customer.value = { id: "cus_1", email: "kept@example.com", ...noCard };
-    await createPlatformInvoice({} as Env, { ...baseInput, billingEmail: async () => "billing@example.com" });
+    await createPlatformInvoice({} as Env, {
+      ...baseInput,
+      billingEmail: async () => "billing@example.com",
+    });
     expect(mockStripe.calls.some((c) => c.method === "customers.update")).toBe(false);
   });
 });

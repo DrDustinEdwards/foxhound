@@ -17,8 +17,17 @@ import { mediaKeysIn } from "./images";
 /** Every use of every file, by key. */
 export async function mediaUses(db: Db): Promise<Map<string, MediaUse[]>> {
   const [posts, waiting] = await Promise.all([
-    db.select({ id: blogPosts.id, title: blogPosts.title, body: blogPosts.body, cover: blogPosts.coverImageUrl }).from(blogPosts),
-    db.all<{ content_id: string; source: string }>(sql`SELECT content_id, source FROM scheduled_updates`),
+    db
+      .select({
+        id: blogPosts.id,
+        title: blogPosts.title,
+        body: blogPosts.body,
+        cover: blogPosts.coverImageUrl,
+      })
+      .from(blogPosts),
+    db.all<{ content_id: string; source: string }>(
+      sql`SELECT content_id, source FROM scheduled_updates`,
+    ),
   ]);
   const titles = new Map(posts.map((p) => [p.id, p.title]));
   const uses = new Map<string, MediaUse[]>();
@@ -30,12 +39,19 @@ export async function mediaUses(db: Db): Promise<Map<string, MediaUse[]>> {
   const title = (id: string) => (titles.get(id) ?? id).slice(0, 1000);
 
   for (const post of posts) {
-    for (const key of mediaKeysIn(post.body)) add(key, { type: "post", id: post.id, title: title(post.id), detail: "in the post" });
-    for (const key of mediaKeysIn(post.cover ?? "")) add(key, { type: "post", id: post.id, title: title(post.id), detail: "the cover picture" });
+    for (const key of mediaKeysIn(post.body))
+      add(key, { type: "post", id: post.id, title: title(post.id), detail: "in the post" });
+    for (const key of mediaKeysIn(post.cover ?? ""))
+      add(key, { type: "post", id: post.id, title: title(post.id), detail: "the cover picture" });
   }
   for (const row of waiting) {
     for (const key of mediaKeysIn(row.source)) {
-      add(key, { type: "post", id: row.content_id, title: title(row.content_id), detail: "in a scheduled update" });
+      add(key, {
+        type: "post",
+        id: row.content_id,
+        title: title(row.content_id),
+        detail: "in a scheduled update",
+      });
     }
   }
   return uses;

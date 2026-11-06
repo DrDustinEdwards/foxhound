@@ -51,7 +51,9 @@ describe("no-transform on signed-in and token HTML", () => {
   it("merges into a route's own Cache-Control instead of adding a second header", () => {
     const response = html("/p/sometoken", { "Cache-Control": "no-store" });
     expect(cacheControl(response)).toBe("no-store, no-transform");
-    expect([...response.headers].filter(([k]) => k.toLowerCase() === "cache-control")).toHaveLength(1);
+    expect([...response.headers].filter(([k]) => k.toLowerCase() === "cache-control")).toHaveLength(
+      1,
+    );
   });
 
   it("is idempotent", () => {

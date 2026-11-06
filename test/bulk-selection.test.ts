@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -21,7 +20,6 @@ import {
 // SUBMIT) is that its count and its request set are different sets; here they
 // are the same set by construction, which is what these assertions pin.
 
-
 const rows = (...spec: [string, string][]): SelectableRow[] =>
   spec.map(([id, status]) => ({ id, status }));
 
@@ -33,7 +31,6 @@ const PAGE: SelectableRow[] = rows(
 );
 
 describe("bulk selection: the effective selection is pruned to what is on screen", () => {
-
   it("returns ids in ROW order, not insertion order, so output is deterministic", () => {
     const selected = new Set(["p3", "p1"]);
     expect(visibleSelection(selected, PAGE)).toEqual(["p1", "p3"]);
@@ -41,7 +38,6 @@ describe("bulk selection: the effective selection is pruned to what is on screen
 });
 
 describe("bulk selection: the actionable subset is the ONLY set an action may use", () => {
-
   it("COUNT AND REQUEST ARE ONE SET, which is the gate-versus-submit repair", () => {
     // Legacy's bar would label this "Trigger next step (2)" and then submit 4.
     // Here the label reads actionableSelection and so must the request, so the

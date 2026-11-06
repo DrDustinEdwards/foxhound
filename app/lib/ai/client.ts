@@ -46,7 +46,10 @@ async function recordAiCall(env: Env, meter: AiCallMeter, record: CallRecord): P
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error(`ai_calls write failed for ${meter.source}:`, err instanceof Error ? err.message : err);
+    console.error(
+      `ai_calls write failed for ${meter.source}:`,
+      err instanceof Error ? err.message : err,
+    );
   }
 }
 
@@ -62,7 +65,12 @@ function metered(env: Env, meter: AiCallMeter, options: CallOptions) {
 }
 
 /** One metered Messages call. Never throws for a failed call; the result says why. */
-export async function askModel(env: Env, meter: AiCallMeter, request: MessagesRequest, options: CallOptions = {}) {
+export async function askModel(
+  env: Env,
+  meter: AiCallMeter,
+  request: MessagesRequest,
+  options: CallOptions = {},
+) {
   const call = metered(env, meter, options);
   const result = await messages(env, "foxhound", request, call.options);
   await call.written();

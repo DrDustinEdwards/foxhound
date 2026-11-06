@@ -55,13 +55,7 @@ function seed(
   });
 }
 
-
-
-
 // Tailwind text-* utilities that are colors or alignment, not sizes.
-
-
-
 
 describe("/blog loader (J19, row M11)", () => {
   it("hides a section whose tag no published post carries, even when its curated posts resolve", async () => {
@@ -73,7 +67,9 @@ describe("/blog loader (J19, row M11)", () => {
     await seed(db, "dunning-email-sequence", { tags: ["comparisons"] });
     // Dispute Handling's curated post carries its tag.
     await seed(db, "stripe-disputes-guide", { tags: ["disputes"] });
-    const data = (await index.loader({ context } as never)) as Awaited<ReturnType<typeof index.loader>>;
+    const data = (await index.loader({ context } as never)) as Awaited<
+      ReturnType<typeof index.loader>
+    >;
     expect(data.sections.map((s) => s.section.id)).toEqual(["disputes"]);
   });
 });

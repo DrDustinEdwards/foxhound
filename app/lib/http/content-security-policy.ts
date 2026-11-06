@@ -84,7 +84,10 @@ const POLICY = buildContentSecurityPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER })
 const POLICY_PARTS = POLICY.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 // What the registry entry stages (Trusted Types, default-src 'none'), Report-Only beside the enforced policy until the
 // reports are quiet; renewNonce renews its nonce with the other's.
-const STAGED = buildStagedPolicy({ ...SITE, nonce: NONCE_PLACEHOLDER }, { trustedTypes: true, denyUnlisted: true });
+const STAGED = buildStagedPolicy(
+  { ...SITE, nonce: NONCE_PLACEHOLDER },
+  { trustedTypes: true, denyUnlisted: true },
+);
 const STAGED_PARTS = STAGED.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 
 /** The policy and its Report-Only stage for one response, each carrying that request's nonce. */
@@ -113,13 +116,20 @@ export function applySecurityHeaders(response: Response, nonce: string, origin: 
   return withHeaders(response, contentSecurityPolicies(nonce), origin);
 }
 
-function withHeaders(response: Response, policies: { name: string; value: string }[], origin: string): Response {
+function withHeaders(
+  response: Response,
+  policies: { name: string; value: string }[],
+  origin: string,
+): Response {
   const headers = new Headers(response.headers);
   applyHeaderSet(headers, SECURITY_HEADERS, { overwrite: false });
   if (!headers.has("Content-Security-Policy")) {
     for (const { name, value } of policies) headers.set(name, value);
     try {
-      headers.set("Reporting-Endpoints", reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)));
+      headers.set(
+        "Reporting-Endpoints",
+        reportingEndpoints(CSP_REPORT_GROUP, new URL(CSP_REPORT_PATH, origin)),
+      );
     } catch {
       // A plain-http origin, which reportingEndpoints refuses and a browser
       // would ignore: the page is still served, with report-uri as its sink.

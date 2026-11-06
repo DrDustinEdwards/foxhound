@@ -124,7 +124,9 @@ describe("px font sizes wrapped in a function are caught too", () => {
   // The decisive negative pair: the SAME clamp shape in rem must stay silent,
   // or the widened matcher would flag the very fix it exists to encourage.
   it("does not flag an all-rem clamp", () => {
-    expect(scanContent(TSX, '<h1 className="text-[clamp(1.75rem,5vw,2.75rem)]">x</h1>')).toEqual([]);
+    expect(scanContent(TSX, '<h1 className="text-[clamp(1.75rem,5vw,2.75rem)]">x</h1>')).toEqual(
+      [],
+    );
     expect(scanContent(CSS, "font-size: clamp(1.75rem, 5vw, 2.75rem);")).toEqual([]);
   });
 

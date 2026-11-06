@@ -27,14 +27,17 @@ export interface EnrichedLineItem {
   recoveredPayment: RecoveredPaymentRow | null;
   /** The recovery_steps.step_type that earned the recovery, if attributed to one. */
   creditedStepType: string | null;
-  dispute: (typeof disputes.$inferSelect) | null;
-  adminAuditEntry: (typeof adminAuditLog.$inferSelect) | null;
+  dispute: typeof disputes.$inferSelect | null;
+  adminAuditEntry: typeof adminAuditLog.$inferSelect | null;
 }
 
 /** Batches the evidence lookups for a set of line items: one query per evidence
  *  table (recovered_payments / disputes / admin_audit_log / recovery_steps),
  *  not one per row. */
-async function enrichLineItems(db: Db, lineItems: BillingLineItemRow[]): Promise<EnrichedLineItem[]> {
+async function enrichLineItems(
+  db: Db,
+  lineItems: BillingLineItemRow[],
+): Promise<EnrichedLineItem[]> {
   const recoveredPaymentIds = lineItems
     .map((l) => l.recoveredPaymentId)
     .filter((v): v is string => v != null);
@@ -43,15 +46,22 @@ async function enrichLineItems(db: Db, lineItems: BillingLineItemRow[]): Promise
 
   const [recoveredRows, disputeRows, auditRows] = await Promise.all([
     recoveredPaymentIds.length
-      ? db.select().from(recoveredPayments).where(inArray(recoveredPayments.id, recoveredPaymentIds))
+      ? db
+          .select()
+          .from(recoveredPayments)
+          .where(inArray(recoveredPayments.id, recoveredPaymentIds))
       : Promise.resolve([]),
-    disputeIds.length ? db.select().from(disputes).where(inArray(disputes.id, disputeIds)) : Promise.resolve([]),
+    disputeIds.length
+      ? db.select().from(disputes).where(inArray(disputes.id, disputeIds))
+      : Promise.resolve([]),
     auditIds.length
       ? db.select().from(adminAuditLog).where(inArray(adminAuditLog.id, auditIds))
       : Promise.resolve([]),
   ]);
 
-  const stepIds = recoveredRows.map((r) => r.recoveredByStepId).filter((v): v is string => v != null);
+  const stepIds = recoveredRows
+    .map((r) => r.recoveredByStepId)
+    .filter((v): v is string => v != null);
   const stepRows = stepIds.length
     ? await db
         .select({ id: recoverySteps.id, stepType: recoverySteps.stepType })
@@ -76,7 +86,9 @@ async function enrichLineItems(db: Db, lineItems: BillingLineItemRow[]): Promise
           ? (stepTypeById.get(recoveredPayment.recoveredByStepId) ?? null)
           : null,
       dispute: lineItem.disputeId ? (disputeById.get(lineItem.disputeId) ?? null) : null,
-      adminAuditEntry: lineItem.adminAuditLogId ? (auditById.get(lineItem.adminAuditLogId) ?? null) : null,
+      adminAuditEntry: lineItem.adminAuditLogId
+        ? (auditById.get(lineItem.adminAuditLogId) ?? null)
+        : null,
     };
   });
 }
@@ -102,14 +114,19 @@ export async function getBillingLedger(db: Db, accountId: string): Promise<Billi
       .select()
       .from(recoveredPayments)
       .where(
-        and(eq(recoveredPayments.accountId, accountId), eq(recoveredPayments.attributionKind, "stripe_baseline")),
+        and(
+          eq(recoveredPayments.accountId, accountId),
+          eq(recoveredPayments.attributionKind, "stripe_baseline"),
+        ),
       ),
   ]);
 
   const enriched = await enrichLineItems(db, lineItemRows);
 
   return {
-    lineItems: [...enriched].sort((a, b) => b.lineItem.createdAt.getTime() - a.lineItem.createdAt.getTime()),
+    lineItems: [...enriched].sort(
+      (a, b) => b.lineItem.createdAt.getTime() - a.lineItem.createdAt.getTime(),
+    ),
     freeRecoveries: [...freeRows]
       .sort((a, b) => b.recoveredAt.getTime() - a.recoveredAt.getTime())
       .map((recoveredPayment) => ({ recoveredPayment })),
@@ -118,7 +135,10 @@ export async function getBillingLedger(db: Db, accountId: string): Promise<Billi
 
 /** Every invoice for the account, newest first (for the /billing invoice list). */
 export async function listBillingInvoices(db: Db, accountId: string): Promise<BillingInvoiceRow[]> {
-  const rows = await db.select().from(billingInvoices).where(eq(billingInvoices.accountId, accountId));
+  const rows = await db
+    .select()
+    .from(billingInvoices)
+    .where(eq(billingInvoices.accountId, accountId));
   return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
@@ -145,12 +165,16 @@ export async function getBillingInvoiceDetail(
   const lineItemRows = await db
     .select()
     .from(billingLineItems)
-    .where(and(eq(billingLineItems.invoiceId, invoiceId), eq(billingLineItems.accountId, accountId)));
+    .where(
+      and(eq(billingLineItems.invoiceId, invoiceId), eq(billingLineItems.accountId, accountId)),
+    );
   const enriched = await enrichLineItems(db, lineItemRows);
 
   return {
     invoice,
-    lineItems: [...enriched].sort((a, b) => a.lineItem.createdAt.getTime() - b.lineItem.createdAt.getTime()),
+    lineItems: [...enriched].sort(
+      (a, b) => a.lineItem.createdAt.getTime() - b.lineItem.createdAt.getTime(),
+    ),
   };
 }
 

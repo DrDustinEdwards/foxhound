@@ -6,7 +6,11 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
-import { CATEGORY_STATUS_LABEL, categoryBadgeTone, recoveryApproach } from "~/lib/decline-codes/presentation";
+import {
+  CATEGORY_STATUS_LABEL,
+  categoryBadgeTone,
+  recoveryApproach,
+} from "~/lib/decline-codes/presentation";
 import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -39,7 +43,11 @@ export function meta({ loaderData }: Route.MetaArgs) {
       path: `/decline-codes/${view.code}`,
       siteUrl: url,
     }),
-    jsonLd(faqPageJsonLd(loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer })))),
+    jsonLd(
+      faqPageJsonLd(
+        loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer })),
+      ),
+    ),
   ];
 }
 
@@ -60,7 +68,9 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           <span className="rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-micro text-text-tertiary">
             {view.code}
           </span>
-          <Badge tone={categoryBadgeTone(view.category)}>{CATEGORY_STATUS_LABEL[view.category]}</Badge>
+          <Badge tone={categoryBadgeTone(view.category)}>
+            {CATEGORY_STATUS_LABEL[view.category]}
+          </Badge>
         </div>
 
         <section className="mb-10">
@@ -80,13 +90,18 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
 
         <section className="mb-10">
           <h2 className="mb-4 text-title font-medium text-text">Questions</h2>
-          <FaqAccordion faqs={content.faqs.map((f) => ({ question: f.question, answer: f.answer }))} />
+          <FaqAccordion
+            faqs={content.faqs.map((f) => ({ question: f.question, answer: f.answer }))}
+          />
         </section>
 
         <div className="rounded-lg border border-border bg-surface p-6 text-center">
-          <p className="mb-2 text-body font-medium text-text">See what this looks like on your account</p>
+          <p className="mb-2 text-body font-medium text-text">
+            See what this looks like on your account
+          </p>
           <p className="mb-5 text-label text-text-secondary">
-            The free audit shows what Stripe already recovered and what is still dying, no signup required.
+            The free audit shows what Stripe already recovered and what is still dying, no signup
+            required.
           </p>
           <Link
             to="/audit"

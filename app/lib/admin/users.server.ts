@@ -36,7 +36,11 @@ export interface PlatformUserRow {
   memberships: UserMembership[];
 }
 
-export async function listPlatformUsers(db: Db, env: Env, nowMs: number = Date.now()): Promise<PlatformUserRow[]> {
+export async function listPlatformUsers(
+  db: Db,
+  env: Env,
+  nowMs: number = Date.now(),
+): Promise<PlatformUserRow[]> {
   // Three independent reads, run together.
   const [users, sessions, memberRows] = await Promise.all([
     db
@@ -95,7 +99,10 @@ export async function listPlatformUsers(db: Db, env: Env, nowMs: number = Date.n
     const userId =
       m.status === MEMBER_STATUS.ACTIVE
         ? m.userId
-        : (m.userId ?? (m.invitedEmail ? verifiedEmailToId.get(normalizeInviteEmail(m.invitedEmail)) : undefined));
+        : (m.userId ??
+          (m.invitedEmail
+            ? verifiedEmailToId.get(normalizeInviteEmail(m.invitedEmail))
+            : undefined));
     if (!userId) continue;
     const entry: UserMembership = {
       accountId: m.accountId,
@@ -103,7 +110,9 @@ export async function listPlatformUsers(db: Db, env: Env, nowMs: number = Date.n
       role: m.role,
       status: m.status,
       inviteExpired:
-        m.status === MEMBER_STATUS.PENDING && m.inviteExpiresAt !== null && m.inviteExpiresAt.getTime() <= nowMs,
+        m.status === MEMBER_STATUS.PENDING &&
+        m.inviteExpiresAt !== null &&
+        m.inviteExpiresAt.getTime() <= nowMs,
     };
     const accountsForUser = byUser.get(userId) ?? new Map<string, UserMembership>();
     const existing = accountsForUser.get(m.accountId);
@@ -118,7 +127,8 @@ export async function listPlatformUsers(db: Db, env: Env, nowMs: number = Date.n
     // Active first; within each, by account name (the query's order, kept by
     // the map's insertion order and a stable sort).
     memberships: [...(byUser.get(u.id)?.values() ?? [])].sort(
-      (a, b) => Number(a.status !== MEMBER_STATUS.ACTIVE) - Number(b.status !== MEMBER_STATUS.ACTIVE),
+      (a, b) =>
+        Number(a.status !== MEMBER_STATUS.ACTIVE) - Number(b.status !== MEMBER_STATUS.ACTIVE),
     ),
   }));
 }

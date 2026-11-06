@@ -79,7 +79,9 @@ describe("cron registry", () => {
   it("sends expiring-card alerts at legacy's 09:00 UTC daily, not on the 03:00 sweep", () => {
     // Recova's vercel.json: { "path": "/api/cron/expiring-cards", "schedule": "0 9 * * *" }.
     expect(CRON_SCHEDULE_EXPIRING_CARDS).toBe("0 9 * * *");
-    expect(jobsForSchedule(CRON_SCHEDULE_EXPIRING_CARDS).map((j) => j.name)).toEqual(["expiring-cards"]);
+    expect(jobsForSchedule(CRON_SCHEDULE_EXPIRING_CARDS).map((j) => j.name)).toEqual([
+      "expiring-cards",
+    ]);
     expect(jobsForSchedule(CRON_SCHEDULE_DAILY).map((j) => j.name)).not.toContain("expiring-cards");
   });
 
@@ -96,6 +98,11 @@ describe("cron registry", () => {
     // new expression would need its own cron-health period.
     const tick = jobsForSchedule(CRON_SCHEDULE_RECOVERY_TICK);
     // Alerts too: Recova evaluated them at the tail of its recovery cron.
-    expect(tick.map((j) => j.name)).toEqual(["recovery-tick", "winback-send", "dispute-reminders", "alerts-evaluate"]);
+    expect(tick.map((j) => j.name)).toEqual([
+      "recovery-tick",
+      "winback-send",
+      "dispute-reminders",
+      "alerts-evaluate",
+    ]);
   });
 });

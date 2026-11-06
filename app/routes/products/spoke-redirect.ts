@@ -20,7 +20,9 @@ const SPOKE_TARGETS: Readonly<Record<string, string>> = {
 };
 
 export function loader({ request, params }: Route.LoaderArgs) {
-  const target = Object.hasOwn(SPOKE_TARGETS, params.spoke) ? SPOKE_TARGETS[params.spoke] : undefined;
+  const target = Object.hasOwn(SPOKE_TARGETS, params.spoke)
+    ? SPOKE_TARGETS[params.spoke]
+    : undefined;
   // A thrown 404 renders the site's own not-found page through the root
   // boundary, which is why this module has a component and is not a bare
   // resource route.

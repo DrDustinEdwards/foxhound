@@ -17,7 +17,8 @@ const KEYS_HEADING_ID = "admin-mcps-keys-heading";
 const TOOLS_HEADING_ID = "admin-mcps-tools-heading";
 const CALLS_HEADING_ID = "admin-mcps-calls-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offset-2 hover:text-brand-text";
+const LINK =
+  "inline-block min-h-6 leading-6 text-text underline underline-offset-2 hover:text-brand-text";
 
 // The MCP part of /admin/operations. It was its own page, /admin/mcps,
 // with no row in the admin menu; Dustin had it folded into Operations on
@@ -43,9 +44,17 @@ export function AdminMcpPanels({
   return (
     <div className="grid grid-cols-1 gap-6">
       <StatTiles label="MCP use">
-        <StatTile label="API keys" figure={String(summary.keysTotal)} detail="Merchant and admin, revoked included" />
+        <StatTile
+          label="API keys"
+          figure={String(summary.keysTotal)}
+          detail="Merchant and admin, revoked included"
+        />
         <StatTile label="Active keys" figure={String(summary.keysActive)} detail="Not revoked" />
-        <StatTile label="Calls" figure={String(summary.callsLast24h)} detail="Merchant MCP, in the last 24 hours" />
+        <StatTile
+          label="Calls"
+          figure={String(summary.callsLast24h)}
+          detail="Merchant MCP, in the last 24 hours"
+        />
         <StatTile
           label="Failed calls"
           figure={String(summary.failedLast24h)}
@@ -67,8 +76,15 @@ export function AdminMcpPanels({
               A key appears here when a merchant creates one in their settings.
             </Empty>
           ) : (
-            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={KEYS_HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow=""
+              data-cap="table"
+              role="region"
+              aria-labelledby={KEYS_HEADING_ID}
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <caption className="cap-sr-only">API keys, newest first.</caption>
                 <thead>
@@ -101,10 +117,19 @@ export function AdminMcpPanels({
           {tools.length === 0 ? (
             <Empty kind="nothing-yet" title="No merchant tools registered." />
           ) : (
-            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={TOOLS_HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow=""
+              data-cap="table"
+              role="region"
+              aria-labelledby={TOOLS_HEADING_ID}
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+              tabIndex={0}
+            >
               <table className="cap-table">
-                <caption className="cap-sr-only">Merchant MCP tools, as the registry lists them.</caption>
+                <caption className="cap-sr-only">
+                  Merchant MCP tools, as the registry lists them.
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col">Tool</th>
@@ -118,8 +143,16 @@ export function AdminMcpPanels({
                       <th scope="row" className="font-mono text-micro font-normal break-all">
                         {t.name}
                       </th>
-                      <td data-label="What it does" data-wrap="">{t.title}</td>
-                      <td data-label="Access">{t.writes ? <Status tone="info">Writes</Status> : <Status tone="ok">Reads</Status>}</td>
+                      <td data-label="What it does" data-wrap="">
+                        {t.title}
+                      </td>
+                      <td data-label="Access">
+                        {t.writes ? (
+                          <Status tone="info">Writes</Status>
+                        ) : (
+                          <Status tone="ok">Reads</Status>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -140,8 +173,15 @@ export function AdminMcpPanels({
               Every tool call a merchant key makes is logged here.
             </Empty>
           ) : (
-            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={CALLS_HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow=""
+              data-cap="table"
+              role="region"
+              aria-labelledby={CALLS_HEADING_ID}
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <caption className="cap-sr-only">Merchant MCP calls, newest first.</caption>
                 <thead>
@@ -187,10 +227,14 @@ function KeyRow({ apiKey: k }: { apiKey: AdminApiKeyRow }) {
         {k.accountId ? (
           <AccountLink id={k.accountId} name={k.accountName} />
         ) : (
-          <span className="text-text-secondary">{k.scope === MCP_TOKEN_SCOPE.ADMIN ? "Platform" : "No account"}</span>
+          <span className="text-text-secondary">
+            {k.scope === MCP_TOKEN_SCOPE.ADMIN ? "Platform" : "No account"}
+          </span>
         )}
       </td>
-      <td data-label="Status">{k.revokedAt ? <Status tone="nodata">Revoked</Status> : <Status tone="ok">Active</Status>}</td>
+      <td data-label="Status">
+        {k.revokedAt ? <Status tone="nodata">Revoked</Status> : <Status tone="ok">Active</Status>}
+      </td>
       <td data-label="Created">
         <AdminTime at={k.createdAt} />
       </td>
@@ -210,14 +254,22 @@ function CallRow({ call: c }: { call: AdminMcpCallRow }) {
       <td data-label="Account">
         <AccountLink id={c.accountId} name={c.accountName} />
       </td>
-      <td data-label="Key">{c.keyLabel ?? <span className="text-text-tertiary">{c.keyFound ? "Unlabelled" : "Removed key"}</span>}</td>
+      <td data-label="Key">
+        {c.keyLabel ?? (
+          <span className="text-text-tertiary">{c.keyFound ? "Unlabelled" : "Removed key"}</span>
+        )}
+      </td>
       <td data-label="Outcome">
         <Status tone={c.outcome === "ok" ? "ok" : "crit"}>{outcomeWords(c.outcome)}</Status>
       </td>
       <td data-label="When">
         <AdminTime at={c.createdAt} />
       </td>
-      <td data-label="Error" data-wrap="" className={c.error ? "text-error-text" : "text-text-tertiary"}>
+      <td
+        data-label="Error"
+        data-wrap=""
+        className={c.error ? "text-error-text" : "text-text-tertiary"}
+      >
         {c.error === null ? "None" : maskSecretsInText(c.error)}
       </td>
     </tr>

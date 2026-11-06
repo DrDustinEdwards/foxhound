@@ -69,7 +69,9 @@ export function dayOverDayCents(points: readonly DailyPoint[]): number | null {
 /** Recova's "New MRR (MTD)": new MRR summed over this UTC month's snapshots. */
 export function newMrrMonthToDateCents(points: readonly DailyPoint[], nowMs: number): number {
   const month = monthKeyOf(new Date(nowMs));
-  return points.filter((p) => monthKeyOf(p.at) === month).reduce((sum, p) => sum + p.newMrrCents, 0);
+  return points
+    .filter((p) => monthKeyOf(p.at) === month)
+    .reduce((sum, p) => sum + p.newMrrCents, 0);
 }
 
 /** "+$120" or "-$45": Recova printed only a plus, and a fall read as a rise. */
@@ -141,7 +143,10 @@ export function planBreakdownRows(raw: unknown): PlanRow[] {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return [];
   return Object.entries(raw as Record<string, unknown>)
     .filter((e): e is [string, number] => typeof e[1] === "number" && e[1] > 0)
-    .map(([plan, mrrCents]) => ({ plan: plan === UNNAMED_PLAN_KEY ? "Unknown plan" : plan, mrrCents }))
+    .map(([plan, mrrCents]) => ({
+      plan: plan === UNNAMED_PLAN_KEY ? "Unknown plan" : plan,
+      mrrCents,
+    }))
     .sort((a, b) => b.mrrCents - a.mrrCents);
 }
 
@@ -245,7 +250,9 @@ export function planAlt(rows: readonly PlanRow[], currency: string): string {
   return `MRR by plan, largest first: ${rows.map((r) => `${r.plan} ${formatMoneyShort(r.mrrCents, currency)}`).join(", ")}.`;
 }
 
-export function healthAlt(days: readonly { date: string; atRisk: number; watch: number; healthy: number }[]): string {
+export function healthAlt(
+  days: readonly { date: string; atRisk: number; watch: number; healthy: number }[],
+): string {
   const last = days[days.length - 1];
   if (!last) return "Customer health distribution: no scores yet.";
   return (
@@ -253,4 +260,3 @@ export function healthAlt(days: readonly { date: string; atRisk: number; watch: 
     `${last.atRisk} high risk, ${last.watch} medium risk, ${last.healthy} healthy.`
   );
 }
-

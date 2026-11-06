@@ -101,7 +101,10 @@ export function cronDisplayStatus(
 export async function getVisibleCronStatus(db: Db, nowMs: number): Promise<CronStatusRow[]> {
   const [succeeded, latest] = await Promise.all([
     db
-      .select({ cronName: cronRunHistory.cronName, lastSucceededAt: max(cronRunHistory.finishedAt) })
+      .select({
+        cronName: cronRunHistory.cronName,
+        lastSucceededAt: max(cronRunHistory.finishedAt),
+      })
       .from(cronRunHistory)
       .where(eq(cronRunHistory.status, "success"))
       .groupBy(cronRunHistory.cronName),
@@ -119,7 +122,10 @@ export async function getVisibleCronStatus(db: Db, nowMs: number): Promise<CronS
   ]);
 
   const succeededByName = new Map(
-    succeeded.map((r) => [r.cronName, r.lastSucceededAt === null ? null : new Date(r.lastSucceededAt)]),
+    succeeded.map((r) => [
+      r.cronName,
+      r.lastSucceededAt === null ? null : new Date(r.lastSucceededAt),
+    ]),
   );
   const statusByName = new Map(latest.map((r) => [r.cronName, r.status]));
 

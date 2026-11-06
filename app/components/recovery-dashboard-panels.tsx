@@ -106,7 +106,11 @@ export function ChecklistStatus({ done }: { done: boolean }) {
   return done ? <Status tone="ok">Done</Status> : <Status tone="nodata">To do</Status>;
 }
 
-export function OnboardingChecklist({ connected, senderNameSet, alertAddressSet }: OnboardingChecklistState) {
+export function OnboardingChecklist({
+  connected,
+  senderNameSet,
+  alertAddressSet,
+}: OnboardingChecklistState) {
   const allDone = connected && senderNameSet && alertAddressSet;
   return (
     <Panel title="Getting started">
@@ -204,7 +208,12 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
   const atRiskPct = atRiskPctOfMrr(w.atRiskRevenue, w.connection?.mrrEstimateCents ?? null);
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-      <StatCard primary icon={TrendingUp} label="Recovered (30d)" value={formatCurrencyTotals(w.recoveredRevenue)} />
+      <StatCard
+        primary
+        icon={TrendingUp}
+        label="Recovered (30d)"
+        value={formatCurrencyTotals(w.recoveredRevenue)}
+      />
       <StatCard
         primary
         icon={AlertCircle}
@@ -219,7 +228,9 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
         icon={Percent}
         label="Recovery rate"
         value={w.recoveryRatePct === null ? "-" : `${w.recoveryRatePct}%`}
-        valueClassName={w.recoveryRatePct === null ? undefined : recoveryRateClassName(w.recoveryRatePct)}
+        valueClassName={
+          w.recoveryRatePct === null ? undefined : recoveryRateClassName(w.recoveryRatePct)
+        }
         sub={recoveryRateBand(w.recoveryRatePct)}
       />
     </div>
@@ -260,7 +271,9 @@ function RoiLine({ label, value, strong }: { label: string; value: string; stron
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-label text-text-secondary">{label}</dt>
-      <dd className={`m-0 font-mono text-body tabular-nums ${strong ? "font-semibold text-text" : "text-text-tertiary"}`}>
+      <dd
+        className={`m-0 font-mono text-body tabular-nums ${strong ? "font-semibold text-text" : "text-text-tertiary"}`}
+      >
         {value}
       </dd>
     </div>
@@ -291,7 +304,9 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div>
-            <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">This month</h3>
+            <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">
+              This month
+            </h3>
             <dl className="m-0 flex flex-col gap-2">
               <RoiLine label="Recovered" value={formatCurrencyTotals(roi.thisMonth.recovered)} />
               <RoiLine
@@ -302,9 +317,14 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
             </dl>
           </div>
           <div>
-            <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">All time</h3>
+            <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">
+              All time
+            </h3>
             <dl className="m-0 flex flex-col gap-2">
-              <RoiLine label="Total recovered" value={formatCurrencyTotals(roi.allTime.recovered)} />
+              <RoiLine
+                label="Total recovered"
+                value={formatCurrencyTotals(roi.allTime.recovered)}
+              />
               <RoiLine label="Total fees" value={formatCurrencyTotals(roi.allTime.fee)} />
               <RoiLine label="Net to you" value={formatCurrencyTotals(roi.allTime.kept)} strong />
             </dl>
@@ -328,12 +348,15 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
               checkout the email's link opens, with no window
               (app/lib/recovery/winback-reactivation.server.ts). */}
           <p className="m-0 text-micro text-text-subtle">
-            When a customer who canceled reactivates their subscription from a win-back email, it appears here.
+            When a customer who canceled reactivates their subscription from a win-back email, it
+            appears here.
           </p>
         </div>
       ) : (
         <div>
-          <p className="m-0 font-mono text-display font-semibold tabular-nums text-text">{w.reactivatedCount}</p>
+          <p className="m-0 font-mono text-display font-semibold tabular-nums text-text">
+            {w.reactivatedCount}
+          </p>
           <p className="m-0 text-micro text-text-tertiary">
             customer{w.reactivatedCount !== 1 ? "s" : ""} reactivated
           </p>
@@ -351,7 +374,15 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
   );
 }
 
-export function RecoveryQueue({ w, nowMs, hours }: { w: RecoveryDashboardWindow; nowMs: number; hours: number }) {
+export function RecoveryQueue({
+  w,
+  nowMs,
+  hours,
+}: {
+  w: RecoveryDashboardWindow;
+  nowMs: number;
+  hours: number;
+}) {
   if (w.upcomingSteps.length === 0) {
     return (
       <p className="m-0 px-1 py-3 text-label text-text-subtle">
@@ -388,7 +419,15 @@ const PILL_TONE: Record<"success" | "failure" | "neutral", StatusTone | undefine
   neutral: undefined,
 };
 
-function DeliverabilityFigure({ value, label, small }: { value: string; label: string; small?: boolean }) {
+function DeliverabilityFigure({
+  value,
+  label,
+  small,
+}: {
+  value: string;
+  label: string;
+  small?: boolean;
+}) {
   return (
     <p className="m-0">
       <span
@@ -485,7 +524,11 @@ export function PaymentsTable({
                     </Pill>
                   </span>
                 }
-                meta={<span className="font-mono text-label text-text">{formatMoney(p.amountCents, p.currency)}</span>}
+                meta={
+                  <span className="font-mono text-label text-text">
+                    {formatMoney(p.amountCents, p.currency)}
+                  </span>
+                }
                 actions={
                   <Link
                     to={`/recovery/payments/${p.id}`}
@@ -500,8 +543,15 @@ export function PaymentsTable({
           </ul>
 
           <div className="hidden sm:block">
-            {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Failed payments" tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow="medium"
+              data-cap="table"
+              role="region"
+              aria-label="Failed payments"
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -524,35 +574,52 @@ export function PaymentsTable({
                       <tr key={p.id}>
                         <th scope="row">
                           <span className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-text">{p.customerName ?? p.customerEmail}</span>
+                            <span className="font-medium text-text">
+                              {p.customerName ?? p.customerEmail}
+                            </span>
                             {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
                           </span>
                           {p.customerName ? (
-                            <span className="block text-micro font-normal text-text-subtle">{p.customerEmail}</span>
+                            <span className="block text-micro font-normal text-text-subtle">
+                              {p.customerEmail}
+                            </span>
                           ) : null}
                           {p.planName ? (
-                            <span className="block text-micro font-normal text-text-subtle">{p.planName}</span>
+                            <span className="block text-micro font-normal text-text-subtle">
+                              {p.planName}
+                            </span>
                           ) : null}
                         </th>
-                        <td data-label="Amount" className="whitespace-nowrap font-mono">{formatMoney(p.amountCents, p.currency)}</td>
+                        <td data-label="Amount" className="whitespace-nowrap font-mono">
+                          {formatMoney(p.amountCents, p.currency)}
+                        </td>
                         <td data-label="Decline">
                           <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
                           {p.declineCode ? (
-                            <span className="block font-mono text-micro text-text-subtle">{p.declineCode}</span>
+                            <span className="block font-mono text-micro text-text-subtle">
+                              {p.declineCode}
+                            </span>
                           ) : null}
                         </td>
                         <td data-label="Steps">
-                          <span className={`font-mono text-micro ${s.completed > 0 ? "text-text" : "text-text-subtle"}`}>
+                          <span
+                            className={`font-mono text-micro ${s.completed > 0 ? "text-text" : "text-text-subtle"}`}
+                          >
                             {s.completed}/{s.total}
                           </span>
-                          {s.next ? <span className="block text-micro text-brand-text">Next: {s.next}</span> : null}
+                          {s.next ? (
+                            <span className="block text-micro text-brand-text">Next: {s.next}</span>
+                          ) : null}
                         </td>
                         <td data-label="Status">
                           <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
                             {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                           </Pill>
                         </td>
-                        <td data-label="Detected" className="whitespace-nowrap text-micro text-text-subtle">
+                        <td
+                          data-label="Detected"
+                          className="whitespace-nowrap text-micro text-text-subtle"
+                        >
                           <span className="block">{formatRelativeTime(p.detectedAt, nowMs)}</span>
                           <span className="block">{formatLongDate(p.detectedAt)}</span>
                         </td>

@@ -136,20 +136,25 @@ export default function SecurityPage() {
             access depending on what you are doing.
           </P>
           <P>
-            <strong className="text-text">The free audit requests {STRIPE_AUDIT_SCOPE} scope too.</strong>{" "}
+            <strong className="text-text">
+              The free audit requests {STRIPE_AUDIT_SCOPE} scope too.
+            </strong>{" "}
             Stripe no longer offers read-only access to platforms like Foxhound, so Stripe asks you
             for full (read and write) access. During the audit Foxhound only reads invoices,
             subscriptions, disputes and customer records to produce the report, and writes nothing.
-            After {AUDIT_GRANT_MINUTES} minutes Foxhound disconnects itself from your Stripe account,
-            unless you connect a Foxhound account.
+            After {AUDIT_GRANT_MINUTES} minutes Foxhound disconnects itself from your Stripe
+            account, unless you connect a Foxhound account.
           </P>
           <P>
-            <strong className="text-text">Merchant onboarding requests {STRIPE_CONNECT_SCOPE} scope</strong>, because
-            recovery involves writes. Foxhound writes for these things and no others: retrying payment
-            on an invoice that has already failed, setting a customer default payment method after
-            that customer updates their card, opening a Stripe checkout when a former customer chooses
-            to resubscribe, submitting dispute evidence once someone on your team has approved it, and closing a dispute at Stripe when you choose to accept it.
-            It never changes prices, products or subscription plans, never charges a customer except by
+            <strong className="text-text">
+              Merchant onboarding requests {STRIPE_CONNECT_SCOPE} scope
+            </strong>
+            , because recovery involves writes. Foxhound writes for these things and no others:
+            retrying payment on an invoice that has already failed, setting a customer default
+            payment method after that customer updates their card, opening a Stripe checkout when a
+            former customer chooses to resubscribe, submitting dispute evidence once someone on your
+            team has approved it, and closing a dispute at Stripe when you choose to accept it. It
+            never changes prices, products or subscription plans, never charges a customer except by
             retrying a failed invoice or through a checkout they complete, and never reaches your
             payouts or bank account.
           </P>
@@ -190,11 +195,11 @@ export default function SecurityPage() {
           </P>
           <P>
             API keys for the Foxhound MCP endpoint are shown once, at the moment you generate them,
-            and only a hash is stored, so Foxhound cannot show you a key again and cannot leak one it
-            does not hold. Revoking a key takes effect immediately. Some actions are never available
-            to an API key at all: submitting dispute evidence, connecting or disconnecting Stripe,
-            and anything that records an outcome or bills. Those require a signed-in person, and the
-            endpoint exposes no tool for them.
+            and only a hash is stored, so Foxhound cannot show you a key again and cannot leak one
+            it does not hold. Revoking a key takes effect immediately. Some actions are never
+            available to an API key at all: submitting dispute evidence, connecting or disconnecting
+            Stripe, and anything that records an outcome or bills. Those require a signed-in person,
+            and the endpoint exposes no tool for them.
           </P>
         </Section>
 
@@ -203,13 +208,17 @@ export default function SecurityPage() {
             Foxhound shares data with the infrastructure providers that run the service: Stripe
             (payments and Connect), Cloudflare (hosting, database and email delivery), and Anthropic
             (drafting recovery emails and dispute evidence). The same three are named in the{" "}
-            <Link to="/privacy" className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover">
+            <Link
+              to="/privacy"
+              className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"
+            >
               privacy policy
             </Link>
             , and that list is the authoritative one.
           </P>
           <P>
-            Foxhound does not sell data and does not share it with advertising or analytics networks.
+            Foxhound does not sell data and does not share it with advertising or analytics
+            networks.
           </P>
         </Section>
 
@@ -223,7 +232,8 @@ export default function SecurityPage() {
           </P>
           <P>
             Disconnecting Stripe stops recovery work on that account immediately. Canceling the
-            account removes it. Neither waives fees already earned on recoveries Foxhound attributed.
+            account removes it. Neither waives fees already earned on recoveries Foxhound
+            attributed.
           </P>
         </Section>
 
@@ -231,8 +241,8 @@ export default function SecurityPage() {
           <P>
             Email <span className="font-mono">{SUPPORT_EMAIL}</span> with what you found and how to
             reproduce it. The same address is published at{" "}
-            <span className="font-mono">/.well-known/security.txt</span> per RFC 9116, with an expiry
-            date so you can tell the contact is current.
+            <span className="font-mono">/.well-known/security.txt</span> per RFC 9116, with an
+            expiry date so you can tell the contact is current.
           </P>
           <P>
             Foxhound is a small operation and runs no bug bounty, so there is no payment and no

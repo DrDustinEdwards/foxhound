@@ -34,7 +34,9 @@ beforeEach(async () => {
   made.sqlite.pragma("foreign_keys = ON");
   db = made.db;
   harness.db = db;
-  await db.insert(user).values({ id: "u1", name: "Olive", email: "olive@acme.test", updatedAt: OLD });
+  await db
+    .insert(user)
+    .values({ id: "u1", name: "Olive", email: "olive@acme.test", updatedAt: OLD });
   for (const [id, name, role] of [
     ["acct_a", "Acme", "owner"],
     ["acct_b", "Beta Co", "owner"],
@@ -82,7 +84,11 @@ describe("F1: a failed Stripe revoke after deletion is recorded durably", () => 
     expect(rows[0]).toMatchObject({
       targetUserId: "u1",
       targetEmail: null,
-      metadata: { connection_id: "conn_a", stripe_user_id: "acct_stripe_a", error: "grant not found" },
+      metadata: {
+        connection_id: "conn_a",
+        stripe_user_id: "acct_stripe_a",
+        error: "grant not found",
+      },
     });
     expect(JSON.stringify(rows[0])).not.toContain("olive@acme.test");
   });

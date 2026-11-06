@@ -32,8 +32,8 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
 
       {reports.length === 0 ? (
         <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
-          No narrative reports yet. The nightly Intelligence run generates one once there is
-          enough data to narrate honestly.
+          No narrative reports yet. The nightly Intelligence run generates one once there is enough
+          data to narrate honestly.
         </p>
       ) : (
         <ol className="mt-6 flex flex-col gap-4">

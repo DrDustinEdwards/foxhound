@@ -60,7 +60,9 @@ beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
   harness.moneyWrites = 0;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(ACCOUNT);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES ('c1', ?, 'acct_stripe', 1, 'cipher', 1000, 1000)",
@@ -79,7 +81,9 @@ function deletedEvent(id = "evt_1", subscriptionId = "sub_1") {
         customer: "cus_1",
         currency: "usd",
         cancellation_details: { reason: "cancellation_requested" },
-        items: { data: [{ price: { unit_amount: 4900, currency: "usd", product: { name: "Pro" } } }] },
+        items: {
+          data: [{ price: { unit_amount: 4900, currency: "usd", product: { name: "Pro" } } }],
+        },
       },
     },
   } as never;
@@ -150,7 +154,9 @@ describe("PLANT 2: a replayed deletion records none", () => {
     // sequence created. Nothing else in the system can produce that state, and
     // it is exactly what the gate exists for. Without it a started outcome
     // would be recorded for a sequence that does not exist.
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_2', 'Other', 1000)").run();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_2', 'Other', 1000)")
+      .run();
     sqlite
       .prepare(
         "INSERT INTO win_back_sequences (id, account_id, stripe_customer_id, stripe_subscription_id, customer_email, status, created_at) VALUES ('wb_other', 'acct_2', 'cus_9', 'sub_1', 'x@y.test', 'active', 1000)",

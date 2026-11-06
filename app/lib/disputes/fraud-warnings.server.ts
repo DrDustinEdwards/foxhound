@@ -57,7 +57,11 @@ export async function listEarlyFraudWarnings(
 }
 
 /** One warning, pinned to the account. */
-async function findEarlyFraudWarning(db: Db, accountId: string, warningId: string): Promise<WarningRow | null> {
+async function findEarlyFraudWarning(
+  db: Db,
+  accountId: string,
+  warningId: string,
+): Promise<WarningRow | null> {
   const [row] = await db
     .select()
     .from(earlyFraudWarnings)
@@ -81,10 +85,16 @@ export interface WarningCharge {
  * Stripe redelivers with nothing claimed: the amount is what the merchant
  * decides on, and a row without it would be a guess.
  */
-export async function readWarningCharge(env: Env, connectionId: string, chargeId: string): Promise<WarningCharge> {
+export async function readWarningCharge(
+  env: Env,
+  connectionId: string,
+  chargeId: string,
+): Promise<WarningCharge> {
   const token = await getConnectionAccessToken(getDb(env), connectionId);
   if (!token) throw new Error("no stored access token for connection");
-  const charge = await getConnectedStripe(await decryptToken(env, token)).charges.retrieve(chargeId);
+  const charge = await getConnectedStripe(await decryptToken(env, token)).charges.retrieve(
+    chargeId,
+  );
   return {
     amountCents: charge.amount,
     currency: charge.currency,
@@ -117,7 +127,12 @@ export async function sendEarlyFraudWarningNotice(
       .from(earlyFraudWarnings)
       .innerJoin(accounts, eq(accounts.id, earlyFraudWarnings.accountId))
       .leftJoin(stripeConnections, eq(stripeConnections.id, earlyFraudWarnings.stripeConnectionId))
-      .where(and(eq(earlyFraudWarnings.id, ctx.warningId), eq(earlyFraudWarnings.accountId, ctx.accountId)))
+      .where(
+        and(
+          eq(earlyFraudWarnings.id, ctx.warningId),
+          eq(earlyFraudWarnings.accountId, ctx.accountId),
+        ),
+      )
       .limit(1);
     if (!row || !isOpenWarning(row.warning)) return { kind: "skipped", reason: "not_found" };
     if (row.processingPaused) return { kind: "skipped", reason: "paused" };
@@ -145,7 +160,10 @@ export async function sendEarlyFraudWarningNotice(
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`early fraud warning notice failed for account ${ctx.accountId} warning ${ctx.warningId}:`, message);
+    console.error(
+      `early fraud warning notice failed for account ${ctx.accountId} warning ${ctx.warningId}:`,
+      message,
+    );
     return { kind: "error", message };
   }
 }
@@ -286,18 +304,29 @@ export async function runWarningAction(
 ): Promise<{ data: WarningActionData; status: number }> {
   if (intent === "refund_warning_confirm") {
     const warning = await findEarlyFraudWarning(getDb(env), accountId, warningId);
-    if (!warning) return { data: { efw: { ok: false, message: REFUND_MESSAGES.not_found } }, status: 404 };
+    if (!warning)
+      return { data: { efw: { ok: false, message: REFUND_MESSAGES.not_found } }, status: 404 };
     return { data: { efwConfirm: warning.id }, status: 200 };
   }
   if (intent === "dismiss_warning") {
-    const dismissed = await dismissEarlyFraudWarning(env, { accountId, warningId, now: new Date() });
+    const dismissed = await dismissEarlyFraudWarning(env, {
+      accountId,
+      warningId,
+      now: new Date(),
+    });
     return dismissed
-      ? { data: { efw: { ok: true, message: "Warning dismissed. The charge was not refunded." } }, status: 200 }
+      ? {
+          data: { efw: { ok: true, message: "Warning dismissed. The charge was not refunded." } },
+          status: 200,
+        }
       : { data: { efw: { ok: false, message: "That warning is no longer open." } }, status: 409 };
   }
   const result = await refundEarlyFraudWarning(env, { accountId, warningId, now: new Date() });
   if (result.status === "refunded") {
-    return { data: { efw: { ok: true, message: `Refunded. Stripe refund ${result.refundId}.` } }, status: 200 };
+    return {
+      data: { efw: { ok: true, message: `Refunded. Stripe refund ${result.refundId}.` } },
+      status: 200,
+    };
   }
   return {
     data: { efw: { ok: false, message: result.message } },

@@ -76,17 +76,50 @@ function getReducedMotionOnServer(): boolean {
 function StatusIcons({ status }: { status: Status }) {
   return (
     <>
-      <X width={13} height={13} strokeWidth={2.5} aria-hidden className={status === "failed" ? undefined : "hidden"} data-queue-status="failed" />
-      <RefreshCw width={13} height={13} strokeWidth={2.5} aria-hidden className={status === "running" ? undefined : "hidden"} data-queue-status="running" />
-      <Check width={13} height={13} strokeWidth={2.5} aria-hidden className={status === "recovered" ? undefined : "hidden"} data-queue-status="recovered" />
+      <X
+        width={13}
+        height={13}
+        strokeWidth={2.5}
+        aria-hidden
+        className={status === "failed" ? undefined : "hidden"}
+        data-queue-status="failed"
+      />
+      <RefreshCw
+        width={13}
+        height={13}
+        strokeWidth={2.5}
+        aria-hidden
+        className={status === "running" ? undefined : "hidden"}
+        data-queue-status="running"
+      />
+      <Check
+        width={13}
+        height={13}
+        strokeWidth={2.5}
+        aria-hidden
+        className={status === "recovered" ? undefined : "hidden"}
+        data-queue-status="recovered"
+      />
     </>
   );
 }
 
-function Stat({ name, label, value, tone }: { name: string; label: string; value: string; tone?: string }) {
+function Stat({
+  name,
+  label,
+  value,
+  tone,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  tone?: string;
+}) {
   return (
     <div className="px-3 py-2.5">
-      <div className="mb-1 font-mono text-micro uppercase tracking-widest text-text-subtle">{label}</div>
+      <div className="mb-1 font-mono text-micro uppercase tracking-widest text-text-subtle">
+        {label}
+      </div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -170,7 +203,9 @@ export function RecoveryQueueDemo() {
                 <StatusIcons status={frame.statuses[i]} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-label font-medium text-text">{payment.name}</span>
+                <span className="block truncate text-label font-medium text-text">
+                  {payment.name}
+                </span>
                 <span className="block font-mono text-micro text-text-subtle" data-queue-meta="">
                   {frame.metas[i]}
                 </span>
@@ -183,7 +218,10 @@ export function RecoveryQueueDemo() {
         </ol>
 
         <div className="border-b border-border-sub bg-bg px-4 py-3">
-          <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle" data-queue-sequence="">
+          <div
+            className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle"
+            data-queue-sequence=""
+          >
             {`${activePayment.name} sequence`}
           </div>
           <div className="flex items-center gap-1">
@@ -196,7 +234,12 @@ export function RecoveryQueueDemo() {
         </div>
 
         <div className="grid grid-cols-3 divide-x divide-border-sub">
-          <Stat name="recovered" label="Recovered" value={recoveredText(frame.recovered)} tone={recoveredTone(frame.recovered)} />
+          <Stat
+            name="recovered"
+            label="Recovered"
+            value={recoveredText(frame.recovered)}
+            tone={recoveredTone(frame.recovered)}
+          />
           <Stat name="rate" label="Rate" value={frame.rate} />
           <Stat name="active" label="Active" value={String(frame.active)} />
         </div>

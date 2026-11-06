@@ -24,7 +24,11 @@ export const CUSTOMER_IP_FIELD = "customer_purchase_ip";
 export const SHIPPING_TRACKING_FIELD = "shipping_tracking_number";
 export const SHIPPING_CARRIER_FIELD = "shipping_carrier";
 export const SHIPPING_DATE_FIELD = "shipping_date";
-export const SHIPPING_FIELDS = [SHIPPING_TRACKING_FIELD, SHIPPING_CARRIER_FIELD, SHIPPING_DATE_FIELD] as const;
+export const SHIPPING_FIELDS = [
+  SHIPPING_TRACKING_FIELD,
+  SHIPPING_CARRIER_FIELD,
+  SHIPPING_DATE_FIELD,
+] as const;
 
 /** Recova's carrier select, in its order. */
 export const SHIPPING_CARRIERS = ["UPS", "FedEx", "USPS", "DHL", "Other"] as const;
@@ -33,7 +37,8 @@ export const SHIPPING_CARRIERS = ["UPS", "FedEx", "USPS", "DHL", "Other"] as con
 export const ACCEPT_CONFIRM_LINE = "Accept this dispute? You won't be charged a Foxhound fee.";
 /** Shown in Accept's place while an approval stands (PR 149 review). Not
  *  Recova's: Recova offered Accept until submission. Listed for Dustin. */
-export const ACCEPT_UNAVAILABLE_APPROVED_LINE = "Accept is not available once the evidence has been approved for submission.";
+export const ACCEPT_UNAVAILABLE_APPROVED_LINE =
+  "Accept is not available once the evidence has been approved for submission.";
 
 /**
  * The header's deadline line, in Recova's words: "No deadline set",
@@ -119,7 +124,9 @@ export function splitEvidence(
     // A merchant's uploaded file has its own section, Evidence files.
     .filter((e) => e.fieldName !== EVIDENCE_FILE_FIELD)
     .filter((e) => !(ipEditable && e.fieldName === CUSTOMER_IP_FIELD))
-    .filter((e) => !(shippingEditable && (SHIPPING_FIELDS as readonly string[]).includes(e.fieldName)))
+    .filter(
+      (e) => !(shippingEditable && (SHIPPING_FIELDS as readonly string[]).includes(e.fieldName)),
+    )
     .filter((e) => e.fieldValue.trim() !== "");
   return { structured, narrative, customerIp, shipping };
 }
@@ -159,4 +166,5 @@ export function draftDirty(state: DraftState): boolean {
 }
 
 /** The line beside a held-back Approve. */
-export const UNSAVED_APPROVE_LINE = "You have unsaved changes. Save your draft first: Approve submits the saved draft.";
+export const UNSAVED_APPROVE_LINE =
+  "You have unsaved changes. Save your draft first: Approve submits the saved draft.";

@@ -36,7 +36,10 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
   [/\b(sk|rk)_(live|test)_[A-Za-z0-9]+/g, "$1_$2_[redacted]"],
   // Slack and Discord webhook URLs: the path is the credential.
   [/https?:\/\/hooks\.slack\.com\/[^\s"'<>]+/gi, "https://hooks.slack.com/[redacted]"],
-  [/https?:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi, "https://discord.com/api/webhooks/[redacted]"],
+  [
+    /https?:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi,
+    "https://discord.com/api/webhooks/[redacted]",
+  ],
 ];
 
 // An address written with %40 for the @, as it appears in a query string.
@@ -45,6 +48,9 @@ const ENCODED_EMAIL = /([^\s@%'"<>(),;:/?&=]+)%40([^\s@'"<>(),;:/?&=]+\.[^\s@'"<
 export function maskSecretsInText(text: string): string {
   let out = text;
   for (const [pattern, replacement] of SECRET_PATTERNS) out = out.replace(pattern, replacement);
-  out = out.replace(ENCODED_EMAIL, (_match, local: string, domain: string) => `${local.charAt(0)}***%40${domain}`);
+  out = out.replace(
+    ENCODED_EMAIL,
+    (_match, local: string, domain: string) => `${local.charAt(0)}***%40${domain}`,
+  );
   return maskEmailsInText(out);
 }

@@ -75,8 +75,20 @@ function member(over: Partial<Member>): Member {
   return { ...base, ...over, isOwnerRole: (over.role ?? base.role) === "owner" };
 }
 
-const OWNER_ROW = member({ id: "m_owner", userId: "u_owner", userName: "Dana Owner", userEmail: "dana@example.com", role: "owner" });
-const MEMBER_ROW = member({ id: "m_sam", userId: "u_sam", userName: "Sam Member", userEmail: "sam@example.com", removable: true });
+const OWNER_ROW = member({
+  id: "m_owner",
+  userId: "u_owner",
+  userName: "Dana Owner",
+  userEmail: "dana@example.com",
+  role: "owner",
+});
+const MEMBER_ROW = member({
+  id: "m_sam",
+  userId: "u_sam",
+  userName: "Sam Member",
+  userEmail: "sam@example.com",
+  removable: true,
+});
 const PENDING_ROW = member({
   id: "m_pend",
   userId: null,
@@ -154,11 +166,17 @@ describe("J31: pending and clearing belong to the form that was sent", () => {
   }
 
   it("a remove in flight marks only its row, never the invite button", () => {
-    expect(pendingState(fd({ _action: "remove", memberId: "m_sam" }))).toEqual({ invite: false, removing: "m_sam" });
+    expect(pendingState(fd({ _action: "remove", memberId: "m_sam" }))).toEqual({
+      invite: false,
+      removing: "m_sam",
+    });
   });
 
   it("an invite in flight marks only the invite button", () => {
-    expect(pendingState(fd({ _action: "invite", email: "a@example.com" }))).toEqual({ invite: true, removing: null });
+    expect(pendingState(fd({ _action: "invite", email: "a@example.com" }))).toEqual({
+      invite: true,
+      removing: null,
+    });
   });
 
   it("nothing in flight, nothing pending", () => {
@@ -168,9 +186,23 @@ describe("J31: pending and clearing belong to the form that was sent", () => {
   it("only a sent invite clears the field; a remove result keeps a half-typed address", () => {
     expect(shouldClearInvite(INVITE_OK)).toBe(true);
     expect(shouldClearInvite(INVITE_BAD)).toBe(false);
-    expect(shouldClearInvite({ action: "remove", error: null, invited: null, inviteUrl: null, memberId: "m_sam" })).toBe(false);
     expect(
-      shouldClearInvite({ action: "remove", error: "No.", invited: null, inviteUrl: null, memberId: "m_sam" }),
+      shouldClearInvite({
+        action: "remove",
+        error: null,
+        invited: null,
+        inviteUrl: null,
+        memberId: "m_sam",
+      }),
+    ).toBe(false);
+    expect(
+      shouldClearInvite({
+        action: "remove",
+        error: "No.",
+        invited: null,
+        inviteUrl: null,
+        memberId: "m_sam",
+      }),
     ).toBe(false);
     expect(shouldClearInvite(undefined)).toBe(false);
   });
@@ -185,10 +217,14 @@ describe("J31: the loader lists the owner first", () => {
     harness.db = db;
     for (const id of ["u_a", "u_b", "u_owner"]) {
       sqlite
-        .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+        .prepare(
+          "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+        )
         .run(id, id, `${id}@example.com`);
     }
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct', 'Acme', 1000)").run();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct', 'Acme', 1000)")
+      .run();
     // The owner joined LAST, so insertion order alone would list them last.
     const add = sqlite.prepare(
       "INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES (?, 'acct', ?, ?, 'active', ?)",
@@ -199,7 +235,9 @@ describe("J31: the loader lists the owner first", () => {
     // created_at is nullable on account_members (app/db/schema.ts). SQLite
     // sorts NULL first in ascending order; a row with no time goes last.
     sqlite
-      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('u_c', 'u_c', 'u_c@example.com', 0, 0)")
+      .prepare(
+        "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('u_c', 'u_c', 'u_c@example.com', 0, 0)",
+      )
       .run();
     add.run("m_null", "u_c", "member", null);
   });
@@ -207,15 +245,25 @@ describe("J31: the loader lists the owner first", () => {
   it("owner first, then the rest in the order they joined, a row with no join time last", async () => {
     const ctx = {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext)
+          return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
         if (key === authContext) {
           const m = { memberId: "m_owner", accountId: "acct", accountName: "Acme", role: "owner" };
-          return { userId: "u_owner", email: "u_owner@example.com", membership: m, memberships: [m] };
+          return {
+            userId: "u_owner",
+            email: "u_owner@example.com",
+            membership: m,
+            memberships: [m],
+          };
         }
         throw new Error("unexpected context key");
       },
     };
-    const loaded = (await route.loader({ context: ctx, request: new Request("https://x/settings/team"), params: {} } as never)) as {
+    const loaded = (await route.loader({
+      context: ctx,
+      request: new Request("https://x/settings/team"),
+      params: {},
+    } as never)) as {
       members: { id: string }[];
     };
     expect(loaded.members.map((m) => m.id)).toEqual(["m_owner", "m_a", "m_b", "m_null"]);
@@ -224,10 +272,16 @@ describe("J31: the loader lists the owner first", () => {
   it("the action says which form it answers, and a remove result names its row", async () => {
     const ctx = {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext)
+          return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
         if (key === authContext) {
           const m = { memberId: "m_owner", accountId: "acct", accountName: "Acme", role: "owner" };
-          return { userId: "u_owner", email: "u_owner@example.com", membership: m, memberships: [m] };
+          return {
+            userId: "u_owner",
+            email: "u_owner@example.com",
+            membership: m,
+            memberships: [m],
+          };
         }
         throw new Error("unexpected context key");
       },
@@ -242,8 +296,18 @@ describe("J31: the loader lists the owner first", () => {
       } as never)) as unknown as { data: Record<string, unknown> };
       return res.data;
     }
-    expect(await post({ _action: "remove", memberId: "m_owner" })).toMatchObject({ action: "remove", memberId: "m_owner" });
-    expect(await post({ _action: "remove", memberId: "m_a" })).toMatchObject({ action: "remove", error: null, memberId: "m_a" });
-    expect(await post({ _action: "invite", email: "" })).toMatchObject({ action: "invite", memberId: null });
+    expect(await post({ _action: "remove", memberId: "m_owner" })).toMatchObject({
+      action: "remove",
+      memberId: "m_owner",
+    });
+    expect(await post({ _action: "remove", memberId: "m_a" })).toMatchObject({
+      action: "remove",
+      error: null,
+      memberId: "m_a",
+    });
+    expect(await post({ _action: "invite", email: "" })).toMatchObject({
+      action: "invite",
+      memberId: null,
+    });
   });
 });

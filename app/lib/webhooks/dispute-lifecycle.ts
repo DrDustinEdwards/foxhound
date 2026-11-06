@@ -30,7 +30,12 @@ const OPEN_ONLY = notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]);
  *  the same transaction adding nothing (the unique index on its Stripe id). */
 function buildFundsInserts(
   db: Db,
-  input: { accountId: string; stripeDisputeId: string; funds: DisputeFundsMovement[]; recordedAt: Date },
+  input: {
+    accountId: string;
+    stripeDisputeId: string;
+    funds: DisputeFundsMovement[];
+    recordedAt: Date;
+  },
 ) {
   return input.funds.map((f) =>
     db
@@ -60,7 +65,12 @@ function buildFundsInserts(
  */
 function buildDisputeUpdatedBatch(
   db: Db,
-  input: { claim: WebhookClaimInput; accountId: string; intent: IntentOf<"dispute_updated">; recordedAt: Date },
+  input: {
+    claim: WebhookClaimInput;
+    accountId: string;
+    intent: IntentOf<"dispute_updated">;
+    recordedAt: Date;
+  },
 ): MoneyWriteBatch {
   const { intent } = input;
   return [
@@ -84,7 +94,11 @@ function buildDisputeUpdatedBatch(
           or(isNull(disputes.stripeSyncedAt), lt(disputes.stripeSyncedAt, intent.eventCreatedAt)),
         ),
       ),
-    ...buildFundsInserts(db, { ...input, stripeDisputeId: intent.stripeDisputeId, funds: intent.funds }),
+    ...buildFundsInserts(db, {
+      ...input,
+      stripeDisputeId: intent.stripeDisputeId,
+      funds: intent.funds,
+    }),
   ];
 }
 
@@ -93,11 +107,20 @@ function buildDisputeUpdatedBatch(
  *  not intake has written the dispute row yet. */
 function buildDisputeFundsBatch(
   db: Db,
-  input: { claim: WebhookClaimInput; accountId: string; intent: IntentOf<"dispute_funds">; recordedAt: Date },
+  input: {
+    claim: WebhookClaimInput;
+    accountId: string;
+    intent: IntentOf<"dispute_funds">;
+    recordedAt: Date;
+  },
 ): MoneyWriteBatch {
   return [
     buildWebhookClaim(db, input.claim),
-    ...buildFundsInserts(db, { ...input, stripeDisputeId: input.intent.stripeDisputeId, funds: input.intent.funds }),
+    ...buildFundsInserts(db, {
+      ...input,
+      stripeDisputeId: input.intent.stripeDisputeId,
+      funds: input.intent.funds,
+    }),
   ];
 }
 
@@ -131,7 +154,8 @@ export async function handleDisputeUpdated(
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     idempotencyKey,
-    build: (db) => buildDisputeUpdatedBatch(db, { claim, accountId, intent, recordedAt: receivedAt }),
+    build: (db) =>
+      buildDisputeUpdatedBatch(db, { claim, accountId, intent, recordedAt: receivedAt }),
   });
   return applied ? { status: "applied" } : { status: "duplicate" };
 }
@@ -158,7 +182,12 @@ export async function handleInquiryClosed(
     accountId,
     idempotencyKey,
     build: (db) =>
-      buildInquiryClosedBatch(db, { claim, accountId, stripeDisputeId: intent.stripeDisputeId, closedAt: receivedAt }),
+      buildInquiryClosedBatch(db, {
+        claim,
+        accountId,
+        stripeDisputeId: intent.stripeDisputeId,
+        closedAt: receivedAt,
+      }),
   });
   return applied ? { status: "applied" } : { status: "duplicate" };
 }

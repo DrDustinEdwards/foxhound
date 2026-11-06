@@ -67,8 +67,7 @@ export function softwareApplicationJsonLd(url: string) {
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     url,
-    description:
-      `Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. ${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.`,
+    description: `Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. ${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.`,
     publisher: { "@id": `${url}/#organization` },
     // NO `offers` BLOCK, DELIBERATELY (376 item 22, verified true at 2569400).
     //
@@ -102,10 +101,7 @@ export function faqPageJsonLd(faqs: JsonLdFaq[]) {
 }
 
 /** The speakable parts of a page, on Prelum's WebPage node (marketingMeta) by its `@id`, so the page is one node. */
-export function speakableWebPageJsonLd(
-  url: string,
-  opts: { path: string; selectors: string[] },
-) {
+export function speakableWebPageJsonLd(url: string, opts: { path: string; selectors: string[] }) {
   return thing("WebPage", {
     "@id": `${url}${opts.path}#webpage`,
     url: `${url}${opts.path}`,

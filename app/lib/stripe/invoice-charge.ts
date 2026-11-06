@@ -20,16 +20,19 @@ export async function latestInvoiceCharge(
   invoiceId: string,
   options: { balanceTransaction?: boolean } = {},
 ): Promise<{ paymentIntent: Stripe.PaymentIntent; charge: Stripe.Charge } | null> {
-  const payments = await collectPaginated(stripe.invoicePayments.list({ invoice: invoiceId }), (p) => ({
-    created: p.created,
-    paymentIntentId: asId(p.payment.payment_intent),
-  }));
-  const latest = payments
-    .filter((p) => p.paymentIntentId)
-    .sort((a, b) => b.created - a.created)[0];
+  const payments = await collectPaginated(
+    stripe.invoicePayments.list({ invoice: invoiceId }),
+    (p) => ({
+      created: p.created,
+      paymentIntentId: asId(p.payment.payment_intent),
+    }),
+  );
+  const latest = payments.filter((p) => p.paymentIntentId).sort((a, b) => b.created - a.created)[0];
   if (!latest?.paymentIntentId) return null;
   const paymentIntent = await stripe.paymentIntents.retrieve(latest.paymentIntentId, {
-    expand: options.balanceTransaction ? ["latest_charge", "latest_charge.balance_transaction"] : ["latest_charge"],
+    expand: options.balanceTransaction
+      ? ["latest_charge", "latest_charge.balance_transaction"]
+      : ["latest_charge"],
   });
   const charge = paymentIntent.latest_charge;
   if (!charge || typeof charge === "string") return null;

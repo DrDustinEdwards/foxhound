@@ -1,4 +1,17 @@
-import { and, asc, eq, gt, gte, isNotNull, isNull, lt, notExists, notInArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  gte,
+  isNotNull,
+  isNull,
+  lt,
+  notExists,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import { accounts, disputes, emailSends, emailSuppressions, getDb } from "~/db";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
@@ -114,7 +127,10 @@ async function dueInBand(env: Env, now: Date, band: (typeof REMINDER_BANDS)[numb
             .where(
               and(
                 // reminderKey(band.eventType, disputes.id), in SQL.
-                eq(emailSends.idempotencyKey, sql`${reminderKey(band.eventType, "")} || ${disputes.id}`),
+                eq(
+                  emailSends.idempotencyKey,
+                  sql`${reminderKey(band.eventType, "")} || ${disputes.id}`,
+                ),
                 // Sent or in flight, or refused inside the back-off.
                 or(
                   isNull(emailSends.error),
@@ -127,7 +143,12 @@ async function dueInBand(env: Env, now: Date, band: (typeof REMINDER_BANDS)[numb
           db
             .select({ one: sql`1` })
             .from(emailSuppressions)
-            .where(and(eq(emailSuppressions.email, accounts.notificationEmail), isNotNull(emailSuppressions.suppressedAt))),
+            .where(
+              and(
+                eq(emailSuppressions.email, accounts.notificationEmail),
+                isNotNull(emailSuppressions.suppressedAt),
+              ),
+            ),
         ),
       ),
     )
@@ -164,7 +185,8 @@ async function remindOne(
   },
   result: DisputeReminderRun,
 ): Promise<void> {
-  const hoursLeft = ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
+  const hoursLeft =
+    ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
   result.considered++;
 
   const outcome = await sendDisputeReminderNotice(env, {

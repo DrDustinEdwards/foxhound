@@ -25,7 +25,10 @@ const ORIGIN = "https://foxhoundapp.com";
 const SITE_KEY = "k".repeat(40);
 const ENDPOINT = "https://api.indexnow.org/indexnow";
 
-type Captured = { url: string; body: { host: string; key: string; keyLocation: string; urlList: string[] } };
+type Captured = {
+  url: string;
+  body: { host: string; key: string; keyLocation: string; urlList: string[] };
+};
 
 let captured: Captured[];
 let pending: Promise<unknown>[];
@@ -100,7 +103,9 @@ function carrel(path: string, body: unknown, origin = ORIGIN) {
 
 async function carrelVersion(id: string): Promise<string> {
   const res = await handleCarrelRequest(
-    new Request(`${ORIGIN}/api/carrel/v1/content/${id}`, { headers: { authorization: `Bearer ${SITE_KEY}` } }),
+    new Request(`${ORIGIN}/api/carrel/v1/content/${id}`, {
+      headers: { authorization: `Bearer ${SITE_KEY}` },
+    }),
     envFor(),
     ctx,
   );
@@ -125,7 +130,6 @@ function expectFoxhoundSubmission(c: Captured, slug: string) {
 }
 
 describe("(a) the key file", () => {
-
   it("the route serves exactly the key, 200, as plain text, with no trailing newline", async () => {
     const res = keyRoute.loader();
     expect(res.status).toBe(200);
@@ -137,11 +141,17 @@ describe("(a) the key file", () => {
 describe("(b) a publish submits exactly Foxhound's changed URL", () => {
   it("Carrel: a draft save of an unpublished post submits nothing; publish submits the one URL", async () => {
     freshDb();
-    expect((await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }))?.status).toBe(200);
+    expect(
+      (await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }))
+        ?.status,
+    ).toBe(200);
     await settled();
     expect(captured).toEqual([]);
 
-    const pub = await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" });
+    const pub = await carrel("/content/p1/publish", {
+      expectedVersion: await carrelVersion("p1"),
+      changeId: "c2",
+    });
     expect(pub?.status).toBe(200);
     await settled();
     expect(captured).toHaveLength(1);
@@ -157,8 +167,16 @@ const ELSEWHERE = ["http://localhost:5173", "https://foxhound-preview.example.wo
 describe("(b) only a publish arriving on https://foxhoundapp.com submits", () => {
   it.each(ELSEWHERE)("Carrel publish on %s sends nothing", async (origin) => {
     freshDb();
-    await carrel("/content/p1/draft", { source: SOURCE, expectedVersion: null, changeId: "c1" }, origin);
-    const pub = await carrel("/content/p1/publish", { expectedVersion: await carrelVersion("p1"), changeId: "c2" }, origin);
+    await carrel(
+      "/content/p1/draft",
+      { source: SOURCE, expectedVersion: null, changeId: "c1" },
+      origin,
+    );
+    const pub = await carrel(
+      "/content/p1/publish",
+      { expectedVersion: await carrelVersion("p1"), changeId: "c2" },
+      origin,
+    );
     expect(pub?.status).toBe(200);
     await settled();
     expect(captured).toEqual([]);

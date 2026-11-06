@@ -73,18 +73,24 @@ function makeView(over: Partial<ChurnView> = {}): ChurnView {
 
 function render(view: ChurnView = makeView()): string {
   return renderToStaticMarkup(
-    createElement(MemoryRouter, null, createElement(Page, { loaderData: { entitled: true, view } })),
+    createElement(
+      MemoryRouter,
+      null,
+      createElement(Page, { loaderData: { entitled: true, view } }),
+    ),
   );
 }
 
-
-
-
 describe("J29 churn: the chart is Enarratio's line chart", () => {
-
   it("is left out when no snapshot has a rate, as Recova's chart returns null", () => {
     const html = render(
-      makeView({ ratePoints: MONTHS.map((d) => ({ at: new Date(`${d}T00:00:00Z`), voluntaryPct: 0, involuntaryPct: null })) }),
+      makeView({
+        ratePoints: MONTHS.map((d) => ({
+          at: new Date(`${d}T00:00:00Z`),
+          voluntaryPct: 0,
+          involuntaryPct: null,
+        })),
+      }),
     );
     expect(html).not.toContain("Churn rate over time");
     expect(html).not.toContain("data-enarratio");

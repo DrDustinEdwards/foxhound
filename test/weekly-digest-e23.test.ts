@@ -41,9 +41,8 @@ const digestEmail = await import("~/lib/recovery/digest-email");
 const { runWeeklyDigest } = await import("~/lib/cron/digest");
 const { buildEmailMessage } = await import("~/lib/email/send");
 const { verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
-const { findAdminEmailType, prepareAdminEmail, previewAdminEmail } = await import(
-  "~/lib/admin/email-send.server"
-);
+const { findAdminEmailType, prepareAdminEmail, previewAdminEmail } =
+  await import("~/lib/admin/email-send.server");
 
 const BASE = "https://foxhoundapp.test";
 const ADDRESS = "1 Test Way, Austin TX";
@@ -145,7 +144,6 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
 // ============================================================================
 
 describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () => {
-
   it("the conditional rows and both sections are absent when Recova leaves them out", () => {
     const { blocks } = digestEmail.digestContent(
       fullInput({
@@ -162,7 +160,11 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
     expect(words).not.toContain("Open disputes");
     expect(words).not.toContain("Disputes");
     expect(words).not.toContain("Intelligence");
-    expect(blocks.at(-1)).toEqual({ type: "button", label: "View Dashboard", url: `${BASE}/recovery/dashboard` });
+    expect(blocks.at(-1)).toEqual({
+      type: "button",
+      label: "View Dashboard",
+      url: `${BASE}/recovery/dashboard`,
+    });
   });
 
   it("never adds two currencies together (hard rule 2)", () => {
@@ -180,9 +182,13 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
   });
 
   it("the Intelligence section waits for an at-risk customer or an outreach flag, as Recova's does", () => {
-    const none = digestEmail.digestContent(fullInput({ highRiskCustomers: [], personalOutreachCount: 0 }));
+    const none = digestEmail.digestContent(
+      fullInput({ highRiskCustomers: [], personalOutreachCount: 0 }),
+    );
     expect(JSON.stringify(none.blocks)).not.toContain("Intelligence");
-    const flagged = JSON.stringify(digestEmail.digestContent(fullInput({ highRiskCustomers: [] })).blocks);
+    const flagged = JSON.stringify(
+      digestEmail.digestContent(fullInput({ highRiskCustomers: [] })).blocks,
+    );
     expect(flagged).toContain("2 customers flagged for personal outreach.");
     expect(flagged).not.toContain("Top at-risk customers");
   });
@@ -217,7 +223,11 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
     const unsub = /href="(https:\/\/foxhoundapp\.test\/u\/[^"]+)"[^>]*>Unsubscribe</.exec(m.html);
     expect(unsub, m.html).not.toBeNull();
     const token = decodeURIComponent(unsub![1].slice(`${BASE}/u/`.length));
-    expect(await verifyUnsubscribeToken(env, token)).toEqual({ email: OWNER, accountId: ACCOUNT, list: "digest" });
+    expect(await verifyUnsubscribeToken(env, token)).toEqual({
+      email: OWNER,
+      accountId: ACCOUNT,
+      list: "digest",
+    });
     expect(m.headers?.["List-Unsubscribe"]).toBe(`<${unsub![1]}>`);
     expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
 
@@ -229,7 +239,10 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
       [m.text, note],
     ]) {
       const at = [sentence, "Unsubscribe", ADDRESS].map((s) => part.indexOf(s));
-      expect(at.every((i) => i > -1), part).toBe(true);
+      expect(
+        at.every((i) => i > -1),
+        part,
+      ).toBe(true);
       expect(at[0]).toBeLessThan(at[1]);
       expect(at[1]).toBeLessThan(at[2]);
     }
@@ -306,12 +319,12 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
     expect(m.html).toContain(`href="${BASE}/u/tok"`);
     expect(m.html).toContain(ADDRESS);
     expect(m.replyTo).toBeUndefined();
-    expect(() => buildEmailMessage({ ...job, audience: "digest", physicalAddress: " " }, BASE)).toThrow(
-      /physical address/,
-    );
-    expect(() => buildEmailMessage({ ...job, audience: "digest", unsubscribeToken: "" }, BASE)).toThrow(
-      /unsubscribe token/,
-    );
+    expect(() =>
+      buildEmailMessage({ ...job, audience: "digest", physicalAddress: " " }, BASE),
+    ).toThrow(/physical address/);
+    expect(() =>
+      buildEmailMessage({ ...job, audience: "digest", unsubscribeToken: "" }, BASE),
+    ).toThrow(/unsubscribe token/);
   });
 });
 

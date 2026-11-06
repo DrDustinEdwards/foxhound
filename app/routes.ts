@@ -1,10 +1,4 @@
-import {
-  type RouteConfig,
-  index,
-  layout,
-  prefix,
-  route,
-} from "@react-router/dev/routes";
+import { type RouteConfig, index, layout, prefix, route } from "@react-router/dev/routes";
 
 import { INDEXNOW_KEY_PATH } from "./lib/seo/indexnow-key";
 
@@ -58,10 +52,7 @@ export default [
       route("tag/:tag", "./routes/blog/tag.tsx"),
       route(":slug", "./routes/blog/post.tsx"),
     ]),
-    ...prefix("docs", [
-      index("./routes/docs/index.tsx"),
-      route(":slug", "./routes/docs/page.tsx"),
-    ]),
+    ...prefix("docs", [index("./routes/docs/index.tsx"), route(":slug", "./routes/docs/page.tsx")]),
     ...prefix("demos", [
       index("./routes/demos.tsx"),
       route("dashboard", "./routes/demos/dashboard.ts"),
@@ -254,12 +245,20 @@ export default [
   // OAuth discovery. Recova's next.config.ts rewrote
   // both paths to one handler because Claude.ai probes both; one module here,
   // so each path needs its own id.
-  route(".well-known/oauth-authorization-server", "./routes/files/oauth-metadata.ts", { id: "oauth-metadata" }),
-  route(".well-known/openid-configuration", "./routes/files/oauth-metadata.ts", { id: "oauth-metadata-openid" }),
+  route(".well-known/oauth-authorization-server", "./routes/files/oauth-metadata.ts", {
+    id: "oauth-metadata",
+  }),
+  route(".well-known/openid-configuration", "./routes/files/oauth-metadata.ts", {
+    id: "oauth-metadata-openid",
+  }),
   // RFC 9728 metadata for /mcp, which every /mcp 401 points at, at the
   // bare path and at the /mcp suffix a client may try first.
-  route(".well-known/oauth-protected-resource", "./routes/files/oauth-protected-resource.ts", { id: "oauth-protected-resource" }),
-  route(".well-known/oauth-protected-resource/mcp", "./routes/files/oauth-protected-resource.ts", { id: "oauth-protected-resource-mcp" }),
+  route(".well-known/oauth-protected-resource", "./routes/files/oauth-protected-resource.ts", {
+    id: "oauth-protected-resource",
+  }),
+  route(".well-known/oauth-protected-resource/mcp", "./routes/files/oauth-protected-resource.ts", {
+    id: "oauth-protected-resource-mcp",
+  }),
   // The IndexNow key file: /<key>.txt at the root, named
   // after Foxhound's own key so the path and the body cannot drift apart.
   route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
@@ -275,16 +274,30 @@ export default [
   // app/lib/redirects/recova-config-redirects.ts; each path needs its own id
   // because the module is shared.
   route("recovery/audit", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit" }),
-  route("recovery/audit/connect", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit-connect" }),
-  route("recovery/audit/results", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit-results" }),
-  route("user-guides", "./routes/redirects/recova-config.ts", { id: "recova-redirect-user-guides" }),
-  route("user-guides/*", "./routes/redirects/recova-config.ts", { id: "recova-redirect-user-guides-splat" }),
-  route("sitemap_index.xml", "./routes/redirects/recova-config.ts", { id: "recova-redirect-sitemap-index" }),
+  route("recovery/audit/connect", "./routes/redirects/recova-config.ts", {
+    id: "recova-redirect-audit-connect",
+  }),
+  route("recovery/audit/results", "./routes/redirects/recova-config.ts", {
+    id: "recova-redirect-audit-results",
+  }),
+  route("user-guides", "./routes/redirects/recova-config.ts", {
+    id: "recova-redirect-user-guides",
+  }),
+  route("user-guides/*", "./routes/redirects/recova-config.ts", {
+    id: "recova-redirect-user-guides-splat",
+  }),
+  route("sitemap_index.xml", "./routes/redirects/recova-config.ts", {
+    id: "recova-redirect-sitemap-index",
+  }),
   // Pages combined into others (Dustin, 2026-10-29): the old addresses redirect.
   route("settings/alerts", "./routes/redirects/moved-page.ts", { id: "moved-settings-alerts" }),
-  route("settings/intelligence", "./routes/redirects/moved-page.ts", { id: "moved-settings-intelligence" }),
+  route("settings/intelligence", "./routes/redirects/moved-page.ts", {
+    id: "moved-settings-intelligence",
+  }),
   route("settings/features", "./routes/redirects/moved-page.ts", { id: "moved-settings-features" }),
-  route("intelligence/alerts", "./routes/redirects/moved-page.ts", { id: "moved-intelligence-alerts" }),
+  route("intelligence/alerts", "./routes/redirects/moved-page.ts", {
+    id: "moved-intelligence-alerts",
+  }),
   route("admin/mcps", "./routes/redirects/moved-page.ts", { id: "moved-admin-mcps" }),
 
   // Auth callback (resource route, no shell)

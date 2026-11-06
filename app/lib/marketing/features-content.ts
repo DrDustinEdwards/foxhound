@@ -199,7 +199,9 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const nightly = cronCadence(CRON_SCHEDULE_DAILY);
   const Nightly = capitalize(nightly);
   // Expiring cards run on their own schedule, Recova's 09:00 UTC.
-  const CardsCadence = capitalize(cronIsDaily(CRON_SCHEDULE_EXPIRING_CARDS) ? "daily" : cronCadence(CRON_SCHEDULE_EXPIRING_CARDS));
+  const CardsCadence = capitalize(
+    cronIsDaily(CRON_SCHEDULE_EXPIRING_CARDS) ? "daily" : cronCadence(CRON_SCHEDULE_EXPIRING_CARDS),
+  );
   const daily = cronIsDaily(CRON_SCHEDULE_DAILY) ? "daily" : cronCadence(CRON_SCHEDULE_DAILY);
   const monthly = cronCadence(CRON_SCHEDULE_MONTHLY);
   const Monthly = capitalize(monthly);
@@ -265,7 +267,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: `${digestDay} unified digest`,
-          description: "Weekly email covering recovery stats, open disputes, and Intelligence high-risk customers.",
+          description:
+            "Weekly email covering recovery stats, open disputes, and Intelligence high-risk customers.",
           product: "Platform",
         },
         {
@@ -366,7 +369,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "AI-written subject lines",
-          description: "Each email gets an AI-generated subject line, written with its body for the decline category.",
+          description:
+            "Each email gets an AI-generated subject line, written with its body for the decline category.",
           product: "Recovery",
         },
         {
@@ -377,12 +381,14 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Merchant context",
-          description: "Add your industry, customer type, and MRR in Settings. Foxhound uses them in recovery email copy.",
+          description:
+            "Add your industry, customer type, and MRR in Settings. Foxhound uses them in recovery email copy.",
           product: "Recovery",
         },
         {
           name: "Fallback templates",
-          description: "If AI generation fails, a template email sends instead. Sequences never stall on an AI failure.",
+          description:
+            "If AI generation fails, a template email sends instead. Sequences never stall on an AI failure.",
           product: "Recovery",
         },
         {
@@ -426,12 +432,14 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "List-Unsubscribe headers",
-          description: "Customer emails include RFC 8058 one-click List-Unsubscribe headers for CAN-SPAM compliance.",
+          description:
+            "Customer emails include RFC 8058 one-click List-Unsubscribe headers for CAN-SPAM compliance.",
           product: "Platform",
         },
         {
           name: "Signed unsubscribe tokens",
-          description: "Unsubscribe links use signed tokens. Clicking adds the address to the suppression list immediately.",
+          description:
+            "Unsubscribe links use signed tokens. Clicking adds the address to the suppression list immediately.",
           product: "Platform",
         },
       ],
@@ -440,7 +448,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
       id: "visibility",
       label: "Visibility",
       title: "Visibility",
-      intro: "Everything you can see: across your payments, sequences, customers, disputes, and platform health.",
+      intro:
+        "Everything you can see: across your payments, sequences, customers, disputes, and platform health.",
       features: [
         {
           name: "Recovery dashboard",
@@ -459,7 +468,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Email category chart",
-          description: "Open rate and click rate per decline category. Shows which category your customers respond to most.",
+          description:
+            "Open rate and click rate per decline category. Shows which category your customers respond to most.",
           product: "Recovery",
         },
         {
@@ -469,7 +479,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Payment detail timeline",
-          description: "Every step in a payment's sequence: scheduled, sent, pending. Exact timestamps, results, and email preview.",
+          description:
+            "Every step in a payment's sequence: scheduled, sent, pending. Exact timestamps, results, and email preview.",
           product: "Recovery",
         },
         {
@@ -484,7 +495,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Disputes dashboard",
-          description: "Disputes needing action, the amount at stake, historical win rate, and fees owed.",
+          description:
+            "Disputes needing action, the amount at stake, historical win rate, and fees owed.",
           product: "Disputes",
         },
         {
@@ -500,17 +512,20 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Customer health index",
-          description: "All customers sorted by health score ascending, or by MRR. Worst-health customers surface first.",
+          description:
+            "All customers sorted by health score ascending, or by MRR. Worst-health customers surface first.",
           product: "Intelligence",
         },
         {
           name: "Customer detail page",
-          description: "Health score with its factors, score history sparkline, predictions, and MRR contribution.",
+          description:
+            "Health score with its factors, score history sparkline, predictions, and MRR contribution.",
           product: "Intelligence",
         },
         {
           name: "Churn risk page",
-          description: "MRR at risk by health band, the churn rate trend chart, and the high-risk customer table sorted by MRR.",
+          description:
+            "MRR at risk by health band, the churn rate trend chart, and the high-risk customer table sorted by MRR.",
           product: "Intelligence",
         },
         {
@@ -520,7 +535,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Audit results page",
-          description: "Failed invoices, expiring cards, open disputes, and business health. AI summary at top.",
+          description:
+            "Failed invoices, expiring cards, open disputes, and business health. AI summary at top.",
           product: "Audit",
         },
         {
@@ -535,7 +551,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Admin webhook log",
-          description: "Recent webhook deliveries with their status and errors, and 24-hour received and error counts.",
+          description:
+            "Recent webhook deliveries with their status and errors, and 24-hour received and error counts.",
           product: "Platform",
         },
         {
@@ -565,17 +582,20 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Run the next step now",
-          description: "Run the next scheduled step for any payment in an active sequence, without waiting for its time.",
+          description:
+            "Run the next scheduled step for any payment in an active sequence, without waiting for its time.",
           product: "Recovery",
         },
         {
           name: "Resend email step",
-          description: "Resend the last email sent for a payment. The suppression list is checked first.",
+          description:
+            "Resend the last email sent for a payment. The suppression list is checked first.",
           product: "Recovery",
         },
         {
           name: "Manual payment recovery",
-          description: "Mark a payment recovered by hand from the payment detail page. Manual recoveries are never billed.",
+          description:
+            "Mark a payment recovered by hand from the payment detail page. Manual recoveries are never billed.",
           product: "Recovery",
         },
         {
@@ -592,7 +612,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         {
           // Recova's words, with Foxhound's name.
           name: "Accept dispute",
-          description: "Close a dispute without submitting evidence. No Foxhound fee on accepted disputes.",
+          description:
+            "Close a dispute without submitting evidence. No Foxhound fee on accepted disputes.",
           product: "Disputes",
         },
         {
@@ -607,7 +628,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Processing pause",
-          description: "A per-account pause that stops recovery and dispute processing immediately.",
+          description:
+            "A per-account pause that stops recovery and dispute processing immediately.",
           product: "Platform",
         },
         {
@@ -620,7 +642,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           // Recova's "Sender name, reply-to address, and notification email
           // per Stripe account"; Foxhound's notification email is the
           // account's, on the notifications page, not the connection's.
-          description: "Sender name and reply-to address per Stripe connection, and a test email to your own address.",
+          description:
+            "Sender name and reply-to address per Stripe connection, and a test email to your own address.",
           product: "Platform",
         },
         {
@@ -640,7 +663,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Theme toggle",
-          description: "Dark/light mode toggle. Saved to your account when signed in, a cookie otherwise.",
+          description:
+            "Dark/light mode toggle. Saved to your account when signed in, a cookie otherwise.",
           product: "Platform",
         },
         {
@@ -659,18 +683,19 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
       features: [
         {
           name: "Stripe Connect OAuth",
-          description:
-            `OAuth connection to your Stripe account, read and write, asked for once at /connect. The free audit asks for the same access, because Stripe no longer offers read-only to platforms. It only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
+          description: `OAuth connection to your Stripe account, read and write, asked for once at /connect. The free audit asks for the same access, because Stripe no longer offers read-only to platforms. It only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
           product: "Platform",
         },
         {
           name: "Multi-account support",
-          description: "One person can belong to several accounts, each with its own Stripe connection. Switch between accounts from the header.",
+          description:
+            "One person can belong to several accounts, each with its own Stripe connection. Switch between accounts from the header.",
           product: "Platform",
         },
         {
           name: "AES-256-GCM token encryption",
-          description: "All Stripe access tokens encrypted at rest in the stripe_connections table.",
+          description:
+            "All Stripe access tokens encrypted at rest in the stripe_connections table.",
           product: "Platform",
         },
         {
@@ -698,12 +723,14 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "OAuth 2.1 authorization server",
-          description: "The admin connector is its own OAuth 2.1 authorization server. PKCE S256 only.",
+          description:
+            "The admin connector is its own OAuth 2.1 authorization server. PKCE S256 only.",
           product: "Platform",
         },
         {
           name: "API keys",
-          description: "SHA-256 hashed API keys, shown once and revocable. Manage from Settings, API keys.",
+          description:
+            "SHA-256 hashed API keys, shown once and revocable. Manage from Settings, API keys.",
           product: "Platform",
         },
         {
@@ -714,7 +741,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Cloudflare D1",
-          description: "The database, reached through Workers bindings. Every query is scoped to one account.",
+          description:
+            "The database, reached through Workers bindings. Every query is scoped to one account.",
           product: "Platform",
         },
         {
@@ -737,8 +765,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
       features: [
         {
           name: "Narrow Stripe scope",
-          description:
-            `Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, or plans. The free audit only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
+          description: `Foxhound requests read and write Stripe Connect access, because retrying a failed invoice is a write. It writes for these things and no others: retrying an invoice that already failed, setting a customer default payment method after a card update, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, or plans. The free audit only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes.`,
           product: "Platform",
         },
         {
@@ -749,7 +776,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "AES-256-GCM encryption",
-          description: "All Stripe access tokens encrypted at rest. Decrypted only in memory when used.",
+          description:
+            "All Stripe access tokens encrypted at rest. Decrypted only in memory when used.",
           product: "Platform",
         },
         {
@@ -765,7 +793,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "PKCE S256 enforced",
-          description: "The admin connector's OAuth flow accepts only S256 code challenges. Plain is refused.",
+          description:
+            "The admin connector's OAuth flow accepts only S256 code challenges. Plain is refused.",
           product: "Platform",
         },
         {
@@ -787,7 +816,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "WCAG 2.2 compliance",
-          description: "prefers-reduced-motion, prefers-contrast: more, and forced-colors all implemented.",
+          description:
+            "prefers-reduced-motion, prefers-contrast: more, and forced-colors all implemented.",
           product: "Platform",
         },
         {
@@ -833,7 +863,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Outcomes table",
-          description: "Every recovery, dispute, and alert event written to outcomes with its attribution, which lift and billing read.",
+          description:
+            "Every recovery, dispute, and alert event written to outcomes with its attribution, which lift and billing read.",
           product: "Platform",
         },
         {
@@ -848,7 +879,8 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Renewal noise filtering",
-          description: "A failed payment Stripe is still retrying is parked, so Stripe's own retry events never start a duplicate sequence.",
+          description:
+            "A failed payment Stripe is still retrying is parked, so Stripe's own retry events never start a duplicate sequence.",
           product: "Platform",
         },
       ],

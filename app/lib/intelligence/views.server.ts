@@ -56,7 +56,11 @@ export async function getIntelligenceOverview(
   options: { forAgent?: boolean } = {},
 ): Promise<IntelligenceOverview> {
   const [account, customers, latestReport] = await Promise.all([
-    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)).limit(1),
+    db
+      .select({ currency: accounts.currency })
+      .from(accounts)
+      .where(eq(accounts.id, accountId))
+      .limit(1),
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -67,7 +71,10 @@ export async function getIntelligenceOverview(
       .from(customerContext)
       .where(eq(customerContext.accountId, accountId)),
     db
-      .select({ narrative: intelligenceReports.narrative, generatedAt: intelligenceReports.generatedAt })
+      .select({
+        narrative: intelligenceReports.narrative,
+        generatedAt: intelligenceReports.generatedAt,
+      })
       .from(intelligenceReports)
       .where(eq(intelligenceReports.accountId, accountId))
       .orderBy(desc(intelligenceReports.reportMonth))
@@ -113,7 +120,10 @@ export async function getIntelligenceOverview(
     atRiskCustomerCount,
     topAtRisk,
     // An agent reads the narrative with Stripe customer ids in place of names.
-    narrative: narrative !== null && options.forAgent ? narrativeWithCustomerIds(narrative, customers) : narrative,
+    narrative:
+      narrative !== null && options.forAgent
+        ? narrativeWithCustomerIds(narrative, customers)
+        : narrative,
     narrativeGeneratedAt: latestReport[0]?.generatedAt ?? null,
   };
 }
@@ -147,7 +157,12 @@ export interface CustomerHealthDetail {
   aiAssessment: string | null;
   aiAssessmentGeneratedAt: Date | null;
   history: { recordedAt: Date; healthScore: number; scoreSource: string }[];
-  predictions: { predictedAt: Date; score: number; horizonDays: number; realizedOutcome: string | null }[];
+  predictions: {
+    predictedAt: Date;
+    score: number;
+    horizonDays: number;
+    realizedOutcome: string | null;
+  }[];
 }
 
 /** Per-customer health detail, account-scoped by construction (the id +
@@ -183,7 +198,12 @@ export async function getCustomerHealthDetail(
     })
     .from(customerContext)
     .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
-    .where(and(eq(customerContext.accountId, accountId), eq(customerContext.stripeCustomerId, stripeCustomerId)))
+    .where(
+      and(
+        eq(customerContext.accountId, accountId),
+        eq(customerContext.stripeCustomerId, stripeCustomerId),
+      ),
+    )
     .limit(1);
   const row = rows[0];
   if (!row) return null;
@@ -207,7 +227,12 @@ export async function getCustomerHealthDetail(
         realizedOutcome: predictions.realizedOutcome,
       })
       .from(predictions)
-      .where(and(eq(predictions.accountId, accountId), eq(predictions.stripeCustomerId, stripeCustomerId)))
+      .where(
+        and(
+          eq(predictions.accountId, accountId),
+          eq(predictions.stripeCustomerId, stripeCustomerId),
+        ),
+      )
       .orderBy(desc(predictions.predictedAt))
       .limit(PREDICTION_HISTORY_LIMIT),
   ]);
@@ -304,7 +329,9 @@ export async function getCustomerActivity(
         resolvedAt: disputes.resolvedAt,
       })
       .from(disputes)
-      .where(and(eq(disputes.accountId, accountId), eq(disputes.stripeCustomerId, stripeCustomerId))),
+      .where(
+        and(eq(disputes.accountId, accountId), eq(disputes.stripeCustomerId, stripeCustomerId)),
+      ),
     db
       .select({ eventType: engagementEvents.eventType, occurredAt: engagementEvents.occurredAt })
       .from(engagementEvents)
@@ -321,7 +348,9 @@ export async function getCustomerActivity(
 
   const resolved = disputeRows
     .filter((d) => d.state === "resolved_won" || d.state === "resolved_lost")
-    .sort((a, b) => (b.resolvedAt ?? b.createdAt).getTime() - (a.resolvedAt ?? a.createdAt).getTime());
+    .sort(
+      (a, b) => (b.resolvedAt ?? b.createdAt).getTime() - (a.resolvedAt ?? a.createdAt).getTime(),
+    );
   const lastOutcome = resolved[0]?.state ?? null;
 
   const windowStart = nowMs - ENGAGEMENT_WINDOW_DAYS * DAY_MS;
@@ -450,4 +479,3 @@ export async function getReportsArchive(db: Db, accountId: string): Promise<Repo
     .orderBy(desc(intelligenceReports.reportMonth))
     .limit(REPORTS_ARCHIVE_LIMIT);
 }
-

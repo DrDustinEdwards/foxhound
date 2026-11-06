@@ -148,7 +148,8 @@ function NothingToDo() {
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">No action needed right now.</h2>
             <p className="cap-empty-text">
-              All customers are on track. We will surface them here as soon as one needs a closer look.
+              All customers are on track. We will surface them here as soon as one needs a closer
+              look.
             </p>
           </div>
         </div>
@@ -160,8 +161,15 @@ function NothingToDo() {
 function SectionTable({ section, rows }: { section: Section; rows: RecommendationRow[] }) {
   return (
     <Panel title={section.title} description={section.subtitle} flush>
-      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-      <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label={section.title} tabIndex={0}>
+      <div
+        className="cap-table-wrap"
+        data-reflow="medium"
+        data-cap="table"
+        role="region"
+        aria-label={section.title}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+        tabIndex={0}
+      >
         <table className="cap-table">
           <thead>
             <tr>
@@ -180,25 +188,34 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
             {rows.map((c) => (
               <tr key={c.stripeCustomerId}>
                 <th scope="row">
-                  <Link className="cap-table-open" to={`/intelligence/customers/${c.stripeCustomerId}`}>
+                  <Link
+                    className="cap-table-open"
+                    to={`/intelligence/customers/${c.stripeCustomerId}`}
+                  >
                     {c.customerName ?? "(unnamed)"}
                   </Link>
                   {/* Recova's second line under the name: the Stripe id, micro and mono. */}
-                  <span className="block font-mono text-micro text-text-subtle">{c.stripeCustomerId}</span>
+                  <span className="block font-mono text-micro text-text-subtle">
+                    {c.stripeCustomerId}
+                  </span>
                 </th>
                 <td data-label="Plan">
                   <Pill variant="outline">{c.planName ?? "-"}</Pill>
                 </td>
                 <td data-label="MRR" data-num="">
                   <span className="font-mono">
-                    {c.mrrContributionCents > 0 ? formatMoney(c.mrrContributionCents, c.currency) : "-"}
+                    {c.mrrContributionCents > 0
+                      ? formatMoney(c.mrrContributionCents, c.currency)
+                      : "-"}
                   </span>
                 </td>
                 <td data-label="Health" data-num="">
                   {c.healthScore == null ? (
                     <span className="font-mono text-text-tertiary">-</span>
                   ) : (
-                    <span className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}>
+                    <span
+                      className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
+                    >
                       {c.healthScore}
                     </span>
                   )}

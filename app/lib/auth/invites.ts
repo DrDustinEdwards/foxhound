@@ -15,10 +15,7 @@ export interface InviteView {
 }
 
 /** A pending, unexpired invite for a token, with its account name. */
-export async function getInviteByToken(
-  db: Db,
-  token: string,
-): Promise<InviteView | null> {
+export async function getInviteByToken(db: Db, token: string): Promise<InviteView | null> {
   const rows = await db
     .select({
       memberId: accountMembers.id,
@@ -56,7 +53,11 @@ export function normalizeInviteEmail(email: string): string {
  * 960aefc6), which matches `invited_email` alone, on the address in its stored
  * normal form, an expired pending invite included.
  */
-export async function hasOpenInviteForEmail(db: Db, accountId: string, email: string): Promise<boolean> {
+export async function hasOpenInviteForEmail(
+  db: Db,
+  accountId: string,
+  email: string,
+): Promise<boolean> {
   const rows = await db
     .select({ id: accountMembers.id })
     .from(accountMembers)
@@ -178,9 +179,7 @@ export async function acceptInvite(
   userEmail: string,
 ): Promise<AcceptInviteResult> {
   const invite = await getInviteByToken(db, token);
-  const existing = invite
-    ? await findActiveMembership(db, userId, invite.accountId)
-    : null;
+  const existing = invite ? await findActiveMembership(db, userId, invite.accountId) : null;
   const result = evaluateAcceptInvite(invite, existing, userEmail);
   if (!result.ok || !invite || result.alreadyMember) return result;
 

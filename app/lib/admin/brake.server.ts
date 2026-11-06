@@ -46,7 +46,19 @@
 // impossible in any interleaving: the not-already-billed left join is structural
 // and the idempotency key is pause-independent. A pause only ever defers.
 
-import { and, count, desc, eq, isNotNull, isNull, ne, notInArray, notLike, or, type SQL } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  isNotNull,
+  isNull,
+  ne,
+  notInArray,
+  notLike,
+  or,
+  type SQL,
+} from "drizzle-orm";
 
 import type { BatchItem } from "drizzle-orm/batch";
 
@@ -56,7 +68,6 @@ import { buildAdminAuditLogInsert, logAdminAction } from "~/lib/admin/audit.serv
 import { KNOWN_PAUSE_REASONS, PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { buildSetProcessingPaused } from "~/lib/admin/merchants.server";
 import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
-
 
 /** accounts.pause_reason value meaning "the global brake paused this row".
  *  Re-exported from the pure module, which owns the vocabulary because the
@@ -174,7 +185,10 @@ export function chunkAccountIds(ids: string[], size: number = BRAKE_CHUNK_ACCOUN
  *
  *  The audit batch is skipped when a chunk transitioned nothing, so this is the
  *  worst case rather than the exact cost. */
-export function brakeSubrequestCost(accountCount: number, size: number = BRAKE_CHUNK_ACCOUNTS): number {
+export function brakeSubrequestCost(
+  accountCount: number,
+  size: number = BRAKE_CHUNK_ACCOUNTS,
+): number {
   return 2 + 2 * Math.ceil(accountCount / size);
 }
 
@@ -465,15 +479,21 @@ async function lastAction(db: Db, action: string) {
  *  admin_audit_log rather than a second state table: the umbrella rows already
  *  carry actor, time and count, and the audit log is append-only. */
 export async function getBrakeStatus(db: Db): Promise<BrakeStatus> {
-  const [brakePausedCount, individuallyPausedCount, eligibleCount, tickConfig, engageRow, releaseRow] =
-    await Promise.all([
-      countWhere(db, brakePausedCondition()),
-      countWhere(db, individuallyPausedCondition()),
-      countWhere(db, brakeEligibleCondition()),
-      db.select().from(cronConfig).where(eq(cronConfig.cronName, RECOVERY_TICK_CRON_NAME)).limit(1),
-      lastAction(db, BRAKE_ACTION_ENGAGE),
-      lastAction(db, BRAKE_ACTION_RELEASE),
-    ]);
+  const [
+    brakePausedCount,
+    individuallyPausedCount,
+    eligibleCount,
+    tickConfig,
+    engageRow,
+    releaseRow,
+  ] = await Promise.all([
+    countWhere(db, brakePausedCondition()),
+    countWhere(db, individuallyPausedCondition()),
+    countWhere(db, brakeEligibleCondition()),
+    db.select().from(cronConfig).where(eq(cronConfig.cronName, RECOVERY_TICK_CRON_NAME)).limit(1),
+    lastAction(db, BRAKE_ACTION_ENGAGE),
+    lastAction(db, BRAKE_ACTION_RELEASE),
+  ]);
 
   return {
     brakePausedCount,

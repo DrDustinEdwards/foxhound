@@ -11,7 +11,11 @@ import { defineImages } from "@dustinedwards/site-runtime/image";
 export const images = defineImages({
   uses: {
     content: { layout: "constrained", width: 680 },
-    featured: { layout: "constrained", width: 976, sizes: "(min-width: 1280px) 592px, (min-width: 1024px) calc(50vw - 48px), calc(100vw - 48px)" },
+    featured: {
+      layout: "constrained",
+      width: 976,
+      sizes: "(min-width: 1280px) 592px, (min-width: 1024px) calc(50vw - 48px), calc(100vw - 48px)",
+    },
   },
   // The share crop and the Article image set (16:9, 4:3 and 1:1 at 1200 wide) for a post's structured data.
   shareImages: true,
@@ -52,7 +56,8 @@ export const mediaUrl = (key: string, sha256?: string) =>
  * `/media/<key>` or this site's full URL to it, with any `?w=` size dropped.
  */
 export function mediaKeyOf(src: string): string | null {
-  const path = src.replace(/^https:\/\/(?:www\.)?foxhoundapp\.com(?=\/)/, "").split(/[?#]/)[0] ?? "";
+  const path =
+    src.replace(/^https:\/\/(?:www\.)?foxhoundapp\.com(?=\/)/, "").split(/[?#]/)[0] ?? "";
   if (!path.startsWith(MEDIA_PATH)) return null;
   const key = path.slice(MEDIA_PATH.length);
   return UPLOAD_KEY.test(key) ? key : null;
@@ -61,7 +66,9 @@ export function mediaKeyOf(src: string): string | null {
 /** Every library key a markdown source cites, once each, in order. */
 export function mediaKeysIn(source: string): string[] {
   const keys = new Set<string>();
-  for (const m of source.matchAll(/(?:https:\/\/(?:www\.)?foxhoundapp\.com)?\/media\/[^\s)"'<>\]]+/g)) {
+  for (const m of source.matchAll(
+    /(?:https:\/\/(?:www\.)?foxhoundapp\.com)?\/media\/[^\s)"'<>\]]+/g,
+  )) {
     const key = mediaKeyOf(m[0]);
     if (key) keys.add(key);
   }

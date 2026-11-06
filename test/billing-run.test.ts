@@ -48,7 +48,6 @@ describe("computeBillingPeriod (prior calendar month, UTC)", () => {
 });
 
 describe("buildBillingInvoiceBatch", () => {
-
   it("sums recoveries and disputes into the invoice total", () => {
     const { totalCents, lineItemCount } = buildBillingInvoiceBatch(
       db,

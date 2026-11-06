@@ -42,8 +42,12 @@ describe("KNOWN_MIGRATIONS tracks the migrations directory", () => {
   // directions: a .sql added by hand without drizzle-kit, or a journal entry
   // whose file was deleted or renamed.
   it("the journal and the migrations directory agree, in both directions", () => {
-    const journal = JSON.parse(readFileSync(JOURNAL, "utf8")) as { entries: { idx: number; tag: string }[] };
-    const journalFiles = [...journal.entries].sort((a, b) => a.idx - b.idx).map((e) => `${e.tag}.sql`);
+    const journal = JSON.parse(readFileSync(JOURNAL, "utf8")) as {
+      entries: { idx: number; tag: string }[];
+    };
+    const journalFiles = [...journal.entries]
+      .sort((a, b) => a.idx - b.idx)
+      .map((e) => `${e.tag}.sql`);
     const onDisk = migrationFilesOnDisk();
 
     expect(journalFiles.filter((f) => !onDisk.includes(f))).toEqual([]); // journal entry, no file

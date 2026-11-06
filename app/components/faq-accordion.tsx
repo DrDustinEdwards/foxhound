@@ -17,7 +17,10 @@ export function FaqAccordion({ faqs }: { faqs: FaqItem[] }) {
     // On a page that does not hydrate, the faq island (islands/faq.ts) opens and closes the answers.
     <ul className="m-0 flex list-none flex-col gap-3 p-0" data-island="faq">
       {faqs.map((faq, i) => (
-        <li key={faq.question} className="overflow-hidden rounded-lg border border-border bg-surface">
+        <li
+          key={faq.question}
+          className="overflow-hidden rounded-lg border border-border bg-surface"
+        >
           <button
             type="button"
             onClick={() => setOpen(open === i ? null : i)}
@@ -42,7 +45,9 @@ export function FaqAccordion({ faqs }: { faqs: FaqItem[] }) {
               transition: "max-height 0.3s ease",
             }}
           >
-            <p className="m-0 px-5 pb-5 text-label leading-relaxed text-text-secondary">{faq.answer}</p>
+            <p className="m-0 px-5 pb-5 text-label leading-relaxed text-text-secondary">
+              {faq.answer}
+            </p>
           </div>
         </li>
       ))}

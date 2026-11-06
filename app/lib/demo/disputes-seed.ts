@@ -1,5 +1,11 @@
 import { DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import type { disputeApprovals, disputeBalanceTransactions, disputeEvidence, disputes, earlyFraudWarnings } from "~/db";
+import type {
+  disputeApprovals,
+  disputeBalanceTransactions,
+  disputeEvidence,
+  disputes,
+  earlyFraudWarnings,
+} from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
 // Disputes seed (TASK-foxhound-demo-data-engine.md Phase 3): the legacy
@@ -193,7 +199,8 @@ export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
     foxhoundSubmitted: false,
     triageRecommendation: "accept",
     triageConfidence: 68,
-    triageReasoning: "Low amount with a failing AVS check and elevated risk. The counter fee may exceed recovery value.",
+    triageReasoning:
+      "Low amount with a failing AVS check and elevated risk. The counter fee may exceed recovery value.",
     priorChargesCount: 1,
     priorChargesTotal: 9900,
     avsResult: "fail",
@@ -215,7 +222,8 @@ export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
     foxhoundSubmitted: true,
     triageRecommendation: "fight",
     triageConfidence: 94,
-    triageReasoning: "18 prior charges, the lowest Radar risk score in the book, and recovery-email engagement. An exceptionally strong case.",
+    triageReasoning:
+      "18 prior charges, the lowest Radar risk score in the book, and recovery-email engagement. An exceptionally strong case.",
     priorChargesCount: 18,
     priorChargesTotal: 498200,
     avsResult: "pass",
@@ -265,7 +273,8 @@ export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
     foxhoundSubmitted: true,
     triageRecommendation: "fight",
     triageConfidence: 86,
-    triageReasoning: "6 prior successful charges, low Radar risk, and recovery email engagement on earlier failures.",
+    triageReasoning:
+      "6 prior successful charges, low Radar risk, and recovery email engagement on earlier failures.",
     priorChargesCount: 6,
     priorChargesTotal: 59400,
     avsResult: "pass",
@@ -287,7 +296,8 @@ export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
     foxhoundSubmitted: true,
     triageRecommendation: "fight",
     triageConfidence: 52,
-    triageReasoning: "Subscription dispute. The evidence is weaker than ideal but worth submitting.",
+    triageReasoning:
+      "Subscription dispute. The evidence is weaker than ideal but worth submitting.",
     priorChargesCount: 2,
     priorChargesTotal: 19800,
     avsResult: "pass",
@@ -345,7 +355,10 @@ export function buildDisputesSeed(
     const won = spec.state === "resolved_won";
     // Approved a day or two after the dispute was created; submitted right after.
     const approvedAt = spec.foxhoundSubmitted ? ago(Math.max(0, spec.createdDaysAgo - 1)) : null;
-    const resolvedFeeCents = won && spec.foxhoundSubmitted ? disputeFeeCents(spec.amountCents, DISPUTE_FEE_CAP_CENTS) : null;
+    const resolvedFeeCents =
+      won && spec.foxhoundSubmitted
+        ? disputeFeeCents(spec.amountCents, DISPUTE_FEE_CAP_CENTS)
+        : null;
 
     disputeRows.push({
       id: spec.id,
@@ -363,9 +376,12 @@ export function buildDisputesSeed(
       // again on resolution (only `state` advances), so every seeded row keeps
       // its intake-time status regardless of outcome.
       status: spec.stripeStatus ?? "needs_response",
-      outcome: spec.state === "resolved_won" ? "won" : spec.state === "resolved_lost" ? "lost" : null,
+      outcome:
+        spec.state === "resolved_won" ? "won" : spec.state === "resolved_lost" ? "lost" : null,
       outcomeAmountCents: won ? spec.amountCents : null,
-      evidenceDeadline: resolvedAt ? new Date(resolvedAt.getTime() - 7 * DAY_MS) : new Date(now.getTime() + 10 * DAY_MS),
+      evidenceDeadline: resolvedAt
+        ? new Date(resolvedAt.getTime() - 7 * DAY_MS)
+        : new Date(now.getTime() + 10 * DAY_MS),
       submittedAt: approvedAt,
       // Real code only ever writes submittedBy from buildSubmissionConfirmationBatch,
       // gated on a Foxhound submission; a merchant-fought win never sets it.
@@ -396,7 +412,8 @@ export function buildDisputesSeed(
           disputeId: spec.id,
           accountId,
           fieldName: "product_description",
-          fieldValue: "Monthly subscription, billed automatically. Active account with a clean payment history prior to this charge.",
+          fieldValue:
+            "Monthly subscription, billed automatically. Active account with a clean payment history prior to this charge.",
           createdAt,
         },
         {
@@ -404,7 +421,8 @@ export function buildDisputesSeed(
           disputeId: spec.id,
           accountId,
           fieldName: "customer_communication",
-          fieldValue: "The customer's account shows normal usage in the billing cycle immediately before the disputed charge.",
+          fieldValue:
+            "The customer's account shows normal usage in the billing cycle immediately before the disputed charge.",
           createdAt,
         },
       );
@@ -467,13 +485,48 @@ type EarlyFraudWarningInsert = typeof earlyFraudWarnings.$inferInsert;
 
 /** Four early fraud warnings on Teamflow customers: three still open, one the
  *  merchant refunded. No stripe connection is referenced, as with the disputes. */
-export function buildEarlyFraudWarningsSeed(accountId: string, now: Date): EarlyFraudWarningInsert[] {
+export function buildEarlyFraudWarningsSeed(
+  accountId: string,
+  now: Date,
+): EarlyFraudWarningInsert[] {
   const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
   const specs = [
-    { n: 1, name: "Northwind Labs", email: "ap@northwind-labs.demo", cents: 29900, type: "made_with_stolen_card", days: 1, refunded: false },
-    { n: 2, name: "Lumen Studio", email: "finance@lumen-studio.demo", cents: 14900, type: "unauthorized_use_of_card", days: 3, refunded: false },
-    { n: 3, name: null, email: "j.ortega@mailbox.demo", cents: 4900, type: "card_never_received", days: 6, refunded: false },
-    { n: 4, name: "Cobalt Freight", email: "billing@cobalt-freight.demo", cents: 9900, type: "made_with_lost_card", days: 12, refunded: true },
+    {
+      n: 1,
+      name: "Northwind Labs",
+      email: "ap@northwind-labs.demo",
+      cents: 29900,
+      type: "made_with_stolen_card",
+      days: 1,
+      refunded: false,
+    },
+    {
+      n: 2,
+      name: "Lumen Studio",
+      email: "finance@lumen-studio.demo",
+      cents: 14900,
+      type: "unauthorized_use_of_card",
+      days: 3,
+      refunded: false,
+    },
+    {
+      n: 3,
+      name: null,
+      email: "j.ortega@mailbox.demo",
+      cents: 4900,
+      type: "card_never_received",
+      days: 6,
+      refunded: false,
+    },
+    {
+      n: 4,
+      name: "Cobalt Freight",
+      email: "billing@cobalt-freight.demo",
+      cents: 9900,
+      type: "made_with_lost_card",
+      days: 12,
+      refunded: true,
+    },
   ];
   return specs.map((s) => ({
     id: `${accountId}_efw_${s.n}`,

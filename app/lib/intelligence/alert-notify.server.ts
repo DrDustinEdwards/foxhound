@@ -76,7 +76,11 @@ export interface AlertMailContent {
 
 /** The threshold alert (E21): Recova's fireEmail subject, sentence and button,
  *  with Foxhound's name. Pure. */
-export function thresholdAlertContent(firing: AlertFiring, baseUrl: string, now: Date): AlertMailContent {
+export function thresholdAlertContent(
+  firing: AlertFiring,
+  baseUrl: string,
+  now: Date,
+): AlertMailContent {
   const label = alertMetricLabel(firing.metric);
   const subject = `Foxhound alert: ${label} ${firing.direction} threshold`;
   return {
@@ -115,7 +119,11 @@ function customerWord(count: number): string {
  * sentence was false for a score of 33; and Recova's `&mdash;` before "all
  * simultaneously" is a comma, as no em dash is ported (monthly.server.ts). Pure.
  */
-export function criticalCustomersContent(count: number, baseUrl: string, now: Date): AlertMailContent {
+export function criticalCustomersContent(
+  count: number,
+  baseUrl: string,
+  now: Date,
+): AlertMailContent {
   const word = customerWord(count);
   return {
     fromName: ALERT_FROM_NAME,
@@ -152,11 +160,17 @@ export interface AlertTarget {
 
 export async function loadAlertTarget(db: Db, accountId: string): Promise<AlertTarget> {
   const [row] = await db
-    .select({ notificationEmail: accounts.notificationEmail, slackWebhookUrl: accounts.slackWebhookUrl })
+    .select({
+      notificationEmail: accounts.notificationEmail,
+      slackWebhookUrl: accounts.slackWebhookUrl,
+    })
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .limit(1);
-  return { notificationEmail: row?.notificationEmail ?? null, slackWebhookUrl: row?.slackWebhookUrl ?? null };
+  return {
+    notificationEmail: row?.notificationEmail ?? null,
+    slackWebhookUrl: row?.slackWebhookUrl ?? null,
+  };
 }
 
 type SlackPostOutcome =
@@ -172,7 +186,11 @@ type SlackPostOutcome =
  * RULES.md 4.12), and a stored URL off hooks.slack.com is never fetched.
  * Never throws, and never logs the URL, which is a credential.
  */
-async function postAlertToSlack(accountId: string, webhookUrl: string, text: string): Promise<SlackPostOutcome> {
+async function postAlertToSlack(
+  accountId: string,
+  webhookUrl: string,
+  text: string,
+): Promise<SlackPostOutcome> {
   if (accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) return { status: "refused", reason: "demo" };
   const checked = normalizeSlackWebhookUrl(webhookUrl);
   if (!checked.ok || !checked.value) return { status: "refused", reason: "host_not_allowed" };
@@ -201,7 +219,13 @@ export type AlertNotifyOutcome =
 
 async function sendAlertMail(
   env: Env,
-  input: { accountId: string; to: string; content: AlertMailContent; template: string; idempotencyKey: string },
+  input: {
+    accountId: string;
+    to: string;
+    content: AlertMailContent;
+    template: string;
+    idempotencyKey: string;
+  },
 ): Promise<EmailJobResult> {
   return processEmailJob(
     env,
@@ -237,7 +261,8 @@ export async function notifyThresholdAlert(
 ): Promise<AlertNotifyOutcome> {
   try {
     if (firing.channel === "email") {
-      if (!target.notificationEmail) return { channel: "none", sent: false, reason: "no_recipient" };
+      if (!target.notificationEmail)
+        return { channel: "none", sent: false, reason: "no_recipient" };
       const result = await sendAlertMail(env, {
         accountId: firing.accountId,
         to: target.notificationEmail,
@@ -250,13 +275,20 @@ export async function notifyThresholdAlert(
     }
     if (firing.channel === "slack") {
       if (!target.slackWebhookUrl) return { channel: "none", sent: false, reason: "no_webhook" };
-      const slack = await postAlertToSlack(firing.accountId, target.slackWebhookUrl, thresholdAlertSlackText(firing));
+      const slack = await postAlertToSlack(
+        firing.accountId,
+        target.slackWebhookUrl,
+        thresholdAlertSlackText(firing),
+      );
       return { channel: "slack", sent: slack.status === "posted", slack };
     }
     return { channel: "none", sent: false, reason: "channel_unknown" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`alert notification failed for account ${firing.accountId} alert ${firing.alertId}:`, message);
+    console.error(
+      `alert notification failed for account ${firing.accountId} alert ${firing.alertId}:`,
+      message,
+    );
     return { channel: "error", sent: false, message };
   }
 }
@@ -301,7 +333,11 @@ export async function notifyCriticalCustomers(
     return { channel: "email", notificationSent: result.status === "sent", detail: result };
   }
   if (target.slackWebhookUrl) {
-    const slack = await postAlertToSlack(accountId, target.slackWebhookUrl, criticalCustomersSlackText(count, baseUrl));
+    const slack = await postAlertToSlack(
+      accountId,
+      target.slackWebhookUrl,
+      criticalCustomersSlackText(count, baseUrl),
+    );
     return { channel: "slack", notificationSent: slack.status === "posted", detail: slack };
   }
   return { channel: "none", notificationSent: false, detail: null };

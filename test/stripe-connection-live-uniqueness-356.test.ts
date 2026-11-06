@@ -27,7 +27,6 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-
 const STRIPE_X = "acct_stripe_x";
 const ACCOUNT_A = "acct_a";
 const ACCOUNT_B = "acct_b";

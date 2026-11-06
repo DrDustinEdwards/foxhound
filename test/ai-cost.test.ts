@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  aiModelCost,
-  computeAiCallCostCents,
-} from "~/lib/ai/cost";
-
+import { aiModelCost, computeAiCallCostCents } from "~/lib/ai/cost";
 
 describe("R-49: cost map covers every model id", () => {
-
   it("throws loudly for an uncovered model", () => {
     expect(() => aiModelCost("claude-unknown-9")).toThrow(/no ai_calls cost entry/);
   });

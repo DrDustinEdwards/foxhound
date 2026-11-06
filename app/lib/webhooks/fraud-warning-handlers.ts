@@ -48,7 +48,12 @@ export async function handleEarlyFraudWarning(
               b
                 .update(earlyFraudWarnings)
                 .set({ actionable: intent.actionable })
-                .where(and(eq(earlyFraudWarnings.id, existing), eq(earlyFraudWarnings.accountId, accountId))),
+                .where(
+                  and(
+                    eq(earlyFraudWarnings.id, existing),
+                    eq(earlyFraudWarnings.accountId, accountId),
+                  ),
+                ),
             ],
     }));
   } else {
@@ -80,10 +85,13 @@ export async function handleEarlyFraudWarning(
         buildWebhookClaim(b, claim),
         intent.created
           ? b.insert(earlyFraudWarnings).values(values).onConflictDoNothing()
-          : b.insert(earlyFraudWarnings).values(values).onConflictDoUpdate({
-              target: [earlyFraudWarnings.accountId, earlyFraudWarnings.stripeWarningId],
-              set: { actionable: intent.actionable },
-            }),
+          : b
+              .insert(earlyFraudWarnings)
+              .values(values)
+              .onConflictDoUpdate({
+                target: [earlyFraudWarnings.accountId, earlyFraudWarnings.stripeWarningId],
+                set: { actionable: intent.actionable },
+              }),
       ],
     }));
   }
@@ -98,18 +106,30 @@ export async function handleEarlyFraudWarning(
     try {
       warningId = await findWarningId(env, accountId, intent.stripeWarningId);
     } catch (err) {
-      return { status: "error", message: `early fraud warning lookup failed: ${err instanceof Error ? err.message : String(err)}` };
+      return {
+        status: "error",
+        message: `early fraud warning lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
   }
   if (warningId) await sendEarlyFraudWarningNotice(env, { accountId, warningId });
   return applied ? { status: "applied" } : { status: "duplicate" };
 }
 
-async function findWarningId(env: Env, accountId: string, stripeWarningId: string): Promise<string | null> {
+async function findWarningId(
+  env: Env,
+  accountId: string,
+  stripeWarningId: string,
+): Promise<string | null> {
   const [row] = await getDb(env)
     .select({ id: earlyFraudWarnings.id })
     .from(earlyFraudWarnings)
-    .where(and(eq(earlyFraudWarnings.accountId, accountId), eq(earlyFraudWarnings.stripeWarningId, stripeWarningId)))
+    .where(
+      and(
+        eq(earlyFraudWarnings.accountId, accountId),
+        eq(earlyFraudWarnings.stripeWarningId, stripeWarningId),
+      ),
+    )
     .limit(1);
   return row?.id ?? null;
 }

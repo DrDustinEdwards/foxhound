@@ -9,7 +9,10 @@ import {
   type ApproveAndSubmitDeps,
   type PendingApprovalOutcome,
 } from "~/lib/disputes/approval";
-import { buildPendingApprovalBatch, buildSubmissionConfirmationBatch } from "~/lib/disputes/approval.server";
+import {
+  buildPendingApprovalBatch,
+  buildSubmissionConfirmationBatch,
+} from "~/lib/disputes/approval.server";
 import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
 
 const now = new Date("2026-07-18T00:00:00.000Z");
@@ -51,7 +54,9 @@ describe("hashEvidence", () => {
 
   it("changes when a field value changes (proves which version was approved)", async () => {
     const before = await hashEvidence([{ fieldName: "product_description", fieldValue: "Widget" }]);
-    const after = await hashEvidence([{ fieldName: "product_description", fieldValue: "Widget v2" }]);
+    const after = await hashEvidence([
+      { fieldName: "product_description", fieldValue: "Widget v2" },
+    ]);
     expect(before).not.toBe(after);
   });
 });
@@ -102,11 +107,13 @@ describe("approveAndSubmit (record and submission can never diverge: review MEDI
   // A recording harness for the three ordered phases. Each phase pushes its
   // name so the test can assert exact call order and that later phases never
   // run when an earlier one short-circuits.
-  function harness(over: Partial<{
-    pending: PendingApprovalOutcome;
-    submit: DisputeSubmissionResult;
-    confirmThrows: boolean;
-  }> = {}) {
+  function harness(
+    over: Partial<{
+      pending: PendingApprovalOutcome;
+      submit: DisputeSubmissionResult;
+      confirmThrows: boolean;
+    }> = {},
+  ) {
     const calls: string[] = [];
     const deps: ApproveAndSubmitDeps = {
       writePendingApproval: async () => {

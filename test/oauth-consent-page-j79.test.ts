@@ -1,10 +1,8 @@
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
 import { describe, expect, it } from "vitest";
-
 
 const { default: Authorize } = await import("~/routes/oauth/authorize");
 
@@ -43,17 +41,15 @@ function render(loaderData: LoaderData, actionData?: { error: string }): string 
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-
-
-
 describe("A9: Recova's card, in Recova's order", () => {
-
   it("offers one choice, Allow changes, ticked only when the client asked to write", () => {
     const html = render(OK);
     expect(html).not.toMatch(/All accounts/);
     const box = /<input[^>]*name="allow_write"[^>]*>/.exec(html)?.[0] ?? "";
     expect(box, "the read-only grant is the default").not.toMatch(/checked/);
-    expect(render({ ...OK, wantsWrite: true })).toMatch(/<input[^>]*name="allow_write"[^>]*checked/);
+    expect(render({ ...OK, wantsWrite: true })).toMatch(
+      /<input[^>]*name="allow_write"[^>]*checked/,
+    );
     // The write line sits beside the box, not in the list every grant gets.
     const list = /<ul[^>]*aria-labelledby="oauth-can"[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
     expect(list).not.toMatch(/Change your settings/);
@@ -65,7 +61,12 @@ describe("A9: Recova's card, in Recova's order", () => {
     expect(html).toMatch(/Published by <strong[^>]*>claude\.ai<\/strong>/);
     expect(html).toMatch(/will be sent to <strong[^>]*>claude\.ai<\/strong>/);
     expect(html).not.toMatch(/an app on your computer/);
-    const local = render({ ...OK, publishedBy: null, redirectHost: "localhost", redirectWarning: describeRedirect("http://localhost:3000/cb").warning });
+    const local = render({
+      ...OK,
+      publishedBy: null,
+      redirectHost: "localhost",
+      redirectWarning: describeRedirect("http://localhost:3000/cb").warning,
+    });
     expect(local).toMatch(/registered itself, so its name is its own claim/);
     expect(local).toMatch(/an app on your computer/);
   });

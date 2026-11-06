@@ -80,17 +80,22 @@ export interface TrendSide {
  * before money_by_currency. Such a run's one figure may have added several
  * currencies together, so a move against it would be a move nobody made.
  */
-export function compareTotals(current: TrendSide, previous: TrendSide, higherIsBetter: boolean): TrendLine[] | null {
+export function compareTotals(
+  current: TrendSide,
+  previous: TrendSide,
+  higherIsBetter: boolean,
+): TrendLine[] | null {
   if (current.totals === null || previous.totals === null) return null;
   if (!current.perCurrency || !previous.perCurrency) return null;
   const cents = (side: readonly { currency: string; cents: number }[], currency: string) =>
     side.find((t) => t.currency === currency)?.cents ?? 0;
-  const currencies = [...new Set([...current.totals, ...previous.totals].map((t) => t.currency))].sort((a, b) =>
-    a.localeCompare(b),
-  );
+  const currencies = [
+    ...new Set([...current.totals, ...previous.totals].map((t) => t.currency)),
+  ].sort((a, b) => a.localeCompare(b));
   // No money on either run: one zero line in the run's currency, as a
   // single-currency run always showed.
-  if (currencies.length === 0) currencies.push((current.currency ?? previous.currency ?? "usd").toLowerCase());
+  if (currencies.length === 0)
+    currencies.push((current.currency ?? previous.currency ?? "usd").toLowerCase());
   return currencies.map((currency) => {
     const currentCents = cents(current.totals ?? [], currency);
     const previousCents = cents(previous.totals ?? [], currency);

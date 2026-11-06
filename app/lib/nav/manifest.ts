@@ -44,7 +44,13 @@ export interface ProductManifestEntry {
 export const PRODUCT_ORDER: ProductKey[] = ["dashboard", "recovery", "disputes", "intelligence"];
 
 export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
-  dashboard: { key: "dashboard", label: "Dashboard", href: "/console", prefix: "/console/", links: [] },
+  dashboard: {
+    key: "dashboard",
+    label: "Dashboard",
+    href: "/console",
+    prefix: "/console/",
+    links: [],
+  },
   recovery: {
     key: "recovery",
     label: "Recovery",
@@ -58,7 +64,13 @@ export const PRODUCT_MANIFEST: Record<ProductKey, ProductManifestEntry> = {
       { label: "Expiring cards", to: "/recovery/expiring-cards" },
     ],
   },
-  disputes: { key: "disputes", label: "Disputes", href: "/disputes/dashboard", prefix: "/disputes/", links: [] },
+  disputes: {
+    key: "disputes",
+    label: "Disputes",
+    href: "/disputes/dashboard",
+    prefix: "/disputes/",
+    links: [],
+  },
   intelligence: {
     key: "intelligence",
     label: "Intelligence",
@@ -138,7 +150,12 @@ export const MARKETING_PILL_ITEMS: MarketingPillItem[] = [
 ];
 
 export function isProductKey(value: string | null | undefined): value is ProductKey {
-  return value === "dashboard" || value === "recovery" || value === "disputes" || value === "intelligence";
+  return (
+    value === "dashboard" ||
+    value === "recovery" ||
+    value === "disputes" ||
+    value === "intelligence"
+  );
 }
 
 /** Which product a URL belongs to, or null for a platform/admin page. */

@@ -47,8 +47,10 @@ export type HealthProblem = "charges_disabled" | "payouts_disabled" | "past_due"
  */
 export function newHealthProblems(prev: AccountHealth, next: AccountHealth): HealthProblem[] {
   const problems: HealthProblem[] = [];
-  if (next.chargesEnabled === false && prev.chargesEnabled !== false) problems.push("charges_disabled");
-  if (next.payoutsEnabled === false && prev.payoutsEnabled !== false) problems.push("payouts_disabled");
+  if (next.chargesEnabled === false && prev.chargesEnabled !== false)
+    problems.push("charges_disabled");
+  if (next.payoutsEnabled === false && prev.payoutsEnabled !== false)
+    problems.push("payouts_disabled");
   if ((next.pastDueCount ?? 0) > 0 && (prev.pastDueCount ?? 0) === 0) problems.push("past_due");
   return problems;
 }
@@ -56,7 +58,13 @@ export function newHealthProblems(prev: AccountHealth, next: AccountHealth): Hea
 /** Every problem the stored state shows right now, for the settings warning. Pure. */
 export function currentHealthProblems(health: AccountHealth): HealthProblem[] {
   return newHealthProblems(
-    { chargesEnabled: null, payoutsEnabled: null, disabledReason: null, pastDueCount: null, currentDeadline: null },
+    {
+      chargesEnabled: null,
+      payoutsEnabled: null,
+      disabledReason: null,
+      pastDueCount: null,
+      currentDeadline: null,
+    },
     health,
   );
 }
@@ -66,7 +74,12 @@ export function currentHealthProblems(health: AccountHealth): HealthProblem[] {
 export const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.com/";
 
 function formatDeadline(at: Date): string {
-  return at.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return at.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /** One sentence per problem, each stating only what the event said. Pure. */
@@ -79,7 +92,9 @@ export function healthProblemLines(problems: HealthProblem[], health: AccountHea
     );
   }
   if (problems.includes("payouts_disabled")) {
-    lines.push("Stripe has turned off payouts on this account, so money it collects stays in Stripe until they are back on.");
+    lines.push(
+      "Stripe has turned off payouts on this account, so money it collects stays in Stripe until they are back on.",
+    );
   }
   if (problems.includes("past_due")) {
     const count = health.pastDueCount ?? 0;
@@ -89,7 +104,9 @@ export function healthProblemLines(problems: HealthProblem[], health: AccountHea
     );
   }
   if (health.currentDeadline) {
-    lines.push(`Stripe's current deadline for this account is ${formatDeadline(health.currentDeadline)}.`);
+    lines.push(
+      `Stripe's current deadline for this account is ${formatDeadline(health.currentDeadline)}.`,
+    );
   }
   return lines;
 }
@@ -109,14 +126,21 @@ export function accountHealthNotice(
     subject,
     notice: {
       title: "Your Stripe account needs attention.",
-      body: [...healthProblemLines(problems, health), "Sign in to your Stripe dashboard to see what Stripe needs."],
+      body: [
+        ...healthProblemLines(problems, health),
+        "Sign in to your Stripe dashboard to see what Stripe needs.",
+      ],
       action: { label: "Open Stripe dashboard", url: STRIPE_DASHBOARD_URL },
     },
   };
 }
 
 /** The same notice as one Slack line. Pure. */
-export function accountHealthSlackText(problems: HealthProblem[], health: AccountHealth, accountLabel: string): string {
+export function accountHealthSlackText(
+  problems: HealthProblem[],
+  health: AccountHealth,
+  accountLabel: string,
+): string {
   return (
     `⚠️ *Stripe account needs attention: ${accountLabel}*\n` +
     `${healthProblemLines(problems, health).join(" ")}\n${STRIPE_DASHBOARD_URL}`

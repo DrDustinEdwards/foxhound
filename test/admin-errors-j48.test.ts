@@ -103,10 +103,18 @@ describe("whether Sentry can be read", () => {
 
   it("reads the API in the DSN's own region, for the DSN's own project", () => {
     expect(typeof lib.sentryApiBase).toBe("function");
-    const base = lib.sentryApiBase as (dsn: string) => { apiBase: string; projectId: string } | null;
+    const base = lib.sentryApiBase as (
+      dsn: string,
+    ) => { apiBase: string; projectId: string } | null;
     expect(base(DSN)).toEqual({ apiBase: "https://us.sentry.io", projectId: "4502" });
-    expect(base("https://k@o1.ingest.de.sentry.io/77")).toEqual({ apiBase: "https://de.sentry.io", projectId: "77" });
-    expect(base("https://k@o1.ingest.sentry.io/12")).toEqual({ apiBase: "https://sentry.io", projectId: "12" });
+    expect(base("https://k@o1.ingest.de.sentry.io/77")).toEqual({
+      apiBase: "https://de.sentry.io",
+      projectId: "77",
+    });
+    expect(base("https://k@o1.ingest.sentry.io/12")).toEqual({
+      apiBase: "https://sentry.io",
+      projectId: "12",
+    });
     // Never sends the token anywhere but Sentry's own API.
     expect(base("https://k@sentry.example.com/12")).toBeNull();
     expect(base("https://k@o1.ingest.us.sentry.io.evil.example/12")).toBeNull();
@@ -116,19 +124,34 @@ describe("whether Sentry can be read", () => {
 
   it("says plainly when the DSN is not one this page can read from", async () => {
     vi.stubGlobal("fetch", vi.fn());
-    const data = await runLoader({ SENTRY_DSN: "https://k@sentry.example.com/12", SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "o" });
+    const data = await runLoader({
+      SENTRY_DSN: "https://k@sentry.example.com/12",
+      SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+      SENTRY_ORG: "o",
+    });
     expect(data.sentry.state).toBe("unreadable-dsn");
   });
 
   it("lists the project's unresolved issues, newest first, with the token in the header only", async () => {
-    const fetchSpy = vi.fn(async () => Response.json([sentryIssue(1), sentryIssue(2, { level: "warning", permalink: "javascript:alert(1)" })]));
+    const fetchSpy = vi.fn(async () =>
+      Response.json([
+        sentryIssue(1),
+        sentryIssue(2, { level: "warning", permalink: "javascript:alert(1)" }),
+      ]),
+    );
     vi.stubGlobal("fetch", fetchSpy);
-    const data = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+    const data = await runLoader({
+      SENTRY_DSN: DSN,
+      SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+      SENTRY_ORG: "example-org",
+    });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
     const u = new URL(url);
-    expect(u.origin + u.pathname).toBe("https://us.sentry.io/api/0/organizations/example-org/issues/");
+    expect(u.origin + u.pathname).toBe(
+      "https://us.sentry.io/api/0/organizations/example-org/issues/",
+    );
     expect(u.searchParams.get("project")).toBe("4502");
     expect(u.searchParams.get("query")).toBe("is:unresolved");
     expect(u.searchParams.get("sort")).toBe("date");
@@ -160,37 +183,79 @@ describe("whether Sentry can be read", () => {
   });
 
   it("says what Sentry answered when the read fails, without the token", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 401 })));
-    const data = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("nope", { status: 401 })),
+    );
+    const data = await runLoader({
+      SENTRY_DSN: DSN,
+      SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+      SENTRY_ORG: "example-org",
+    });
     expect(data.sentry.state).toBe("failed");
     expect(String(data.sentry.message)).toMatch(/refused the token/i);
     expect(JSON.stringify(data)).not.toContain(FAKE_TOKEN);
 
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 404 })));
-    const missing = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 404 })),
+    );
+    const missing = await runLoader({
+      SENTRY_DSN: DSN,
+      SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+      SENTRY_ORG: "example-org",
+    });
     expect(String(missing.sentry.message)).toMatch(/example-org/);
 
     // Review of #94: a 3xx is a failed read with its status, never followed.
     for (const status of [301, 302, 307, 308]) {
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => new Response(null, { status, headers: { location: "https://elsewhere.example/" } })),
+        vi.fn(
+          async () =>
+            new Response(null, { status, headers: { location: "https://elsewhere.example/" } }),
+        ),
       );
-      const moved = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+      const moved = await runLoader({
+        SENTRY_DSN: DSN,
+        SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+        SENTRY_ORG: "example-org",
+      });
       expect(moved.sentry.state, String(status)).toBe("failed");
       expect(String(moved.sentry.message), String(status)).toContain(`(${status})`);
       expect(String(moved.sentry.message)).not.toContain("elsewhere.example");
     }
     // An opaque redirect (what workerd and browsers return for redirect:
     // "manual") has status 0 and type opaqueredirect; it is a failed read too.
-    const opaque = { ok: false, status: 0, type: "opaqueredirect", json: async () => [] } as unknown as Response;
-    vi.stubGlobal("fetch", vi.fn(async () => opaque));
-    const hidden = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+    const opaque = {
+      ok: false,
+      status: 0,
+      type: "opaqueredirect",
+      json: async () => [],
+    } as unknown as Response;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => opaque),
+    );
+    const hidden = await runLoader({
+      SENTRY_DSN: DSN,
+      SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+      SENTRY_ORG: "example-org",
+    });
     expect(hidden.sentry.state).toBe("failed");
     expect(String(hidden.sentry.message)).toMatch(/redirect/i);
 
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
-    const down = await runLoader({ SENTRY_DSN: DSN, SENTRY_AUTH_TOKEN: FAKE_TOKEN, SENTRY_ORG: "example-org" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      }),
+    );
+    const down = await runLoader({
+      SENTRY_DSN: DSN,
+      SENTRY_AUTH_TOKEN: FAKE_TOKEN,
+      SENTRY_ORG: "example-org",
+    });
     expect(down.sentry.state).toBe("failed");
     expect(String(down.sentry.message)).toMatch(/did not answer/i);
   });
@@ -203,17 +268,44 @@ describe("failed actions from the audit log (Recova's list)", () => {
     const { db } = createInMemoryDb();
     const at = (min: number) => new Date(Date.now() - min * 60 * 1000);
     await db.insert(adminAuditLog).values([
-      { id: "a1", actorEmail: "ops@example.com", action: "staged.failed", metadata: { stagedId: "s", kind: "pause", error: "No such account" }, createdAt: at(30) },
-      { id: "a2", actorEmail: "ops@example.com", action: "cron.disable", metadata: { cronName: "recovery-tick" }, createdAt: at(20) },
-      { id: "a3", actorEmail: "account-owner", action: "user_self_deleted_account_deauthorize_failed", targetUserId: "u1", metadata: { connection_id: "c", error: "Stripe said no" }, createdAt: at(10) },
-      { id: "a4", actorEmail: "ops@example.com", action: "import_ERROR_seen", metadata: null, createdAt: at(5) },
+      {
+        id: "a1",
+        actorEmail: "ops@example.com",
+        action: "staged.failed",
+        metadata: { stagedId: "s", kind: "pause", error: "No such account" },
+        createdAt: at(30),
+      },
+      {
+        id: "a2",
+        actorEmail: "ops@example.com",
+        action: "cron.disable",
+        metadata: { cronName: "recovery-tick" },
+        createdAt: at(20),
+      },
+      {
+        id: "a3",
+        actorEmail: "account-owner",
+        action: "user_self_deleted_account_deauthorize_failed",
+        targetUserId: "u1",
+        metadata: { connection_id: "c", error: "Stripe said no" },
+        createdAt: at(10),
+      },
+      {
+        id: "a4",
+        actorEmail: "ops@example.com",
+        action: "import_ERROR_seen",
+        metadata: null,
+        createdAt: at(5),
+      },
     ]);
     harness.db = db;
     vi.stubGlobal("fetch", vi.fn());
     const { failed } = await runLoader({});
     expect(failed.map((e) => e.id)).toEqual(["a4", "a3", "a1"]);
-    expect(failed[2]).toMatchObject({ action: "A staged change failed to apply", detail: "No such account" });
+    expect(failed[2]).toMatchObject({
+      action: "A staged change failed to apply",
+      detail: "No such account",
+    });
     expect(failed[1]).toMatchObject({ actor: "The account owner", detail: "Stripe said no" });
   });
 });
-

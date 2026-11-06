@@ -41,7 +41,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/settings/email");
 
-
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
   actionData?: Record<string, unknown>;
@@ -53,7 +52,9 @@ const LOADED = {
   replyToEmail: "help@acme.test",
 };
 
-function render(opts: { loaderData?: Record<string, unknown>; actionData?: Record<string, unknown> } = {}): string {
+function render(
+  opts: { loaderData?: Record<string, unknown>; actionData?: Record<string, unknown> } = {},
+): string {
   const loaderData = { ...LOADED, ...opts.loaderData };
   const Stub = createRoutesStub([
     {
@@ -72,7 +73,6 @@ function text(html: string): string {
     .trim();
 }
 
-
 function attr(tag: string, name: string): string | undefined {
   return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
 }
@@ -90,10 +90,10 @@ function testButton(html: string): string {
 const SAVE_FAILED = "Failed to save. Please try again.";
 const TEST_SENT = "Sent! Check your inbox";
 const TEST_FAILED = "Failed. Try again.";
-const TEST_SUPPRESSED = "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
+const TEST_SUPPRESSED =
+  "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
 
 describe("J37 email: the card", () => {
-
   it("posts the test email through its own form, so Enter in a field never sends one", () => {
     const html = render();
     const button = testButton(html);
@@ -102,13 +102,16 @@ describe("J37 email: the card", () => {
     expect(formId).not.toBe("");
     // That form carries the test-email intent and nothing typed: the address is
     // the session user's.
-    const form = html.match(new RegExp(`<form[^>]*id="${formId}"[^>]*>[\\s\\S]*?</form>`))?.[0] ?? "";
+    const form =
+      html.match(new RegExp(`<form[^>]*id="${formId}"[^>]*>[\\s\\S]*?</form>`))?.[0] ?? "";
     expect(form).toContain('name="_action" value="test-email"');
     expect(form).not.toMatch(/name="(to|email|recipient)"/);
     // The main form's only submit button is Save changes, so it is the one an
     // Enter key presses.
     const main = html.match(/<form[^>]*>[\s\S]*?<\/form>/)?.[0] ?? "";
-    const mainSubmits = [...main.matchAll(/<button[^>]*type="submit"[^>]*>/g)].filter((m) => !m[0].includes(' form="'));
+    const mainSubmits = [...main.matchAll(/<button[^>]*type="submit"[^>]*>/g)].filter(
+      (m) => !m[0].includes(' form="'),
+    );
     expect(mainSubmits).toHaveLength(1);
     expect(main).toContain('name="_action" value="sender"');
   });
@@ -187,7 +190,9 @@ describe("J37 email: the loader and the action", () => {
     harness.sent = [];
     env = makeEnv();
     sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 0)")
+      .prepare(
+        "INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 0)",
+      )
       .run(ACCOUNT);
     sqlite
       .prepare(
@@ -228,7 +233,9 @@ describe("J37 email: the loader and the action", () => {
 
   it("a suppressed address shows the suppressed sentence", async () => {
     sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)")
+      .prepare(
+        "INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)",
+      )
       .run(USER_EMAIL);
     const res = await post({ _action: "test-email" });
     expect(res.data).toMatchObject({ action: "test-email", ok: false, status: "suppressed" });
@@ -243,13 +250,22 @@ describe("J37 email: the loader and the action", () => {
   });
 
   it("names the sender name field on its refusal, so the page puts it beside that field", async () => {
-    const res = await post({ _action: "sender", connectionId: "c1", senderName: "x".repeat(SENDER_NAME_MAX_LENGTH + 1) });
+    const res = await post({
+      _action: "sender",
+      connectionId: "c1",
+      senderName: "x".repeat(SENDER_NAME_MAX_LENGTH + 1),
+    });
     expect(res.init?.status).toBe(400);
     expect(res.data).toMatchObject({ action: "sender", ok: false, field: "senderName" });
   });
 
   it("names the reply-to field on its refusal", async () => {
-    const res = await post({ _action: "sender", connectionId: "c1", senderName: "Acme", replyToEmail: "not an address" });
+    const res = await post({
+      _action: "sender",
+      connectionId: "c1",
+      senderName: "Acme",
+      replyToEmail: "not an address",
+    });
     expect(res.init?.status).toBe(400);
     expect(res.data).toMatchObject({ action: "sender", ok: false, field: "replyToEmail" });
   });

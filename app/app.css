@@ -1126,7 +1126,9 @@ body {
    would leave the list itself a sliver, so the pinned rows are Settings (its
    hub reaches every settings page), Help, Admin for an admin and Sign out, as
    the design's phone sheet shows them; the rest stay in the avatar menu. */
-.fh-cap .cap-site-header-sheet-account li:has(> a[href]:not([href="/settings"], [href="/help"], [href="/admin"])) {
+.fh-cap
+  .cap-site-header-sheet-account
+  li:has(> a[href]:not([href="/settings"], [href="/help"], [href="/admin"])) {
   display: none;
 }
 

@@ -36,7 +36,11 @@ function render(loaderData: LoaderData, actionData?: { error: string }): string 
 
 /** Visible text, tags stripped and whitespace collapsed, for order checks. */
 function text(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const CONNECT: LoaderData = {
@@ -50,7 +54,6 @@ const CONNECT: LoaderData = {
 };
 
 describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's scope", () => {
-
   it("never claims Foxhound charges only on invoices the merchant issued, while win-back checkout exists", () => {
     // The win-back resubscribe checkout makes a new subscription, invoice and
     // charge on the merchant's account when the customer completes it, so
@@ -61,7 +64,6 @@ describe("J53: the access-disclosure panel (ruling 20(d)), true of Foxhound's sc
 });
 
 describe("J53: Stripe's errors in Recova's words, in a Capsomer alert above the panel", () => {
-
   it("a Stripe account live on another Foxhound account says so, and names no account", () => {
     const t = text(render({ ...CONNECT, error: "stripe_account_already_connected" }));
     expect(t).toContain("This Stripe account is already connected to a Foxhound account.");

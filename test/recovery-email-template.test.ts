@@ -34,7 +34,6 @@ describe("the template is always gate-clean", () => {
 });
 
 describe("the template says the right thing per category", () => {
-
   it("tells an expired card that retrying will not help", () => {
     expect(forCategory("expired").bodyHtml).toContain("Retrying will not help");
     expect(forCategory("expired").subject).toBe("Your card has expired");

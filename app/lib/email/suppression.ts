@@ -95,7 +95,10 @@ export async function recordDigestUnsubscribe(
   payload: UnsubscribeTokenPayload,
 ): Promise<DigestUnsubscribeOutcome> {
   const db = getDb(env);
-  const match = and(eq(accounts.id, payload.accountId), eq(accounts.notificationEmail, payload.email));
+  const match = and(
+    eq(accounts.id, payload.accountId),
+    eq(accounts.notificationEmail, payload.email),
+  );
   const switched = await db
     .update(accounts)
     .set({ digestEnabled: false })

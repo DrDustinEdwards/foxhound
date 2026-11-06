@@ -1,5 +1,17 @@
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import { and, count, desc, eq, gte, inArray, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  isNotNull,
+  like,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 import type { Db } from "~/db";
 import {
@@ -179,11 +191,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
  * function takes whatever start it is given and has no opinion, which is why the
  * defect lived in the caller rather than here; see DIGEST_CLAIM_WINDOW_MS.
  */
-async function hasDigestThisWeek(
-  db: Db,
-  accountId: string,
-  windowStart: Date,
-): Promise<boolean> {
+async function hasDigestThisWeek(db: Db, accountId: string, windowStart: Date): Promise<boolean> {
   const rows = await db
     .select({ id: emailSends.id })
     .from(emailSends)
@@ -222,7 +230,10 @@ export async function collectDigestNumbers(
           ),
         ),
       db
-        .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
+        .select({
+          amountCents: recoveredPayments.amountCents,
+          currency: recoveredPayments.currency,
+        })
         .from(recoveredPayments)
         .where(
           and(
@@ -287,26 +298,31 @@ export async function collectDigestNumbers(
 
   const [highRisk, outreachRows] = await Promise.all([
     db
-    .select({
-      name: customerContext.customerName,
-      mrrCents: customerContext.mrrContributionCents,
-      currency: customerContext.currency,
-    })
-    .from(customerContext)
-    .where(
-      and(
-        eq(customerContext.accountId, accountId),
-        sql`${customerContext.healthScore} is not null`,
-        sql`${customerContext.healthScore} <= ${DIGEST_HIGH_RISK_MAX_SCORE}`,
-      ),
-    )
-    .orderBy(desc(customerContext.mrrContributionCents))
-    .limit(DIGEST_HIGH_RISK_LIMIT),
+      .select({
+        name: customerContext.customerName,
+        mrrCents: customerContext.mrrContributionCents,
+        currency: customerContext.currency,
+      })
+      .from(customerContext)
+      .where(
+        and(
+          eq(customerContext.accountId, accountId),
+          sql`${customerContext.healthScore} is not null`,
+          sql`${customerContext.healthScore} <= ${DIGEST_HIGH_RISK_MAX_SCORE}`,
+        ),
+      )
+      .orderBy(desc(customerContext.mrrContributionCents))
+      .limit(DIGEST_HIGH_RISK_LIMIT),
     // Recova's count of customers flagged for personal outreach.
     db
       .select({ n: count() })
       .from(customerContext)
-      .where(and(eq(customerContext.accountId, accountId), eq(customerContext.recommendedAction, "personal_outreach"))),
+      .where(
+        and(
+          eq(customerContext.accountId, accountId),
+          eq(customerContext.recommendedAction, "personal_outreach"),
+        ),
+      ),
   ]);
 
   return {
@@ -322,15 +338,23 @@ export async function collectDigestNumbers(
     openDisputeAmounts: totalsOf(disputeRows),
     currency: resolveDigestCurrency(recoveredRows, failedRows),
     // Legacy's `(unnamed)` for a customer_context row with no name.
-    highRisk: highRisk.map((c) => ({ name: c.name ?? "(unnamed)", mrrCents: c.mrrCents, currency: c.currency })),
+    highRisk: highRisk.map((c) => ({
+      name: c.name ?? "(unnamed)",
+      mrrCents: c.mrrCents,
+      currency: c.currency,
+    })),
     personalOutreachCount: outreachRows[0]?.n ?? 0,
   };
 }
 
 /** Per-currency totals of rows that may lack an amount or currency. */
-function totalsOf(rows: { amountCents: number | null; currency: string | null }[]): CurrencyAmount[] {
+function totalsOf(
+  rows: { amountCents: number | null; currency: string | null }[],
+): CurrencyAmount[] {
   return groupSumByCurrency(
-    rows.flatMap((r) => (r.amountCents != null && r.currency ? [{ currency: r.currency, cents: r.amountCents }] : [])),
+    rows.flatMap((r) =>
+      r.amountCents != null && r.currency ? [{ currency: r.currency, cents: r.amountCents }] : [],
+    ),
   );
 }
 

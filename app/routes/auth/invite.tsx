@@ -81,7 +81,10 @@ async function accept(db: Db, token: string, session: Session, headers?: Headers
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const [session, invite] = await Promise.all([getSession(env, request), getInviteByToken(db, params.token)]);
+  const [session, invite] = await Promise.all([
+    getSession(env, request),
+    getInviteByToken(db, params.token),
+  ]);
   const carried = readInviteCookie(request) === params.token;
 
   if (!invite) {
@@ -100,7 +103,10 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 export async function action({ request, params, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const [session, invite] = await Promise.all([getSession(env, request), getInviteByToken(db, params.token)]);
+  const [session, invite] = await Promise.all([
+    getSession(env, request),
+    getInviteByToken(db, params.token),
+  ]);
   if (!invite) return data({ accountName: null, error: INVALID }, { status: 404 });
 
   if (!session) {
@@ -130,12 +136,16 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
               title="You've been invited"
               subtitle={
                 <>
-                  Join <strong className="text-text">{loaderData.accountName ?? "a team"}</strong> on Foxhound
+                  Join <strong className="text-text">{loaderData.accountName ?? "a team"}</strong>{" "}
+                  on Foxhound
                 </>
               }
             />
             {/* Recova's button: full width, text-sm, py-3. */}
-            <Form method="post" className="grid [&_.cap-btn]:[--cap-btn-fs:var(--text-copy)] [&_.cap-btn]:[--cap-btn-h:2.75rem]">
+            <Form
+              method="post"
+              className="grid [&_.cap-btn]:[--cap-btn-fs:var(--text-copy)] [&_.cap-btn]:[--cap-btn-h:2.75rem]"
+            >
               <Button type="submit" variant="primary" size="lg" pending={busy}>
                 {busy ? "Accepting…" : "Accept invite"}
               </Button>

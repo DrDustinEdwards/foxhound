@@ -71,7 +71,11 @@ const { action } = await import("~/routes/webhooks/stripe-platform");
 const { cloudflareContext } = await import("~/lib/cloudflare-context");
 const schema = await import("~/db/schema");
 
-function invoicePaidEvent(eventId: string, billingInvoiceId: string | null, type = "invoice.paid"): Stripe.Event {
+function invoicePaidEvent(
+  eventId: string,
+  billingInvoiceId: string | null,
+  type = "invoice.paid",
+): Stripe.Event {
   return {
     id: eventId,
     type,
@@ -106,7 +110,9 @@ async function seed() {
   const { sqlite, db } = createInMemoryDb();
   harness.db = db;
   harness.sqlite = sqlite;
-  await db.insert(schema.accounts).values({ id: ACCOUNT_ID, name: "Platform Co", createdAt: RECEIVED_AT });
+  await db
+    .insert(schema.accounts)
+    .values({ id: ACCOUNT_ID, name: "Platform Co", createdAt: RECEIVED_AT });
   await db.insert(schema.billingInvoices).values({
     id: BILLING_INVOICE_ID,
     accountId: ACCOUNT_ID,
@@ -188,7 +194,6 @@ describe("platform webhook: out-of-order delivery", () => {
 });
 
 describe("platform webhook: events with nothing to apply", () => {
-
   it("claims and ignores an event whose billing_invoice_id matches no row", async () => {
     const db = await seed();
     harness.event = invoicePaidEvent("evt_unknown_row", "binv_does_not_exist");

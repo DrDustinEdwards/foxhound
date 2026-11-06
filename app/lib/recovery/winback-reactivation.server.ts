@@ -80,11 +80,7 @@ async function loadReactivatableSequence(
  *
  * Returns whether this call took the claim.
  */
-async function claimWinbackReactivation(
-  db: Db,
-  sequenceId: string,
-  now: Date,
-): Promise<boolean> {
+async function claimWinbackReactivation(db: Db, sequenceId: string, now: Date): Promise<boolean> {
   await db
     .update(winBackSequences)
     .set({ status: WINBACK_STATUS.REACTIVATED, reactivatedAt: now, resolvedAt: now })

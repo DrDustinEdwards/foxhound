@@ -1,4 +1,7 @@
-import { ACCESSIBILITY_PATH, accessibilityStatement } from "@drdustinedwards/site-helpers/accessibility";
+import {
+  ACCESSIBILITY_PATH,
+  accessibilityStatement,
+} from "@drdustinedwards/site-helpers/accessibility";
 
 import { LegalBody } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -47,7 +50,11 @@ export function loader({ context }: Route.LoaderArgs) {
 export default function AccessibilityPage() {
   return (
     <>
-      <MarketingPageHeader eyebrow="Legal" title={statement.title} subtext="Last reviewed November 1, 2026" />
+      <MarketingPageHeader
+        eyebrow="Legal"
+        title={statement.title}
+        subtext="Last reviewed November 1, 2026"
+      />
       <LegalBody>
         <div className={BODY} dangerouslySetInnerHTML={{ __html: statement.html }} />
       </LegalBody>

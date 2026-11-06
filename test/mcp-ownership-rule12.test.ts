@@ -14,7 +14,14 @@ import {
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
+import {
+  mcpRequest,
+  readMcp,
+  toolOutput,
+  toolCallLogStub,
+  confirmedCall,
+  TEST_LINK_KEY,
+} from "./helpers/mcp-client";
 
 // RULE 12.1 OF THE 2026-10-10 MCP RULING: every tool that takes an id proves
 // the caller owns it, with a planted test that fails without the check.
@@ -74,7 +81,9 @@ async function seed() {
   const tokens: Record<string, string> = {};
   for (const account of [MINE, THEIRS]) {
     const mark = account === THEIRS ? THEIR_MARK : "mine";
-    await db.insert(accounts).values({ id: account, name: account, createdAt: NOW, currency: "usd" });
+    await db
+      .insert(accounts)
+      .values({ id: account, name: account, createdAt: NOW, currency: "usd" });
     const token = `${MCP_TOKEN_PREFIX}${account}`;
     tokens[account] = token;
     await db.insert(apiKeys).values({
@@ -159,15 +168,32 @@ async function seed() {
 }
 
 async function callTool(token: string, name: string, args: Record<string, unknown>) {
-  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args));
+  const res = await confirmedCall(
+    (a) =>
+      handleMcpRequest(
+        mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }),
+        env(),
+        MERCHANT_TOOLS,
+      ),
+    args,
+  );
   return readMcp(res);
 }
 
 /** Their row, as a snapshot to compare before and after a refused write. */
 async function theirRows(db: Db) {
-  const [connection] = await db.select().from(stripeConnections).where(eq(stripeConnections.id, `sc_${THEIRS}`));
-  const [alert] = await db.select().from(alerts).where(eq(alerts.id, `al_${THEIRS}`));
-  const history = await db.select().from(alertHistory).where(eq(alertHistory.alertId, `al_${THEIRS}`));
+  const [connection] = await db
+    .select()
+    .from(stripeConnections)
+    .where(eq(stripeConnections.id, `sc_${THEIRS}`));
+  const [alert] = await db
+    .select()
+    .from(alerts)
+    .where(eq(alerts.id, `al_${THEIRS}`));
+  const history = await db
+    .select()
+    .from(alertHistory)
+    .where(eq(alertHistory.alertId, `al_${THEIRS}`));
   return { connection, alert, history };
 }
 
@@ -296,7 +322,10 @@ describe("PLANT 4: another merchant's connection id gets a refusal that says so"
       const before = await theirRows(db);
       const crossed = toolOutput(
         await callTool(tokens[MINE], "foxhound_update_settings", {
-          [section]: { connection_id: `sc_${THEIRS}`, ...(section === "sender_name" ? { sender_name: "x" } : { general: "x" }) },
+          [section]: {
+            connection_id: `sc_${THEIRS}`,
+            ...(section === "sender_name" ? { sender_name: "x" } : { general: "x" }),
+          },
         }),
       );
       expect(crossed.isError).toBe(true);
@@ -307,4 +336,3 @@ describe("PLANT 4: another merchant's connection id gets a refusal that says so"
     });
   }
 });
-

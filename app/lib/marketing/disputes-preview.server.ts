@@ -131,6 +131,7 @@ let cached: { hour: number; preview: DisputesPreview } | null = null;
 
 export function disputesPreviewFor(nowMs: number): DisputesPreview {
   const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour) cached = { hour, preview: buildDisputesPreview(new Date(hour * HOUR_MS)) };
+  if (cached?.hour !== hour)
+    cached = { hour, preview: buildDisputesPreview(new Date(hour * HOUR_MS)) };
   return cached.preview;
 }

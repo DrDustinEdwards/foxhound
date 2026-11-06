@@ -58,7 +58,11 @@ export interface BillableDisputeRow {
  * rows has no join to perform; pass whether a dispute_approvals row exists for
  * this dispute id.
  */
-export function isBillableDisputeRow(dispute: BillableDisputeRow, hasApproval: boolean, asOfMs: number): boolean {
+export function isBillableDisputeRow(
+  dispute: BillableDisputeRow,
+  hasApproval: boolean,
+  asOfMs: number,
+): boolean {
   return (
     dispute.state === "resolved_won" &&
     dispute.submittedAt != null &&
