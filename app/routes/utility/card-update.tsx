@@ -451,7 +451,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     return redirect(session.url);
   } catch {
     // Never log the error object: it can carry request/token context.
-    return data({ error: "Could not start the payment method update. Please try again." }, { status: 502 });
+    return data(
+      { error: "Could not start the payment method update. Please try again." },
+      { status: 502 },
+    );
   }
 }
 
@@ -490,7 +493,12 @@ function CardUpdateFrame({
 }) {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-8 md:py-16">
-      <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber" data-card-update="">
+      <div
+        className="fh-cap [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
+        data-family="amber"
+        data-card-update=""
+      >
         <section className="cap-panel">
           <div className="cap-panel-body">
             <Wordmark />
@@ -510,9 +518,9 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
   const busy = useNavigation().state !== "idle";
   const state = loaderData.state;
   const amountLine =
-    loaderData.state === "ready"
-      && loaderData.amountCents !== undefined
-      && loaderData.currency !== undefined
+    loaderData.state === "ready" &&
+    loaderData.amountCents !== undefined &&
+    loaderData.currency !== undefined
       ? `A recent payment of ${formatMoney(loaderData.amountCents, loaderData.currency)} did not go through.`
       : undefined;
   // Legacy has no page here at all, its button going straight to a Stripe
@@ -544,7 +552,9 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
         </CardUpdateFrame>
       ) : state === "handled" ? (
         <CardUpdateFrame title="Nothing to do here">
-          <Banner tone="ok">This subscription has already been reactivated. No action is needed.</Banner>
+          <Banner tone="ok">
+            This subscription has already been reactivated. No action is needed.
+          </Banner>
         </CardUpdateFrame>
       ) : state === "resubscribed" ? (
         <CardUpdateFrame title="Welcome back">
@@ -562,7 +572,9 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
       ) : (
         <CardUpdateFrame title="Update your payment method" subtitle={amountLine}>
           {state === "setup_failed" ? (
-            <Alert tone="crit">We could not confirm your payment method update. Please try again.</Alert>
+            <Alert tone="crit">
+              We could not confirm your payment method update. Please try again.
+            </Alert>
           ) : null}
           {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
           <Form method="post">

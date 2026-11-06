@@ -9,7 +9,21 @@
 // except billing exempt: it decides which fees are forgiven, so it is a money
 // write (setBillingExempt).
 
-import { and, asc, count, desc, eq, exists, gte, isNull, ne, notExists, notLike, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  gte,
+  isNull,
+  ne,
+  notExists,
+  notLike,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import {
   type Db,
   accountMembers,
@@ -86,7 +100,12 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
       .select({ accountId: accountMembers.accountId, email: user.email })
       .from(accountMembers)
       .innerJoin(user, eq(user.id, accountMembers.userId))
-      .where(and(eq(accountMembers.role, MEMBER_ROLE.OWNER), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)))
+      .where(
+        and(
+          eq(accountMembers.role, MEMBER_ROLE.OWNER),
+          eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
+        ),
+      )
       .orderBy(asc(accountMembers.createdAt)),
     db
       .select({
@@ -122,7 +141,8 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
   ]);
 
   const ownerByAccount = new Map<string, string>();
-  for (const o of owners) if (!ownerByAccount.has(o.accountId)) ownerByAccount.set(o.accountId, o.email);
+  for (const o of owners)
+    if (!ownerByAccount.has(o.accountId)) ownerByAccount.set(o.accountId, o.email);
 
   const connectionsByAccount = new Map<string, typeof connections>();
   for (const c of connections) {
@@ -133,7 +153,10 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
 
   const activeByAccount = new Map(activeCounts.map((r) => [r.accountId, r.n]));
   const failedByAccount = new Map(failedCounts.map((r) => [r.accountId, r.n]));
-  const recoveredByAccount = new Map<string, { n: number; amounts: Array<{ currency: string; cents: number }> }>();
+  const recoveredByAccount = new Map<
+    string,
+    { n: number; amounts: Array<{ currency: string; cents: number }> }
+  >();
   for (const r of recoveredRows) {
     const entry = recoveredByAccount.get(r.accountId) ?? { n: 0, amounts: [] };
     entry.n += r.n;
@@ -149,12 +172,14 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
     const recovered = recoveredByAccount.get(row.id);
     return {
       ...row,
-      connectionStatus: live.length > 0 ? "connected" : own.length > 0 ? "disconnected" : "never_connected",
+      connectionStatus:
+        live.length > 0 ? "connected" : own.length > 0 ? "disconnected" : "never_connected",
       activeRecoveriesCount: activeByAccount.get(row.id) ?? 0,
       ownerEmail: ownerByAccount.get(row.id) ?? null,
       stripeUserId: shown?.stripeUserId ?? null,
       lastWebhookAt: shown?.lastWebhookAt ?? null,
-      recoveryRatePct: failedCount > 0 ? Math.round(((recovered?.n ?? 0) / failedCount) * 100) : null,
+      recoveryRatePct:
+        failedCount > 0 ? Math.round(((recovered?.n ?? 0) / failedCount) * 100) : null,
       recovered: groupSumByCurrency(recovered?.amounts ?? []),
     };
   });
@@ -200,43 +225,49 @@ const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
 
 export async function getMerchantFigures(db: Db, nowMs: number): Promise<MerchantFigures> {
   const monthStart = new Date(startOfUtcMonthMs(nowMs));
-  const [merchantRows, mrrByCurrency, connectedRows, recoveredRows, feeRows, paymentsInQueue] = await Promise.all([
-    db.select({ n: count() }).from(accounts).where(NOT_DEMO),
-    mrrUnderManagement(db),
-    db
-      .select({ n: sql<number>`count(distinct ${stripeConnections.accountId})` })
-      .from(stripeConnections)
-      .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
-      .where(and(isNull(stripeConnections.disconnectedAt), NOT_DEMO)),
-    db
-      .select({ currency: recoveredPayments.currency, cents: sql<number>`coalesce(sum(${recoveredPayments.amountCents}), 0)` })
-      .from(recoveredPayments)
-      .innerJoin(accounts, eq(accounts.id, recoveredPayments.accountId))
-      .where(and(isNull(recoveredPayments.deletedAt), NOT_DEMO))
-      .groupBy(recoveredPayments.currency),
-    db
-      .select({
-        currency: billingLineItems.currency,
-        cents: sql<number>`coalesce(sum(coalesce(${billingLineItems.feeCents}, ${billingLineItems.amountCents})), 0)`,
-      })
-      .from(billingLineItems)
-      .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
-      .innerJoin(accounts, eq(accounts.id, billingLineItems.accountId))
-      .where(
-        and(
-          eq(billingLineItems.type, "recovery_fee"),
-          gte(billingInvoices.createdAt, monthStart),
-          ne(billingInvoices.status, "void"),
-          NOT_DEMO,
-        ),
-      )
-      .groupBy(billingLineItems.currency),
-    // The Overview's own count, so "Payments in queue" and "Active
-    // recoveries" can never disagree (PR 140 review).
-    countActiveRecoveries(db),
-  ]);
+  const [merchantRows, mrrByCurrency, connectedRows, recoveredRows, feeRows, paymentsInQueue] =
+    await Promise.all([
+      db.select({ n: count() }).from(accounts).where(NOT_DEMO),
+      mrrUnderManagement(db),
+      db
+        .select({ n: sql<number>`count(distinct ${stripeConnections.accountId})` })
+        .from(stripeConnections)
+        .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
+        .where(and(isNull(stripeConnections.disconnectedAt), NOT_DEMO)),
+      db
+        .select({
+          currency: recoveredPayments.currency,
+          cents: sql<number>`coalesce(sum(${recoveredPayments.amountCents}), 0)`,
+        })
+        .from(recoveredPayments)
+        .innerJoin(accounts, eq(accounts.id, recoveredPayments.accountId))
+        .where(and(isNull(recoveredPayments.deletedAt), NOT_DEMO))
+        .groupBy(recoveredPayments.currency),
+      db
+        .select({
+          currency: billingLineItems.currency,
+          cents: sql<number>`coalesce(sum(coalesce(${billingLineItems.feeCents}, ${billingLineItems.amountCents})), 0)`,
+        })
+        .from(billingLineItems)
+        .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
+        .innerJoin(accounts, eq(accounts.id, billingLineItems.accountId))
+        .where(
+          and(
+            eq(billingLineItems.type, "recovery_fee"),
+            gte(billingInvoices.createdAt, monthStart),
+            ne(billingInvoices.status, "void"),
+            NOT_DEMO,
+          ),
+        )
+        .groupBy(billingLineItems.currency),
+      // The Overview's own count, so "Payments in queue" and "Active
+      // recoveries" can never disagree (PR 140 review).
+      countActiveRecoveries(db),
+    ]);
   const money = (rows: Array<{ currency: string; cents: number }>) =>
-    groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))).filter((m) => m.cents !== 0);
+    groupSumByCurrency(rows.map((r) => ({ currency: r.currency, cents: Number(r.cents) }))).filter(
+      (m) => m.cents !== 0,
+    );
   return {
     merchantCount: merchantRows[0]?.n ?? 0,
     mrrByCurrency,
@@ -354,7 +385,12 @@ export async function getMerchantActionTarget(
  *  Merchants page offers Undo only for a real change: a stale row's "Set exempt"
  *  on a merchant someone else exempted changes nothing, and its Undo must not
  *  un-exempt them. `now` is required (RULES 3.10): it bounds what is forgiven. */
-export async function setBillingExempt(env: Env, accountId: string, exempt: boolean, now: Date): Promise<boolean> {
+export async function setBillingExempt(
+  env: Env,
+  accountId: string,
+  exempt: boolean,
+  now: Date,
+): Promise<boolean> {
   const db = getDb(env);
   const changeId = crypto.randomUUID();
   const nowMs = now.getTime();
@@ -362,8 +398,14 @@ export async function setBillingExempt(env: Env, accountId: string, exempt: bool
     bdb
       .select({ one: sql`1` })
       .from(billingExemptionPeriods)
-      .where(and(eq(billingExemptionPeriods.accountId, accountId), isNull(billingExemptionPeriods.endedAt)));
-  const flagIs = (value: boolean) => and(eq(accounts.id, accountId), eq(accounts.billingExempt, value));
+      .where(
+        and(
+          eq(billingExemptionPeriods.accountId, accountId),
+          isNull(billingExemptionPeriods.endedAt),
+        ),
+      );
+  const flagIs = (value: boolean) =>
+    and(eq(accounts.id, accountId), eq(accounts.billingExempt, value));
   // A new stretch, projected in the table's column order (insert-select needs
   // every column, and the id default does not fire on one).
   const newPeriod = (bdb: Db, periodId: string, where: SQL | undefined) =>
@@ -400,7 +442,12 @@ export async function setBillingExempt(env: Env, accountId: string, exempt: bool
                 and(
                   eq(billingExemptionPeriods.accountId, accountId),
                   isNull(billingExemptionPeriods.endedAt),
-                  exists(bdb.select({ one: sql`1` }).from(accounts).where(flagIs(true))),
+                  exists(
+                    bdb
+                      .select({ one: sql`1` })
+                      .from(accounts)
+                      .where(flagIs(true)),
+                  ),
                 ),
               ),
             bdb.update(accounts).set({ billingExempt: false }).where(flagIs(true)),
@@ -411,7 +458,9 @@ export async function setBillingExempt(env: Env, accountId: string, exempt: bool
     .select({ id: billingExemptionPeriods.id })
     .from(billingExemptionPeriods)
     .where(
-      exempt ? eq(billingExemptionPeriods.id, changeId) : eq(billingExemptionPeriods.endedByChangeId, changeId),
+      exempt
+        ? eq(billingExemptionPeriods.id, changeId)
+        : eq(billingExemptionPeriods.endedByChangeId, changeId),
     )
     .limit(1);
   return landed.length > 0;
@@ -468,7 +517,9 @@ export function buildSetProcessingPaused(
   reason: string | null = null,
   guard?: SQL,
 ) {
-  const target = guard ? (and(eq(accounts.id, accountId), guard) as SQL) : eq(accounts.id, accountId);
+  const target = guard
+    ? (and(eq(accounts.id, accountId), guard) as SQL)
+    : eq(accounts.id, accountId);
 
   if (!paused) {
     return db
@@ -518,8 +569,10 @@ export async function setProcessingPausedIfChanged(
   { undoOfPause = false }: { undoOfPause?: boolean } = {},
 ): Promise<boolean> {
   const from = eq(accounts.processingPaused, !paused);
-  const guard = !paused && undoOfPause ? (and(from, eq(accounts.pauseReason, PAUSE_REASON_MANUAL)) as SQL) : from;
+  const guard =
+    !paused && undoOfPause
+      ? (and(from, eq(accounts.pauseReason, PAUSE_REASON_MANUAL)) as SQL)
+      : from;
   const rows = await buildSetProcessingPaused(db, accountId, paused, null, guard);
   return rows.length > 0;
 }
-

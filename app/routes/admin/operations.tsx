@@ -103,16 +103,23 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-label text-text-secondary">Payments in recovery</dt>
-            <dd className="m-0 font-mono text-title tabular-nums text-text">{figure(queue.activePayments)}</dd>
-            <dd className="m-0 text-label text-text-secondary">Failed payments in an active sequence.</dd>
+            <dd className="m-0 font-mono text-title tabular-nums text-text">
+              {figure(queue.activePayments)}
+            </dd>
+            <dd className="m-0 text-label text-text-secondary">
+              Failed payments in an active sequence.
+            </dd>
           </div>
           <div>
             <dt className="text-label text-text-secondary">Steps due now</dt>
-            <dd className="m-0 font-mono text-title tabular-nums text-text">{figure(queue.dueSteps)}</dd>
+            <dd className="m-0 font-mono text-title tabular-nums text-text">
+              {figure(queue.dueSteps)}
+            </dd>
             <dd className="m-0 text-label text-text-secondary">
               {queue.oldestDueAt ? (
                 <>
-                  Oldest due <AdminTime at={queue.oldestDueAt} />. Steps on paused or canceled accounts are not counted.
+                  Oldest due <AdminTime at={queue.oldestDueAt} />. Steps on paused or canceled
+                  accounts are not counted.
                 </>
               ) : (
                 "No step is waiting for the recovery tick."
@@ -135,11 +142,19 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
           </Empty>
         ) : (
           // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={LOCKS_HEADING_ID} tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-labelledby={LOCKS_HEADING_ID}
+            tabIndex={0}
+          >
             <table className="cap-table">
               <caption className="cap-sr-only">
-                Cron locks, one per cron in the registry&apos;s order. A lock not released ran out while still stored:
-                its run stopped without releasing it, or is running past its lease. The next run takes it anyway.
+                Cron locks, one per cron in the registry&apos;s order. A lock not released ran out
+                while still stored: its run stopped without releasing it, or is running past its
+                lease. The next run takes it anyway.
               </caption>
               <thead>
                 <tr>
@@ -183,9 +198,18 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
           <Empty kind="nothing-yet" title="No tables with a retention rule." />
         ) : (
           // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={GROWTH_HEADING_ID} tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-labelledby={GROWTH_HEADING_ID}
+            tabIndex={0}
+          >
             <table className="cap-table">
-              <caption className="cap-sr-only">Row counts for each table with a retention rule.</caption>
+              <caption className="cap-sr-only">
+                Row counts for each table with a retention rule.
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">Table</th>
@@ -201,7 +225,9 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                     <th scope="row" className="font-normal text-text">
                       {t.label}
                     </th>
-                    <td data-label="Kept for" className="text-text-secondary">{t.retentionPolicy}</td>
+                    <td data-label="Kept for" className="text-text-secondary">
+                      {t.retentionPolicy}
+                    </td>
                     <td data-label="Rows" data-num="">
                       {figure(t.rowCount)}
                     </td>
@@ -226,8 +252,8 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
       >
         {migrations.unexpectedApplied.length > 0 ? (
           <p className="m-0 border-b border-border px-4 py-3 text-label text-error-text">
-            {plural(migrations.unexpectedApplied.length, "migration is", "migrations are")} applied but not in this
-            build: {migrations.unexpectedApplied.join(", ")}.
+            {plural(migrations.unexpectedApplied.length, "migration is", "migrations are")} applied
+            but not in this build: {migrations.unexpectedApplied.join(", ")}.
           </p>
         ) : null}
         {migrations.rows.length === 0 ? (
@@ -243,7 +269,9 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             tabIndex={0}
           >
             <table className="cap-table">
-              <caption className="cap-sr-only">Each migration in this build, in order, and when it was applied.</caption>
+              <caption className="cap-sr-only">
+                Each migration in this build, in order, and when it was applied.
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">Migration</th>
@@ -258,7 +286,9 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                       {m.name}
                     </th>
                     <td data-label="State">
-                      <Status tone={m.applied ? "ok" : "crit"}>{m.applied ? "Applied" : "Not applied"}</Status>
+                      <Status tone={m.applied ? "ok" : "crit"}>
+                        {m.applied ? "Applied" : "Not applied"}
+                      </Status>
                     </td>
                     <td data-label="Applied">
                       <AdminTime at={m.appliedAt} empty="Not yet" />
@@ -279,9 +309,18 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         flush
       >
         {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-        <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={SETTINGS_HEADING_ID} tabIndex={0}>
+        <div
+          className="cap-table-wrap"
+          data-reflow=""
+          data-cap="table"
+          role="region"
+          aria-labelledby={SETTINGS_HEADING_ID}
+          tabIndex={0}
+        >
           <table className="cap-table">
-            <caption className="cap-sr-only">Each setting the Worker uses, its kind, and whether it is set.</caption>
+            <caption className="cap-sr-only">
+              Each setting the Worker uses, its kind, and whether it is set.
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -295,12 +334,16 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                   <th scope="row" className="font-normal font-mono break-all text-text">
                     {row.name}
                   </th>
-                  <td data-label="Kind" className="text-text-secondary">{settingKindWord(row.kind)}</td>
+                  <td data-label="Kind" className="text-text-secondary">
+                    {settingKindWord(row.kind)}
+                  </td>
                   <td data-label="State">
                     {row.problem ? (
                       <Status tone="crit">{row.problem}</Status>
                     ) : (
-                      <Status tone={row.set ? "ok" : "nodata"}>{row.set ? "Set" : "Not set"}</Status>
+                      <Status tone={row.set ? "ok" : "nodata"}>
+                        {row.set ? "Set" : "Not set"}
+                      </Status>
                     )}
                   </td>
                 </tr>
@@ -337,7 +380,9 @@ function LockRow({ lock }: { lock: CronLockRow }) {
             Ran out <AdminTime at={lock.heldUntil} />
           </>
         ) : (
-          <span className="text-text-tertiary">{lock.state === "unreadable" ? "Not known" : "None"}</span>
+          <span className="text-text-tertiary">
+            {lock.state === "unreadable" ? "Not known" : "None"}
+          </span>
         )}
       </td>
     </tr>

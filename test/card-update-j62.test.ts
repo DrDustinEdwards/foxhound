@@ -1,4 +1,3 @@
-
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -12,8 +11,14 @@ const clicks = vi.hoisted(() => ({ handlers: [] as ((e: unknown) => void)[] }));
 vi.mock("capsomer/react/button", async (importOriginal) => {
   const real = await importOriginal<typeof import("capsomer/react/button")>();
   function Button(props: Parameters<typeof real.Button>[0]) {
-    const el = real.Button(props) as ReactElement<{ onClick?: (e: unknown) => void; children?: unknown }>;
-    const btn = el.type === "button" ? el : (el.props.children as ReactElement<{ onClick?: (e: unknown) => void }>[])[0];
+    const el = real.Button(props) as ReactElement<{
+      onClick?: (e: unknown) => void;
+      children?: unknown;
+    }>;
+    const btn =
+      el.type === "button"
+        ? el
+        : (el.props.children as ReactElement<{ onClick?: (e: unknown) => void }>[])[0];
     if (btn.props.onClick) clicks.handlers.push(btn.props.onClick);
     return el;
   }
@@ -48,10 +53,6 @@ function render(loaderData: LoaderData, actionData?: { error: string }): string 
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-
-
-
-
 const READY: LoaderData = { state: "ready", amountCents: 9900, currency: "usd" };
 const RESUBSCRIBE: LoaderData = { state: "resubscribe", planName: "Pro" };
 
@@ -67,14 +68,17 @@ async function renderSubmitting(loaderData: LoaderData): Promise<string> {
     { initialEntries: ["/p/t"] },
   );
   void router.navigate("/p/t", { formMethod: "post", formData: new FormData() });
-  for (let i = 0; i < 20 && router.state.navigation.state !== "submitting"; i++) await Promise.resolve();
+  for (let i = 0; i < 20 && router.state.navigation.state !== "submitting"; i++)
+    await Promise.resolve();
   expect(router.state.navigation.state, "the POST is in flight").toBe("submitting");
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
 describe("J62 review: the button while the Checkout redirect starts", () => {
-  for (const [name, state] of [["recovery", READY], ["resubscribe", RESUBSCRIBE]] as const) {
-
+  for (const [name, state] of [
+    ["recovery", READY],
+    ["resubscribe", RESUBSCRIBE],
+  ] as const) {
     it(`${name}: a second press while pending is stopped before the form can submit again`, async () => {
       clicks.handlers = [];
       await renderSubmitting(state);

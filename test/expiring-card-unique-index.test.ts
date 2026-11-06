@@ -24,11 +24,18 @@ const BASE =
 
 beforeEach(() => {
   ({ sqlite } = createInMemoryDb());
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_1', 'Acme', 1000)").run();
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_2', 'Other', 1000)").run();
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_1', 'Acme', 1000)")
+    .run();
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_2', 'Other', 1000)")
+    .run();
 });
 
-function insert(id: string, opts: Partial<{ account: string; customer: string; month: number; year: number }> = {}) {
+function insert(
+  id: string,
+  opts: Partial<{ account: string; customer: string; month: number; year: number }> = {},
+) {
   sqlite
     .prepare(BASE)
     .run(
@@ -56,9 +63,9 @@ describe("PLANT: the database refuses a duplicate card-month", () => {
   it("REFUSES the second insert of the same tuple", () => {
     insert("a1");
     expect(() => insert("a2")).toThrow(/UNIQUE constraint failed/);
-    const count = sqlite
-      .prepare("SELECT count(*) AS c FROM expiring_card_alerts")
-      .get() as { c: number };
+    const count = sqlite.prepare("SELECT count(*) AS c FROM expiring_card_alerts").get() as {
+      c: number;
+    };
     expect(count.c).toBe(1);
   });
 
@@ -70,9 +77,9 @@ describe("PLANT: the database refuses a duplicate card-month", () => {
     insert("a3", { customer: "cus_2" });
     insert("a4", { month: 12 });
     insert("a5", { year: 2027 });
-    const count = sqlite
-      .prepare("SELECT count(*) AS c FROM expiring_card_alerts")
-      .get() as { c: number };
+    const count = sqlite.prepare("SELECT count(*) AS c FROM expiring_card_alerts").get() as {
+      c: number;
+    };
     expect(count.c).toBe(5);
   });
 
@@ -80,7 +87,8 @@ describe("PLANT: the database refuses a duplicate card-month", () => {
     insert("a1");
     sqlite
       .prepare(
-        BASE + " ON CONFLICT (account_id, stripe_customer_id, expires_month, expires_year) DO UPDATE SET customer_email = excluded.customer_email",
+        BASE +
+          " ON CONFLICT (account_id, stripe_customer_id, expires_month, expires_year) DO UPDATE SET customer_email = excluded.customer_email",
       )
       .run("a2", "acct_1", "cus_1", "changed@acme.test", 11, 2026);
 

@@ -36,12 +36,17 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
     const sqlite = harness.sqlite as Database.Database;
     sqlite.exec("BEGIN");
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       sqlite.exec("COMMIT");
     } catch (err) {
       sqlite.exec("ROLLBACK");
@@ -58,7 +63,10 @@ vi.mock("~/lib/stripe/client", () => ({
     rawRequest: async (_method: string, path: string, params: Record<string, unknown>) => {
       if (path !== "/v1/fx_quotes") throw new Error(`unexpected stripe call ${path}`);
       if (harness.failQuote) throw new Error("stripe unavailable");
-      return { id: "fxq_late", rates: { [String(params["from_currencies[0]"])]: { exchange_rate: 1.2 } } };
+      return {
+        id: "fxq_late",
+        rates: { [String(params["from_currencies[0]"])]: { exchange_rate: 1.2 } },
+      };
     },
   }),
   getConnectedStripe: () => {
@@ -115,7 +123,9 @@ beforeEach(() => {
 });
 
 function disputeLines() {
-  return sqlite.prepare("SELECT amount_cents AS amount FROM billing_line_items WHERE dispute_id = 'd1'").all();
+  return sqlite
+    .prepare("SELECT amount_cents AS amount FROM billing_line_items WHERE dispute_id = 'd1'")
+    .all();
 }
 
 describe("an unpriced won dispute is skipped until priced, then billed at the stored fee", () => {

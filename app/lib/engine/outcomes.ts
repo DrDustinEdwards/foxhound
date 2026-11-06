@@ -40,10 +40,7 @@ export interface RecordOutcomeParams {
  * Record an outcome. Never throws. Returns true when the row was newly written,
  * false on an idempotent no-op (already recorded) or a swallowed failure.
  */
-export async function recordOutcome(
-  env: Env,
-  params: RecordOutcomeParams,
-): Promise<boolean> {
+export async function recordOutcome(env: Env, params: RecordOutcomeParams): Promise<boolean> {
   try {
     const now = new Date();
     const { applied } = await executeMoneyWrite(env, {

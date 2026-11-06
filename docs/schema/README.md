@@ -6,17 +6,17 @@ column was carried or dropped is in `docs/schema/legacy-map.md`.
 
 ## Layout
 
-| Path | What |
-|---|---|
-| `app/db/schema/` | The Drizzle SQLite schema, one file per area (65 tables; Better Auth's 6 are in `app/db/auth-schema.ts`). Single source of table definitions. |
-| `app/db/client.ts` | `getDb(env)` -> typed Drizzle client bound to the `DB` D1 binding. |
-| `app/db/scope.ts` | Account-scoping helpers (`byAccount`, `byAccountActive`). |
-| `app/db/billable.ts` | THE billable-recovery predicate (`getBillableRecoveries`). No phase reimplements it. |
-| `app/db/money-write.ts` | Money-write type contract, committed through the per-account DO. |
-| `app/db/index.ts` | Data-layer entry point; import from `~/db`. |
-| `app/lib/constants.ts` | Centralized fees, maturity window, canon enum value sets. |
-| `drizzle.config.ts` | drizzle-kit config (generate only). |
-| `drizzle/migrations/` | Generated SQL migrations + drizzle meta. Applied by wrangler. |
+| Path                    | What                                                                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/db/schema/`        | The Drizzle SQLite schema, one file per area (65 tables; Better Auth's 6 are in `app/db/auth-schema.ts`). Single source of table definitions. |
+| `app/db/client.ts`      | `getDb(env)` -> typed Drizzle client bound to the `DB` D1 binding.                                                                            |
+| `app/db/scope.ts`       | Account-scoping helpers (`byAccount`, `byAccountActive`).                                                                                     |
+| `app/db/billable.ts`    | THE billable-recovery predicate (`getBillableRecoveries`). No phase reimplements it.                                                          |
+| `app/db/money-write.ts` | Money-write type contract, committed through the per-account DO.                                                                              |
+| `app/db/index.ts`       | Data-layer entry point; import from `~/db`.                                                                                                   |
+| `app/lib/constants.ts`  | Centralized fees, maturity window, canon enum value sets.                                                                                     |
+| `drizzle.config.ts`     | drizzle-kit config (generate only).                                                                                                           |
+| `drizzle/migrations/`   | Generated SQL migrations + drizzle meta. Applied by wrangler.                                                                                 |
 
 ## Conventions (SCHEMA.md)
 

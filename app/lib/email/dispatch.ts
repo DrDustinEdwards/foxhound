@@ -38,7 +38,13 @@ import type { OutboundEmailJob } from "./types";
 // two paths. Retries on the live path come from decideEmailStep's backoff, not
 // from the queue.
 
-export type EmailSendStatus = "sent" | "suppressed" | "failed" | "blocked" | "pending" | "duplicate";
+export type EmailSendStatus =
+  | "sent"
+  | "suppressed"
+  | "failed"
+  | "blocked"
+  | "pending"
+  | "duplicate";
 
 /** email_sends.error for a claim that reached the provider and never came back
  *  with an answer. Not used as a status: the ROW stays `pending`, because

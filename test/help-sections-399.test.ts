@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { accounts, cronRunHistory } from "~/db";
-import {
-  cronDisplayStatus,
-  getVisibleCronStatus,
-} from "~/lib/help/platform-status.server";
+import { cronDisplayStatus, getVisibleCronStatus } from "~/lib/help/platform-status.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -38,13 +35,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // And the fourth cron row is a substitution, asserted below so it is visible:
 // legacy's fourth is process-disputes and Foxhound has no dispute cron at all.
 
-
 const NOW = Date.UTC(2026, 7, 29, 12, 0, 0);
 
-
-
 describe("cronDisplayStatus", () => {
-
   it("reads no successful run ever as pending, not as an error", () => {
     expect(cronDisplayStatus(null, null, NOW, "recovery-tick")).toBe("pending");
   });

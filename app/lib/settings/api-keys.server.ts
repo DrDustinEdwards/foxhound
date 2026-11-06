@@ -40,7 +40,11 @@ export interface ApiKeyRow {
  * keys carry `account_id = null` by construction in `issueMcpToken`, so they
  * cannot appear in an account-scoped list on either side.
  */
-export async function listAccountApiKeys(db: Db, accountId: string, now: Date = new Date()): Promise<ApiKeyRow[]> {
+export async function listAccountApiKeys(
+  db: Db,
+  accountId: string,
+  now: Date = new Date(),
+): Promise<ApiKeyRow[]> {
   return db
     .select({
       id: apiKeys.id,
@@ -159,14 +163,19 @@ export async function listAccountMcpCalls(
       and(
         eq(mcpCalls.accountId, accountId),
         before
-          ? or(lt(mcpCalls.createdAt, before.at), and(eq(mcpCalls.createdAt, before.at), lt(mcpCalls.id, before.id)))
+          ? or(
+              lt(mcpCalls.createdAt, before.at),
+              and(eq(mcpCalls.createdAt, before.at), lt(mcpCalls.id, before.id)),
+            )
           : undefined,
       ),
     )
     .orderBy(desc(mcpCalls.createdAt), desc(mcpCalls.id))
     .limit(MCP_CALLS_SHOWN + 1);
   return {
-    calls: rows.slice(0, MCP_CALLS_SHOWN).map((row) => ({ ...row, error: row.error === null ? null : maskSecretsInText(row.error) })),
+    calls: rows
+      .slice(0, MCP_CALLS_SHOWN)
+      .map((row) => ({ ...row, error: row.error === null ? null : maskSecretsInText(row.error) })),
     more: rows.length > MCP_CALLS_SHOWN,
   };
 }

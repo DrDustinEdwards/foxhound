@@ -54,7 +54,8 @@ const TEST_EMAIL_SUBJECT_PREFIX = "[PREVIEW] ";
 /** Recova's preview banner, less the brand-voice clause (difference 2 above). */
 const TEST_EMAIL_BANNER = "PREVIEW: This is a sample recovery email.";
 /** Recova's preview footer, Foxhound-branded. */
-const TEST_EMAIL_FOOTER = "This is a preview email sent from Foxhound. Your real recovery emails will look like this.";
+const TEST_EMAIL_FOOTER =
+  "This is a preview email sent from Foxhound. Your real recovery emails will look like this.";
 
 /**
  * The subject, body and footer this control sends: the banner and the

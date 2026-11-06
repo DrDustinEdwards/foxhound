@@ -39,7 +39,6 @@ function runBeforeSendTransaction(event: Event): Event | null {
 }
 
 describe("J05: the options object carries the posture", () => {
-
   it("the worker entry passes THIS function to withSentry", () => {
     const entry = read("workers/app.ts");
     expect(entry).toContain('import { sentryOptions } from "~/lib/errors/sentry-options";');
@@ -81,8 +80,12 @@ describe("J05: personal data is scrubbed from what the call sites send", () => {
           span_id: "a",
           trace_id: "b",
           start_timestamp: 0,
-          description: "GET https://api.stripe.com/v1/customers/search?query=email:'jane@example.com'",
-          data: { "url.full": "https://api.stripe.com/v1/customers/search?query=x", "url.query": "?query=x" },
+          description:
+            "GET https://api.stripe.com/v1/customers/search?query=email:'jane@example.com'",
+          data: {
+            "url.full": "https://api.stripe.com/v1/customers/search?query=x",
+            "url.query": "?query=x",
+          },
         },
       ],
     });
@@ -96,7 +99,11 @@ describe("J05: personal data is scrubbed from what the call sites send", () => {
 
   it("a URL inside an error message loses its query string (review LOW 4)", () => {
     const out = runBeforeSend({
-      exception: { values: [{ type: "Error", value: "fetch failed: https://api.test/v1/x?email=QSTRING done" }] },
+      exception: {
+        values: [
+          { type: "Error", value: "fetch failed: https://api.test/v1/x?email=QSTRING done" },
+        ],
+      },
     });
     expect(out?.exception?.values?.[0]?.value).toBe("fetch failed: https://api.test/v1/x done");
   });

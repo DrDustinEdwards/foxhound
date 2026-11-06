@@ -16,7 +16,10 @@ const harness = vi.hoisted(() => ({
   paymentIntent: null as unknown,
   paid: [] as { invoiceId: string; idempotencyKey: string }[],
   /** The invoice as invoices.retrieve returns it now. */
-  invoice: { status: "open", next_payment_attempt: null } as { status: string; next_payment_attempt: number | null },
+  invoice: { status: "open", next_payment_attempt: null } as {
+    status: string;
+    next_payment_attempt: number | null;
+  },
   /** What invoices.pay throws, when it should. */
   payError: null as unknown,
 }));
@@ -29,7 +32,9 @@ vi.mock("~/db", async (importOriginal) => ({
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (_env: Env, write: { build: (db: unknown) => unknown[] }) => {
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       return { applied: true };
     } catch (err) {
       if (String(err).includes("UNIQUE")) return { applied: false };
@@ -143,7 +148,9 @@ describe("intake reads the decline off the latest charge", () => {
       },
     };
 
-    expect(await processConnectedWebhook({} as Env, paymentFailed("evt_1"), AT)).toEqual({ status: "applied" });
+    expect(await processConnectedWebhook({} as Env, paymentFailed("evt_1"), AT)).toEqual({
+      status: "applied",
+    });
 
     const [payment] = await db.select().from(schema.failedPayments);
     expect(payment.declineCode).toBe("insufficient_funds");
@@ -151,14 +158,20 @@ describe("intake reads the decline off the latest charge", () => {
     expect(payment.declineCategory).toBe("fraud");
     expect(payment.networkAdviceCode).toBe("do_not_try_again");
     expect(payment.networkDeclineCode).toBe("05");
-    expect([payment.cardFunding, payment.cardBrand, payment.cardCountry]).toEqual(["debit", "visa", "US"]);
+    expect([payment.cardFunding, payment.cardBrand, payment.cardCountry]).toEqual([
+      "debit",
+      "visa",
+      "US",
+    ]);
     const steps = await db.select().from(schema.recoverySteps);
     expect(steps.some((s) => s.stepType.startsWith("retry_"))).toBe(false);
   });
 
   it("a Stripe read failure never blocks intake", async () => {
     const db = await seed();
-    expect(await processConnectedWebhook({} as Env, paymentFailed("evt_1"), AT)).toEqual({ status: "applied" });
+    expect(await processConnectedWebhook({} as Env, paymentFailed("evt_1"), AT)).toEqual({
+      status: "applied",
+    });
     const [payment] = await db.select().from(schema.failedPayments);
     expect(payment.declineCategory).toBe("unknown");
     expect(payment.networkAdviceCode).toBeNull();
@@ -166,7 +179,10 @@ describe("intake reads the decline off the latest charge", () => {
 });
 
 describe("payment_method.automatically_updated retries on the new card now", () => {
-  async function seedPayment(db: Awaited<ReturnType<typeof seed>>, networkAdviceCode: string | null = null) {
+  async function seedPayment(
+    db: Awaited<ReturnType<typeof seed>>,
+    networkAdviceCode: string | null = null,
+  ) {
     await db.insert(schema.failedPayments).values({
       id: "fp_1",
       accountId: ACCOUNT,
@@ -194,15 +210,22 @@ describe("payment_method.automatically_updated retries on the new card now", () 
   }
 
   async function stepResult(db: Awaited<ReturnType<typeof seed>>, id = "step_retry") {
-    const [step] = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.id, id));
+    const [step] = await db
+      .select()
+      .from(schema.recoverySteps)
+      .where(eq(schema.recoverySteps.id, id));
     return step.result;
   }
 
   it("charges the next pending retry step with its own idempotency key", async () => {
     const db = await seed();
     await seedPayment(db);
-    expect(await processConnectedWebhook({} as Env, cardUpdated("evt_cau"), AT)).toEqual({ status: "applied" });
-    expect(harness.paid).toEqual([{ invoiceId: "in_decline", idempotencyKey: "foxhound_retry_step_retry" }]);
+    expect(await processConnectedWebhook({} as Env, cardUpdated("evt_cau"), AT)).toEqual({
+      status: "applied",
+    });
+    expect(harness.paid).toEqual([
+      { invoiceId: "in_decline", idempotencyKey: "foxhound_retry_step_retry" },
+    ]);
     expect(await stepResult(db)).toBe("retry_failed");
   });
 
@@ -242,7 +265,11 @@ describe("payment_method.automatically_updated retries on the new card now", () 
       stepType: "retry_day21",
       scheduledAt: new Date(Date.now() + 40 * 86_400_000),
     });
-    harness.payError = { type: "StripeCardError", code: "card_declined", decline_code: "stolen_card" };
+    harness.payError = {
+      type: "StripeCardError",
+      code: "card_declined",
+      decline_code: "stolen_card",
+    };
 
     await processConnectedWebhook({} as Env, cardUpdated("evt_cau_1"), AT);
     expect(await stepResult(db)).toBe("retry_card_declined");

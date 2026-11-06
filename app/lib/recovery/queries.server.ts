@@ -109,12 +109,15 @@ function applyFailedPaymentFilters(conditions: unknown[], filters: FailedPayment
     );
     if (searchCondition) conditions.push(searchCondition);
   }
-  if (filters.declineCategory) conditions.push(eq(failedPayments.declineCategory, filters.declineCategory));
+  if (filters.declineCategory)
+    conditions.push(eq(failedPayments.declineCategory, filters.declineCategory));
   if (filters.detectedAfterMs !== null) {
     conditions.push(gte(failedPayments.detectedAt, new Date(filters.detectedAfterMs)));
   }
-  if (filters.amountMinCents !== null) conditions.push(gte(failedPayments.amountCents, filters.amountMinCents));
-  if (filters.amountMaxCents !== null) conditions.push(lte(failedPayments.amountCents, filters.amountMaxCents));
+  if (filters.amountMinCents !== null)
+    conditions.push(gte(failedPayments.amountCents, filters.amountMinCents));
+  if (filters.amountMaxCents !== null)
+    conditions.push(lte(failedPayments.amountCents, filters.amountMaxCents));
 }
 
 /** The filtered, sorted, paginated /recovery/payments list. Every filter and
@@ -138,7 +141,8 @@ export async function listFilteredFailedPayments(
 
   const isAll = filters.pageSize === "all";
   const totalCountNum = Number(totalCount);
-  const pageSize: number = filters.pageSize === "all" ? Math.max(1, totalCountNum) : filters.pageSize;
+  const pageSize: number =
+    filters.pageSize === "all" ? Math.max(1, totalCountNum) : filters.pageSize;
   const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCountNum / pageSize));
   const page = isAll ? 1 : Math.min(Math.max(1, filters.page), totalPages);
 
@@ -152,7 +156,11 @@ export async function listFilteredFailedPayments(
           : [desc(failedPayments.detectedAt)];
 
   const payments = isAll
-    ? await db.select().from(failedPayments).where(where).orderBy(...orderBy)
+    ? await db
+        .select()
+        .from(failedPayments)
+        .where(where)
+        .orderBy(...orderBy)
     : await db
         .select()
         .from(failedPayments)
@@ -181,7 +189,10 @@ export async function getAmountBounds(db: Db, accountId: string): Promise<Amount
     .from(failedPayments)
     .where(and(...baseFailedPaymentConditions(accountId)));
   const maxAmount = row?.max ?? 0;
-  const maxCents = Math.max(AMOUNT_BOUNDS_STEP_CENTS, Math.ceil(maxAmount / AMOUNT_BOUNDS_STEP_CENTS) * AMOUNT_BOUNDS_STEP_CENTS);
+  const maxCents = Math.max(
+    AMOUNT_BOUNDS_STEP_CENTS,
+    Math.ceil(maxAmount / AMOUNT_BOUNDS_STEP_CENTS) * AMOUNT_BOUNDS_STEP_CENTS,
+  );
   return { minCents: 0, maxCents };
 }
 
@@ -226,7 +237,10 @@ export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
  *  status-independent and still runs once. This comment read
  *  "search/category/amount/time/status ... so it always reads the same" until
  *  2026-08-14, which stopped being true when the Showing card landed. */
-export async function getGlobalPaymentStatusCounts(db: Db, accountId: string): Promise<PaymentStatusCounts> {
+export async function getGlobalPaymentStatusCounts(
+  db: Db,
+  accountId: string,
+): Promise<PaymentStatusCounts> {
   const rows = await db
     .select({ status: failedPayments.status })
     .from(failedPayments)
@@ -266,7 +280,10 @@ export async function listPaymentSummaryRows(
 }
 
 /** Only the in-progress (status='active') sequences, newest first. */
-export async function listActiveFailedPayments(db: Db, accountId: string): Promise<FailedPaymentRow[]> {
+export async function listActiveFailedPayments(
+  db: Db,
+  accountId: string,
+): Promise<FailedPaymentRow[]> {
   const all = await listFailedPayments(db, accountId);
   return all.filter((f) => f.status === "active");
 }
@@ -325,7 +342,10 @@ export async function getFailedPaymentDetail(
       .select()
       .from(recoverySteps)
       .where(
-        and(eq(recoverySteps.failedPaymentId, failedPaymentId), eq(recoverySteps.accountId, accountId)),
+        and(
+          eq(recoverySteps.failedPaymentId, failedPaymentId),
+          eq(recoverySteps.accountId, accountId),
+        ),
       ),
     db
       .select()
@@ -421,7 +441,10 @@ export async function listStepsForFailedPayments(
     .select()
     .from(recoverySteps)
     .where(
-      and(eq(recoverySteps.accountId, accountId), inArray(recoverySteps.failedPaymentId, failedPaymentIds)),
+      and(
+        eq(recoverySteps.accountId, accountId),
+        inArray(recoverySteps.failedPaymentId, failedPaymentIds),
+      ),
     );
 }
 
@@ -455,7 +478,8 @@ export async function countStepsForFailedPayments(
         ),
       )
       .groupBy(recoverySteps.failedPaymentId);
-    for (const row of rows) counts.set(row.failedPaymentId, { executed: row.executed, total: row.total });
+    for (const row of rows)
+      counts.set(row.failedPaymentId, { executed: row.executed, total: row.total });
   }
   return counts;
 }
@@ -479,7 +503,10 @@ export interface ExecutedRecoveryStepRow {
 /** Every executed (non-canceled) recovery_steps row for the account, across
  *  every failed payment, joined to its decline category - the account-wide
  *  step-performance read model for /recovery/sequence. */
-export async function listExecutedRecoverySteps(db: Db, accountId: string): Promise<ExecutedRecoveryStepRow[]> {
+export async function listExecutedRecoverySteps(
+  db: Db,
+  accountId: string,
+): Promise<ExecutedRecoveryStepRow[]> {
   const rows = await db
     .select({
       id: recoverySteps.id,
@@ -520,7 +547,10 @@ export async function listExecutedRecoverySteps(db: Db, accountId: string): Prom
 }
 
 /** Win-back sequences for the account, newest first. */
-export async function listWinbackSequences(db: Db, accountId: string): Promise<WinBackSequenceRow[]> {
+export async function listWinbackSequences(
+  db: Db,
+  accountId: string,
+): Promise<WinBackSequenceRow[]> {
   const rows = await db
     .select()
     .from(winBackSequences)
@@ -537,11 +567,19 @@ export async function listExpiringCardAlerts(
   accountId: string,
   options: { includeNoPaymentMethod?: boolean } = {},
 ): Promise<ExpiringCardAlertRow[]> {
-  const active = byAccountActive(expiringCardAlerts.accountId, expiringCardAlerts.deletedAt, accountId);
+  const active = byAccountActive(
+    expiringCardAlerts.accountId,
+    expiringCardAlerts.deletedAt,
+    accountId,
+  );
   const rows = await db
     .select()
     .from(expiringCardAlerts)
-    .where(options.includeNoPaymentMethod ? active : and(active, eq(expiringCardAlerts.reason, "card_expiring")));
+    .where(
+      options.includeNoPaymentMethod
+        ? active
+        : and(active, eq(expiringCardAlerts.reason, "card_expiring")),
+    );
   return [...rows].sort(
     (a, b) => a.expiresYear * 12 + a.expiresMonth - (b.expiresYear * 12 + b.expiresMonth),
   );

@@ -3,7 +3,11 @@ import { pruneNotFound } from "@dustinedwards/site-runtime/not-found";
 
 import { getDb } from "~/db";
 import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
-import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from "~/lib/billing/credit-note";
+import {
+  creditOwedFeeLines,
+  creditSweepFailureError,
+  describeCreditSweep,
+} from "~/lib/billing/credit-note";
 import { computeBillingPeriod, describeSweepRun, runMonthlyBilling } from "~/lib/billing/run";
 import {
   CRON_SCHEDULE_BLOG,
@@ -45,7 +49,10 @@ import {
   priceUnpricedDisputeFees,
 } from "~/lib/disputes/fee-pricing.server";
 import { describeWeeklyDigestRun, runWeeklyDigest } from "~/lib/cron/digest";
-import { describeMissedEventSweep, sweepMissedStripeEvents } from "~/lib/webhooks/missed-events.server";
+import {
+  describeMissedEventSweep,
+  sweepMissedStripeEvents,
+} from "~/lib/webhooks/missed-events.server";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
 import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
@@ -91,7 +98,12 @@ const billingMonthly: CronHandler = async (env, ctx) => {
     computeBillingPeriod(nowMs).periodStart,
   );
   if (failure) {
-    await alertCronFailure(env, getDb(env), { cronName: "billing-monthly", runId: ctx?.runId ?? null, error: failure }, new Date(nowMs));
+    await alertCronFailure(
+      env,
+      getDb(env),
+      { cronName: "billing-monthly", runId: ctx?.runId ?? null, error: failure },
+      new Date(nowMs),
+    );
   }
   const applied = accounts.flatMap((r) => r.invoices).filter((i) => i.applied);
   return {
@@ -178,7 +190,10 @@ const blogSchedules: CronHandler = async (env) => {
  *  other cron by their DEMO_ACCOUNT_ID_PREFIX. */
 const demoReset: CronHandler = async (env) => {
   await seedDemoAccount(getDb(env), new Date());
-  return { rowsProcessed: DEMO_BUSINESSES.length, message: `${DEMO_BUSINESSES.length} demo accounts reseeded` };
+  return {
+    rowsProcessed: DEMO_BUSINESSES.length,
+    message: `${DEMO_BUSINESSES.length} demo accounts reseeded`,
+  };
 };
 
 /** The never-executed and overdue detector. Ruling 311 measured that a cron
@@ -304,7 +319,12 @@ const disputeFeePricing: CronHandler = async (env, ctx) => {
   const result = await priceUnpricedDisputeFees(env, now, ctx?.runId ?? null);
   const failure = disputeFeePricingFailureError(result);
   if (failure) {
-    await alertCronFailure(env, getDb(env), { cronName: "dispute-fee-pricing", runId: ctx?.runId ?? null, error: failure }, now);
+    await alertCronFailure(
+      env,
+      getDb(env),
+      { cronName: "dispute-fee-pricing", runId: ctx?.runId ?? null, error: failure },
+      now,
+    );
   }
   return { rowsProcessed: result.priced, message: describeDisputeFeePricing(result) };
 };
@@ -319,9 +339,17 @@ const stripeDeauthorizeRetry: CronHandler = async (env, ctx) => {
   const result = await retryFailedDeauthorizations(env, db);
   const failure = deauthorizeRetryFailureError(result);
   if (failure) {
-    await alertCronFailure(env, db, { cronName: "stripe-deauthorize-retry", runId: ctx?.runId ?? null, error: failure }, now);
+    await alertCronFailure(
+      env,
+      db,
+      { cronName: "stripe-deauthorize-retry", runId: ctx?.runId ?? null, error: failure },
+      now,
+    );
   }
-  return { rowsProcessed: result.revoked + result.superseded, message: describeDeauthorizeRetry(result) };
+  return {
+    rowsProcessed: result.revoked + result.superseded,
+    message: describeDeauthorizeRetry(result),
+  };
 };
 
 /** The missed-event sweep (Stripe's process-undelivered-events advice): the
@@ -346,9 +374,13 @@ const retentionAuthEvents: CronHandler = async (env) => {
  *  pruned (area 11, L6-L7). A failed write throws, so the run is recorded failed and alerts; /health's tool-call-log
  *  check warns once rows go uncopied for two days (L8). */
 const toolCallLogExport: CronHandler = async (env) => {
-  if (!env.AUDIT_BUCKET) throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
+  if (!env.AUDIT_BUCKET)
+    throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
   const done = await exportAuditLog(env, env.AUDIT_BUCKET);
-  return { rowsProcessed: done.exported, message: `${done.objects.length} object(s) written, ${done.pruned} row(s) pruned` };
+  return {
+    rowsProcessed: done.exported,
+    message: `${done.objects.length} object(s) written, ${done.pruned} row(s) pruned`,
+  };
 };
 
 const cronHealth: CronHandler = async (env) =>
@@ -386,7 +418,11 @@ const monthlyAudit: CronHandler = async (env, ctx) => {
 export const CRON_JOBS: CronJob[] = [
   { name: RECOVERY_TICK_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: recoveryTick },
   { name: "winback-send", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: winbackSend },
-  { name: DISPUTE_REMINDERS_CRON_NAME, schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: disputeReminders },
+  {
+    name: DISPUTE_REMINDERS_CRON_NAME,
+    schedule: CRON_SCHEDULE_RECOVERY_TICK,
+    handler: disputeReminders,
+  },
   { name: "alerts-evaluate", schedule: CRON_SCHEDULE_RECOVERY_TICK, handler: alertsEvaluate },
   { name: "weekly-digest", schedule: CRON_SCHEDULE_WEEKLY, handler: weeklyDigest },
   { name: "blog-schedules", schedule: CRON_SCHEDULE_BLOG, handler: blogSchedules },
@@ -397,17 +433,29 @@ export const CRON_JOBS: CronJob[] = [
   { name: "evidence-backup", schedule: CRON_SCHEDULE_DAILY, handler: evidenceBackup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
-  { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
+  {
+    name: "stripe-deauthorize-retry",
+    schedule: CRON_SCHEDULE_DAILY,
+    handler: stripeDeauthorizeRetry,
+  },
   { name: "stripe-missed-events", schedule: CRON_SCHEDULE_DAILY, handler: stripeMissedEvents },
   { name: "dispute-fee-pricing", schedule: CRON_SCHEDULE_DAILY, handler: disputeFeePricing },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
-  { name: "retention-engagement-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepEngagementEvents },
+  {
+    name: "retention-engagement-events",
+    schedule: CRON_SCHEDULE_DAILY,
+    handler: sweepEngagementEvents,
+  },
   { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },
   { name: "retention-webhook-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepWebhookEvents },
-  { name: "retention-health-score", schedule: CRON_SCHEDULE_DAILY, handler: sweepHealthScoreHistory },
+  {
+    name: "retention-health-score",
+    schedule: CRON_SCHEDULE_DAILY,
+    handler: sweepHealthScoreHistory,
+  },
   { name: "retention-cron-history", schedule: CRON_SCHEDULE_DAILY, handler: sweepCronRunHistory },
   { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },

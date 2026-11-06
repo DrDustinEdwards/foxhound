@@ -46,7 +46,6 @@ describe("resolveRangeCutoff", () => {
 });
 
 describe("dayKey / countByDay", () => {
-
   it("counts occurrences per day", () => {
     const counts = countByDay([
       new Date("2026-07-20T01:00:00.000Z"),
@@ -73,7 +72,6 @@ describe("countByDayAndCategory", () => {
 });
 
 describe("cumulativeRecoveryRateDaily", () => {
-
   it("is cumulative, not same-day: a recovery on day 2 for a day-0 failure never exceeds 100%", () => {
     const today = dayKey(new Date(NOW));
     const yesterday = dayKey(new Date(NOW - DAY_MS));
@@ -96,7 +94,6 @@ describe("cumulativeRecoveryRateDaily", () => {
 });
 
 describe("categorySparklineWindow", () => {
-
   it("a failure inside the window shows up on its exact day", () => {
     const target = new Date(NOW - 5 * DAY_MS);
     const byCat = countByDayAndCategory([{ detectedAt: target, declineCategory: "fraud" }]);
@@ -186,7 +183,6 @@ describe("sumCentsByDayWindow", () => {
 });
 
 describe("formatRelativeTime", () => {
-
   it("1 day back -> Yesterday", () => {
     expect(formatRelativeTime(new Date(NOW - DAY_MS - 60_000), NOW)).toBe("Yesterday");
   });

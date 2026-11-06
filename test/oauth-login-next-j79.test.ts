@@ -1,4 +1,3 @@
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterContextProvider, RouterProvider } from "react-router";
@@ -43,7 +42,11 @@ const AUTHORIZE =
 function context(): RouterContextProvider {
   const ctx = new RouterContextProvider();
   ctx.set(cloudflareContext, {
-    env: { BETTER_AUTH_URL: ORIGIN, GOOGLE_CLIENT_ID: "g", GOOGLE_CLIENT_SECRET: "s" } as unknown as Env,
+    env: {
+      BETTER_AUTH_URL: ORIGIN,
+      GOOGLE_CLIENT_ID: "g",
+      GOOGLE_CLIENT_SECRET: "s",
+    } as unknown as Env,
     ctx: {} as ExecutionContext,
     nonce: "",
   });
@@ -57,9 +60,19 @@ beforeEach(() => {
 });
 
 describe("safeNextPath: Recova's validateRedirect, every check anchored at position 0", () => {
-
   it("refuses absolute, protocol-relative and backslash targets", () => {
-    for (const bad of ["https://evil.example/", "//evil.example/x", "/\\evil.example", "evil", "", null, undefined, "/\t/evil.example", "/\n/evil.example", "%2F%09%2Fevil.example"]) {
+    for (const bad of [
+      "https://evil.example/",
+      "//evil.example/x",
+      "/\\evil.example",
+      "evil",
+      "",
+      null,
+      undefined,
+      "/\t/evil.example",
+      "/\n/evil.example",
+      "%2F%09%2Fevil.example",
+    ]) {
       expect(safeNextPath(bad), String(bad)).toBe("/console");
     }
   });
@@ -106,28 +119,41 @@ describe("/login carries next= through both ways of signing in", () => {
   });
 
   it("the Google start sends the validated next to Better Auth, by way of the passkey offer", async () => {
-    harness.signInSocial.mockImplementation(async () => new Response(JSON.stringify({ url: "https://accounts.google.com/x" })));
+    harness.signInSocial.mockImplementation(
+      async () => new Response(JSON.stringify({ url: "https://accounts.google.com/x" })),
+    );
     const form = new URLSearchParams({ next: AUTHORIZE });
     await socialStart.action({
       request: new Request(`${ORIGIN}/auth/google`, { method: "POST", body: form }),
       context: context(),
       params: { provider: "google" },
     } as never);
-    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}/passkey?next=${encodeURIComponent(AUTHORIZE)}`);
+    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(
+      `${ORIGIN}/passkey?next=${encodeURIComponent(AUTHORIZE)}`,
+    );
 
     harness.signInSocial.mockClear();
     await socialStart.action({
-      request: new Request(`${ORIGIN}/auth/google`, { method: "POST", body: new URLSearchParams({ next: "//evil.example" }) }),
+      request: new Request(`${ORIGIN}/auth/google`, {
+        method: "POST",
+        body: new URLSearchParams({ next: "//evil.example" }),
+      }),
       context: context(),
       params: { provider: "google" },
     } as never);
-    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(`${ORIGIN}/passkey?next=${encodeURIComponent("/console")}`);
+    expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(
+      `${ORIGIN}/passkey?next=${encodeURIComponent("/console")}`,
+    );
   });
 
   function renderLogin(next: string): string {
     const Login = login.default;
     const props = {
-      loaderData: { methods: { google: true, apple: false, turnstileSiteKey: null }, error: null, next },
+      loaderData: {
+        methods: { google: true, apple: false, turnstileSiteKey: null },
+        error: null,
+        next,
+      },
       params: {},
       matches: [],
     } as unknown as Parameters<typeof Login>[0];
@@ -138,7 +164,8 @@ describe("/login carries next= through both ways of signing in", () => {
   }
 
   it("the page puts next in both forms, so neither path drops it", () => {
-    const hidden = renderLogin(AUTHORIZE).match(/<input type="hidden" name="next" value="[^"]*"\/>/g) ?? [];
+    const hidden =
+      renderLogin(AUTHORIZE).match(/<input type="hidden" name="next" value="[^"]*"\/>/g) ?? [];
     expect(hidden).toHaveLength(2);
     expect(hidden[0]).toContain("/oauth/authorize?client_id=c1&amp;");
   });

@@ -45,12 +45,19 @@ async function notifyDisputeOutcome(env: Env, accountId: string, disputeId: stri
           .update(disputes)
           .set({ outcomeNotifiedAt: new Date() })
           .where(
-            and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId), isNull(disputes.outcomeNotifiedAt)),
+            and(
+              eq(disputes.id, disputeId),
+              eq(disputes.accountId, accountId),
+              isNull(disputes.outcomeNotifiedAt),
+            ),
           ),
       ],
     });
   } catch (err) {
-    console.error(`dispute ${disputeId}: outcome_notified_at stamp failed after the notice was sent`, err);
+    console.error(
+      `dispute ${disputeId}: outcome_notified_at stamp failed after the notice was sent`,
+      err,
+    );
   }
 }
 
@@ -62,7 +69,9 @@ export async function handleStampDispute(
   // Disputes switched off on /settings/disputes: Recova's step 1, log and
   // return. The claim still commits, so a redelivery stays a duplicate.
   if (!(await readDisputesEnabled(getDb(env), accountId))) {
-    console.log(`dispute ${intent.stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
+    console.log(
+      `dispute ${intent.stripeDisputeId}: Disputes is off for account ${accountId}; not created`,
+    );
     const { applied } = await executeMoneyWrite(env, {
       accountId,
       idempotencyKey,
@@ -75,7 +84,12 @@ export async function handleStampDispute(
   // draft evidence grounded only in what that resolution and our own
   // recovery_steps actually show, and create the dispute row, "awaiting
   // merchant review" (state pending_review), never auto-submitted.
-  const linked = await resolveDisputedRecovery(env, accountId, connectionId, intent.paymentIntentId);
+  const linked = await resolveDisputedRecovery(
+    env,
+    accountId,
+    connectionId,
+    intent.paymentIntentId,
+  );
   const facts = buildEvidenceFacts(
     linked?.failedPayment ?? null,
     linked?.steps ?? [],
@@ -92,11 +106,14 @@ export async function handleStampDispute(
     amountCents: intent.amountCents,
     reason: intent.reason,
   });
-  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts, {
-    source: "dispute_evidence",
-    accountId,
-    relatedId: intent.stripeDisputeId,
-  }));
+  const evidence = mergeEvidence(
+    stripeContext.evidence,
+    await draftDisputeEvidence(env, facts, {
+      source: "dispute_evidence",
+      accountId,
+      relatedId: intent.stripeDisputeId,
+    }),
+  );
   const disputeId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {
     accountId,
@@ -109,7 +126,8 @@ export async function handleStampDispute(
         stripeConnectionId: connectionId,
         stripeDisputeId: intent.stripeDisputeId,
         stripeChargeId: intent.chargeId,
-        stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? stripeContext.context.customerId,
+        stripeCustomerId:
+          linked?.failedPayment.stripeCustomerId ?? stripeContext.context.customerId,
         customerEmail: linked?.failedPayment.customerEmail ?? stripeContext.context.customerEmail,
         customerName: linked?.failedPayment.customerName ?? stripeContext.context.customerName,
         amountCents: intent.amountCents,

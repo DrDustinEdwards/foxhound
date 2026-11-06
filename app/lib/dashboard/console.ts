@@ -84,7 +84,9 @@ export function isSequenceExhausted(
 export function atRiskSubtext(activeSequenceCount: number, openDisputeCount: number): string {
   const parts: string[] = [];
   if (activeSequenceCount > 0) {
-    parts.push(`${activeSequenceCount} active ${activeSequenceCount === 1 ? "sequence" : "sequences"}`);
+    parts.push(
+      `${activeSequenceCount} active ${activeSequenceCount === 1 ? "sequence" : "sequences"}`,
+    );
   }
   if (openDisputeCount > 0) {
     parts.push(`${openDisputeCount} open ${openDisputeCount === 1 ? "dispute" : "disputes"}`);
@@ -111,7 +113,9 @@ export function isCardInAttentionWindow(expiresAt: Date, nowMs: number): boolean
  * so an account paid in two currencies sees both. Nothing at
  * all reads as Recova's zero, "$0".
  */
-export function formatCurrencyTotalsShort(rows: readonly { currency: string; cents: number }[]): string {
+export function formatCurrencyTotalsShort(
+  rows: readonly { currency: string; cents: number }[],
+): string {
   if (rows.length === 0) return formatMoneyShort(0, "usd");
   return rows.map((r) => formatMoneyShort(r.cents, r.currency)).join(" · ");
 }
@@ -127,7 +131,10 @@ export interface MovementTotals {
 
 /** The movement bars as rows in whole currency units, the values the chart
  *  draws: contraction and churn below zero. */
-export function mrrMovementBars(m: MovementTotals, currency: string): { label: string; units: number }[] {
+export function mrrMovementBars(
+  m: MovementTotals,
+  currency: string,
+): { label: string; units: number }[] {
   const units = (minor: number) => Math.round(toMajorUnits(minor, currency));
   return [
     { label: "New", units: units(m.newMrrCents) },
@@ -141,7 +148,9 @@ export function mrrMovementBars(m: MovementTotals, currency: string): { label: s
 /** The movement chart's text equivalent, built from the same whole units the
  *  bars and the data table show, so the three never disagree. */
 export function mrrMovementAlt(m: MovementTotals, currency: string): string {
-  const parts = mrrMovementBars(m, currency).map((b) => `${b.label} ${formatMoneyShort(fromMajorUnits(b.units, currency), currency)}`);
+  const parts = mrrMovementBars(m, currency).map(
+    (b) => `${b.label} ${formatMoneyShort(fromMajorUnits(b.units, currency), currency)}`,
+  );
   return `MRR movements in the latest month: ${parts.join(", ")}.`;
 }
 

@@ -49,7 +49,10 @@ interface MissedEventSweepResult {
 /** Live connections with a token, demo excluded: the same set the webhook route resolves. */
 async function querySweepConnections(env: Env) {
   const rows = await getDb(env)
-    .select({ stripeUserId: stripeConnections.stripeUserId, token: stripeConnections.stripeAccessToken })
+    .select({
+      stripeUserId: stripeConnections.stripeUserId,
+      token: stripeConnections.stripeAccessToken,
+    })
     .from(stripeConnections)
     .where(
       and(
@@ -71,7 +74,10 @@ async function claimedEventIds(env: Env, ids: string[]): Promise<Set<string>> {
   return new Set(rows.map((r) => r.id));
 }
 
-export async function sweepMissedStripeEvents(env: Env, now: Date): Promise<MissedEventSweepResult> {
+export async function sweepMissedStripeEvents(
+  env: Env,
+  now: Date,
+): Promise<MissedEventSweepResult> {
   const result: MissedEventSweepResult = {
     accounts: 0,
     listed: 0,
@@ -96,7 +102,10 @@ export async function sweepMissedStripeEvents(env: Env, now: Date): Promise<Miss
       let page: Stripe.Event[] = [];
       let seen = 0;
       const flush = async () => {
-        const claimed = await claimedEventIds(env, page.map((e) => e.id));
+        const claimed = await claimedEventIds(
+          env,
+          page.map((e) => e.id),
+        );
         for (const e of page) if (!claimed.has(e.id)) unclaimed.push(e);
         page = [];
       };
@@ -121,7 +130,11 @@ export async function sweepMissedStripeEvents(env: Env, now: Date): Promise<Miss
           break;
         }
         result.replayed += 1;
-        const outcome = await processConnectedWebhook(env, { ...event, account: conn.stripeUserId }, new Date());
+        const outcome = await processConnectedWebhook(
+          env,
+          { ...event, account: conn.stripeUserId },
+          new Date(),
+        );
         if (outcome.status === "applied") result.applied += 1;
         if (outcome.status === "error") result.failed += 1;
       }

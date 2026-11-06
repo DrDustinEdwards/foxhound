@@ -2,14 +2,25 @@ import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runti
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
 import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
-import { checkRateLimit, mcpOriginRefusal, probeDoor, unauthorized as bearerChallenge } from "@dustinedwards/site-runtime/mcp-server";
+import {
+  checkRateLimit,
+  mcpOriginRefusal,
+  probeDoor,
+  unauthorized as bearerChallenge,
+} from "@dustinedwards/site-runtime/mcp-server";
 import { getDb } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { mcpResource, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
-import { answersIn, recordToolCalls, startToolCalls, toolCallsIn, type StartedCall } from "./call-log.server";
+import {
+  answersIn,
+  recordToolCalls,
+  startToolCalls,
+  toolCallsIn,
+  type StartedCall,
+} from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
 import { MCP_SERVER, MCP_SERVER_INFO, serveMcp } from "./server";
 
@@ -117,7 +128,10 @@ function errorResponse(
 
 /** The one 401. Identical for every authentication failure. */
 function unauthorized(origin: string): Response {
-  const challenge = bearerChallenge({ resource: mcpResource(origin), scope: [MERCHANT_SCOPES.read] });
+  const challenge = bearerChallenge({
+    resource: mcpResource(origin),
+    scope: [MERCHANT_SCOPES.read],
+  });
   return jsonResponse(401, mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, UNAUTHORIZED_MESSAGE), {
     "WWW-Authenticate": challenge.headers.get("www-authenticate") ?? "",
   });
@@ -153,7 +167,11 @@ async function authenticate(
     // expected traffic on a public endpoint.
     logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), door: "mcp", reason });
     if (!limit.allowed) {
-      logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), door: "mcp", bucket: "mcp-anon" }, { level: "warn" });
+      logEvent(
+        OWASP_EVENTS.rateLimitExceeded,
+        { ...requestFields(request), door: "mcp", bucket: "mcp-anon" },
+        { level: "warn" },
+      );
       return tooMany(limit.retryAfter);
     }
     return unauthorized(new URL(request.url).origin);
@@ -192,7 +210,12 @@ async function authenticate(
 
   return {
     ok: true,
-    auth: { keyId: verified.keyId, accountId: verified.accountId, scopes: verified.scopes, clientId: verified.clientId },
+    auth: {
+      keyId: verified.keyId,
+      accountId: verified.accountId,
+      scopes: verified.scopes,
+      clientId: verified.clientId,
+    },
   };
 }
 
@@ -241,13 +264,18 @@ export async function handleMcpRequest(
     limiter: env.RATE_LIMITER,
     serve: (req, caller) => {
       const now = new Date();
-      return serveMcp(req, readToolsOnly(registry), {
-        env,
-        db: getDb(env),
-        accountId: "",
-        now,
-        trace: { apiKeyId: caller.principal, tool: "", now },
-      }, null);
+      return serveMcp(
+        req,
+        readToolsOnly(registry),
+        {
+          env,
+          db: getDb(env),
+          accountId: "",
+          now,
+          trace: { apiKeyId: caller.principal, tool: "", now },
+        },
+        null,
+      );
     },
   });
   if (probed) return probed;
@@ -273,7 +301,11 @@ export async function handleMcpRequest(
   };
   const limit = await checkRateLimit(env.RATE_LIMITER, `mcp:${authenticated.auth.keyId}`);
   if (!limit.allowed) {
-    logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), door: "mcp", bucket: "mcp" }, { level: "warn" });
+    logEvent(
+      OWASP_EVENTS.rateLimitExceeded,
+      { ...requestFields(request), door: "mcp", bucket: "mcp" },
+      { level: "warn" },
+    );
     await recordAudit(env, {
       callId: crypto.randomUUID(),
       phase: "rate-limited",
@@ -288,7 +320,8 @@ export async function handleMcpRequest(
   // body, so the call log (rule 12.4) sees every call that got past the door.
   // A body that is not JSON holds no call; the SDK answers it with a parse error.
   const text = await readCapped(request, BODY_MAX_BYTES);
-  if (text === null) return errorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
+  if (text === null)
+    return errorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
   let body: unknown = null;
   try {
     body = JSON.parse(text);
@@ -305,25 +338,40 @@ export async function handleMcpRequest(
   } catch (err) {
     logEvent(
       "sys_monitor_disabled",
-      { ...requestFields(request), door: "mcp", reason: "tool-call log unavailable", detail: err instanceof Error ? err.message : String(err) },
+      {
+        ...requestFields(request),
+        door: "mcp",
+        reason: "tool-call log unavailable",
+        detail: err instanceof Error ? err.message : String(err),
+      },
       { level: "error" },
     );
-    return errorResponse(503, null, INTERNAL_ERROR, "The call log is unavailable, so no tool was run. Try again shortly.");
+    return errorResponse(
+      503,
+      null,
+      INTERNAL_ERROR,
+      "The call log is unavailable, so no tool was run. Try again shortly.",
+    );
   }
 
   const now = new Date();
-  const response = await serveMcp(new Request(request, { method: request.method, body: text }), registry, {
-    env,
-    db: getDb(env),
-    accountId: authenticated.auth.accountId,
-    now,
-    trace: { apiKeyId: authenticated.auth.keyId, tool: "", now },
-  }, {
-    token: "",
-    clientId: authenticated.auth.clientId ?? authenticated.auth.keyId,
-    scopes: authenticated.auth.scopes,
-    resource: new URL(mcpResource(url.origin)),
-  });
+  const response = await serveMcp(
+    new Request(request, { method: request.method, body: text }),
+    registry,
+    {
+      env,
+      db: getDb(env),
+      accountId: authenticated.auth.accountId,
+      now,
+      trace: { apiKeyId: authenticated.auth.keyId, tool: "", now },
+    },
+    {
+      token: "",
+      clientId: authenticated.auth.clientId ?? authenticated.auth.keyId,
+      scopes: authenticated.auth.scopes,
+      resource: new URL(mcpResource(url.origin)),
+    },
+  );
   // Belt and braces with the worker's own cache policy: an answer carrying a
   // merchant's data must never be stored by an intermediary, whatever the SDK
   // set. (The 2026-07-28 cache hints in the body are for the client only.)
@@ -340,7 +388,10 @@ export async function handleMcpRequest(
       calls,
       started,
       challenge
-        ? calls.map((call) => ({ id: call.id, error: { message: `Refused before running: ${challenge}` } }))
+        ? calls.map((call) => ({
+            id: call.id,
+            error: { message: `Refused before running: ${challenge}` },
+          }))
         : answersIn(text, response.headers.get("content-type")),
       now,
     );
@@ -348,5 +399,9 @@ export async function handleMcpRequest(
 
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", "private, no-store");
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }

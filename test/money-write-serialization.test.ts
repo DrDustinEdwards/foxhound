@@ -16,9 +16,11 @@ import {
 // via the Stripe Connect write path.
 
 /** A runBatch that records concurrency and can be made slow/failing. */
-function instrumentedDeps(opts: {
-  onRun: (stmts: CompiledStatement[]) => Promise<void>;
-}): { deps: CommitterDeps; seen: Set<string>; maxConcurrent: () => number } {
+function instrumentedDeps(opts: { onRun: (stmts: CompiledStatement[]) => Promise<void> }): {
+  deps: CommitterDeps;
+  seen: Set<string>;
+  maxConcurrent: () => number;
+} {
   const seen = new Set<string>();
   let inFlight = 0;
   let maxConcurrent = 0;
@@ -63,14 +65,7 @@ describe("SerialMoneyCommitter", () => {
     ]);
 
     expect(maxConcurrent()).toBe(1);
-    expect(order).toEqual([
-      "start:A",
-      "end:A",
-      "start:B",
-      "end:B",
-      "start:C",
-      "end:C",
-    ]);
+    expect(order).toEqual(["start:A", "end:A", "start:B", "end:B", "start:C", "end:C"]);
   });
 
   it("no-ops a duplicate idempotency key without re-running the batch", async () => {
@@ -108,7 +103,9 @@ describe("SerialMoneyCommitter", () => {
   it("throws on a unique key that is a real conflict, not a replay key", async () => {
     const { deps, seen } = instrumentedDeps({
       onRun: async () => {
-        throw new Error("D1_ERROR: UNIQUE constraint failed: stripe_connections.stripe_user_id: SQLITE_CONSTRAINT");
+        throw new Error(
+          "D1_ERROR: UNIQUE constraint failed: stripe_connections.stripe_user_id: SQLITE_CONSTRAINT",
+        );
       },
     });
     const committer = new SerialMoneyCommitter(deps);

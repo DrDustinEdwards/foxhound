@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,8 +33,12 @@ let db: ReturnType<typeof createInMemoryDb>["db"];
 beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(OTHER, "Other");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(ACCOUNT, "Acme");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(OTHER, "Other");
 });
 
 function seedAlert(opts: {
@@ -80,7 +83,8 @@ function alertRows(accountId: string) {
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext)
+      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
     if (key === authContext) {
       return {
         userId: "user_1",
@@ -104,14 +108,21 @@ const ctx = {
   },
 } as unknown as Parameters<typeof action>[0]["context"];
 
-async function post(fields: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> {
+async function post(
+  fields: Record<string, string>,
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   const res = (await action({
     context: ctx,
-    request: new Request("https://foxhoundapp.test/settings/notifications", { method: "POST", body: form }),
+    request: new Request("https://foxhoundapp.test/settings/notifications", {
+      method: "POST",
+      body: form,
+    }),
     params: {},
-  } as never)) as unknown as Response | { data: Record<string, unknown>; init?: { status?: number } };
+  } as never)) as unknown as
+    | Response
+    | { data: Record<string, unknown>; init?: { status?: number } };
   // A successful create redirects back to the page, as Recova's dismissPanel
   // closes the form; every other answer is data with a status.
   if (res instanceof Response) return { status: res.status, body: {} };
@@ -139,13 +150,27 @@ describe("PLANT 1: create writes only the columns this surface owns", () => {
 });
 
 describe("PLANT 2: every bound the evaluator implies is enforced", () => {
-
   it("400 and NO write for a bad direction, a negative threshold, or no threshold", async () => {
     for (const fields of [
-      { _action: "create", metric: "high_risk_customers_count", direction: "sideways", threshold: "5" },
-      { _action: "create", metric: "high_risk_customers_count", direction: "below", threshold: "-1" },
+      {
+        _action: "create",
+        metric: "high_risk_customers_count",
+        direction: "sideways",
+        threshold: "5",
+      },
+      {
+        _action: "create",
+        metric: "high_risk_customers_count",
+        direction: "below",
+        threshold: "-1",
+      },
       { _action: "create", metric: "high_risk_customers_count", direction: "below", threshold: "" },
-      { _action: "create", metric: "high_risk_customers_count", direction: "below", threshold: "abc" },
+      {
+        _action: "create",
+        metric: "high_risk_customers_count",
+        direction: "below",
+        threshold: "abc",
+      },
     ]) {
       const res = await post(fields);
       expect(res.status).toBe(400);
@@ -179,7 +204,9 @@ describe("PLANT 3: toggle and delete are account-scoped", () => {
 
     expect(res.status).toBe(200);
     expect(alertRows(ACCOUNT).map((r) => r.id)).toEqual(["a2"]);
-    const remaining = sqlite.prepare("SELECT id FROM alert_history ORDER BY id").all() as { id: string }[];
+    const remaining = sqlite.prepare("SELECT id FROM alert_history ORDER BY id").all() as {
+      id: string;
+    }[];
     expect(remaining.map((r) => r.id)).toEqual(["h2"]);
   });
 

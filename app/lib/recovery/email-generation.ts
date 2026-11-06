@@ -1,7 +1,12 @@
 import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
 
 import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
-import { PLAIN_WRITING_LINES, findStockPhrasing, ownPhrasing, retryStockPhrasing } from "~/lib/ai/plain-writing";
+import {
+  PLAIN_WRITING_LINES,
+  findStockPhrasing,
+  ownPhrasing,
+  retryStockPhrasing,
+} from "~/lib/ai/plain-writing";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import { strayContent, voiceSampleLines } from "./voice-samples";
@@ -48,7 +53,10 @@ export function stripEmDashes(text: string): string {
 export function sanitizeCopy(text: string): string {
   const out = stripEmDashes(text);
   // Collapse runs of spaces/tabs (not newlines) and trim line-trailing space.
-  return out.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").trim();
+  return out
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
 }
 
 // Internal-schedule leaks: the model must never reveal the dunning cadence to the
@@ -168,10 +176,14 @@ export async function applyTimingWordGuard(
       // Never trade a timing word for stock phrasing the first guard took out:
       // the hard strip below handles the timing word either way.
       const stock = (c: EmailCopy) => findStockPhrasing(readableText(c), allow).length;
-      if (retried.subject.trim() && retried.bodyHtml.trim() && stock(retried) <= stock(copy)) copy = retried;
+      if (retried.subject.trim() && retried.bodyHtml.trim() && stock(retried) <= stock(copy))
+        copy = retried;
     } catch (err) {
       // The message only: an SDK error object can carry request details.
-      console.error("timing-word retry failed; keeping the first copy:", err instanceof Error ? err.message : "unknown error");
+      console.error(
+        "timing-word retry failed; keeping the first copy:",
+        err instanceof Error ? err.message : "unknown error",
+      );
     }
   }
   return {
@@ -194,7 +206,10 @@ export function readGeneratedCopy(
   // A failed call (refused, cut off, unparsable, unreachable) throws, and the
   // caller sends the template. The kind is safe to log; the provider's text never reaches here.
   if (!result.ok) throw new Error(`${label} generation failed: ${result.kind}`);
-  return { subject: String(result.value.subject ?? "").trim(), bodyHtml: String(result.value.bodyHtml ?? "").trim() };
+  return {
+    subject: String(result.value.subject ?? "").trim(),
+    bodyHtml: String(result.value.bodyHtml ?? "").trim(),
+  };
 }
 
 /**
@@ -205,7 +220,8 @@ export function readGeneratedCopy(
 export function finishCopy(copy: EmailCopy, samples: readonly string[], url: string): EmailCopy {
   const done = { subject: sanitizeCopy(copy.subject), bodyHtml: sanitizeCopy(copy.bodyHtml) };
   const stray = strayContent(done.bodyHtml, readableText(done), samples, url);
-  if (stray.length > 0) throw new Error(`generated email carries what it was not given: ${stray.length} item(s)`);
+  if (stray.length > 0)
+    throw new Error(`generated email carries what it was not given: ${stray.length} item(s)`);
   return done;
 }
 
@@ -403,10 +419,7 @@ const DEFAULT_VOICE = "Friendly and direct. Write like a real person, not a comp
  * no column for, so `revoked` and `unknown` resolve to the general voice by
  * porting the switch rather than by inventing columns for them.
  */
-export function resolveBrandVoice(
-  merchant: MerchantBrandVoice,
-  declineCategory: string,
-): string {
+export function resolveBrandVoice(merchant: MerchantBrandVoice, declineCategory: string): string {
   const general = merchant.voiceDescription?.trim();
   const fallback = general && general.length > 0 ? general : DEFAULT_VOICE;
 
@@ -583,6 +596,10 @@ export async function generateDunningEmail(
   // recovery-execution.ts blob `3a8f8768` lines 313 to 351).
   const samples = input.merchant.voiceSamples ?? [];
   const allow = ownPhrasing(samples);
-  const copy = await applyTimingWordGuard(await applyStockPhrasingGuard(await call(), call, allow), call, allow);
+  const copy = await applyTimingWordGuard(
+    await applyStockPhrasingGuard(await call(), call, allow),
+    call,
+    allow,
+  );
   return finishCopy(copy, samples, input.updateUrl);
 }

@@ -44,7 +44,12 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
   if (!w.recoveryRateDaily.some((p) => p.rate !== null)) {
     return (
       <Panel title={title}>
-        <ChartFrame noData={{ title, reason: "Not enough data yet. Recovery rate will appear after your first recovery." }} />
+        <ChartFrame
+          noData={{
+            title,
+            reason: "Not enough data yet. Recovery rate will appear after your first recovery.",
+          }}
+        />
       </Panel>
     );
   }
@@ -86,11 +91,14 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
   const title = `Recovered revenue · ${w.rangeLabel}`;
   return (
     <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-[2fr_1fr]">
-      <Panel title={title} more={
-        <span className="font-mono text-body font-semibold tabular-nums text-text">
-          {formatCurrencyTotals(w.recoveredRevenue)}
-        </span>
-      }>
+      <Panel
+        title={title}
+        more={
+          <span className="font-mono text-body font-semibold tabular-nums text-text">
+            {formatCurrencyTotals(w.recoveredRevenue)}
+          </span>
+        }
+      >
         <ChartFrame
           gridlines="none"
           width={SIDE_WIDTH}
@@ -108,7 +116,8 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
               colors: single ? { Recovered: "var(--green)" } : undefined,
               xLabel: null,
               yLabel: "Recovered",
-              formatValue: (v) => (single ? formatMoney(fromMajorUnits(v, single), single) : v.toFixed(2)),
+              formatValue: (v) =>
+                single ? formatMoney(fromMajorUnits(v, single), single) : v.toFixed(2),
               formatX: (d) => formatShortDate(d),
               maxXTicks: 4,
               alt: recoveredRevenueAlt(rows, days),
@@ -132,7 +141,9 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         <div className="flex flex-col gap-4">
           <div>
             <p className="m-0 text-micro text-text-tertiary">Emails sent ({w.rangeLabel})</p>
-            <p className="m-0 font-mono text-title font-semibold tabular-nums text-text">{w.emailsSentInRange.sent}</p>
+            <p className="m-0 font-mono text-title font-semibold tabular-nums text-text">
+              {w.emailsSentInRange.sent}
+            </p>
           </div>
           <Meter
             label="Open rate"
@@ -193,7 +204,9 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
                       }}
                     />
                   ) : null}
-                  <span className="font-mono text-micro text-text-subtle">{declineRowText(row)}</span>
+                  <span className="font-mono text-micro text-text-subtle">
+                    {declineRowText(row)}
+                  </span>
                 </span>
               }
               valueText={`${row.count} failed payments, ${row.pct}% of all${row.recoveredPct !== null ? `, ${row.recoveredPct}% recovered` : ""}.`}

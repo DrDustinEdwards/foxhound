@@ -6,7 +6,12 @@ import * as schema from "~/db/schema";
 import { SUBREQUEST_BUDGET } from "~/lib/admin/brake.server";
 import { RECOVERY_TICK_LIMIT } from "~/lib/constants";
 import { FAILED_STEP_IDS_IN_MESSAGE, runRecoveryTick } from "~/lib/cron/recovery-tick";
-import { accountProcessingEligibleCondition, chooseStepsPerPayment, stepDueCondition, type DueStepRow } from "~/lib/cron/due-steps";
+import {
+  accountProcessingEligibleCondition,
+  chooseStepsPerPayment,
+  stepDueCondition,
+  type DueStepRow,
+} from "~/lib/cron/due-steps";
 
 const db = drizzle({} as never, { schema });
 const sqlOf = (item: unknown) => (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
@@ -73,11 +78,21 @@ describe("recovery tick: SQL gating predicates (compile against schema)", () => 
 });
 
 describe("recovery tick: one step per payment, silent-first", () => {
-
   it("uses next_retry_at as the effective due time when a send was rescheduled", () => {
     const rows = [
-      row({ stepId: "resched", failedPaymentId: "fp_C", scheduledAt: new Date("2026-07-01T00:00:00.000Z"), nextRetryAt: new Date("2026-07-05T00:00:00.000Z") }),
-      row({ stepId: "fresh", failedPaymentId: "fp_C", scheduledAt: new Date("2026-07-03T00:00:00.000Z"), nextRetryAt: null, stepNumber: 2 }),
+      row({
+        stepId: "resched",
+        failedPaymentId: "fp_C",
+        scheduledAt: new Date("2026-07-01T00:00:00.000Z"),
+        nextRetryAt: new Date("2026-07-05T00:00:00.000Z"),
+      }),
+      row({
+        stepId: "fresh",
+        failedPaymentId: "fp_C",
+        scheduledAt: new Date("2026-07-03T00:00:00.000Z"),
+        nextRetryAt: null,
+        stepNumber: 2,
+      }),
     ];
     // fresh's effective time (Jul 3) beats resched's next_retry_at (Jul 5).
     expect(chooseStepsPerPayment(rows).map((c) => c.stepId)).toEqual(["fresh"]);
@@ -255,7 +270,6 @@ describe("LOW-C: a halted tick does nothing further", () => {
 });
 
 describe("a failing step is NAMED, not just counted (376's verify-first list)", () => {
-
   it("A NON-ERROR THROW is still named, and does not itself throw", async () => {
     // `err instanceof Error` is false for a thrown string, and reaching for
     // .message or .constructor on it would turn a step failure into a tick

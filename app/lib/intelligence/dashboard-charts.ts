@@ -45,7 +45,12 @@ export interface TrendPoint {
   totalMrrCents: number;
 }
 
-export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number, fit: ChartFit = {}): string {
+export function drawMrrTrend(
+  points: readonly TrendPoint[],
+  currency: string,
+  width: number,
+  fit: ChartFit = {},
+): string {
   const yLabel = `MRR (${unit(currency)})`;
   return areaChart({
     title: "MRR trend",
@@ -74,7 +79,10 @@ export function drawNrr(points: readonly NrrPoint[], width: number, fit: ChartFi
   const yLabel = "NRR (%)";
   return lineChart({
     title: "Net Revenue Retention",
-    data: points.map((p) => ({ Date: p.at, nrr: p.nrrPct === null ? null : Math.round(p.nrrPct * 10) / 10 })),
+    data: points.map((p) => ({
+      Date: p.at,
+      nrr: p.nrrPct === null ? null : Math.round(p.nrrPct * 10) / 10,
+    })),
     x: "Date",
     y: "nrr",
     xLabel: null,
@@ -125,7 +133,12 @@ function movementRows(points: readonly MovementPoint[], currency: string) {
   ]);
 }
 
-export function drawMovement(points: readonly MovementPoint[], currency: string, width: number, fit: ChartFit = {}): string {
+export function drawMovement(
+  points: readonly MovementPoint[],
+  currency: string,
+  width: number,
+  fit: ChartFit = {},
+): string {
   return barChart({
     title: "MRR movement by week",
     data: movementRows(points, currency),
@@ -154,7 +167,13 @@ function planChartHeight(planCount: number): number {
   return Math.max(140, 64 + planCount * 36);
 }
 
-export function drawPlans(rows: readonly PlanRow[], currency: string, width: number, fit: ChartFit = {}, source?: { name: string }): string {
+export function drawPlans(
+  rows: readonly PlanRow[],
+  currency: string,
+  width: number,
+  fit: ChartFit = {},
+  source?: { name: string },
+): string {
   const yLabel = `MRR (${unit(currency)})`;
   return barChart({
     title: "MRR by plan",

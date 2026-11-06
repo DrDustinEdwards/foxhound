@@ -37,10 +37,10 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { evaluateAndRecordAlerts, runAlertsForAllAccounts, runCriticalCustomersCheck } = await import(
-  "~/lib/intelligence/alert-run.server"
-);
-const { ALERT_COOLDOWN_MARGIN_MS, ALERT_COOLDOWN_MS, evaluateAlerts } = await import("~/lib/intelligence/alerts");
+const { evaluateAndRecordAlerts, runAlertsForAllAccounts, runCriticalCustomersCheck } =
+  await import("~/lib/intelligence/alert-run.server");
+const { ALERT_COOLDOWN_MARGIN_MS, ALERT_COOLDOWN_MS, evaluateAlerts } =
+  await import("~/lib/intelligence/alerts");
 
 const BASE = "https://foxhound.example.com";
 const ACCOUNT = "acct_1";
@@ -168,7 +168,6 @@ function lastTriggeredAt(): number | null {
 // ============================================================================
 
 describe("E21 sends on Recova's trigger and cooldown, and records notification_sent truly", () => {
-
   it("no breach: no mail and no row", async () => {
     seedAccount();
     seedAlert();
@@ -189,15 +188,29 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
       channel: "email",
     };
     const metrics = { mrr_at_risk_cents: 200 };
-    expect(evaluateAlerts([{ ...config, lastTriggeredAt: null }], metrics, NOW.getTime())).toHaveLength(1);
     expect(
-      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - 22 * HOUR) }], metrics, NOW.getTime()),
-    ).toHaveLength(0);
-    expect(
-      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY + 5_000) }], metrics, NOW.getTime()),
+      evaluateAlerts([{ ...config, lastTriggeredAt: null }], metrics, NOW.getTime()),
     ).toHaveLength(1);
     expect(
-      evaluateAlerts([{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY) }], metrics, NOW.getTime()),
+      evaluateAlerts(
+        [{ ...config, lastTriggeredAt: new Date(NOW.getTime() - 22 * HOUR) }],
+        metrics,
+        NOW.getTime(),
+      ),
+    ).toHaveLength(0);
+    expect(
+      evaluateAlerts(
+        [{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY + 5_000) }],
+        metrics,
+        NOW.getTime(),
+      ),
+    ).toHaveLength(1);
+    expect(
+      evaluateAlerts(
+        [{ ...config, lastTriggeredAt: new Date(NOW.getTime() - DAY) }],
+        metrics,
+        NOW.getTime(),
+      ),
     ).toHaveLength(1);
   });
 
@@ -213,7 +226,13 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
   it("a provider refusal records notification_sent 0, never throws", async () => {
     seedAccount();
     seedAlert();
-    await evaluateAndRecordAlerts(failingBinding, db(), ACCOUNT, { mrr_at_risk_cents: 712_345 }, NOW);
+    await evaluateAndRecordAlerts(
+      failingBinding,
+      db(),
+      ACCOUNT,
+      { mrr_at_risk_cents: 712_345 },
+      NOW,
+    );
     expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
   });
 
@@ -262,7 +281,13 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
 // ============================================================================
 
 function seedCritical(
-  opts: { customers?: string[]; health?: number; disputeState?: string; paymentStatus?: string; account?: string } = {},
+  opts: {
+    customers?: string[];
+    health?: number;
+    disputeState?: string;
+    paymentStatus?: string;
+    account?: string;
+  } = {},
 ): void {
   const customers = opts.customers ?? ["cus_1"];
   const account = opts.account ?? ACCOUNT;
@@ -272,7 +297,14 @@ function seedCritical(
       .prepare(
         "INSERT INTO failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, amount_cents, currency, decline_category, status, detected_at) VALUES (?, ?, ?, ?, ?, 'buyer@example.com', 9900, 'usd', 'soft', ?, 1000)",
       )
-      .run(`fp_${i}${tag}`, account, `evt_${i}${tag}`, `in_${i}${tag}`, cus, opts.paymentStatus ?? "active");
+      .run(
+        `fp_${i}${tag}`,
+        account,
+        `evt_${i}${tag}`,
+        `in_${i}${tag}`,
+        cus,
+        opts.paymentStatus ?? "active",
+      );
     sqlite
       .prepare(
         "INSERT INTO customer_context (id, account_id, stripe_customer_id, health_score, currency, created_at, updated_at) VALUES (?, ?, ?, ?, 'usd', 1000, 1000)",
@@ -282,7 +314,14 @@ function seedCritical(
       .prepare(
         "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, stripe_customer_id, amount_cents, currency, reason, status, state, created_at) VALUES (?, ?, ?, ?, ?, 4900, 'usd', 'fraudulent', 'needs_response', ?, 1000)",
       )
-      .run(`dp_${i}${tag}`, account, `dp_s_${i}${tag}`, `ch_${i}${tag}`, cus, opts.disputeState ?? "pending_review");
+      .run(
+        `dp_${i}${tag}`,
+        account,
+        `dp_s_${i}${tag}`,
+        `ch_${i}${tag}`,
+        cus,
+        opts.disputeState ?? "pending_review",
+      );
   });
 }
 
@@ -375,4 +414,3 @@ describe("E22 fires on Recova's three conditions at once, with a 24h cooldown", 
     expect(historyRows().map((r) => r.notification_sent)).toEqual([0]);
   });
 });
-

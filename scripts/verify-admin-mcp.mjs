@@ -14,21 +14,30 @@ const WAIT_MS = 10_000;
 const post = (headers) =>
   fetch(RESOURCE, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      ...headers,
+    },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
     signal: AbortSignal.timeout(15_000),
   });
 
 async function check() {
-  const meta = await fetch(`${ORIGIN}/.well-known/oauth-protected-resource/mcp`, { signal: AbortSignal.timeout(15_000) });
+  const meta = await fetch(`${ORIGIN}/.well-known/oauth-protected-resource/mcp`, {
+    signal: AbortSignal.timeout(15_000),
+  });
   if (meta.status !== 200) return `protected-resource metadata answered ${meta.status}`;
   const body = await meta.json().catch(() => ({}));
-  if (body.resource !== RESOURCE) return `protected-resource metadata names ${JSON.stringify(body.resource)}, not ${RESOURCE}`;
+  if (body.resource !== RESOURCE)
+    return `protected-resource metadata names ${JSON.stringify(body.resource)}, not ${RESOURCE}`;
   const foreign = await post({ Origin: "https://evil.example" });
-  if (foreign.status !== 403) return `/mcp with a foreign Origin answered ${foreign.status}, not 403`;
+  if (foreign.status !== 403)
+    return `/mcp with a foreign Origin answered ${foreign.status}, not 403`;
   const bare = await post({});
   if (bare.status !== 401) return `/mcp with no token answered ${bare.status}, not 401`;
-  if (!(bare.headers.get("WWW-Authenticate") ?? "").includes("resource_metadata=")) return "/mcp 401 has no resource_metadata in WWW-Authenticate";
+  if (!(bare.headers.get("WWW-Authenticate") ?? "").includes("resource_metadata="))
+    return "/mcp 401 has no resource_metadata in WWW-Authenticate";
   return "";
 }
 

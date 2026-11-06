@@ -86,7 +86,8 @@ function aggregateRecovery(
     (s, f) => s + (recoveredByFpId.get(f.id as string)?.amountCents ?? 0),
     0,
   );
-  const lastFailedAt = mine.map((f) => f.detectedAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const lastFailedAt =
+    mine.map((f) => f.detectedAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
   const lastRecoveredAt =
     recoveredMine
       .map((f) => recoveredByFpId.get(f.id as string)!.recoveredAt)
@@ -114,7 +115,9 @@ function engagementSignalsFor(
       emailOpened30d: override.emailOpened30d ?? 0,
       emailClicked30d: override.emailClicked30d ?? 0,
       lastEmailOpenedAt:
-        override.lastEmailOpenedAtDaysAgo == null ? null : new Date(now.getTime() - override.lastEmailOpenedAtDaysAgo * DAY_MS),
+        override.lastEmailOpenedAtDaysAgo == null
+          ? null
+          : new Date(now.getTime() - override.lastEmailOpenedAtDaysAgo * DAY_MS),
     };
   }
   const idxNum = parseInt(stripeCustomerId.replace(/[^0-9]/g, ""), 10) || 0;
@@ -124,7 +127,9 @@ function engagementSignalsFor(
     emailOpened30d: opened30,
     emailClicked30d: clicked30,
     lastEmailOpenedAt:
-      opened30 > 0 ? new Date(now.getTime() - (seededInt(`${stripeCustomerId}:eng`, 25) + 1) * DAY_MS) : null,
+      opened30 > 0
+        ? new Date(now.getTime() - (seededInt(`${stripeCustomerId}:eng`, 25) + 1) * DAY_MS)
+        : null,
   };
 }
 
@@ -157,13 +162,27 @@ function heuristicTrajectory(recovery: RecoveryAggregate, seed: string): Traject
     },
     {
       daysAgo: 15,
-      healthScore: hasRecovered ? dipped + 10 : recovery.failedPaymentCount > 0 ? dipped - 3 : baseline,
-      reason: hasRecovered ? "in_recovery" : recovery.failedPaymentCount > 0 ? "still_unrecovered" : "stable",
+      healthScore: hasRecovered
+        ? dipped + 10
+        : recovery.failedPaymentCount > 0
+          ? dipped - 3
+          : baseline,
+      reason: hasRecovered
+        ? "in_recovery"
+        : recovery.failedPaymentCount > 0
+          ? "still_unrecovered"
+          : "stable",
     },
     {
       daysAgo: 3,
       healthScore: final,
-      reason: hasRecovered ? "recovery_succeeded" : hasActive ? "in_recovery" : hasUnrecovered ? "declining" : "stable",
+      reason: hasRecovered
+        ? "recovery_succeeded"
+        : hasActive
+          ? "in_recovery"
+          : hasUnrecovered
+            ? "declining"
+            : "stable",
     },
   ];
 }
@@ -220,13 +239,21 @@ function disputeTrajectory(agg: DisputeAggregate, now: Date, seed: string): Traj
   const baseline = 70 + seededInt(`${seed}:b`, 12);
   const won = agg.wonCount > 0;
   const lost = agg.lostCount > 0;
-  const final = won ? Math.max(60, baseline - 5) : lost ? Math.max(30, baseline - 35) : Math.max(45, baseline - 18);
+  const final = won
+    ? Math.max(60, baseline - 5)
+    : lost
+      ? Math.max(30, baseline - 35)
+      : Math.max(45, baseline - 18);
   const disputeAgeDays = Math.round((now.getTime() - agg.lastDisputeAt.getTime()) / DAY_MS);
   return [
     { daysAgo: Math.max(150, disputeAgeDays + 40), healthScore: baseline, reason: "baseline" },
     { daysAgo: Math.max(90, disputeAgeDays + 30), healthScore: baseline + 2, reason: "stable" },
     { daysAgo: Math.max(60, disputeAgeDays + 20), healthScore: baseline, reason: "stable" },
-    { daysAgo: Math.max(40, disputeAgeDays + 10), healthScore: Math.max(40, baseline - 20), reason: "dispute_opened" },
+    {
+      daysAgo: Math.max(40, disputeAgeDays + 10),
+      healthScore: Math.max(40, baseline - 20),
+      reason: "dispute_opened",
+    },
     {
       daysAgo: Math.max(20, disputeAgeDays),
       healthScore: won ? baseline - 8 : lost ? baseline - 30 : baseline - 18,
@@ -254,7 +281,10 @@ function cohortKeyFor(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function buildMrrRoster(customers: DemoCustomer[], disputeOnly: { id: string; planName: string; joinedAt: Date; mrrCents: number }[]): MrrRosterEntry[] {
+function buildMrrRoster(
+  customers: DemoCustomer[],
+  disputeOnly: { id: string; planName: string; joinedAt: Date; mrrCents: number }[],
+): MrrRosterEntry[] {
   const fromBase: MrrRosterEntry[] = customers.map((c) => ({
     stripeCustomerId: c.stripeCustomerId,
     planName: planNameFor(c),
@@ -293,7 +323,12 @@ function snapshotDates(now: Date): Date[] {
   return dates;
 }
 
-function buildSnapshots(accountId: string, idPrefix: string, roster: MrrRosterEntry[], now: Date): MrrSnapshotInsert[] {
+function buildSnapshots(
+  accountId: string,
+  idPrefix: string,
+  roster: MrrRosterEntry[],
+  now: Date,
+): MrrSnapshotInsert[] {
   const rows: MrrSnapshotInsert[] = [];
   let priorByCustomer: Map<string, number> | null = null;
 
@@ -340,7 +375,9 @@ function buildSnapshots(accountId: string, idPrefix: string, roster: MrrRosterEn
     // customer_context holds only customers Stripe has: one who signs up later
     // is new MRR then, not a reactivation.
     priorByCustomer = new Map(
-      current.filter((_, i) => roster[i].joinedAt.getTime() <= snapshotDate.getTime()).map((c) => [c.stripeCustomerId, c.mrrCents]),
+      current
+        .filter((_, i) => roster[i].joinedAt.getTime() <= snapshotDate.getTime())
+        .map((c) => [c.stripeCustomerId, c.mrrCents]),
     );
   }
 
@@ -352,7 +389,11 @@ function buildSnapshots(accountId: string, idPrefix: string, roster: MrrRosterEn
 // history row, for each demo business, as legacy seeded them per account)
 // ============================================================================
 
-function buildAlerts(accountId: string, p: string, now: Date): { alerts: AlertInsert[]; history: AlertHistoryInsert[] } {
+function buildAlerts(
+  accountId: string,
+  p: string,
+  now: Date,
+): { alerts: AlertInsert[]; history: AlertHistoryInsert[] } {
   const threeDaysAgo = new Date(now.getTime() - 3 * DAY_MS);
   const alertRows: AlertInsert[] = [
     {
@@ -436,20 +477,34 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
 
   const baseIds = new Set(customers.map((c) => c.stripeCustomerId));
   const baseDisputes = new Map(
-    disputes.filter((d) => baseIds.has(d.stripeCustomerId as string)).map((d) => [d.stripeCustomerId as string, d]),
+    disputes
+      .filter((d) => baseIds.has(d.stripeCustomerId as string))
+      .map((d) => [d.stripeCustomerId as string, d]),
   );
 
   for (const c of customers) {
     const recovery = aggregateRecovery(c.stripeCustomerId, failedPayments, recoveredPayments);
     const trajectory: TrajectoryPoint[] = c.scripted
-      ? c.scripted.healthTrajectory.map((p) => ({ daysAgo: p.daysAgo, healthScore: p.healthScore, reason: p.reason }))
+      ? c.scripted.healthTrajectory.map((p) => ({
+          daysAgo: p.daysAgo,
+          healthScore: p.healthScore,
+          reason: p.reason,
+        }))
       : heuristicTrajectory(recovery, c.stripeCustomerId);
     const healthScore = trajectory[trajectory.length - 1]?.healthScore ?? 70;
     const healthFactors = deriveHealthFactors(trajectory);
-    const engagementSignals = engagementSignalsFor(c.stripeCustomerId, c.scripted?.engagementOverride, recovery, now);
+    const engagementSignals = engagementSignalsFor(
+      c.stripeCustomerId,
+      c.scripted?.engagementOverride,
+      recovery,
+      now,
+    );
     const baseDispute = baseDisputes.get(c.stripeCustomerId);
     const disputeSignals = baseDispute ? aggregateDispute(baseDispute) : {};
-    const tenureMonths = Math.max(1, Math.round((now.getTime() - c.customerSince.getTime()) / (30 * DAY_MS)));
+    const tenureMonths = Math.max(
+      1,
+      Math.round((now.getTime() - c.customerSince.getTime()) / (30 * DAY_MS)),
+    );
     const mrr = monthlyMrrCents(c);
     const ctxId = `dctx_${c.stripeCustomerId}`;
 
@@ -472,7 +527,9 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
       currentPlanName: planNameFor(c),
       currentPlanTier: c.tier,
       scheduledChangeKind: c.scheduledChange?.kind ?? null,
-      scheduledChangeAt: c.scheduledChange ? new Date(now.getTime() + c.scheduledChange.daysFromNow * DAY_MS) : null,
+      scheduledChangeAt: c.scheduledChange
+        ? new Date(now.getTime() + c.scheduledChange.daysFromNow * DAY_MS)
+        : null,
       recoverySignals: recovery,
       disputeSignals,
       engagementSignals,
@@ -499,7 +556,8 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
 
   // Net-new dispute-only customers (every seeded dispute whose customer is not
   // already one of the 200 base customers above, as Harborline's is).
-  const disputeOnlyRoster: { id: string; planName: string; joinedAt: Date; mrrCents: number }[] = [];
+  const disputeOnlyRoster: { id: string; planName: string; joinedAt: Date; mrrCents: number }[] =
+    [];
   for (const d of disputes) {
     if (baseIds.has(d.stripeCustomerId as string)) continue;
     const seed = d.stripeCustomerId as string;

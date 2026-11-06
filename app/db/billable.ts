@@ -1,7 +1,26 @@
-import { and, eq, getTableColumns, gt, inArray, isNotNull, isNull, lte, notExists, notLike, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  getTableColumns,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  notExists,
+  notLike,
+  or,
+  sql,
+  type AnyColumn,
+  type SQL,
+} from "drizzle-orm";
 import { QueryBuilder } from "drizzle-orm/sqlite-core";
 
-import { BILLABLE_ATTRIBUTION_KINDS, DEMO_ACCOUNT_ID_PREFIX, RECOVERY_MATURITY_MS } from "~/lib/constants";
+import {
+  BILLABLE_ATTRIBUTION_KINDS,
+  DEMO_ACCOUNT_ID_PREFIX,
+  RECOVERY_MATURITY_MS,
+} from "~/lib/constants";
 import type { Db } from "./client";
 import {
   accounts,
@@ -143,10 +162,7 @@ export function getBillableRecoveries(db: Db, accountId: string, asOfMs: number)
     .select(getTableColumns(recoveredPayments))
     .from(recoveredPayments)
     .innerJoin(accounts, eq(accounts.id, recoveredPayments.accountId))
-    .leftJoin(
-      billingLineItems,
-      eq(billingLineItems.recoveredPaymentId, recoveredPayments.id),
-    )
+    .leftJoin(billingLineItems, eq(billingLineItems.recoveredPaymentId, recoveredPayments.id))
     .where(
       and(
         billableRecoveryRowConditions(accountId, asOfMs),

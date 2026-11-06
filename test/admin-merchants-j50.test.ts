@@ -1,4 +1,3 @@
-
 import { eq } from "drizzle-orm";
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,8 +29,11 @@ vi.mock("~/db", async (importOriginal) => ({
 // Looked up so a missing export fails the assertion that names it, not the
 // whole file.
 const pageLib: Record<string, unknown> = await import("~/lib/admin/merchants");
-const pausedRoute: Record<string, unknown> = await import("~/routes/admin/merchants/paused").catch(() => ({}));
-const exemptRoute: Record<string, unknown> = await import("~/routes/admin/merchants/billing-exempt").catch(() => ({}));
+const pausedRoute: Record<string, unknown> = await import("~/routes/admin/merchants/paused").catch(
+  () => ({}),
+);
+const exemptRoute: Record<string, unknown> =
+  await import("~/routes/admin/merchants/billing-exempt").catch(() => ({}));
 const indexRoute: Record<string, unknown> = await import("~/routes/admin/merchants/index");
 
 const NOW = Date.now();
@@ -46,9 +48,28 @@ async function seed(): Promise<Seeded> {
   await made.db.insert(accounts).values([
     { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
     { id: "acct_lumen", name: "Lumen Studio", createdAt: at(30 * DAY), billingExempt: true },
-    { id: "acct_pets", name: "Paused Pets", createdAt: at(20 * DAY), processingPaused: true, pauseReason: PAUSE_REASON_MANUAL },
-    { id: "acct_brake", name: "Brake Bikes", createdAt: at(10 * DAY), processingPaused: true, pauseReason: PAUSE_REASON_BRAKE },
-    { id: "acct_both", name: "Both Books", createdAt: at(5 * DAY), processingPaused: true, pauseReason: PAUSE_REASON_MANUAL, billingExempt: true },
+    {
+      id: "acct_pets",
+      name: "Paused Pets",
+      createdAt: at(20 * DAY),
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    },
+    {
+      id: "acct_brake",
+      name: "Brake Bikes",
+      createdAt: at(10 * DAY),
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_BRAKE,
+    },
+    {
+      id: "acct_both",
+      name: "Both Books",
+      createdAt: at(5 * DAY),
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+      billingExempt: true,
+    },
   ]);
   return made;
 }
@@ -56,7 +77,9 @@ async function seed(): Promise<Seeded> {
 function context() {
   const c = new RouterContextProvider();
   c.set(cloudflareContext, {
-    env: { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env,
+    env: {
+      MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
+    } as unknown as Env,
     ctx: {} as ExecutionContext,
     nonce: "",
   });
@@ -65,11 +88,17 @@ function context() {
 }
 
 type Loader = (args: unknown) => Promise<Record<string, unknown>>;
-type Action = (args: unknown) => Promise<{ data: Record<string, unknown>; init?: { status?: number } }>;
+type Action = (
+  args: unknown,
+) => Promise<{ data: Record<string, unknown>; init?: { status?: number } }>;
 
 async function load(route: Record<string, unknown>, path: string) {
   expect(typeof route.loader).toBe("function");
-  return (route.loader as Loader)({ request: new Request(`https://foxhoundapp.com${path}`), context: context(), params: {} });
+  return (route.loader as Loader)({
+    request: new Request(`https://foxhoundapp.com${path}`),
+    context: context(),
+    params: {},
+  });
 }
 
 async function post(route: Record<string, unknown>, path: string, fields: Record<string, string>) {
@@ -83,15 +112,18 @@ async function post(route: Record<string, unknown>, path: string, fields: Record
   });
 }
 
-const ids = (data: Record<string, unknown>) => (data.merchants as Array<{ id: string }>).map((m) => m.id);
+const ids = (data: Record<string, unknown>) =>
+  (data.merchants as Array<{ id: string }>).map((m) => m.id);
 
 // ---------------------------------------------------------------- pure helpers
 
 describe("the lists' addresses and filters", () => {
-
   it("keeps exactly the rows whose flag is set, as Recova's .eq() reads did, canceled ones included", () => {
     expect(typeof pageLib.merchantsInView).toBe("function");
-    const inView = pageLib.merchantsInView as (rows: unknown[], view: string) => Array<{ id: string }>;
+    const inView = pageLib.merchantsInView as (
+      rows: unknown[],
+      view: string,
+    ) => Array<{ id: string }>;
     const rows = [
       { id: "a", processingPaused: false, billingExempt: false },
       { id: "b", processingPaused: true, billingExempt: false },
@@ -123,7 +155,9 @@ describe("the loader, by address", () => {
 
   it("reads the platform figures for All merchants only, as Recova's two lists had none", async () => {
     expect((await load(pausedRoute, "/admin/merchants/paused")).figures).toBeNull();
-    expect((await load(indexRoute, "/admin/merchants")).figures).toMatchObject({ merchantCount: 5 });
+    expect((await load(indexRoute, "/admin/merchants")).figures).toMatchObject({
+      merchantCount: 5,
+    });
     expect((await load(indexRoute, "/admin/merchants")).view).toBe("all");
   });
 
@@ -144,36 +178,58 @@ describe("the action from a list: the Merchants page's writers and audit rows", 
     harness.sqlite = seeded.sqlite;
   });
 
-  const account = async (id: string) => (await seeded.db.select().from(accounts).where(eq(accounts.id, id)))[0];
-  const audit = async () => (await seeded.db.select({ action: adminAuditLog.action }).from(adminAuditLog)).map((r) => r.action);
+  const account = async (id: string) =>
+    (await seeded.db.select().from(accounts).where(eq(accounts.id, id)))[0];
+  const audit = async () =>
+    (await seeded.db.select({ action: adminAuditLog.action }).from(adminAuditLog)).map(
+      (r) => r.action,
+    );
 
   it("resumes a paused merchant (Recova's Resume), with its audit row, and the row leaves the list", async () => {
-    const answer = await post(pausedRoute, "/admin/merchants/paused", { intent: "processing-paused", accountId: "acct_pets", value: "false" });
-    expect(answer.data).toMatchObject({ ok: true, intent: "processing-paused", value: false, changed: true });
-    expect(await account("acct_pets")).toMatchObject({ processingPaused: false, pauseReason: null });
+    const answer = await post(pausedRoute, "/admin/merchants/paused", {
+      intent: "processing-paused",
+      accountId: "acct_pets",
+      value: "false",
+    });
+    expect(answer.data).toMatchObject({
+      ok: true,
+      intent: "processing-paused",
+      value: false,
+      changed: true,
+    });
+    expect(await account("acct_pets")).toMatchObject({
+      processingPaused: false,
+      pauseReason: null,
+    });
     expect(await audit()).toEqual(["merchant.processing.resume"]);
     expect(ids(await load(pausedRoute, "/admin/merchants/paused"))).not.toContain("acct_pets");
   });
 
   it("ends an exemption (Recova's Remove exemption), so the billing run bills the merchant again", async () => {
-    const answer = await post(exemptRoute, "/admin/merchants/billing-exempt", { intent: "billing-exempt", accountId: "acct_lumen", value: "false" });
-    expect(answer.data).toMatchObject({ ok: true, intent: "billing-exempt", value: false, changed: true });
+    const answer = await post(exemptRoute, "/admin/merchants/billing-exempt", {
+      intent: "billing-exempt",
+      accountId: "acct_lumen",
+      value: "false",
+    });
+    expect(answer.data).toMatchObject({
+      ok: true,
+      intent: "billing-exempt",
+      value: false,
+      changed: true,
+    });
     expect((await account("acct_lumen")).billingExempt).toBe(false);
     expect(await audit()).toEqual(["merchant.billing_exempt.disable"]);
     expect(ids(await load(exemptRoute, "/admin/merchants/billing-exempt"))).toEqual(["acct_both"]);
   });
 
   it("says a resume of the brake's pause has no Undo, as the Merchants page does", async () => {
-    const answer = await post(pausedRoute, "/admin/merchants/paused", { intent: "processing-paused", accountId: "acct_brake", value: "false" });
+    const answer = await post(pausedRoute, "/admin/merchants/paused", {
+      intent: "processing-paused",
+      accountId: "acct_brake",
+      value: "false",
+    });
     expect(answer.data).toMatchObject({ ok: true, changed: true, wasBrakePause: true });
   });
 });
 
 // ---------------------------------------------------------------- the page
-
-
-
-
-
-
-

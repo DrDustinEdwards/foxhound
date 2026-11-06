@@ -101,7 +101,9 @@ export async function importDisputeFromStripe(
   // step 1). Recova's sync still inserted a bare row before that step
   // returned; Foxhound creates none, which is what "off" says.
   if (!(await readDisputesEnabled(getDb(env), accountId))) {
-    console.info(`manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`);
+    console.info(
+      `manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`,
+    );
     return { status: "disputes_disabled" };
   }
 
@@ -127,7 +129,12 @@ export async function importDisputeFromStripe(
 
   // The same enrichment seam the webhook runs, so the imported row carries the
   // recovery link and the grounded evidence a webhook-imported one would.
-  const linked = await resolveDisputedRecovery(env, accountId, connection.id, fields.paymentIntentId);
+  const linked = await resolveDisputedRecovery(
+    env,
+    accountId,
+    connection.id,
+    fields.paymentIntentId,
+  );
   const facts = buildEvidenceFacts(
     linked?.failedPayment ?? null,
     linked?.steps ?? [],
@@ -142,11 +149,14 @@ export async function importDisputeFromStripe(
     amountCents: fields.amountCents,
     reason: fields.reason,
   });
-  const evidence = mergeEvidence(stripeContext.evidence, await draftDisputeEvidence(env, facts, {
-    source: "dispute_evidence",
-    accountId,
-    relatedId: fields.stripeDisputeId,
-  }));
+  const evidence = mergeEvidence(
+    stripeContext.evidence,
+    await draftDisputeEvidence(env, facts, {
+      source: "dispute_evidence",
+      accountId,
+      relatedId: fields.stripeDisputeId,
+    }),
+  );
 
   const disputeId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {
@@ -166,7 +176,8 @@ export async function importDisputeFromStripe(
         stripeConnectionId: connection.id,
         stripeDisputeId: fields.stripeDisputeId,
         stripeChargeId: fields.chargeId,
-        stripeCustomerId: linked?.failedPayment.stripeCustomerId ?? stripeContext.context.customerId,
+        stripeCustomerId:
+          linked?.failedPayment.stripeCustomerId ?? stripeContext.context.customerId,
         customerEmail: linked?.failedPayment.customerEmail ?? stripeContext.context.customerEmail,
         customerName: linked?.failedPayment.customerName ?? stripeContext.context.customerName,
         amountCents: fields.amountCents,

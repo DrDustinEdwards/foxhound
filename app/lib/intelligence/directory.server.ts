@@ -74,7 +74,10 @@ export async function listCustomerDirectory(
   const conditions = [eq(customerContext.accountId, accountId)];
   if (filters.search) {
     const term = `%${filters.search}%`;
-    const searchCondition = or(like(customerContext.customerName, term), like(customerContext.customerEmail, term));
+    const searchCondition = or(
+      like(customerContext.customerName, term),
+      like(customerContext.customerEmail, term),
+    );
     if (searchCondition) conditions.push(searchCondition);
   }
   if (filters.tier) conditions.push(eq(customerContext.currentPlanTier, filters.tier));

@@ -99,7 +99,9 @@ export interface BulkActionRefusal {
   ceiling: number;
 }
 
-export function isBulkRefusal(value: BulkActionResult | BulkActionRefusal): value is BulkActionRefusal {
+export function isBulkRefusal(
+  value: BulkActionResult | BulkActionRefusal,
+): value is BulkActionRefusal {
   return "refused" in value;
 }
 

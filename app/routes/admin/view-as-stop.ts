@@ -6,7 +6,10 @@ import { redirect } from "react-router";
 
 import { getDb } from "~/db";
 import { adminContext } from "~/lib/admin/context";
-import { clearImpersonationCookieHeader, stopImpersonation } from "~/lib/admin/impersonation.server";
+import {
+  clearImpersonationCookieHeader,
+  stopImpersonation,
+} from "~/lib/admin/impersonation.server";
 import { merchantHref } from "~/lib/admin/page";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 

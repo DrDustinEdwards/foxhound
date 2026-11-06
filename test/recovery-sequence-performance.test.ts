@@ -57,12 +57,21 @@ describe("summarizeStepPerformance", () => {
       step({ stepType: "email_day3" }),
       step({ stepType: "email_day1" }),
     ]);
-    expect(summary.chart.map((c) => c.stepType)).toEqual(["email_day1", "email_day3", "email_day14"]);
+    expect(summary.chart.map((c) => c.stepType)).toEqual([
+      "email_day1",
+      "email_day3",
+      "email_day14",
+    ]);
   });
 
   it("computes open/click/recovery rate per step type", () => {
     const summary = summarizeStepPerformance([
-      step({ stepType: "email_day3", openedAt: new Date(), clickedAt: new Date(), creditedRecovery: true }),
+      step({
+        stepType: "email_day3",
+        openedAt: new Date(),
+        clickedAt: new Date(),
+        creditedRecovery: true,
+      }),
       step({ stepType: "email_day3", openedAt: new Date() }),
       step({ stepType: "email_day3" }),
       step({ stepType: "email_day3" }),
@@ -91,12 +100,37 @@ describe("summarizeStepPerformance", () => {
 
 describe("buildStepCard", () => {
   it("builds a silent-retry card with no email fields, a recovered-of-attempted ratio", () => {
-    const card = buildStepCard("retry_early", [
-      { executedAt: new Date(), result: "retry_succeeded", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
-      { executedAt: new Date(), result: "retry_failed", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
-      // A guarded expired-card retry that made no charge is not an attempt.
-      { executedAt: new Date(), result: "retry_skipped_card_unchanged", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
-    ], 4);
+    const card = buildStepCard(
+      "retry_early",
+      [
+        {
+          executedAt: new Date(),
+          result: "retry_succeeded",
+          openedAt: null,
+          clickedAt: null,
+          aiSubject: null,
+          aiBodyHtml: null,
+        },
+        {
+          executedAt: new Date(),
+          result: "retry_failed",
+          openedAt: null,
+          clickedAt: null,
+          aiSubject: null,
+          aiBodyHtml: null,
+        },
+        // A guarded expired-card retry that made no charge is not an attempt.
+        {
+          executedAt: new Date(),
+          result: "retry_skipped_card_unchanged",
+          openedAt: null,
+          clickedAt: null,
+          aiSubject: null,
+          aiBodyHtml: null,
+        },
+      ],
+      4,
+    );
     expect(card.kind).toBe("retry");
     if (card.kind !== "retry") throw new Error("expected retry card");
     expect(card.attempted).toBe(2);
@@ -113,8 +147,22 @@ describe("buildStepCard", () => {
   });
 
   it("builds an email card with sent/opened/clicked and the latest subject", () => {
-    const older = { executedAt: new Date("2026-01-01"), result: "email_sent", openedAt: null, clickedAt: null, aiSubject: "Old subject", aiBodyHtml: "<p>old</p>" };
-    const newer = { executedAt: new Date("2026-02-01"), result: "email_sent", openedAt: new Date(), clickedAt: null, aiSubject: "New subject", aiBodyHtml: "<p>new</p>" };
+    const older = {
+      executedAt: new Date("2026-01-01"),
+      result: "email_sent",
+      openedAt: null,
+      clickedAt: null,
+      aiSubject: "Old subject",
+      aiBodyHtml: "<p>old</p>",
+    };
+    const newer = {
+      executedAt: new Date("2026-02-01"),
+      result: "email_sent",
+      openedAt: new Date(),
+      clickedAt: null,
+      aiSubject: "New subject",
+      aiBodyHtml: "<p>new</p>",
+    };
     const card = buildStepCard("email_day1", [older, newer], 1);
     if (card.kind !== "email") throw new Error("expected email card");
     expect(card.sent).toBe(2);
@@ -135,11 +183,28 @@ describe("buildStepCard", () => {
 });
 
 describe("buildCategorySections", () => {
-
   it("scopes each step card's rows to its own category, never leaking another category's steps", () => {
     const steps = [
-      { declineCategory: "soft" as const, stepType: "email_day1", executedAt: new Date(), result: "email_sent", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
-      { declineCategory: "fraud" as const, stepType: "email_day1", executedAt: new Date(), result: "email_sent", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
+      {
+        declineCategory: "soft" as const,
+        stepType: "email_day1",
+        executedAt: new Date(),
+        result: "email_sent",
+        openedAt: null,
+        clickedAt: null,
+        aiSubject: null,
+        aiBodyHtml: null,
+      },
+      {
+        declineCategory: "fraud" as const,
+        stepType: "email_day1",
+        executedAt: new Date(),
+        result: "email_sent",
+        openedAt: null,
+        clickedAt: null,
+        aiSubject: null,
+        aiBodyHtml: null,
+      },
     ];
     const sections = buildCategorySections(DECLINE_CATEGORIES, steps);
     const soft = sections.find((s) => s.category === "soft")!;

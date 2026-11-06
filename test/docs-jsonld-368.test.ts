@@ -22,7 +22,6 @@ import { docsItemListJsonLd, techArticleJsonLd } from "~/lib/seo/jsonld";
 const URL_BASE = "https://foxhoundapp.test";
 
 describe("PLANT 1: every guide's JSON-LD, built from the real builders", () => {
-
   it("EVERY GUIDE emits a TechArticle whose headline is the page h1", () => {
     // THE HEADLINE AND THE H1 ARE ONE VARIABLE in the route (`guide.title` feeds
     // both), which is the property that makes them unable to drift. This asserts
@@ -57,4 +56,3 @@ describe("PLANT 2: the docs index emits its list", () => {
     }
   });
 });
-

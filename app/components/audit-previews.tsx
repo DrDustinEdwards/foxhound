@@ -1,4 +1,8 @@
-import { AUDIT_HISTORY_EXAMPLE, AUDIT_SCOPES, AUDIT_SUMMARY_EXAMPLE } from "~/lib/marketing/audit-copy";
+import {
+  AUDIT_HISTORY_EXAMPLE,
+  AUDIT_SCOPES,
+  AUDIT_SUMMARY_EXAMPLE,
+} from "~/lib/marketing/audit-copy";
 
 // The previews on /product/audit, Recova's three feature-block UIs: the
 // scope card (components/docs/AuditScopeCard.tsx, blob dc1d18dd) and the two
@@ -25,7 +29,10 @@ export function AuditScopeCard() {
           <li key={s.title} className="cap-panel">
             <div className="cap-panel-body">
               <div className="flex items-start gap-3">
-                <span aria-hidden="true" className="mt-0.5 font-mono text-card-title leading-none text-accent-text">
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 font-mono text-card-title leading-none text-accent-text"
+                >
                   {s.icon}
                 </span>
                 <div>
@@ -45,7 +52,9 @@ export function AuditScopeCard() {
 export function AISummaryPreview() {
   return (
     <div className="p-5">
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">AI Summary</div>
+      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
+        AI Summary
+      </div>
       <p className="m-0 text-copy leading-relaxed text-text-secondary">
         {AUDIT_SUMMARY_EXAMPLE.map((part, i) =>
           typeof part === "string" ? (
@@ -66,7 +75,9 @@ export function AuditHistoryPreview() {
   return (
     <div className="overflow-hidden">
       <div className="flex items-center justify-between border-b border-border bg-surface2 px-5 py-3">
-        <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">Audit history</span>
+        <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
+          Audit history
+        </span>
         <span className="font-mono text-micro text-accent-text">Monthly auto-run on</span>
       </div>
       <ul className="m-0 list-none divide-y divide-border p-0">

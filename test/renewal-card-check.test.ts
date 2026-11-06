@@ -22,7 +22,9 @@ vi.mock("~/db", async (importOriginal) => ({
 
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (_env: Env, write: { build: (db: unknown) => unknown[] }) => {
-    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+      write.build(harness.db),
+    );
     return { applied: true };
   },
 }));
@@ -63,11 +65,20 @@ beforeEach(() => {
   let db;
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
-  harness.customer = { id: "cus_1", email: "buyer@acme.test", name: "Jane Buyer", invoice_settings: {} };
+  harness.customer = {
+    id: "cus_1",
+    email: "buyer@acme.test",
+    name: "Jane Buyer",
+    invoice_settings: {},
+  };
   harness.subscriptions = {};
   harness.paymentMethods = {};
   harness.sent = [];
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 1)").run(ACCOUNT);
+  sqlite
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 1)",
+    )
+    .run(ACCOUNT);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES ('c1', ?, 'acct_stripe', 1, 'cipher', 1000, 1000)",
@@ -99,7 +110,9 @@ function upcomingInvoice(renewsAt: string, id = "evt_up") {
 
 function rows() {
   return sqlite
-    .prepare("SELECT card_last4 AS last4, expires_month AS m, expires_year AS y, reason FROM expiring_card_alerts")
+    .prepare(
+      "SELECT card_last4 AS last4, expires_month AS m, expires_year AS y, reason FROM expiring_card_alerts",
+    )
     .all();
 }
 
@@ -108,9 +121,15 @@ describe("invoice.upcoming", () => {
     // The subscription's default is the card charged. It expires 12/2026, which
     // is outside the nightly scan's 30 days, but the renewal is in January.
     harness.subscriptions.sub_1 = { default_payment_method: "pm_sub" };
-    harness.paymentMethods.pm_sub = { card: { exp_month: 12, exp_year: 2026, brand: "visa", last4: "4242" } };
+    harness.paymentMethods.pm_sub = {
+      card: { exp_month: 12, exp_year: 2026, brand: "visa", last4: "4242" },
+    };
 
-    const result = await processConnectedWebhook(env, upcomingInvoice("2027-01-05T00:00:00Z"), RECEIVED);
+    const result = await processConnectedWebhook(
+      env,
+      upcomingInvoice("2027-01-05T00:00:00Z"),
+      RECEIVED,
+    );
 
     expect(result).toEqual({ status: "applied" });
     expect(rows()).toEqual([{ last4: "4242", m: 12, y: 2026, reason: "card_expiring" }]);
@@ -118,9 +137,15 @@ describe("invoice.upcoming", () => {
 
   it("records nothing when the card is still valid on the renewal date", async () => {
     harness.subscriptions.sub_1 = { default_payment_method: "pm_sub" };
-    harness.paymentMethods.pm_sub = { card: { exp_month: 12, exp_year: 2026, brand: "visa", last4: "4242" } };
+    harness.paymentMethods.pm_sub = {
+      card: { exp_month: 12, exp_year: 2026, brand: "visa", last4: "4242" },
+    };
 
-    const result = await processConnectedWebhook(env, upcomingInvoice("2026-12-20T00:00:00Z"), RECEIVED);
+    const result = await processConnectedWebhook(
+      env,
+      upcomingInvoice("2026-12-20T00:00:00Z"),
+      RECEIVED,
+    );
 
     expect(result).toEqual({ status: "ignored", reason: "card_valid_at_charge" });
     expect(rows()).toEqual([]);
@@ -150,13 +175,21 @@ describe("customer.subscription.trial_will_end", () => {
 
     const send = await sendExpiringCardAlerts(env, RECEIVED);
     expect(send.sent).toBe(1);
-    expect(harness.sent[0].subject).toBe("Action required: Add a payment method before your trial ends");
+    expect(harness.sent[0].subject).toBe(
+      "Action required: Add a payment method before your trial ends",
+    );
     expect(harness.sent[0].text).toContain("your trial ends on 11/2026");
     expect(harness.sent[0].text).not.toContain("card ending in");
   });
 
   it("a customer charged through a legacy default source is not called cardless", async () => {
-    harness.customer = { id: "cus_1", email: "buyer@acme.test", name: null, invoice_settings: {}, default_source: "card_1" };
+    harness.customer = {
+      id: "cus_1",
+      email: "buyer@acme.test",
+      name: null,
+      invoice_settings: {},
+      default_source: "card_1",
+    };
     const event = {
       id: "evt_trial2",
       type: "customer.subscription.trial_will_end",
@@ -172,7 +205,10 @@ describe("customer.subscription.trial_will_end", () => {
       },
     } as never;
 
-    expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({ status: "ignored", reason: "legacy_source" });
+    expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({
+      status: "ignored",
+      reason: "legacy_source",
+    });
     expect(rows()).toEqual([]);
   });
 });

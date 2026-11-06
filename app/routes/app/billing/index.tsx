@@ -27,7 +27,11 @@ import {
   getDefaultCard,
 } from "~/lib/billing/platform-customer";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import { getBillingLedger, listAccountSubscriptions, listBillingInvoices } from "~/lib/billing/queries.server";
+import {
+  getBillingLedger,
+  listAccountSubscriptions,
+  listBillingInvoices,
+} from "~/lib/billing/queries.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
@@ -142,7 +146,8 @@ export async function action({ context, request }: Route.ActionArgs) {
       await executeMoneyWrite(env, {
         accountId,
         idempotencyKey: `platform-customer:${accountId}`,
-        build: (bdb) => buildPlatformCustomerUpdate(bdb, { accountId, platformStripeCustomerId: customerId }),
+        build: (bdb) =>
+          buildPlatformCustomerUpdate(bdb, { accountId, platformStripeCustomerId: customerId }),
       });
     }
 
@@ -166,7 +171,10 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
 
   const entries = [
-    ...ledger.lineItems.map((entry) => ({ date: entry.lineItem.createdAt, node: <LedgerLineItemRow key={entry.lineItem.id} entry={entry} /> })),
+    ...ledger.lineItems.map((entry) => ({
+      date: entry.lineItem.createdAt,
+      node: <LedgerLineItemRow key={entry.lineItem.id} entry={entry} />,
+    })),
     ...ledger.freeRecoveries.map((entry) => ({
       date: entry.recoveredPayment.recoveredAt,
       node: <LedgerFreeRow key={entry.recoveredPayment.id} entry={entry} />,

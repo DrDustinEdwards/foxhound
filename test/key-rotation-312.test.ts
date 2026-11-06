@@ -32,7 +32,6 @@ const envRotated = {
 } as unknown as Env;
 
 describe("312: the ciphertext format carries a key id", () => {
-
   it("reencryptToken moves a value onto the active key, and is a no-op when already there", async () => {
     const old = await encryptToken(envA, "subject");
     const moved = await reencryptToken(envRotated, old);
@@ -81,7 +80,12 @@ describe("312: unresolvable keys and the retired format FAIL LOUD", () => {
 
 describe("312: the re-encrypt writer, against a real database", () => {
   /** A connection row holding whatever ciphertext the test wants. */
-  function seed(sqlite: import("better-sqlite3").Database, db: unknown, id: string, token: string | null) {
+  function seed(
+    sqlite: import("better-sqlite3").Database,
+    db: unknown,
+    id: string,
+    token: string | null,
+  ) {
     runStatement(
       sqlite,
       (db as ReturnType<typeof createInMemoryDb>["db"])

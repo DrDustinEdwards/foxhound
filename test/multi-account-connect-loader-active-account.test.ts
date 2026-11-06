@@ -86,7 +86,6 @@ function seedSession(activeAccountId: string | null): void {
     .run(SESSION_ID, 9_999_999_999_999, "tok_1", USER, activeAccountId);
 }
 
-
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {

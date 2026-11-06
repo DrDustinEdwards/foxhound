@@ -19,7 +19,11 @@ export const DISPUTE_STATE_LABELS: Record<DisputeState, string> = {
   inquiry_closed: "Inquiry closed",
 };
 
-export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = ["resolved_won", "resolved_lost", "inquiry_closed"];
+export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = [
+  "resolved_won",
+  "resolved_lost",
+  "inquiry_closed",
+];
 
 /**
  * Whether a Stripe dispute status is an inquiry's (warning_needs_response,
@@ -78,8 +82,13 @@ export function disputeListStatus(input: DisputeListStatusInput): { label: strin
   // An inquiry is not a chargeback, and Recova did not tell them apart, so
   // these two are Foxhound's own: "Inquiry" while it awaits a response, and
   // "Inquiry closed" once Stripe closed it as warning_closed.
-  if (input.state === "inquiry_closed") return { label: DISPUTE_STATE_LABELS.inquiry_closed, tone: "neutral" };
-  if (isInquiryStatus(input.stripeStatus) && input.state !== "submitted" && !isDisputeResolved(input.state)) {
+  if (input.state === "inquiry_closed")
+    return { label: DISPUTE_STATE_LABELS.inquiry_closed, tone: "neutral" };
+  if (
+    isInquiryStatus(input.stripeStatus) &&
+    input.state !== "submitted" &&
+    !isDisputeResolved(input.state)
+  ) {
     return { label: "Inquiry", tone: "neutral" };
   }
   switch (input.state) {
@@ -94,7 +103,10 @@ export function disputeListStatus(input: DisputeListStatusInput): { label: strin
       };
     case "pending_review":
     case "approved":
-      return { label: input.hasEvidence ? "Evidence ready" : DISPUTE_STATE_LABELS[input.state], tone: "neutral" };
+      return {
+        label: input.hasEvidence ? "Evidence ready" : DISPUTE_STATE_LABELS[input.state],
+        tone: "neutral",
+      };
     case "draft":
       return { label: DISPUTE_STATE_LABELS.draft, tone: "neutral" };
     default:

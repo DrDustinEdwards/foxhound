@@ -50,7 +50,7 @@ export interface DemoEmailCopy {
 function greeting(customerName: string | null): string {
   if (!customerName) return "Hello";
   const first = customerName.trim().split(/\s+/)[0];
-    return first ? `Hi ${first}` : "Hello";
+  return first ? `Hi ${first}` : "Hello";
 }
 
 function planPhrase(planName: string | null): string {
@@ -243,7 +243,10 @@ const WIN_BACK: Record<number, StepCopyBuilder> = {
 };
 
 /** Copy for a seeded win-back step, or null for an unknown step number. */
-export function demoWinBackCopyFor(stepNumber: number, ctx: DemoEmailContext): DemoEmailCopy | null {
+export function demoWinBackCopyFor(
+  stepNumber: number,
+  ctx: DemoEmailContext,
+): DemoEmailCopy | null {
   const build = WIN_BACK[stepNumber];
   return build ? build(ctx) : null;
 }

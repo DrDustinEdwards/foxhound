@@ -7,7 +7,12 @@ import "capsomer/table.css";
 
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
-import { auditActor, auditDetail, auditTarget, describeAuditAction } from "~/lib/admin/audit-describe";
+import {
+  auditActor,
+  auditDetail,
+  auditTarget,
+  describeAuditAction,
+} from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { plural } from "~/lib/admin/overview";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
@@ -41,7 +46,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 const AUDIT_LOG_PATH = "/admin/platform/audit-log";
 const HEADING_ID = "admin-audit-log-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offset-2 hover:text-brand-text";
+const LINK =
+  "inline-block min-h-6 leading-6 text-text underline underline-offset-2 hover:text-brand-text";
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Audit log"), one
@@ -74,7 +80,14 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
           </Empty>
         ) : (
           // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-labelledby={HEADING_ID}
+            tabIndex={0}
+          >
             <table className="cap-table">
               <caption className="cap-sr-only">The audit log, newest first.</caption>
               <thead>
@@ -92,7 +105,9 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                     <td>
                       <AdminTime at={e.createdAt} />
                     </td>
-                    <td data-label="Actor" className="break-all">{e.actor}</td>
+                    <td data-label="Actor" className="break-all">
+                      {e.actor}
+                    </td>
                     <td data-label="Action">{e.action}</td>
                     <td data-label="Target" data-wrap="">
                       {e.target === null ? (
@@ -105,7 +120,11 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                         <span className="break-all">{e.target.label}</span>
                       )}
                     </td>
-                    <td data-label="Detail" data-wrap="" className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}>
+                    <td
+                      data-label="Detail"
+                      data-wrap=""
+                      className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}
+                    >
                       {e.detail ?? "None"}
                     </td>
                   </tr>

@@ -42,9 +42,30 @@ export function redirectUriMatchesCode(provided: string, stored: string): boolea
  * consent page is no place to launch a system tool.
  */
 const REFUSED_SCHEMES = new Set([
-  "javascript:", "data:", "vbscript:", "file:", "blob:", "about:", "filesystem:", "view-source:", "jar:",
-  "search-ms:", "search:", "shell:", "mk:", "its:", "hcp:", "intent:",
-  "ftp:", "ws:", "wss:", "ldap:", "smb:", "mailto:", "tel:", "sms:",
+  "javascript:",
+  "data:",
+  "vbscript:",
+  "file:",
+  "blob:",
+  "about:",
+  "filesystem:",
+  "view-source:",
+  "jar:",
+  "search-ms:",
+  "search:",
+  "shell:",
+  "mk:",
+  "its:",
+  "hcp:",
+  "intent:",
+  "ftp:",
+  "ws:",
+  "wss:",
+  "ldap:",
+  "smb:",
+  "mailto:",
+  "tel:",
+  "sms:",
 ]);
 
 /** Every Windows protocol handler shares this prefix (ms-msdt, ms-settings,

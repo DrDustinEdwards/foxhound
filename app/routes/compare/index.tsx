@@ -51,7 +51,9 @@ export default function CompareIndex() {
                 to={`/compare/${slug}`}
                 className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i"
               >
-                <p className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">{c.category}</p>
+                <p className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+                  {c.category}
+                </p>
                 <p className="mb-2 text-body font-medium text-text">Foxhound vs {c.name}</p>
                 <p className="mb-4 text-label leading-relaxed text-text-secondary">{c.oneLiner}</p>
                 <div className="text-label text-brand-text">

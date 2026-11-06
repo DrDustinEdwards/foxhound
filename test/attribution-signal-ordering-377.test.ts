@@ -38,7 +38,9 @@ const LATE_CLICK = new Date("2026-08-20T10:00:00.000Z");
 // is the neighboring-guard trap 371 binding 5 names.
 const RECOVERED_AT = new Date("2026-08-21T10:00:00.000Z");
 
-async function seed(steps: { id: string; clickedAt: Date | null; result?: string | null; stepType?: string }[]) {
+async function seed(
+  steps: { id: string; clickedAt: Date | null; result?: string | null; stepType?: string }[],
+) {
   const { db } = createInMemoryDb();
   await db.insert(accounts).values({ id: ACCOUNT, name: "Ordering Co", createdAt: EARLY_CLICK });
   await db.insert(failedPayments).values({
@@ -87,7 +89,6 @@ async function readStepsAsProcessDoes(db: Awaited<ReturnType<typeof seed>>) {
 }
 
 describe("attribution signal ordering: the latest click wins", () => {
-
   it("AND attributes the later click when it sits at the HIGHER rowid, which is where the bug lived", async () => {
     const db = await seed([
       { id: "step_early", clickedAt: EARLY_CLICK },

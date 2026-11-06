@@ -130,7 +130,13 @@ export async function sweepEngagementEvents(env: Env): Promise<CronJobResult> {
 
 export async function sweepEmailSends(env: Env): Promise<CronJobResult> {
   const cutoff = cutoffFor(RETENTION_EMAIL_SENDS_DAYS, Date.now());
-  const rows = await deleteOlderThan(getDb(env), emailSends, emailSends.id, emailSends.createdAt, cutoff);
+  const rows = await deleteOlderThan(
+    getDb(env),
+    emailSends,
+    emailSends.id,
+    emailSends.createdAt,
+    cutoff,
+  );
   return { rowsProcessed: rows };
 }
 
@@ -212,8 +218,13 @@ export function aggregateAiCalls(rows: AiCallRow[]): AiCallAggregate[] {
     const accountKey = r.accountId ?? "";
     const month = monthKeyUTC(r.createdAt);
     const key = `${accountKey}|${r.model}|${month}`;
-    const agg =
-      map.get(key) ?? { accountKey, model: r.model, month, promptTokens: 0, completionTokens: 0 };
+    const agg = map.get(key) ?? {
+      accountKey,
+      model: r.model,
+      month,
+      promptTokens: 0,
+      completionTokens: 0,
+    };
     agg.promptTokens += r.promptTokens;
     agg.completionTokens += r.completionTokens;
     map.set(key, agg);

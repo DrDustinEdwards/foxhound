@@ -24,15 +24,32 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const ago = (ms) => now - ms;
 const monthStart = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), 1);
-const q = (v) => (v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replaceAll("'", "''")}'`);
+const q = (v) =>
+  v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replaceAll("'", "''")}'`;
 const row = (table, values) =>
   `INSERT OR REPLACE INTO ${table} (${Object.keys(values).join(", ")}) VALUES (${Object.values(values).map(q).join(", ")});`;
 
 const sql = [
   // Merchants.
-  row("accounts", { id: "sample_acct_northwind", name: "Northwind Coffee", created_at: ago(20 * DAY), billing_exempt: 0 }),
-  row("accounts", { id: "sample_acct_lumen", name: "Lumen Studio", created_at: ago(3 * DAY), billing_exempt: 0, processing_paused: 1 }),
-  row("accounts", { id: "sample_acct_harbor", name: "Harbor Yoga", created_at: ago(90 * DAY), billing_exempt: 1 }),
+  row("accounts", {
+    id: "sample_acct_northwind",
+    name: "Northwind Coffee",
+    created_at: ago(20 * DAY),
+    billing_exempt: 0,
+  }),
+  row("accounts", {
+    id: "sample_acct_lumen",
+    name: "Lumen Studio",
+    created_at: ago(3 * DAY),
+    billing_exempt: 0,
+    processing_paused: 1,
+  }),
+  row("accounts", {
+    id: "sample_acct_harbor",
+    name: "Harbor Yoga",
+    created_at: ago(90 * DAY),
+    billing_exempt: 1,
+  }),
 
   // Cron runs on registered crons. weekly-digest failed 5 hours ago: the run
   // the Overview counts and links to, shown on its cron on /admin/crons.
@@ -224,9 +241,13 @@ const dir = mkdtempSync(join(tmpdir(), "foxhound-seed-"));
 const file = join(dir, "seed.sql");
 writeFileSync(file, sql);
 try {
-  const result = spawnSync("npx", ["wrangler", "d1", "execute", "foxhound", "--local", `--file=${file}`], {
-    stdio: "inherit",
-  });
+  const result = spawnSync(
+    "npx",
+    ["wrangler", "d1", "execute", "foxhound", "--local", `--file=${file}`],
+    {
+      stdio: "inherit",
+    },
+  );
   process.exitCode = result.status ?? 1;
 } finally {
   rmSync(dir, { recursive: true, force: true });

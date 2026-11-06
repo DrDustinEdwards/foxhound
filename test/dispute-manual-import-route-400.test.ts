@@ -29,9 +29,8 @@ vi.mock("~/lib/webhooks/lookups", () => ({
 }));
 
 const { accounts, stripeConnections } = await import("~/db");
-const { importDisputeFromStripe, manualImportClaimKey } = await import(
-  "~/lib/disputes/manual-import.server"
-);
+const { importDisputeFromStripe, manualImportClaimKey } =
+  await import("~/lib/disputes/manual-import.server");
 const { createInMemoryDb } = await import("./helpers/inmemory-db");
 
 const NOW = new Date("2026-08-30T00:00:00.000Z");
@@ -90,7 +89,10 @@ describe("importDisputeFromStripe", () => {
 
     expect(result).toEqual({ status: "imported", disputeId: expect.any(String) });
     expect(executeMoneyWrite).toHaveBeenCalledTimes(1);
-    const write = executeMoneyWrite.mock.calls[0][1] as { accountId: string; idempotencyKey: string };
+    const write = executeMoneyWrite.mock.calls[0][1] as {
+      accountId: string;
+      idempotencyKey: string;
+    };
     expect(write.accountId).toBe(ACCOUNT);
     expect(write.idempotencyKey).toBe(manualImportClaimKey("dp_mine"));
   });

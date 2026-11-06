@@ -1,6 +1,10 @@
 import { TrendingUp } from "lucide-react";
 
-import { ChurnBandsPreview, CustomerTablePreview, DashboardPreview } from "~/components/intelligence-previews";
+import {
+  ChurnBandsPreview,
+  CustomerTablePreview,
+  DashboardPreview,
+} from "~/components/intelligence-previews";
 import {
   BottomCTA,
   FeatureBlocks,
@@ -68,10 +72,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
     }),
     ...(loaderData
       ? [
-          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            path: PATH,
-            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-          })),
+          jsonLd(
+            speakableWebPageJsonLd(loaderData.siteUrl, {
+              path: PATH,
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
         ]
       : []),
   ];
@@ -90,7 +96,11 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <ProductHero
         productName="Intelligence"
         Icon={TrendingUp}

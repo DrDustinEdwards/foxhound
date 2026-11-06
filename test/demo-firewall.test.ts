@@ -17,7 +17,10 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 
-async function ids(db: ReturnType<typeof createInMemoryDb>["db"], condition: SQL | undefined): Promise<string[]> {
+async function ids(
+  db: ReturnType<typeof createInMemoryDb>["db"],
+  condition: SQL | undefined,
+): Promise<string[]> {
   const rows = await db.select({ id: accounts.id }).from(accounts).where(condition);
   return rows.map((r) => r.id);
 }
@@ -28,10 +31,14 @@ describe("demo account is firewalled out of every Stripe/AI account enumeration"
     // The real seeded demo account (exempt + paused + demo_ id).
     await seedDemoAccount(db, now);
     // A normal, fully-eligible real account.
-    await db.insert(accounts).values({ id: "acc_real", name: "Real", billingExempt: false, processingPaused: false });
+    await db
+      .insert(accounts)
+      .values({ id: "acc_real", name: "Real", billingExempt: false, processingPaused: false });
     // A demo-PREFIXED account with NO pause/exempt flags: proves the prefix itself
     // is the firewall, independent of the flags.
-    await db.insert(accounts).values({ id: "demo_probe", name: "Probe", billingExempt: false, processingPaused: false });
+    await db
+      .insert(accounts)
+      .values({ id: "demo_probe", name: "Probe", billingExempt: false, processingPaused: false });
     return db;
   }
 

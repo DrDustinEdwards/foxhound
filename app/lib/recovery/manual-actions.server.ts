@@ -93,7 +93,13 @@ export type ManualActionOutcome =
   | { ok: true; intent: "mark_recovered" }
   /** The step ran. `action` is which executor ran it; `result` is the STORED
    *  step result, and `subject` the stored ai_subject for an email send. */
-  | { ok: true; intent: "trigger"; action: "retry" | "email"; result: string; subject: string | null }
+  | {
+      ok: true;
+      intent: "trigger";
+      action: "retry" | "email";
+      result: string;
+      subject: string | null;
+    }
   | { ok: false; reason: "unknown_intent" }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "not_active"; intent: ManualIntent }
@@ -212,9 +218,7 @@ export interface ManualActionRequest {
  * not_found. That is legacy's contract too, and it is what stops a payment id
  * being an enumeration oracle across tenants.
  */
-export async function dispatchManualAction(
-  req: ManualActionRequest,
-): Promise<ManualActionOutcome> {
+export async function dispatchManualAction(req: ManualActionRequest): Promise<ManualActionOutcome> {
   const intent = parseManualIntent(req.intent);
   if (!intent) return { ok: false, reason: "unknown_intent" };
 
@@ -522,12 +526,15 @@ async function saveNote(req: ManualActionRequest): Promise<ManualActionOutcome> 
 async function stopRecovery(req: ManualActionRequest): Promise<ManualActionOutcome> {
   const now = req.now ?? new Date();
   try {
-    await req.commit(req.accountId, manualActionIdempotencyKey("cancel", req.failedPaymentId), (db) =>
-      buildStopRecoveryBatch(db, {
-        accountId: req.accountId,
-        failedPaymentId: req.failedPaymentId,
-        now,
-      }),
+    await req.commit(
+      req.accountId,
+      manualActionIdempotencyKey("cancel", req.failedPaymentId),
+      (db) =>
+        buildStopRecoveryBatch(db, {
+          accountId: req.accountId,
+          failedPaymentId: req.failedPaymentId,
+          now,
+        }),
     );
   } catch (err) {
     console.error("manual action cancel: commit failed", err);
@@ -543,10 +550,7 @@ async function stopRecovery(req: ManualActionRequest): Promise<ManualActionOutco
     .select({ status: failedPayments.status })
     .from(failedPayments)
     .where(
-      and(
-        eq(failedPayments.id, req.failedPaymentId),
-        eq(failedPayments.accountId, req.accountId),
-      ),
+      and(eq(failedPayments.id, req.failedPaymentId), eq(failedPayments.accountId, req.accountId)),
     )
     .limit(1);
 

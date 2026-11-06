@@ -32,9 +32,17 @@ import {
   isDisputeResolved,
 } from "~/lib/disputes/labels";
 import { getDisputeFeesOwed } from "~/lib/disputes/fees-owed.server";
-import { isWarningIntent, listEarlyFraudWarnings, runWarningAction } from "~/lib/disputes/fraud-warnings.server";
+import {
+  isWarningIntent,
+  listEarlyFraudWarnings,
+  runWarningAction,
+} from "~/lib/disputes/fraud-warnings.server";
 import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
-import { getCustomerHealthScores, getDisputesWithEvidence, listDisputes } from "~/lib/disputes/queries.server";
+import {
+  getCustomerHealthScores,
+  getDisputesWithEvidence,
+  listDisputes,
+} from "~/lib/disputes/queries.server";
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import type { Tone } from "~/lib/recovery/labels";
@@ -116,7 +124,9 @@ export async function loader({ context }: Route.LoaderArgs) {
     ...(await getDisputesWithEvidence(
       db,
       accountId,
-      disputes.filter((d) => d.state === "pending_review" || d.state === "approved").map((d) => d.id),
+      disputes
+        .filter((d) => d.state === "pending_review" || d.state === "approved")
+        .map((d) => d.id),
     )),
   ];
 
@@ -161,9 +171,17 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (isWarningIntent(intent)) {
     // A refund cannot be undone, so only the account owner makes one.
     if (intent !== "dismiss_warning" && auth.membership.role !== MEMBER_ROLE.OWNER) {
-      return data({ efw: { ok: false, message: "Only the account owner can do this." } }, { status: 403 });
+      return data(
+        { efw: { ok: false, message: "Only the account owner can do this." } },
+        { status: 403 },
+      );
     }
-    const result = await runWarningAction(env, auth.membership.accountId, intent, String(form.get("warning_id") ?? ""));
+    const result = await runWarningAction(
+      env,
+      auth.membership.accountId,
+      intent,
+      String(form.get("warning_id") ?? ""),
+    );
     return data(result.data, { status: result.status });
   }
   const posted = form.get("stripe_dispute_id");
@@ -178,8 +196,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   } catch (err) {
     // A transient Stripe or D1 failure throws (resolveDisputedRecovery's
     // contract) and writes nothing, the same answer the detail page gives.
-    logEvent("dispute_sync_failed", { error: err instanceof Error ? err.message : String(err) }, { level: "error" });
-    return data({ sync: { ok: false, message: "Could not import the dispute. Please try again." } }, { status: 500 });
+    logEvent(
+      "dispute_sync_failed",
+      { error: err instanceof Error ? err.message : String(err) },
+      { level: "error" },
+    );
+    return data(
+      { sync: { ok: false, message: "Could not import the dispute. Please try again." } },
+      { status: 500 },
+    );
   }
 }
 
@@ -221,7 +246,14 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
             {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Disputes" tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow="medium"
+              data-cap="table"
+              role="region"
+              aria-label="Disputes"
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -255,7 +287,9 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                           <div className="text-label text-text">
                             {name}
                             {score === undefined ? null : (
-                              <span className={`ml-1.5 font-mono text-micro ${healthScoreClassName(score)}`}>
+                              <span
+                                className={`ml-1.5 font-mono text-micro ${healthScoreClassName(score)}`}
+                              >
                                 <span className="sr-only">Intelligence health score </span>
                                 {score}
                               </span>
@@ -263,12 +297,17 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                           </div>
                           <div className="text-micro text-text-subtle">{d.customerEmail || ""}</div>
                         </td>
-                        <td data-label="Amount" data-num="">{formatMoney(d.amountCents, d.currency)}</td>
-                        <td data-label="Reason" className="text-label text-text-secondary">{humanizeDisputeReason(d.reason)}</td>
+                        <td data-label="Amount" data-num="">
+                          {formatMoney(d.amountCents, d.currency)}
+                        </td>
+                        <td data-label="Reason" className="text-label text-text-secondary">
+                          {humanizeDisputeReason(d.reason)}
+                        </td>
                         <td data-label="Foxhound status">
                           <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
                         </td>
-                        <td data-label="Deadline"
+                        <td
+                          data-label="Deadline"
                           className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
                         >
                           {deadlineShort(days, resolved)}
@@ -306,7 +345,11 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
         />
       ) : null}
 
-      {isDemo ? null : <SyncDisputeLink result={actionData && "sync" in actionData ? actionData.sync : undefined} />}
+      {isDemo ? null : (
+        <SyncDisputeLink
+          result={actionData && "sync" in actionData ? actionData.sync : undefined}
+        />
+      )}
     </div>
   );
 }

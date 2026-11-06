@@ -4,8 +4,20 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import { appendOpenPixel } from "~/lib/email/templates";
-import { buildEngagementUrls, executeEmailStep, sendResultToAttempt, type EmailStepContext } from "~/lib/engine/execute-step";
-import { buildRetryReconciliationInput, buildRetryStepPatch, executeRetryStep, payInvoiceWithClient, retryIdempotencyKey, type RetryStepContext } from "~/lib/engine/retry-step";
+import {
+  buildEngagementUrls,
+  executeEmailStep,
+  sendResultToAttempt,
+  type EmailStepContext,
+} from "~/lib/engine/execute-step";
+import {
+  buildRetryReconciliationInput,
+  buildRetryStepPatch,
+  executeRetryStep,
+  payInvoiceWithClient,
+  retryIdempotencyKey,
+  type RetryStepContext,
+} from "~/lib/engine/retry-step";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 import type { RetryReconciliationInput } from "~/lib/recovery/record-recovery";
@@ -129,7 +141,12 @@ describe("retry executor: orchestration + exactly-once", () => {
         return true;
       },
     });
-    expect(res).toEqual({ action: "retry", executed: true, recovered: true, retryResult: "retry_succeeded" });
+    expect(res).toEqual({
+      action: "retry",
+      executed: true,
+      recovered: true,
+      retryResult: "retry_succeeded",
+    });
     expect(persisted).toBe(1);
     expect(recorded).toHaveLength(1);
     expect(recorded[0].stepId).toBe("step_r");
@@ -191,14 +208,27 @@ describe("email executor: orchestration + failure isolation", () => {
     let persistedResult: string | null = "unset";
     // Cached copy carries the update link an earlier attempt minted for this
     // step, as every cached body the executor writes does.
-    const { clickTrackedUpdateUrl } = await buildEngagementUrls(env, emailCtx(), "https://foxhound.example");
+    const { clickTrackedUpdateUrl } = await buildEngagementUrls(
+      env,
+      emailCtx(),
+      "https://foxhound.example",
+    );
     const cachedBodyHtml = `<p>Body <a href="${clickTrackedUpdateUrl}">Update</a></p>`;
-    const res = await executeEmailStep(env, emailCtx({ cached: { customBody: null, cachedSubject: "Subject", cachedBodyHtml } }), {
-      send: async () => ({ status: "sent", providerMessageId: "p1", error: null, retryable: false }),
-      persistPatch: async (_env, _id, patch) => {
-        persistedResult = patch.result;
+    const res = await executeEmailStep(
+      env,
+      emailCtx({ cached: { customBody: null, cachedSubject: "Subject", cachedBodyHtml } }),
+      {
+        send: async () => ({
+          status: "sent",
+          providerMessageId: "p1",
+          error: null,
+          retryable: false,
+        }),
+        persistPatch: async (_env, _id, patch) => {
+          persistedResult = patch.result;
+        },
       },
-    });
+    );
     // usedTemplate is false and templateReason null here: this send resolved from
     // cache, so no generation was attempted, no gate ran, and no fallback was needed.
     // `suppressed` is false because the injected send returned status "sent"; the

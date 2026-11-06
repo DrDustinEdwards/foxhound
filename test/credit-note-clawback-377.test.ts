@@ -31,11 +31,19 @@ const FEE_CENTS = 2_000;
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
-  creditNoteCalls: [] as { args: Record<string, unknown>; options: Record<string, unknown> | undefined }[],
+  creditNoteCalls: [] as {
+    args: Record<string, unknown>;
+    options: Record<string, unknown> | undefined;
+  }[],
   failCreditNote: false,
   seen: new Set<string>(),
   // What Stripe holds, so a retry can find a note an earlier attempt left.
-  stripeNotes: [] as { id: string; invoice: string; status: string; metadata: Record<string, string> }[],
+  stripeNotes: [] as {
+    id: string;
+    invoice: string;
+    status: string;
+    metadata: Record<string, string>;
+  }[],
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -88,9 +96,8 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const { issueCreditNoteForEvidence, findCreditableFeeLine, creditOwedFeeLines } = await import(
-  "~/lib/billing/credit-note"
-);
+const { issueCreditNoteForEvidence, findCreditableFeeLine, creditOwedFeeLines } =
+  await import("~/lib/billing/credit-note");
 const schema = await import("~/db/schema");
 
 /** `invoiced` false models the maturity case: the ledger row exists but nothing
@@ -168,7 +175,10 @@ async function seed(opts: { invoiced?: boolean; kind?: "recovery" | "dispute" } 
 }
 
 async function lines(db: Awaited<ReturnType<typeof seed>>) {
-  return db.select().from(schema.billingLineItems).where(eq(schema.billingLineItems.type, "credit"));
+  return db
+    .select()
+    .from(schema.billingLineItems)
+    .where(eq(schema.billingLineItems.type, "credit"));
 }
 
 const RECOVERY_EVIDENCE = { recoveredPaymentId: RECOVERY };
@@ -246,7 +256,6 @@ describe("the failure shape", () => {
     expect(outcome).toEqual({ credited: false, reason: "credit_note_failed" });
     expect(await lines(db)).toHaveLength(0);
   });
-
 });
 
 // GROK AUDIT FH-2. The webhook's credit never throws, and its redelivery is a
@@ -263,7 +272,11 @@ describe("the daily credit-note-retry sweep", () => {
   it("credits a fee the webhook failed to credit, exactly once", async () => {
     const db = await seed();
     // Not refunded: nothing is owed, so the sweep must not touch it.
-    expect(await creditOwedFeeLines({} as Env, REFUNDED_AT)).toEqual({ credited: 0, failed: [], full: false });
+    expect(await creditOwedFeeLines({} as Env, REFUNDED_AT)).toEqual({
+      credited: 0,
+      failed: [],
+      full: false,
+    });
 
     await stampRefund(db);
     harness.failCreditNote = true;

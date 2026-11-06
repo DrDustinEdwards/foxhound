@@ -112,7 +112,6 @@ describe("PLANT 4: the one-deploy compatibility read", () => {
 });
 
 describe("PLANT 5: the decisions are pure, asserted directly", () => {
-
   it("decideRelease is token equality and nothing else", () => {
     const held: CronLockState = {
       lock: { heldUntil: 99 * MINUTE, token: "A" },

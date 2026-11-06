@@ -166,7 +166,10 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
         }
         const dir = c.changeCents >= 0 ? "up" : "down";
         const change = formatMoney(Math.abs(c.changeCents), c.currency);
-        return { type: "paragraph", text: `${total} recovered to date (${code}), ${dir} ${change} since last month.` };
+        return {
+          type: "paragraph",
+          text: `${total} recovered to date (${code}), ${dir} ${change} since last month.`,
+        };
       })
     : [{ type: "paragraph", text: "No recovered payments are attributed to Foxhound yet." }];
 
@@ -174,7 +177,9 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   const disputeWinRate = disputes.ok
     ? (() => {
         const { won, lost } = disputes.data.historical;
-        return won + lost > 0 ? `${Math.round((won / (won + lost)) * 100)}% (${won}W / ${lost}L)` : null;
+        return won + lost > 0
+          ? `${Math.round((won / (won + lost)) * 100)}% (${won}W / ${lost}L)`
+          : null;
       })()
     : SCOPE_UNREAD;
 
@@ -193,9 +198,17 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
     { type: "fine", text: "Your Stripe health" },
     ...moneyRows("MRR", result.health, (h) => ({ totals: h.mrrTotals }), cur),
     ...moneyRows("ARR", result.health, (h) => ({ totals: h.arrTotals }), cur),
-    row("Active subs", figure(result.health, (h) => String(h.activeSubscriptionsCount))),
+    row(
+      "Active subs",
+      figure(result.health, (h) => String(h.activeSubscriptionsCount)),
+    ),
 
-    ...moneyRows("Failed payments detected", result.failedInvoices, (f) => ({ lead: `${f.count}, `, totals: f.totals }), cur),
+    ...moneyRows(
+      "Failed payments detected",
+      result.failedInvoices,
+      (f) => ({ lead: `${f.count}, `, totals: f.totals }),
+      cur,
+    ),
     ...moneyRows(
       "Expiring cards",
       result.expiringCards,
@@ -208,13 +221,29 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
       (p) => ({ lead: `${p.count}, `, totals: p.totals }),
       cur,
     ),
-    row("Voluntary churn", figure(result.health, (h) => formatBps(h.voluntaryChurnRateBps))),
-    row("Involuntary churn", figure(result.health, (h) => formatBps(h.involuntaryChurnRateBps))),
+    row(
+      "Voluntary churn",
+      figure(result.health, (h) => formatBps(h.voluntaryChurnRateBps)),
+    ),
+    row(
+      "Involuntary churn",
+      figure(result.health, (h) => formatBps(h.involuntaryChurnRateBps)),
+    ),
     ...(openDisputes
-      ? moneyRows("Open disputes", disputes, (d) => ({ lead: `${d.open.count}, `, totals: d.open.totals }), cur)
+      ? moneyRows(
+          "Open disputes",
+          disputes,
+          (d) => ({ lead: `${d.open.count}, `, totals: d.open.totals }),
+          cur,
+        )
       : []),
     ...(acceptedDisputes
-      ? [row("Disputes accepted without response", figure(disputes, (d) => String(d.acceptedWithoutFighting.count)))]
+      ? [
+          row(
+            "Disputes accepted without response",
+            figure(disputes, (d) => String(d.acceptedWithoutFighting.count)),
+          ),
+        ]
       : []),
     ...(disputeWinRate === null ? [] : [row("Dispute win rate", disputeWinRate)]),
     ...(advisory ? [row("Card Updater", advisory)] : []),

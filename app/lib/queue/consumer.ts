@@ -47,9 +47,8 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
     const { processMonthlyAuditMessage } = await import("~/lib/audit/monthly.server");
     // The same queue carries the anonymous audit's delayed grant revoke
     // (app/lib/audit/grant-revoke.server.ts), told apart by its `kind`.
-    const { parseAuditGrantRevokeMessage, processAuditGrantRevokeMessage } = await import(
-      "~/lib/audit/grant-revoke.server"
-    );
+    const { parseAuditGrantRevokeMessage, processAuditGrantRevokeMessage } =
+      await import("~/lib/audit/grant-revoke.server");
     for (const message of batch.messages) {
       const revoke = parseAuditGrantRevokeMessage(message.body);
       const verdict = revoke

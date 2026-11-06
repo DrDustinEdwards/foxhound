@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -119,7 +118,6 @@ const loadRun = (accountId: string, id: string) =>
   } as never);
 
 describe("PLANT 1: the history surface", () => {
-
   it("carries a NULL through to the loader rather than coalescing it", async () => {
     await save(ACCOUNT_A, auditWith({ subscriptions: failedRead("subs unavailable") }));
     const { runs } = await loadHistory(ACCOUNT_A);
@@ -135,13 +133,19 @@ describe("PLANT 2: the stored-run surface", () => {
       ACCOUNT_A,
       auditWith({
         uncollectibleInvoices: ok<Stripe.Invoice>([
-          invoice({ amount_due: 25_000, last_finalization_error: { decline_code: "expired_card" } }),
+          invoice({
+            amount_due: 25_000,
+            last_finalization_error: { decline_code: "expired_card" },
+          }),
         ]),
         disputes: ok<Stripe.Dispute>([dispute({ status: "needs_response", amount: 9_000 })]),
       }),
     );
     const { run } = (await loadRun(ACCOUNT_A, id)) as { run: ReturnType<typeof toStoredAuditRun> };
-    expect(run.failedInvoices).toMatchObject({ count: 1, totals: [{ currency: "usd", cents: 25_000 }] });
+    expect(run.failedInvoices).toMatchObject({
+      count: 1,
+      totals: [{ currency: "usd", cents: 25_000 }],
+    });
     expect(run.failedInvoices!.byCategory.expired).toEqual([{ currency: "usd", cents: 25_000 }]);
     expect(run.disputes!.open).toEqual({ count: 1, totals: [{ currency: "usd", cents: 9_000 }] });
     expect(run.health!.mrr).toEqual([]);

@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -134,7 +133,6 @@ const customerJob = (over: Record<string, unknown> = {}) => ({
 // ============================================================================
 
 describe("buildEmailMessage sets Reply-To on customer mail", () => {
-
   it("drops a stored value that is not a single address, so it can never reach the binding", () => {
     for (const bad of [
       "help@acme.test\r\nBcc: victim@example.com",
@@ -186,9 +184,11 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
 // ============================================================================
 
 function replyToRow(): string | null {
-  return (sqlite.prepare("SELECT reply_to_email AS r FROM stripe_connections WHERE id = 'c1'").get() as {
-    r: string | null;
-  }).r;
+  return (
+    sqlite.prepare("SELECT reply_to_email AS r FROM stripe_connections WHERE id = 'c1'").get() as {
+      r: string | null;
+    }
+  ).r;
 }
 
 describe("the settings writer", () => {
@@ -206,7 +206,11 @@ describe("the settings writer", () => {
   it("refuses an address over the bound", async () => {
     seed(REPLY);
     const over = `${"a".repeat(REPLY_TO_EMAIL_MAX_LENGTH)}@acme.test`;
-    const res = await applySenderName(db as never, ACCOUNT, { connectionId: "c1", senderName: "Acme", replyToEmail: over });
+    const res = await applySenderName(db as never, ACCOUNT, {
+      connectionId: "c1",
+      senderName: "Acme",
+      replyToEmail: over,
+    });
     expect(res.ok).toBe(false);
     expect(replyToRow()).toBe(REPLY);
     expect(isValidReplyToEmail(REPLY)).toBe(true);

@@ -19,10 +19,7 @@ const HEX_EXEMPT = [
 // rendering both require literal px, not rem. Narrower than HEX_EXEMPT -
 // app.css itself has no such excuse (it's the token file; a raw px font-size
 // there would be a real violation, not a structural necessity).
-const PX_FONT_EXEMPT = [
-  "app/routes/files/og.ts",
-  "app/lib/email/",
-];
+const PX_FONT_EXEMPT = ["app/routes/files/og.ts", "app/lib/email/"];
 
 const HEX_PATTERN = /#[0-9a-fA-F]{3,8}\b/g;
 

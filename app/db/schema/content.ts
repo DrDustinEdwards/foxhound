@@ -66,8 +66,12 @@ export const blogPostLinks = sqliteTable(
   "blog_post_links",
   {
     id: id(),
-    sourceId: text("source_id").notNull().references(() => blogPosts.id),
-    targetId: text("target_id").notNull().references(() => blogPosts.id),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => blogPosts.id),
+    targetId: text("target_id")
+      .notNull()
+      .references(() => blogPosts.id),
     position: integer("position").notNull(),
     createdAt: ts("created_at").notNull(),
   },
@@ -78,7 +82,9 @@ export const blogPostVersions = sqliteTable(
   "blog_post_versions",
   {
     id: id(),
-    postId: text("post_id").notNull().references(() => blogPosts.id),
+    postId: text("post_id")
+      .notNull()
+      .references(() => blogPosts.id),
     title: text("title").notNull(),
     body: text("body").notNull(),
     excerpt: text("excerpt").notNull(),

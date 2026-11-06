@@ -158,11 +158,16 @@ export function computeMrrMovements(
     activeCustomersCount,
     newCustomersCount,
     churnedCustomersCount,
-    voluntaryChurnRateBps: priorTotalMrrCents > 0 ? bps(voluntaryChurnCents, priorTotalMrrCents) : null,
-    involuntaryChurnRateBps: priorTotalMrrCents > 0 ? bps(involuntaryChurnCents, priorTotalMrrCents) : null,
+    voluntaryChurnRateBps:
+      priorTotalMrrCents > 0 ? bps(voluntaryChurnCents, priorTotalMrrCents) : null,
+    involuntaryChurnRateBps:
+      priorTotalMrrCents > 0 ? bps(involuntaryChurnCents, priorTotalMrrCents) : null,
     netRevenueRetentionBps:
       priorTotalMrrCents > 0
-        ? bps(priorTotalMrrCents + expansionMrrCents - contractionMrrCents - churnMrrCents, priorTotalMrrCents)
+        ? bps(
+            priorTotalMrrCents + expansionMrrCents - contractionMrrCents - churnMrrCents,
+            priorTotalMrrCents,
+          )
         : null,
     grossRevenueRetentionBps:
       priorTotalMrrCents > 0
@@ -267,7 +272,17 @@ export function rollUpByMonth<T extends DailyMrrRow>(rowsAsc: readonly T[]): T[]
     const key = monthOf(rowsAsc[i].snapshotDate);
     const start = i > 0 ? rowsAsc[i - 1].totalMrrCents : null;
     let j = i;
-    const sum = { new: 0, exp: 0, contr: 0, churn: 0, react: 0, newCust: 0, churnedCust: 0, vol: 0, invol: 0 };
+    const sum = {
+      new: 0,
+      exp: 0,
+      contr: 0,
+      churn: 0,
+      react: 0,
+      newCust: 0,
+      churnedCust: 0,
+      vol: 0,
+      invol: 0,
+    };
     while (j < rowsAsc.length && monthOf(rowsAsc[j].snapshotDate) === key) {
       const r = rowsAsc[j];
       const prior = j > 0 ? rowsAsc[j - 1].totalMrrCents : 0;

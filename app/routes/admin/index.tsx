@@ -11,7 +11,12 @@ import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import { overviewAttention, overviewAttentionGroups, overviewPending, plural } from "~/lib/admin/overview";
+import {
+  overviewAttention,
+  overviewAttentionGroups,
+  overviewPending,
+  plural,
+} from "~/lib/admin/overview";
 import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -65,7 +70,9 @@ function rowLink({ href, children, ...rest }: RowLinkProps) {
 /** Amounts in several currencies are never added together:
  *  each currency is said once, joined with a plus. */
 function moneyFigure(amounts: ReadonlyArray<{ cents: number; currency: string }>): string {
-  return amounts.length === 0 ? "$0.00" : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");
+  return amounts.length === 0
+    ? "$0.00"
+    : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");
 }
 
 // The family admin pattern for an overview (Capsomer patterns.md, Q9 of
@@ -100,7 +107,9 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
           href="/admin/merchants"
           renderLink={tileLink}
           label="MRR under management"
-          figure={moneyFigure(overview.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })))}
+          figure={moneyFigure(
+            overview.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })),
+          )}
           detail={
             overview.mrrByCurrency.length === 0
               ? "No MRR snapshots yet"
@@ -204,11 +213,18 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
       </div>
 
       <div aria-busy={pending || undefined}>
-        <Panel title="Cron health" src={reading} more={<Link to="/admin/platform/crons">View crons</Link>}>
+        <Panel
+          title="Cron health"
+          src={reading}
+          more={<Link to="/admin/platform/crons">View crons</Link>}
+        >
           <div className="grid gap-2">
             <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
               {failed === 1 ? (
-                <Link to={cronRunHref(failedRuns[0].id)} className="text-error-text underline underline-offset-2">
+                <Link
+                  to={cronRunHref(failedRuns[0].id)}
+                  className="text-error-text underline underline-offset-2"
+                >
                   {failedSentence}
                 </Link>
               ) : (
@@ -219,7 +235,10 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
               <ul className="m-0 grid gap-1 p-0 text-label">
                 {failedRuns.map((run) => (
                   <li key={run.id}>
-                    <Link to={cronRunHref(run.id)} className="text-text underline underline-offset-2">
+                    <Link
+                      to={cronRunHref(run.id)}
+                      className="text-text underline underline-offset-2"
+                    >
                       {run.cronName}
                     </Link>{" "}
                     <span className="text-text-tertiary">
@@ -232,7 +251,9 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
             ) : null}
             <p className="m-0 text-label text-text-tertiary">
               Last run <AdminTime at={lastRunAt} />
-              {disabledCount > 0 ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.` : null}
+              {disabledCount > 0
+                ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`
+                : null}
             </p>
           </div>
         </Panel>

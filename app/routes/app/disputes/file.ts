@@ -22,7 +22,12 @@ import type { Route } from "./+types/file";
 /** A PDF needs the browser's own viewer, which a sandboxed document is refused
  *  (Chrome will not run its viewer in one), so the PDF policy allows only that
  *  viewer's embed of this same response and nothing else. */
-const PDF_POLICY = buildPolicy(["default-src 'none'", "object-src 'self'", "style-src 'unsafe-inline'", "frame-ancestors 'none'"]);
+const PDF_POLICY = buildPolicy([
+  "default-src 'none'",
+  "object-src 'self'",
+  "style-src 'unsafe-inline'",
+  "frame-ancestors 'none'",
+]);
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -41,7 +46,9 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return new Response(result.body, {
     headers: {
       ...UPLOAD_HEADERS,
-      ...(result.contentType === "application/pdf" ? { "Content-Security-Policy": PDF_POLICY } : {}),
+      ...(result.contentType === "application/pdf"
+        ? { "Content-Security-Policy": PDF_POLICY }
+        : {}),
       "Content-Type": result.contentType,
       "Content-Disposition": `inline; filename="${result.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
     },

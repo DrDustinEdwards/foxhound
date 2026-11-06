@@ -19,7 +19,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
   const { env } = context.get(cloudflareContext);
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  if (!(await isWithinRateLimit(env, "oauth-register", ip, RATE_LIMIT_OAUTH_REGISTER.max, RATE_LIMIT_OAUTH_REGISTER.windowMs))) {
+  if (
+    !(await isWithinRateLimit(
+      env,
+      "oauth-register",
+      ip,
+      RATE_LIMIT_OAUTH_REGISTER.max,
+      RATE_LIMIT_OAUTH_REGISTER.windowMs,
+    ))
+  ) {
     return oauthResponse({ status: 429, body: { error: "rate_limited" } });
   }
   let body: unknown;
@@ -29,7 +37,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (error instanceof Response) throw error;
     return oauthResponse({ status: 400, body: { error: "invalid_client_metadata" } });
   }
-  return oauthResponse(await registerClient(getDb(env), body, new Date(), registrationCallbacks(env)));
+  return oauthResponse(
+    await registerClient(getDb(env), body, new Date(), registrationCallbacks(env)),
+  );
 }
 
 export function loader() {

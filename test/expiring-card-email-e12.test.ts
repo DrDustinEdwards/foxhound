@@ -43,7 +43,9 @@ vi.mock("~/db", async (importOriginal) => ({
 // binding in a unit test; run its batch on the harness database instead.
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (_env: Env, write: { build: (db: unknown) => unknown[] }) => {
-    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+      write.build(harness.db),
+    );
     return { applied: true };
   },
 }));
@@ -100,23 +102,29 @@ function seedAlert(opts: { customerName?: string | null; email?: string } = {}):
     .prepare(
       "INSERT INTO expiring_card_alerts (id, account_id, stripe_connection_id, stripe_customer_id, customer_email, customer_name, card_brand, card_last4, expires_month, expires_year, created_at) VALUES ('al_1', ?, 'c1', 'cus_1', ?, ?, 'visa', '4242', 11, 2026, 1000)",
     )
-    .run(ACCOUNT, opts.email ?? "buyer@acme.test", opts.customerName === undefined ? "Jane Buyer" : opts.customerName);
+    .run(
+      ACCOUNT,
+      opts.email ?? "buyer@acme.test",
+      opts.customerName === undefined ? "Jane Buyer" : opts.customerName,
+    );
 }
 
 function sendRows() {
-  return sqlite.prepare("SELECT status FROM email_sends WHERE account_id = ?").all(ACCOUNT) as { status: string }[];
+  return sqlite.prepare("SELECT status FROM email_sends WHERE account_id = ?").all(ACCOUNT) as {
+    status: string;
+  }[];
 }
-
 
 // ---- when it sends ----------------------------------------------------------------
 
 describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwise", () => {
-
   it("a refused send returns its named outcome: a suppressed address is logged as suppressed, not sent", async () => {
     seedMerchant();
     seedAlert();
     sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, suppressed_at) VALUES ('s1', 'buyer@acme.test', 'tok', 2000)")
+      .prepare(
+        "INSERT INTO email_suppressions (id, email, token, suppressed_at) VALUES ('s1', 'buyer@acme.test', 'tok', 2000)",
+      )
       .run();
 
     await sendExpiringCardAlerts(env, NOW);
@@ -125,4 +133,3 @@ describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwis
     expect(sendRows()).toEqual([{ status: "suppressed" }]);
   });
 });
-

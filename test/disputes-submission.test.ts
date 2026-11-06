@@ -7,7 +7,6 @@ import {
 } from "~/lib/disputes/submission";
 
 describe("buildStripeEvidencePayload", () => {
-
   it("drops blank values so an empty edit never overwrites with nothing", () => {
     const payload = buildStripeEvidencePayload([
       { fieldName: "product_description", fieldValue: "   " },
@@ -18,7 +17,6 @@ describe("buildStripeEvidencePayload", () => {
 });
 
 describe("submitDisputeEvidenceWithClient", () => {
-
   it("classifies a thrown Stripe error as a clean failure, never an unhandled throw", async () => {
     const stripe = {
       disputes: {

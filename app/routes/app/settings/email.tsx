@@ -109,7 +109,8 @@ const TEST_FAILED = "Failed. Try again.";
 /** The suppressed outcome (divergence 4). The send path suppresses an address
  *  on an unsubscribe (suppression.ts) or a bounce or complaint event
  *  (events.ts), and on nothing else. */
-const TEST_SUPPRESSED = "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
+const TEST_SUPPRESSED =
+  "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
 /** Legacy's `setTimeout(() => setTestEmailStatus('idle'), 4000)`. */
 const TEST_RESULT_MS = 4000;
 
@@ -193,7 +194,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (!result.ok) {
       const field = fieldOf(result.error);
       return data<ActionResult>(
-        field ? { action: intent, ok: false, error: result.error, field } : { action: intent, ok: false, error: result.error },
+        field
+          ? { action: intent, ok: false, error: result.error, field }
+          : { action: intent, ok: false, error: result.error },
         { status: 400 },
       );
     }
@@ -222,7 +225,11 @@ export async function action({ request, context }: Route.ActionArgs) {
     // sending off, as Recova's does, because its audience is "preview".
     try {
       const { result } = await sendTestEmail(env, accountId, auth.email);
-      return data<ActionResult>({ action: intent, ok: result.status === "sent", status: result.status });
+      return data<ActionResult>({
+        action: intent,
+        ok: result.status === "sent",
+        status: result.status,
+      });
     } catch (err) {
       // sendTestEmail returns a named outcome for every refused send; what
       // throws is the read before it. Recova's button says it failed.
@@ -281,7 +288,12 @@ function TextField({
       <p className="cap-field-help" id={helpId}>
         {help}
       </p>
-      <p className="cap-field-error" id={errorId} role={error ? "alert" : undefined} hidden={!error}>
+      <p
+        className="cap-field-error"
+        id={errorId}
+        role={error ? "alert" : undefined}
+        hidden={!error}
+      >
         {error ?? null}
       </p>
     </div>
@@ -311,15 +323,19 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
   const { connectionId, senderName, replyToEmail } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
-  const pendingAction = navigation.state === "idle" ? null : String(navigation.formData?.get("_action") ?? "");
+  const pendingAction =
+    navigation.state === "idle" ? null : String(navigation.formData?.get("_action") ?? "");
   const saveResult = result?.action === "sender" ? result : undefined;
   const featuresResult = result?.action === "features" ? result : undefined;
   const testResult = useShownTestResult(result?.action === "test-email" ? result : undefined);
   const outcome = pendingAction === "test-email" ? null : testOutcome(testResult);
 
-  const fieldError = (field: SenderField) => (saveResult?.field === field ? saveResult.error : undefined);
+  const fieldError = (field: SenderField) =>
+    saveResult?.field === field ? saveResult.error : undefined;
   const barError =
-    saveResult && !saveResult.ok && !saveResult.field ? (saveResult.error ?? SAVE_FAILED) : undefined;
+    saveResult && !saveResult.ok && !saveResult.field
+      ? (saveResult.error ?? SAVE_FAILED)
+      : undefined;
 
   return (
     <>
@@ -327,7 +343,10 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
           keeps that space without styling Capsomer's head. */}
       <div className="mb-8">
-        <PageHead title="Email" lead="Configure how recovery emails appear to your customers, and which ones are sent." />
+        <PageHead
+          title="Email"
+          lead="Configure how recovery emails appear to your customers, and which ones are sent."
+        />
       </div>
 
       <DemoGuardedForm method="post">
@@ -415,7 +434,9 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
         <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
           <span role="status">
             {featuresResult?.ok ? <Status tone="ok">Saved</Status> : null}
-            {featuresResult && !featuresResult.ok ? <Status tone="crit">{SAVE_FAILED}</Status> : null}
+            {featuresResult && !featuresResult.ok ? (
+              <Status tone="crit">{SAVE_FAILED}</Status>
+            ) : null}
           </span>
           <Button type="submit" variant="primary" pending={pendingAction === "features"}>
             Save changes

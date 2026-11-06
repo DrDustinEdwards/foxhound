@@ -1,6 +1,13 @@
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Form, data, useNavigate, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import {
+  Form,
+  data,
+  useNavigate,
+  useNavigation,
+  useRouteLoaderData,
+  useSubmit,
+} from "react-router";
 import { Link } from "capsomer/react/link";
 import { dismissBanner } from "capsomer/behavior/banner";
 import { Banner } from "capsomer/react/banner";
@@ -37,9 +44,20 @@ import { formatTimeAgo } from "~/lib/date-format";
 import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "~/lib/money-format";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
-import { getAmountBounds, getGlobalPaymentStatusCounts, listFilteredFailedPayments, listPaymentSummaryRows, listStepsForFailedPayments, tallyStatusCounts } from "~/lib/recovery/queries.server";
+import {
+  getAmountBounds,
+  getGlobalPaymentStatusCounts,
+  listFilteredFailedPayments,
+  listPaymentSummaryRows,
+  listStepsForFailedPayments,
+  tallyStatusCounts,
+} from "~/lib/recovery/queries.server";
 import { countFailuresByCustomer } from "~/lib/recovery/dashboard-queries.server";
-import type { AmountBounds, FailedPaymentPageSize, FailedPaymentSort } from "~/lib/recovery/queries.server";
+import type {
+  AmountBounds,
+  FailedPaymentPageSize,
+  FailedPaymentSort,
+} from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
 import {
   AMOUNT_SLIDER_STEP_CENTS,
@@ -79,10 +97,7 @@ import {
 } from "~/lib/recovery/bulk-results";
 import { moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
 import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
-import {
-  BULK_ACTION_CONFIRM_THRESHOLD,
-  BULK_ACTION_MAX_PER_SUBMISSION,
-} from "~/lib/constants";
+import { BULK_ACTION_CONFIRM_THRESHOLD, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
@@ -142,11 +157,21 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
-  const amountMinParsed = parsePaymentsAmount(params.get("amountMin"), bounds.minCents, bounds.maxCents);
-  const amountMaxParsed = parsePaymentsAmount(params.get("amountMax"), bounds.minCents, bounds.maxCents);
+  const amountMinParsed = parsePaymentsAmount(
+    params.get("amountMin"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
+  const amountMaxParsed = parsePaymentsAmount(
+    params.get("amountMax"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
   // A handle resting on its own end is no filter.
-  const amountMinCents = amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
-  const amountMaxCents = amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
+  const amountMinCents =
+    amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
+  const amountMaxCents =
+    amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
   const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);
 
   const filterInput = { search, declineCategory, detectedAfterMs, amountMinCents, amountMaxCents };
@@ -160,7 +185,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const customerIds = [...new Set(result.payments.map((p) => p.stripeCustomerId))];
   const [previousFailureCounts, stepRows, outreachIds] = await Promise.all([
     countFailuresByCustomer(db, accountId, customerIds),
-    listStepsForFailedPayments(db, accountId, result.payments.map((p) => p.id)),
+    listStepsForFailedPayments(
+      db,
+      accountId,
+      result.payments.map((p) => p.id),
+    ),
     // Recova's UI-GAP-04: the visible customers Intelligence flagged for
     // personal outreach. A read failure leaves the marks off, not the page.
     personalOutreachCustomerIds(db, accountId, customerIds).catch(() => [] as string[]),
@@ -193,7 +222,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // Recova's status counts respect every filter but status itself.
   const pillCounts = tallyStatusCounts(summaryRows.map((r) => r.status));
   // Legacy's exact computation: an account with no failed payments reads 0.
-  const globalRecoveryRatePct = globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0;
+  const globalRecoveryRatePct =
+    globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0;
 
   return {
     result: {
@@ -265,7 +295,11 @@ interface Filters {
 
 const BASE = "/recovery/payments";
 
-function hrefWith(filters: Filters, bounds: AmountBounds, overrides: Partial<Record<string, string>> = {}): string {
+function hrefWith(
+  filters: Filters,
+  bounds: AmountBounds,
+  overrides: Partial<Record<string, string>> = {},
+): string {
   return withParams(
     BASE,
     buildPaymentParams(filters, { bounds, defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE, overrides }),
@@ -390,13 +424,16 @@ const BULK_INTENTS = {
     consequence:
       "Their remaining steps will not send. This does not refund anything and it does not contact the customer.",
   },
-} as const satisfies Record<BulkActionIntent, {
-  label: string;
-  didLabel: string;
-  didNotLabel: string;
-  question: string;
-  consequence: string;
-}>;
+} as const satisfies Record<
+  BulkActionIntent,
+  {
+    label: string;
+    didLabel: string;
+    didNotLabel: string;
+    question: string;
+    consequence: string;
+  }
+>;
 
 const BULK_VARIANTS: Record<BulkActionIntent, "primary" | undefined | "danger"> = {
   trigger: "primary",
@@ -462,7 +499,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     const t = setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS);
     return () => clearTimeout(t);
   }, [bulk]);
-  const [confirmFor, setConfirmFor] = useState<{ from: unknown; intent: BulkActionIntent } | null>(null);
+  const [confirmFor, setConfirmFor] = useState<{ from: unknown; intent: BulkActionIntent } | null>(
+    null,
+  );
   const confirming = confirmFor !== null && confirmFor.from === bulk ? confirmFor.intent : null;
   const [lastConfirm, setLastConfirm] = useState<BulkActionIntent>("trigger");
 
@@ -507,7 +546,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       sentSearch.current = value.trim();
-      void navigate(hrefWith(filters, bounds, { q: value.trim() }), { replace: true, preventScrollReset: true });
+      void navigate(hrefWith(filters, bounds, { q: value.trim() }), {
+        replace: true,
+        preventScrollReset: true,
+      });
     }, SEARCH_DELAY_MS);
   }
   const go = (overrides: Partial<Record<string, string>>) =>
@@ -515,11 +557,11 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   const hasActiveFilters = Boolean(
     filters.search ||
-      filters.status ||
-      filters.declineCategory ||
-      filters.time !== "all" ||
-      filters.amountMinCents > bounds.minCents ||
-      filters.amountMaxCents < bounds.maxCents,
+    filters.status ||
+    filters.declineCategory ||
+    filters.time !== "all" ||
+    filters.amountMinCents > bounds.minCents ||
+    filters.amountMaxCents < bounds.maxCents,
   );
   const resultCount = result.totalCount;
 
@@ -566,7 +608,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       >
         {cards.map((card) => (
           <Panel key={card.label} size="sm" title={card.label}>
-            <p className={`m-0 font-mono text-title font-bold tabular-nums ${card.className ?? "text-text"}`}>
+            <p
+              className={`m-0 font-mono text-title font-bold tabular-nums ${card.className ?? "text-text"}`}
+            >
               {card.value}
             </p>
           </Panel>
@@ -608,7 +652,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
                         </span>
                         <span className="ml-2">{rowLabel(r.id)}</span>
-                        {r.reason ? <span className="ml-2">{BULK_REASON_LABELS[r.reason]}</span> : null}
+                        {r.reason ? (
+                          <span className="ml-2">{BULK_REASON_LABELS[r.reason]}</span>
+                        ) : null}
                         {/* The dispatcher's own detail, carried rather than folded. */}
                         {r.detail ? <span className="ml-2 font-mono">{r.detail}</span> : null}
                       </li>
@@ -617,7 +663,8 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                 </div>
                 {failedIds(bulk.results).length > 0 ? (
                   <p className="cap-banner-text">
-                    The payments that did not take it are still selected, so the next attempt is exactly those.
+                    The payments that did not take it are still selected, so the next attempt is
+                    exactly those.
                   </p>
                 ) : null}
               </div>
@@ -682,7 +729,8 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           checked={filters.status === pill.value}
                           onChange={() => go({ status: pill.value })}
                         />{" "}
-                        {pill.label} <span className="font-mono">{countFor(pillCounts, pill.value)}</span>
+                        {pill.label}{" "}
+                        <span className="font-mono">{countFor(pillCounts, pill.value)}</span>
                       </label>
                     ))}
                   </div>
@@ -757,7 +805,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   {resultCount} result{resultCount !== 1 ? "s" : ""}
                 </span>
                 {hasActiveFilters ? (
-                  <Link to={clearHref(filters, bounds)} className="cap-btn" data-variant="quiet" data-size="sm">
+                  <Link
+                    to={clearHref(filters, bounds)}
+                    className="cap-btn"
+                    data-variant="quiet"
+                    data-size="sm"
+                  >
                     Clear filters
                   </Link>
                 ) : null}
@@ -784,7 +837,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               <Link
                 className="cap-chip"
                 data-size="sm"
-                to={hrefWith(filters, bounds, { perPage: n === PAYMENTS_DEFAULT_PAGE_SIZE ? "" : String(n) })}
+                to={hrefWith(filters, bounds, {
+                  perPage: n === PAYMENTS_DEFAULT_PAGE_SIZE ? "" : String(n),
+                })}
                 aria-current={filters.pageSize === n ? "true" : undefined}
               >
                 {n === "all" ? "All" : n}
@@ -802,7 +857,14 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
             {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Payments" tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow="medium"
+              data-cap="table"
+              role="region"
+              aria-label="Payments"
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -862,7 +924,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                                 strokeWidth={1.5}
                               />
                             ) : null}
-                            {p.priorFailures > 0 ? <Pill tone="warn">{p.priorFailures + 1}x failure</Pill> : null}
+                            {p.priorFailures > 0 ? (
+                              <Pill tone="warn">{p.priorFailures + 1}x failure</Pill>
+                            ) : null}
                             {p.hasNote ? <Pill>note</Pill> : null}
                           </span>
                           {p.customerName ? (
@@ -871,7 +935,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             </span>
                           ) : null}
                           {p.planName ? (
-                            <span className="mt-0.5 block text-micro font-normal text-text-subtle">{p.planName}</span>
+                            <span className="mt-0.5 block text-micro font-normal text-text-subtle">
+                              {p.planName}
+                            </span>
                           ) : null}
                         </th>
                         <td data-label="Amount">
@@ -882,7 +948,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                         <td data-label="Decline">
                           <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
                           {p.declineCode ? (
-                            <span className="mt-0.5 block font-mono text-micro break-all text-text-subtle">{p.declineCode}</span>
+                            <span className="mt-0.5 block font-mono text-micro break-all text-text-subtle">
+                              {p.declineCode}
+                            </span>
                           ) : null}
                         </td>
                         <td data-label="Steps">
@@ -892,7 +960,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             {p.steps.completed}/{p.steps.total}
                           </span>
                           {p.steps.next ? (
-                            <span className="mt-0.5 block text-micro text-brand-text">Next: {p.steps.next}</span>
+                            <span className="mt-0.5 block text-micro text-brand-text">
+                              Next: {p.steps.next}
+                            </span>
                           ) : null}
                         </td>
                         <td data-label="Status">
@@ -903,8 +973,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                         <td data-label="Detected">
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-micro text-text-subtle">
-                              <span className="block whitespace-nowrap">{formatTimeAgo(p.detectedAt, nowMs)}</span>
-                              <span className="mt-0.5 block whitespace-nowrap">{formatLongDate(p.detectedAt)}</span>
+                              <span className="block whitespace-nowrap">
+                                {formatTimeAgo(p.detectedAt, nowMs)}
+                              </span>
+                              <span className="mt-0.5 block whitespace-nowrap">
+                                {formatLongDate(p.detectedAt)}
+                              </span>
                             </span>
                             {/* Recova's View, shown on hover. The row link above
                                 is the keyboard's way in, so this one is not a
@@ -915,7 +989,13 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                               aria-hidden="true"
                               className="whitespace-nowrap font-mono text-micro text-text-tertiary no-underline opacity-0 [tr:hover_&]:opacity-100"
                             >
-                              View <ArrowRight className="inline-block" size={13} strokeWidth={1.5} aria-hidden />
+                              View{" "}
+                              <ArrowRight
+                                className="inline-block"
+                                size={13}
+                                strokeWidth={1.5}
+                                aria-hidden
+                              />
                             </Link>
                           </span>
                         </td>
@@ -940,7 +1020,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             <ul className="cap-pagination-list">
               <li>
                 {result.page > 1 ? (
-                  <Link className="cap-page" data-kind="prev" to={pageHref(filters, bounds, result.page - 1)} rel="prev">
+                  <Link
+                    className="cap-page"
+                    data-kind="prev"
+                    to={pageHref(filters, bounds, result.page - 1)}
+                    rel="prev"
+                  >
                     Previous
                   </Link>
                 ) : (
@@ -952,7 +1037,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               </li>
               <li>
                 {result.page < result.totalPages ? (
-                  <Link className="cap-page" data-kind="next" to={pageHref(filters, bounds, result.page + 1)} rel="next">
+                  <Link
+                    className="cap-page"
+                    data-kind="next"
+                    to={pageHref(filters, bounds, result.page + 1)}
+                    rel="next"
+                  >
                     Next
                   </Link>
                 ) : (
@@ -1020,8 +1110,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
             </div>
             {overCeiling ? (
               <p id="bulk-ceiling" className="m-0 text-label text-text-subtle">
-                {actionable.length} payments selected. Bulk actions take at most {BULK_ACTION_MAX_PER_SUBMISSION} at a
-                time, and nothing is trimmed to fit. Narrow the selection to {BULK_ACTION_MAX_PER_SUBMISSION} or fewer.
+                {actionable.length} payments selected. Bulk actions take at most{" "}
+                {BULK_ACTION_MAX_PER_SUBMISSION} at a time, and nothing is trimmed to fit. Narrow
+                the selection to {BULK_ACTION_MAX_PER_SUBMISSION} or fewer.
               </p>
             ) : null}
             <button

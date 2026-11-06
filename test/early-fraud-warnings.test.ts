@@ -39,12 +39,17 @@ vi.mock("~/db", async (importOriginal) => ({
 // The money-write DO as the other webhook tests fake it: a seen key is a no-op,
 // a throwing batch (the claim's unique index on a replay) rolls back whole.
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
     const sqlite = harness.sqlite as Database.Database;
     sqlite.exec("BEGIN");
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       sqlite.exec("COMMIT");
     } catch (err) {
       sqlite.exec("ROLLBACK");
@@ -153,15 +158,16 @@ function warningEvent(type: "created" | "updated", id: string, actionable = true
 }
 
 function warningRow() {
-  return sqlite.prepare("SELECT * FROM early_fraud_warnings WHERE stripe_warning_id = 'issfr_1'").get() as Record<
-    string,
-    unknown
-  >;
+  return sqlite
+    .prepare("SELECT * FROM early_fraud_warnings WHERE stripe_warning_id = 'issfr_1'")
+    .get() as Record<string, unknown>;
 }
 
 describe("intake: the webhook records the warning and tells the merchant once", () => {
   it("one row with the charge's amount and the linked recovery, one notice, nothing on a replay", async () => {
-    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({ status: "applied" });
+    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({
+      status: "applied",
+    });
 
     const row = warningRow();
     expect(row).toMatchObject({
@@ -183,10 +189,16 @@ describe("intake: the webhook records the warning and tells the merchant once", 
     expect(harness.sent).toHaveLength(1);
     expect(harness.sent[0].to).toBe("ops@acme.test");
     expect(harness.sent[0].subject).toBe("Early fraud warning: $129.00 from Jane Buyer");
-    expect(harness.sent[0].html).toContain("https://foxhoundapp.test/disputes/dashboard#early-fraud-warnings");
+    expect(harness.sent[0].html).toContain(
+      "https://foxhoundapp.test/disputes/dashboard#early-fraud-warnings",
+    );
 
-    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({ status: "duplicate" });
-    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({ n: 1 });
+    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({
+      status: "duplicate",
+    });
+    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({
+      n: 1,
+    });
     expect(harness.sent).toHaveLength(1);
   });
 
@@ -196,7 +208,9 @@ describe("intake: the webhook records the warning and tells the merchant once", 
     expect(first).toMatchObject({ status: "error" });
     expect(harness.sent).toHaveLength(0);
 
-    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({ status: "duplicate" });
+    expect(await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED)).toEqual({
+      status: "duplicate",
+    });
     expect(harness.sent).toHaveLength(1);
   });
 
@@ -204,7 +218,9 @@ describe("intake: the webhook records the warning and tells the merchant once", 
     await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED);
     await processConnectedWebhook(env, warningEvent("updated", "evt_2", false), RECEIVED);
     expect(warningRow().actionable).toBe(0);
-    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({ n: 1 });
+    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({
+      n: 1,
+    });
   });
 });
 
@@ -213,7 +229,11 @@ describe("refund: Stripe first, never a disputed charge, nothing billable", () =
     await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED);
     const id = warningRow().id as string;
 
-    const result = await refundEarlyFraudWarning(env, { accountId: ACCOUNT, warningId: id, now: RECEIVED });
+    const result = await refundEarlyFraudWarning(env, {
+      accountId: ACCOUNT,
+      warningId: id,
+      now: RECEIVED,
+    });
     expect(result).toEqual({ status: "refunded", refundId: "re_1" });
     expect(harness.refunds).toEqual([
       {
@@ -221,12 +241,19 @@ describe("refund: Stripe first, never a disputed charge, nothing billable", () =
         options: { idempotencyKey: "early-fraud-warning-refund:issfr_1" },
       },
     ]);
-    expect(warningRow()).toMatchObject({ refunded_at: RECEIVED.getTime(), stripe_refund_id: "re_1" });
+    expect(warningRow()).toMatchObject({
+      refunded_at: RECEIVED.getTime(),
+      stripe_refund_id: "re_1",
+    });
     expect(sqlite.prepare("SELECT count(*) AS n FROM outcomes").get()).toEqual({ n: 0 });
     expect(sqlite.prepare("SELECT count(*) AS n FROM billing_line_items").get()).toEqual({ n: 0 });
 
     // A second click is refused before Stripe is asked again.
-    const again = await refundEarlyFraudWarning(env, { accountId: ACCOUNT, warningId: id, now: RECEIVED });
+    const again = await refundEarlyFraudWarning(env, {
+      accountId: ACCOUNT,
+      warningId: id,
+      now: RECEIVED,
+    });
     expect(again).toMatchObject({ status: "error", reason: "already_refunded" });
     expect(harness.refunds).toHaveLength(1);
   });
@@ -235,13 +262,17 @@ describe("refund: Stripe first, never a disputed charge, nothing billable", () =
     await processConnectedWebhook(env, warningEvent("created", "evt_1"), RECEIVED);
     const id = warningRow().id as string;
 
-    expect(await refundEarlyFraudWarning(env, { accountId: "acct_other", warningId: id, now: RECEIVED })).toMatchObject({
+    expect(
+      await refundEarlyFraudWarning(env, { accountId: "acct_other", warningId: id, now: RECEIVED }),
+    ).toMatchObject({
       status: "error",
       reason: "not_found",
     });
 
     harness.charge.disputed = true;
-    expect(await refundEarlyFraudWarning(env, { accountId: ACCOUNT, warningId: id, now: RECEIVED })).toMatchObject({
+    expect(
+      await refundEarlyFraudWarning(env, { accountId: ACCOUNT, warningId: id, now: RECEIVED }),
+    ).toMatchObject({
       status: "error",
       reason: "stripe_disputed",
     });
@@ -253,8 +284,13 @@ describe("refund: Stripe first, never a disputed charge, nothing billable", () =
 describe("a connected account's test-mode event is claimed and ignored", () => {
   it("writes nothing and mails no one, because a live Connect endpoint gets test events too", async () => {
     const event = { ...(warningEvent("created", "evt_test") as object), livemode: false } as never;
-    expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({ status: "ignored", reason: "test_mode" });
-    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({ n: 0 });
+    expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({
+      status: "ignored",
+      reason: "test_mode",
+    });
+    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({
+      n: 0,
+    });
     expect(harness.sent).toHaveLength(0);
     expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({ status: "duplicate" });
   });

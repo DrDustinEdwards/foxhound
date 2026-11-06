@@ -20,10 +20,14 @@ const EMPTY_API = { fetch: async () => Response.json({ ok: true, data: {} }) };
 
 export default {
   fetch(request: Request, env: AdminMcpEnv) {
-    return serveAdminMcp(request, { ...env, FOXHOUND: EMPTY_API, FOXHOUND_ADMIN_API_KEY: "conformance-key-not-a-secret-0000" }, {
-      actor: "admin@conformance.invalid",
-      client: "conformance suite",
-      scopes: [SCOPE_READ],
-    });
+    return serveAdminMcp(
+      request,
+      { ...env, FOXHOUND: EMPTY_API, FOXHOUND_ADMIN_API_KEY: "conformance-key-not-a-secret-0000" },
+      {
+        actor: "admin@conformance.invalid",
+        client: "conformance suite",
+        scopes: [SCOPE_READ],
+      },
+    );
   },
 };

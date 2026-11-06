@@ -16,13 +16,19 @@ const route = await import("~/routes/app/intelligence/index");
 function ctx(isDemo = false) {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: { ANTHROPIC_API_KEY: "k" } as unknown as Env, ctx: {}, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: { ANTHROPIC_API_KEY: "k" } as unknown as Env, ctx: {}, nonce: "n" };
       if (key === authContext) {
         return {
           userId: "user_1",
           email: "owner@acme.test",
           isDemo,
-          membership: { memberId: "m1", accountId: "acct_session", accountName: "Acme", role: "member" },
+          membership: {
+            memberId: "m1",
+            accountId: "acct_session",
+            accountName: "Acme",
+            role: "member",
+          },
           memberships: [],
         };
       }
@@ -36,7 +42,10 @@ async function post(fields: Record<string, string>, isDemo = false) {
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   return route.action({
     context: ctx(isDemo),
-    request: new Request("https://foxhoundapp.test/intelligence/dashboard", { method: "POST", body: form }),
+    request: new Request("https://foxhoundapp.test/intelligence/dashboard", {
+      method: "POST",
+      body: form,
+    }),
     params: {},
   } as never);
 }
@@ -55,7 +64,11 @@ async function answer(fields: Record<string, string>, isDemo = false) {
 describe("/intelligence/dashboard action", () => {
   it("generates for the session's account and the posted month, ignoring any posted account", async () => {
     generateMonthlyReport.mockResolvedValue({ ok: true, month: "2026-10", narrative: "Hi." });
-    const { status, body: result } = await answer({ intent: "generate", month: "2026-10", accountId: "acct_other" });
+    const { status, body: result } = await answer({
+      intent: "generate",
+      month: "2026-10",
+      accountId: "acct_other",
+    });
     expect(status).toBe(200);
     expect(generateMonthlyReport).toHaveBeenCalledTimes(1);
     const [, db, accountId, month] = generateMonthlyReport.mock.calls[0]!;

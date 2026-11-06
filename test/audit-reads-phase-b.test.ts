@@ -1,4 +1,3 @@
-
 import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
@@ -42,7 +41,13 @@ const stripeWith = (lists: Record<string, unknown>) => lists as unknown as Strip
 
 describe("PLANT 2: every read answers, and a failure is data", () => {
   const stripe = stripeWith({
-    invoices: { list: () => fakeList([{ id: "in_1", amount_due: 100 }, { id: "in_2", amount_due: 200 }]) },
+    invoices: {
+      list: () =>
+        fakeList([
+          { id: "in_1", amount_due: 100 },
+          { id: "in_2", amount_due: 200 },
+        ]),
+    },
     subscriptions: { list: () => fakeList([{ id: "sub_1", status: "active" }]) },
     disputes: { list: () => fakeList([{ id: "dp_1", status: "won" }]) },
     events: { list: () => fakeList([{ id: "evt_1" }, { id: "evt_2" }]) },
@@ -101,7 +106,10 @@ describe("PLANT 3: the arguments legacy sends", () => {
     expect(calls.subscriptions).toEqual({
       status: "all",
       limit: 100,
-      expand: ["data.default_payment_method", "data.customer.invoice_settings.default_payment_method"],
+      expand: [
+        "data.default_payment_method",
+        "data.customer.invoice_settings.default_payment_method",
+      ],
     });
 
     await readCardUpdaterEvents(stripe, 1_700_000_000);

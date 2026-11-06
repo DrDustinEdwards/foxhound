@@ -34,7 +34,9 @@ export function TableOfContents({
   return (
     <aside className="hidden lg:block">
       <div className="sticky top-8">
-        <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Contents</div>
+        <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+          Contents
+        </div>
         <nav>
           <TocList items={items} compact={false} />
         </nav>

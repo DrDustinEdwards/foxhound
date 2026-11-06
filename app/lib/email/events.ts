@@ -56,9 +56,13 @@ function normalizeEmailEvent(body: unknown): EmailServiceEvent {
     const p = raw.payload;
     const kind = raw.type.slice(ENVELOPE_PREFIX.length);
     const type =
-      kind === "bounced" ? (p.bounce?.type === "soft" ? "soft_bounce" : "hard_bounce")
-      : kind === "complained" ? "complaint"
-      : kind;
+      kind === "bounced"
+        ? p.bounce?.type === "soft"
+          ? "soft_bounce"
+          : "hard_bounce"
+        : kind === "complained"
+          ? "complaint"
+          : kind;
     return {
       type,
       email: p.recipient ?? "",

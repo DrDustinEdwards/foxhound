@@ -84,7 +84,15 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
     const key = mediaKeyOf(src);
     const picture = key ? pictures.get(key) : undefined;
     if (!picture) return null;
-    const attrs = images.attributes({ src: mediaUrl(picture.key, picture.sha256), width: picture.width, height: picture.height, focus: picture.focus }, "content");
+    const attrs = images.attributes(
+      {
+        src: mediaUrl(picture.key, picture.sha256),
+        width: picture.width,
+        height: picture.height,
+        focus: picture.focus,
+      },
+      "content",
+    );
     if (!attrs.srcset) return null;
     return {
       srcSet: attrs.srcset,
@@ -116,29 +124,61 @@ export async function coverPicture(
     alt,
     picture: images.attributes(
       row
-        ? { src, width: row.width, height: row.height, focus: row.focus, placeholder: row.placeholder, color: row.color }
+        ? {
+            src,
+            width: row.width,
+            height: row.height,
+            focus: row.focus,
+            placeholder: row.placeholder,
+            color: row.color,
+          }
         : { src, width: null, height: null },
       use,
     ),
-    original: { url: src, width: row?.width ?? undefined, height: row?.height ?? undefined, type: row?.contentType, alt },
+    original: {
+      url: src,
+      width: row?.width ?? undefined,
+      height: row?.height ?? undefined,
+      type: row?.contentType,
+      alt,
+    },
     // The Article's image set: Google's 16:9, 4:3 and 1:1 crops at 1200 wide around the focal point (site-relative).
-    article: row ? images.articleImages({ src, width: row.width, height: row.height, focus: row.focus }) : [],
+    article: row
+      ? images.articleImages({ src, width: row.width, height: row.height, focus: row.focus })
+      : [],
   };
 }
 
 export async function renderMarkdown(
   db: Db,
   body: string,
-): Promise<{ html: string; toc: TocItem[]; faq: Array<{ question: string; answer: string }>; version: string }> {
+): Promise<{
+  html: string;
+  toc: TocItem[];
+  faq: Array<{ question: string; answer: string }>;
+  version: string;
+}> {
   const keys = mediaKeysIn(body);
-  const pictures = new Map((keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]));
+  const pictures = new Map(
+    (keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]),
+  );
   const { resolveImage, media } = mediaOptions(pictures);
   const postLink = async (slug: string) => {
     const target = await resolvePostLink(db, slug);
     return target && { url: `/blog/${target.slug}`, title: target.title };
   };
-  const { html, toc, faq } = await render({ file: "post", body, resolveImage, options: { packs: [foxhoundPack], media, postLink } });
+  const { html, toc, faq } = await render({
+    file: "post",
+    body,
+    resolveImage,
+    options: { packs: [foxhoundPack], media, postLink },
+  });
   // version goes on the body's wrapper (data-render-version), so prelum-content can see a page rendered by an older
   // pipeline, such as one the edge cache still holds after a Prelum update.
-  return { html, toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })), faq, version: RENDER_VERSION };
+  return {
+    html,
+    toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })),
+    faq,
+    version: RENDER_VERSION,
+  };
 }

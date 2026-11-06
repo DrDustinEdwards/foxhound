@@ -84,7 +84,10 @@ export function buildAuditSummaryPrompt(result: AuditResult): string {
     result.disputes,
     (d) => `${money(d.acceptedWithoutFighting.totals)} across ${d.acceptedWithoutFighting.count}`,
   );
-  const history = line(result.disputes, (d) => `${d.historical.won} won, ${d.historical.lost} lost`);
+  const history = line(
+    result.disputes,
+    (d) => `${d.historical.won} won, ${d.historical.lost} lost`,
+  );
   const health = line(
     result.health,
     (d) =>

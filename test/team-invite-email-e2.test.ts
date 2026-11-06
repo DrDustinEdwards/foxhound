@@ -87,12 +87,16 @@ beforeEach(() => {
   env = makeEnv();
   accountName = "Acme";
   sqlite
-    .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, 'Owner', 'owner@acme.test', 0, 0)")
+    .prepare(
+      "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, 'Owner', 'owner@acme.test', 0, 0)",
+    )
     .run(OWNER);
   // Live sends OFF, the default for every account: Recova's invite has no such
   // switch, so the invite must not depend on it.
   sqlite
-    .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 0)")
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 0)",
+    )
     .run(ACCOUNT);
   sqlite
     .prepare(
@@ -180,13 +184,16 @@ describe("when it sends: Recova's trigger and not otherwise", () => {
     await post({ email: INVITEE }, "member");
     await post({ email: "" });
     await post({ _action: "remove", memberId: "nobody" });
-    await loader({ context: ctxFor(), request: new Request(`${BASE}/settings/team`), params: {} } as never);
+    await loader({
+      context: ctxFor(),
+      request: new Request(`${BASE}/settings/team`),
+      params: {},
+    } as never);
     expect(harness.sent).toHaveLength(0);
   });
 });
 
 describe("what it says: Recova's words, Foxhound-branded", () => {
-
   it("says 'a team' when the account has no name, as Recova's fallback", async () => {
     accountName = "";
     await invite();
@@ -206,7 +213,9 @@ describe("what it says: Recova's words, Foxhound-branded", () => {
     await invite();
     expect(INVITE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000);
     const row = sqlite
-      .prepare("SELECT invite_expires_at - created_at AS ttl FROM account_members WHERE status = 'pending'")
+      .prepare(
+        "SELECT invite_expires_at - created_at AS ttl FROM account_members WHERE status = 'pending'",
+      )
       .get() as { ttl: number };
     // Stored in seconds or milliseconds depending on the column mode; either
     // way it is seven days.
@@ -256,22 +265,33 @@ describe("what it carries", () => {
   it("is recorded in email_sends as a team invite, by recipient hash, sent", async () => {
     await invite();
     const rows = sqlite
-      .prepare("SELECT account_id AS a, template AS t, recipient_hash AS h, status AS s FROM email_sends")
+      .prepare(
+        "SELECT account_id AS a, template AS t, recipient_hash AS h, status AS s FROM email_sends",
+      )
       .all();
-    expect(rows).toEqual([{ a: ACCOUNT, t: "team_invite", h: await hashRecipient(INVITEE), s: "sent" }]);
+    expect(rows).toEqual([
+      { a: ACCOUNT, t: "team_invite", h: await hashRecipient(INVITEE), s: "sent" },
+    ]);
   });
 });
 
 describe("a refused send returns its named outcome, and the invite still stands", () => {
   it("sent: the page says the email went, and keeps the link", async () => {
     const res = await invite();
-    expect(res.body).toMatchObject({ error: null, invited: INVITEE, emailStatus: "sent", emailError: null });
+    expect(res.body).toMatchObject({
+      error: null,
+      invited: INVITEE,
+      emailStatus: "sent",
+      emailError: null,
+    });
     expect(String(res.body.inviteUrl)).toContain("/invite/");
   });
 
   it("a suppressed address: 'suppressed', nothing sent, the merchant told, the link kept", async () => {
     sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)")
+      .prepare(
+        "INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)",
+      )
       .run(INVITEE);
     const res = await invite();
     expect(harness.sent).toHaveLength(0);
@@ -308,7 +328,16 @@ describe("a refused send returns its named outcome, and the invite still stands"
 describe("the live-send gate still holds every other send", () => {
   it("only the invite job opts out of the gate, through main's liveSendGate flag", async () => {
     const { buildTeamInviteJob } = await import("~/lib/settings/team-invite-email.server");
-    const job = buildTeamInviteJob({ accountId: "acct_1", to: "new@example.com", accountName: "Sample", inviteUrl: "https://foxhoundapp.test/invite/t", memberId: "m1", token: "t", senderName: null, year: 2026 });
+    const job = buildTeamInviteJob({
+      accountId: "acct_1",
+      to: "new@example.com",
+      accountName: "Sample",
+      inviteUrl: "https://foxhoundapp.test/invite/t",
+      memberId: "m1",
+      token: "t",
+      senderName: null,
+      year: 2026,
+    });
     expect(job).toMatchObject({ audience: "merchant", liveSendGate: "skip" });
   });
 });
@@ -335,7 +364,11 @@ function limiterEnv(allowed: boolean, calls: LimiterCall[]): Env {
 }
 
 function pendingCount(): number {
-  return (sqlite.prepare("SELECT COUNT(*) AS n FROM account_members WHERE status = 'pending'").get() as { n: number }).n;
+  return (
+    sqlite.prepare("SELECT COUNT(*) AS n FROM account_members WHERE status = 'pending'").get() as {
+      n: number;
+    }
+  ).n;
 }
 
 describe("Recova's rate limit: 5 invites an hour per IP, then 429", () => {
@@ -353,7 +386,9 @@ describe("Recova's rate limit: 5 invites an hour per IP, then 429", () => {
       }),
       params: {},
     } as never);
-    expect(calls).toEqual([{ name: "invite:203.0.113.9", rules: [{ limit: 5, windowSeconds: 60 * 60 }] }]);
+    expect(calls).toEqual([
+      { name: "invite:203.0.113.9", rules: [{ limit: 5, windowSeconds: 60 * 60 }] },
+    ]);
     expect(harness.sent).toHaveLength(1);
   });
 
@@ -420,7 +455,9 @@ describe("Recova's repeat-invite refusal: 409 for a pending or active membership
   });
 
   it("the same address on ANOTHER account does not block this one", async () => {
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)").run();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)")
+      .run();
     sqlite
       .prepare(
         "INSERT INTO account_members (id, account_id, user_id, role, status, invited_email, created_at) VALUES ('m_x', 'acct_other', NULL, 'member', 'pending', ?, 1000)",

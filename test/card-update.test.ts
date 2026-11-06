@@ -18,10 +18,12 @@ function sqlOf(item: unknown): { sql: string; params: unknown[] } {
 const env = { ENCRYPTION_KEY: "a".repeat(64) } as unknown as Env;
 
 describe("card-update token sign/verify", () => {
-
   it("rejects a well-formed token signed with a different key", async () => {
     const otherEnv = { ENCRYPTION_KEY: "b".repeat(64) } as unknown as Env;
-    const token = await signCardUpdateToken(otherEnv, { failedPaymentId: "fp_1", accountId: "acc_1" });
+    const token = await signCardUpdateToken(otherEnv, {
+      failedPaymentId: "fp_1",
+      accountId: "acc_1",
+    });
     expect(await verifyCardUpdateToken(env, token)).toBeNull();
   });
 });

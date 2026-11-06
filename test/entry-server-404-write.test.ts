@@ -48,7 +48,8 @@ function loadContext() {
   const ctx = { waitUntil: vi.fn((p: Promise<unknown>) => void scheduled.push(p)) };
   const provider = {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: { DB: d1() } as unknown as Env, ctx, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: { DB: d1() } as unknown as Env, ctx, nonce: "n" };
       throw new Error("unexpected context key");
     },
   } as unknown as RouterContextProvider;
@@ -56,7 +57,9 @@ function loadContext() {
 }
 
 async function stored() {
-  return memory.db.select({ path: page404Daily.path, hits: page404Daily.hitCount }).from(page404Daily);
+  return memory.db
+    .select({ path: page404Daily.path, hits: page404Daily.hitCount })
+    .from(page404Daily);
 }
 
 describe("404s are counted into page_404_daily", () => {

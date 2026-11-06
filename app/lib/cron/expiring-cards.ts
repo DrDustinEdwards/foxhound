@@ -12,7 +12,10 @@ import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
-import { expiringCardAlertContent, EXPIRING_CARD_TEMPLATE } from "~/lib/recovery/expiring-card-email";
+import {
+  expiringCardAlertContent,
+  EXPIRING_CARD_TEMPLATE,
+} from "~/lib/recovery/expiring-card-email";
 
 // THE EXPIRING-CARD ALERT CRON. Ported from legacy's
 // app/api/cron/expiring-cards/route.ts (blob `717f6bbe`, 15,163 bytes), which
@@ -72,7 +75,13 @@ async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
 
   return rows.flatMap((r) =>
     r.encryptedAccessToken
-      ? [{ accountId: r.accountId, connectionId: r.connectionId, encryptedAccessToken: r.encryptedAccessToken }]
+      ? [
+          {
+            accountId: r.accountId,
+            connectionId: r.connectionId,
+            encryptedAccessToken: r.encryptedAccessToken,
+          },
+        ]
       : [],
   );
 }
@@ -112,7 +121,12 @@ export function isInsideLeadWindow(
  * to dunning, as both other writers leave it. Only the lead window's horizon
  * is dropped, because the charge date, not a fixed lead, is what matters here.
  */
-export function expiresBeforeCharge(expMonth: number, expYear: number, now: Date, chargeAt: Date): boolean {
+export function expiresBeforeCharge(
+  expMonth: number,
+  expYear: number,
+  now: Date,
+  chargeAt: Date,
+): boolean {
   const expiry = new Date(Date.UTC(expYear, expMonth - 1, 1));
   const firstInvalid = new Date(Date.UTC(expYear, expMonth, 1));
   return expiry >= now && firstInvalid <= chargeAt;
@@ -359,7 +373,10 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           // CUSTOMER audience: the CAN-SPAM footer, the unsubscribe headers and
           // the suppression gate all apply, because this is commercial mail sent
           // on the merchant's behalf.
-          unsubscribeToken: await signUnsubscribeToken(env, { email: alert.customerEmail, accountId: alert.accountId }),
+          unsubscribeToken: await signUnsubscribeToken(env, {
+            email: alert.customerEmail,
+            accountId: alert.accountId,
+          }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `expiring-card:${alert.id}`,
           cronRunId: null,

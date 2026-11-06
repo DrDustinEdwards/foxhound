@@ -70,7 +70,9 @@ export async function loader({ context }: Route.LoaderArgs) {
  *  is judged by it. The deploy's own time holds a new job back until its first window has passed. The registry is
  *  imported here, not at the top, to keep its billing and recovery graph out of every other request. */
 function cronJobsCheck(env: Env) {
-  const deployedAt = env.CF_VERSION_METADATA?.timestamp ? new Date(env.CF_VERSION_METADATA.timestamp) : undefined;
+  const deployedAt = env.CF_VERSION_METADATA?.timestamp
+    ? new Date(env.CF_VERSION_METADATA.timestamp)
+    : undefined;
   return {
     ...cronCheck(env.DB),
     run: async () => {
@@ -79,10 +81,15 @@ function cronJobsCheck(env: Env) {
         getDb(env).select().from(cronConfig),
       ]);
       const byName = new Map(config.map((row) => [row.cronName, row]));
-      const jobs = CRON_JOBS.filter((job) => isCronEnabled(byName.get(job.name) ?? null)).map((job) => ({
-        name: job.name,
-        everyMinutes: Math.max(cronEveryMinutes(job.schedule), byName.get(job.name)?.minIntervalMinutes ?? 0),
-      }));
+      const jobs = CRON_JOBS.filter((job) => isCronEnabled(byName.get(job.name) ?? null)).map(
+        (job) => ({
+          name: job.name,
+          everyMinutes: Math.max(
+            cronEveryMinutes(job.schedule),
+            byName.get(job.name)?.minIntervalMinutes ?? 0,
+          ),
+        }),
+      );
       return cronCheck(env.DB, { jobs, deployedAt }).run();
     },
   };

@@ -60,7 +60,9 @@ export interface RawBillingLineObservation extends BillingObservation {
  * thing on an upgrade invoice for free: a proration credit is a negative
  * amount, so the new (positive) charge line always wins the tie-break.
  */
-export function collapseBillingObservations(raw: RawBillingLineObservation[]): BillingObservation[] {
+export function collapseBillingObservations(
+  raw: RawBillingLineObservation[],
+): BillingObservation[] {
   const byInstant = new Map<number, RawBillingLineObservation>();
   for (const line of raw) {
     const top = byInstant.get(line.at);
@@ -162,7 +164,9 @@ export function countBillingChanges(observations: BillingObservation[]): Billing
  *  trending later, a risk signal. Null (not zero) with fewer than two datable
  *  invoices: an honest "not enough history" state, distinct from a genuine
  *  zero-drift customer. */
-export function computePaymentLatencyDriftDays(invoices: InvoicePaymentObservation[]): number | null {
+export function computePaymentLatencyDriftDays(
+  invoices: InvoicePaymentObservation[],
+): number | null {
   const dated = invoices
     .filter((i): i is { dueAt: number; paidAt: number } => i.dueAt !== null && i.paidAt !== null)
     .sort((a, b) => a.dueAt - b.dueAt);
@@ -197,7 +201,9 @@ export function buildRecoverySignals(rows: RecoverySignalRow[]): RecoverySignals
     failedPaymentCount: rows.length,
     recoveredCount: recovered.length,
     avgDaysToRecover:
-      days.length > 0 ? Math.round((days.reduce((a, b) => a + b, 0) / days.length) * 10) / 10 : null,
+      days.length > 0
+        ? Math.round((days.reduce((a, b) => a + b, 0) / days.length) * 10) / 10
+        : null,
   };
 }
 

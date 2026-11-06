@@ -31,7 +31,6 @@ describe("formatRelativeLastSeen", () => {
 });
 
 describe("capitalizeTier / signal helpers", () => {
-
   it("reads the active-recovery and dispute-history signals defensively", () => {
     expect(hasActiveRecoverySignal({ activeRecoveryId: "dfp_1" })).toBe(true);
     expect(hasActiveRecoverySignal({ activeRecoveryId: null })).toBe(false);
@@ -40,7 +39,9 @@ describe("capitalizeTier / signal helpers", () => {
 
     expect(hasDisputeHistorySignal({ wonCount: 1 })).toBe(true);
     expect(hasDisputeHistorySignal({ openDisputesCount: 1 })).toBe(true);
-    expect(hasDisputeHistorySignal({ lostCount: 0, wonCount: 0, openDisputesCount: 0 })).toBe(false);
+    expect(hasDisputeHistorySignal({ lostCount: 0, wonCount: 0, openDisputesCount: 0 })).toBe(
+      false,
+    );
     expect(hasDisputeHistorySignal({})).toBe(false);
     expect(hasDisputeHistorySignal(null)).toBe(false);
   });

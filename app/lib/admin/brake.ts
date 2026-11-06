@@ -101,7 +101,10 @@ function skippedClause(intendedCount: number, affectedCount: number, what: strin
   return ` ${skipped} account(s) ${what} by the time the write ran, so they were left exactly as they are.`;
 }
 
-export function engageResultMessage(result: { affectedCount: number; intendedCount: number }): string {
+export function engageResultMessage(result: {
+  affectedCount: number;
+  intendedCount: number;
+}): string {
   if (result.intendedCount === 0) {
     return "Brake engaged. No accounts were eligible to pause (every account is demo, canceled, or already paused).";
   }
@@ -111,7 +114,10 @@ export function engageResultMessage(result: { affectedCount: number; intendedCou
   );
 }
 
-export function releaseResultMessage(result: { affectedCount: number; intendedCount: number }): string {
+export function releaseResultMessage(result: {
+  affectedCount: number;
+  intendedCount: number;
+}): string {
   if (result.intendedCount === 0) return "Brake released. No brake-paused accounts to resume.";
   return (
     `Brake released. Resumed ${result.affectedCount} account(s). Accounts paused outside the brake were left paused.` +

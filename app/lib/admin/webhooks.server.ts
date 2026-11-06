@@ -17,12 +17,23 @@ export interface WebhookHealthSummary {
 export async function getWebhookHealthSummary(db: Db): Promise<WebhookHealthSummary> {
   const since = new Date(Date.now() - DAY_MS);
   const [totalRows, errorRows, unprocessedRows] = await Promise.all([
-    db.select({ n: count() }).from(webhookEvents).where(sql`${webhookEvents.receivedAt} >= ${since.getTime()}`),
     db
       .select({ n: count() })
       .from(webhookEvents)
-      .where(and(sql`${webhookEvents.receivedAt} >= ${since.getTime()}`, isNotNull(webhookEvents.errorMessage))),
-    db.select({ n: count() }).from(webhookEvents).where(sql`${webhookEvents.processed} = 0`),
+      .where(sql`${webhookEvents.receivedAt} >= ${since.getTime()}`),
+    db
+      .select({ n: count() })
+      .from(webhookEvents)
+      .where(
+        and(
+          sql`${webhookEvents.receivedAt} >= ${since.getTime()}`,
+          isNotNull(webhookEvents.errorMessage),
+        ),
+      ),
+    db
+      .select({ n: count() })
+      .from(webhookEvents)
+      .where(sql`${webhookEvents.processed} = 0`),
   ]);
   return {
     totalLast24h: totalRows[0]?.n ?? 0,
@@ -49,7 +60,11 @@ export interface WebhookEventPage {
  * only) plus Foxhound's pending only. Over the whole table, not Recova's newest
  * 200: retention (90 days) bounds it, and the count says how many there are.
  */
-export async function listWebhookEvents(db: Db, filters: WebhookFilters, perPage = WEBHOOK_PAGE_SIZE): Promise<WebhookEventPage> {
+export async function listWebhookEvents(
+  db: Db,
+  filters: WebhookFilters,
+  perPage = WEBHOOK_PAGE_SIZE,
+): Promise<WebhookEventPage> {
   const conditions: SQL[] = [];
   if (filters.type) {
     // Drizzle's like, never a hand-written clause (CLAUDE.md, "Drizzle only").

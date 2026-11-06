@@ -1,4 +1,17 @@
-import { and, count, desc, eq, gte, isNotNull, isNull, like, lte, ne, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  like,
+  lte,
+  ne,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 import {
   accounts,
@@ -56,7 +69,10 @@ async function computeAlertMetrics(
 ): Promise<Record<AlertMetric, number>> {
   const sevenDaysAgo = new Date(nowMs - 7 * DAY_MS);
   const fortyEightHoursOut = new Date(nowMs + 48 * HOUR_MS);
-  const openDispute = and(eq(disputes.accountId, accountId), notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]));
+  const openDispute = and(
+    eq(disputes.accountId, accountId),
+    notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
+  );
   const highRisk = and(
     eq(customerContext.accountId, accountId),
     isNotNull(customerContext.healthScore),
@@ -96,9 +112,18 @@ async function computeAlertMetrics(
     db
       .select({ n: count() })
       .from(disputes)
-      .where(and(openDispute, isNotNull(disputes.evidenceDeadline), lte(disputes.evidenceDeadline, fortyEightHoursOut))),
+      .where(
+        and(
+          openDispute,
+          isNotNull(disputes.evidenceDeadline),
+          lte(disputes.evidenceDeadline, fortyEightHoursOut),
+        ),
+      ),
     db
-      .select({ n: count(), cents: sql<number>`coalesce(sum(${customerContext.mrrContributionCents}), 0)` })
+      .select({
+        n: count(),
+        cents: sql<number>`coalesce(sum(${customerContext.mrrContributionCents}), 0)`,
+      })
       .from(customerContext)
       .where(highRisk)
       .groupBy(customerContext.currency),
@@ -114,7 +139,8 @@ async function computeAlertMetrics(
   // is one number, so an amount alert compares against the largest
   // single-currency total: it fires when any one currency crosses it.
   const totalCount = (rows: { n: number }[]) => rows.reduce((sum, r) => sum + r.n, 0);
-  const largestCents = (rows: { cents: number }[]) => Math.max(0, ...rows.map((r) => Number(r.cents)));
+  const largestCents = (rows: { cents: number }[]) =>
+    Math.max(0, ...rows.map((r) => Number(r.cents)));
   const leaking = (r: { failed: number | null; disputed: number | null } | undefined) =>
     r ? (r.failed ?? 0) + (r.disputed ?? 0) : 0;
   return {
@@ -129,7 +155,8 @@ async function computeAlertMetrics(
     intelligence_mrr_at_risk_cents: largestCents(highRiskRow),
     audit_leaking_cents: leaking(auditRows[0]),
     // Recova's: 0 without a prior run, so "above 0" cannot fire on the first.
-    audit_leaking_delta_cents: auditRows.length >= 2 ? leaking(auditRows[0]) - leaking(auditRows[1]) : 0,
+    audit_leaking_delta_cents:
+      auditRows.length >= 2 ? leaking(auditRows[0]) - leaking(auditRows[1]) : 0,
   };
 }
 
@@ -214,7 +241,10 @@ async function findCriticalCustomerIds(db: Db, accountId: string): Promise<strin
     )
     .innerJoin(
       disputes,
-      and(eq(disputes.accountId, failedPayments.accountId), eq(disputes.stripeCustomerId, failedPayments.stripeCustomerId)),
+      and(
+        eq(disputes.accountId, failedPayments.accountId),
+        eq(disputes.stripeCustomerId, failedPayments.stripeCustomerId),
+      ),
     )
     .where(
       and(
@@ -283,14 +313,25 @@ export async function runCriticalCustomersCheck(
  * read only when the account has an enabled alert, then the critical
  * customers check, which needs none. Returns how many threshold alerts fired.
  */
-async function evaluateAccountAlerts(env: Env, db: Db, accountId: string, now: Date): Promise<number> {
+async function evaluateAccountAlerts(
+  env: Env,
+  db: Db,
+  accountId: string,
+  now: Date,
+): Promise<number> {
   const [enabled] = await db
     .select({ id: alerts.id })
     .from(alerts)
     .where(and(eq(alerts.accountId, accountId), eq(alerts.enabled, true)))
     .limit(1);
   const fired = enabled
-    ? await evaluateAndRecordAlerts(env, db, accountId, await computeAlertMetrics(db, accountId, now.getTime()), now)
+    ? await evaluateAndRecordAlerts(
+        env,
+        db,
+        accountId,
+        await computeAlertMetrics(db, accountId, now.getTime()),
+        now,
+      )
     : 0;
   if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);
   return fired;
@@ -298,16 +339,25 @@ async function evaluateAccountAlerts(env: Env, db: Db, accountId: string, now: D
 
 /** Every processing-eligible account's alerts. One account's failure never
  *  stops the rest, as Recova's per-account try/catch. */
-export async function runAlertsForAllAccounts(env: Env, nowMs: number): Promise<{ accounts: number; fired: number }> {
+export async function runAlertsForAllAccounts(
+  env: Env,
+  nowMs: number,
+): Promise<{ accounts: number; fired: number }> {
   const db = getDb(env);
   const now = new Date(nowMs);
-  const eligible = await db.select({ id: accounts.id }).from(accounts).where(accountProcessingEligible());
+  const eligible = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(accountProcessingEligible());
   let fired = 0;
   for (const { id } of eligible) {
     try {
       fired += await evaluateAccountAlerts(env, db, id, now);
     } catch (err) {
-      console.error(`alert evaluation failed for account ${id}:`, err instanceof Error ? err.message : err);
+      console.error(
+        `alert evaluation failed for account ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
     }
   }
   return { accounts: eligible.length, fired };

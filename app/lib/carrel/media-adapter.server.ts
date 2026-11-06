@@ -1,5 +1,11 @@
 import { slugify } from "@drdustinedwards/site-helpers/slug";
-import { RefusedError, mediaLibrary, type MediaAdapter, type MediaKeyInput, type MediaResize } from "@dustinedwards/site-api";
+import {
+  RefusedError,
+  mediaLibrary,
+  type MediaAdapter,
+  type MediaKeyInput,
+  type MediaResize,
+} from "@dustinedwards/site-api";
 
 import type { Db } from "~/db";
 import { EXTENSIONS, UPLOAD_KEY, mediaUrl } from "~/lib/media/images";
@@ -32,10 +38,14 @@ const HASH_LENGTHS = [8, 12, 16, 64];
  */
 function uploadKey(file: MediaKeyInput, attempt: number): string {
   const length = HASH_LENGTHS[attempt - 1];
-  if (!length) throw new RefusedError("A file with these bytes is already stored under every address this upload could take.");
+  if (!length)
+    throw new RefusedError(
+      "A file with these bytes is already stored under every address this upload could take.",
+    );
   const name = slugify(file.filename.replace(/\.[^.]*$/, ""), { max: 60 }) || "picture";
   const key = `${file.at.slice(0, 4)}/${file.at.slice(5, 7)}/${name}-${file.sha256.slice(0, length)}.${EXTENSIONS[file.contentType]}`;
-  if (!UPLOAD_KEY.test(key)) throw new RefusedError(`${file.filename} cannot be stored under a library address.`);
+  if (!UPLOAD_KEY.test(key))
+    throw new RefusedError(`${file.filename} cannot be stored under a library address.`);
   return key;
 }
 
@@ -54,6 +64,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     history: { prefix: "revisions/" },
     suggest: (picture, id) => suggestFor(env, picture, id),
     // The package checks every address and each redirect before this fetch runs (importRefusal, fetchImport).
-    importFetch: ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)) as typeof fetch,
+    importFetch: ((input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, init)) as typeof fetch,
   });
 }

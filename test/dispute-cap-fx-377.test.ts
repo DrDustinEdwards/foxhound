@@ -79,9 +79,8 @@ vi.mock("~/lib/money/execute", () => ({
 
 vi.mock("~/lib/stripe/encryption", () => ({ decryptToken: async () => "sk_test" }));
 
-const { resolveDisputeCap, minorUnitsPerMajor, DisputeCapQuoteError } = await import(
-  "~/lib/billing/dispute-cap"
-);
+const { resolveDisputeCap, minorUnitsPerMajor, DisputeCapQuoteError } =
+  await import("~/lib/billing/dispute-cap");
 const { buildDisputeResolutionBatch } = await import("~/lib/webhooks/batches");
 const schema = await import("~/db/schema");
 
@@ -106,7 +105,11 @@ async function seed(currency: string, amountCents: number) {
 }
 
 /** Resolve the cap and commit the resolution exactly as process.ts does. */
-async function resolveWon(db: Awaited<ReturnType<typeof seed>>, currency: string, amountCents: number) {
+async function resolveWon(
+  db: Awaited<ReturnType<typeof seed>>,
+  currency: string,
+  amountCents: number,
+) {
   let cap = null;
   let capError: string | null = null;
   try {

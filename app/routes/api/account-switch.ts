@@ -84,9 +84,7 @@ async function readAccountId(request: Request): Promise<string | null> {
   try {
     if (contentType.includes("application/json")) {
       const payload = (await readJson(request)) as { accountId?: unknown } | null;
-      return typeof payload?.accountId === "string" && payload.accountId
-        ? payload.accountId
-        : null;
+      return typeof payload?.accountId === "string" && payload.accountId ? payload.accountId : null;
     }
     const form = await readForm(request);
     const value = form.get("accountId");

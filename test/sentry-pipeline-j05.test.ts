@@ -35,16 +35,19 @@ describe("J05: what the SDK actually sends carries no personal data", () => {
         passThroughOnException() {},
         props: {},
       } as unknown as ExecutionContext;
-      const request = new Request("https://foxhoundapp.com/p/tok_SECRET123?token=QTOKEN&email=jane@example.com", {
-        method: "POST",
-        headers: {
-          referer: "https://foxhoundapp.com/u/tok_REFERER?x=jane@example.com",
-          "content-type": "application/json",
-          "x-customer-email": "jane@example.com",
-          "stripe-signature": "t=1,v1=SIGVALUE",
+      const request = new Request(
+        "https://foxhoundapp.com/p/tok_SECRET123?token=QTOKEN&email=jane@example.com",
+        {
+          method: "POST",
+          headers: {
+            referer: "https://foxhoundapp.com/u/tok_REFERER?x=jane@example.com",
+            "content-type": "application/json",
+            "x-customer-email": "jane@example.com",
+            "stripe-signature": "t=1,v1=SIGVALUE",
+          },
+          body: JSON.stringify({ customer_email: "jane@example.com" }),
         },
-        body: JSON.stringify({ customer_email: "jane@example.com" }),
-      });
+      );
 
       const quiet = console.error;
       console.error = () => {};
@@ -55,9 +58,12 @@ describe("J05: what the SDK actually sends carries no personal data", () => {
             "billing run failed for account a1:",
             "Failed query: insert into x values (?)\nparams: jane@example.com,Jane Doe",
           );
-          Sentry.captureException(new Error("boom for bob@example.org at https://f.test/x?q=QSTRING"), {
-            extra: { scope: "t" },
-          });
+          Sentry.captureException(
+            new Error("boom for bob@example.org at https://f.test/x?q=QSTRING"),
+            {
+              extra: { scope: "t" },
+            },
+          );
           return new Response("ok");
         });
       } finally {

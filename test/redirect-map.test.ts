@@ -14,7 +14,11 @@ interface RouteConfigEntry {
 }
 
 /** Every path app/routes.ts serves, dynamic segments kept as ":name". */
-function foxhoundPaths(entries: RouteConfigEntry[], parent = "", out = new Set<string>()): Set<string> {
+function foxhoundPaths(
+  entries: RouteConfigEntry[],
+  parent = "",
+  out = new Set<string>(),
+): Set<string> {
   for (const e of entries) {
     let path = parent;
     if (e.path) {
@@ -46,11 +50,12 @@ const SERVED = new Set([
 // /blog/sitemap.xml).
 
 describe("RECOVA_REDIRECT_MAP", () => {
-
   it("sends every Recova path to a path Foxhound serves", () => {
     const shapes = new Set([...SERVED].map((p) => p.replace(/:[^/]+/g, ":")));
     for (const entry of RECOVA_REDIRECT_MAP) {
-      expect(shapes.has(entry.to.replace(/:[^/]+/g, ":")), `${entry.from} -> ${entry.to}`).toBe(true);
+      expect(shapes.has(entry.to.replace(/:[^/]+/g, ":")), `${entry.from} -> ${entry.to}`).toBe(
+        true,
+      );
     }
   });
 
@@ -77,9 +82,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
   it("has a mapping entry for every legacy marketing route in the fixture", () => {
     const mappedFroms = new Set(RECOVA_REDIRECT_MAP.map((e) => e.from));
     for (const route of LEGACY_MARKETING_ROUTES) {
-      expect(mappedFroms.has(route.url), `missing redirect mapping for ${route.url} (${route.sourceFile})`).toBe(
-        true,
-      );
+      expect(
+        mappedFroms.has(route.url),
+        `missing redirect mapping for ${route.url} (${route.sourceFile})`,
+      ).toBe(true);
     }
   });
 
@@ -89,7 +95,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
       ...RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source),
     ]);
     for (const entry of RECOVA_REDIRECT_MAP) {
-      expect(fixtureUrls.has(entry.from), `${entry.from} is mapped but not in the legacy-routes fixture`).toBe(true);
+      expect(
+        fixtureUrls.has(entry.from),
+        `${entry.from} is mapped but not in the legacy-routes fixture`,
+      ).toBe(true);
     }
   });
 

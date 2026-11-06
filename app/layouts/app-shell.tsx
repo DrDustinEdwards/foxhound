@@ -38,7 +38,11 @@ import "capsomer/time.css";
 import { Footer } from "~/components/footer";
 import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
 import { RouteSplash } from "~/components/route-splash";
-import { ACCOUNT_SWITCH_URL, businessSwitcher, DEMO_ACCOUNT_SWITCH_URL } from "~/components/nav/account-switcher";
+import {
+  ACCOUNT_SWITCH_URL,
+  businessSwitcher,
+  DEMO_ACCOUNT_SWITCH_URL,
+} from "~/components/nav/account-switcher";
 import {
   businessRows,
   currentRow,
@@ -59,7 +63,13 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { errorDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
-import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER, type ProductKey, type ProductNavLink } from "~/lib/nav/manifest";
+import {
+  PLATFORM_LINKS,
+  PRODUCT_MANIFEST,
+  PRODUCT_ORDER,
+  type ProductKey,
+  type ProductNavLink,
+} from "~/lib/nav/manifest";
 import { DEFAULT_THEME } from "~/lib/theme";
 import { resolveThemeForRequest } from "~/lib/theme.server";
 import { useCollapseKey } from "~/lib/use-collapse-key";
@@ -84,7 +94,11 @@ const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
 
-export const middleware: Route.MiddlewareFunction[] = [noindexHeader, sameOriginWrites, appShellMiddleware];
+export const middleware: Route.MiddlewareFunction[] = [
+  noindexHeader,
+  sameOriginWrites,
+  appShellMiddleware,
+];
 
 // This layout's own route match never changes on a same-shell navigation
 // (no params, no path segment of its own), so React Router's default
@@ -199,7 +213,6 @@ function icon(href: string) {
   return <Icon className="cap-admin-icon" aria-hidden />;
 }
 
-
 // A product's pages, or the product itself when it has one page.
 function productPages(key: ProductKey): ProductNavLink[] {
   const product = PRODUCT_MANIFEST[key];
@@ -247,8 +260,21 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const inSettings = pathname === "/settings" || pathname.startsWith("/settings/");
   const menu: AdminEntry[] = inSettings
     ? [
-        { id: "back", label: `Back to ${activeProduct.label}`, href: activeProduct.href, icon: <ArrowLeft className="cap-admin-icon" aria-hidden />, group: "Settings" },
-        { id: "/settings", label: "Overview", href: "/settings", icon: <LayoutDashboard className="cap-admin-icon" aria-hidden />, group: "Settings", current: pathname === "/settings" },
+        {
+          id: "back",
+          label: `Back to ${activeProduct.label}`,
+          href: activeProduct.href,
+          icon: <ArrowLeft className="cap-admin-icon" aria-hidden />,
+          group: "Settings",
+        },
+        {
+          id: "/settings",
+          label: "Overview",
+          href: "/settings",
+          icon: <LayoutDashboard className="cap-admin-icon" aria-hidden />,
+          group: "Settings",
+          current: pathname === "/settings",
+        },
         ...SETTINGS_NAV_GROUPS.flatMap((g) =>
           g.items.map(({ to, label, icon: Icon }) => ({
             id: to,
@@ -299,7 +325,10 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // J09) but stands for every page of the product, so it is matched on the
   // product the page belongs to, not on its own href.
   const currentTab = nav.isPlatformPage
-    ? currentRow(pathname, tabLinks.filter((l) => !l.product))
+    ? currentRow(
+        pathname,
+        tabLinks.filter((l) => !l.product),
+      )
     : tabLinks.find((l) => l.product === nav.activeProductKey);
   const tabs: AdminEntry[] = (
     tabLinks.length > 5 ? tabLinks.filter((l) => l.label !== "Billing") : tabLinks
@@ -317,7 +346,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // switchAccountUrl="/api/demo/switch-account" when isDemo.
   const business =
     accounts.length > 0
-      ? businessSwitcher(accounts, activeAccountId, isDemo ? DEMO_ACCOUNT_SWITCH_URL : ACCOUNT_SWITCH_URL)
+      ? businessSwitcher(
+          accounts,
+          activeAccountId,
+          isDemo ? DEMO_ACCOUNT_SWITCH_URL : ACCOUNT_SWITCH_URL,
+        )
       : null;
   const products: HeaderSwitcher = {
     id: "products",
@@ -380,7 +413,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           email: userName ? email : undefined,
           appLabel: accountName ?? email,
           appLinks: [
-            ...accountRows.map((l) => ({ label: l.label, href: l.to, current: l === currentAccountRow })),
+            ...accountRows.map((l) => ({
+              label: l.label,
+              href: l.to,
+              current: l === currentAccountRow,
+            })),
             ...(isAdmin ? [{ label: "Admin", href: "/admin" }] : []),
           ],
           onSignOut: () => void submit(null, { method: "post", action: "/logout" }),
@@ -468,7 +505,12 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         text={errorDetails(error, import.meta.env.DEV)}
         siteHeader={
           <div className="fh-site-header">
-            <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
+            <SiteHeader
+              logo={headerLogo("/")}
+              themePrefKey={THEME_PREF_KEY}
+              sheetTitle="Foxhound menu"
+              renderLink={renderHeaderLink}
+            />
           </div>
         }
         dev={import.meta.env.DEV}

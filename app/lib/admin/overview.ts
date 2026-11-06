@@ -60,13 +60,18 @@ export function overviewAttention(overview: AdminOverview, nowMs: number): Atten
 
   for (const d of staleDisputes) {
     const days = Math.floor((nowMs - d.createdAt.getTime()) / DAY_MS);
-    const deadline = deadlineLabel(daysUntilDeadline(d.evidenceDeadline, nowMs)) ?? "No evidence deadline";
+    const deadline =
+      deadlineLabel(daysUntilDeadline(d.evidenceDeadline, nowMs)) ?? "No evidence deadline";
     items.push({
       id: `dispute-${d.id}`,
       tone: "warn",
       group: "disputes",
       title: `${d.merchantName ?? d.accountId} has a dispute with no response after ${days} days`,
-      detail: [formatMoney(d.amountCents, d.currency), humanizeDisputeReason(d.reason), deadline].join(" · "),
+      detail: [
+        formatMoney(d.amountCents, d.currency),
+        humanizeDisputeReason(d.reason),
+        deadline,
+      ].join(" · "),
       when: when(d.createdAt, nowMs),
       href: merchantHref(d.accountId),
     });
@@ -108,17 +113,21 @@ export function overviewAttention(overview: AdminOverview, nowMs: number): Atten
  *  lists its rows: /admin/merchants shows a Paused badge and /admin/platform/crons
  *  every failed run; no admin page lists disputes or fee invoices, so those
  *  groups have no link, and each row still links to its merchant. */
-export function overviewAttentionGroups(overview: AdminOverview): Record<string, AttentionGroupInfo> {
+export function overviewAttentionGroups(
+  overview: AdminOverview,
+): Record<string, AttentionGroupInfo> {
   return {
     paused: {
       title: () => `${plural(overview.pausedCount, "merchant is", "merchants are")} paused`,
       view: { href: "/admin/merchants", label: "Merchants" },
     },
     disputes: {
-      title: () => `${plural(overview.staleDisputesCount, "dispute has", "disputes have")} had no response for a week`,
+      title: () =>
+        `${plural(overview.staleDisputesCount, "dispute has", "disputes have")} had no response for a week`,
     },
     billing: {
-      title: () => `${plural(overview.failedFeeInvoicesCount, "fee invoice", "fee invoices")} not paid`,
+      title: () =>
+        `${plural(overview.failedFeeInvoicesCount, "fee invoice", "fee invoices")} not paid`,
     },
     crons: {
       title: (n) => `${plural(n, "cron run", "cron runs")} failed in the last 24 hours`,

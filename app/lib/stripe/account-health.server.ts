@@ -56,7 +56,12 @@ export async function sendAccountHealthNotice(
       })
       .from(stripeConnections)
       .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
-      .where(and(eq(stripeConnections.id, ctx.connectionId), eq(stripeConnections.accountId, ctx.accountId)))
+      .where(
+        and(
+          eq(stripeConnections.id, ctx.connectionId),
+          eq(stripeConnections.accountId, ctx.accountId),
+        ),
+      )
       .limit(1);
     if (!row) return { kind: "skipped", reason: "not_found" };
     const label = row.name || row.stripeUserId;
@@ -87,7 +92,11 @@ export async function sendAccountHealthNotice(
         null,
       );
     }
-    const slack = await postSlackText(env, ctx.accountId, accountHealthSlackText(ctx.problems, ctx.health, label));
+    const slack = await postSlackText(
+      env,
+      ctx.accountId,
+      accountHealthSlackText(ctx.problems, ctx.health, label),
+    );
     return { kind: "sent", email, slack };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

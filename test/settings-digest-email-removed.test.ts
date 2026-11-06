@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,7 +46,8 @@ beforeEach(() => {
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext)
+      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
     if (key === authContext) {
       return {
         userId: "user_1",

@@ -29,7 +29,13 @@ describe("LTV computed fresh, under 253's column guard", () => {
 describe("previous failures, per 253's spec", () => {
   it("stays account-scoped: the same Stripe customer id on another account never appears", async () => {
     const { sqlite, db } = createInMemoryDb();
-    runStatement(sqlite, db.insert(accounts).values([{ id: "acc_a", name: "A" }, { id: "acc_b", name: "B" }]));
+    runStatement(
+      sqlite,
+      db.insert(accounts).values([
+        { id: "acc_a", name: "A" },
+        { id: "acc_b", name: "B" },
+      ]),
+    );
     const payment = (id: string, accountId: string, day: number) => ({
       id,
       accountId,
@@ -45,11 +51,13 @@ describe("previous failures, per 253's spec", () => {
     });
     runStatement(
       sqlite,
-      db.insert(failedPayments).values([
-        payment("fp_now", "acc_a", 10),
-        payment("fp_before", "acc_a", 5),
-        payment("fp_other_account", "acc_b", 8),
-      ]),
+      db
+        .insert(failedPayments)
+        .values([
+          payment("fp_now", "acc_a", 10),
+          payment("fp_before", "acc_a", 5),
+          payment("fp_other_account", "acc_b", 8),
+        ]),
     );
 
     const detail = await getFailedPaymentDetail(db, "acc_a", "fp_now");

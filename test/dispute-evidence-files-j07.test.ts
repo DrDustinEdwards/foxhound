@@ -43,13 +43,11 @@ vi.mock("~/lib/disputes/submission", async (importOriginal) => {
 
 const detail = await import("~/routes/app/disputes/detail");
 const fileRoute = await import("~/routes/app/disputes/file");
-const { approveAndSubmitDispute, getDisputeDetail, getDisputesWithEvidence } = await import(
-  "~/lib/disputes/queries.server"
-);
+const { approveAndSubmitDispute, getDisputeDetail, getDisputesWithEvidence } =
+  await import("~/lib/disputes/queries.server");
 const { submitDisputeEvidenceWithClient } = await import("~/lib/disputes/submission");
-const { deleteEvidenceFile, uploadEvidenceFile } = await import(
-  "~/lib/disputes/evidence-files.server"
-);
+const { deleteEvidenceFile, uploadEvidenceFile } =
+  await import("~/lib/disputes/evidence-files.server");
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const DAY = 86_400_000;
@@ -66,7 +64,11 @@ function fakeBucket(opts: { failPut?: boolean; onPut?: () => void } = {}) {
   const objects = new Map<string, Stored>();
   const bucket = {
     objects,
-    async put(key: string, value: ArrayBuffer | Uint8Array, o?: { httpMetadata?: { contentType?: string } }) {
+    async put(
+      key: string,
+      value: ArrayBuffer | Uint8Array,
+      o?: { httpMetadata?: { contentType?: string } },
+    ) {
       if (opts.failPut) throw new Error("r2 down");
       // Lets a test act between the checks before the write and the write.
       opts.onPut?.();
@@ -163,7 +165,12 @@ function seedDispute(over: Partial<typeof disputes.$inferInsert> = {}): string {
   return id;
 }
 
-function seedEvidence(id: string, fieldName: string, fieldValue: string, over: Partial<typeof disputeEvidence.$inferInsert> = {}) {
+function seedEvidence(
+  id: string,
+  fieldName: string,
+  fieldValue: string,
+  over: Partial<typeof disputeEvidence.$inferInsert> = {},
+) {
   runStatement(
     sqlite,
     db.insert(disputeEvidence).values({
@@ -195,20 +202,31 @@ function seedApproval(): void {
 
 const fileRows = () =>
   sqlite
-    .prepare("select id, account_id, dispute_id, field_value from dispute_evidence where field_name = 'file_upload' order by created_at, id")
+    .prepare(
+      "select id, account_id, dispute_id, field_value from dispute_evidence where field_name = 'file_upload' order by created_at, id",
+    )
     .all() as { id: string; account_id: string; dispute_id: string; field_value: string }[];
 
 // ---- Calling the routes ----
 
 async function post(
   form: FormData,
-  opts: { accountId?: string; bucket?: FakeBucket; id?: string; headers?: Record<string, string> } = {},
+  opts: {
+    accountId?: string;
+    bucket?: FakeBucket;
+    id?: string;
+    headers?: Record<string, string>;
+  } = {},
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const id = opts.id ?? "dsp_1";
   try {
     const result = await detail.action({
       context: contextFor(opts.accountId ?? A, envWith(opts.bucket)),
-      request: new Request(`https://foxhoundapp.test/disputes/${id}`, { method: "POST", body: form, headers: opts.headers }),
+      request: new Request(`https://foxhoundapp.test/disputes/${id}`, {
+        method: "POST",
+        body: form,
+        headers: opts.headers,
+      }),
       params: { id },
     } as never);
     const r = result as { init?: { status?: number }; data?: unknown };
@@ -250,8 +268,6 @@ async function view(
   }
 }
 
-
-
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
@@ -290,7 +306,10 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
     const big = fileOf(PNG, "big.png", "image/png", DISPUTE_EVIDENCE_MAX_SIZE_BYTES + 1);
     const res = await post(uploadForm(big), { bucket });
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ fileOutcome: "file_too_large", error: "Files must be 5 MB or smaller." });
+    expect(res.body).toMatchObject({
+      fileOutcome: "file_too_large",
+      error: "Files must be 5 MB or smaller.",
+    });
     expect(fileRows()).toHaveLength(0);
     expect(bucket.objects.size).toBe(0);
   });
@@ -298,7 +317,10 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
   it("takes a file of exactly 5 MB", async () => {
     seedDispute();
     const bucket = fakeBucket();
-    const res = await post(uploadForm(fileOf(PDF, "edge.pdf", "application/pdf", DISPUTE_EVIDENCE_MAX_SIZE_BYTES)), { bucket });
+    const res = await post(
+      uploadForm(fileOf(PDF, "edge.pdf", "application/pdf", DISPUTE_EVIDENCE_MAX_SIZE_BYTES)),
+      { bucket },
+    );
     expect(res.body).toMatchObject({ fileOutcome: "uploaded" });
   });
 
@@ -317,9 +339,15 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
   it("refuses a type outside JPG, PNG and PDF with file_type_not_allowed, storing nothing", async () => {
     seedDispute();
     const bucket = fakeBucket();
-    const res = await post(uploadForm(new File(["<html><script>1</script></html>"], "x.html", { type: "text/html" })), { bucket });
+    const res = await post(
+      uploadForm(new File(["<html><script>1</script></html>"], "x.html", { type: "text/html" })),
+      { bucket },
+    );
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ fileOutcome: "file_type_not_allowed", error: "Only JPG, PNG, or PDF files are allowed." });
+    expect(res.body).toMatchObject({
+      fileOutcome: "file_type_not_allowed",
+      error: "Only JPG, PNG, or PDF files are allowed.",
+    });
     expect(fileRows()).toHaveLength(0);
     expect(bucket.objects.size).toBe(0);
   });
@@ -327,7 +355,10 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
   it("refuses a file whose bytes are not the type it claims", async () => {
     seedDispute();
     const bucket = fakeBucket();
-    const res = await post(uploadForm(new File(["<html>not a png</html>"], "fake.png", { type: "image/png" })), { bucket });
+    const res = await post(
+      uploadForm(new File(["<html>not a png</html>"], "fake.png", { type: "image/png" })),
+      { bucket },
+    );
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ fileOutcome: "file_type_not_allowed" });
     expect(bucket.objects.size).toBe(0);
@@ -336,7 +367,11 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
   it("accepts each allowed type", async () => {
     seedDispute();
     const bucket = fakeBucket();
-    for (const f of [fileOf(JPG, "a.jpg", "image/jpeg"), fileOf(PNG, "b.png", "image/png"), fileOf(PDF, "c.pdf", "application/pdf")]) {
+    for (const f of [
+      fileOf(JPG, "a.jpg", "image/jpeg"),
+      fileOf(PNG, "b.png", "image/png"),
+      fileOf(PDF, "c.pdf", "application/pdf"),
+    ]) {
       const res = await post(uploadForm(f), { bucket });
       expect(res.body, f.name).toMatchObject({ fileOutcome: "uploaded" });
     }
@@ -347,11 +382,16 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
     seedDispute();
     const bucket = fakeBucket();
     for (let i = 0; i < DISPUTE_EVIDENCE_MAX_FILES; i++) {
-      expect((await post(uploadForm(fileOf(PNG, `f${i}.png`, "image/png")), { bucket })).body).toMatchObject({ fileOutcome: "uploaded" });
+      expect(
+        (await post(uploadForm(fileOf(PNG, `f${i}.png`, "image/png")), { bucket })).body,
+      ).toMatchObject({ fileOutcome: "uploaded" });
     }
     const res = await post(uploadForm(fileOf(PNG, "f6.png", "image/png")), { bucket });
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ fileOutcome: "max_files_exceeded", error: "Maximum 5 files per dispute." });
+    expect(res.body).toMatchObject({
+      fileOutcome: "max_files_exceeded",
+      error: "Maximum 5 files per dispute.",
+    });
     expect(fileRows()).toHaveLength(5);
     expect(bucket.objects.size).toBe(5);
   });
@@ -373,7 +413,9 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
   it("answers 500 upload_failed and records nothing when the bucket refuses the write", async () => {
     seedDispute();
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket: fakeBucket({ failPut: true }) });
+    const res = await post(uploadForm(fileOf(PNG, "r.png", "image/png")), {
+      bucket: fakeBucket({ failPut: true }),
+    });
     expect(res.status).toBe(500);
     expect(res.body).toMatchObject({ fileOutcome: "upload_failed" });
     expect(fileRows()).toHaveLength(0);
@@ -405,7 +447,9 @@ describe("J07: delete (Recova's delete-evidence route)", () => {
     seedEvidence("ev_text", "product_description", "Growth plan");
     const res = await post(deleteForm("ev_text"), { bucket: fakeBucket() });
     expect(res.status).toBe(404);
-    expect(sqlite.prepare("select count(*) as n from dispute_evidence where id = 'ev_text'").get()).toEqual({ n: 1 });
+    expect(
+      sqlite.prepare("select count(*) as n from dispute_evidence where id = 'ev_text'").get(),
+    ).toEqual({ n: 1 });
   });
 });
 
@@ -419,7 +463,9 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     const res = await view(fileRows()[0]!.id, { bucket });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
-    const a3 = checkSecurityHeaders(res.headers, { upload: true, csp: false }).filter((r) => r.id === "A3");
+    const a3 = checkSecurityHeaders(res.headers, { upload: true, csp: false }).filter(
+      (r) => r.id === "A3",
+    );
     expect(failures(a3)).toEqual([]);
   });
 
@@ -432,10 +478,17 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
     // The one cache policy, applied on the way out, makes it private.
-    const sent = applyCachePolicy(new Request(`https://foxhoundapp.test/disputes/dsp_1/files/${row.id}`), res);
+    const sent = applyCachePolicy(
+      new Request(`https://foxhoundapp.test/disputes/dsp_1/files/${row.id}`),
+      res,
+    );
     expect(sent.headers.get("cache-control")).toBe("private, no-store");
-    expect(res.headers.get("content-disposition")).toBe(`inline; filename="${row.field_value.split("/").pop()}"`);
-    expect(new Uint8Array(await res.arrayBuffer()).slice(0, 5)).toEqual(new Uint8Array(PDF.slice(0, 5)));
+    expect(res.headers.get("content-disposition")).toBe(
+      `inline; filename="${row.field_value.split("/").pop()}"`,
+    );
+    expect(new Uint8Array(await res.arrayBuffer()).slice(0, 5)).toEqual(
+      new Uint8Array(PDF.slice(0, 5)),
+    );
   });
 
   it("refuses a file id under a different dispute of the same account", async () => {
@@ -477,7 +530,12 @@ describe("J07: with no EVIDENCE binding, every path says so truthfully", () => {
     seedEvidence("ev_f", "file_upload", "acct_alpha/dsp_1/x.png");
     vi.spyOn(console, "error").mockImplementation(() => {});
     const d = (await getDisputeDetail(db, A, "dsp_1"))!;
-    const result = await approveAndSubmitDispute(db, envWith(undefined), approveInput(), d.evidence);
+    const result = await approveAndSubmitDispute(
+      db,
+      envWith(undefined),
+      approveInput(),
+      d.evidence,
+    );
     expect(result).toEqual({ status: "submitted" });
     expect(harness.submitted).toHaveLength(1);
     const ctx = harness.submitted[0] as DisputeSubmissionContext;
@@ -529,7 +587,8 @@ describe("J07: files go with the evidence submission (Recova's submit route)", (
 
   it("puts each file in Recova's slot order, and a file outranks a text field in its slot", async () => {
     const created: { purpose: string; file: { name: string; type: string } }[] = [];
-    const updates: { id: string; params: { evidence: Record<string, string>; submit: boolean } }[] = [];
+    const updates: { id: string; params: { evidence: Record<string, string>; submit: boolean } }[] =
+      [];
     const stripe = {
       files: {
         create: async (params: { purpose: string; file: { name: string; type: string } }) => {
@@ -538,7 +597,10 @@ describe("J07: files go with the evidence submission (Recova's submit route)", (
         },
       },
       disputes: {
-        update: async (id: string, params: { evidence: Record<string, string>; submit: boolean }) => {
+        update: async (
+          id: string,
+          params: { evidence: Record<string, string>; submit: boolean },
+        ) => {
           updates.push({ id, params });
           return {};
         },
@@ -609,13 +671,17 @@ describe("J07 review: each write carries its own guard", () => {
 });
 
 describe("J07 review: a file keeps its own Stripe slot when an earlier one is missing (Recova's slot i)", () => {
-
   it("submits a file in its own slot, leaving the missing one's slot empty", async () => {
     const updates: { evidence: Record<string, string> }[] = [];
     let n = 0;
     const stripe = {
       files: { create: async () => ({ id: `file_${++n}` }) },
-      disputes: { update: async (_id: string, params: { evidence: Record<string, string> }) => (updates.push(params), {}) },
+      disputes: {
+        update: async (_id: string, params: { evidence: Record<string, string> }) => (
+          updates.push(params),
+          {}
+        ),
+      },
     } as unknown as Stripe;
     await submitDisputeEvidenceWithClient(stripe, {
       stripeDisputeId: "dp_1",

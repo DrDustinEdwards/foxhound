@@ -6,7 +6,9 @@ import type { DeclineCodeView } from "./codes";
 
 /** How long the fraud sequence runs, in days: its last step's offset, read
  *  from the schedule rather than typed. */
-const FRAUD_SEQUENCE_DAYS = Math.round(Math.max(...RECOVERY_SCHEDULES.fraud.map((s) => s.offsetHours)) / 24);
+const FRAUD_SEQUENCE_DAYS = Math.round(
+  Math.max(...RECOVERY_SCHEDULES.fraud.map((s) => s.offsetHours)) / 24,
+);
 
 // Shared, category-driven presentation for the /decline-codes surfaces. None
 // of this is per-code hand-authored: it derives entirely from the

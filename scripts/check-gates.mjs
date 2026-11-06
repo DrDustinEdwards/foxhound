@@ -43,4 +43,6 @@ if (gates.length < MINIMUM_GATES) {
   process.exit(1);
 }
 
-console.log(`check-gates: ${gates.length} gates wired (minimum ${MINIMUM_GATES}): ${gates.join(", ")}`);
+console.log(
+  `check-gates: ${gates.length} gates wired (minimum ${MINIMUM_GATES}): ${gates.join(", ")}`,
+);

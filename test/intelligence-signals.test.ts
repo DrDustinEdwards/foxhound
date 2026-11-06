@@ -22,7 +22,6 @@ describe("monthlyEquivalentCents", () => {
 });
 
 describe("summarizeActiveSubscriptions", () => {
-
   it("picks the plan with the largest MRR contribution as current", () => {
     const result = summarizeActiveSubscriptions([
       { priceId: "p1", productName: "Small", quantity: 1, interval: "month", unitAmountCents: 500 },
@@ -41,7 +40,6 @@ describe("computeSubscriptionAgeDays", () => {
 });
 
 describe("countBillingChanges", () => {
-
   it("counts a seat (quantity) change independently of plan", () => {
     const result = countBillingChanges([
       { at: 1, priceId: "p1", quantity: 1, interval: "month" },
@@ -60,7 +58,6 @@ describe("countBillingChanges", () => {
 });
 
 describe("collapseBillingObservations (construction layer: raw Stripe lines -> one state per instant)", () => {
-
   it("a proration credit (negative valueCents) never wins over the real charge line at the same instant", () => {
     const collapsed = collapseBillingObservations([
       { at: 2000, priceId: "old_plan", quantity: 1, interval: "month", valueCents: -2000 },
@@ -87,7 +84,6 @@ describe("collapseBillingObservations (construction layer: raw Stripe lines -> o
 });
 
 describe("computePaymentLatencyDriftDays", () => {
-
   it("returns null when due/paid dates are missing entirely", () => {
     expect(
       computePaymentLatencyDriftDays([
@@ -131,7 +127,11 @@ describe("buildRecoverySignals", () => {
 describe("buildDisputeSignals", () => {
   it("splits won vs lost", () => {
     expect(
-      buildDisputeSignals([{ state: "resolved_won" }, { state: "resolved_lost" }, { state: "pending_review" }]),
+      buildDisputeSignals([
+        { state: "resolved_won" },
+        { state: "resolved_lost" },
+        { state: "pending_review" },
+      ]),
     ).toEqual({ disputeCount: 3, wonCount: 1, lostCount: 1 });
   });
 });
@@ -156,11 +156,23 @@ describe("buildCustomerContextFields (orchestrator)", () => {
       customerSinceMs: since,
       nowMs: now,
       activeSubscriptions: [
-        { priceId: "p1", productName: "Pro", quantity: 2, interval: "month", unitAmountCents: 3000 },
+        {
+          priceId: "p1",
+          productName: "Pro",
+          quantity: 2,
+          interval: "month",
+          unitAmountCents: 3000,
+        },
       ],
       billingHistory: [
         { at: since, priceId: "p0", quantity: 1, interval: "month", valueCents: 3000 },
-        { at: since + 30 * DAY_MS, priceId: "p1", quantity: 2, interval: "month", valueCents: 6000 },
+        {
+          at: since + 30 * DAY_MS,
+          priceId: "p1",
+          quantity: 2,
+          interval: "month",
+          valueCents: 6000,
+        },
       ],
       invoiceHistory: [],
       refundCount: 1,
@@ -176,7 +188,11 @@ describe("buildCustomerContextFields (orchestrator)", () => {
     expect(result.planChangeCount).toBe(1);
     expect(result.refundCount).toBe(1);
     expect(result.paymentLatencyDriftDays).toBeNull();
-    expect(result.recoverySignals).toEqual({ failedPaymentCount: 1, recoveredCount: 1, avgDaysToRecover: 3 });
+    expect(result.recoverySignals).toEqual({
+      failedPaymentCount: 1,
+      recoveredCount: 1,
+      avgDaysToRecover: 3,
+    });
     expect(result.engagementSignals.clickCount).toBe(1);
   });
 
@@ -185,12 +201,30 @@ describe("buildCustomerContextFields (orchestrator)", () => {
       customerSinceMs: since,
       nowMs: now,
       activeSubscriptions: [
-        { priceId: "p2", productName: "Growth", quantity: 1, interval: "month", unitAmountCents: 9000 },
+        {
+          priceId: "p2",
+          productName: "Growth",
+          quantity: 1,
+          interval: "month",
+          unitAmountCents: 9000,
+        },
       ],
       billingHistory: [
         { at: since, priceId: "p1", quantity: 1, interval: "month", valueCents: 5000 },
-        { at: since + 30 * DAY_MS, priceId: "p2", quantity: 1, interval: "month", valueCents: 9000 },
-        { at: since + 30 * DAY_MS, priceId: "p1", quantity: 1, interval: "month", valueCents: -2000 },
+        {
+          at: since + 30 * DAY_MS,
+          priceId: "p2",
+          quantity: 1,
+          interval: "month",
+          valueCents: 9000,
+        },
+        {
+          at: since + 30 * DAY_MS,
+          priceId: "p1",
+          quantity: 1,
+          interval: "month",
+          valueCents: -2000,
+        },
       ],
       invoiceHistory: [],
       refundCount: 0,

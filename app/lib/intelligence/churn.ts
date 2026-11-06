@@ -28,7 +28,11 @@ export interface ChurnRatePointLike {
   involuntaryPct: number | null;
 }
 
-const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+const MONTH = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 /** "Sep 2025": a snapshot's month, pinned to UTC so the server and browser agree.
  *  Shared by the chart's axis table and its text alternative. */
@@ -41,12 +45,17 @@ function formatChurnPct(value: number): string {
   return `${Math.round(value * 100) / 100}%`;
 }
 
-function seriesSentence(name: string, points: readonly ChurnRatePointLike[], pick: (p: ChurnRatePointLike) => number | null): string {
+function seriesSentence(
+  name: string,
+  points: readonly ChurnRatePointLike[],
+  pick: (p: ChurnRatePointLike) => number | null,
+): string {
   const present = points.filter((p) => pick(p) !== null);
   if (present.length === 0) return `${name} churn has no rate yet`;
   const first = present[0];
   const last = present[present.length - 1];
-  const at = (p: ChurnRatePointLike) => `${formatChurnPct(pick(p) as number)} in ${formatChurnMonth(p.at)}`;
+  const at = (p: ChurnRatePointLike) =>
+    `${formatChurnPct(pick(p) as number)} in ${formatChurnMonth(p.at)}`;
   if (present.length === 1) return `${name} churn was ${at(first)}`;
   return `${name} churn went from ${at(first)} to ${at(last)}`;
 }
@@ -79,7 +88,11 @@ interface ChurnRow {
   rate: number | null;
 }
 
-export function drawChurnRate(points: readonly ChurnRatePointLike[], width: number, fit: ChartFit = {}): string {
+export function drawChurnRate(
+  points: readonly ChurnRatePointLike[],
+  width: number,
+  fit: ChartFit = {},
+): string {
   const data: ChurnRow[] = points.flatMap((p) => {
     const Month = p.at.toISOString().slice(0, 10);
     return [

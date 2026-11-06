@@ -35,16 +35,27 @@ export function knownSignInError(code: string | null): string | null {
 }
 
 export function signInErrorMessage(code: string | null): string | null {
-  return code ? (ERROR_MESSAGES[code] ?? "That sign-in did not complete. Try again or use another way.") : null;
+  return code
+    ? (ERROR_MESSAGES[code] ?? "That sign-in did not complete. Try again or use another way.")
+    : null;
 }
 
-export type SignInLinkResult = "sent" | "limited" | "email_limited" | "check_failed" | "unavailable" | "failed";
+export type SignInLinkResult =
+  | "sent"
+  | "limited"
+  | "email_limited"
+  | "check_failed"
+  | "unavailable"
+  | "failed";
 
 /** A 429 from Better Auth: its per-IP limit, or site-runtime's per-address one
  *  (EMAIL_RATE_LIMITED), whose window is an hour or a day, so its words say
  *  "later", not "a minute". */
 async function limitOf(res: Response): Promise<"limited" | "email_limited"> {
-  const { code } = (await res.clone().json().catch(() => ({}))) as { code?: string };
+  const { code } = (await res
+    .clone()
+    .json()
+    .catch(() => ({}))) as { code?: string };
   return code === "EMAIL_RATE_LIMITED" ? "email_limited" : "limited";
 }
 
@@ -55,7 +66,10 @@ async function limitOf(res: Response): Promise<"limited" | "email_limited"> {
  *  relative-path check refuses a query that carries an encoded URL, which an
  *  OAuth authorize `next` always does. */
 export function passkeyOfferURL(env: Env, next: string): string {
-  return new URL(`/passkey?next=${encodeURIComponent(safeNextPath(next))}`, env.BETTER_AUTH_URL).toString();
+  return new URL(
+    `/passkey?next=${encodeURIComponent(safeNextPath(next))}`,
+    env.BETTER_AUTH_URL,
+  ).toString();
 }
 
 /** The headers Better Auth's handler is handed for a signed-out POST: the
@@ -78,7 +92,9 @@ export async function requestSignInLink(
   if (link.captchaToken) headers.set("x-captcha-response", link.captchaToken);
 
   try {
-    const res = await (await getAuth(env)).handler(
+    const res = await (
+      await getAuth(env)
+    ).handler(
       new Request(new URL("/api/auth/sign-in/magic-link", env.BETTER_AUTH_URL), {
         method: "POST",
         headers,
@@ -96,7 +112,10 @@ export async function requestSignInLink(
     // missing (TURNSTILE_NOT_SET).
     if (res.status === 503) return "unavailable";
     if (res.status === 400 || res.status === 403) {
-      const { code } = (await res.clone().json().catch(() => ({}))) as { code?: string };
+      const { code } = (await res
+        .clone()
+        .json()
+        .catch(() => ({}))) as { code?: string };
       if (code === "MISSING_RESPONSE" || code === "VERIFICATION_FAILED") return "check_failed";
     }
     if (!res.ok) {
@@ -118,7 +137,11 @@ export async function requestSignInLink(
 function signInLinkAnswer(result: SignInLinkResult, email: string, limited: string) {
   switch (result) {
     case "sent":
-      return data({ sent: email as string | null, error: null as string | null, codeError: null as string | null });
+      return data({
+        sent: email as string | null,
+        error: null as string | null,
+        codeError: null as string | null,
+      });
     case "limited":
     case "email_limited":
       return data(
@@ -134,14 +157,19 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
       return data(
         {
           sent: null,
-          error: "Sign-in links are switched off for a moment. Sign in with a passkey, or try again later.",
+          error:
+            "Sign-in links are switched off for a moment. Sign in with a passkey, or try again later.",
           codeError: null,
         },
         { status: 503 },
       );
     case "failed":
       return data(
-        { sent: null, error: "We could not send the link. Check the address and try again.", codeError: null },
+        {
+          sent: null,
+          error: "We could not send the link. Check the address and try again.",
+          codeError: null,
+        },
         { status: 500 },
       );
   }
@@ -158,7 +186,16 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
 
 export type SignInCodeResult =
   | { status: "signed_in"; headers: Headers }
-  | { status: "wrong" | "spent" | "disposable" | "limited" | "email_limited" | "unavailable" | "failed" };
+  | {
+      status:
+        | "wrong"
+        | "spent"
+        | "disposable"
+        | "limited"
+        | "email_limited"
+        | "unavailable"
+        | "failed";
+    };
 
 export async function signInWithCode(
   env: Env,
@@ -166,7 +203,9 @@ export async function signInWithCode(
   attempt: { email: string; code: string },
 ): Promise<SignInCodeResult> {
   try {
-    const res = await (await getAuth(env)).handler(
+    const res = await (
+      await getAuth(env)
+    ).handler(
       new Request(new URL(`/api/auth${SIGN_IN_CODE_PATH}`, env.BETTER_AUTH_URL), {
         method: "POST",
         headers: forwardedHeaders(request),
@@ -183,7 +222,11 @@ export async function signInWithCode(
     if (res.status === 429) return { status: await limitOf(res) };
     const { code } = (await res.json().catch(() => ({}))) as { code?: string };
     if (code === "INVALID_OTP" || code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") {
-      logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), via: "code", code }, { level: "warn" });
+      logEvent(
+        OWASP_EVENTS.signInFailure,
+        { ...requestFields(request), via: "code", code },
+        { level: "warn" },
+      );
     }
     if (code === "INVALID_OTP") return { status: "wrong" };
     if (code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") return { status: "spent" };
@@ -202,7 +245,8 @@ export async function signInWithCode(
 
 const CODE_ANSWERS = {
   wrong: "That code is not right. Check the email and try again.",
-  spent: "That code has expired or was tried too many times. Use the link in the email, or send a new one.",
+  spent:
+    "That code has expired or was tried too many times. Use the link in the email, or send a new one.",
   disposable: "Please use a real email address. Disposable email providers are not allowed.",
   unavailable: "Codes cannot be checked right now. Use the link in the email instead.",
   failed: "That sign-in did not complete. Try again or use the link in the email.",
@@ -211,10 +255,21 @@ const CODE_ANSWERS = {
 /** The page's answer to a typed code: on to the passkey offer and `next`, as
  *  the link goes, or the "link sent" screen again with the words its alert
  *  shows. `limited` is the page's own words for its limit. */
-function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, next: string, limited: string) {
-  if (result.status === "signed_in") throw redirect(passkeyOfferURL(env, next), { headers: result.headers });
+function signInCodeAnswer(
+  env: Env,
+  result: SignInCodeResult,
+  email: string,
+  next: string,
+  limited: string,
+) {
+  if (result.status === "signed_in")
+    throw redirect(passkeyOfferURL(env, next), { headers: result.headers });
   const error =
-    result.status === "limited" ? limited : result.status === "email_limited" ? SIGN_UP_LIMITED : CODE_ANSWERS[result.status];
+    result.status === "limited"
+      ? limited
+      : result.status === "email_limited"
+        ? SIGN_UP_LIMITED
+        : CODE_ANSWERS[result.status];
   const status = result.status.endsWith("limited")
     ? 429
     : result.status === "unavailable"
@@ -222,7 +277,10 @@ function signInCodeAnswer(env: Env, result: SignInCodeResult, email: string, nex
       : result.status === "failed"
         ? 500
         : 400;
-  return data({ sent: email as string | null, error: null as string | null, codeError: error }, { status });
+  return data(
+    { sent: email as string | null, error: null as string | null, codeError: error },
+    { status },
+  );
 }
 
 /** What /login and /signup do with their form once their limit lets it
@@ -235,13 +293,23 @@ export async function answerSignInForm(
   page: { isCode: boolean; limited: string },
 ) {
   const email = String(form.get("email") ?? "").trim();
-  if (!email) return data({ sent: null, error: "Enter your email address.", codeError: null }, { status: 400 });
+  if (!email)
+    return data(
+      { sent: null, error: "Enter your email address.", codeError: null },
+      { status: 400 },
+    );
   const next = safeNextPath(String(form.get("next") ?? ""));
 
   // The code from the same mail, typed on the "link sent" screen.
   if (page.isCode) {
     const code = String(form.get("code") ?? "").trim();
-    return signInCodeAnswer(env, await signInWithCode(env, request, { email, code }), email, next, SIGN_IN_LIMITED);
+    return signInCodeAnswer(
+      env,
+      await signInWithCode(env, request, { email, code }),
+      email,
+      next,
+      SIGN_IN_LIMITED,
+    );
   }
 
   const result = await requestSignInLink(env, request, {

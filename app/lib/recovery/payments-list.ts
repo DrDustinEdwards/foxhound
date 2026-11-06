@@ -34,7 +34,11 @@ export function parsePaymentsTimeRange(value: string | null): PaymentTimeRange {
 
 /** An amount bound in the URL, in cents, clamped to the account's range; null
  *  when absent or not a number. */
-export function parsePaymentsAmount(value: string | null, floorCents: number, ceilingCents: number): number | null {
+export function parsePaymentsAmount(
+  value: string | null,
+  floorCents: number,
+  ceilingCents: number,
+): number | null {
   if (!value) return null;
   const n = Math.round(Number(value));
   if (!Number.isFinite(n)) return null;

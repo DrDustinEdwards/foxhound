@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-
 // H-2 (foxhound-audit-perf.md): workers/app.ts's scheduled() handler now
 // resolves the cron registry via a dynamic `await import("~/lib/cron/registry")`
 // instead of a static top-level import, so fetch()/queue() never pull in the

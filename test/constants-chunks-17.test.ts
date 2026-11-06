@@ -26,7 +26,6 @@ import { afterTransientFailure } from "~/lib/recovery/step-state";
 // changing. Something has to assert the number itself.
 
 describe("CHUNKS item 17: win-back window", () => {
-
   it("is the span the planner actually schedules, not just a loose constant", () => {
     // Pinning the constant alone would not catch WIN_BACK_SCHEDULE being rewired
     // to a different one, so assert the last step the planner emits.
@@ -40,7 +39,6 @@ describe("CHUNKS item 17: win-back window", () => {
 });
 
 describe("CHUNKS item 17: send-retry policy", () => {
-
   it("carries one backoff entry per non-terminal attempt, so the clamp is not load-bearing", () => {
     // The clamp in afterTransientFailureWith stays as a safety net for a future
     // change to SEND_MAX_ATTEMPTS. It must not be the mechanism that produces

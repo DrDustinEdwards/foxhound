@@ -17,9 +17,16 @@ const ADMIN_API_PREFIX = "/api/admin/v1";
 /** A service binding ignores the host; this one only has to be a valid URL. */
 const BINDING_ORIGIN = "https://foxhound.internal";
 
-const LEG = { binding: "FOXHOUND", token: "FOXHOUND_ADMIN_API_KEY", api: "Foxhound's admin API", userAgent: "foxhound-admin-mcp" };
+const LEG = {
+  binding: "FOXHOUND",
+  token: "FOXHOUND_ADMIN_API_KEY",
+  api: "Foxhound's admin API",
+  userAgent: "foxhound-admin-mcp",
+};
 
-export type ApiResult = { ok: true; data: Record<string, unknown> } | { ok: false; status: number; error: string };
+export type ApiResult =
+  | { ok: true; data: Record<string, unknown> }
+  | { ok: false; status: number; error: string };
 
 export interface ApiCall {
   method: "GET" | "POST";
@@ -33,7 +40,11 @@ export interface ApiCall {
 /** One path segment, encoded, so an id can never step onto another route. */
 export const segment = (value: string) => encodeURIComponent(value);
 
-export async function callAdminApi(env: AdminMcpEnv, actor: string, call: ApiCall): Promise<ApiResult> {
+export async function callAdminApi(
+  env: AdminMcpEnv,
+  actor: string,
+  call: ApiCall,
+): Promise<ApiResult> {
   const search = new URLSearchParams();
   for (const [name, value] of Object.entries(call.query ?? {})) {
     if (value !== undefined && value !== "") search.set(name, value);
@@ -48,8 +59,14 @@ export async function callAdminApi(env: AdminMcpEnv, actor: string, call: ApiCal
       signal: call.signal,
     });
     const payload = answer.body as { ok?: boolean; data?: unknown; error?: unknown } | null;
-    if (answer.ok && payload?.ok === true) return { ok: true, data: (payload.data ?? {}) as Record<string, unknown> };
-    return { ok: false, status: answer.status, error: typeof payload?.error === "string" ? payload.error : `Foxhound answered ${answer.status}.` };
+    if (answer.ok && payload?.ok === true)
+      return { ok: true, data: (payload.data ?? {}) as Record<string, unknown> };
+    return {
+      ok: false,
+      status: answer.status,
+      error:
+        typeof payload?.error === "string" ? payload.error : `Foxhound answered ${answer.status}.`,
+    };
   } catch (err) {
     // Unreachable throws on, so its cause (not written for an agent) stays in the log (server.ts).
     if (!(err instanceof ApiLegError) || err.kind === "unreachable") throw err;

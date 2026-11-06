@@ -24,7 +24,10 @@ import type { Db } from "~/db";
  *  connections. The one spelling of "active connection" for an account. */
 export function activeConnectionWhere(accountId: string): SQL {
   // and() of two defined conditions is always defined
-  return and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)) as SQL;
+  return and(
+    eq(stripeConnections.accountId, accountId),
+    isNull(stripeConnections.disconnectedAt),
+  ) as SQL;
 }
 
 /** The account's live primary connection: activeConnectionWhere plus

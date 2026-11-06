@@ -18,7 +18,10 @@ export interface DisconnectResult {
   warning?: string;
 }
 
-export type DisconnectFeedback = { kind: "alert"; message: string } | { kind: "warning"; message: string } | null;
+export type DisconnectFeedback =
+  | { kind: "alert"; message: string }
+  | { kind: "warning"; message: string }
+  | null;
 
 export function disconnectFeedback(result: DisconnectResult | undefined): DisconnectFeedback {
   if (!result || result.action !== "disconnect-stripe") return null;

@@ -37,7 +37,8 @@ beforeEach(() => {
 function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext)
+        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
       if (key === authContext) {
         return {
           userId: "user_1",
@@ -59,11 +60,11 @@ function contextFor(accountId: string): unknown {
 describe("J43: the path is Recova's /audit/dashboard", () => {
   it("answers the old /audit/history with one 301 to /audit/dashboard, keeping the query", async () => {
     const mod = await import("~/routes/audit/history-redirect");
-    const res = (mod.loader({
+    const res = mod.loader({
       request: new Request("https://foxhoundapp.test/audit/history?x=1"),
       params: {},
       context: {},
-    } as never)) as Response;
+    } as never) as Response;
     expect(res.status).toBe(301);
     expect(res.headers.get("Location")).toBe("/audit/dashboard?x=1");
   });
@@ -133,13 +134,17 @@ describe("J43: the loader and the action, scoped to the caller's account", () =>
       params: {},
     } as never) as Promise<{ settings: { lookbackDays: number; autoRun: boolean } }>;
   const stored = (id: string) =>
-    sqlite.prepare("SELECT audit_lookback_days AS d, audit_auto_run AS a FROM accounts WHERE id = ?").get(id) as {
+    sqlite
+      .prepare("SELECT audit_lookback_days AS d, audit_auto_run AS a FROM accounts WHERE id = ?")
+      .get(id) as {
       d: number | null;
       a: number | null;
     };
 
   it("the loader reads this account's settings, NULL as 90 days and off", async () => {
-    sqlite.prepare("UPDATE accounts SET audit_lookback_days = 30, audit_auto_run = 1 WHERE id = ?").run(ACCOUNT_B);
+    sqlite
+      .prepare("UPDATE accounts SET audit_lookback_days = 30, audit_auto_run = 1 WHERE id = ?")
+      .run(ACCOUNT_B);
     expect((await loadPage(ACCOUNT_A)).settings).toEqual({ lookbackDays: 90, autoRun: false });
     expect((await loadPage(ACCOUNT_B)).settings).toEqual({ lookbackDays: 30, autoRun: true });
   });

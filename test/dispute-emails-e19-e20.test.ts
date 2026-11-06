@@ -60,8 +60,7 @@ vi.mock("~/lib/money/execute", () => ({
       sqlite.exec("COMMIT");
     } catch (err) {
       sqlite.exec("ROLLBACK");
-      if (/UNIQUE constraint failed/.test(String(err)))
-        return { applied: false };
+      if (/UNIQUE constraint failed/.test(String(err))) return { applied: false };
       throw err;
     }
     harness.seen.add(write.idempotencyKey);
@@ -79,8 +78,7 @@ vi.mock("~/lib/billing/credit-note", async (importOriginal) => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { outcomeNotice, DISPUTE_OUTCOME_TEMPLATE } =
-  await import("~/lib/disputes/notices");
+const { outcomeNotice, DISPUTE_OUTCOME_TEMPLATE } = await import("~/lib/disputes/notices");
 
 const ACCOUNT = "acct_1";
 const BASE = "https://foxhoundapp.test";
@@ -129,27 +127,17 @@ function seedAccount(
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at, sender_name) VALUES ('c1', ?, 'acct_stripe', 1, 'cipher', 1000, 1000, ?)",
     )
-    .run(
-      ACCOUNT,
-      opts.senderName === undefined ? "Acme Billing" : opts.senderName,
-    );
+    .run(ACCOUNT, opts.senderName === undefined ? "Acme Billing" : opts.senderName);
 }
 
 /** A dispute still open, for the webhook to close. */
-function seedOpenDispute(
-  opts: { submitted?: boolean; amountCents?: number } = {},
-) {
+function seedOpenDispute(opts: { submitted?: boolean; amountCents?: number } = {}) {
   sqlite
     .prepare(
       "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, customer_name, customer_email, amount_cents, currency, reason, status, state, submitted_at, created_at, stripe_connection_id) VALUES ('d1', ?, 'dp_1', 'ch_1', 'Jane Buyer', 'buyer@acme.test', ?, 'usd', 'product_not_received', 'under_review', 'submitted', ?, 1000, 'c1')",
     )
-    .run(
-      ACCOUNT,
-      opts.amountCents ?? 5000,
-      opts.submitted === false ? null : 2000,
-    );
+    .run(ACCOUNT, opts.amountCents ?? 5000, opts.submitted === false ? null : 2000);
 }
-
 
 function closedEvent(status: string, id = "evt_x1", amount = 5000) {
   return {
@@ -187,7 +175,6 @@ const base = {
 // ============================================================================
 
 describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
-
   it("the cap set the fee: the sentence names the cap, so it is not untrue", () => {
     const made = outcomeNotice({
       ...base,
@@ -253,9 +240,9 @@ describe("E19 and E20 send on charge.dispute.closed, and not otherwise", () => {
   it("won, Foxhound submitted: one mail, the fee the resolution snapshotted, the next run's date", async () => {
     seedAccount();
     seedOpenDispute();
-    expect(
-      await processConnectedWebhook(env, closedEvent("won"), RECEIVED),
-    ).toEqual({ status: "applied" });
+    expect(await processConnectedWebhook(env, closedEvent("won"), RECEIVED)).toEqual({
+      status: "applied",
+    });
     const m = only();
     expect(m.to).toBe("ops@acme.test");
     expect(m.subject).toBe("Dispute won: $50.00 recovered");
@@ -270,12 +257,8 @@ describe("E19 and E20 send on charge.dispute.closed, and not otherwise", () => {
     expect(m.text).toContain(
       `${footerNote("Acme Billing")}\nManage email settings: ${BASE}/settings`,
     );
-    const sends = sqlite
-      .prepare("SELECT status, template FROM email_sends")
-      .all();
-    expect(sends).toEqual([
-      { status: "sent", template: DISPUTE_OUTCOME_TEMPLATE },
-    ]);
+    const sends = sqlite.prepare("SELECT status, template FROM email_sends").all();
+    expect(sends).toEqual([{ status: "sent", template: DISPUTE_OUTCOME_TEMPLATE }]);
   });
 
   it("won, not submitted by Foxhound: Recova's no-fee variant", async () => {

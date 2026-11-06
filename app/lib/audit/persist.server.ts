@@ -143,11 +143,7 @@ export async function getAuditRun(
 }
 
 /** An account's runs, newest first, for phase (e)'s history. */
-export async function listAuditRuns(
-  db: Db,
-  accountId: string,
-  limit = 24,
-): Promise<AuditRunRow[]> {
+export async function listAuditRuns(db: Db, accountId: string, limit = 24): Promise<AuditRunRow[]> {
   return db
     .select()
     .from(auditRuns)

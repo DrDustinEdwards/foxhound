@@ -71,12 +71,10 @@ export function EarlyFraudWarnings({
   const busy = navigation.state === "submitting";
   const [confirming, setConfirming] = useState<WarningView | null>(null);
   const [lastConfirm, setLastConfirm] = useState<WarningView | null>(null);
-  const [dismissedResult, setDismissedResult] = useState<
-    WarningActionResult | undefined
-  >(undefined);
-  const pageConfirm = confirmId
-    ? (warnings.find((w) => w.id === confirmId) ?? null)
-    : null;
+  const [dismissedResult, setDismissedResult] = useState<WarningActionResult | undefined>(
+    undefined,
+  );
+  const pageConfirm = confirmId ? (warnings.find((w) => w.id === confirmId) ?? null) : null;
   const shown = confirming ?? lastConfirm;
 
   return (
@@ -87,10 +85,7 @@ export function EarlyFraudWarnings({
     >
       {result && result !== dismissedResult ? (
         <div className="mb-4">
-          <Banner
-            tone={result.ok ? "ok" : "crit"}
-            onDismiss={() => setDismissedResult(result)}
-          >
+          <Banner tone={result.ok ? "ok" : "crit"} onDismiss={() => setDismissedResult(result)}>
             {result.message}
           </Banner>
         </div>
@@ -152,15 +147,24 @@ export function EarlyFraudWarnings({
                       <td>
                         <div className="text-label text-text">{label}</div>
                         {w.customerName && w.customerEmail ? (
-                          <div className="text-micro text-text-subtle">
-                            {w.customerEmail}
-                          </div>
+                          <div className="text-micro text-text-subtle">{w.customerEmail}</div>
                         ) : null}
                       </td>
-                      <td data-label="Amount" data-num="">{formatMoney(w.amountCents, w.currency)}</td>
-                      <td data-label="Fraud type" className="text-label text-text-secondary">{fraudTypeWords(w.fraudType)}</td>
-                      <td data-label="Date" className="font-mono text-label">{formatDateShort(toDate(w.createdAt))}</td>
-                      <td data-label="Charge" className="font-mono text-micro break-all text-text-secondary">{w.stripeChargeId}</td>
+                      <td data-label="Amount" data-num="">
+                        {formatMoney(w.amountCents, w.currency)}
+                      </td>
+                      <td data-label="Fraud type" className="text-label text-text-secondary">
+                        {fraudTypeWords(w.fraudType)}
+                      </td>
+                      <td data-label="Date" className="font-mono text-label">
+                        {formatDateShort(toDate(w.createdAt))}
+                      </td>
+                      <td
+                        data-label="Charge"
+                        className="font-mono text-micro break-all text-text-secondary"
+                      >
+                        {w.stripeChargeId}
+                      </td>
                       <td data-label="Actions" className="[grid-column:1/-1]">
                         {readOnly ? (
                           <div className="flex flex-wrap justify-end gap-2">
@@ -184,26 +188,15 @@ export function EarlyFraudWarnings({
                               aria-describedby={DEMO_REASON_ID}
                             >
                               Dismiss
-                              <span className="sr-only">
-                                {" "}
-                                the warning for {label}
-                              </span>
+                              <span className="sr-only"> the warning for {label}</span>
                             </button>
                           </div>
                         ) : (
                           <div className="flex flex-wrap justify-end gap-2">
                             {canRefund ? (
                               <Form method="post">
-                                <input
-                                  type="hidden"
-                                  name="intent"
-                                  value="refund_warning_confirm"
-                                />
-                                <input
-                                  type="hidden"
-                                  name="warning_id"
-                                  value={w.id}
-                                />
+                                <input type="hidden" name="intent" value="refund_warning_confirm" />
+                                <input type="hidden" name="warning_id" value={w.id} />
                                 <button
                                   type="submit"
                                   className="cap-btn"
@@ -225,16 +218,8 @@ export function EarlyFraudWarnings({
                               </span>
                             )}
                             <Form method="post">
-                              <input
-                                type="hidden"
-                                name="intent"
-                                value="dismiss_warning"
-                              />
-                              <input
-                                type="hidden"
-                                name="warning_id"
-                                value={w.id}
-                              />
+                              <input type="hidden" name="intent" value="dismiss_warning" />
+                              <input type="hidden" name="warning_id" value={w.id} />
                               <button
                                 type="submit"
                                 className="cap-btn"
@@ -246,10 +231,7 @@ export function EarlyFraudWarnings({
                                 }}
                               >
                                 Dismiss
-                                <span className="sr-only">
-                                  {" "}
-                                  the warning for {label}
-                                </span>
+                                <span className="sr-only"> the warning for {label}</span>
                               </button>
                             </Form>
                           </div>

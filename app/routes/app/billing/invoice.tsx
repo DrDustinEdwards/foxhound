@@ -36,22 +36,32 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
             </h1>
             <p className="mt-1 text-label text-text-tertiary">{invoice.currency.toUpperCase()}</p>
           </div>
-          <p className="font-mono text-title text-text">{formatMoney(invoice.totalCents, invoice.currency)}</p>
+          <p className="font-mono text-title text-text">
+            {formatMoney(invoice.totalCents, invoice.currency)}
+          </p>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Badge tone={billingInvoiceStatusTone(invoice.status)}>
             {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
           </Badge>
           {invoice.stripeInvoiceUrl ? (
-            <a href={invoice.stripeInvoiceUrl} target="_blank" rel="noreferrer" className="text-label text-brand-text hover:underline">
+            <a
+              href={invoice.stripeInvoiceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-label text-brand-text hover:underline"
+            >
               View Stripe invoice
-            <span className="cap-sr-only"> (opens in a new tab)</span></a>
+              <span className="cap-sr-only"> (opens in a new tab)</span>
+            </a>
           ) : null}
         </div>
       </div>
 
       <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Line items</p>
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+          Line items
+        </p>
         {lineItems.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">No line items on this invoice.</p>
         ) : (

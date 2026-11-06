@@ -1,4 +1,3 @@
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -91,7 +90,6 @@ function render(loaderData: LoaderData): string {
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-
 function text(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -101,16 +99,11 @@ function text(html: string): string {
     .trim();
 }
 
-
-
-
-
 const PAGE: LoaderData = { lookbackDays: AUDIT_LOOKBACK_DAYS, stripeEnabled: true, error: null };
 
 describe("J42 U1: refusals in a Capsomer alert, never naming an account, never echoing the URL", () => {
-
   it("an unknown code shows the fallback and never reflects the query string", () => {
-    const hostile = '<img src=x onerror=alert(1)>acct_stranger owned by Dana';
+    const hostile = "<img src=x onerror=alert(1)>acct_stranger owned by Dana";
     const html = render({ ...PAGE, error: hostile });
     expect(text(html)).toContain("Could not connect Stripe. Please try again.");
     expect(html).not.toContain("onerror");
@@ -153,7 +146,9 @@ describe("J42 U1: the start is a POST, and a GET mints nothing", () => {
     expect(cookie).toMatch(/Max-Age=600/);
     // The cookie holds exactly the state Stripe will echo back, and it says
     // "audit", so the callback can match it and refuse any other flow's.
-    const value = decodeURIComponent(cookie.split(";")[0].slice(AUDIT_OAUTH_STATE_COOKIE.length + 1));
+    const value = decodeURIComponent(
+      cookie.split(";")[0].slice(AUDIT_OAUTH_STATE_COOKIE.length + 1),
+    );
     expect(value).toBe(sa.get("state"));
     expect(JSON.parse(value).action).toBe(AUDIT_ACTION);
   });
@@ -179,7 +174,9 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     const url = new URL(`${ORIGIN}/audit/callback`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     return callbackRoute.loader({
-      request: new Request(url, { headers: cookie ? { Cookie: `${AUDIT_OAUTH_STATE_COOKIE}=${cookie}` } : {} }),
+      request: new Request(url, {
+        headers: cookie ? { Cookie: `${AUDIT_OAUTH_STATE_COOKIE}=${cookie}` } : {},
+      }),
       context: routeContext(env),
       params: {},
     } as never) as Promise<Response>;
@@ -190,7 +187,9 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe(`/audit/connect?error=${reason}`);
     const cookies = setCookies(response);
-    expect(cookies.some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`) && c.includes("Max-Age=0"))).toBe(true);
+    expect(
+      cookies.some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`) && c.includes("Max-Age=0")),
+    ).toBe(true);
     expect(cookies.some((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))).toBe(false);
   }
 
@@ -209,7 +208,12 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
   });
 
   it("a grant with no scope at all is refused, fail closed, with no token cookie", async () => {
-    exchange.impl = async () => ({ stripeUserId: STRIPE_ACCOUNT, accessToken: TOKEN, publishableKey: null, scope: null });
+    exchange.impl = async () => ({
+      stripeUserId: STRIPE_ACCOUNT,
+      accessToken: TOKEN,
+      publishableKey: null,
+      scope: null,
+    });
     const state = buildConnectState(AUDIT_ACTION);
     expectRefused(await call({ code: "ac_1", state }, state), "scope_refused");
   });
@@ -220,7 +224,8 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     };
     const state = buildConnectState(AUDIT_ACTION);
     expectRefused(await call({ code: "ac_1", state }, state), "failed");
-    for (const args of errorSpy.mock.calls) expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
+    for (const args of errorSpy.mock.calls)
+      expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
   });
 
   it("success: a same-site relative redirect, the token only in a sealed five-minute /audit cookie", async () => {
@@ -241,15 +246,21 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(decodeURIComponent(value)).not.toContain(TOKEN);
     const grant = await readAuditGrantCookie(
       envWith(),
-      new Request(`${ORIGIN}/audit/results`, { headers: { Cookie: `${AUDIT_TOKEN_COOKIE}=${value}` } }),
+      new Request(`${ORIGIN}/audit/results`, {
+        headers: { Cookie: `${AUDIT_TOKEN_COOKIE}=${value}` },
+      }),
     );
     expect(grant).toEqual({ accessToken: TOKEN, stripeAccountId: STRIPE_ACCOUNT });
     expect(cookies.some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`))).toBe(true);
-    for (const args of errorSpy.mock.calls) expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
+    for (const args of errorSpy.mock.calls)
+      expect(JSON.stringify(args.map(String))).not.toContain(TOKEN);
     // The grant's revoke is queued for when the window ends, carrying the
     // account id and never the token.
     expect(sent).toEqual([
-      { body: { kind: "audit-grant-revoke", stripeAccountId: STRIPE_ACCOUNT }, options: { delaySeconds: 300 } },
+      {
+        body: { kind: "audit-grant-revoke", stripeAccountId: STRIPE_ACCOUNT },
+        options: { delaySeconds: 300 },
+      },
     ]);
   });
 });

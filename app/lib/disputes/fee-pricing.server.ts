@@ -34,7 +34,13 @@ const DISPUTE_FEE_PRICING_LIMIT = 50;
  *  so a second writer that got there first makes this touch zero rows. */
 function buildDisputeFeePricingUpdate(
   db: Db,
-  input: { accountId: string; disputeId: string; amountCents: number; currency: string; cap: ResolvedDisputeCap },
+  input: {
+    accountId: string;
+    disputeId: string;
+    amountCents: number;
+    currency: string;
+    cap: ResolvedDisputeCap;
+  },
 ): MoneyWriteBatch {
   return [
     db
@@ -118,7 +124,10 @@ export async function checkPricedFeesAgainstStripe(env: Env, now: Date): Promise
     );
 
   // A dispute can carry more than one withdrawal; the check is on their total.
-  const byDispute = new Map<string, (typeof rows)[number] & { withdrawnTotal: number; stripeFeeTotal: number }>();
+  const byDispute = new Map<
+    string,
+    (typeof rows)[number] & { withdrawnTotal: number; stripeFeeTotal: number }
+  >();
   for (const row of rows) {
     if (row.withdrawnCurrency.toLowerCase() !== (row.feeCurrency ?? "").toLowerCase()) continue;
     const seen = byDispute.get(row.id);
@@ -126,7 +135,11 @@ export async function checkPricedFeesAgainstStripe(env: Env, now: Date): Promise
       seen.withdrawnTotal += Math.abs(row.withdrawnCents);
       seen.stripeFeeTotal += row.stripeDisputeFeeCents;
     } else {
-      byDispute.set(row.id, { ...row, withdrawnTotal: Math.abs(row.withdrawnCents), stripeFeeTotal: row.stripeDisputeFeeCents });
+      byDispute.set(row.id, {
+        ...row,
+        withdrawnTotal: Math.abs(row.withdrawnCents),
+        stripeFeeTotal: row.stripeDisputeFeeCents,
+      });
     }
   }
 
@@ -157,7 +170,13 @@ export async function priceUnpricedDisputeFees(
   cronRunId: string | null = null,
 ): Promise<DisputeFeePricingResult> {
   const wins = await getUnpricedBillableWins(getDb(env), now.getTime(), DISPUTE_FEE_PRICING_LIMIT);
-  const result: DisputeFeePricingResult = { priced: 0, failed: 0, notified: 0, errors: [], mismatched: 0 };
+  const result: DisputeFeePricingResult = {
+    priced: 0,
+    failed: 0,
+    notified: 0,
+    errors: [],
+    mismatched: 0,
+  };
 
   for (const win of wins) {
     let cap: ResolvedDisputeCap;
@@ -198,7 +217,10 @@ export async function priceUnpricedDisputeFees(
   try {
     result.mismatched = await checkPricedFeesAgainstStripe(env, now);
   } catch (err) {
-    console.error("dispute fee stripe check failed:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "dispute fee stripe check failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
   }
 
   return result;
@@ -207,7 +229,9 @@ export async function priceUnpricedDisputeFees(
 /** The cron_run_history message. */
 export function describeDisputeFeePricing(result: DisputeFeePricingResult): string {
   const base = `${result.priced} dispute fees priced, ${result.notified} merchants told, ${result.failed} still unpriced`;
-  return result.mismatched > 0 ? `${base}, ${result.mismatched} disagree with Stripe's withdrawal` : base;
+  return result.mismatched > 0
+    ? `${base}, ${result.mismatched} disagree with Stripe's withdrawal`
+    : base;
 }
 
 /** An alert while any win stays unpriced, so a quote that keeps failing is

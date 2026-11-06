@@ -12,7 +12,9 @@ export const outcomes = sqliteTable(
   "outcomes",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     product: text("product").notNull(),
     eventType: text("event_type").notNull(),
     eventData: json("event_data"),
@@ -128,7 +130,9 @@ export const adminImpersonations = sqliteTable(
     id: id(),
     tokenHash: text("token_hash").notNull(),
     adminEmail: text("admin_email").notNull(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     startedAt: ts("started_at").notNull(),
     expiresAt: ts("expires_at").notNull(),
     endedAt: ts("ended_at"),
@@ -166,7 +170,9 @@ export const mcpWrites = sqliteTable(
   "mcp_writes",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
     /** The MCP tool name that performed the write. */
@@ -202,7 +208,9 @@ export const mcpCalls = sqliteTable(
   "mcp_calls",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
     /** oauth_clients.id (or a metadata-document URL) the key was issued to;
@@ -347,7 +355,9 @@ export const customerNotes = sqliteTable(
   "customer_notes",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     body: text("body").notNull(),
     createdBy: text("created_by"),

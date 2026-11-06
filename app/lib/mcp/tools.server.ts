@@ -3,7 +3,11 @@ import { toStoredAuditRun } from "~/lib/audit/render";
 import { getBillingPreview } from "~/lib/billing/preview.server";
 import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
 import { listDisputes, type DisputeRow } from "~/lib/disputes/queries.server";
-import { getAlertsView, getCustomerHealthDetail, getIntelligenceOverview } from "~/lib/intelligence/views.server";
+import {
+  getAlertsView,
+  getCustomerHealthDetail,
+  getIntelligenceOverview,
+} from "~/lib/intelligence/views.server";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/directory.server";
 import {
@@ -33,7 +37,12 @@ import {
   listAccountConnections,
 } from "~/lib/settings/queries.server";
 
-import { CONFIRM_ARGUMENT, CONFIRM_PROPERTY, CONFIRM_RESULT_FIELDS, confirmationNeeded } from "./confirm.server";
+import {
+  CONFIRM_ARGUMENT,
+  CONFIRM_PROPERTY,
+  CONFIRM_RESULT_FIELDS,
+  confirmationNeeded,
+} from "./confirm.server";
 import {
   defineToolRegistry,
   type McpTool,
@@ -102,7 +111,6 @@ const READ: McpToolAnnotations = {
   idempotentHint: true,
   openWorldHint: false,
 };
-
 
 function stringArg(args: ToolArgs, name: string): string | null {
   const raw = args[name];
@@ -307,18 +315,27 @@ const READ_TOOLS: McpTool[] = [
       properties: {
         status: {
           type: "string",
-          description: "Only payments in this recovery status, for example active, recovered, failed or canceled.",
+          description:
+            "Only payments in this recovery status, for example active, recovered, failed or canceled.",
         },
         decline_category: {
           type: "string",
-          description: "Only payments with this decline category, for example soft, expired, network or fraud.",
+          description:
+            "Only payments with this decline category, for example soft, expired, network or fraud.",
         },
-        page_size: { type: "integer", enum: [...PAYMENT_PAGE_SIZES], description: "Rows per page. Defaults to 25." },
+        page_size: {
+          type: "integer",
+          enum: [...PAYMENT_PAGE_SIZES],
+          description: "Rows per page. Defaults to 25.",
+        },
         cursor: CURSOR_PROPERTY,
       },
       required: [],
     },
-    outputSchema: result(["payments", "total", "has_more", "next_cursor"], ["payments", "has_more"]),
+    outputSchema: result(
+      ["payments", "total", "has_more", "next_cursor"],
+      ["payments", "has_more"],
+    ),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -350,7 +367,12 @@ const READ_TOOLS: McpTool[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      properties: { payment_id: { type: "string", description: "The failed payment's id, from foxhound_list_payments." } },
+      properties: {
+        payment_id: {
+          type: "string",
+          description: "The failed payment's id, from foxhound_list_payments.",
+        },
+      },
       required: ["payment_id"],
     },
     outputSchema: result(["steps"]),
@@ -376,12 +398,18 @@ const READ_TOOLS: McpTool[] = [
       type: "object",
       additionalProperties: false,
       properties: {
-        tier: { type: "string", description: "Only customers on this plan tier, as listed in tiers." },
+        tier: {
+          type: "string",
+          description: "Only customers on this plan tier, as listed in tiers.",
+        },
         cursor: CURSOR_PROPERTY,
       },
       required: [],
     },
-    outputSchema: result(["customers", "total", "total_mrr_cents", "tiers", "has_more", "next_cursor"], ["customers", "has_more"]),
+    outputSchema: result(
+      ["customers", "total", "total_mrr_cents", "tiers", "has_more", "next_cursor"],
+      ["customers", "has_more"],
+    ),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -419,7 +447,10 @@ const READ_TOOLS: McpTool[] = [
       type: "object",
       additionalProperties: false,
       properties: {
-        stripe_customer_id: { type: "string", description: "The Stripe customer id, from foxhound_list_customers." },
+        stripe_customer_id: {
+          type: "string",
+          description: "The Stripe customer id, from foxhound_list_customers.",
+        },
       },
       required: ["stripe_customer_id"],
     },
@@ -427,7 +458,11 @@ const READ_TOOLS: McpTool[] = [
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
-      const customerId = required(args, "stripe_customer_id", "Take one from foxhound_list_customers.");
+      const customerId = required(
+        args,
+        "stripe_customer_id",
+        "Take one from foxhound_list_customers.",
+      );
       const customer = await getCustomerHealthDetail(ctx.db, ctx.accountId, customerId);
       if (!customer) {
         throw new ToolInputError(
@@ -459,8 +494,16 @@ const READ_TOOLS: McpTool[] = [
     title: "List disputes",
     description:
       "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
-    inputSchema: { type: "object", additionalProperties: false, properties: { cursor: CURSOR_PROPERTY }, required: [] },
-    outputSchema: result(["disputes", "total", "has_more", "next_cursor"], ["disputes", "has_more"]),
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: { cursor: CURSOR_PROPERTY },
+      required: [],
+    },
+    outputSchema: result(
+      ["disputes", "total", "has_more", "next_cursor"],
+      ["disputes", "has_more"],
+    ),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
@@ -480,7 +523,10 @@ const READ_TOOLS: McpTool[] = [
       type: "object",
       additionalProperties: false,
       properties: {
-        run_id: { type: "string", description: "One audit run's id, from an earlier answer. Omit to list runs." },
+        run_id: {
+          type: "string",
+          description: "One audit run's id, from an earlier answer. Omit to list runs.",
+        },
         cursor: CURSOR_PROPERTY,
       },
       required: [],
@@ -537,18 +583,31 @@ const READ_TOOLS: McpTool[] = [
     description:
       "Read every setting foxhound_update_settings can change: audit window, the two engine toggles, notification email and toggles, the connected Stripe accounts, the primary connection's sender name and brand voice, and the business context the email writer is given. The Slack webhook URL is never returned, only whether one is set.",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: result(["audit", "features", "notifications", "connections", "sender", "brand_voice", "intelligence_context"], ["features", "notifications"]),
+    outputSchema: result(
+      [
+        "audit",
+        "features",
+        "notifications",
+        "connections",
+        "sender",
+        "brand_voice",
+        "intelligence_context",
+      ],
+      ["features", "notifications"],
+    ),
     annotations: READ,
     scope: "read",
     execute: async (ctx) => {
-      const [account, audit, connections, sender, voices, intelligence_context] = await Promise.all([
-        getAccount(ctx.db, ctx.accountId),
-        readAccountAuditSettings(ctx.db, ctx.accountId),
-        listAccountConnections(ctx.db, ctx.accountId),
-        getPrimarySenderConnection(ctx.db, ctx.accountId),
-        getPrimaryBrandVoices(ctx.db, ctx.accountId),
-        getMerchantContext(ctx.db, ctx.accountId),
-      ]);
+      const [account, audit, connections, sender, voices, intelligence_context] = await Promise.all(
+        [
+          getAccount(ctx.db, ctx.accountId),
+          readAccountAuditSettings(ctx.db, ctx.accountId),
+          listAccountConnections(ctx.db, ctx.accountId),
+          getPrimarySenderConnection(ctx.db, ctx.accountId),
+          getPrimaryBrandVoices(ctx.db, ctx.accountId),
+          getMerchantContext(ctx.db, ctx.accountId),
+        ],
+      );
       // The voice samples are left out: they are the merchant's past emails to
       // customers, greeting them by name, kept as one JSON string the field
       // redactor cannot see into, and no writer here takes them back.
@@ -575,7 +634,8 @@ const READ_TOOLS: McpTool[] = [
           slackNotificationsEnabled: account?.slackNotificationsEnabled ?? null,
           digestEnabled: account?.digestEnabled ?? null,
           recoveryNotificationsEnabled: account?.recoveryNotificationsEnabled ?? null,
-          sequenceCompleteNotificationsEnabled: account?.sequenceCompleteNotificationsEnabled ?? null,
+          sequenceCompleteNotificationsEnabled:
+            account?.sequenceCompleteNotificationsEnabled ?? null,
         },
         connections,
         sender,
@@ -624,9 +684,7 @@ function sentOnly(section: ToolArgs, names: Record<string, string>): Record<stri
   return out;
 }
 
-function withoutWebhookUrl(
-  result: Parameters<typeof applied<NotificationSettingsState>>[0],
-) {
+function withoutWebhookUrl(result: Parameters<typeof applied<NotificationSettingsState>>[0]) {
   const { updated, state } = applied(result);
   const { slackWebhookUrl, ...rest } = state;
   return { updated, state: { ...rest, slackWebhookConfigured: Boolean(slackWebhookUrl) } };
@@ -718,7 +776,13 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
         ctx.accountId,
         {
           connectionId: s.connection_id,
-          ...sentOnly(s, { general: "general", soft: "soft", expired: "expired", network: "network", fraud: "fraud" }),
+          ...sentOnly(s, {
+            general: "general",
+            soft: "soft",
+            expired: "expired",
+            network: "network",
+            fraud: "fraud",
+          }),
         },
         ctx.trace,
       ),
@@ -745,11 +809,18 @@ const SECTION_NAMES = Object.keys(SETTINGS_SECTIONS);
  *  webhook URL is a credential, so it is named, never shown. */
 function describeSettingsChange(name: string, section: ToolArgs): string {
   const shown = Object.entries(section).map(([field, value]) =>
-    field === "slack_webhook_url" ? `${field}: ${value ? "a new Slack webhook URL" : "cleared"}` : `${field}: ${JSON.stringify(value)}`,
+    field === "slack_webhook_url"
+      ? `${field}: ${value ? "a new Slack webhook URL" : "cleared"}`
+      : `${field}: ${JSON.stringify(value)}`,
   );
-  const cleared = name === "notifications" && section.slack_webhook_url === undefined ? ["slack_webhook_url: cleared"] : [];
+  const cleared =
+    name === "notifications" && section.slack_webhook_url === undefined
+      ? ["slack_webhook_url: cleared"]
+      : [];
   return `Overwrite the ${name} settings with ${[...shown, ...cleared].join(", ") || "nothing"}.${
-    name === "notifications" ? " Every notification field is replaced, and clearing the email turns every notification off." : ""
+    name === "notifications"
+      ? " Every notification field is replaced, and clearing the email turns every notification off."
+      : ""
   }`;
 }
 
@@ -769,14 +840,18 @@ const WRITE_TOOLS: McpTool[] = [
           type: "object",
           description: "The audit window and the monthly audit report.",
           properties: {
-            lookback_days: { type: "integer", description: "30, 60, 90 or 180. Other values clamp." },
+            lookback_days: {
+              type: "integer",
+              description: "30, 60, 90 or 180. Other values clamp.",
+            },
             auto_run: { type: "boolean", description: "Send the monthly audit report." },
           },
           required: ["lookback_days", "auto_run"],
         },
         features: {
           type: "object",
-          description: "Switch the win-back and expiring-card engines on or off (the engines, not the notifications about them).",
+          description:
+            "Switch the win-back and expiring-card engines on or off (the engines, not the notifications about them).",
           properties: {
             winback_notifications_enabled: { type: "boolean" },
             expiring_card_notifications_enabled: { type: "boolean" },
@@ -785,12 +860,14 @@ const WRITE_TOOLS: McpTool[] = [
         },
         notifications: {
           type: "object",
-          description: "Notification email, Slack webhook and the four notification toggles. Every field is replaced. Clearing the email turns every notification off.",
+          description:
+            "Notification email, Slack webhook and the four notification toggles. Every field is replaced. Clearing the email turns every notification off.",
           properties: {
             notification_email: { type: "string", description: "Empty or omitted clears it." },
             slack_webhook_url: {
               type: "string",
-              description: "Must be on https://hooks.slack.com/. Empty or omitted clears it; send it again to keep it.",
+              description:
+                "Must be on https://hooks.slack.com/. Empty or omitted clears it; send it again to keep it.",
             },
             slack_notifications_enabled: { type: "boolean" },
             digest_enabled: { type: "boolean" },
@@ -804,17 +881,27 @@ const WRITE_TOOLS: McpTool[] = [
           description: "The From name on one connection's recovery emails.",
           properties: {
             connection_id: { type: "string", description: "From foxhound_get_settings." },
-            sender_name: { type: "string", description: "Up to 80 characters. Empty clears it and mail goes out from Support." },
+            sender_name: {
+              type: "string",
+              description: "Up to 80 characters. Empty clears it and mail goes out from Support.",
+            },
           },
           required: ["connection_id"],
         },
         brand_voice: {
           type: "object",
-          description: "The tone Foxhound writes one connection's recovery emails in: free-form guidance for the writer, not a template.",
+          description:
+            "The tone Foxhound writes one connection's recovery emails in: free-form guidance for the writer, not a template.",
           properties: {
             connection_id: { type: "string", description: "From foxhound_get_settings." },
-            general: { type: "string", description: "The voice for every category with no override." },
-            soft: { type: "string", description: "Soft declines: insufficient funds and the like." },
+            general: {
+              type: "string",
+              description: "The voice for every category with no override.",
+            },
+            soft: {
+              type: "string",
+              description: "Soft declines: insufficient funds and the like.",
+            },
             expired: { type: "string", description: "Expired card." },
             network: { type: "string", description: "Network and issuer declines." },
             fraud: { type: "string", description: "Suspected fraud." },
@@ -826,7 +913,10 @@ const WRITE_TOOLS: McpTool[] = [
           description: "What kind of business this is. The recovery-email writer is given these.",
           properties: {
             merchant_industry: { type: "string", description: 'For example "B2B SaaS".' },
-            primary_customer_type: { type: "string", description: 'For example "small businesses".' },
+            primary_customer_type: {
+              type: "string",
+              description: 'For example "small businesses".',
+            },
             merchant_mrr_self_reported: {
               type: ["number", "string"],
               description:
@@ -844,7 +934,12 @@ const WRITE_TOOLS: McpTool[] = [
     // (./confirm.server.ts). Idempotent because the same call twice leaves the
     // same settings.
     outputSchema: result(["section", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     scope: "write",
     execute: async (ctx, args) => {
       const sent = SECTION_NAMES.filter((name) => args[name] !== undefined);
@@ -858,9 +953,17 @@ const WRITE_TOOLS: McpTool[] = [
       if (!section || typeof section !== "object" || Array.isArray(section)) {
         throw new ToolInputError(`${name} must be an object of that group's fields.`);
       }
-      const pending = await confirmationNeeded(ctx, "foxhound_update_settings", args, describeSettingsChange(name, section as ToolArgs));
+      const pending = await confirmationNeeded(
+        ctx,
+        "foxhound_update_settings",
+        args,
+        describeSettingsChange(name, section as ToolArgs),
+      );
       if (pending) return pending;
-      return { section: name, ...((await SETTINGS_SECTIONS[name](ctx, section as ToolArgs)) as object) };
+      return {
+        section: name,
+        ...((await SETTINGS_SECTIONS[name](ctx, section as ToolArgs)) as object),
+      };
     },
   },
   {
@@ -875,16 +978,32 @@ const WRITE_TOOLS: McpTool[] = [
       additionalProperties: false,
       properties: {
         action: { type: "string", enum: [...ALERT_ACTIONS], description: "What to do." },
-        alert_id: { type: "string", description: "For enable, disable and delete: from foxhound_get_intelligence." },
-        metric: { type: "string", description: "For create: one of the metrics foxhound_get_intelligence reports." },
-        direction: { type: "string", description: "For create: whether the metric rising or dropping fires." },
+        alert_id: {
+          type: "string",
+          description: "For enable, disable and delete: from foxhound_get_intelligence.",
+        },
+        metric: {
+          type: "string",
+          description: "For create: one of the metrics foxhound_get_intelligence reports.",
+        },
+        direction: {
+          type: "string",
+          description: "For create: whether the metric rising or dropping fires.",
+        },
         threshold: {
           type: ["number", "string"],
           description: "For create: dollars for amount metrics, a plain count otherwise.",
         },
         label: { type: "string", description: "For create: an optional name for the alert." },
-        channel: { type: "string", enum: ["email", "slack"], description: "For create: where a breach is sent. Defaults to email." },
-        [CONFIRM_ARGUMENT]: { ...CONFIRM_PROPERTY, description: `For delete. ${CONFIRM_PROPERTY.description}` },
+        channel: {
+          type: "string",
+          enum: ["email", "slack"],
+          description: "For create: where a breach is sent. Defaults to email.",
+        },
+        [CONFIRM_ARGUMENT]: {
+          ...CONFIRM_PROPERTY,
+          description: `For delete. ${CONFIRM_PROPERTY.description}`,
+        },
       },
       required: ["action"],
     },
@@ -892,13 +1011,20 @@ const WRITE_TOOLS: McpTool[] = [
     // (./confirm.server.ts); not idempotent because create makes a new alert
     // each time.
     outputSchema: result(["action", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     scope: "write",
     execute: async (ctx, args) => {
       const action = args["action"];
       if (action === "create") {
         if (args["alert_id"] !== undefined) {
-          throw new ToolInputError("create makes a new alert and takes no alert_id. Drop alert_id, or use enable, disable or delete.");
+          throw new ToolInputError(
+            "create makes a new alert and takes no alert_id. Drop alert_id, or use enable, disable or delete.",
+          );
         }
         return {
           action,
@@ -906,7 +1032,13 @@ const WRITE_TOOLS: McpTool[] = [
             await applyAlertCreate(
               ctx.db,
               ctx.accountId,
-              { metric: args.metric, direction: args.direction, threshold: args.threshold, label: args.label, channel: args.channel },
+              {
+                metric: args.metric,
+                direction: args.direction,
+                threshold: args.threshold,
+                label: args.label,
+                channel: args.channel,
+              },
               ctx.now,
               ctx.trace,
             ),
@@ -930,7 +1062,11 @@ const WRITE_TOOLS: McpTool[] = [
             await applyAlertConfig(
               ctx.db,
               ctx.accountId,
-              { alertId: args.alert_id, enabled: action === "enable", deleted: action === "delete" },
+              {
+                alertId: args.alert_id,
+                enabled: action === "enable",
+                deleted: action === "delete",
+              },
               ctx.trace,
             ),
           ),
@@ -950,4 +1086,3 @@ export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([...READ_TOOLS
 export const MERCHANT_TOOL_NAMES = [...READ_TOOLS, ...WRITE_TOOLS].map((t) => t.name);
 /** The write half, named so a plant can assert exactly these carry a trace. */
 export const MERCHANT_WRITE_TOOL_NAMES = WRITE_TOOLS.map((t) => t.name);
-

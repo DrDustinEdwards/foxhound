@@ -21,7 +21,9 @@ export function ShareRow({ url, title }: { url: string; title: string }) {
 
   return (
     <div className="mb-6 flex items-center gap-3 border-b border-border py-4">
-      <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Share</span>
+      <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+        Share
+      </span>
       <a
         href={tweetHref}
         aria-label="Share on X"

@@ -7,7 +7,11 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { accountBillingEligibleCondition } from "~/db/billable";
 import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 import { decideFeeRetryAction, billingStatusForSettledStripeStatus } from "./fee-retry";
-import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
+import {
+  buildPlatformCustomerUpdate,
+  ensurePlatformCustomer,
+  lookupPlatformBillingEmail,
+} from "./platform-customer";
 import {
   createPlatformInvoice,
   finalizePlatformInvoice,
@@ -366,7 +370,10 @@ export async function retryInvoiceCharge(
         accountId: invoice.accountId,
         idempotencyKey: `platform-customer:${invoice.accountId}`,
         build: (db) =>
-          buildPlatformCustomerUpdate(db, { accountId: invoice.accountId, platformStripeCustomerId: customerId }),
+          buildPlatformCustomerUpdate(db, {
+            accountId: invoice.accountId,
+            platformStripeCustomerId: customerId,
+          }),
       });
       platformCustomerId = customerId;
     } catch (err) {

@@ -119,14 +119,15 @@ function seedExpiringAlert(): void {
 
 function stepResult(): string | null {
   return (
-    sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as
-      | { result: string | null }
-      | undefined
-  )?.result ?? null;
+    (
+      sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as
+        | { result: string | null }
+        | undefined
+    )?.result ?? null
+  );
 }
 
 describe("PLANT 2: the save writes its two columns and only those", () => {
-
   it("AND WRITES NO S36 COLUMN, because those are a different page", async () => {
     sqlite
       .prepare(

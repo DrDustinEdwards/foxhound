@@ -92,7 +92,9 @@ export function AlertsSection({
         <h2 id="alerts-heading" className="m-0 text-heading font-semibold text-text">
           Alerts
         </h2>
-        <p className="m-0 mt-1 text-label text-text-secondary">Get notified when Recovery metrics cross a threshold.</p>
+        <p className="m-0 mt-1 text-label text-text-secondary">
+          Get notified when Recovery metrics cross a threshold.
+        </p>
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
@@ -113,7 +115,9 @@ export function AlertsSection({
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 text-label">
               <p className="m-0 text-text-secondary">
                 {alerts.length} {alerts.length === 1 ? "alert" : "alerts"} configured
-                {notificationEmail ? <span className="text-text-subtle"> · email goes to {notificationEmail}</span> : null}
+                {notificationEmail ? (
+                  <span className="text-text-subtle"> · email goes to {notificationEmail}</span>
+                ) : null}
               </p>
               {creating ? (
                 // Recova keeps the button on screen and disabled while the
@@ -143,7 +147,14 @@ export function AlertsSection({
             {alerts.length > 0 ? (
               <div className="mt-5 min-w-0">
                 {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-                <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Alerts" tabIndex={0}>
+                <div
+                  className="cap-table-wrap"
+                  data-reflow="medium"
+                  data-cap="table"
+                  role="region"
+                  aria-label="Alerts"
+                  tabIndex={0}
+                >
                   <table className="cap-table">
                     <thead>
                       <tr>
@@ -160,7 +171,11 @@ export function AlertsSection({
                     </thead>
                     <tbody>
                       {alerts.map((a) => {
-                        const condition = alertConditionLabel(a.metric, a.direction, a.thresholdValue);
+                        const condition = alertConditionLabel(
+                          a.metric,
+                          a.direction,
+                          a.thresholdValue,
+                        );
                         return (
                           <tr key={a.id}>
                             <td>{a.label ?? "-"}</td>
@@ -174,10 +189,17 @@ export function AlertsSection({
                               </span>
                             </td>
                             <td data-label="Last triggered">
-                              <span className="font-mono text-text-subtle">{formatDate(a.lastTriggeredAt)}</span>
+                              <span className="font-mono text-text-subtle">
+                                {formatDate(a.lastTriggeredAt)}
+                              </span>
                             </td>
                             <td data-label="Status">
-                              <AlertSwitch id={a.id} enabled={a.enabled} name={a.label ?? condition} busy={busy} />
+                              <AlertSwitch
+                                id={a.id}
+                                enabled={a.enabled}
+                                name={a.label ?? condition}
+                                busy={busy}
+                              />
                             </td>
                             <td data-label="Actions" data-num="">
                               <DemoGuardedForm method="post">
@@ -197,7 +219,14 @@ export function AlertsSection({
               </div>
             ) : null}
 
-            {creating ? <CreateAlertForm busy={busy} error={createError} initialMetric={params.get("metric")} hasSlack={hasSlack} /> : null}
+            {creating ? (
+              <CreateAlertForm
+                busy={busy}
+                error={createError}
+                initialMetric={params.get("metric")}
+                hasSlack={hasSlack}
+              />
+            ) : null}
           </div>
         </div>
       </div>
@@ -210,7 +239,14 @@ export function AlertsSection({
             </p>
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Recent triggers" tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow=""
+              data-cap="table"
+              role="region"
+              aria-label="Recent triggers"
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -231,7 +267,9 @@ export function AlertsSection({
                         </span>
                       </td>
                       <td data-label="Actual value">
-                        <span className="font-mono">{formatThresholdValue(h.metric, h.actualValue)}</span>
+                        <span className="font-mono">
+                          {formatThresholdValue(h.metric, h.actualValue)}
+                        </span>
                       </td>
                       <td data-label="Channel">
                         <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
@@ -239,7 +277,9 @@ export function AlertsSection({
                         </span>
                       </td>
                       <td data-label="Fired at">
-                        <span className="font-mono text-text-subtle">{formatDateTime(h.firedAt)}</span>
+                        <span className="font-mono text-text-subtle">
+                          {formatDateTime(h.firedAt)}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -260,7 +300,17 @@ export function AlertsSection({
  * does. The switch follows the stored value, so a refused change (the demo, a
  * failed write) springs back rather than showing a state nothing saved.
  */
-function AlertSwitch({ id, enabled, name, busy }: { id: string; enabled: boolean; name: string; busy: boolean }) {
+function AlertSwitch({
+  id,
+  enabled,
+  name,
+  busy,
+}: {
+  id: string;
+  enabled: boolean;
+  name: string;
+  busy: boolean;
+}) {
   const form = useRef<HTMLFormElement>(null);
   return (
     <DemoGuardedForm method="post" ref={form}>
@@ -359,7 +409,12 @@ function CreateAlertForm({
                 </>
               }
             >
-              <input className="cap-input" name="label" type="text" placeholder="e.g. Low recovery rate warning" />
+              <input
+                className="cap-input"
+                name="label"
+                type="text"
+                placeholder="e.g. Low recovery rate warning"
+              />
             </Field>
 
             {/* Recova's Email or Slack. Slack waits for a webhook, as Recova's

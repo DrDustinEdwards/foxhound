@@ -50,7 +50,7 @@ describe("classifyStripeEvent", () => {
     expect(intent.kind).toBe("intake");
     if (intent.kind === "intake") {
       expect(intent.invoiceId).toBe("in_1");
-        expect(intent.declineCategory).toBe("expired");
+      expect(intent.declineCategory).toBe("expired");
       expect(intent.amountCents).toBe(4200);
       expect(intent.stripeGaveUp).toBe(true);
     }
@@ -58,7 +58,12 @@ describe("classifyStripeEvent", () => {
 
   it("payment_failed with $0 is ignored", () => {
     const intent = classifyStripeEvent(
-      event("invoice.payment_failed", { id: "in_0", amount_due: 0, currency: "usd", collection_method: "charge_automatically" }),
+      event("invoice.payment_failed", {
+        id: "in_0",
+        amount_due: 0,
+        currency: "usd",
+        collection_method: "charge_automatically",
+      }),
     );
     expect(intent).toEqual({ kind: "ignore", reason: "zero_amount" });
   });
@@ -113,7 +118,10 @@ describe("classifyStripeEvent", () => {
   });
 
   it("routes the card updater's pre-2020 event name to the same retry as the current one", () => {
-    for (const type of ["payment_method.automatically_updated", "payment_method.card_automatically_updated"]) {
+    for (const type of [
+      "payment_method.automatically_updated",
+      "payment_method.card_automatically_updated",
+    ]) {
       expect(classifyStripeEvent(event(type, { id: "pm_1", customer: "cus_1" }))).toEqual({
         kind: "card_auto_updated",
         customerId: "cus_1",

@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,8 +20,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendRecoveryNotification } =
-  await import("~/lib/recovery/merchant-notification.server");
+const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
 const { LIVE_SENDS_DISABLED_ERROR } = await import("~/lib/email/dispatch");
 
 const ACCOUNT = "acct_1";
@@ -36,7 +34,13 @@ const env = {
   BETTER_AUTH_URL: "https://foxhoundapp.test",
   PHYSICAL_ADDRESS: "1 Test Way, Austin TX",
   EMAIL: {
-    send: async (m: { from: string; to: string; subject: string; html: string; headers?: unknown }) => {
+    send: async (m: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      headers?: unknown;
+    }) => {
       harness.sent.push(m);
       return { id: "msg_1" };
     },
@@ -89,7 +93,6 @@ function sendRows() {
 }
 
 describe("PLANT 1: a recovery with the toggle NULL sends one email", () => {
-
   it("falls back to the customer EMAIL when there is no name, as legacy does", async () => {
     seed({ enabled: null, customerName: null });
     await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
@@ -135,11 +138,12 @@ describe("PLANT 3: the demo refusal is the same gate every send meets", () => {
 });
 
 describe("PLANT 9: the cases a single happy fixture cannot reach", () => {
-
   it("a payment on ANOTHER account is not found, so the read is account-scoped", async () => {
     seed({ enabled: null });
     sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at, notification_email) VALUES ('acct_other', 'Other', 1000, 'them@other.test')")
+      .prepare(
+        "INSERT INTO accounts (id, name, created_at, notification_email) VALUES ('acct_other', 'Other', 1000, 'them@other.test')",
+      )
       .run();
 
     // The payment exists; it just is not this account's.

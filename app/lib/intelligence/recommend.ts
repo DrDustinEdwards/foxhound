@@ -34,7 +34,10 @@ export type RecommendedAction =
 
 /** The actions that ask the merchant to do something, in Recova's page order.
  *  Recova's list also held the three actions nothing produces (see above). */
-export const ACTIONABLE_RECOMMENDATIONS = ["personal_outreach", "continue_automated_priority"] as const;
+export const ACTIONABLE_RECOMMENDATIONS = [
+  "personal_outreach",
+  "continue_automated_priority",
+] as const;
 
 const DAY_MS = 86_400_000;
 const ANNUALIZE_MONTHS = 12;
@@ -67,12 +70,18 @@ export interface EngagementHealth {
 export function engagementBand(input: EngagementInput): EngagementHealth {
   const sent = nonNeg(input.sent30d);
   const opened = nonNeg(input.opened30d);
-  const evidence = { emailsSent30d: sent, emailsOpened30d: opened, lastOpenAtMs: input.lastOpenAtMs };
-  const confidence: BandConfidence = sent === 0 ? "unknown" : sent <= 2 ? "low" : sent <= 4 ? "medium" : "high";
+  const evidence = {
+    emailsSent30d: sent,
+    emailsOpened30d: opened,
+    lastOpenAtMs: input.lastOpenAtMs,
+  };
+  const confidence: BandConfidence =
+    sent === 0 ? "unknown" : sent <= 2 ? "low" : sent <= 4 ? "medium" : "high";
 
   if (sent < 3) return { band: "unknown", confidence, evidence };
   if (opened === 0) return { band: "red", confidence, evidence };
-  const daysSinceOpen = input.lastOpenAtMs === null ? null : (input.nowMs - input.lastOpenAtMs) / DAY_MS;
+  const daysSinceOpen =
+    input.lastOpenAtMs === null ? null : (input.nowMs - input.lastOpenAtMs) / DAY_MS;
   if (daysSinceOpen !== null && daysSinceOpen <= 14) return { band: "green", confidence, evidence };
   return { band: "yellow", confidence, evidence };
 }
@@ -80,15 +89,26 @@ export function engagementBand(input: EngagementInput): EngagementHealth {
 export interface RecoveryHistory {
   band: RecoveryBand;
   confidence: BandConfidence;
-  evidence: { priorFailuresCount: number; priorRecoveriesCount: number; historicalRecoveryRateBps: number | null };
+  evidence: {
+    priorFailuresCount: number;
+    priorRecoveriesCount: number;
+    historicalRecoveryRateBps: number | null;
+  };
 }
 
 /** Under 3 failed payments: unknown. Then recovered / failed: 60% and up
  *  green, 30% and up yellow, below that red. */
-export function recoveryHistoryBand(input: { failedPaymentCount: number; recoveredCount: number }): RecoveryHistory {
+export function recoveryHistoryBand(input: {
+  failedPaymentCount: number;
+  recoveredCount: number;
+}): RecoveryHistory {
   const failed = nonNeg(input.failedPaymentCount);
   const recovered = nonNeg(input.recoveredCount);
-  const evidence = { priorFailuresCount: failed, priorRecoveriesCount: recovered, historicalRecoveryRateBps: null as number | null };
+  const evidence = {
+    priorFailuresCount: failed,
+    priorRecoveriesCount: recovered,
+    historicalRecoveryRateBps: null as number | null,
+  };
   if (failed < 3) return { band: "unknown", confidence: "unknown", evidence };
 
   const rate = recovered / failed;
@@ -107,16 +127,28 @@ export interface CustomerValue {
 
 /** The customer's MRR as a percentile of every customer on the account: 75
  *  and up high, 25 and under low, and no MRR at all low. */
-export function customerValueBand(input: { mrrContributionCents: number; accountMrrAscending: readonly number[] }): CustomerValue {
+export function customerValueBand(input: {
+  mrrContributionCents: number;
+  accountMrrAscending: readonly number[];
+}): CustomerValue {
   const mrr = nonNeg(input.mrrContributionCents);
   const size = input.accountMrrAscending.length;
-  const accountConfidence: RecommendationConfidence = size >= 20 ? "high" : size >= 10 ? "medium" : "low";
+  const accountConfidence: RecommendationConfidence =
+    size >= 20 ? "high" : size >= 10 ? "medium" : "low";
   if (mrr === 0) {
-    return { band: "low", confidence: "low", evidence: { mrrContributionCents: 0, percentileWithinAccount: 0 } };
+    return {
+      band: "low",
+      confidence: "low",
+      evidence: { mrrContributionCents: 0, percentileWithinAccount: 0 },
+    };
   }
   const percentile = percentileRank(mrr, input.accountMrrAscending);
   const band: ValueBand = percentile >= 75 ? "high" : percentile <= 25 ? "low" : "medium";
-  return { band, confidence: accountConfidence, evidence: { mrrContributionCents: mrr, percentileWithinAccount: percentile } };
+  return {
+    band,
+    confidence: accountConfidence,
+    evidence: { mrrContributionCents: mrr, percentileWithinAccount: percentile },
+  };
 }
 
 function percentileRank(value: number, sortedAsc: readonly number[]): number {
@@ -151,12 +183,21 @@ export function lookupRecommendation(
     action === "personal_outreach" || action === "continue_automated_priority"
       ? Math.max(0, Math.round(mrrContributionCents * ANNUALIZE_MONTHS))
       : null;
-  return { action, rationale, annualizedMrrAtRiskCents, confidence: computeConfidence(engagement, history, value, action) };
+  return {
+    action,
+    rationale,
+    annualizedMrrAtRiskCents,
+    confidence: computeConfidence(engagement, history, value, action),
+  };
 }
 
 type ActionAndRationale = { action: RecommendedAction; rationale: string };
 
-function lookupActionAndRationale(engagement: EngagementBand, history: RecoveryBand, value: ValueBand): ActionAndRationale {
+function lookupActionAndRationale(
+  engagement: EngagementBand,
+  history: RecoveryBand,
+  value: ValueBand,
+): ActionAndRationale {
   const isHigh = value === "high";
 
   if (engagement === "green") {
@@ -170,7 +211,8 @@ function lookupActionAndRationale(engagement: EngagementBand, history: RecoveryB
     if (history === "yellow") {
       return {
         action: "continue_automated",
-        rationale: "Customer engages with email and recovers some of the time. Automated flow is doing its job.",
+        rationale:
+          "Customer engages with email and recovers some of the time. Automated flow is doing its job.",
       };
     }
     if (history === "red") {
@@ -192,12 +234,14 @@ function lookupActionAndRationale(engagement: EngagementBand, history: RecoveryB
     if (isHigh) {
       return {
         action: "continue_automated_priority",
-        rationale: "High-value customer engaging with email; not enough history to predict recovery rate. Watch closely.",
+        rationale:
+          "High-value customer engaging with email; not enough history to predict recovery rate. Watch closely.",
       };
     }
     return {
       action: "continue_automated",
-      rationale: "Customer engages with email; not enough history to call it. Standard automated flow.",
+      rationale:
+        "Customer engages with email; not enough history to call it. Standard automated flow.",
     };
   }
 
@@ -217,7 +261,10 @@ function lookupActionAndRationale(engagement: EngagementBand, history: RecoveryB
       };
     }
     if (history === "yellow") {
-      return { action: "continue_automated", rationale: "Mixed signals across the board. Standard automated flow." };
+      return {
+        action: "continue_automated",
+        rationale: "Mixed signals across the board. Standard automated flow.",
+      };
     }
     if (history === "red") {
       return {
@@ -282,7 +329,8 @@ function lookupActionAndRationale(engagement: EngagementBand, history: RecoveryB
     if (isHigh) {
       return {
         action: "personal_outreach",
-        rationale: "High-value customer not engaging; not enough history to call it. Direct outreach.",
+        rationale:
+          "High-value customer not engaging; not enough history to call it. Direct outreach.",
       };
     }
     return {
@@ -297,7 +345,10 @@ function lookupActionAndRationale(engagement: EngagementBand, history: RecoveryB
       rationale: "High-value customer; not enough engagement data to call it. Watch closely.",
     };
   }
-  return { action: "continue_automated", rationale: "Not enough engagement data. Standard automated flow." };
+  return {
+    action: "continue_automated",
+    rationale: "Not enough engagement data. Standard automated flow.",
+  };
 }
 
 function computeConfidence(
@@ -334,6 +385,11 @@ export function recommendCustomer(input: {
   const engagement = engagementBand(input.engagement);
   const history = recoveryHistoryBand(input);
   const value = customerValueBand(input);
-  const recommendation = lookupRecommendation(engagement.band, history.band, value.band, input.mrrContributionCents);
+  const recommendation = lookupRecommendation(
+    engagement.band,
+    history.band,
+    value.band,
+    input.mrrContributionCents,
+  );
   return { engagement, history, value, recommendation };
 }

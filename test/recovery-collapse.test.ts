@@ -23,7 +23,10 @@ import { createInMemoryDb, inMemoryMoneyWriter, runStatement } from "./helpers/i
 const realDb = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/db")>();
-  return { ...actual, getDb: (env: Env) => (realDb.db as ReturnType<typeof actual.getDb>) ?? actual.getDb(env) };
+  return {
+    ...actual,
+    getDb: (env: Env) => (realDb.db as ReturnType<typeof actual.getDb>) ?? actual.getDb(env),
+  };
 });
 
 // Regression cover for the review's Finding 1 + 2 (recovery-executors-review.md):
@@ -102,13 +105,21 @@ function makeFakeD1() {
         const fpId = findParam(s.params, "fp_");
         const row = fpId ? recoveredPaymentsByFp.get(fpId) : undefined;
         // Mirror the real WHERE: only upgrades a row that is not already foxhound_retry.
-        if (row && row.attributionKind !== "foxhound_retry" && s.params.includes("foxhound_retry")) {
+        if (
+          row &&
+          row.attributionKind !== "foxhound_retry" &&
+          s.params.includes("foxhound_retry")
+        ) {
           row.attributionKind = "foxhound_retry";
         }
       } else if (/^update "outcomes"/i.test(s.sql)) {
         const key = findParam(s.params, "recovery:");
         const row = key ? outcomesByKey.get(key) : undefined;
-        if (row && row.attributionKind !== "foxhound_retry" && s.params.includes("foxhound_retry")) {
+        if (
+          row &&
+          row.attributionKind !== "foxhound_retry" &&
+          s.params.includes("foxhound_retry")
+        ) {
           row.attributionKind = "foxhound_retry";
         }
       }
@@ -137,7 +148,9 @@ function envWithMoneyWriter(committer: SerialMoneyCommitter): Env {
     DB: {} as never, // executeMoneyWrite only compiles statements via .toSQL(), never queries this
     MONEY_WRITER: {
       idFromName: (name: string) => name,
-      get: () => ({ commit: (request: CommitRequest): Promise<CommitResult> => committer.commit(request) }),
+      get: () => ({
+        commit: (request: CommitRequest): Promise<CommitResult> => committer.commit(request),
+      }),
     },
   } as unknown as Env;
 }

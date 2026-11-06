@@ -47,7 +47,10 @@ const DEMO_NOTE =
 
 /** Recova paths with no page at the same Foxhound path, and where each goes. */
 const NOT_SERVED_AT_SAME_PATH: Readonly<Record<string, { to: string; note: string }>> = {
-  "/blog/rss.xml": { to: "/feed.rss", note: "Foxhound has one RSS route, /feed.rss, not a separate per-section feed." },
+  "/blog/rss.xml": {
+    to: "/feed.rss",
+    note: "Foxhound has one RSS route, /feed.rss, not a separate per-section feed.",
+  },
   "/blog/sitemap.xml": {
     to: "/sitemap.xml",
     note: "Foxhound has one sitemap that already includes every blog post, not a separate per-section sitemap.",
@@ -66,7 +69,8 @@ function routeShape(path: string): string {
     .join("/");
 }
 
-const CONFIG_NOTE = "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.";
+const CONFIG_NOTE =
+  "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.";
 
 const PATH_SPLAT = "/:path*";
 
@@ -81,13 +85,17 @@ export function deriveRecovaMap(
     const override = NOT_SERVED_AT_SAME_PATH[route.url];
     if (served.has(routeShape(route.url))) {
       if (override) {
-        throw new Error(`${route.url} is served by Foxhound at the same path; its NOT_SERVED_AT_SAME_PATH entry is stale.`);
+        throw new Error(
+          `${route.url} is served by Foxhound at the same path; its NOT_SERVED_AT_SAME_PATH entry is stale.`,
+        );
       }
       entries.push({ from: route.url, to: route.url });
       continue;
     }
     if (!override) {
-      throw new Error(`${route.url} (${route.sourceFile}) has no Foxhound page at the same path and no named target.`);
+      throw new Error(
+        `${route.url} (${route.sourceFile}) has no Foxhound page at the same path and no named target.`,
+      );
     }
     if (!served.has(routeShape(override.to))) {
       throw new Error(`${route.url} is mapped to ${override.to}, which Foxhound does not serve.`);
@@ -104,17 +112,22 @@ export function deriveRecovaMap(
     }
     // Ruling 408 binding 4: no many-to-one dumps onto the home page. Not
     // decided here; a rule like this is for Dustin.
-    if (rule.destination === "/") throw new Error(`${where} redirects onto the home page (ruling 408 binding 4).`);
+    if (rule.destination === "/")
+      throw new Error(`${where} redirects onto the home page (ruling 408 binding 4).`);
     if (rule.source.endsWith(PATH_SPLAT) !== rule.destination.endsWith(PATH_SPLAT)) {
       throw new Error(`${where} keeps the path on one side only.`);
     }
-    if (!served.has(routeShape(rule.destination))) throw new Error(`${where}: Foxhound does not serve the target.`);
-    if (configSources.has(rule.destination)) throw new Error(`${where} lands on another redirect, a chain.`);
-    if (legacyUrls.has(rule.source)) throw new Error(`${where} shadows a Recova page of the same path.`);
+    if (!served.has(routeShape(rule.destination)))
+      throw new Error(`${where}: Foxhound does not serve the target.`);
+    if (configSources.has(rule.destination))
+      throw new Error(`${where} lands on another redirect, a chain.`);
+    if (legacyUrls.has(rule.source))
+      throw new Error(`${where} shadows a Recova page of the same path.`);
     entries.push({ from: rule.source, to: rule.destination, note: CONFIG_NOTE });
   }
   for (const url of Object.keys(NOT_SERVED_AT_SAME_PATH)) {
-    if (!legacyUrls.has(url)) throw new Error(`${url} is in NOT_SERVED_AT_SAME_PATH but not a Recova route.`);
+    if (!legacyUrls.has(url))
+      throw new Error(`${url} is in NOT_SERVED_AT_SAME_PATH but not a Recova route.`);
   }
   return entries;
 }

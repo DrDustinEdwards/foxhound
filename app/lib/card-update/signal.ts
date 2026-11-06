@@ -20,7 +20,12 @@ export async function hasCardUpdateSignal(db: Db, failedPaymentId: string): Prom
   const rows = await db
     .select({ id: recoverySteps.id })
     .from(recoverySteps)
-    .where(and(eq(recoverySteps.failedPaymentId, failedPaymentId), eq(recoverySteps.stepType, "card_update")))
+    .where(
+      and(
+        eq(recoverySteps.failedPaymentId, failedPaymentId),
+        eq(recoverySteps.stepType, "card_update"),
+      ),
+    )
     .limit(1);
   return rows.length > 0;
 }

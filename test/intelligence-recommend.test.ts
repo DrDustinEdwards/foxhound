@@ -37,7 +37,12 @@ describe("Recova's recommendation table", () => {
     for (const e of E) {
       for (const h of H) {
         values.forEach((v, i) => {
-          expect([e, h, v, lookupRecommendation(e, h, v, 10_000).action]).toEqual([e, h, v, TABLE[e][h][i]]);
+          expect([e, h, v, lookupRecommendation(e, h, v, 10_000).action]).toEqual([
+            e,
+            h,
+            v,
+            TABLE[e][h][i],
+          ]);
         });
       }
     }
@@ -53,7 +58,9 @@ describe("Recova's recommendation table", () => {
 
   it("annualises MRR at risk only for the two actions that ask for attention", () => {
     expect(lookupRecommendation("red", "red", "high", 5_000).annualizedMrrAtRiskCents).toBe(60_000);
-    expect(lookupRecommendation("unknown", "unknown", "high", 5_000).annualizedMrrAtRiskCents).toBe(60_000);
+    expect(lookupRecommendation("unknown", "unknown", "high", 5_000).annualizedMrrAtRiskCents).toBe(
+      60_000,
+    );
     expect(lookupRecommendation("red", "red", "low", 5_000).annualizedMrrAtRiskCents).toBeNull();
   });
 
@@ -72,11 +79,21 @@ describe("Recova's bands, on Foxhound's inputs", () => {
   const DAY = 86_400_000;
 
   it("engagement: unknown under 3 sends, red with no opens, green within 14 days, else yellow", () => {
-    expect(engagementBand({ sent30d: 2, opened30d: 5, lastOpenAtMs: NOW, nowMs: NOW }).band).toBe("unknown");
-    expect(engagementBand({ sent30d: 3, opened30d: 0, lastOpenAtMs: null, nowMs: NOW }).band).toBe("red");
-    expect(engagementBand({ sent30d: 3, opened30d: 1, lastOpenAtMs: NOW - 14 * DAY, nowMs: NOW }).band).toBe("green");
-    expect(engagementBand({ sent30d: 3, opened30d: 1, lastOpenAtMs: NOW - 15 * DAY, nowMs: NOW }).band).toBe("yellow");
-    expect(engagementBand({ sent30d: 3, opened30d: 1, lastOpenAtMs: NOW - 90 * DAY, nowMs: NOW }).band).toBe("yellow");
+    expect(engagementBand({ sent30d: 2, opened30d: 5, lastOpenAtMs: NOW, nowMs: NOW }).band).toBe(
+      "unknown",
+    );
+    expect(engagementBand({ sent30d: 3, opened30d: 0, lastOpenAtMs: null, nowMs: NOW }).band).toBe(
+      "red",
+    );
+    expect(
+      engagementBand({ sent30d: 3, opened30d: 1, lastOpenAtMs: NOW - 14 * DAY, nowMs: NOW }).band,
+    ).toBe("green");
+    expect(
+      engagementBand({ sent30d: 3, opened30d: 1, lastOpenAtMs: NOW - 15 * DAY, nowMs: NOW }).band,
+    ).toBe("yellow");
+    expect(
+      engagementBand({ sent30d: 3, opened30d: 1, lastOpenAtMs: NOW - 90 * DAY, nowMs: NOW }).band,
+    ).toBe("yellow");
   });
 
   it("recovery history: unknown under 3 failures, then 60% and 30% cut points", () => {
@@ -88,9 +105,17 @@ describe("Recova's bands, on Foxhound's inputs", () => {
 
   it("value: percentile within the account, 75 and up high, 25 and under or no MRR low", () => {
     const dist = [0, 1_000, 2_000, 3_000, 4_000, 5_000, 6_000, 7_000];
-    expect(customerValueBand({ mrrContributionCents: 6_000, accountMrrAscending: dist }).band).toBe("high");
-    expect(customerValueBand({ mrrContributionCents: 3_000, accountMrrAscending: dist }).band).toBe("medium");
-    expect(customerValueBand({ mrrContributionCents: 1_000, accountMrrAscending: dist }).band).toBe("low");
-    expect(customerValueBand({ mrrContributionCents: 0, accountMrrAscending: dist }).band).toBe("low");
+    expect(customerValueBand({ mrrContributionCents: 6_000, accountMrrAscending: dist }).band).toBe(
+      "high",
+    );
+    expect(customerValueBand({ mrrContributionCents: 3_000, accountMrrAscending: dist }).band).toBe(
+      "medium",
+    );
+    expect(customerValueBand({ mrrContributionCents: 1_000, accountMrrAscending: dist }).band).toBe(
+      "low",
+    );
+    expect(customerValueBand({ mrrContributionCents: 0, accountMrrAscending: dist }).band).toBe(
+      "low",
+    );
   });
 });

@@ -21,7 +21,10 @@ export interface CurrencyCents {
  * connected account with no Foxhound history yet, this is honestly zero for
  * every currency, not a fabricated projection.
  */
-export async function computeFoxhoundAddsCents(db: Db, accountId: string): Promise<CurrencyCents[]> {
+export async function computeFoxhoundAddsCents(
+  db: Db,
+  accountId: string,
+): Promise<CurrencyCents[]> {
   const rows = await db
     .select({
       currency: recoveredPayments.currency,

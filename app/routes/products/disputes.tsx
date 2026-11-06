@@ -1,6 +1,10 @@
 import { Shield } from "lucide-react";
 
-import { DashboardPreview, DisputeTablePreview, NumbersPreview } from "~/components/disputes-previews";
+import {
+  DashboardPreview,
+  DisputeTablePreview,
+  NumbersPreview,
+} from "~/components/disputes-previews";
 import {
   BottomCTA,
   FeatureBlocks,
@@ -61,10 +65,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
     }),
     ...(loaderData
       ? [
-          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            path: PATH,
-            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-          })),
+          jsonLd(
+            speakableWebPageJsonLd(loaderData.siteUrl, {
+              path: PATH,
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
         ]
       : []),
   ];
@@ -83,7 +89,11 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <ProductHero
         productName="Disputes"
         Icon={Shield}

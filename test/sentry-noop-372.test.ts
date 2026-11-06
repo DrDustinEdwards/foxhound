@@ -1,4 +1,3 @@
-
 import { describe, expect, it, vi } from "vitest";
 
 import { sentryOptions } from "~/lib/errors/sentry-options";
@@ -19,8 +18,6 @@ import { sentryOptions } from "~/lib/errors/sentry-options";
 // callback returns undefined, the SDK initializes nothing, and no network call
 // is attempted. Asserted against the REAL package rather than a description of
 // it.
-
-
 
 describe("PLANT 2: the SDK is still inert without a DSN", () => {
   it("the options callback returns undefined when SENTRY_DSN is unset", async () => {
@@ -55,11 +52,12 @@ describe("PLANT 2: the SDK is still inert without a DSN", () => {
     const { withSentry } = await import("@sentry/cloudflare");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    const handler = { async fetch() { return new Response("ok"); } };
-    const wrapped = withSentry<{ SENTRY_DSN?: string }>(
-      sentryOptions,
-      handler,
-    );
+    const handler = {
+      async fetch() {
+        return new Response("ok");
+      },
+    };
+    const wrapped = withSentry<{ SENTRY_DSN?: string }>(sentryOptions, handler);
 
     expect(typeof wrapped.fetch).toBe("function");
     expect(fetchSpy).not.toHaveBeenCalled();

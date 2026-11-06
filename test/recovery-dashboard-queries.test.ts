@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { listExecutedRecoverySteps } from "~/lib/recovery/queries.server";
-import { getMostRecentRecoveryAt, listBillableRecoveredForRoi, listRecoveredWithFailureContext, listReactivatedWinbacks } from "~/lib/recovery/dashboard-queries.server";
+import {
+  getMostRecentRecoveryAt,
+  listBillableRecoveredForRoi,
+  listRecoveredWithFailureContext,
+  listReactivatedWinbacks,
+} from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -22,7 +27,6 @@ async function seededDb() {
 }
 
 describe("listRecoveredWithFailureContext", () => {
-
   it("a cutoff in the future returns nothing", async () => {
     const db = await seededDb();
     const rows = await listRecoveredWithFailureContext(db, DEMO_ACCOUNT_ID, now.getTime() + DAY_MS);
@@ -31,7 +35,6 @@ describe("listRecoveredWithFailureContext", () => {
 });
 
 describe("listExecutedRecoverySteps", () => {
-
   it("creditedRecovery is true only for the step actually credited by recovered_payments.recovered_by_step_id", async () => {
     const db = await seededDb();
     const rows = await listExecutedRecoverySteps(db, DEMO_ACCOUNT_ID);
@@ -62,7 +65,6 @@ describe("getMostRecentRecoveryAt", () => {
 });
 
 describe("listBillableRecoveredForRoi", () => {
-
   it("excludes stripe_baseline recoveries (the free line, never billed)", async () => {
     const db = await seededDb();
     const billable = await listBillableRecoveredForRoi(db, DEMO_ACCOUNT_ID, now.getTime(), null);

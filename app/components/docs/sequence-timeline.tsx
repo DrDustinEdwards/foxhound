@@ -45,7 +45,9 @@ export function SequenceTimeline({ category }: { category: DeclineCategory }) {
                     : "border-blue bg-blue-bg text-blue"
                 }`}
               >
-                <span className="font-medium">{isRetryStep(step.stepType) ? "Retry" : "Email"}</span>
+                <span className="font-medium">
+                  {isRetryStep(step.stepType) ? "Retry" : "Email"}
+                </span>
                 <span className="font-mono text-micro">{timingLabel(step.offsetHours)}</span>
               </div>
               {i < steps.length - 1 ? (

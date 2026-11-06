@@ -49,7 +49,8 @@ export default adminMcpWorker<AdminMcpEnv>({
       const clientId = typeof props.clientId === "string" ? props.clientId : undefined;
       return serveAdminMcp(request, env, {
         actor: props.email,
-        client: typeof props.client === "string" && props.client ? props.client : "an unnamed AI client",
+        client:
+          typeof props.client === "string" && props.client ? props.client : "an unnamed AI client",
         clientId,
         scopes,
         // The verified token, so the SDK can send a write's 403 step-up before the tool runs.
@@ -64,6 +65,11 @@ export default adminMcpWorker<AdminMcpEnv>({
       });
     }
     // The list-only test key: it never reaches the admin API (agent keys are off on this server).
-    return serveAdminMcp(request, env, { actor: caller.principal, client: "the list-only test key", scopes: [], probe: true });
+    return serveAdminMcp(request, env, {
+      actor: caller.principal,
+      client: "the list-only test key",
+      scopes: [],
+      probe: true,
+    });
   },
 });

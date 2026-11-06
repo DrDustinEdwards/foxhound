@@ -76,7 +76,9 @@ describe("revoking the anonymous audit's Stripe grant", () => {
   });
 
   it("skips it when any Foxhound account holds the Stripe account live", async () => {
-    await db.insert(stripeConnections).values({ id: "sc_live", accountId: "acct_a", stripeUserId: STRIPE, createdAt: CREATED });
+    await db
+      .insert(stripeConnections)
+      .values({ id: "sc_live", accountId: "acct_a", stripeUserId: STRIPE, createdAt: CREATED });
     expect(await deliver()).toBe("ack");
     expect(harness.deauthorized).toEqual([]);
   });

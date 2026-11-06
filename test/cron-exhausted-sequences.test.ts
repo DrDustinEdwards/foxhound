@@ -1,7 +1,6 @@
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // Nothing wrote failed_payments.status = 'failed_unrecovered'. A payment dunned
@@ -136,10 +135,11 @@ beforeEach(() => {
 });
 
 describe("queryExhaustedSequences", () => {
-
   it("does not select a payment that already left 'active'", async () => {
     await seed({
-      payments: [{ id: "fp_recovered", invoiceId: "in_1", status: "recovered", steps: [ranStep(1)] }],
+      payments: [
+        { id: "fp_recovered", invoiceId: "in_1", status: "recovered", steps: [ranStep(1)] },
+      ],
     });
     expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
   });
@@ -198,10 +198,7 @@ describe("a late recovery on a flipped row still wins", () => {
         {
           id: "fp_done",
           invoiceId: "in_late",
-          steps: [
-            ranStep(1),
-            { ...ranStep(2), clickedAt: new Date("2026-06-27T00:00:00.000Z") },
-          ],
+          steps: [ranStep(1), { ...ranStep(2), clickedAt: new Date("2026-06-27T00:00:00.000Z") }],
         },
       ],
     });

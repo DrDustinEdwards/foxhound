@@ -26,7 +26,6 @@ function job(overrides: Partial<EmailJob> = {}): EmailJob {
 }
 
 describe("buildEmailMessage (CAN-SPAM + from)", () => {
-
   it("throws (never sends) when the physical address is missing", () => {
     expect(() => buildEmailMessage(job({ physicalAddress: "" }), "https://x")).toThrow(
       /physical address/i,
@@ -38,7 +37,6 @@ describe("buildEmailMessage (CAN-SPAM + from)", () => {
       /unsubscribe/i,
     );
   });
-
 });
 
 describe("buildEmailSendRow (compile against schema)", () => {

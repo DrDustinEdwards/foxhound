@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
+import { CLICK_SUSPECT_MIN_SECONDS } from "~/lib/constants";
 import {
-  CLICK_SUSPECT_MIN_SECONDS,
-} from "~/lib/constants";
-import { findAttributionSignals, isBillableAttribution, resolveAttribution } from "~/lib/recovery/attribution";
+  findAttributionSignals,
+  isBillableAttribution,
+  resolveAttribution,
+} from "~/lib/recovery/attribution";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
@@ -36,8 +38,14 @@ const STEP = "step_scan";
 const SENT_AT = new Date("2026-08-20T12:00:00.000Z");
 const RECOVERED_AT = new Date("2026-08-21T12:00:00.000Z");
 
-const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown, now: new Date() }));
-const ENV = { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env;
+const harness = vi.hoisted(() => ({
+  db: null as unknown,
+  sqlite: null as unknown,
+  now: new Date(),
+}));
+const ENV = {
+  MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
+} as unknown as Env;
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),

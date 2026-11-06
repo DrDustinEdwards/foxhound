@@ -94,7 +94,10 @@ describe("a lost dispute stops card retries", () => {
     await runRecoveryTick({} as Env, deps(runRetry));
 
     expect(runRetry).not.toHaveBeenCalled();
-    const [step] = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.id, "step_1"));
+    const [step] = await db
+      .select()
+      .from(schema.recoverySteps)
+      .where(eq(schema.recoverySteps.id, "step_1"));
     expect(step.result).toBe("retry_skipped_dispute_lost");
     expect(step.executedAt).not.toBeNull();
     expect(harness.outcomes).toEqual([

@@ -40,7 +40,11 @@ export const ALERT_COOLDOWN_MARGIN_MS = HOUR_MS;
 export const ALERT_COOLDOWN_WINDOW_MS = ALERT_COOLDOWN_MS - ALERT_COOLDOWN_MARGIN_MS;
 
 /** True when `actualValue` breaches the alert's threshold in its configured direction. */
-export function breachesThreshold(direction: string, actualValue: number, thresholdValue: number): boolean {
+export function breachesThreshold(
+  direction: string,
+  actualValue: number,
+  thresholdValue: number,
+): boolean {
   return direction === "above" ? actualValue > thresholdValue : actualValue < thresholdValue;
 }
 
@@ -108,7 +112,12 @@ export function evaluateAlerts(
 /** The alert_history insert for one firing, written after the notification
  *  was attempted, with whether it went (Recova's notification_sent). Required,
  *  so no caller can record a firing without saying. */
-export function buildAlertHistoryInsert(db: Db, firing: AlertFiring, firedAt: Date, notificationSent: boolean) {
+export function buildAlertHistoryInsert(
+  db: Db,
+  firing: AlertFiring,
+  firedAt: Date,
+  notificationSent: boolean,
+) {
   return db.insert(alertHistory).values({
     alertId: firing.alertId,
     accountId: firing.accountId,

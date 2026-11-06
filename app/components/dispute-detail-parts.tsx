@@ -27,7 +27,15 @@ import type { action } from "~/routes/app/disputes/detail";
  * the page holds unsaved edits it is held back, focusable, with the reason in
  * visible text beside it, never a silent drop of the merchant's edits.
  */
-export function ApproveButton({ label, approving, dirty }: { label: string; approving: boolean; dirty: boolean }) {
+export function ApproveButton({
+  label,
+  approving,
+  dirty,
+}: {
+  label: string;
+  approving: boolean;
+  dirty: boolean;
+}) {
   const held = approving || dirty;
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -94,7 +102,11 @@ export function AcceptControl({
     );
   }
   return (
-    <Form method="post" className="flex flex-wrap items-center gap-2" aria-label="Accept this dispute">
+    <Form
+      method="post"
+      className="flex flex-wrap items-center gap-2"
+      aria-label="Accept this dispute"
+    >
       <input type="hidden" name="intent" value="accept" />
       <span id={lineId} className="text-label text-text-secondary">
         {ACCEPT_CONFIRM_LINE}
@@ -198,17 +210,28 @@ export function EvidenceFiles({
   }, [uploadDone, upload.data]);
 
   const resultError = (d: unknown) =>
-    d && typeof d === "object" && "fileOutcome" in d && "error" in d ? String((d as { error: unknown }).error) : null;
-  const error = precheck ? EVIDENCE_FILE_MESSAGES[precheck] : (resultError(upload.data) ?? resultError(remove.data));
+    d && typeof d === "object" && "fileOutcome" in d && "error" in d
+      ? String((d as { error: unknown }).error)
+      : null;
+  const error = precheck
+    ? EVIDENCE_FILE_MESSAGES[precheck]
+    : (resultError(upload.data) ?? resultError(remove.data));
 
   let control: React.ReactNode = null;
   if (editable && !available) {
-    control = <span className="text-micro text-text-subtle">{EVIDENCE_FILES_UNAVAILABLE_LINE}</span>;
+    control = (
+      <span className="text-micro text-text-subtle">{EVIDENCE_FILES_UNAVAILABLE_LINE}</span>
+    );
   } else if (canChange && files.length < DISPUTE_EVIDENCE_MAX_FILES) {
     control = (
       <span className="inline-flex items-center gap-2">
         <span className="inline-flex rounded-md has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-(--ring) has-[:focus-visible]:outline-solid">
-          <label htmlFor={inputId} className="cap-btn" data-size="sm" aria-disabled={uploading ? true : undefined}>
+          <label
+            htmlFor={inputId}
+            className="cap-btn"
+            data-size="sm"
+            aria-disabled={uploading ? true : undefined}
+          >
             {uploading ? "Uploading…" : "Upload file"}
           </label>
         </span>
@@ -228,7 +251,8 @@ export function EvidenceFiles({
             const refused = precheckEvidenceFile(file, files.length);
             setPrecheck(refused);
             if (refused) return;
-            if (input.form) void upload.submit(input.form, { method: "post", encType: "multipart/form-data" });
+            if (input.form)
+              void upload.submit(input.form, { method: "post", encType: "multipart/form-data" });
           }}
         />
         <noscript>
@@ -265,12 +289,15 @@ export function EvidenceFiles({
                       className="text-label text-brand-text hover:opacity-80"
                     >
                       {name}
-                    <span className="cap-sr-only"> (opens in a new tab)</span></a>
+                      <span className="cap-sr-only"> (opens in a new tab)</span>
+                    </a>
                   ) : (
                     <span className="text-label text-text">{name}</span>
                   )}
                   <span className="flex items-center gap-3">
-                    <span className="text-micro text-text-subtle">{formatDateShort(f.createdAt)}</span>
+                    <span className="text-micro text-text-subtle">
+                      {formatDateShort(f.createdAt)}
+                    </span>
                     {canChange ? (
                       <button
                         type="submit"

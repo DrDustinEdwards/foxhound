@@ -134,9 +134,19 @@ const TYPE_EXTENSION: Record<DisputeEvidenceFileType, string> = {
  * to letters and digits, after a fresh UUID. A name with no usable extension
  * takes the type's.
  */
-export function evidenceObjectName(uuid: string, originalName: string, type: DisputeEvidenceFileType): string {
+export function evidenceObjectName(
+  uuid: string,
+  originalName: string,
+  type: DisputeEvidenceFileType,
+): string {
   const parts = originalName.split(".");
-  const ext = parts.length > 1 ? (parts.pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) : "";
+  const ext =
+    parts.length > 1
+      ? (parts.pop() ?? "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "")
+          .slice(0, 8)
+      : "";
   return `${uuid}.${ext || TYPE_EXTENSION[type]}`;
 }
 

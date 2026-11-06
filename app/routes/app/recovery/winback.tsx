@@ -81,10 +81,14 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                       </span>
                     ) : null}
                   </td>
-                  <td data-label="Canceled" className="text-text-tertiary">{seq.createdAt.toLocaleDateString()}</td>
+                  <td data-label="Canceled" className="text-text-tertiary">
+                    {seq.createdAt.toLocaleDateString()}
+                  </td>
                   <td data-label="Status">
                     <div className="flex flex-col items-start gap-1">
-                      <Badge tone={statusTone(seq.status)}>{STATUS_LABEL[seq.status] ?? seq.status}</Badge>
+                      <Badge tone={statusTone(seq.status)}>
+                        {STATUS_LABEL[seq.status] ?? seq.status}
+                      </Badge>
                       {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
                         <span className="text-micro text-text-subtle">
                           Won back {seq.reactivatedAt.toLocaleDateString()}

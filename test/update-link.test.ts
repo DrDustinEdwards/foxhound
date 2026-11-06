@@ -35,7 +35,10 @@ describe("hrefsIn and linksTo", () => {
     { name: "a data-href attribute", html: `<a data-href="${URL}">x</a>` },
     { name: "an href inside an HTML comment", html: `<!-- <a href="${URL}">x</a> --><p>Hi</p>` },
     { name: "literal href= text", html: `<p>href="${URL}"</p>` },
-    { name: "href= text inside another attribute's value", html: `<a title='see href="${URL}"'>x</a>` },
+    {
+      name: "href= text inside another attribute's value",
+      html: `<a title='see href="${URL}"'>x</a>`,
+    },
     { name: "an href on a tag that is not an anchor", html: `<div href="${URL}">x</div>` },
     { name: "an href on an abbr, whose name starts with a", html: `<abbr href="${URL}">x</abbr>` },
     { name: "an unclosed comment", html: `<p>Hi</p><!-- <a href="${URL}">x</a>` },

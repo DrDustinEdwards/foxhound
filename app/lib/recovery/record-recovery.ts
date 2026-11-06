@@ -273,7 +273,10 @@ export interface AttributionSweepResult {
  * the same UPDATE-only batch, restricted to rows still at stripe_baseline, so a
  * rerun is a no-op. Runs daily, before billing.
  */
-export async function upgradeMissedRetryAttributions(env: Env, now: Date): Promise<AttributionSweepResult> {
+export async function upgradeMissedRetryAttributions(
+  env: Env,
+  now: Date,
+): Promise<AttributionSweepResult> {
   const db = getDb(env);
   const rows = await db
     .select({
@@ -322,7 +325,10 @@ export async function upgradeMissedRetryAttributions(env: Env, now: Date): Promi
       });
       if (upgradedARow(write)) result.upgraded += 1;
     } catch (err) {
-      result.failed.push({ failedPaymentId: row.failedPaymentId, error: err instanceof Error ? err.message : String(err) });
+      result.failed.push({
+        failedPaymentId: row.failedPaymentId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
   return result;

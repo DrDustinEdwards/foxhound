@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -77,7 +76,6 @@ async function promptForAccount(): Promise<string> {
 }
 
 describe("PLANT 1: each column reaches the prompt, observed at the output", () => {
-
   it("all three together, in legacy's order and joined by a space", async () => {
     seedAccount({ industry: "SaaS", customerType: "B2B", mrrCents: 500_000 });
     const prompt = await promptForAccount();

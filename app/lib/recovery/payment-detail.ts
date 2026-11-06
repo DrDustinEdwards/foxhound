@@ -145,8 +145,13 @@ export function visibleActionResult(input: {
   const { actionData, clearedFor, pendingIntent } = input;
   if (isDetailActionIntent(pendingIntent)) return null;
   if (!actionData || typeof actionData !== "object") return null;
-  if ("error" in actionData && typeof actionData.error === "string") return { tone: "crit", message: actionData.error };
-  if ("notice" in actionData && typeof actionData.notice === "string" && clearedFor !== actionData) {
+  if ("error" in actionData && typeof actionData.error === "string")
+    return { tone: "crit", message: actionData.error };
+  if (
+    "notice" in actionData &&
+    typeof actionData.notice === "string" &&
+    clearedFor !== actionData
+  ) {
     return { tone: "ok", message: actionData.notice };
   }
   return null;

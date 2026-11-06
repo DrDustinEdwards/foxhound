@@ -87,7 +87,9 @@ export const auditDigestRuns = sqliteTable(
   "audit_digest_runs",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     /** The month the digest COVERS, "YYYY-MM" in UTC. The dedupe key's other half. */
     periodMonth: text("period_month").notNull(),
     /** CurrencyCents[]: the cumulative attributed-recovery total per currency. */

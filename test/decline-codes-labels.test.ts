@@ -9,7 +9,6 @@ import { CATEGORY_STATUS_LABEL } from "~/lib/decline-codes/presentation";
 // they cannot re-diverge into two different status claims for the same
 // category the way the hub's old hardcoded ternary did.
 describe("CATEGORY_STATUS_LABEL", () => {
-
   it("only claims automatic retry for categories decline.ts actually marks retryable", () => {
     for (const category of CATEGORY_ORDER) {
       if (CATEGORY_STATUS_LABEL[category] === "Retries automatically") {

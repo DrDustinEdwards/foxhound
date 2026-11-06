@@ -39,12 +39,17 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
     const sqlite = harness.sqlite as Database.Database;
     sqlite.exec("BEGIN");
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       sqlite.exec("COMMIT");
     } catch (err) {
       sqlite.exec("ROLLBACK");
@@ -57,9 +62,7 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
-const { DISPUTE_CREATED_TEMPLATE } = await import(
-  "~/lib/disputes/notices"
-);
+const { DISPUTE_CREATED_TEMPLATE } = await import("~/lib/disputes/notices");
 
 const ACCOUNT = "acct_1";
 const BASE = "https://foxhoundapp.test";
@@ -68,7 +71,8 @@ const DEADLINE = new Date("2026-11-24T23:59:59Z");
 const YEAR = new Date().getUTCFullYear();
 
 /** Recova's wrapEmailHtml footer sentence, for a given sender name. */
-const footerNote = (sender: string) => `You're receiving this from ${sender} about a recent payment. © ${YEAR}`;
+const footerNote = (sender: string) =>
+  `You're receiving this from ${sender} about a recent payment. © ${YEAR}`;
 
 function makeEnv(baseUrl = BASE): Env {
   return {
@@ -108,7 +112,6 @@ function seedAccount(opts: { senderName?: string | null } = {}) {
     .run(ACCOUNT, opts.senderName === undefined ? "Acme Billing" : opts.senderName);
 }
 
-
 function only(): SentMessage {
   expect(harness.sent).toHaveLength(1);
   return harness.sent[0];
@@ -142,12 +145,16 @@ describe("E16 sends on charge.dispute.created with Recova's words and footer", (
     } as never;
     expect(await processConnectedWebhook(env, event, NOW)).toEqual({ status: "applied" });
     const m = only();
-    const row = sqlite.prepare("SELECT id FROM disputes WHERE stripe_dispute_id = 'dp_new'").get() as { id: string };
+    const row = sqlite
+      .prepare("SELECT id FROM disputes WHERE stripe_dispute_id = 'dp_new'")
+      .get() as { id: string };
     expect(m.to).toBe("ops@acme.test");
     expect(m.subject).toBe("New dispute: $50.00 from Unknown customer");
     expect(m.text).toContain("Unknown customer disputed $50.00 for reason: Product Not Received.");
     expect(m.text).toContain(`Review dispute:\n${BASE}/disputes/${row.id}`);
-    expect(m.text).toContain(`${footerNote("Acme Billing")}\nManage email settings: ${BASE}/settings`);
+    expect(m.text).toContain(
+      `${footerNote("Acme Billing")}\nManage email settings: ${BASE}/settings`,
+    );
     const sends = sqlite.prepare("SELECT status, template FROM email_sends").all();
     expect(sends).toEqual([{ status: "sent", template: DISPUTE_CREATED_TEMPLATE }]);
   });

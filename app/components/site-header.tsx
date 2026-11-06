@@ -82,15 +82,20 @@ function isOn(pathname: string, to: string, end = false): boolean {
 const BUSINESS_ROW_LABELS = ["Settings", "Billing"] as const;
 
 export function businessRows(hasAccount: boolean) {
-  return BUSINESS_ROW_LABELS.flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)).filter(
-    (l) => !l.requiresAccount || hasAccount,
-  );
+  return BUSINESS_ROW_LABELS.flatMap((label) =>
+    PLATFORM_LINKS.filter((l) => l.label === label),
+  ).filter((l) => !l.requiresAccount || hasAccount);
 }
 
 /** The row of `links` for the page you are on: the longest match, so
  *  /settings/team marks Team and not Settings too. */
-export function currentRow<T extends { to: string; end?: boolean }>(pathname: string, links: T[]): T | undefined {
-  return links.filter((l) => isOn(pathname, l.to, l.end)).sort((a, b) => b.to.length - a.to.length)[0];
+export function currentRow<T extends { to: string; end?: boolean }>(
+  pathname: string,
+  links: T[],
+): T | undefined {
+  return links
+    .filter((l) => isOn(pathname, l.to, l.end))
+    .sort((a, b) => b.to.length - a.to.length)[0];
 }
 
 /** The avatar menu, last in the header, in place of the gear (Dustin's answer
@@ -146,7 +151,11 @@ export function merchantAccountMenu({
  *  write must not switch it back; the next request reconciles. The same
  *  functions run on a page that does not hydrate, from the header island
  *  (app/islands/header.ts). */
-export function useThemeMemory(serverTheme: Theme, save: ThemeSave, onChange?: (theme: Theme) => void): void {
+export function useThemeMemory(
+  serverTheme: Theme,
+  save: ThemeSave,
+  onChange?: (theme: Theme) => void,
+): void {
   useState(() => {
     if (typeof window === "undefined") return null;
     rememberServerTheme(serverTheme, THEME_PREF_KEY);

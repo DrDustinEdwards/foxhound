@@ -1,4 +1,3 @@
-
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -55,20 +54,29 @@ interface ListResult {
 
 function parse(params: string): Filters {
   expect(typeof pageLib.parseWebhookFilters).toBe("function");
-  return (pageLib.parseWebhookFilters as (p: URLSearchParams) => Filters)(new URLSearchParams(params));
+  return (pageLib.parseWebhookFilters as (p: URLSearchParams) => Filters)(
+    new URLSearchParams(params),
+  );
 }
 
 async function list(db: unknown, filters: Partial<Filters>): Promise<ListResult> {
   expect(typeof serverLib.listWebhookEvents).toBe("function");
   const full: Filters = { type: "", errorsOnly: false, pendingOnly: false, page: 1, ...filters };
-  return (serverLib.listWebhookEvents as (db: unknown, f: Filters) => Promise<ListResult>)(db, full);
+  return (serverLib.listWebhookEvents as (db: unknown, f: Filters) => Promise<ListResult>)(
+    db,
+    full,
+  );
 }
 
 /** 120 events, newest first by index: every third an error, every fifth an
  *  unknown account, every seventh still waiting. Types rotate through three. */
 async function seed(n = 120) {
   const { db } = createInMemoryDb();
-  const types = ["invoice.payment_failed", "Charge.Dispute.Created", "customer.subscription.updated"];
+  const types = [
+    "invoice.payment_failed",
+    "Charge.Dispute.Created",
+    "customer.subscription.updated",
+  ];
   const rows = Array.from({ length: n }, (_, i) => ({
     id: `we_${String(i).padStart(3, "0")}`,
     stripeEventId: `evt_${i}`,
@@ -95,22 +103,26 @@ describe("the filters come from the address", () => {
   });
 
   it("falls back to page 1 for a page that is not a whole positive number", () => {
-    for (const p of ["0", "-2", "abc", "1.5", "", "1e3"]) expect(parse(`page=${p}`).page, p).toBe(1);
+    for (const p of ["0", "-2", "abc", "1.5", "", "1e3"])
+      expect(parse(`page=${p}`).page, p).toBe(1);
   });
 
   it("builds the link to a page with the filters kept and the defaults left out", () => {
     expect(typeof pageLib.webhookListHref).toBe("function");
     const href = pageLib.webhookListHref as (f: Filters, page: number) => string;
-    expect(href({ type: "", errorsOnly: false, pendingOnly: false, page: 4 }, 1)).toBe("/admin/platform/webhooks");
+    expect(href({ type: "", errorsOnly: false, pendingOnly: false, page: 4 }, 1)).toBe(
+      "/admin/platform/webhooks",
+    );
     expect(href({ type: "invoice paid", errorsOnly: true, pendingOnly: false, page: 1 }, 2)).toBe(
       "/admin/platform/webhooks?type=invoice+paid&errors=1&page=2",
     );
-    expect(href({ type: "", errorsOnly: false, pendingOnly: true, page: 1 }, 1)).toBe("/admin/platform/webhooks?pending=1");
+    expect(href({ type: "", errorsOnly: false, pendingOnly: true, page: 1 }, 1)).toBe(
+      "/admin/platform/webhooks?pending=1",
+    );
   });
 });
 
 describe("listWebhookEvents", () => {
-
   it("keeps the page inside its bounds", async () => {
     const db = await seed();
     const past = await list(db, { page: 99 });
@@ -136,7 +148,11 @@ describe("listWebhookEvents", () => {
     expect(pending.events.every((e) => !e.processed)).toBe(true);
 
     const both = await list(db, { errorsOnly: true, pendingOnly: true, type: "dispute" });
-    expect(both.events.every((e) => e.errorMessage !== null && !e.processed && /dispute/i.test(e.eventType))).toBe(true);
+    expect(
+      both.events.every(
+        (e) => e.errorMessage !== null && !e.processed && /dispute/i.test(e.eventType),
+      ),
+    ).toBe(true);
     expect(both.total).toBe(both.events.length);
   });
 });
@@ -151,15 +167,26 @@ describe("the loader", () => {
     const context = new RouterContextProvider();
     context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
     const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
-    return loader({ request: new Request(`https://foxhoundapp.com/admin/webhooks${search}`), context, params: {} });
+    return loader({
+      request: new Request(`https://foxhoundapp.com/admin/webhooks${search}`),
+      context,
+      params: {},
+    });
   }
 
   it("filters and pages from the address and keeps the health figures", async () => {
     const data = await load("?type=invoice&errors=1&page=1");
     const events = data.list as ListResult;
     expect(events.total).toBe(events.events.length);
-    expect(events.events.every((e) => e.eventType === "invoice.payment_failed" && e.errorMessage)).toBe(true);
-    expect(data.filters).toEqual({ type: "invoice", errorsOnly: true, pendingOnly: false, page: 1 });
+    expect(
+      events.events.every((e) => e.eventType === "invoice.payment_failed" && e.errorMessage),
+    ).toBe(true);
+    expect(data.filters).toEqual({
+      type: "invoice",
+      errorsOnly: true,
+      pendingOnly: false,
+      page: 1,
+    });
     expect(data.summary).toEqual({ totalLast24h: 120, errorsLast24h: 40, unprocessedCount: 18 });
   });
 });

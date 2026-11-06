@@ -137,7 +137,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       expired: read("expired"),
       network: read("network"),
       fraud: read("fraud"),
-      samples: Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => String(form.get(voiceSampleFieldName(i)) ?? "")),
+      samples: Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) =>
+        String(form.get(voiceSampleFieldName(i)) ?? ""),
+      ),
     });
   } catch (err) {
     console.error("brand voice write failed:", err);
@@ -264,7 +266,9 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
                   rows={i < 2 ? 6 : 3}
                   maxLength={VOICE_SAMPLE_MAX_CHARS}
                   defaultValue={samples[i] ?? ""}
-                  placeholder={i === 0 ? "Hi Sam, thanks for sticking with us this year..." : undefined}
+                  placeholder={
+                    i === 0 ? "Hi Sam, thanks for sticking with us this year..." : undefined
+                  }
                 />
               ))}
             </div>

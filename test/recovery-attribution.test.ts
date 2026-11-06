@@ -15,7 +15,6 @@ import {
 import { buildRecoveryBatch, type RecordRecoveryInput } from "~/lib/recovery/record-recovery";
 
 describe("resolveAttribution", () => {
-
   it("every attribution kind is CONSCIOUSLY classified billable or free", () => {
     // app/db/billable.ts's SQL predicate and isBillableAttribution here both
     // consolidated onto this one allow-list (2026-07-19); this guards against
@@ -112,8 +111,8 @@ describe("buildRecoveryBatch", () => {
   };
 
   it("attributed recovery stamps attributed_at and marks the outcome attributed", () => {
-    const [oc, rp] = buildRecoveryBatch(db, base).map(
-      (s) => (s as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL(),
+    const [oc, rp] = buildRecoveryBatch(db, base).map((s) =>
+      (s as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL(),
     );
     expect(rp.params).toContain("foxhound_retry");
     expect(rp.params).toContain("step_9");

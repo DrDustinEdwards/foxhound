@@ -13,7 +13,6 @@ const METER = { source: "test", accountId: null };
 const EMPTY_FACTS: EvidenceFacts = { productName: null, serviceDate: null, communications: [] };
 
 describe("buildEvidenceFacts (grounded only in real records)", () => {
-
   it("pulls plan name and service date from the resolved failed_payment row", () => {
     const facts = buildEvidenceFacts(
       {
@@ -53,7 +52,9 @@ describe("hasGroundingFacts", () => {
     expect(
       hasGroundingFacts({
         ...EMPTY_FACTS,
-        communications: [{ stepType: "email_day1", sentAt: new Date(), openedAt: null, clickedAt: null }],
+        communications: [
+          { stepType: "email_day1", sentAt: new Date(), openedAt: null, clickedAt: null },
+        ],
       }),
     ).toBe(true);
   });
@@ -78,7 +79,6 @@ describe("formatCommunicationLog", () => {
 });
 
 describe("draftDisputeEvidence (no fabrication)", () => {
-
   it("returns the deterministic fields straight from the facts when ANTHROPIC_API_KEY is unset, without throwing", async () => {
     const facts: EvidenceFacts = {
       productName: "Pro Monthly",
@@ -110,7 +110,6 @@ describe("draftDisputeEvidence (no fabrication)", () => {
 // buildEvidenceFields (lib/disputes-evidence.ts) set product_description from
 // the merchant's dispute_product_description on every response.
 describe("the merchant's product description (S32)", () => {
-
   it("grounds a dispute that matches no recovery, as Recova used it on every response", async () => {
     const facts = buildEvidenceFacts(null, [], "Handmade candles, shipped in the US");
     expect(hasGroundingFacts(facts)).toBe(true);

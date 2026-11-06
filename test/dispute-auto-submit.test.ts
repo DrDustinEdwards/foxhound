@@ -24,9 +24,14 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
-    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+      write.build(harness.db),
+    );
     harness.seen.add(write.idempotencyKey);
     return { applied: true };
   },
@@ -134,7 +139,10 @@ describe("auto-submit fires inside 24 hours, only on a standing opt-in, through 
 
     // Stripe was asked once, for the one due dispute, with its staged evidence.
     expect(harness.submitted).toEqual([
-      expect.objectContaining({ stripeDisputeId: "dp_due", evidence: { uncategorized_text: "Delivered and used." } }),
+      expect.objectContaining({
+        stripeDisputeId: "dp_due",
+        evidence: { uncategorized_text: "Delivered and used." },
+      }),
     ]);
 
     // The approval row names the merchant who opted in, and when.
@@ -143,22 +151,39 @@ describe("auto-submit fires inside 24 hours, only on a standing opt-in, through 
         "SELECT dispute_id AS d, approved_by_user_id AS u, approved_by_email AS e, standing_opt_in_at AS optIn FROM dispute_approvals",
       )
       .all();
-    expect(approvals).toEqual([{ d: "due", u: "user_on", e: "owner@on.test", optIn: OPTED_IN_AT.getTime() }]);
+    expect(approvals).toEqual([
+      { d: "due", u: "user_on", e: "owner@on.test", optIn: OPTED_IN_AT.getTime() },
+    ]);
 
     // Submitted as Foxhound's, which is what billing reads.
     const states = sqlite
       .prepare("SELECT id, state, submitted_at AS at, submitted_by AS by FROM disputes ORDER BY id")
       .all() as { id: string; state: string; at: number | null; by: string | null }[];
-    expect(states.find((s) => s.id === "due")).toEqual({ id: "due", state: "submitted", at: NOW.getTime(), by: "foxhound_auto" });
-    expect(states.filter((s) => s.id !== "due").every((s) => s.at === null && s.state === "pending_review")).toBe(true);
+    expect(states.find((s) => s.id === "due")).toEqual({
+      id: "due",
+      state: "submitted",
+      at: NOW.getTime(),
+      by: "foxhound_auto",
+    });
+    expect(
+      states
+        .filter((s) => s.id !== "due")
+        .every((s) => s.at === null && s.state === "pending_review"),
+    ).toBe(true);
 
     expect(
-      sqlite.prepare("SELECT event_type AS t, outcome AS o FROM outcomes WHERE event_type LIKE 'dispute_auto%'").all(),
+      sqlite
+        .prepare(
+          "SELECT event_type AS t, outcome AS o FROM outcomes WHERE event_type LIKE 'dispute_auto%'",
+        )
+        .all(),
     ).toEqual([{ t: "dispute_auto_submitted", o: "submitted" }]);
     const notice = harness.sent.find((m) => m.subject === "Dispute response submitted: $50.00");
     expect(notice?.to).toBe("ops@on.test");
     // The 1-day reminder on the dispute still outside the window says so.
-    const reminder = harness.sent.find((m) => m.to === "ops@on.test" && m.subject.startsWith("URGENT"));
+    const reminder = harness.sent.find(
+      (m) => m.to === "ops@on.test" && m.subject.startsWith("URGENT"),
+    );
     expect(reminder?.html).toContain("Auto-submit is on. We will submit at the 24-hour mark");
 
     // The next tick finds nothing left to submit.

@@ -39,7 +39,8 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 vi.mock("~/lib/stripe/client", () => {
-  const record = (method: string, result: unknown) =>
+  const record =
+    (method: string, result: unknown) =>
     async (...args: unknown[]) => {
       harness.calls.push({ method, args });
       return result;
@@ -65,7 +66,10 @@ vi.mock("~/lib/stripe/client", () => {
       },
       invoices: {
         create: record("invoices.create", { id: "in_new" }),
-        finalizeInvoice: record("invoices.finalizeInvoice", { id: "in_new", hosted_invoice_url: "https://pay/new" }),
+        finalizeInvoice: record("invoices.finalizeInvoice", {
+          id: "in_new",
+          hosted_invoice_url: "https://pay/new",
+        }),
       },
       invoiceItems: { create: record("invoiceItems.create", { id: "ii_1" }) },
     }),

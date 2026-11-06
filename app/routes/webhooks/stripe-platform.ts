@@ -52,7 +52,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   const outcome = await processPlatformWebhook(env, event, new Date());
   if (outcome.status === "error") {
     Sentry.captureException(new Error(outcome.message), {
-      extra: { scope: "stripe-platform-billing-dispatch", eventType: event.type, eventId: event.id },
+      extra: {
+        scope: "stripe-platform-billing-dispatch",
+        eventType: event.type,
+        eventId: event.id,
+      },
     });
     // Nothing was claimed, so Stripe's redelivery is a clean second attempt.
     return new Response("processing error", { status: 500 });

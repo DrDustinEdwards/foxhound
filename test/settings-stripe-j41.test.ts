@@ -23,7 +23,11 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // Every assertion here was seen failing against the page before the rebuild.
 
-const harness = vi.hoisted(() => ({ db: null as unknown, deauthorizeOk: true, deauthorizeThrows: false }));
+const harness = vi.hoisted(() => ({
+  db: null as unknown,
+  deauthorizeOk: true,
+  deauthorizeThrows: false,
+}));
 
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -41,8 +45,13 @@ vi.mock("~/lib/stripe/connect", () => ({
 
 const route = await import("~/routes/app/settings/stripe");
 
-const SOURCE = readFileSync(new URL("../app/routes/app/settings/stripe.tsx", import.meta.url), "utf8");
-const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+const SOURCE = readFileSync(
+  new URL("../app/routes/app/settings/stripe.tsx", import.meta.url),
+  "utf8",
+);
+const CODE = SOURCE.replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^\s*\/\/.*$/gm, "")
+  .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
@@ -56,7 +65,12 @@ interface Conn {
   connectedAt: Date | null;
 }
 
-const ONE: Conn = { id: "c_1", name: "Acme Payments", stripeUserId: "acct_1", connectedAt: new Date("2026-08-21T12:00:00Z") };
+const ONE: Conn = {
+  id: "c_1",
+  name: "Acme Payments",
+  stripeUserId: "acct_1",
+  connectedAt: new Date("2026-08-21T12:00:00Z"),
+};
 const TWO: Conn = { id: "c_2", name: null, stripeUserId: "acct_2", connectedAt: null };
 
 function render(connections: Conn[] = [ONE, TWO], actionData?: Record<string, unknown>): string {
@@ -90,7 +104,6 @@ function controls(html: string, label: string): string[] {
 }
 
 describe("J41 stripe: the card and its rows", () => {
-
   it("the first press only asks: the button is never a submit button, so it cannot post on the press that opens the confirm", () => {
     // Found on the rendered page: with `type={isConfirming ? "submit" : "button"}`
     // React re-renders inside the click, before the browser runs the click's
@@ -114,14 +127,17 @@ let sqlite: Database.Database;
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext)
+      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
     if (key === authContext) {
       return {
         userId: "user_1",
         userName: "Owner",
         email: "owner@acme.test",
         membership: { memberId: "m1", accountId: ACTIVE, accountName: "Active Co", role: "owner" },
-        memberships: [{ memberId: "m1", accountId: ACTIVE, accountName: "Active Co", role: "owner" }],
+        memberships: [
+          { memberId: "m1", accountId: ACTIVE, accountName: "Active Co", role: "owner" },
+        ],
         activeAccountId: ACTIVE,
         isAdmin: false,
         isDemo: false,
@@ -137,7 +153,10 @@ async function post(fields: Record<string, string>): Promise<unknown> {
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   return route.action({
     context: ctx,
-    request: new Request("https://foxhoundapp.test/settings/stripe", { method: "POST", body: form }),
+    request: new Request("https://foxhoundapp.test/settings/stripe", {
+      method: "POST",
+      body: form,
+    }),
     params: {},
   } as never);
 }
@@ -151,7 +170,11 @@ function seedConnection(id: string, accountId: string): void {
 }
 
 function disconnectedAt(id: string): number | null {
-  return (sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = ?").get(id) as { d: number | null }).d;
+  return (
+    sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections WHERE id = ?").get(id) as {
+      d: number | null;
+    }
+  ).d;
 }
 
 describe("J41 stripe: the action", () => {
@@ -161,8 +184,12 @@ describe("J41 stripe: the action", () => {
     harness.db = made.db;
     harness.deauthorizeOk = true;
     harness.deauthorizeThrows = false;
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 1000, 0)").run(ACTIVE, "Active Co");
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 1000, 0)").run("acct_other", "Other");
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 1000, 0)")
+      .run(ACTIVE, "Active Co");
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at, billing_exempt) VALUES (?, ?, 1000, 0)")
+      .run("acct_other", "Other");
   });
 
   afterEach(() => {
@@ -197,7 +224,10 @@ describe("J41 stripe: the action", () => {
       "Disconnected. Revoking access at Stripe did not complete, so check your Stripe dashboard.",
     );
     // The thrown error is logged whole.
-    expect(logged).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: "STRIPE_SECRET_KEY is not set" }));
+    expect(logged).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ message: "STRIPE_SECRET_KEY is not set" }),
+    );
   });
 
   it("refuses another account's connection with 403 and writes nothing", async () => {

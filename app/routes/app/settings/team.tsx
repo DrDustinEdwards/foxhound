@@ -12,14 +12,24 @@ import "capsomer/status.css";
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
-import { authContext, createInvite, hasOpenInviteForEmail, listMembers, removeMember, MEMBER_ROLE } from "~/lib/auth";
+import {
+  authContext,
+  createInvite,
+  hasOpenInviteForEmail,
+  listMembers,
+  removeMember,
+  MEMBER_ROLE,
+} from "~/lib/auth";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_INVITE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 import { pendingState, shouldClearInvite, type TeamActionData } from "~/lib/settings/team-page";
-import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-invite-email.server";
+import {
+  sendTeamInviteEmail,
+  teamInviteEmailNotice,
+} from "~/lib/settings/team-invite-email.server";
 
 import type { Route } from "./+types/team";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -92,7 +102,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (intent === "remove") {
     const memberId = String(form.get("memberId") ?? "").trim() || null;
     const refuse = (error: string, status: number) =>
-      data<TeamActionData>({ action: "remove", error, invited: null, inviteUrl: null, memberId }, { status });
+      data<TeamActionData>(
+        { action: "remove", error, invited: null, inviteUrl: null, memberId },
+        { status },
+      );
 
     // The actor's role, checked on the server before anything else.
     if (membership.role !== MEMBER_ROLE.OWNER) {
@@ -104,15 +117,26 @@ export async function action({ request, context }: Route.ActionArgs) {
     const result = await removeMember(db, membership.accountId, memberId);
     if (!result.ok) {
       return refuse(
-        result.reason === "is_owner" ? "The account owner cannot be removed." : "That member is not on this account.",
+        result.reason === "is_owner"
+          ? "The account owner cannot be removed."
+          : "That member is not on this account.",
         403,
       );
     }
-    return data<TeamActionData>({ action: "remove", error: null, invited: null, inviteUrl: null, memberId });
+    return data<TeamActionData>({
+      action: "remove",
+      error: null,
+      invited: null,
+      inviteUrl: null,
+      memberId,
+    });
   }
 
   const refuse = (error: string, status: number) =>
-    data<TeamActionData>({ action: "invite", error, invited: null, inviteUrl: null, memberId: null }, { status });
+    data<TeamActionData>(
+      { action: "invite", error, invited: null, inviteUrl: null, memberId: null },
+      { status },
+    );
 
   if (membership.role !== MEMBER_ROLE.OWNER) {
     return refuse("Only the account owner can invite teammates.", 403);
@@ -126,7 +150,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   // numbers on `invite:{ip}`, and fails open like every other caller (Recova's
   // limiter does too). It is spent on every invite attempt, as Recova's is.
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  if (!(await isWithinRateLimit(env, "invite", ip, RATE_LIMIT_INVITE.max, RATE_LIMIT_INVITE.windowMs))) {
+  if (
+    !(await isWithinRateLimit(env, "invite", ip, RATE_LIMIT_INVITE.max, RATE_LIMIT_INVITE.windowMs))
+  ) {
     return refuse("Too many requests. Try again later.", 429);
   }
   const email = String(form.get("email") ?? "").trim();
@@ -171,7 +197,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 /** The row's name, Recova's order: full name, else email, else the invited
  *  address. `||` as Recova has it, so an empty name falls through. */
-function displayName(m: { userId: string | null; userName: string | null; userEmail: string | null; invitedEmail: string | null }): string {
+function displayName(m: {
+  userId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+  invitedEmail: string | null;
+}): string {
   return (m.userId ? m.userName || m.userEmail : null) || m.invitedEmail || "";
 }
 
@@ -264,7 +295,12 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                       <input type="hidden" name="memberId" value={m.id} />
                       <span className="text-micro text-text-subtle">Remove {name}?</span>
                       <span className="flex items-center gap-1.5">
-                        <Button type="submit" variant="danger" size="sm" pending={pending.removing === m.id}>
+                        <Button
+                          type="submit"
+                          variant="danger"
+                          size="sm"
+                          pending={pending.removing === m.id}
+                        >
                           {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
                         </Button>
                         <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
@@ -273,9 +309,16 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                       </span>
                     </DemoGuardedForm>
                   ) : null}
-                  <span className={`ml-auto flex items-center gap-2${confirming ? " @xl:ml-0" : ""}`}>
+                  <span
+                    className={`ml-auto flex items-center gap-2${confirming ? " @xl:ml-0" : ""}`}
+                  >
                     {m.removable && !confirming ? (
-                      <a href={"?confirm=" + m.id} className="cap-btn" data-variant="quiet" data-size="sm">
+                      <a
+                        href={"?confirm=" + m.id}
+                        className="cap-btn"
+                        data-variant="quiet"
+                        data-size="sm"
+                      >
                         Remove member
                         <span className="sr-only">{" " + name}</span>
                       </a>
@@ -292,65 +335,69 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
             })}
           </ul>
 
-            {loaderData.isOwner ? (
-              <DemoGuardedForm method="post" className="border-t border-border pt-5">
-                <input type="hidden" name="_action" value="invite" />
-                {/* Capsomer's field through its HTML contract, with the aria
+          {loaderData.isOwner ? (
+            <DemoGuardedForm method="post" className="border-t border-border pt-5">
+              <input type="hidden" name="_action" value="invite" />
+              {/* Capsomer's field through its HTML contract, with the aria
                     wiring its React Field would add. The React Field takes one
                     control, so the button cannot share the input's row as
                     Recova has it, and its required prop prints a "Required"
                     marker Recova never had: a Capsomer gap. */}
-                <div className="cap-field" data-invalid={inviteResult?.error ? "true" : undefined}>
-                  <label className="cap-field-label" htmlFor="invite_email">
-                    Invite a team member
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="min-w-0 flex-1">
-                      <input
-                        ref={inviteInput}
-                        id="invite_email"
-                        className="cap-input"
-                        type="email"
-                        name="email"
-                        autoComplete="email"
-                        placeholder="colleague@company.com"
-                        required
-                        aria-invalid={inviteResult?.error ? true : undefined}
-                        aria-describedby={inviteResult?.error ? "invite_email-error" : undefined}
-                      />
-                    </div>
-                    <Button type="submit" variant="primary" pending={pending.invite}>
-                      {pending.invite ? "Sending\u2026" : "Send invite"}
-                    </Button>
+              <div className="cap-field" data-invalid={inviteResult?.error ? "true" : undefined}>
+                <label className="cap-field-label" htmlFor="invite_email">
+                  Invite a team member
+                </label>
+                <div className="flex gap-2">
+                  <div className="min-w-0 flex-1">
+                    <input
+                      ref={inviteInput}
+                      id="invite_email"
+                      className="cap-input"
+                      type="email"
+                      name="email"
+                      autoComplete="email"
+                      placeholder="colleague@company.com"
+                      required
+                      aria-invalid={inviteResult?.error ? true : undefined}
+                      aria-describedby={inviteResult?.error ? "invite_email-error" : undefined}
+                    />
                   </div>
-                  <p className="cap-field-error" id="invite_email-error" hidden={!inviteResult?.error}>
-                    {inviteResult?.error ?? null}
-                  </p>
+                  <Button type="submit" variant="primary" pending={pending.invite}>
+                    {pending.invite ? "Sending\u2026" : "Send invite"}
+                  </Button>
                 </div>
-                {/* A refused remove, where Recova's TeamSection shows it: its
+                <p
+                  className="cap-field-error"
+                  id="invite_email-error"
+                  hidden={!inviteResult?.error}
+                >
+                  {inviteResult?.error ?? null}
+                </p>
+              </div>
+              {/* A refused remove, where Recova's TeamSection shows it: its
                     one error line under the invite row. An alert, and not
                     the field's error, since the address is not what was
                     wrong. Showing it at the row instead is a question for
                     Dustin. */}
-                {removeResult?.error ? (
-                  <div className="mt-2">
-                    <Alert tone="crit">{removeResult.error}</Alert>
-                  </div>
-                ) : null}
-                {inviteResult?.inviteUrl ? (
-                  <div className="mt-2">
-                    <Banner tone="ok">
-                      Invited {inviteResult.invited}. Share this link: {inviteResult.inviteUrl}
-                    </Banner>
-                  </div>
-                ) : null}
-                {inviteResult && "emailError" in inviteResult && inviteResult.emailError ? (
-                  <div className="mt-2">
-                    <Alert tone="crit">{inviteResult.emailError}</Alert>
-                  </div>
-                ) : null}
-              </DemoGuardedForm>
-            ) : null}
+              {removeResult?.error ? (
+                <div className="mt-2">
+                  <Alert tone="crit">{removeResult.error}</Alert>
+                </div>
+              ) : null}
+              {inviteResult?.inviteUrl ? (
+                <div className="mt-2">
+                  <Banner tone="ok">
+                    Invited {inviteResult.invited}. Share this link: {inviteResult.inviteUrl}
+                  </Banner>
+                </div>
+              ) : null}
+              {inviteResult && "emailError" in inviteResult && inviteResult.emailError ? (
+                <div className="mt-2">
+                  <Alert tone="crit">{inviteResult.emailError}</Alert>
+                </div>
+              ) : null}
+            </DemoGuardedForm>
+          ) : null}
         </div>
       </section>
     </>

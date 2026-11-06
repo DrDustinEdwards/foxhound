@@ -101,15 +101,23 @@ async function uploadEvidenceFilesToStripe(
  *  outranks a text field of the same name. */
 export async function submitDisputeEvidenceWithClient(
   stripe: Stripe,
-  ctx: { stripeDisputeId: string; evidence: Stripe.DisputeUpdateParams.Evidence; files?: EvidenceFileUpload[] },
+  ctx: {
+    stripeDisputeId: string;
+    evidence: Stripe.DisputeUpdateParams.Evidence;
+    files?: EvidenceFileUpload[];
+  },
 ): Promise<DisputeSubmissionResult> {
   try {
-    const fileSlots = ctx.files && ctx.files.length > 0 ? await uploadEvidenceFilesToStripe(stripe, ctx.files) : {};
+    const fileSlots =
+      ctx.files && ctx.files.length > 0 ? await uploadEvidenceFilesToStripe(stripe, ctx.files) : {};
     const evidence = { ...ctx.evidence, ...fileSlots } as Stripe.DisputeUpdateParams.Evidence;
     await stripe.disputes.update(ctx.stripeDisputeId, { evidence, submit: true });
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Stripe dispute submission failed" };
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Stripe dispute submission failed",
+    };
   }
 }
 

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { EMAIL_ENGAGEMENT_WINDOW_DAYS, EMAIL_ENGAGEMENT_WINDOW_MS } from "~/lib/constants";
 
-
 // RULING 377(2): `email_engaged` NEEDED A WINDOW, AND AN ORDER.
 //
 // The rule was "any step on this payment has clicked_at set", with no window and
@@ -22,10 +21,7 @@ import { EMAIL_ENGAGEMENT_WINDOW_DAYS, EMAIL_ENGAGEMENT_WINDOW_MS } from "~/lib/
 //
 // These drive real SQL through the same read webhooks/process.ts performs.
 
-
 const DAY = 24 * 60 * 60 * 1000;
-
-
 
 describe("the engagement window is 14 days, and the click must precede the recovery", () => {
   it("the constant is 14 days, stated once and derived in ms", () => {

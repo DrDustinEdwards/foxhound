@@ -139,7 +139,9 @@ interface NarrowSubscription {
   schedule: ScheduleTerms | null;
 }
 
-function narrowDiscounts(discounts: readonly (string | Stripe.Discount)[] | null | undefined): RawDiscount[] {
+function narrowDiscounts(
+  discounts: readonly (string | Stripe.Discount)[] | null | undefined,
+): RawDiscount[] {
   const out: RawDiscount[] = [];
   for (const d of discounts ?? []) {
     if (typeof d === "string") continue;
@@ -158,7 +160,9 @@ function narrowDiscounts(discounts: readonly (string | Stripe.Discount)[] | null
  *  nextScheduledChange): its items' prices and quantities, then its discounts. */
 function phaseBillingKey(phase: Stripe.SubscriptionSchedule.Phase): string {
   const items = phase.items.map((i) => `${asId(i.price) ?? ""}x${i.quantity ?? 1}`).sort();
-  const discounts = phase.discounts.map((d) => asId(d.coupon) || asId(d.discount) || asId(d.promotion_code) || "").sort();
+  const discounts = phase.discounts
+    .map((d) => asId(d.coupon) || asId(d.discount) || asId(d.promotion_code) || "")
+    .sort();
   return `${items.join(",")}|${discounts.join(",")}`;
 }
 
@@ -217,7 +221,12 @@ function couponTermsIn(coupon: Stripe.Coupon, currency: string): CouponTerms {
     amountOffCents,
     // Anything but once or repeating counts as forever, as recurs() in
     // subscription-terms.ts already reads it.
-    duration: coupon.duration === "once" ? "once" : coupon.duration === "repeating" ? "repeating" : "forever",
+    duration:
+      coupon.duration === "once"
+        ? "once"
+        : coupon.duration === "repeating"
+          ? "repeating"
+          : "forever",
     appliesToProducts: coupon.applies_to?.products ?? null,
   };
 }
@@ -272,7 +281,12 @@ async function fetchCustomerStripeSnapshot(
       customer: stripeCustomerId,
       status: "all",
       limit: 100,
-      expand: ["data.items.data.price.product", "data.discounts", "data.items.data.discounts", "data.schedule"],
+      expand: [
+        "data.items.data.price.product",
+        "data.discounts",
+        "data.items.data.discounts",
+        "data.schedule",
+      ],
     }),
     narrowSubscriptionForSync,
   );
@@ -295,7 +309,8 @@ async function fetchCustomerStripeSnapshot(
       // What one unit costs per interval after discounts, spread over the
       // price's interval_count (a quarterly price bills three months at once),
       // so monthlyEquivalentCents (signals.ts) gives the monthly amount paid.
-      const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity / item.intervalCount : 0;
+      const unitAmountCents =
+        item.quantity > 0 ? periodCents[i] / item.quantity / item.intervalCount : 0;
       if (active) {
         activeSubscriptions.push({
           priceId: item.priceId,
@@ -319,7 +334,8 @@ async function fetchCustomerStripeSnapshot(
     if (sub.churnReason) churnReason = sub.churnReason;
     if (active) {
       if (sub.schedule) scheduled.push(nextScheduledChange(sub.schedule, nowMs));
-      if (sub.cancelAtMs !== null && sub.cancelAtMs > nowMs) scheduled.push({ kind: "cancel", atMs: sub.cancelAtMs });
+      if (sub.cancelAtMs !== null && sub.cancelAtMs > nowMs)
+        scheduled.push({ kind: "cancel", atMs: sub.cancelAtMs });
     }
   }
 
@@ -334,13 +350,16 @@ async function fetchCustomerStripeSnapshot(
     if (invoicesScanned > INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER) break;
     invoiceHistory.push({
       dueAt: invoice.due_date ? invoice.due_date * 1000 : null,
-      paidAt: invoice.status_transitions?.paid_at ? invoice.status_transitions.paid_at * 1000 : null,
+      paidAt: invoice.status_transitions?.paid_at
+        ? invoice.status_transitions.paid_at * 1000
+        : null,
     });
     for (const line of invoice.lines.data) {
       const priceDetails = line.pricing?.price_details;
       if (!priceDetails) continue;
       const price = typeof priceDetails.price === "string" ? null : priceDetails.price;
-      const priceId = typeof priceDetails.price === "string" ? priceDetails.price : priceDetails.price.id;
+      const priceId =
+        typeof priceDetails.price === "string" ? priceDetails.price : priceDetails.price.id;
       billingHistory.push({
         at: invoice.created * 1000,
         priceId,
@@ -528,7 +547,11 @@ export async function runIntelligenceSyncForAccount(
   const stripe = getConnectedStripe(accessToken);
 
   const [priorSnapshotRows, priorContextRows, history] = await Promise.all([
-    db.select({ id: mrrSnapshots.id }).from(mrrSnapshots).where(eq(mrrSnapshots.accountId, accountId)).limit(1),
+    db
+      .select({ id: mrrSnapshots.id })
+      .from(mrrSnapshots)
+      .where(eq(mrrSnapshots.accountId, accountId))
+      .limit(1),
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -608,7 +631,12 @@ export async function runIntelligenceSyncForAccount(
   // would chart a drop that never happened. The run reports it truncated and
   // the charts keep the last complete day.
   if (truncated) {
-    return { accountId, customersProcessed: currentPoints.length, snapshotWritten: false, truncated };
+    return {
+      accountId,
+      customersProcessed: currentPoints.length,
+      snapshotWritten: false,
+      truncated,
+    };
   }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
@@ -670,15 +698,26 @@ export async function runIntelligenceSyncForAllAccounts(
   nowMs: number,
 ): Promise<AccountSyncResult[]> {
   const db = getDb(env);
-  const eligible = await db.select({ id: accounts.id }).from(accounts).where(accountProcessingEligible());
+  const eligible = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(accountProcessingEligible());
 
   const results: AccountSyncResult[] = [];
   for (const { id } of eligible) {
     try {
       results.push(await runIntelligenceSyncForAccount(env, id, nowMs));
     } catch (err) {
-      results.push({ accountId: id, customersProcessed: 0, snapshotWritten: false, truncated: false });
-      console.error(`intelligence sync failed for account ${id}:`, err instanceof Error ? err.message : err);
+      results.push({
+        accountId: id,
+        customersProcessed: 0,
+        snapshotWritten: false,
+        truncated: false,
+      });
+      console.error(
+        `intelligence sync failed for account ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
     }
   }
   return results;

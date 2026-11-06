@@ -15,7 +15,11 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 import { ChargeGuardReadError, runChargeRetrySweep, type ChargeRetryDeps } from "./charge-retry";
 import { feeForCurrency, recoveryFeeCents } from "./fees";
-import { buildPlatformCustomerUpdate, ensurePlatformCustomer, lookupPlatformBillingEmail } from "./platform-customer";
+import {
+  buildPlatformCustomerUpdate,
+  ensurePlatformCustomer,
+  lookupPlatformBillingEmail,
+} from "./platform-customer";
 import {
   createPlatformInvoice,
   buildInvoiceStripeRefUpdate,
@@ -456,7 +460,10 @@ export async function runAccountBilling(
             accountId,
             idempotencyKey: `platform-customer:${accountId}`,
             build: (bdb) =>
-              buildPlatformCustomerUpdate(bdb, { accountId, platformStripeCustomerId: createdCustomerId }),
+              buildPlatformCustomerUpdate(bdb, {
+                accountId,
+                platformStripeCustomerId: createdCustomerId,
+              }),
           });
           platformCustomerId = createdCustomerId;
         }
@@ -602,7 +609,10 @@ export async function runMonthlyBilling(
         error: err instanceof Error ? err.message : String(err),
       });
       // Surface the failure without aborting the run; the cron logs the aggregate.
-      console.error(`billing run failed for account ${id}:`, err instanceof Error ? err.message : err);
+      console.error(
+        `billing run failed for account ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
     }
   }
   return { accounts: results, sweep };

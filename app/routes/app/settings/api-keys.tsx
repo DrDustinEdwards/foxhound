@@ -93,7 +93,12 @@ type CallLog =
 
 // THE CALL LOG (area 11, A15 and L9). Beside the keys an owner can revoke, what their agents did with them: every call
 // the merchant /mcp logged for this account, newest first, a page at a time. Owners only, as creating and revoking are.
-async function readCallLog(env: Env, accountId: string, owner: boolean, request: Request): Promise<CallLog> {
+async function readCallLog(
+  env: Env,
+  accountId: string,
+  owner: boolean,
+  request: Request,
+): Promise<CallLog> {
   if (!owner) return { state: "owner-only" };
   const raw = new URL(request.url).searchParams.get("calls_before");
   // `<ms>.<id>`, the last row of the page before; anything else is the first page.
@@ -103,7 +108,11 @@ async function readCallLog(env: Env, accountId: string, owner: boolean, request:
     const { calls, more } = await listAccountMcpCalls(getDb(env), accountId, before);
     return { state: "ok", calls, more, newer: before !== undefined };
   } catch (err) {
-    logEvent("mcp_call_log_read_failed", { error: err instanceof Error ? err.message : "unknown error" }, { level: "error" });
+    logEvent(
+      "mcp_call_log_read_failed",
+      { error: err instanceof Error ? err.message : "unknown error" },
+      { level: "error" },
+    );
     return { state: "failed" };
   }
 }
@@ -113,19 +122,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const callLog = await readCallLog(env, auth.membership.accountId, isOwner(auth), request);
   try {
-    const keys = await listAccountApiKeys(
-      getDb(env),
-      auth.membership.accountId,
-    );
+    const keys = await listAccountApiKeys(getDb(env), auth.membership.accountId);
     return { keys, loadError: false, isAdmin: auth.isAdmin, isOwner: isOwner(auth), callLog };
   } catch (err) {
     // Legacy's page shows "Couldn't load your API keys" when its read fails,
     // rather than an error page; this is that state. The message names the
     // failure only, never a key.
-    console.error(
-      "api keys read failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("api keys read failed:", err instanceof Error ? err.message : "unknown error");
     return { keys: null, loadError: true, isAdmin: auth.isAdmin, isOwner: isOwner(auth), callLog };
   }
 }
@@ -150,10 +153,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const intent = String(form.get("_action") ?? "");
 
   if (!isOwner(auth)) {
-    return data<ActionResult>(
-      { action: intent, ok: false, error: OWNER_ONLY },
-      { status: 403 },
-    );
+    return data<ActionResult>({ action: intent, ok: false, error: OWNER_ONLY }, { status: 403 });
   }
 
   if (intent === "create") {
@@ -331,14 +331,11 @@ function RevealKey({ rawKey }: { rawKey: string }) {
         {rawKey}
       </pre>
       <p className="cap-field-help">
-        This key will not be shown again. Copy it now and store it somewhere
-        safe.
+        This key will not be shown again. Copy it now and store it somewhere safe.
       </p>
       {copyFailed ? (
         <Alert tone="crit">
-          {
-            "Couldn't copy the key to your clipboard. Select and copy it manually."
-          }
+          {"Couldn't copy the key to your clipboard. Select and copy it manually."}
         </Alert>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
@@ -354,17 +351,10 @@ function RevealKey({ rawKey }: { rawKey: string }) {
   );
 }
 
-function GenerateForm({
-  isAdmin,
-  error,
-}: {
-  isAdmin: boolean;
-  error?: string;
-}) {
+function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) {
   const navigation = useNavigation();
   const generating =
-    navigation.state !== "idle" &&
-    navigation.formData?.get("_action") === "create";
+    navigation.state !== "idle" && navigation.formData?.get("_action") === "create";
   const name = useId();
 
   // Opening the form is a navigation to ?new=1, which leaves focus on the page;
@@ -403,26 +393,19 @@ function GenerateForm({
   );
 }
 
-export default function ApiKeySettings({
-  loaderData,
-  actionData,
-}: Route.ComponentProps) {
+export default function ApiKeySettings({ loaderData, actionData }: Route.ComponentProps) {
   const { keys, loadError, isAdmin, isOwner: owner, callLog } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
   const revoking =
-    navigation.state !== "idle" &&
-    navigation.formData?.get("_action") === "revoke"
+    navigation.state !== "idle" && navigation.formData?.get("_action") === "revoke"
       ? String(navigation.formData.get("keyId") ?? "")
       : null;
   const creating = useSearchParams()[0].get("new") === "1";
-  const rawKey =
-    result?.action === "create" && result.ok ? result.rawKey : undefined;
+  const rawKey = result?.action === "create" && result.ok ? result.rawKey : undefined;
   const panelOpen = creating || rawKey !== undefined;
-  const createError =
-    result?.action === "create" && !result.ok ? result.error : undefined;
-  const revokeError =
-    result?.action === "revoke" && !result.ok ? result.error : undefined;
+  const createError = result?.action === "create" && !result.ok ? result.error : undefined;
+  const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
     <>
@@ -438,9 +421,9 @@ export default function ApiKeySettings({
               <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
               recovery, disputes, billing and customer health, and change your settings: audit,
               features, notifications, your sender name, your brand voice, your business context,
-              and the alerts it can create, switch off and delete. Leaving a field out of
-              the brand voice or business context leaves it as it is. Every change it makes is logged with the key that
-              made it. It cannot move money, submit dispute evidence, disconnect Stripe or
+              and the alerts it can create, switch off and delete. Leaving a field out of the brand
+              voice or business context leaves it as it is. Every change it makes is logged with the
+              key that made it. It cannot move money, submit dispute evidence, disconnect Stripe or
               cancel your account, and customer names and full email addresses are never sent.
             </>
           }
@@ -470,9 +453,7 @@ export default function ApiKeySettings({
 
           {loadError ? (
             <Alert tone="crit">
-              {
-                "Couldn't load your API keys. Refresh the page or try again later."
-              }
+              {"Couldn't load your API keys. Refresh the page or try again later."}
             </Alert>
           ) : null}
           {revokeError ? <Alert tone="crit">{revokeError}</Alert> : null}
@@ -481,11 +462,7 @@ export default function ApiKeySettings({
           </p>
 
           {keys && keys.length === 0 && !panelOpen ? (
-            <Empty
-              kind="nothing-yet"
-              flush
-              title="No API keys yet. Generate one to get started."
-            />
+            <Empty kind="nothing-yet" flush title="No API keys yet. Generate one to get started." />
           ) : null}
 
           {keys && keys.length > 0 ? (
@@ -520,11 +497,7 @@ export default function ApiKeySettings({
                           <DemoGuardedForm method="post">
                             <input type="hidden" name="_action" value="revoke" />
                             <input type="hidden" name="keyId" value={k.id} />
-                            <Button
-                              type="submit"
-                              size="xs"
-                              pending={revoking === k.id}
-                            >
+                            <Button type="submit" size="xs" pending={revoking === k.id}>
                               Revoke key
                               <span className="sr-only"> {k.label}</span>
                             </Button>
@@ -561,16 +534,31 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
           Agent activity
         </h2>
         <p className="text-label text-text-secondary">
-          Every call an agent made with this account&apos;s keys, newest first, {MCP_CALLS_SHOWN} at a time. Revoke a
-          key above to stop an agent.
+          Every call an agent made with this account&apos;s keys, newest first, {MCP_CALLS_SHOWN} at
+          a time. Revoke a key above to stop an agent.
         </p>
         {log.state === "failed" ? (
-          <Alert tone="crit">{"Couldn't load the agent activity. Refresh the page or try again later."}</Alert>
+          <Alert tone="crit">
+            {"Couldn't load the agent activity. Refresh the page or try again later."}
+          </Alert>
         ) : log.calls.length === 0 ? (
-          <Empty kind="nothing-yet" flush title={log.newer ? "No older calls." : "No agent has called Foxhound with these keys yet."} />
+          <Empty
+            kind="nothing-yet"
+            flush
+            title={
+              log.newer ? "No older calls." : "No agent has called Foxhound with these keys yet."
+            }
+          />
         ) : (
           // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Agent activity" tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-label="Agent activity"
+            tabIndex={0}
+          >
             <table className="cap-table">
               <thead>
                 <tr>
@@ -584,11 +572,15 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
                 {log.calls.map((call) => (
                   <tr key={call.id}>
                     <th scope="row">{formatTimestamp(new Date(call.createdAt))}</th>
-                    <td data-label="Tool" className="font-mono">{call.tool}</td>
+                    <td data-label="Tool" className="font-mono">
+                      {call.tool}
+                    </td>
                     <td data-label="Key">{call.keyLabel ?? "A deleted key"}</td>
                     <td data-label="Result">
                       {outcomeWords(call.outcome)}
-                      {call.error ? <span className="block text-text-secondary">{call.error}</span> : null}
+                      {call.error ? (
+                        <span className="block text-text-secondary">{call.error}</span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -599,7 +591,11 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
         {log.state === "ok" && (log.more || log.newer) ? (
           <div className="flex flex-wrap gap-3">
             {log.newer ? <Link to="?">Newest calls</Link> : null}
-            {log.more && last ? <Link to={`?calls_before=${new Date(last.createdAt).getTime()}.${last.id}`}>Older calls</Link> : null}
+            {log.more && last ? (
+              <Link to={`?calls_before=${new Date(last.createdAt).getTime()}.${last.id}`}>
+                Older calls
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -273,7 +273,11 @@ export const DISPUTE_EVIDENCE_MAX_FILES = 5;
 /** Bytes per file. Recova: DISPUTE_EVIDENCE_MAX_SIZE_BYTES = 5 MB. */
 export const DISPUTE_EVIDENCE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 /** Recova: DISPUTE_EVIDENCE_ALLOWED_TYPES, in its order. */
-export const DISPUTE_EVIDENCE_ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
+export const DISPUTE_EVIDENCE_ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+] as const;
 export type DisputeEvidenceFileType = (typeof DISPUTE_EVIDENCE_ALLOWED_TYPES)[number];
 
 export type BillingLineItemType = "recovery_fee" | "dispute_fee" | "subscription" | "adjustment";
@@ -424,7 +428,14 @@ export const RETRY_TOKEN_MAX_ATTEMPTS = 3;
 // below: no auto-retry, same as fraud/expired (app/lib/recovery/decline.ts).
 // "revoked" is the customer explicitly revoking authorization: one email
 // offering a cancel-or-update choice, then a hold (no retries, no dunning).
-export const DECLINE_CATEGORIES = ["soft", "network", "expired", "fraud", "revoked", "unknown"] as const;
+export const DECLINE_CATEGORIES = [
+  "soft",
+  "network",
+  "expired",
+  "fraud",
+  "revoked",
+  "unknown",
+] as const;
 export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
 // ---- Email pipeline (ARCHITECTURE.md: Cloudflare Email Service, one send module) ----

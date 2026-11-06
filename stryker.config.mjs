@@ -24,7 +24,12 @@ const CHUNKS = {
 };
 // Everything not named above: the remaining app/lib directories, app/lib/*.ts
 // and workers/.
-CHUNKS.rest = [...ALL, ...Object.values(CHUNKS).flat().map((glob) => `!${glob}`)];
+CHUNKS.rest = [
+  ...ALL,
+  ...Object.values(CHUNKS)
+    .flat()
+    .map((glob) => `!${glob}`),
+];
 
 const chunk = process.env.STRYKER_CHUNK;
 if (chunk && !CHUNKS[chunk]) {

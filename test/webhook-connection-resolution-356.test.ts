@@ -93,9 +93,9 @@ function event(id: string): Stripe.Event {
 
 function claimedAccountIds(): (string | null)[] {
   return (
-    sqlite
-      .prepare("SELECT account_id AS a FROM webhook_events ORDER BY rowid")
-      .all() as { a: string | null }[]
+    sqlite.prepare("SELECT account_id AS a FROM webhook_events ORDER BY rowid").all() as {
+      a: string | null;
+    }[]
   ).map((r) => r.a);
 }
 
@@ -115,7 +115,9 @@ describe("PLANT 2: every row disconnected takes the EXISTING no-connection path"
     expect(claimedAccountIds()).toEqual([null]);
 
     const row = sqlite
-      .prepare("SELECT processed AS p, event_type AS t, payload FROM webhook_events WHERE stripe_event_id = ?")
+      .prepare(
+        "SELECT processed AS p, event_type AS t, payload FROM webhook_events WHERE stripe_event_id = ?",
+      )
       .get("evt_3") as { p: number; t: string; payload: string };
     // Not our merchant's event, so its customer data is not kept.
     expect(row).toEqual({ p: 1, t: "customer.created", payload: "{}" });

@@ -50,7 +50,9 @@ export function canApprove(state: DisputeState): boolean {
 /** SHA-256 hex of the evidence fields at the moment of approval, canonicalized
  *  by field name so the hash does not depend on read/render order. Proves
  *  exactly which version of the evidence was approved. */
-export async function hashEvidence(fields: { fieldName: string; fieldValue: string }[]): Promise<string> {
+export async function hashEvidence(
+  fields: { fieldName: string; fieldValue: string }[],
+): Promise<string> {
   const canonical = [...fields]
     .sort((a, b) => a.fieldName.localeCompare(b.fieldName))
     .map((f) => `${f.fieldName}=${f.fieldValue}`)
@@ -114,14 +116,19 @@ export type ApproveAndSubmitResult = { status: "submitted" } | { status: "error"
  * call short-circuits before Phase C (retriable; the pending record resumes).
  * Pure over injected deps, so the ordering invariant is directly unit-tested.
  */
-export async function approveAndSubmit(deps: ApproveAndSubmitDeps): Promise<ApproveAndSubmitResult> {
+export async function approveAndSubmit(
+  deps: ApproveAndSubmitDeps,
+): Promise<ApproveAndSubmitResult> {
   const pending = await deps.writePendingApproval();
   if (pending === "already_submitted") {
     return { status: "error", message: "This dispute has already been submitted." };
   }
   const submission = await deps.submit();
   if (!submission.ok) {
-    return { status: "error", message: `Stripe did not accept the submission: ${submission.error}` };
+    return {
+      status: "error",
+      message: `Stripe did not accept the submission: ${submission.error}`,
+    };
   }
   await deps.confirmSubmission();
   return { status: "submitted" };

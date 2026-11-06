@@ -313,7 +313,6 @@ function lockEnv(send: () => Promise<{ id: string }>) {
 }
 
 describe("313 A: runCronJob actually alerts", () => {
-
   it("a SECOND failure the same day is deduped, and the run still records", async () => {
     harness.db = createInMemoryDb().db;
     const env = lockEnv(async () => ({ id: "m" }));

@@ -24,7 +24,10 @@ describe("computeMrrMovements: subsequent sync with a prior baseline", () => {
   });
 
   it("counts a prior customer entirely absent from this run's current set as churned too", () => {
-    const prior = new Map([["a", 1000], ["b", 500]]);
+    const prior = new Map([
+      ["a", 1000],
+      ["b", 500],
+    ]);
     const result = computeMrrMovements(prior, [point({ stripeCustomerId: "a", mrrCents: 1000 })]);
     expect(result.churnMrrCents).toBe(500);
     expect(result.churnedCustomersCount).toBe(1);
@@ -58,7 +61,11 @@ describe("computeMrrMovements: subsequent sync with a prior baseline", () => {
   });
 
   it("splits churn into voluntary/involuntary when a reason is known, leaving unknown-reason churn out of both", () => {
-    const prior = new Map([["a", 1000], ["b", 2000], ["c", 500]]);
+    const prior = new Map([
+      ["a", 1000],
+      ["b", 2000],
+      ["c", 500],
+    ]);
     const result = computeMrrMovements(prior, [
       point({ stripeCustomerId: "a", mrrCents: 0, churnReason: "voluntary" }),
       point({ stripeCustomerId: "b", mrrCents: 0, churnReason: "involuntary" }),
@@ -71,7 +78,10 @@ describe("computeMrrMovements: subsequent sync with a prior baseline", () => {
   });
 
   it("computes NRR/GRR by the standard formulas relative to the prior total", () => {
-    const prior = new Map([["a", 1000], ["b", 1000]]);
+    const prior = new Map([
+      ["a", 1000],
+      ["b", 1000],
+    ]);
     // a expands by 500, b contracts by 300: net = 1000+500-300 = 1200 (excludes new)
     const result = computeMrrMovements(prior, [
       point({ stripeCustomerId: "a", mrrCents: 1500 }),
@@ -88,7 +98,6 @@ function bps(part: number, whole: number): number {
 }
 
 describe("buildPlanBreakdown", () => {
-
   it("buckets a null plan name as unknown rather than dropping it", () => {
     const result = buildPlanBreakdown([point({ mrrCents: 100, planName: null })]);
     expect(result).toEqual({ unknown: 100 });

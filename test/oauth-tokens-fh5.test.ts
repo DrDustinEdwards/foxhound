@@ -21,13 +21,22 @@ const TOKENS = {
   idToken: "eyJhbGciOiJub25lIn0.eyJzdWIiOiJzYW1wbGUifQ.",
   accessTokenExpiresAt: new Date(Date.now() + 3_600_000),
 };
-const NONE = { access_token: null, refresh_token: null, id_token: null, access_token_expires_at: null };
+const NONE = {
+  access_token: null,
+  refresh_token: null,
+  id_token: null,
+  access_token_expires_at: null,
+};
 
 describe("Google tokens", () => {
   it("are never stored, and the migration clears old ones", async () => {
     const { sqlite, db } = createInMemoryDb();
     const env = { BETTER_AUTH_URL: "https://foxhoundapp.test" };
-    const signIn = await signInOptions(env, { siteName: "Foxhound", social: true, sendMagicLink: async () => {} });
+    const signIn = await signInOptions(env, {
+      siteName: "Foxhound",
+      social: true,
+      sendMagicLink: async () => {},
+    });
     const { internalAdapter } = await betterAuth({
       ...withSignIn(signIn),
       secret: "test-secret-0123456789abcdef0123456789abcdef",
@@ -36,7 +45,9 @@ describe("Google tokens", () => {
     }).$context;
     const tokensOf = (id: string) =>
       sqlite
-        .prepare("SELECT access_token, refresh_token, id_token, access_token_expires_at FROM account WHERE id = ?")
+        .prepare(
+          "SELECT access_token, refresh_token, id_token, access_token_expires_at FROM account WHERE id = ?",
+        )
         .get(id);
 
     const { account } = await internalAdapter.createOAuthUser(
@@ -53,7 +64,12 @@ describe("Google tokens", () => {
         "INSERT INTO account (id, account_id, provider_id, user_id, access_token, refresh_token, id_token, access_token_expires_at, created_at, updated_at) VALUES ('a-old', 'g-2', 'google', ?, 'a', 'r', 'i', ?, ?, ?)",
       )
       .run(account.userId, now, now, now);
-    sqlite.exec(readFileSync(new URL("../drizzle/migrations/0034_clear_oauth_tokens.sql", import.meta.url), "utf8"));
+    sqlite.exec(
+      readFileSync(
+        new URL("../drizzle/migrations/0034_clear_oauth_tokens.sql", import.meta.url),
+        "utf8",
+      ),
+    );
     expect(tokensOf("a-old")).toEqual(NONE);
   });
 });

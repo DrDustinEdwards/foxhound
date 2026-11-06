@@ -23,16 +23,22 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/money/execute", () => ({
-  executeMoneyWrite: async (_env: Env, write: { idempotencyKey: string; build: (db: unknown) => unknown[] }) => {
+  executeMoneyWrite: async (
+    _env: Env,
+    write: { idempotencyKey: string; build: (db: unknown) => unknown[] },
+  ) => {
     if (harness.seen.has(write.idempotencyKey)) return { applied: false };
-    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+      write.build(harness.db),
+    );
     harness.seen.add(write.idempotencyKey);
     return { applied: true };
   },
 }));
 
 const { resolveReminderBucket, DISPUTE_REMINDER_TEMPLATE } = await import("~/lib/disputes/notices");
-const { runDisputeReminders, REFUSED_REMINDER_BACKOFF_MS } = await import("~/lib/cron/dispute-reminders");
+const { runDisputeReminders, REFUSED_REMINDER_BACKOFF_MS } =
+  await import("~/lib/cron/dispute-reminders");
 
 const NOW = new Date("2026-11-10T12:00:00Z");
 const HOUR = 60 * 60 * 1000;
@@ -57,12 +63,20 @@ beforeEach(() => {
   harness.sent = [];
 });
 
-function seedAccount(id: string, opts: { paused?: boolean; liveSends?: boolean; email?: string | null } = {}) {
+function seedAccount(
+  id: string,
+  opts: { paused?: boolean; liveSends?: boolean; email?: string | null } = {},
+) {
   sqlite
     .prepare(
       "INSERT INTO accounts (id, name, created_at, notification_email, processing_paused, live_sends_enabled) VALUES (?, 'Acme', 1000, ?, ?, ?)",
     )
-    .run(id, opts.email === undefined ? `ops@${id}.test` : opts.email, opts.paused ? 1 : 0, opts.liveSends === false ? 0 : 1);
+    .run(
+      id,
+      opts.email === undefined ? `ops@${id}.test` : opts.email,
+      opts.paused ? 1 : 0,
+      opts.liveSends === false ? 0 : 1,
+    );
 }
 
 function seedDispute(
@@ -100,7 +114,6 @@ function outcomeRows() {
 }
 
 describe("THE WINDOW: Recova's two bands, edges included", () => {
-
   it("24 to 48 hours is the 1-day reminder; nothing between or after", () => {
     expect(resolveReminderBucket(60)).toBeNull();
     expect(resolveReminderBucket(48)).toBeNull();
@@ -124,18 +137,25 @@ describe("THE RUN: who is reminded", () => {
 
     expect(result.sent).toBe(2);
     const subjects = harness.sent.map((m) => m.subject).sort();
-    expect(subjects).toEqual(["URGENT: Dispute response due in 1 day", "URGENT: Dispute response due in 3 days"]);
+    expect(subjects).toEqual([
+      "URGENT: Dispute response due in 1 day",
+      "URGENT: Dispute response due in 3 days",
+    ]);
     const three = harness.sent.find((m) => m.subject.endsWith("3 days"))!;
     expect(three.to).toBe("ops@a1.test");
     expect(three.html).toMatch(/<h1[^>]*>Dispute response due in 3 days\.<\/h1>/);
     // Capsomer's frame renders the paragraph without the bold run.
     expect(three.html).toContain("Jane Buyer disputed $50.00 for reason: Fraudulent.");
     expect(three.html).toContain("Current status: needs response.");
-    expect(three.html).toContain("Auto-submit is off. You need to review and submit, or choose to accept.");
+    expect(three.html).toContain(
+      "Auto-submit is off. You need to review and submit, or choose to accept.",
+    );
     expect(three.html).toContain("https://foxhoundapp.test/disputes/d3");
     expect(three.html.toLowerCase()).not.toContain("unsubscribe");
 
-    const templates = sqlite.prepare("SELECT DISTINCT template FROM email_sends").all() as { template: string }[];
+    const templates = sqlite.prepare("SELECT DISTINCT template FROM email_sends").all() as {
+      template: string;
+    }[];
     expect(templates).toEqual([{ template: DISPUTE_REMINDER_TEMPLATE }]);
     // Recova's once-only marks, recorded as outcomes.
     expect(outcomeRows()).toEqual([
@@ -146,7 +166,6 @@ describe("THE RUN: who is reminded", () => {
 });
 
 describe("job_2663d92094ab: the reminder says only what the merchant can do", () => {
-
   it("an approved dispute Stripe has not confirmed is still reminded, without offering Accept", async () => {
     seedAccount("a1");
     seedDispute("d3", "a1", 80, { state: "approved" });
@@ -200,11 +219,15 @@ describe("job_2663d92094ab: a refused reminder backs off instead of retrying eve
     expect(await tickAt(NOW, true)).toMatchObject({ considered: 1, failed: 1 });
     // The next ticks inside the back-off select nothing and call nobody.
     for (const minutes of [5, 10, 30, 55]) {
-      expect(await tickAt(new Date(NOW.getTime() + minutes * 60 * 1000), true)).toMatchObject({ considered: 0 });
+      expect(await tickAt(new Date(NOW.getTime() + minutes * 60 * 1000), true)).toMatchObject({
+        considered: 0,
+      });
     }
     expect(attempts()).toBe(1);
     // Once it has passed, the reminder is tried again and goes out.
-    expect(await tickAt(new Date(NOW.getTime() + REFUSED_REMINDER_BACKOFF_MS), false)).toMatchObject({
+    expect(
+      await tickAt(new Date(NOW.getTime() + REFUSED_REMINDER_BACKOFF_MS), false),
+    ).toMatchObject({
       considered: 1,
       sent: 1,
     });
@@ -223,4 +246,3 @@ describe("job_2663d92094ab: a refused reminder backs off instead of retrying eve
     expect(harness.sent).toHaveLength(0);
   });
 });
-

@@ -57,7 +57,10 @@ describe("marketing header + footer links match routes.ts", () => {
   it("every footer column link is a real route", () => {
     for (const column of COLUMNS) {
       for (const link of column.links) {
-        expect(realPaths.has(link.to), `${link.to} (footer: ${column.heading}) is not in routes.ts`).toBe(true);
+        expect(
+          realPaths.has(link.to),
+          `${link.to} (footer: ${column.heading}) is not in routes.ts`,
+        ).toBe(true);
       }
     }
   });
@@ -67,7 +70,10 @@ describe("marketing header + footer links match routes.ts", () => {
   // PRODUCT_MANIFEST (already covered by test/nav-manifest.test.ts).
   it("every section-pill item is a real route", () => {
     for (const item of MARKETING_PILL_ITEMS) {
-      expect(realPaths.has(item.to), `${item.to} (section pill: ${item.label}) is not in routes.ts`).toBe(true);
+      expect(
+        realPaths.has(item.to),
+        `${item.to} (section pill: ${item.label}) is not in routes.ts`,
+      ).toBe(true);
     }
   });
 });

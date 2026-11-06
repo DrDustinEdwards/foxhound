@@ -13,7 +13,12 @@ import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { logAdminAction } from "~/lib/admin/audit.server";
-import { isKnownCronName, listCronRows, setCronEnabled, type CronRow } from "~/lib/admin/crons.server";
+import {
+  isKnownCronName,
+  listCronRows,
+  setCronEnabled,
+  type CronRow,
+} from "~/lib/admin/crons.server";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import {
@@ -140,7 +145,10 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
           hidden={{ cronName: confirmEnable, nextEnabled: "true" }}
           title={`Enable ${confirmEnable}?`}
           lead="It runs again on its schedule from the next tick."
-          body={["Its switch is recorded in the audit log.", "Disable stays one click if it needs stopping again."]}
+          body={[
+            "Its switch is recorded in the audit log.",
+            "Disable stays one click if it needs stopping again.",
+          ]}
           action_label="Enable cron"
           cancelHref={`${CRONS_PATH}#${cronAnchor(confirmEnable)}`}
           typeToConfirm={phrase}
@@ -157,7 +165,10 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
   return (
     <div className="grid grid-cols-1 gap-6">
       {error ? (
-        <p role="alert" className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+        <p
+          role="alert"
+          className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+        >
           {error}
         </p>
       ) : null}
@@ -180,10 +191,18 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
             </Empty>
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow="medium"
+              data-cap="table"
+              role="region"
+              aria-labelledby={HEADING_ID}
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <caption className="cap-sr-only">
-                  Scheduled jobs, in the order the registry runs them, with each one&apos;s last run.
+                  Scheduled jobs, in the order the registry runs them, with each one&apos;s last
+                  run.
                 </caption>
                 <thead>
                   <tr>
@@ -211,7 +230,9 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
 
 function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
   const words = describeCronSchedule(c.schedule);
-  const status = c.lastRun ? (RUN_STATUS[c.lastRun.status] ?? { tone: "info" as const, word: c.lastRun.status }) : null;
+  const status = c.lastRun
+    ? (RUN_STATUS[c.lastRun.status] ?? { tone: "info" as const, word: c.lastRun.status })
+    : null;
   return (
     <tr id={cronAnchor(c.name)}>
       <th scope="row" className="font-normal">
@@ -243,7 +264,9 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
               {c.recentFailures.map((run) => (
                 <li key={run.id} id={cronRunAnchor(run.id)} className="rounded-sm text-text">
                   Failed <AdminTime at={run.finishedAt} />
-                  {run.message ? <span className="text-text-secondary">: {run.message}</span> : null}
+                  {run.message ? (
+                    <span className="text-text-secondary">: {run.message}</span>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -253,7 +276,11 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
       <td data-label="Last succeeded">
         <AdminTime at={c.lastSucceededAt} empty="Never" />
       </td>
-      <td data-label="Last message" data-wrap="" className={c.lastRun?.message ? "text-text" : "text-text-tertiary"}>
+      <td
+        data-label="Last message"
+        data-wrap=""
+        className={c.lastRun?.message ? "text-text" : "text-text-tertiary"}
+      >
         {c.lastRun?.message ?? "None"}
       </td>
       <td data-label="Change">

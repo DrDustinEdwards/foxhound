@@ -31,7 +31,8 @@ export const SECTIONS: BlogSectionConfig[] = [
   {
     id: "disputes",
     label: "Dispute Handling",
-    description: "Chargebacks, evidence, rebuttal letters, and how to prevent disputes before they file.",
+    description:
+      "Chargebacks, evidence, rebuttal letters, and how to prevent disputes before they file.",
     tagHref: "/blog/tag/disputes",
     slugs: [
       "stripe-disputes-guide",

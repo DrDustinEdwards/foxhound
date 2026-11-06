@@ -14,18 +14,13 @@ import { DEFAULT_THEME, resolveThemePreference } from "~/lib/theme";
 // merchant on a fresh device gets their stored theme": both are exactly the
 // cross-device behavior a cookie cannot provide.
 describe("resolveThemePreference (ruling 59)", () => {
-
   it("falls back to the cookie when there is no account theme", () => {
     // Anonymous visitor, or signed in with no membership. Legacy reads the
     // cookie here, which is what keeps the unauthenticated toggle working.
-    expect(
-      resolveThemePreference({ accountTheme: null, cookieTheme: "light" }),
-    ).toBe("light");
+    expect(resolveThemePreference({ accountTheme: null, cookieTheme: "light" })).toBe("light");
   });
 
   it("does not treat an empty stored value as a preference", () => {
-    expect(
-      resolveThemePreference({ accountTheme: "", cookieTheme: "light" }),
-    ).toBe(DEFAULT_THEME);
+    expect(resolveThemePreference({ accountTheme: "", cookieTheme: "light" })).toBe(DEFAULT_THEME);
   });
 });

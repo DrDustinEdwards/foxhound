@@ -9,7 +9,12 @@
 // notification by using resolved_at for the ruling.
 
 import { formatMoney } from "~/lib/money-format";
-import { humanizeDisputeReason, isInquiryStatus, SUBMITTED_AUTOMATICALLY, SUBMITTED_EXTERNALLY } from "./labels";
+import {
+  humanizeDisputeReason,
+  isInquiryStatus,
+  SUBMITTED_AUTOMATICALLY,
+  SUBMITTED_EXTERNALLY,
+} from "./labels";
 
 /** One balance transaction Stripe recorded for the dispute
  *  (dispute_balance_transactions), signed as Stripe signs it. */
@@ -64,7 +69,8 @@ function fundsLabel(f: DisputeFundsEntry): string {
       ? `Funds withdrawn by Stripe: ${amount}, plus a ${fee} Stripe dispute fee.`
       : `Funds withdrawn by Stripe: ${amount}.`;
   }
-  if (f.feeCents < 0) return `Funds reinstated by Stripe: ${amount}, and the ${fee} Stripe dispute fee returned.`;
+  if (f.feeCents < 0)
+    return `Funds reinstated by Stripe: ${amount}, and the ${fee} Stripe dispute fee returned.`;
   if (f.feeCents > 0) return `Funds reinstated by Stripe: ${amount}, less a ${fee} Stripe fee.`;
   return `Funds reinstated by Stripe: ${amount}.`;
 }

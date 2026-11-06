@@ -39,7 +39,8 @@ export interface ItemTerms {
  */
 function recurs(discount: DiscountTerms, nowMs: number): boolean {
   if (discount.coupon.duration === "once") return false;
-  if (discount.coupon.duration === "repeating") return discount.endMs === null || discount.endMs > nowMs;
+  if (discount.coupon.duration === "repeating")
+    return discount.endMs === null || discount.endMs > nowMs;
   return true;
 }
 
@@ -73,7 +74,9 @@ export function discountedItemCents(
 
   for (const d of subscriptionDiscounts) {
     if (!recurs(d, nowMs)) continue;
-    const covered = items.map((item, i) => (appliesTo(d.coupon, item.productId) ? i : -1)).filter((i) => i >= 0);
+    const covered = items
+      .map((item, i) => (appliesTo(d.coupon, item.productId) ? i : -1))
+      .filter((i) => i >= 0);
     if (d.coupon.percentOff !== null) {
       for (const i of covered) cents[i] *= 1 - d.coupon.percentOff / 100;
     } else if (d.coupon.amountOffCents !== null) {
@@ -115,22 +118,29 @@ export interface ScheduleTerms {
  * cancels on its last phase's end. A phase that only renews the same terms
  * is not a change. Null when nothing is scheduled.
  */
-export function nextScheduledChange(schedule: ScheduleTerms, nowMs: number): ScheduledChange | null {
+export function nextScheduledChange(
+  schedule: ScheduleTerms,
+  nowMs: number,
+): ScheduledChange | null {
   if (schedule.status !== "active" && schedule.status !== "not_started") return null;
   const phases = [...schedule.phases].sort((a, b) => a.startMs - b.startMs);
   for (let i = 0; i < phases.length; i++) {
     const phase = phases[i];
     if (phase.startMs <= nowMs) continue;
     const before = phases[i - 1];
-    if (!before || before.billingKey !== phase.billingKey) return { kind: "change", atMs: phase.startMs };
+    if (!before || before.billingKey !== phase.billingKey)
+      return { kind: "change", atMs: phase.startMs };
   }
   const last = phases[phases.length - 1];
-  if (schedule.endBehavior === "cancel" && last && last.endMs > nowMs) return { kind: "cancel", atMs: last.endMs };
+  if (schedule.endBehavior === "cancel" && last && last.endMs > nowMs)
+    return { kind: "cancel", atMs: last.endMs };
   return null;
 }
 
 /** The earliest of several scheduled events; null when there are none. */
-export function earliestScheduledChange(changes: readonly (ScheduledChange | null)[]): ScheduledChange | null {
+export function earliestScheduledChange(
+  changes: readonly (ScheduledChange | null)[],
+): ScheduledChange | null {
   let first: ScheduledChange | null = null;
   for (const c of changes) if (c && (!first || c.atMs < first.atMs)) first = c;
   return first;

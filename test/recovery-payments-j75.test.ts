@@ -27,7 +27,9 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/recovery/payments/index");
 const exportRoute = await import("~/routes/app/recovery/payments/export");
-const Page = route.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
+const Page = route.default as unknown as (
+  props: Record<string, unknown>,
+) => ReturnType<typeof createElement>;
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const DAY = 86_400_000;
@@ -104,11 +106,9 @@ function text(html: string): string {
     .trim();
 }
 
-
 // ---- The head ----
 
 describe("J75: Recova's head", () => {
-
   it("never adds two currencies together (RULES.md 3.20)", () => {
     const html = render(
       data({
@@ -127,9 +127,13 @@ describe("J75: Recova's head", () => {
 
   it("points Export CSV at the rows on screen: this page and this page size, as Recova exports its filtered rows", () => {
     const html = render(
-      data({ result: { payments: [row()], totalCount: 60, page: 2, totalPages: 3, pageSize: 25 } } as Partial<LoaderData>),
+      data({
+        result: { payments: [row()], totalCount: 60, page: 2, totalPages: 3, pageSize: 25 },
+      } as Partial<LoaderData>),
     );
-    const href = /href="(\/recovery\/payments\/export\.csv[^"]*)"/.exec(html)?.[1]?.replace(/&amp;/g, "&") ?? "";
+    const href =
+      /href="(\/recovery\/payments\/export\.csv[^"]*)"/.exec(html)?.[1]?.replace(/&amp;/g, "&") ??
+      "";
     const qs = new URL(`https://x.test${href}`).searchParams;
     expect(qs.get("page")).toBe("2");
     expect(qs.get("perPage")).toBe("25");
@@ -139,7 +143,6 @@ describe("J75: Recova's head", () => {
 // ---- Rows per page ----
 
 describe("J75: Recova's rows-per-page links, defaulting to 25", () => {
-
   it("defaults to 25 in the loader", async () => {
     const { sqlite, db } = createInMemoryDb();
     harness.db = db;
@@ -158,7 +161,11 @@ function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env: {} as Env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
+        return {
+          env: {} as Env,
+          ctx: { waitUntil() {} } as unknown as ExecutionContext,
+          nonce: "n",
+        };
       }
       if (key === authContext) {
         return {
@@ -229,7 +236,11 @@ describe("J75: the loader", () => {
   it("totals the head over the rows on screen, by currency, as Recova's header does", async () => {
     seed(sqlite, db, { amountCents: 1000, detectedAt: new Date(NOW - 1 * DAY) });
     seed(sqlite, db, { amountCents: 2000, currency: "eur", detectedAt: new Date(NOW - 2 * DAY) });
-    seed(sqlite, db, { amountCents: 5000, status: "recovered", detectedAt: new Date(NOW - 3 * DAY) });
+    seed(sqlite, db, {
+      amountCents: 5000,
+      status: "recovered",
+      detectedAt: new Date(NOW - 3 * DAY),
+    });
     seed(sqlite, db, { amountCents: 7000, detectedAt: new Date(NOW - 4 * DAY) });
     const out = await load("/recovery/payments?perPage=10&sort=newest");
     expect(out.header.atRisk).toEqual(
@@ -245,7 +256,12 @@ describe("J75: the loader", () => {
   it("names the next step by Foxhound's schedule and counts done of total", async () => {
     const id = seed(sqlite, db, { declineCategory: "soft" });
     const steps = [
-      { stepType: "retry_early", stepNumber: 1, executedAt: new Date(NOW - DAY), result: "retry_card_declined" },
+      {
+        stepType: "retry_early",
+        stepNumber: 1,
+        executedAt: new Date(NOW - DAY),
+        result: "retry_card_declined",
+      },
       { stepType: "email_day1", stepNumber: 2, executedAt: null, result: null },
       { stepType: "retry_day2", stepNumber: 3, executedAt: null, result: null },
     ];

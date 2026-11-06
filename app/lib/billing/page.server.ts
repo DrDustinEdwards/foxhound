@@ -1,6 +1,11 @@
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
-import { formatLongDate, type DisputeFeeRow, type FeeStatusTone, type RecoveryHistoryRow } from "~/lib/billing/page";
+import {
+  formatLongDate,
+  type DisputeFeeRow,
+  type FeeStatusTone,
+  type RecoveryHistoryRow,
+} from "~/lib/billing/page";
 import { type PendingDisputeFee } from "~/lib/billing/preview.server";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.server";
@@ -21,7 +26,10 @@ function creditsByFeeLine(lineItems: EnrichedLineItem[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const { lineItem } of lineItems) {
     if (lineItem.type !== "credit" || !lineItem.creditsLineItemId) continue;
-    out.set(lineItem.creditsLineItemId, (out.get(lineItem.creditsLineItemId) ?? 0) + Math.abs(lineItem.amountCents));
+    out.set(
+      lineItem.creditsLineItemId,
+      (out.get(lineItem.creditsLineItemId) ?? 0) + Math.abs(lineItem.amountCents),
+    );
   }
   return out;
 }
@@ -29,7 +37,10 @@ function creditsByFeeLine(lineItems: EnrichedLineItem[]): Map<string, number> {
 /** No cap: what the percentage alone would charge, to tell whether the cap bound. */
 const UNCAPPED = Number.MAX_SAFE_INTEGER;
 
-function invoiceStatus(invoice: BillingInvoiceRow): { statusLabel: string; statusTone: FeeStatusTone } {
+function invoiceStatus(invoice: BillingInvoiceRow): {
+  statusLabel: string;
+  statusTone: FeeStatusTone;
+} {
   const tone = billingInvoiceStatusTone(invoice.status);
   return {
     statusLabel: BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status,
@@ -102,7 +113,8 @@ export function buildDisputeFeeRows(
 ): DisputeFeeRow[] {
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const credits = creditsByFeeLine(lineItems);
-  const capped = (amountCents: number, feeCents: number) => feeCents < disputeFeeCents(amountCents, UNCAPPED);
+  const capped = (amountCents: number, feeCents: number) =>
+    feeCents < disputeFeeCents(amountCents, UNCAPPED);
 
   const pendingRows: DisputeFeeRow[] = [...pending]
     .sort((a, b) => (b.resolvedAt?.getTime() ?? 0) - (a.resolvedAt?.getTime() ?? 0))
@@ -134,7 +146,9 @@ export function buildDisputeFeeRows(
         feeCents: lineItem.amountCents,
         feeCapped: capped(amount, lineItem.amountCents),
         creditedCents: credits.get(lineItem.id) ?? 0,
-        ...(invoice ? invoiceStatus(invoice) : { statusLabel: "Pending", statusTone: "neutral" as const }),
+        ...(invoice
+          ? invoiceStatus(invoice)
+          : { statusLabel: "Pending", statusTone: "neutral" as const }),
         invoiceUrl: invoice?.stripeInvoiceUrl ?? null,
         stripeInvoiceId: invoice?.stripeInvoiceId ?? null,
       };

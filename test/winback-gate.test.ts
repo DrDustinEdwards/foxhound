@@ -74,9 +74,7 @@ function deletionEvent(eventId: string): Stripe.Event {
         customer: CUSTOMER_ID,
         cancellation_details: { reason: "cancellation_requested" },
         items: {
-          data: [
-            { price: { unit_amount: 4900, currency: "usd", product: { name: "Growth" } } },
-          ],
+          data: [{ price: { unit_amount: 4900, currency: "usd", product: { name: "Growth" } } }],
         },
       },
     },
@@ -86,7 +84,9 @@ function deletionEvent(eventId: string): Stripe.Event {
 /** Seed an eligible win-back: an account, a connection, and nothing that would
  *  trip legacy's earlier eligibility gates (no active failed payments, no recently
  *  resolved ones, no existing sequence, and a customer with an email). */
-async function seed(opts: { recommendedAction?: string }): Promise<ReturnType<typeof createInMemoryDb>> {
+async function seed(opts: {
+  recommendedAction?: string;
+}): Promise<ReturnType<typeof createInMemoryDb>> {
   const made = createInMemoryDb();
   harness.db = made.db;
   const db = made.db;

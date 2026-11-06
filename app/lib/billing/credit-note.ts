@@ -1,22 +1,8 @@
-import {
-  and,
-  eq,
-  isNotNull,
-  isNull,
-  notExists,
-  notLike,
-  or,
-} from "drizzle-orm";
+import { and, eq, isNotNull, isNull, notExists, notLike, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import {
-  billingInvoices,
-  billingLineItems,
-  disputes,
-  getDb,
-  recoveredPayments,
-} from "~/db";
+import { billingInvoices, billingLineItems, disputes, getDb, recoveredPayments } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
@@ -60,8 +46,7 @@ export interface CreditableFeeLine {
   disputeId: string | null;
 }
 
-export type CreditEvidence =
-  { recoveredPaymentId: string } | { disputeId: string };
+export type CreditEvidence = { recoveredPaymentId: string } | { disputeId: string };
 
 /** The columns a creditable fee line is read with, in both lookups below. */
 const FEE_LINE_FIELDS = {
@@ -108,10 +93,7 @@ export async function findCreditableFeeLine(
   const rows = await db
     .select(FEE_LINE_FIELDS)
     .from(billingLineItems)
-    .innerJoin(
-      billingInvoices,
-      eq(billingInvoices.id, billingLineItems.invoiceId),
-    )
+    .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
     .where(and(evidenceMatch, isNotNull(billingInvoices.stripeInvoiceId)))
     .limit(1);
 
@@ -207,9 +189,7 @@ export async function issueCreditNoteForEvidence(
     // committed ledger fact.
     console.error(
       "credit note failed for",
-      "recoveredPaymentId" in evidence
-        ? evidence.recoveredPaymentId
-        : evidence.disputeId,
+      "recoveredPaymentId" in evidence ? evidence.recoveredPaymentId : evidence.disputeId,
       err instanceof Error ? err.message : err,
     );
     return { credited: false, reason: "credit_note_failed" };
@@ -262,8 +242,7 @@ async function creditFeeLine(
 }
 
 export const REFUND_CREDIT_DESCRIPTION = "Refunded recovery: fee credited";
-export const DISPUTE_CREDIT_DESCRIPTION =
-  "Dispute lost after billing: fee credited";
+export const DISPUTE_CREDIT_DESCRIPTION = "Dispute lost after billing: fee credited";
 export const CHARGEBACK_CREDIT_DESCRIPTION = "Disputed recovery: fee credited";
 
 /** Fee lines handled per sweep. Each costs a Stripe list and a create, so this
@@ -293,14 +272,8 @@ async function findOwedFeeLines(
       recoveryRefundedAt: recoveredPayments.refundedAt,
     })
     .from(billingLineItems)
-    .innerJoin(
-      billingInvoices,
-      eq(billingInvoices.id, billingLineItems.invoiceId),
-    )
-    .leftJoin(
-      recoveredPayments,
-      eq(recoveredPayments.id, billingLineItems.recoveredPaymentId),
-    )
+    .innerJoin(billingInvoices, eq(billingInvoices.id, billingLineItems.invoiceId))
+    .leftJoin(recoveredPayments, eq(recoveredPayments.id, billingLineItems.recoveredPaymentId))
     .leftJoin(disputes, eq(disputes.id, billingLineItems.disputeId))
     .where(
       and(
@@ -312,16 +285,10 @@ async function findOwedFeeLines(
             // Refunded, or charged back: a dispute on the recovered payment
             // takes the money back just as a refund does, and its fee is
             // credited on the same fee-line key.
-            or(
-              isNotNull(recoveredPayments.refundedAt),
-              isNotNull(recoveredPayments.disputedAt),
-            ),
+            or(isNotNull(recoveredPayments.refundedAt), isNotNull(recoveredPayments.disputedAt)),
             isNull(recoveredPayments.deletedAt),
           ),
-          and(
-            eq(billingLineItems.type, "dispute_fee"),
-            eq(disputes.state, "resolved_lost"),
-          ),
+          and(eq(billingLineItems.type, "dispute_fee"), eq(disputes.state, "resolved_lost")),
         ),
         notExists(
           db
@@ -336,8 +303,7 @@ async function findOwedFeeLines(
   return rows.map(({ recoveryRefundedAt, ...row }) => ({
     ...row,
     stripeInvoiceId: row.stripeInvoiceId as string,
-    disputedRecovery:
-      row.recoveredPaymentId != null && recoveryRefundedAt == null,
+    disputedRecovery: row.recoveredPaymentId != null && recoveryRefundedAt == null,
   }));
 }
 
@@ -350,10 +316,7 @@ export interface CreditSweepResult {
 
 /** The credit-note retry sweep: credit every owed fee line it finds, one at a
  *  time, recording each failure rather than stopping on it. */
-export async function creditOwedFeeLines(
-  env: Env,
-  now: Date,
-): Promise<CreditSweepResult> {
+export async function creditOwedFeeLines(env: Env, now: Date): Promise<CreditSweepResult> {
   const owed = await findOwedFeeLines(env);
   const result: CreditSweepResult = {
     credited: 0,
@@ -380,20 +343,14 @@ export async function creditOwedFeeLines(
 }
 
 export function describeCreditSweep(result: CreditSweepResult): string {
-  const more = result.full
-    ? `, limit ${CREDIT_SWEEP_LIMIT} reached (more may be owed)`
-    : "";
+  const more = result.full ? `, limit ${CREDIT_SWEEP_LIMIT} reached (more may be owed)` : "";
   return `${result.credited} credited, ${result.failed.length} failed${more}`;
 }
 
 /** The alert text when any owed fee could not be credited, or null. */
-export function creditSweepFailureError(
-  result: CreditSweepResult,
-): string | null {
+export function creditSweepFailureError(result: CreditSweepResult): string | null {
   if (result.failed.length === 0) return null;
-  const detail = result.failed
-    .map((f) => `${f.lineItemId}: ${f.error}`)
-    .join("; ");
+  const detail = result.failed.map((f) => `${f.lineItemId}: ${f.error}`).join("; ");
   return `${result.failed.length} fee credit note(s) still owed after retry: ${detail}`;
 }
 
@@ -403,8 +360,7 @@ export function creditSweepFailureError(
 async function stampedRecoveryIdsFor(
   env: Env,
   failedPaymentId: string,
-  stamp:
-    typeof recoveredPayments.refundedAt | typeof recoveredPayments.disputedAt,
+  stamp: typeof recoveredPayments.refundedAt | typeof recoveredPayments.disputedAt,
 ): Promise<string[]> {
   const rows = await getDb(env)
     .select({ id: recoveredPayments.id })

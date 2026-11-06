@@ -24,7 +24,11 @@ import {
   webhookCountWords,
   webhookListHref,
 } from "~/lib/admin/webhooks";
-import { getWebhookHealthSummary, listWebhookEvents, type WebhookEventRow } from "~/lib/admin/webhooks.server";
+import {
+  getWebhookHealthSummary,
+  listWebhookEvents,
+  type WebhookEventRow,
+} from "~/lib/admin/webhooks.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/webhooks";
@@ -40,7 +44,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const filters = parseWebhookFilters(new URL(request.url).searchParams);
-  const [summary, list] = await Promise.all([getWebhookHealthSummary(db), listWebhookEvents(db, filters)]);
+  const [summary, list] = await Promise.all([
+    getWebhookHealthSummary(db),
+    listWebhookEvents(db, filters),
+  ]);
   // The page actually served, so the form and the pager agree with the list.
   return { summary, list, filters: { ...filters, page: list.page } };
 }
@@ -137,10 +144,17 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               />
             </div>
             <label className="cap-check min-h-6">
-              <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} /> Errors only
+              <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
+              Errors only
             </label>
             <label className="cap-check min-h-6">
-              <input type="checkbox" name="pending" value="1" defaultChecked={filters.pendingOnly} /> Pending only
+              <input
+                type="checkbox"
+                name="pending"
+                value="1"
+                defaultChecked={filters.pendingOnly}
+              />{" "}
+              Pending only
             </label>
             <div className="flex items-center gap-3">
               <button type="submit" className="cap-btn">
@@ -172,7 +186,14 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
             )
           ) : (
             // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow=""
+              data-cap="table"
+              role="region"
+              aria-labelledby={HEADING_ID}
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <caption className="cap-sr-only">
                   Webhook events, newest first. Open an event type to see its payload.
@@ -242,7 +263,10 @@ function EventRows({ event }: { event: WebhookEventRow }) {
         </th>
         <td data-label="Account">
           {event.accountId ? (
-            <Link to={merchantHref(event.accountId)} className={`${LINK} font-mono text-micro break-all`}>
+            <Link
+              to={merchantHref(event.accountId)}
+              className={`${LINK} font-mono text-micro break-all`}
+            >
               {event.accountId}
             </Link>
           ) : (
@@ -261,7 +285,11 @@ function EventRows({ event }: { event: WebhookEventRow }) {
         <td data-label="Received">
           <AdminTime at={event.receivedAt} />
         </td>
-        <td data-label="Error" data-wrap="" className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}>
+        <td
+          data-label="Error"
+          data-wrap=""
+          className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}
+        >
           {event.errorMessage ?? "None"}
         </td>
       </tr>

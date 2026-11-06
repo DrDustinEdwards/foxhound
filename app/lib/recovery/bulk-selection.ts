@@ -40,7 +40,10 @@ export function visibleSelection(
 }
 
 /** How many selected, visible rows there are. The number the bar shows. */
-export function selectedCount(selected: ReadonlySet<string>, rows: readonly SelectableRow[]): number {
+export function selectedCount(
+  selected: ReadonlySet<string>,
+  rows: readonly SelectableRow[],
+): number {
   return visibleSelection(selected, rows).length;
 }
 

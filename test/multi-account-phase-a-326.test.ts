@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -22,8 +21,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // Plus a fourth guard for the harness gap: better-sqlite3 is more permissive
 // than D1, so where the two can disagree the assertion is on the SQL SHAPE
 // rather than on the harness accepting the query.
-
-
 
 let sqlite: Database.Database;
 
@@ -58,7 +55,6 @@ function insertMembership(opts: {
       opts.createdAt ?? 1_000,
     );
 }
-
 
 describe("the migration is what enforces the new membership rule", () => {
   it("ACCEPTS two active memberships for one user on two different accounts", () => {
@@ -114,7 +110,6 @@ describe("harness gap: assert the SQL shape, not that better-sqlite3 accepts it"
   // 100 failed the retention sweeper daily for 29 days. Partial indexes are the
   // same class of trap: the two engines agree only when the WHERE clause is a
   // LITERAL, so the guard reads the committed migration text.
-
 
   it("the session column exists in the built database and defaults to null", () => {
     const cols = sqlite.prepare("PRAGMA table_info(session)").all() as Array<{

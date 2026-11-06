@@ -13,7 +13,6 @@ describe("sanitizers (hard brand rules)", () => {
     );
     expect(stripEmDashes("range 3–5")).toBe("range 3, 5");
   });
-
 });
 
 describe("cache-order resolution (custom_body -> cached -> generate)", () => {
@@ -54,15 +53,14 @@ describe("cache-order resolution (custom_body -> cached -> generate)", () => {
 });
 
 describe("applyCustomBody + brand voice", () => {
-
   it("resolves a default voice when the merchant has none, else the merchant's", () => {
     // The third rung is legacy's BRAND_VOICE_DEFAULT, byte for byte.
     expect(resolveBrandVoice({ merchantName: "Acme" }, "soft")).toBe(
       "Friendly and direct. Write like a real person, not a company.",
     );
-    expect(
-      resolveBrandVoice({ merchantName: "Acme", voiceDescription: "  " }, "soft"),
-    ).toBe("Friendly and direct. Write like a real person, not a company.");
+    expect(resolveBrandVoice({ merchantName: "Acme", voiceDescription: "  " }, "soft")).toBe(
+      "Friendly and direct. Write like a real person, not a company.",
+    );
     expect(
       resolveBrandVoice({ merchantName: "Acme", voiceDescription: "cheeky and brief" }, "soft"),
     ).toBe("cheeky and brief");

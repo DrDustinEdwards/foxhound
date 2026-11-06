@@ -24,11 +24,20 @@ import {
 } from "~/lib/admin/email-send.server";
 import { countStaleMarkers, engageBrake, getBrakeStatus } from "~/lib/admin/brake.server";
 import { listCronRows } from "~/lib/admin/crons.server";
-import { getMerchantDetail, listMerchants, setProcessingPaused } from "~/lib/admin/merchants.server";
+import {
+  getMerchantDetail,
+  listMerchants,
+  setProcessingPaused,
+} from "~/lib/admin/merchants.server";
 import { backupFilesNow, backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
-import { describeStaged, listStagedChanges, stageChange, type StagedRow } from "~/lib/admin/staged.server";
+import {
+  describeStaged,
+  listStagedChanges,
+  stageChange,
+  type StagedRow,
+} from "~/lib/admin/staged.server";
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "~/lib/auth/roles";
@@ -102,7 +111,11 @@ const UNAUTHORIZED = () => json(401, { ok: false, error: "Unauthorized" });
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const refuse = async (response: Response, reason: string) => {
-    logEvent(OWASP_EVENTS.authorizationFailure, { ...requestFields(request), door: "admin-api", reason }, { level: "warn" });
+    logEvent(
+      OWASP_EVENTS.authorizationFailure,
+      { ...requestFields(request), door: "admin-api", reason },
+      { level: "warn" },
+    );
     const allowed = await isWithinRateLimit(
       env,
       "admin-api-anon",
@@ -114,10 +127,13 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
   };
 
   const header = request.headers.get("authorization") ?? "";
-  const token = header.toLowerCase().startsWith("bearer ") ? header.slice("bearer ".length).trim() : "";
+  const token = header.toLowerCase().startsWith("bearer ")
+    ? header.slice("bearer ".length).trim()
+    : "";
   if (!token.startsWith(MCP_TOKEN_PREFIX)) return refuse(UNAUTHORIZED(), "no admin key");
   const verified = await verifyMcpToken(db, token);
-  if (!verified || verified.scope !== MCP_TOKEN_SCOPE.ADMIN) return refuse(UNAUTHORIZED(), "not an admin key");
+  if (!verified || verified.scope !== MCP_TOKEN_SCOPE.ADMIN)
+    return refuse(UNAUTHORIZED(), "not an admin key");
 
   const actor = (request.headers.get(ACTING_ADMIN_HEADER) ?? "").trim().toLowerCase();
   if (!isAdminEmail(env, actor)) {
@@ -130,7 +146,13 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
     );
   }
 
-  const within = await isWithinRateLimit(env, "admin-api", verified.keyId, RATE_LIMIT_MCP.max, RATE_LIMIT_MCP.windowMs);
+  const within = await isWithinRateLimit(
+    env,
+    "admin-api",
+    verified.keyId,
+    RATE_LIMIT_MCP.max,
+    RATE_LIMIT_MCP.windowMs,
+  );
   if (!within) return json(429, { ok: false, error: "Too many requests" });
   return { keyId: verified.keyId, actorEmail: actor };
 }
@@ -148,7 +170,10 @@ function page(url: URL, route: string): number {
   } catch {
     // Falls through to the refusal.
   }
-  throw new ApiError(400, `That cursor was not issued by ${route}. Omit cursor to start from the first page.`);
+  throw new ApiError(
+    400,
+    `That cursor was not issued by ${route}. Omit cursor to start from the first page.`,
+  );
 }
 
 function slice<T>(route: string, rows: T[], pageNumber: number) {
@@ -158,7 +183,9 @@ function slice<T>(route: string, rows: T[], pageNumber: number) {
     items,
     total: rows.length,
     has_more: hasMore,
-    next_cursor: hasMore ? btoa(JSON.stringify({ t: route, p: pageNumber + 1 })).replace(/=+$/, "") : null,
+    next_cursor: hasMore
+      ? btoa(JSON.stringify({ t: route, p: pageNumber + 1 })).replace(/=+$/, "")
+      : null,
   };
 }
 
@@ -194,7 +221,10 @@ function stagedForAgent(row: StagedRow) {
 async function merchantForAgent(db: Db, accountId: string) {
   const detail = await getMerchantDetail(db, accountId);
   if (!detail) {
-    throw new ApiError(404, `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`);
+    throw new ApiError(
+      404,
+      `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
+    );
   }
   const { account } = detail;
   return {
@@ -228,7 +258,11 @@ async function merchantForAgent(db: Db, accountId: string) {
 /** The merchant whose settings a test mail renders with. Customer mail and
  *  the weekly digest (its unsubscribe is signed for an account, E23) need one;
  *  other merchant and platform mail use it when given. */
-async function emailMerchant(db: Db, body: Json, types: AdminEmailType[]): Promise<MerchantEmailSettings | null> {
+async function emailMerchant(
+  db: Db,
+  body: Json,
+  types: AdminEmailType[],
+): Promise<MerchantEmailSettings | null> {
   const accountId = typeof body.account_id === "string" && body.account_id ? body.account_id : null;
   if (!accountId) {
     if (types.some((t) => t.audience === "customer" || t.type === "weekly_digest")) {
@@ -240,11 +274,19 @@ async function emailMerchant(db: Db, body: Json, types: AdminEmailType[]): Promi
     return null;
   }
   const merchant = await loadMerchantEmailSettings(db, accountId);
-  if (!merchant) throw new ApiError(400, `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`);
+  if (!merchant)
+    throw new ApiError(
+      400,
+      `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
+    );
   return merchant;
 }
 
-function emailRecipient(env: Env, caller: Caller, body: Json): { to: string; kind: "self" | "allow_list" } {
+function emailRecipient(
+  env: Env,
+  caller: Caller,
+  body: Json,
+): { to: string; kind: "self" | "allow_list" } {
   const recipient = resolveTestRecipient(env, caller.actorEmail, body.to);
   if (!recipient.ok) throw new ApiError(400, recipient.error);
   return recipient;
@@ -307,7 +349,10 @@ const ROUTES: ApiRoute[] = [
       const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
       const all = await listMerchants(db);
       const matching = query
-        ? all.filter((m) => m.id.toLowerCase().includes(query) || (m.name ?? "").toLowerCase().includes(query))
+        ? all.filter(
+            (m) =>
+              m.id.toLowerCase().includes(query) || (m.name ?? "").toLowerCase().includes(query),
+          )
         : all;
       const { items, ...rest } = slice("/merchants", matching, page(url, "/merchants"));
       return { merchants: items, ...rest };
@@ -408,10 +453,21 @@ const ROUTES: ApiRoute[] = [
         return { paused: "all", affected: result.affectedCount };
       }
       const accountId = typeof body.account_id === "string" ? body.account_id : "";
-      if (!accountId) throw new ApiError(400, "Send account_id to pause one merchant, or all: true to pause every merchant.");
-      const exists = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
+      if (!accountId)
+        throw new ApiError(
+          400,
+          "Send account_id to pause one merchant, or all: true to pause every merchant.",
+        );
+      const exists = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.id, accountId))
+        .limit(1);
       if (exists.length === 0) {
-        throw new ApiError(400, `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`);
+        throw new ApiError(
+          400,
+          `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
+        );
       }
       // Intent before state, as the /admin screens do.
       await logAdminAction(db, {
@@ -475,11 +531,18 @@ const ROUTES: ApiRoute[] = [
       const merchant = await emailMerchant(db, body, [type]);
       let preview;
       try {
-        preview = previewAdminEmail(env, type, await prepareAdminEmail(env, { type, to: recipient.to, merchant, now }));
+        preview = previewAdminEmail(
+          env,
+          type,
+          await prepareAdminEmail(env, { type, to: recipient.to, merchant, now }),
+        );
       } catch (err) {
         // The real send would refuse for the same reason (a CAN-SPAM guard, a
         // missing signing key), so the refusal is the answer.
-        throw new ApiError(409, `This email cannot be built: ${err instanceof Error ? err.message : String(err)}.`);
+        throw new ApiError(
+          409,
+          `This email cannot be built: ${err instanceof Error ? err.message : String(err)}.`,
+        );
       }
       return { preview, merchant: merchantForPreview(merchant), note: EMAIL_NOTE };
     },
@@ -491,7 +554,12 @@ const ROUTES: ApiRoute[] = [
     pattern: "/emails/send",
     handler: async ({ db, env, caller, body, now }) => {
       const recipient = emailRecipient(env, caller, body);
-      const requested = body.types === "all" ? ADMIN_EMAIL_TYPES.map((t) => t.type) : Array.isArray(body.types) ? body.types : [body.type];
+      const requested =
+        body.types === "all"
+          ? ADMIN_EMAIL_TYPES.map((t) => t.type)
+          : Array.isArray(body.types)
+            ? body.types
+            : [body.type];
       const types: AdminEmailType[] = [];
       for (const id of requested) {
         const type = findAdminEmailType(id);
@@ -507,13 +575,24 @@ const ROUTES: ApiRoute[] = [
           actorEmail: caller.actorEmail,
           action: ADMIN_EMAIL_AUDIT_ACTION,
           targetEmail: recipient.to,
-          metadata: { type: type.type, accountId: merchant?.accountId ?? null, recipient: recipient.kind, via: "admin-api", keyId: caller.keyId },
+          metadata: {
+            type: type.type,
+            accountId: merchant?.accountId ?? null,
+            recipient: recipient.kind,
+            via: "admin-api",
+            keyId: caller.keyId,
+          },
         });
         let prepared;
         try {
           prepared = await prepareAdminEmail(env, { type, to: recipient.to, merchant, now });
         } catch (err) {
-          results.push({ type: type.type, status: "failed", provider_message_id: null, error: err instanceof Error ? err.message : String(err) });
+          results.push({
+            type: type.type,
+            status: "failed",
+            provider_message_id: null,
+            error: err instanceof Error ? err.message : String(err),
+          });
           continue;
         }
         results.push(await sendAdminEmail(env, type, prepared));
@@ -539,14 +618,28 @@ function match(method: string, path: string): { route: ApiRoute; params: string[
     const parts = route.pattern.split("/").filter(Boolean);
     if (parts.length !== segments.length) continue;
     const params: string[] = [];
-    if (parts.every((part, i) => (part === ":id" ? (params.push(decodeURIComponent(segments[i])), true) : part === segments[i]))) {
+    if (
+      parts.every((part, i) =>
+        part === ":id"
+          ? (params.push(decodeURIComponent(segments[i])), true)
+          : part === segments[i],
+      )
+    ) {
       return { route, params };
     }
   }
   return null;
 }
 
-async function logCall(db: Db, caller: Caller, request: Request, path: string, input: Json, status: number, error: string | null) {
+async function logCall(
+  db: Db,
+  caller: Caller,
+  request: Request,
+  path: string,
+  input: Json,
+  status: number,
+  error: string | null,
+) {
   try {
     await db.insert(adminApiCalls).values({
       actorEmail: caller.actorEmail,
@@ -559,14 +652,20 @@ async function logCall(db: Db, caller: Caller, request: Request, path: string, i
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error("admin api call log write failed:", caller.keyId, path, err instanceof Error ? err.message : String(err));
+    console.error(
+      "admin api call log write failed:",
+      caller.keyId,
+      path,
+      err instanceof Error ? err.message : String(err),
+    );
   }
 }
 
 /** Null for any path outside the prefix, so the worker entry falls through. */
 export async function handleAdminApiRequest(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
-  if (url.pathname !== ADMIN_API_PREFIX && !url.pathname.startsWith(`${ADMIN_API_PREFIX}/`)) return null;
+  if (url.pathname !== ADMIN_API_PREFIX && !url.pathname.startsWith(`${ADMIN_API_PREFIX}/`))
+    return null;
 
   const db = getDb(env);
   const caller = await authenticate(request, env, db);
@@ -582,7 +681,10 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
       body = {};
     }
   }
-  const input: Json = { query: Object.fromEntries(url.searchParams), ...(request.method === "POST" ? { body } : {}) };
+  const input: Json = {
+    query: Object.fromEntries(url.searchParams),
+    ...(request.method === "POST" ? { body } : {}),
+  };
 
   const found = match(request.method, path);
   let response: Response;
@@ -592,7 +694,15 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
     response = json(404, { ok: false, error });
   } else {
     try {
-      const data = await found.route.handler({ db, env, caller, url, params: found.params, body, now: new Date() });
+      const data = await found.route.handler({
+        db,
+        env,
+        caller,
+        url,
+        params: found.params,
+        body,
+        now: new Date(),
+      });
       response = json(200, { ok: true, data });
     } catch (err) {
       if (err instanceof ApiError) {

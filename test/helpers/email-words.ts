@@ -10,5 +10,7 @@ export function blockText(block: WordsBlock): string {
   const text = block.text as Words;
   if (typeof text === "string") return text;
   if (!Array.isArray(text)) return "";
-  return (text as readonly (readonly (string | { bold: string })[])[]).map((line) => line.map((run) => (typeof run === "string" ? run : run.bold)).join("")).join("\n");
+  return (text as readonly (readonly (string | { bold: string })[])[])
+    .map((line) => line.map((run) => (typeof run === "string" ? run : run.bold)).join(""))
+    .join("\n");
 }

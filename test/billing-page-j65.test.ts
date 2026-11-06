@@ -18,9 +18,8 @@ import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.
 // merchant about money, and the places Recova's copy would be false of
 // Foxhound's engine are pinned as the truthful version.
 
-const { buildRecoveryHistory, buildDisputeFeeRows, BILLING_HISTORY_LIMIT } = await import(
-  "~/lib/billing/page.server"
-);
+const { buildRecoveryHistory, buildDisputeFeeRows, BILLING_HISTORY_LIMIT } =
+  await import("~/lib/billing/page.server");
 const { ordinal, subscriptionDetail } = await import("~/lib/billing/page");
 const finalizeCalls = vi.hoisted(() => ({ n: 0 }));
 vi.mock("~/lib/billing/platform-customer", async (importOriginal) => ({
@@ -54,7 +53,12 @@ function invoice(over: Partial<BillingInvoiceRow> & { id: string }): BillingInvo
   } as BillingInvoiceRow;
 }
 
-function recoveryLine(id: string, invoiceId: string, recoveredCents: number, feeCents: number): EnrichedLineItem {
+function recoveryLine(
+  id: string,
+  invoiceId: string,
+  recoveredCents: number,
+  feeCents: number,
+): EnrichedLineItem {
   return {
     lineItem: {
       id,
@@ -135,10 +139,13 @@ function creditLine(id: string, fee: EnrichedLineItem, creditCents: number): Enr
 }
 
 describe("review fixes (PR #68 review F1 to F5)", () => {
-
   it("F1: a dispute fee credited after billing shows its credit on the dispute row", () => {
     const fee = disputeLine("d9", "inv_c", 50_000, 10_000);
-    const rows = buildDisputeFeeRows([invoice({ id: "inv_c" })], [fee, creditLine("cr2", fee, 10_000)], []);
+    const rows = buildDisputeFeeRows(
+      [invoice({ id: "inv_c" })],
+      [fee, creditLine("cr2", fee, 10_000)],
+      [],
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ feeCents: 10_000, creditedCents: 10_000 });
   });
@@ -164,7 +171,11 @@ describe("review fixes (PR #68 review F1 to F5)", () => {
       render(
         loaderData({
           preview: basePreview({
-            accountBillingState: { billingExempt: true, processingPaused: false, cancelledAt: null },
+            accountBillingState: {
+              billingExempt: true,
+              processingPaused: false,
+              cancelledAt: null,
+            },
           }),
         }),
       ),
@@ -177,7 +188,14 @@ describe("review fixes (PR #68 review F1 to F5)", () => {
 describe("ordinal (Recova's 'Invoiced on the 1st', from the run's day of month)", () => {
   it("says 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st", () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21].map(ordinal)).toEqual([
-      "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st",
+      "1st",
+      "2nd",
+      "3rd",
+      "4th",
+      "11th",
+      "12th",
+      "13th",
+      "21st",
     ]);
   });
 });
@@ -185,7 +203,9 @@ describe("ordinal (Recova's 'Invoiced on the 1st', from the run's day of month)"
 describe("the invoice day the page states is the billing run's own day", () => {
   it("BILLING_RUN_DAY_OF_MONTH and BILLING_RUN_HOUR_UTC are the fields of the monthly billing cron", async () => {
     const c = await import("~/lib/constants");
-    expect(c.CRON_SCHEDULE_MONTHLY).toBe(`0 ${c.BILLING_RUN_HOUR_UTC} ${c.BILLING_RUN_DAY_OF_MONTH} * *`);
+    expect(c.CRON_SCHEDULE_MONTHLY).toBe(
+      `0 ${c.BILLING_RUN_HOUR_UTC} ${c.BILLING_RUN_DAY_OF_MONTH} * *`,
+    );
   });
 });
 
@@ -198,7 +218,11 @@ describe("buildRecoveryHistory (Recova's assessment rows, from Foxhound's invoic
       stripeInvoiceId: "in_123",
       stripeInvoiceUrl: "https://invoice.stripe.com/i/123",
     }),
-    invoice({ id: "inv_disputes_only", periodStart: T("2026-05-01T00:00:00.000Z"), status: "finalized" }),
+    invoice({
+      id: "inv_disputes_only",
+      periodStart: T("2026-05-01T00:00:00.000Z"),
+      status: "finalized",
+    }),
   ];
   const lines = [
     recoveryLine("l1", "inv_june", 10_000, 2_000),
@@ -248,20 +272,31 @@ describe("buildRecoveryHistory (Recova's assessment rows, from Foxhound's invoic
 });
 
 describe("buildDisputeFeeRows (Recova's dispute fee rows, from billed lines and next run's pending fees)", () => {
-  const invoices = [invoice({ id: "inv_1", status: "paid", stripeInvoiceUrl: "https://invoice.stripe.com/i/1" })];
+  const invoices = [
+    invoice({ id: "inv_1", status: "paid", stripeInvoiceUrl: "https://invoice.stripe.com/i/1" }),
+  ];
 
   it("lists a fee the next run will bill as Pending, before the billed ones", () => {
-    const rows = buildDisputeFeeRows(invoices, [disputeLine("d1", "inv_1", 50_000, 10_000)], [
-      {
-        disputeId: "dsp_pending",
-        amountCents: 30_000,
-        currency: "usd",
-        feeCents: 6_000,
-        resolvedAt: T("2026-07-10T00:00:00.000Z"),
-      },
-    ]);
+    const rows = buildDisputeFeeRows(
+      invoices,
+      [disputeLine("d1", "inv_1", 50_000, 10_000)],
+      [
+        {
+          disputeId: "dsp_pending",
+          amountCents: 30_000,
+          currency: "usd",
+          feeCents: 6_000,
+          resolvedAt: T("2026-07-10T00:00:00.000Z"),
+        },
+      ],
+    );
     expect(rows.map((r) => r.statusLabel)).toEqual(["Pending", "Paid"]);
-    expect(rows[0]).toMatchObject({ disputeId: "dsp_pending", disputeAmountCents: 30_000, feeCents: 6_000, invoiceUrl: null });
+    expect(rows[0]).toMatchObject({
+      disputeId: "dsp_pending",
+      disputeAmountCents: 30_000,
+      feeCents: 6_000,
+      invoiceUrl: null,
+    });
     expect(rows[1]).toMatchObject({
       disputeId: "dsp_d1",
       disputeAmountCents: 50_000,
@@ -274,7 +309,10 @@ describe("buildDisputeFeeRows (Recova's dispute fee rows, from billed lines and 
   it("marks a fee the $500 cap held below 20% as capped, and an ordinary one as not", () => {
     const rows = buildDisputeFeeRows(
       invoices,
-      [disputeLine("big", "inv_1", 1_000_000, 50_000), disputeLine("small", "inv_1", 50_000, 10_000)],
+      [
+        disputeLine("big", "inv_1", 1_000_000, 50_000),
+        disputeLine("small", "inv_1", 50_000, 10_000),
+      ],
       [],
     );
     const byId = Object.fromEntries(rows.map((r) => [r.disputeId, r.feeCapped]));
@@ -292,24 +330,34 @@ describe("buildDisputeFeeRows (Recova's dispute fee rows, from billed lines and 
 describe("subscriptionDetail (Recova's Renews, Cancels on, Expired lines)", () => {
   const end = T("2026-09-01T00:00:00.000Z");
   it("an active subscription with a period end renews", () => {
-    expect(subscriptionDetail({ status: "active", canceledAt: null, currentPeriodEndsAt: end })).toEqual({
+    expect(
+      subscriptionDetail({ status: "active", canceledAt: null, currentPeriodEndsAt: end }),
+    ).toEqual({
       text: "Renews Sep 1, 2026",
       warn: false,
     });
   });
   it("an active subscription already canceled cancels on its period end", () => {
     expect(
-      subscriptionDetail({ status: "active", canceledAt: T("2026-08-01T00:00:00.000Z"), currentPeriodEndsAt: end }),
+      subscriptionDetail({
+        status: "active",
+        canceledAt: T("2026-08-01T00:00:00.000Z"),
+        currentPeriodEndsAt: end,
+      }),
     ).toEqual({ text: "Cancels on Sep 1, 2026", warn: true });
   });
   it("a canceled one with a period end expired", () => {
-    expect(subscriptionDetail({ status: "canceled", canceledAt: end, currentPeriodEndsAt: end })).toEqual({
+    expect(
+      subscriptionDetail({ status: "canceled", canceledAt: end, currentPeriodEndsAt: end }),
+    ).toEqual({
       text: "Expired Sep 1, 2026",
       warn: false,
     });
   });
   it("says nothing without a period end, as Recova does (an admin grant has none)", () => {
-    expect(subscriptionDetail({ status: "active", canceledAt: null, currentPeriodEndsAt: null })).toBeNull();
+    expect(
+      subscriptionDetail({ status: "active", canceledAt: null, currentPeriodEndsAt: null }),
+    ).toBeNull();
   });
 });
 
@@ -348,7 +396,13 @@ const loaderData = (over: Partial<LoaderShape> = {}): LoaderShape => ({
   card: { brand: "visa", last4: "4242", expMonth: 4, expYear: 2030 },
   preview: basePreview(),
   recoveryHistory: buildRecoveryHistory(
-    [invoice({ id: "inv_june", stripeInvoiceUrl: "https://invoice.stripe.com/i/123", stripeInvoiceId: "in_123" })],
+    [
+      invoice({
+        id: "inv_june",
+        stripeInvoiceUrl: "https://invoice.stripe.com/i/123",
+        stripeInvoiceId: "in_123",
+      }),
+    ],
     [recoveryLine("l1", "inv_june", 10_000, 2_000)],
   ),
   disputeFees: [],
@@ -361,16 +415,16 @@ const loaderData = (over: Partial<LoaderShape> = {}): LoaderShape => ({
 const Page = BillingRoute as unknown as (props: { loaderData: LoaderShape }) => ReactElement;
 
 function render(data: LoaderShape): string {
-  const Stub = createRoutesStub([{ path: "/billing", Component: () => createElement(Page, { loaderData: data }) }]);
+  const Stub = createRoutesStub([
+    { path: "/billing", Component: () => createElement(Page, { loaderData: data }) },
+  ]);
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/billing"] }));
 }
 
 /** renderToStaticMarkup escapes apostrophes; compare against what a reader sees. */
 const text = (html: string) => html.replaceAll("&#x27;", "'").replaceAll("&amp;", "&");
 
-
 describe("/billing renders Recova's page on Foxhound's engine", () => {
-
   it("shows attributed recoveries this month and the next run's recovery fee, never the whole invoice", () => {
     const html = text(render(loaderData()));
     expect(html).toContain("Recovered this month");
@@ -390,12 +444,18 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
             preview: basePreview({
               estimatedRecoveryFees: [],
               estimatedDisputeFees: [],
-              accountBillingState: { billingExempt: true, processingPaused: false, cancelledAt: null },
+              accountBillingState: {
+                billingExempt: true,
+                processingPaused: false,
+                cancelledAt: null,
+              },
             }),
           }),
         ),
       );
-      expect(html).toContain("Billing exempt. Foxhound does not invoice this account, so no fee is building up.");
+      expect(html).toContain(
+        "Billing exempt. Foxhound does not invoice this account, so no fee is building up.",
+      );
       expect(html).not.toContain("Next invoice:");
       expect(html).not.toContain("Added to your next monthly invoice");
     });
@@ -405,7 +465,11 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
         render(
           loaderData({
             preview: basePreview({
-              accountBillingState: { billingExempt: false, processingPaused: true, cancelledAt: null },
+              accountBillingState: {
+                billingExempt: false,
+                processingPaused: true,
+                cancelledAt: null,
+              },
             }),
           }),
         ),
@@ -428,7 +492,9 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
           }),
         ),
       );
-      expect(html).toContain("This account is canceled. Fees already earned still appear on the next invoice.");
+      expect(html).toContain(
+        "This account is canceled. Fees already earned still appear on the next invoice.",
+      );
       expect(html).toContain("Next invoice: August 1, 2026");
     });
   });
@@ -436,18 +502,30 @@ describe("/billing renders Recova's page on Foxhound's engine", () => {
 
 describe("the setup session's return leg", () => {
   it("never finalizes at Stripe in the demo or while an admin views as the merchant", async () => {
-    for (const extra of [{ isDemo: true }, { isDemo: false, viewingAs: { adminEmail: "admin@foxhound.test" } }]) {
+    for (const extra of [
+      { isDemo: true },
+      { isDemo: false, viewingAs: { adminEmail: "admin@foxhound.test" } },
+    ]) {
       const context = {
         get(key: unknown) {
           if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
           if (key === authContext) {
-            return { userId: "u", membership: { accountId: "acct_1", role: "owner" }, isAdmin: false, ...extra };
+            return {
+              userId: "u",
+              membership: { accountId: "acct_1", role: "owner" },
+              isAdmin: false,
+              ...extra,
+            };
           }
           throw new Error("unexpected context key");
         },
       };
       const thrown = await billingModule
-        .loader({ context, request: new Request("https://foxhoundapp.test/billing?session_id=cs_x"), params: {} } as never)
+        .loader({
+          context,
+          request: new Request("https://foxhoundapp.test/billing?session_id=cs_x"),
+          params: {},
+        } as never)
         .catch((e: unknown) => e);
       expect(thrown).toBeInstanceOf(Response);
       expect((thrown as Response).headers.get("Location")).toBe("/billing");
@@ -461,24 +539,41 @@ describe("starting billing setup", () => {
     return {
       get(key: unknown) {
         if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
-        if (key === authContext) return { userId: "u", membership: { accountId: "acct_1", role }, isAdmin: false, isDemo: false };
+        if (key === authContext)
+          return {
+            userId: "u",
+            membership: { accountId: "acct_1", role },
+            isAdmin: false,
+            isDemo: false,
+          };
         throw new Error("unexpected context key");
       },
     };
   }
   function setupRequest() {
-    return new Request("https://foxhoundapp.test/billing", { method: "POST", body: new URLSearchParams({ intent: "setup_billing" }) });
+    return new Request("https://foxhoundapp.test/billing", {
+      method: "POST",
+      body: new URLSearchParams({ intent: "setup_billing" }),
+    });
   }
   type Result = { init: { status: number }; data: { error: string } };
 
   it("is refused to a member who is not the owner, and an owner's failure never shows the raw error", async () => {
-    const refused = (await billingModule.action({ context: contextFor("member"), request: setupRequest(), params: {} } as never)) as unknown as Result;
+    const refused = (await billingModule.action({
+      context: contextFor("member"),
+      request: setupRequest(),
+      params: {},
+    } as never)) as unknown as Result;
     expect(refused.init.status).toBe(403);
     expect(refused.data.error).toBe("Only the account owner can set up billing.");
 
     // env has no DB, so the owner's first read throws a TypeError whose text must stay in the log.
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    const failed = (await billingModule.action({ context: contextFor("owner"), request: setupRequest(), params: {} } as never)) as unknown as Result;
+    const failed = (await billingModule.action({
+      context: contextFor("owner"),
+      request: setupRequest(),
+      params: {},
+    } as never)) as unknown as Result;
     expect(failed.data.error).toBe("Could not start billing setup. Please try again.");
     expect(logged).toHaveBeenCalledWith("billing setup start failed:", expect.stringMatching(/\S/));
     logged.mockRestore();

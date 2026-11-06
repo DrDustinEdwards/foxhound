@@ -52,7 +52,10 @@ export interface EstimatorResult {
  * with no data), which the caller renders as an honest "not enough data
  * yet" state rather than a fabricated number.
  */
-export async function estimateLeakage(db: Db, input: EstimatorInput): Promise<EstimatorResult | null> {
+export async function estimateLeakage(
+  db: Db,
+  input: EstimatorInput,
+): Promise<EstimatorResult | null> {
   const cohortValue = mrrBandForCents(input.mrrCents);
   const rows = await db
     .select()

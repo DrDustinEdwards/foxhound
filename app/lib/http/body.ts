@@ -13,7 +13,10 @@ export const BODY_MAX_BYTES = 256 * 1024;
 export const WEBHOOK_BODY_MAX_BYTES = 1024 * 1024;
 
 function tooLarge(): Response {
-  return new Response("Payload Too Large", { status: 413, headers: { "Cache-Control": "no-store" } });
+  return new Response("Payload Too Large", {
+    status: 413,
+    headers: { "Cache-Control": "no-store" },
+  });
 }
 
 /** The body as text. Throws the 413 Response when it is longer than `max`. */

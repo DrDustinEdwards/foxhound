@@ -34,7 +34,15 @@ function walk(dir) {
 const TEST_FNS = new Set(["it", "test"]);
 // Modifiers that still run (or declare) a test body. skip/todo are left out:
 // a skipped test is a different finding, and todo has no body.
-const RUNNING_MODIFIERS = new Set(["only", "concurrent", "sequential", "fails", "each", "for", "runIf"]);
+const RUNNING_MODIFIERS = new Set([
+  "only",
+  "concurrent",
+  "sequential",
+  "fails",
+  "each",
+  "for",
+  "runIf",
+]);
 
 /** True when `expr` names it/test, possibly through modifiers: it.only, it.each(table), test.concurrent. */
 function isTestCallee(expr) {
@@ -78,11 +86,16 @@ for (const file of walk(TEST_DIR)) {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const visit = (node) => {
     if (ts.isCallExpression(node) && isTestCallee(node.expression)) {
-      const fn = node.arguments.find((arg) => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
+      const fn = node.arguments.find(
+        (arg) => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg),
+      );
       if (fn) {
         total += 1;
         if (!asserts(fn.body)) {
-          const name = node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) ? node.arguments[0].text : "(unnamed)";
+          const name =
+            node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])
+              ? node.arguments[0].text
+              : "(unnamed)";
           const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
           findings.push({ file: relative(ROOT, file), line: line + 1, name });
         }
@@ -98,4 +111,6 @@ for (const finding of findings) {
     `::warning file=${finding.file},line=${finding.line},title=Test with no assertion::${finding.name}`,
   );
 }
-console.log(`\n${total} test declarations scanned; ${findings.length} with no assertion (warn only).`);
+console.log(
+  `\n${total} test declarations scanned; ${findings.length} with no assertion (warn only).`,
+);

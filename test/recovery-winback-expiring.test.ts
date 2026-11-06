@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { isCardExpired, isCardExpiringSoon } from "~/lib/recovery/expiring-card";
-import {
-  isWinbackTerminal,
-  nextWinbackStatus,
-} from "~/lib/recovery/winback";
+import { isWinbackTerminal, nextWinbackStatus } from "~/lib/recovery/winback";
 
 describe("win-back state machine (terminal-state fix)", () => {
-
   it("resolved-elsewhere is terminal", () => {
     expect(
       nextWinbackStatus({ reactivated: false, resolvedElsewhere: true, isLastStep: false }),

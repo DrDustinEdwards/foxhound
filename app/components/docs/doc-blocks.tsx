@@ -116,7 +116,9 @@ function Block({ block }: { block: DocBlock }) {
             <li key={i} className="flex gap-3 text-subhead leading-relaxed text-text-secondary">
               {/* Recova hand-writes "01", "02"; derived here so a step cannot
                   be inserted without its number following. */}
-              <span className="shrink-0 font-mono text-accent-text">{String(i + 1).padStart(2, "0")}</span>
+              <span className="shrink-0 font-mono text-accent-text">
+                {String(i + 1).padStart(2, "0")}
+              </span>
               <span>
                 <Rich content={item} />
               </span>

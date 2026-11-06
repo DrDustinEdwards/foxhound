@@ -70,7 +70,6 @@ async function runWithGenerated(copy: EmailCopy, context: Partial<EmailStepConte
   return { result, job: jobs[0] };
 }
 
-
 // One violating sample PER RULE CLASS, not one clean sample. Each of these is a
 // distinct branch of findBrandVoiceViolations, and a gate that catches only em
 // dashes would pass a test built from a single dashed string.
@@ -113,7 +112,6 @@ const VIOLATIONS: { name: string; copy: EmailCopy; expect: string }[] = [
 ];
 
 describe("the gate is actually wired into the send path", () => {
-
   // Sweep every rule class. Each entry must (a) actually violate the rule it
   // claims, and (b) be replaced by the template in the send path.
   it("replaces violating copy with the template, for every rule class", async () => {
@@ -134,7 +132,6 @@ describe("the gate is actually wired into the send path", () => {
 });
 
 describe("the gate polices the model, not the merchant", () => {
-
   it("still falls back for the SUBJECT when generation violates and a custom body exists", async () => {
     const link = await stepLink();
     const { result, job } = await runWithGenerated(

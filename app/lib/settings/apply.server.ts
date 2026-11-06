@@ -93,7 +93,9 @@ async function commit(
 ) {
   type Statements = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
   const writes: Statements = Array.isArray(statement) ? statement : [statement];
-  const statements: Statements = trace ? [...writes, traceInsert(db, accountId, fields, trace)] : writes;
+  const statements: Statements = trace
+    ? [...writes, traceInsert(db, accountId, fields, trace)]
+    : writes;
   await db.batch(statements);
 }
 
@@ -182,7 +184,6 @@ export interface DisputeSettingsActor {
 }
 
 /** Stripe's limit on an evidence text field, which the description becomes. */
-;
 export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
 
 /**
@@ -225,7 +226,11 @@ export async function applyDisputeSettings(
     ? { disputeAutoSubmitByUserId: null, disputeAutoSubmitByEmail: null, disputeAutoSubmitAt: null }
     : alreadyOptedIn
       ? {}
-      : { disputeAutoSubmitByUserId: actor.userId, disputeAutoSubmitByEmail: actor.email, disputeAutoSubmitAt: actor.now };
+      : {
+          disputeAutoSubmitByUserId: actor.userId,
+          disputeAutoSubmitByEmail: actor.email,
+          disputeAutoSubmitAt: actor.now,
+        };
   await commit(
     db,
     accountId,
@@ -506,7 +511,8 @@ export async function applyBrandVoice(
   };
   let storedSamples = stored.samples;
   if (input.samples !== undefined) {
-    if (!Array.isArray(input.samples)) return { ok: false, error: "Sample emails must be a list of texts." };
+    if (!Array.isArray(input.samples))
+      return { ok: false, error: "Sample emails must be a list of texts." };
     fields.push("brand_voice_samples");
     storedSamples = storeVoiceSamples(input.samples);
     state.samples = readVoiceSamples(storedSamples);
@@ -680,7 +686,13 @@ const ALERT_NOT_FOUND_ERROR = "Select an alert.";
 export async function applyAlertCreate(
   db: Db,
   accountId: string,
-  input: { metric: unknown; direction: unknown; threshold: unknown; label?: unknown; channel?: unknown },
+  input: {
+    metric: unknown;
+    direction: unknown;
+    threshold: unknown;
+    label?: unknown;
+    channel?: unknown;
+  },
   now: Date,
   trace?: WriteTrace,
 ): Promise<ApplyResult<AlertCreateState>> {
@@ -689,13 +701,18 @@ export async function applyAlertCreate(
   if (!isAlertMetric(metric)) return { ok: false, error: ALERT_METRIC_ERROR };
   if (!isAlertDirection(direction)) return { ok: false, error: ALERT_DIRECTION_ERROR };
 
-  const raw = typeof input.threshold === "number" ? String(input.threshold) : String(input.threshold ?? "").trim();
+  const raw =
+    typeof input.threshold === "number"
+      ? String(input.threshold)
+      : String(input.threshold ?? "").trim();
   const parsed = Number(raw);
   if (!raw || !Number.isFinite(parsed) || parsed < 0) {
     return { ok: false, error: ALERT_THRESHOLD_ERROR };
   }
   const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
-  const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel) ? String(input.channel) : "email";
+  const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel)
+    ? String(input.channel)
+    : "email";
 
   const state: AlertCreateState = {
     id: crypto.randomUUID(),
@@ -707,13 +724,7 @@ export async function applyAlertCreate(
   };
   // A new row, so every column it names is a field this write touched.
   const fields = ["metric", "direction", "threshold_value", "label", "channel"];
-  await commit(
-    db,
-    accountId,
-    fields,
-    buildAlertInsert(db, accountId, state, now, state.id),
-    trace,
-  );
+  await commit(db, accountId, fields, buildAlertInsert(db, accountId, state, now, state.id), trace);
   return { ok: true, fields, state };
 }
 

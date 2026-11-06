@@ -22,8 +22,21 @@
  *  zero-decimal currency, but backwards compatibility requires you to represent
  *  it as a two-decimal value", so 500 is 5 UGX. */
 const ZERO_DECIMAL = new Set([
-  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga",
-  "pyg", "rwf", "vnd", "vuv", "xaf", "xof", "xpf",
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
 ]);
 
 /** Stripe's three-decimal currencies: the amount is in thousandths (and Stripe
@@ -47,7 +60,9 @@ export function currencyExponent(currency: string): 0 | 2 | 3 {
 
 /** Decimal places a display of this currency carries. */
 function displayDigits(currency: string): number {
-  return WHOLE_UNITS_SENT_AS_HUNDREDTHS.has(currency.toLowerCase()) ? 0 : currencyExponent(currency);
+  return WHOLE_UNITS_SENT_AS_HUNDREDTHS.has(currency.toLowerCase())
+    ? 0
+    : currencyExponent(currency);
 }
 
 /** A Stripe amount in whole units of its currency: 5000 JPY is 5000, 5000 USD

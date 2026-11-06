@@ -85,7 +85,13 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
       : note.length > 0 && audience === "merchant"
         ? [...note, manageEmailSettingsLine(baseUrl)]
         : undefined;
-  const frame = { subject: job.subject, brandName: fromName, to: job.to, footer, tracking: job.tracking };
+  const frame = {
+    subject: job.subject,
+    brandName: fromName,
+    to: job.to,
+    footer,
+    tracking: job.tracking,
+  };
   const rendered = renderFoxhoundEmail(
     job.notice
       ? { ...frame, notice: job.notice }
@@ -164,7 +170,12 @@ export async function sendTransactionalEmail(
 }
 
 /** The From name and the rendered parts of a transactional mail. Pure. */
-function renderTransactional(message: { to: string; subject: string; bodyHtml: string; fromName?: string | null }): {
+function renderTransactional(message: {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  fromName?: string | null;
+}): {
   fromName: string;
   rendered: Rendered;
 } {
@@ -202,7 +213,10 @@ export function buildTransactionalMessage(message: {
 }
 
 /** The message sendRenderedTransactionalEmail would hand the binding. Pure. */
-export function buildRenderedTransactionalMessage(message: { to: string; rendered: Rendered }): EmailSendMessage {
+export function buildRenderedTransactionalMessage(message: {
+  to: string;
+  rendered: Rendered;
+}): EmailSendMessage {
   return authSenderMessage(message.to, message.rendered, "Foxhound");
 }
 
@@ -214,7 +228,11 @@ async function sendThroughAuthSender(
   message: { to: string; rendered: Rendered; fromName: string; secrets?: string[] },
 ): Promise<TransactionalSendOutcome> {
   if (!env.EMAIL) return { status: "failed", reason: "email_binding_missing", error: null };
-  const sent = await send(env.EMAIL, authSenderMessage(message.to, message.rendered, message.fromName), { secrets: message.secrets });
+  const sent = await send(
+    env.EMAIL,
+    authSenderMessage(message.to, message.rendered, message.fromName),
+    { secrets: message.secrets },
+  );
   if (sent.sent) return { status: "sent", providerMessageId: sent.messageId };
   return { status: "failed", reason: "provider_error", error: sent.error };
 }
@@ -240,5 +258,10 @@ export async function sendRenderedTransactionalEmail(
   env: Env,
   message: { to: string; rendered: Rendered; redact?: string[] },
 ): Promise<TransactionalSendOutcome> {
-  return sendThroughAuthSender(env, { to: message.to, rendered: message.rendered, fromName: "Foxhound", secrets: message.redact });
+  return sendThroughAuthSender(env, {
+    to: message.to,
+    rendered: message.rendered,
+    fromName: "Foxhound",
+    secrets: message.redact,
+  });
 }

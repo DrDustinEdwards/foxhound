@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, stripeConnections } from "~/db";
 import { disconnectConnection } from "~/lib/admin/merchant-cancel.server";
-import { retryFailedDeauthorizations, revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
+import {
+  retryFailedDeauthorizations,
+  revokeDisconnectedGrants,
+} from "~/lib/stripe/deauthorize-retry.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -29,15 +32,22 @@ beforeEach(async () => {
     { id: "acct_a", name: "Sample A", createdAt: CREATED },
     { id: "acct_b", name: "Sample B", createdAt: CREATED },
   ]);
-  await db.insert(stripeConnections).values({ id: "sc_a", accountId: "acct_a", stripeUserId: "acct_1Sample", createdAt: CREATED });
+  await db
+    .insert(stripeConnections)
+    .values({ id: "sc_a", accountId: "acct_a", stripeUserId: "acct_1Sample", createdAt: CREATED });
 });
 
 const pendingOf = async (id: string) =>
-  (await db.select().from(stripeConnections).where(eq(stripeConnections.id, id)))[0].deauthorizeFailedAt;
+  (await db.select().from(stripeConnections).where(eq(stripeConnections.id, id)))[0]
+    .deauthorizeFailedAt;
 
 describe("the Stripe deauthorize retry", () => {
   it("queues a failed revoke, keeps it while Stripe fails, and clears it once Stripe accepts", async () => {
-    const out = await disconnectConnection(ENV, { id: "sc_a", stripeUserId: "acct_1Sample" }, { deauthorize: failing });
+    const out = await disconnectConnection(
+      ENV,
+      { id: "sc_a", stripeUserId: "acct_1Sample" },
+      { deauthorize: failing },
+    );
     expect(out.deauthorizeError).toBe("stripe unavailable");
     expect(await pendingOf("sc_a")).not.toBeNull();
 
@@ -56,8 +66,17 @@ describe("the Stripe deauthorize retry", () => {
   });
 
   it("never revokes a Stripe account that is live on a Foxhound account again", async () => {
-    await disconnectConnection(ENV, { id: "sc_a", stripeUserId: "acct_1Sample" }, { deauthorize: failing });
-    await db.insert(stripeConnections).values({ id: "sc_b", accountId: "acct_b", stripeUserId: "acct_1Sample", createdAt: CREATED });
+    await disconnectConnection(
+      ENV,
+      { id: "sc_a", stripeUserId: "acct_1Sample" },
+      { deauthorize: failing },
+    );
+    await db.insert(stripeConnections).values({
+      id: "sc_b",
+      accountId: "acct_b",
+      stripeUserId: "acct_1Sample",
+      createdAt: CREATED,
+    });
 
     const calls: string[] = [];
     const result = await retryFailedDeauthorizations(ENV, db, async (_env, stripeUserId) => {
@@ -70,7 +89,12 @@ describe("the Stripe deauthorize retry", () => {
   });
 
   it("reports a failed revoke whose retry stamp matched no row as not queued", async () => {
-    const [failure] = await revokeDisconnectedGrants(ENV, [{ id: "sc_missing", stripeUserId: "acct_1Sample" }], CREATED, failing);
+    const [failure] = await revokeDisconnectedGrants(
+      ENV,
+      [{ id: "sc_missing", stripeUserId: "acct_1Sample" }],
+      CREATED,
+      failing,
+    );
     expect(failure).toMatchObject({ connectionId: "sc_missing", queued: false });
     expect(failure.error).toMatch(/not queued for retry/);
   });

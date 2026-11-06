@@ -11,7 +11,12 @@ import {
   SignInLinkSent,
   SocialContinue,
 } from "~/components/auth-card";
-import { checkAuthLimit, limitedData, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "~/lib/auth/rate-limit.server";
+import {
+  checkAuthLimit,
+  limitedData,
+  SIGN_IN_LIMITED,
+  SIGN_UP_LIMITED,
+} from "~/lib/auth/rate-limit.server";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
@@ -70,10 +75,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
   const refusal = await checkAuthLimit(env, request, isCode ? "credential" : "signup");
   if (refusal) {
-    return limitedData({ sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null }, refusal);
+    return limitedData(
+      { sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null },
+      refusal,
+    );
   }
 
-  return answerSignInForm(env, request, await readForm(request), { isCode, limited: SIGN_UP_LIMITED });
+  return answerSignInForm(env, request, await readForm(request), {
+    isCode,
+    limited: SIGN_UP_LIMITED,
+  });
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {
@@ -114,7 +125,9 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
 
       <AuthFootnote>
         Already have an account?{" "}
-        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>Sign in</AuthLink>
+        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>
+          Sign in
+        </AuthLink>
       </AuthFootnote>
     </AuthCard>
   );

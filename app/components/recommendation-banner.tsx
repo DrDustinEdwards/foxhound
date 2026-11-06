@@ -53,7 +53,9 @@ export function RecommendationBanner({
           <span>{historyEvidence(p.history)}</span>
           <span>{valueEvidence(p.value, prediction.currency)}</span>
         </p>
-        <p className="m-0 mt-2 text-micro text-text-tertiary">Confidence: {p.recommendation.confidence}</p>
+        <p className="m-0 mt-2 text-micro text-text-tertiary">
+          Confidence: {p.recommendation.confidence}
+        </p>
       </Banner>
     </div>
   );

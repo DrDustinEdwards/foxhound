@@ -61,7 +61,13 @@ const subscription = (o: Record<string, unknown>) =>
   ({ status: "active", currency: "usd", ...o }) as unknown as Stripe.Subscription;
 
 const price = (unitAmount: number, interval: string, intervalCount = 1) => ({
-  items: { data: [{ price: { unit_amount: unitAmount, recurring: { interval, interval_count: intervalCount } } }] },
+  items: {
+    data: [
+      {
+        price: { unit_amount: unitAmount, recurring: { interval, interval_count: intervalCount } },
+      },
+    ],
+  },
 });
 
 const card = (expMonth: number, expYear: number) => ({
@@ -99,8 +105,19 @@ describe("SCOPE 1: failed invoices", () => {
   });
 
   it("the decline-code fallback chain runs in legacy's order", () => {
-    expect(extractDeclineCode(invoice({ last_finalization_error: { decline_code: "a" }, last_payment_error: { code: "b" } }))).toBe("a");
-    expect(extractDeclineCode(invoice({ last_payment_error: { code: "b" }, charge: { failure_code: "c" } }))).toBe("b");
+    expect(
+      extractDeclineCode(
+        invoice({
+          last_finalization_error: { decline_code: "a" },
+          last_payment_error: { code: "b" },
+        }),
+      ),
+    ).toBe("a");
+    expect(
+      extractDeclineCode(
+        invoice({ last_payment_error: { code: "b" }, charge: { failure_code: "c" } }),
+      ),
+    ).toBe("b");
     expect(extractDeclineCode(invoice({ charge: { failure_code: "c" } }))).toBe("c");
     // A charge that is still an id string carries no failure code.
     expect(extractDeclineCode(invoice({ charge: "ch_1" }))).toBeNull();
@@ -163,7 +180,9 @@ describe("SCOPE 2: expiring cards", () => {
   });
 
   it("normalizes every recurring interval to monthly cents", () => {
-    expect(monthlyPlanCents(subscription(price(1_200_00, "year")) as Stripe.Subscription)).toBe(10_000);
+    expect(monthlyPlanCents(subscription(price(1_200_00, "year")) as Stripe.Subscription)).toBe(
+      10_000,
+    );
     expect(monthlyPlanCents(subscription(price(100, "day")) as Stripe.Subscription)).toBe(3_000);
     expect(monthlyPlanCents(subscription(price(100, "week")) as Stripe.Subscription)).toBe(400);
     expect(monthlyPlanCents(subscription(price(500, "month", 2)) as Stripe.Subscription)).toBe(250);
@@ -293,7 +312,6 @@ describe("SCOPE 6: health", () => {
 });
 
 describe("PER-SCOPE STATUS: a zero never means unknown", () => {
-
   it("the subscriptions read fails THREE scopes, because three depend on it", () => {
     const result = audit({ subscriptions: failed("subs unavailable") });
     expect(result.expiringCards.ok).toBe(false);

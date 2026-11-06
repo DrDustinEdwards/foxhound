@@ -84,14 +84,22 @@ export async function confirmationNeeded(
     }
   }
   const expires = ctx.now.getTime() + CONFIRM_TTL_MS;
-  const confirm = await signToken(keys, { k: "mcp-confirm", a: ctx.accountId, key: ctx.trace.apiKeyId, h: hash, e: expires });
+  const confirm = await signToken(keys, {
+    k: "mcp-confirm",
+    a: ctx.accountId,
+    key: ctx.trace.apiKeyId,
+    h: hash,
+    e: expires,
+  });
   return {
     confirmation_required: true,
     would,
     confirm,
     expires_at: new Date(expires).toISOString(),
     ...(typeof presented === "string" && presented.length > 0
-      ? { note: "That confirm code does not match this exact call, or it has expired. Nothing was changed." }
+      ? {
+          note: "That confirm code does not match this exact call, or it has expired. Nothing was changed.",
+        }
       : {}),
   };
 }

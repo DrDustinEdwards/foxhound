@@ -45,12 +45,20 @@ function expiringCardsAlt(months: readonly ExpiringMonth[]): string {
   return `Cards expiring by month: ${months.map((m) => `${m.label} ${m.count}`).join(", ")}.`;
 }
 
-export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], width: number, fit: ChartFit = {}): string {
+export function drawExpiringCardsTimeline(
+  months: readonly ExpiringMonth[],
+  width: number,
+  fit: ChartFit = {},
+): string {
   const max = Math.max(...months.map((m) => m.count));
   const series = months.some((m) => m.count !== max) ? [PEAK, OTHER] : [PEAK];
   return barChart({
     title: "Cards expiring by month",
-    data: months.map((m) => ({ month: m.label, kind: m.count === max ? PEAK : OTHER, count: m.count })),
+    data: months.map((m) => ({
+      month: m.label,
+      kind: m.count === max ? PEAK : OTHER,
+      count: m.count,
+    })),
     x: "month",
     xDomain: months.map((m) => m.label),
     y: "count",
@@ -58,7 +66,9 @@ export function drawExpiringCardsTimeline(months: readonly ExpiringMonth[], widt
     seriesDomain: series,
     // Only the series in the chart get a color: Enarratio refuses a color
     // for a series that is not there, which is every equal-months chart.
-    colors: Object.fromEntries(series.map((s) => [s, s === PEAK ? "var(--red)" : "var(--brand-ui)"])),
+    colors: Object.fromEntries(
+      series.map((s) => [s, s === PEAK ? "var(--red)" : "var(--brand-ui)"]),
+    ),
     xLabel: null,
     yLabel: null,
     formatValue: (v) => String(v),

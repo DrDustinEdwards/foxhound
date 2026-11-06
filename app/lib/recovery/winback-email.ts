@@ -122,7 +122,10 @@ export function buildWinbackEmail(input: WinbackCopyInput): Block[] {
   };
   return [
     { type: "paragraph", text: `Hi ${vars.customer_name},` },
-    ...template.paragraphs.map((p): Block => ({ type: "paragraph", text: applyWinbackTemplate(p, vars) })),
+    ...template.paragraphs.map((p): Block => ({
+      type: "paragraph",
+      text: applyWinbackTemplate(p, vars),
+    })),
     { type: "button", label: template.cta, url: input.resubscribeUrl },
     { type: "paragraph", text: template.signOff },
     { type: "paragraph", text: vars.sender_name },

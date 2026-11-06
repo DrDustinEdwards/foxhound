@@ -70,7 +70,8 @@ export function describeCronSchedule(expression: string): string | null {
   if (dayOfMonth === "*" && dayOfWeek === "*") return `Daily at ${at}`;
   const weekday = cronWeekdayIndex(dayOfWeek);
   if (dayOfMonth === "*" && weekday !== null) return `${WEEKDAYS[weekday]}s at ${at}`;
-  if (isInt(dayOfMonth, 1, 31) && dayOfWeek === "*") return `Monthly on the ${ordinal(Number(dayOfMonth))} at ${at}`;
+  if (isInt(dayOfMonth, 1, 31) && dayOfWeek === "*")
+    return `Monthly on the ${ordinal(Number(dayOfMonth))} at ${at}`;
   return null;
 }
 
@@ -91,5 +92,7 @@ export function cronsSummaryWords(total: number, switchedOff: number): string {
 
 /** "1 failed run in the last 24 hours", "3 failed runs in the last 24 hours". */
 export function failedRunsWords(count: number): string {
-  return count === 1 ? "1 failed run in the last 24 hours" : `${count} failed runs in the last 24 hours`;
+  return count === 1
+    ? "1 failed run in the last 24 hours"
+    : `${count} failed runs in the last 24 hours`;
 }

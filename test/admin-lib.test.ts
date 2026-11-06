@@ -67,11 +67,15 @@ describe("getEnvSanity", () => {
 
   it("fails the Stripe key row when it is not a live key, without quoting it", () => {
     const problem = (key: string) =>
-      getEnvSanity({ STRIPE_SECRET_KEY: key } as unknown as Env).find((r) => r.name === "STRIPE_SECRET_KEY")?.problem;
+      getEnvSanity({ STRIPE_SECRET_KEY: key } as unknown as Env).find(
+        (r) => r.name === "STRIPE_SECRET_KEY",
+      )?.problem;
     expect(problem("sk_test_abc123")).toBe("Not a live key");
     expect(problem("sk_live_abc123")).toBeNull();
     expect(problem("rk_live_abc123")).toBeNull();
-    expect(JSON.stringify(getEnvSanity({ STRIPE_SECRET_KEY: "sk_test_abc123" } as unknown as Env))).not.toContain("abc123");
+    expect(
+      JSON.stringify(getEnvSanity({ STRIPE_SECRET_KEY: "sk_test_abc123" } as unknown as Env)),
+    ).not.toContain("abc123");
   });
 
   it("covers every DB/DO binding this Worker declares", () => {

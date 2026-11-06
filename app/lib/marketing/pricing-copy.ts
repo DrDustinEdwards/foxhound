@@ -50,7 +50,8 @@ export interface PricingCard {
 /** Intelligence is free on every account (Dustin, 2026-10-29), in the words
  *  every page uses (here, the home page and /product/intelligence), so the site
  *  says one thing. */
-export const INTELLIGENCE_FREE_SENTENCE = "Intelligence is free for every Foxhound account, with nothing to subscribe to.";
+export const INTELLIGENCE_FREE_SENTENCE =
+  "Intelligence is free for every Foxhound account, with nothing to subscribe to.";
 
 export const PRICING_CARDS: PricingCard[] = [
   {

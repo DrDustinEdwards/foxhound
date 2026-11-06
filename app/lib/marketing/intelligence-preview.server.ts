@@ -59,7 +59,9 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
   });
 
   // getMrrSnapshotSeries orders by snapshot date; the dashboard reads the last.
-  const snapshots = [...seed.mrrSnapshots].sort((a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime());
+  const snapshots = [...seed.mrrSnapshots].sort(
+    (a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime(),
+  );
   const latest = snapshots[snapshots.length - 1];
   const { report } = buildNarrativeSeed({
     accountId: DEMO_ACCOUNT_ID,
@@ -69,7 +71,11 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     idPrefix: "d",
   });
   const currency = latest?.currency ?? "usd";
-  const daily = snapshots.map((r) => ({ at: r.snapshotDate, totalMrrCents: r.totalMrrCents, newMrrCents: r.newMrrCents ?? 0 }));
+  const daily = snapshots.map((r) => ({
+    at: r.snapshotDate,
+    totalMrrCents: r.totalMrrCents,
+    newMrrCents: r.newMrrCents ?? 0,
+  }));
   const delta = dayOverDayCents(daily);
 
   const scored = seed.customerContext.map((c) => ({
@@ -103,7 +109,9 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     const members = directory.filter((c) => healthScoreBand(c.healthScore) === band);
     // The demo bills in one currency; a second one would be a seed change, and
     // this shows the first, as the Recovery spoke's preview does.
-    const [total] = groupSumByCurrency(members.map((c) => ({ currency: c.currency, cents: c.mrrCents })));
+    const [total] = groupSumByCurrency(
+      members.map((c) => ({ currency: c.currency, cents: c.mrrCents })),
+    );
     return {
       band,
       customerCount: members.length,
@@ -135,6 +143,7 @@ let cached: { hour: number; preview: IntelligencePreview } | null = null;
 
 export function intelligencePreviewFor(nowMs: number): IntelligencePreview {
   const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour) cached = { hour, preview: buildIntelligencePreview(new Date(hour * HOUR_MS)) };
+  if (cached?.hour !== hour)
+    cached = { hour, preview: buildIntelligencePreview(new Date(hour * HOUR_MS)) };
   return cached.preview;
 }

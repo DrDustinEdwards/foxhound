@@ -32,9 +32,16 @@ export function meta() {
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const [pending, recent] = await Promise.all([listStagedChanges(db, "pending"), listStagedChanges(db, null, 50)]);
+  const [pending, recent] = await Promise.all([
+    listStagedChanges(db, "pending"),
+    listStagedChanges(db, null, 50),
+  ]);
   return {
-    pending: pending.map((row) => ({ ...row, summary: describeStaged(row), phrase: stagedConfirmPhrase(row) })),
+    pending: pending.map((row) => ({
+      ...row,
+      summary: describeStaged(row),
+      phrase: stagedConfirmPhrase(row),
+    })),
     recent: recent
       .filter((row) => row.status !== "pending")
       .map((row) => ({ ...row, summary: describeStaged(row) })),
@@ -85,19 +92,24 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
 
   return (
     <div>
-
       <p className="mb-4 text-body text-text-tertiary">
         Changes the admin AI asked for that start or change money. Nothing here has happened yet.
         Confirming one applies it now, under your name.
       </p>
 
       {actionData && !actionData.ok && actionData.error ? (
-        <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+        >
           {actionData.error}
         </p>
       ) : null}
       {actionData && actionData.ok && actionData.message ? (
-        <p role="status" className="mb-4 rounded-md border border-border bg-surface px-3 py-2 text-label text-text">
+        <p
+          role="status"
+          className="mb-4 rounded-md border border-border bg-surface px-3 py-2 text-label text-text"
+        >
           {actionData.message}
         </p>
       ) : null}
@@ -112,7 +124,8 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
             <div key={row.id} className="rounded-lg border border-border bg-surface p-4">
               <p className="text-body text-text">{row.summary}</p>
               <p className="mt-1 text-label text-text-tertiary">
-                Asked for by {row.requestedBy} via {row.requestedVia}, <AdminTime at={row.requestedAt} />
+                Asked for by {row.requestedBy} via {row.requestedVia},{" "}
+                <AdminTime at={row.requestedAt} />
                 {row.note ? `: ${row.note}` : ""}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -121,7 +134,10 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
                   <input type="hidden" name="id" value={row.id} />
                   {row.phrase ? (
                     <>
-                      <label htmlFor={`confirm-${row.id}`} className="text-label text-text-secondary">
+                      <label
+                        htmlFor={`confirm-${row.id}`}
+                        className="text-label text-text-secondary"
+                      >
                         Type <span className="font-mono text-text">{row.phrase}</span> to confirm
                       </label>
                       <input
@@ -170,10 +186,16 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
                   <tr key={row.id} className="border-b border-border-sub last:border-0">
                     <td className="px-4 py-3 text-text">{row.summary}</td>
                     <td className="px-4 py-3">
-                      <Badge tone={STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"}>{row.status}</Badge>
+                      <Badge
+                        tone={STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"}
+                      >
+                        {row.status}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-text-tertiary">{row.decidedBy ?? "-"}</td>
-                    <td className="px-4 py-3 text-text-tertiary"><AdminTime at={row.decidedAt} empty="-" /></td>
+                    <td className="px-4 py-3 text-text-tertiary">
+                      <AdminTime at={row.decidedAt} empty="-" />
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -8,7 +8,11 @@ const UPDATE_URL = "https://billing.yoursaas.com/update";
 
 type Result = { subject: string; body: string } | { error: true };
 
-function node<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
+function node<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   el.className = className;
   if (text !== undefined) el.textContent = text;
@@ -19,20 +23,34 @@ function drawResult(out: HTMLElement, result: Result | null): void {
   out.replaceChildren();
   if (!result) return;
   if ("error" in result) {
-    out.appendChild(node("div", "border-t border-border-sub p-5 text-label text-error-text", "Generation failed. Try again."));
+    out.appendChild(
+      node(
+        "div",
+        "border-t border-border-sub p-5 text-label text-error-text",
+        "Generation failed. Try again.",
+      ),
+    );
     return;
   }
   const box = node("div", "border-t border-border-sub p-5");
   for (const part of [
     node("p", "mb-3 font-mono text-source uppercase tracking-widest text-text-subtle", "Subject"),
-    node("div", "mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-copy font-medium text-text", result.subject),
+    node(
+      "div",
+      "mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-copy font-medium text-text",
+      result.subject,
+    ),
     node("p", "mb-2 font-mono text-source uppercase tracking-widest text-text-subtle", "Body"),
     node(
       "div",
       "whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-[1.7] text-text-secondary",
       result.body.replace("{{update_url}}", UPDATE_URL),
     ),
-    node("p", "mt-3 font-mono text-source text-text-subtle", "Generated in real time by AI, for a fictional customer."),
+    node(
+      "p",
+      "mt-3 font-mono text-source text-text-subtle",
+      "Generated in real time by AI, for a fictional customer.",
+    ),
   ])
     box.appendChild(part);
   out.appendChild(box);
@@ -40,9 +58,17 @@ function drawResult(out: HTMLElement, result: Result | null): void {
 
 async function generate(category: string): Promise<Result> {
   try {
-    const response = await fetch(ACTION, { method: "POST", body: new URLSearchParams({ category }) });
-    const result = (await response.json()) as Partial<{ subject: string; body: string; error: true }>;
-    if (typeof result.subject === "string" && typeof result.body === "string") return { subject: result.subject, body: result.body };
+    const response = await fetch(ACTION, {
+      method: "POST",
+      body: new URLSearchParams({ category }),
+    });
+    const result = (await response.json()) as Partial<{
+      subject: string;
+      body: string;
+      error: true;
+    }>;
+    if (typeof result.subject === "string" && typeof result.body === "string")
+      return { subject: result.subject, body: result.body };
   } catch {
     // A network failure or a body that is not the route's JSON is a failed generation.
   }
@@ -69,7 +95,8 @@ export default function start(el: HTMLElement): void {
   };
 
   const onClick = async () => {
-    const category = el.querySelector<HTMLInputElement>("input[name='decline-type']:checked")?.value ?? "soft";
+    const category =
+      el.querySelector<HTMLInputElement>("input[name='decline-type']:checked")?.value ?? "soft";
     drawResult(out, null);
     setBusy(true);
     const result = await generate(category);

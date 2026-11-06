@@ -67,7 +67,10 @@ export function EmailSamples() {
   // request, so a new call never shows the last call's email or failure line.
   function generate() {
     setResult(null);
-    void fetcher.submit({ category }, { method: "post", action: "/marketing/generate-email-sample" });
+    void fetcher.submit(
+      { category },
+      { method: "post", action: "/marketing/generate-email-sample" },
+    );
   }
 
   return (
@@ -117,7 +120,9 @@ function EmailGeneratorView({
             <div className="mb-4">
               <Segmented
                 legend={
-                  <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">Decline type</span>
+                  <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
+                    Decline type
+                  </span>
                 }
                 name="decline-type"
                 layout="cards"
@@ -129,7 +134,9 @@ function EmailGeneratorView({
                   label: (
                     <span className="block text-caption">
                       <span className="block font-medium">{c.label}</span>
-                      <span className="mt-0.5 block font-mono text-source opacity-80">{c.desc}</span>
+                      <span className="mt-0.5 block font-mono text-source opacity-80">
+                        {c.desc}
+                      </span>
                     </span>
                   ),
                 }))}
@@ -170,14 +177,20 @@ function EmailGeneratorView({
 
           <div aria-live="polite">
             {busy ? null : result && "error" in result ? (
-              <div className="border-t border-border-sub p-5 text-label text-error-text">Generation failed. Try again.</div>
+              <div className="border-t border-border-sub p-5 text-label text-error-text">
+                Generation failed. Try again.
+              </div>
             ) : result ? (
               <div className="border-t border-border-sub p-5">
-                <p className="mb-3 font-mono text-source uppercase tracking-widest text-text-subtle">Subject</p>
+                <p className="mb-3 font-mono text-source uppercase tracking-widest text-text-subtle">
+                  Subject
+                </p>
                 <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-copy font-medium text-text">
                   {result.subject}
                 </div>
-                <p className="mb-2 font-mono text-source uppercase tracking-widest text-text-subtle">Body</p>
+                <p className="mb-2 font-mono text-source uppercase tracking-widest text-text-subtle">
+                  Body
+                </p>
                 <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-[1.7] text-text-secondary">
                   {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
                 </div>

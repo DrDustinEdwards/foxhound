@@ -19,9 +19,8 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { runIntelligenceAiForAccount } = await import("~/lib/intelligence/ai-run.server");
 const route = await import("~/routes/app/intelligence/recommendations");
-const { recommendOneCustomer, personalOutreachCustomerIds } = await import(
-  "~/lib/intelligence/recommendations.server"
-);
+const { recommendOneCustomer, personalOutreachCustomerIds } =
+  await import("~/lib/intelligence/recommendations.server");
 
 const ACCOUNT = "acct_rec";
 const NOW = Date.parse("2026-10-25T03:00:00.000Z");
@@ -53,7 +52,9 @@ beforeEach(() => {
   const made = createInMemoryDb();
   sqlite = made.sqlite;
   harness.db = made.db;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(ACCOUNT);
   sqlite
     .prepare(
       "INSERT INTO account_subscriptions (id, account_id, product, status, created_at) VALUES ('sub_i', ?, 'intelligence', 'active', 1000)",
@@ -62,7 +63,11 @@ beforeEach(() => {
   const customer = sqlite.prepare(
     "INSERT INTO customer_context (id, account_id, stripe_customer_id, customer_name, current_plan_name, mrr_contribution_cents, currency, recovery_signals, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'usd', ?, 1000, 1000)",
   );
-  const oneFailure = JSON.stringify({ failedPaymentCount: 1, recoveredCount: 0, avgDaysToRecover: null });
+  const oneFailure = JSON.stringify({
+    failedPaymentCount: 1,
+    recoveredCount: 0,
+    avgDaysToRecover: null,
+  });
   // cus_big: the top of the account by MRR, three recovery emails this month
   // and no tracked open, so Recova's table says reach out personally.
   customer.run("cc_big", ACCOUNT, "cus_big", "Big Co", "Scale plan", 50_000, oneFailure);
@@ -88,7 +93,9 @@ describe("recommendations, from the nightly batch to the page", () => {
     await runIntelligenceAiForAccount(env, ACCOUNT, NOW);
 
     const actions = sqlite
-      .prepare("SELECT stripe_customer_id, recommended_action FROM customer_context ORDER BY stripe_customer_id")
+      .prepare(
+        "SELECT stripe_customer_id, recommended_action FROM customer_context ORDER BY stripe_customer_id",
+      )
       .all();
     expect(actions).toEqual([
       { stripe_customer_id: "cus_big", recommended_action: "personal_outreach" },
@@ -146,6 +153,8 @@ describe("recommendations, from the nightly batch to the page", () => {
     expect(await recommendOneCustomer(db, ACCOUNT, "cus_unknown", NOW)).toBeNull();
     expect(await recommendOneCustomer(db, ACCOUNT, null, NOW)).toBeNull();
 
-    expect(await personalOutreachCustomerIds(db, ACCOUNT, ["cus_big", "cus_mid", "cus_small"])).toEqual(["cus_big"]);
+    expect(
+      await personalOutreachCustomerIds(db, ACCOUNT, ["cus_big", "cus_mid", "cus_small"]),
+    ).toEqual(["cus_big"]);
   });
 });

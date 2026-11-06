@@ -48,7 +48,9 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   // which says what happened, instead of Better Auth's own error page.
   const errorCallbackURL = new URL("/login", env.BETTER_AUTH_URL).toString();
 
-  const res = await (await getAuth(env)).api.signInSocial({
+  const res = await (
+    await getAuth(env)
+  ).api.signInSocial({
     body: { provider, callbackURL, errorCallbackURL },
     headers: request.headers,
     asResponse: true,

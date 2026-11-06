@@ -141,7 +141,11 @@ describe("PLANT 1: an anonymous page is shared only as the Renderer rendered it"
     const shared = applyCachePolicy(request("/pricing"), new Response("x"), true);
     expect(shared.headers.get("Cloudflare-CDN-Cache-Control")).toMatch(/^max-age=\d+/);
     expect(shared.headers.get("Cache-Tag")).toBe("pages");
-    const cookied = applyCachePolicy(request("/pricing"), new Response("x", { headers: { "Set-Cookie": "a=1" } }), true);
+    const cookied = applyCachePolicy(
+      request("/pricing"),
+      new Response("x", { headers: { "Set-Cookie": "a=1" } }),
+      true,
+    );
     expect(cookied.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
     expect(cookied.headers.get("Cache-Tag")).toBeNull();
   });
@@ -159,9 +163,7 @@ describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
   });
 
   it("it is found among OTHER cookies, not only when it is alone", () => {
-    expect(
-      hasSessionCookie(request("/", `theme=dark; ${PROD_COOKIE}; demo=1`)),
-    ).toBe(true);
+    expect(hasSessionCookie(request("/", `theme=dark; ${PROD_COOKIE}; demo=1`))).toBe(true);
   });
 });
 
@@ -171,18 +173,23 @@ describe("PLANT 8: the gateway sends only an anonymous GET or HEAD of a public p
     expect(edgeCacheable(request(path, "fh_theme=light"))).toBe(true);
   });
 
-  it.each(PUBLIC_ROUTES)("%s stays in the gateway with a session cookie, or any other cookie", (path) => {
-    expect(edgeCacheable(request(path, PROD_COOKIE))).toBe(false);
-    expect(edgeCacheable(request(path, `fh_theme=dark; ${LOCAL_COOKIE}`))).toBe(false);
-    expect(edgeCacheable(request(path, "fh_demo=1"))).toBe(false);
-  });
+  it.each(PUBLIC_ROUTES)(
+    "%s stays in the gateway with a session cookie, or any other cookie",
+    (path) => {
+      expect(edgeCacheable(request(path, PROD_COOKIE))).toBe(false);
+      expect(edgeCacheable(request(path, `fh_theme=dark; ${LOCAL_COOKIE}`))).toBe(false);
+      expect(edgeCacheable(request(path, "fh_demo=1"))).toBe(false);
+    },
+  );
 
   it.each(PRIVATE_ROUTES)("%s stays in the gateway", (path) => {
     expect(edgeCacheable(request(path))).toBe(false);
   });
 
   it("writes and the media library stay in the gateway", () => {
-    expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "POST" }))).toBe(false);
+    expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "POST" }))).toBe(
+      false,
+    );
     expect(edgeCacheable(request("/media/a.png"))).toBe(false);
   });
 
@@ -254,8 +261,14 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
 describe("PLANT 7: the policy is applied at the one choke point", () => {
   it("the fetch entry applies it to the rate-limited, the handled and the Renderer's response", () => {
     const source = readFileSync("workers/app.ts", "utf8");
-    expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))");
-    expect(source).toContain("applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))");
-    expect(source).toContain("withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader())");
+    expect(source).toContain(
+      "applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))",
+    );
+    expect(source).toContain(
+      "applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))",
+    );
+    expect(source).toContain(
+      "withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader())",
+    );
   });
 });

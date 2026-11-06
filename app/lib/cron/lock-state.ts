@@ -39,9 +39,7 @@ export interface CronLockState {
   legacyHeldUntil: number | null;
 }
 
-export type AcquireDecision =
-  | { granted: false }
-  | { granted: true; record: CronLockRecord };
+export type AcquireDecision = { granted: false } | { granted: true; record: CronLockRecord };
 
 /**
  * Decide whether a caller may take the lock, and with what record.

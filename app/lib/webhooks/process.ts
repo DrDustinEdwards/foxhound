@@ -58,7 +58,10 @@ export async function processConnectedWebhook(
     try {
       await claimUnknownAccount(env, event, receivedAt);
     } catch (err) {
-      return { status: "error", message: err instanceof Error ? err.message : "webhook claim error" };
+      return {
+        status: "error",
+        message: err instanceof Error ? err.message : "webhook claim error",
+      };
     }
     return { status: "ignored", reason: "unknown_account" };
   }
@@ -76,11 +79,20 @@ export async function processConnectedWebhook(
   // live key only, so acting on one would mail a real customer about a test
   // invoice and bill a recovery that never happened. Strictly false: an event
   // without the field is not assumed to be a test.
-  const intent = event.livemode === false
-    ? ({ kind: "ignore", reason: "test_mode" } as const)
-    : classifyStripeEvent(event);
+  const intent =
+    event.livemode === false
+      ? ({ kind: "ignore", reason: "test_mode" } as const)
+      : classifyStripeEvent(event);
   const idempotencyKey = `webhook:${event.id}`;
-  const ctx: WebhookContext = { env, event, receivedAt, accountId, connectionId, claim, idempotencyKey };
+  const ctx: WebhookContext = {
+    env,
+    event,
+    receivedAt,
+    accountId,
+    connectionId,
+    claim,
+    idempotencyKey,
+  };
 
   try {
     if (intent.kind === "ignore") {
@@ -107,7 +119,8 @@ export async function processConnectedWebhook(
     if (intent.kind === "dispute_funds") return await handleDisputeFunds(ctx, intent);
     if (intent.kind === "inquiry_closed") return await handleInquiryClosed(ctx, intent);
     if (intent.kind === "winback_start") return await handleWinbackStart(ctx, intent);
-    if (intent.kind === "record_subscription_change") return await handleRecordSubscriptionChange(ctx, intent);
+    if (intent.kind === "record_subscription_change")
+      return await handleRecordSubscriptionChange(ctx, intent);
     if (intent.kind === "account_health") return await handleAccountHealth(ctx, intent);
     if (intent.kind === "connection_deauthorized") return await handleConnectionDeauthorized(ctx);
     if (intent.kind === "early_fraud_warning") return await handleEarlyFraudWarning(ctx, intent);

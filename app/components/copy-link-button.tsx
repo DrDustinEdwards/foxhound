@@ -29,8 +29,11 @@ export function CopyLinkButton({
   const drawn = (state: boolean) => {
     const el = icon?.(state);
     if (!el) return null;
-    const className = [el.props.className, state === copied ? "" : "hidden"].filter(Boolean).join(" ") || undefined;
-    return cloneElement(el, { className, key: String(state), "data-copied": String(state) } as { className?: string });
+    const className =
+      [el.props.className, state === copied ? "" : "hidden"].filter(Boolean).join(" ") || undefined;
+    return cloneElement(el, { className, key: String(state), "data-copied": String(state) } as {
+      className?: string;
+    });
   };
 
   return (

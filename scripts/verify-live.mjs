@@ -41,7 +41,9 @@ for (let i = 1; i <= ATTEMPTS; i++) {
         if (code !== 200) bad.push(`${ref} (${code || "no answer"})`);
       }
       if (bad.length === 0) {
-        console.log(`verify-live: home page 200 and all ${refs.length} assets it names answer 200.`);
+        console.log(
+          `verify-live: home page 200 and all ${refs.length} assets it names answer 200.`,
+        );
         process.exit(0);
       }
       last = `assets not answering 200: ${bad.join(", ")}`;
@@ -55,5 +57,7 @@ if (homeBroken && !last.includes("did not answer")) {
   console.error(`verify-live: REFUSED. After five minutes the ${last}.`);
   process.exit(1);
 }
-console.error(`verify-live: could not confirm the rollout after five minutes (${last}). The deploy stays.`);
+console.error(
+  `verify-live: could not confirm the rollout after five minutes (${last}). The deploy stays.`,
+);
 process.exit(3);

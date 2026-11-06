@@ -1,4 +1,8 @@
-import { confirmEmailLink, emailLinkResult, type EmailLinkProblem } from "@dustinedwards/site-runtime/sign-in";
+import {
+  confirmEmailLink,
+  emailLinkResult,
+  type EmailLinkProblem,
+} from "@dustinedwards/site-runtime/sign-in";
 import { signalCurrentUserDetails } from "@dustinedwards/site-runtime/sign-in-client";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -90,7 +94,10 @@ export default function EmailConfirm({ loaderData, actionData }: Route.Component
 
   if (done || problem) {
     const said = done ? DONE[done] : PROBLEM[problem as EmailLinkProblem];
-    const text = done === "changed" && newEmail ? `You now sign in to Foxhound with ${newEmail}. ${said.text}` : said.text;
+    const text =
+      done === "changed" && newEmail
+        ? `You now sign in to Foxhound with ${newEmail}. ${said.text}`
+        : said.text;
     return (
       <AuthCard>
         <AuthHeading title={said.title} />
@@ -110,7 +117,9 @@ export default function EmailConfirm({ loaderData, actionData }: Route.Component
       />
       {/* A plain form: it posts to this URL, token and all, and the browser follows the redirect. */}
       <form method="post" className="grid gap-3">
-        {actionData?.limited ? <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert> : null}
+        {actionData?.limited ? (
+          <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert>
+        ) : null}
         <Button type="submit" variant="primary" size="lg">
           Confirm
         </Button>

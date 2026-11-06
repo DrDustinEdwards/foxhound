@@ -14,7 +14,11 @@ import {
 } from "~/db";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import type { DisputeFundsEntry } from "~/lib/disputes/timeline";
-import { approveAndSubmit, hashEvidence, type ApproveAndSubmitResult } from "~/lib/disputes/approval";
+import {
+  approveAndSubmit,
+  hashEvidence,
+  type ApproveAndSubmitResult,
+} from "~/lib/disputes/approval";
 import {
   buildPendingApprovalBatch,
   buildSubmissionConfirmationBatch,
@@ -86,12 +90,16 @@ export async function getDisputeDetail(
     db
       .select()
       .from(disputeEvidence)
-      .where(and(eq(disputeEvidence.disputeId, disputeId), eq(disputeEvidence.accountId, accountId)))
+      .where(
+        and(eq(disputeEvidence.disputeId, disputeId), eq(disputeEvidence.accountId, accountId)),
+      )
       .orderBy(asc(disputeEvidence.createdAt), asc(disputeEvidence.id)),
     db
       .select()
       .from(disputeApprovals)
-      .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId))),
+      .where(
+        and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId)),
+      ),
     db
       .select({
         kind: disputeBalanceTransactions.kind,
@@ -146,7 +154,9 @@ export async function saveDisputeDraft(
     db
       .select({ one: sql`1` })
       .from(disputeApprovals)
-      .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId))),
+      .where(
+        and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId)),
+      ),
   );
   const statements: BatchItem<"sqlite">[] = [];
   for (const field of fields) {
@@ -190,7 +200,14 @@ export async function saveDisputeDraft(
               createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
             })
             .from(disputes)
-            .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId), noApproval, noSameField)),
+            .where(
+              and(
+                eq(disputes.id, disputeId),
+                eq(disputes.accountId, accountId),
+                noApproval,
+                noSameField,
+              ),
+            ),
         ),
       );
     }
@@ -338,9 +355,17 @@ export async function getCustomerHealthScores(
   for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
     const chunk = ids.slice(i, i + HEALTH_LOOKUP_CHUNK);
     const rows = await db
-      .select({ stripeCustomerId: customerContext.stripeCustomerId, healthScore: customerContext.healthScore })
+      .select({
+        stripeCustomerId: customerContext.stripeCustomerId,
+        healthScore: customerContext.healthScore,
+      })
       .from(customerContext)
-      .where(and(eq(customerContext.accountId, accountId), inArray(customerContext.stripeCustomerId, chunk)));
+      .where(
+        and(
+          eq(customerContext.accountId, accountId),
+          inArray(customerContext.stripeCustomerId, chunk),
+        ),
+      );
     for (const row of rows) {
       if (row.healthScore !== null) scores[row.stripeCustomerId] = row.healthScore;
     }
@@ -354,7 +379,11 @@ export async function getCustomerHealthScores(
  * (disputeListStatus, labels.ts). Account-scoped on the evidence rows
  * themselves, and chunked under the D1 parameter cap like the health lookup.
  */
-export async function getDisputesWithEvidence(db: Db, accountId: string, disputeIds: string[]): Promise<Set<string>> {
+export async function getDisputesWithEvidence(
+  db: Db,
+  accountId: string,
+  disputeIds: string[],
+): Promise<Set<string>> {
   const ids = [...new Set(disputeIds)];
   const found = new Set<string>();
   for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
@@ -366,11 +395,14 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
         fieldValue: disputeEvidence.fieldValue,
       })
       .from(disputeEvidence)
-      .where(and(eq(disputeEvidence.accountId, accountId), inArray(disputeEvidence.disputeId, chunk)));
+      .where(
+        and(eq(disputeEvidence.accountId, accountId), inArray(disputeEvidence.disputeId, chunk)),
+      );
     for (const row of rows) {
       // An uploaded file is not drafted evidence: Recova's "Evidence ready"
       // read staged_at, which a file never set.
-      if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "") found.add(row.disputeId);
+      if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "")
+        found.add(row.disputeId);
     }
   }
   return found;
@@ -381,7 +413,12 @@ export async function getDisputesWithEvidence(db: Db, accountId: string, dispute
 export async function readDisputeSettings(
   db: Db,
   accountId: string,
-): Promise<{ enabled: boolean; productDescription: string; shipsPhysical: boolean; autoSubmit: boolean }> {
+): Promise<{
+  enabled: boolean;
+  productDescription: string;
+  shipsPhysical: boolean;
+  autoSubmit: boolean;
+}> {
   const [row] = await db
     .select({
       enabled: accounts.disputesEnabled,
@@ -420,7 +457,10 @@ export async function readDisputesEnabled(db: Db, accountId: string): Promise<bo
 /** The merchant's own product description for dispute evidence (S32). Recova's
  *  buildEvidenceFields made it the product_description of every response. A
  *  read failure leaves it out rather than failing a dispute intake. */
-export async function readDisputeProductDescription(db: Db, accountId: string): Promise<string | null> {
+export async function readDisputeProductDescription(
+  db: Db,
+  accountId: string,
+): Promise<string | null> {
   try {
     const text = (await readDisputeSettings(db, accountId)).productDescription.trim();
     return text ? text : null;

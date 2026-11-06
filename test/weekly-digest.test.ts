@@ -33,15 +33,10 @@ vi.mock("~/lib/email/dispatch", () => ({
   },
 }));
 
-const {
-  runWeeklyDigest,
-  queryDigestAccounts,
-  collectDigestNumbers,
-  DIGEST_WINDOW_MS,
-} = await import("~/lib/cron/digest");
-const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } = await import(
-  "~/lib/recovery/digest-email"
-);
+const { runWeeklyDigest, queryDigestAccounts, collectDigestNumbers, DIGEST_WINDOW_MS } =
+  await import("~/lib/cron/digest");
+const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } =
+  await import("~/lib/recovery/digest-email");
 
 /** The words of a digest's blocks, one line each, for a containment check. */
 function words(blocks: WordsBlock[]): string {
@@ -70,25 +65,35 @@ beforeEach(() => {
   seedAccount(ACCOUNT, 1);
 });
 
-function seedAccount(accountId: string, digestEnabled: number | null, email = "owner@acme.test"): void {
+function seedAccount(
+  accountId: string,
+  digestEnabled: number | null,
+  email = "owner@acme.test",
+): void {
   sqlite
     .prepare(
       "INSERT INTO accounts (id, name, created_at, digest_enabled, notification_email, processing_paused) VALUES (?, 'Acme', 1000, ?, ?, 0)",
     )
     .run(accountId, digestEnabled, email);
   sqlite
-      // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
-      // derived from the Foxhound account rather than hardcoded, because a
-      // shared literal made every two-account fixture violate the unique
-      // index the moment it shipped, and production could never have had two
-      // merchants on one connected account anyway.
+    // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
+    // derived from the Foxhound account rather than hardcoded, because a
+    // shared literal made every two-account fixture violate the unique
+    // index the moment it shipped, and production could never have had two
+    // merchants on one connected account anyway.
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES (?, ?, ?, 1, 'cipher', 'Teamflow', 1000, 1000)",
     )
     .run(`c_${accountId}`, accountId, `acct_s_${accountId}`);
 }
 
-function seedFailed(id: string, at: Date, cents = 5000, status = "active", accountId = ACCOUNT): void {
+function seedFailed(
+  id: string,
+  at: Date,
+  cents = 5000,
+  status = "active",
+  accountId = ACCOUNT,
+): void {
   sqlite
     .prepare(
       "INSERT INTO failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, amount_cents, currency, decline_category, status, detected_at) VALUES (?, ?, ?, ?, 'cus_1', 'b@a.test', ?, 'usd', 'soft', ?, ?)",
@@ -105,7 +110,6 @@ function seedRecovered(id: string, at: Date, cents = 5000, currency = "usd"): vo
     .run(id, ACCOUNT, `fp_${id}`, cents, currency, at.getTime());
 }
 
-
 describe("PLANT 1: the pure copy is legacy's", () => {
   it("recovery rate is a whole percent and ZERO when nothing failed", () => {
     expect(recoveryRate(0, 0)).toBe(0);
@@ -114,7 +118,9 @@ describe("PLANT 1: the pure copy is legacy's", () => {
   });
 
   it("currency falls back most-common, then failed, then usd", () => {
-    expect(resolveDigestCurrency([{ currency: "eur" }, { currency: "eur" }, { currency: "usd" }], [])).toBe("eur");
+    expect(
+      resolveDigestCurrency([{ currency: "eur" }, { currency: "eur" }, { currency: "usd" }], []),
+    ).toBe("eur");
     expect(resolveDigestCurrency([], [{ currency: "gbp" }])).toBe("gbp");
     expect(resolveDigestCurrency([], [])).toBe("usd");
   });
@@ -122,23 +128,23 @@ describe("PLANT 1: the pure copy is legacy's", () => {
   it("the conditional rows appear once their counts are above zero", () => {
     const text = words(
       buildDigestBlocks({
-      personalOutreachCount: 0,
-      totalFailed: 1,
-      totalRecovered: 0,
-      recoveredRevenue: [{ currency: "usd", cents: 0 }],
-      atRiskRevenue: [{ currency: "usd", cents: 100 }],
-      activeCount: 0,
-      emailsSent: 0,
-      winBackCount: 0,
-      expiringCardCount: 2,
-      openDisputeCount: 1,
-      openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
-      currency: "usd",
-      senderName: null,
-      disputesActive: true,
-      highRiskCustomers: [],
-      now: NOW,
-      baseUrl: "https://u.test",
+        personalOutreachCount: 0,
+        totalFailed: 1,
+        totalRecovered: 0,
+        recoveredRevenue: [{ currency: "usd", cents: 0 }],
+        atRiskRevenue: [{ currency: "usd", cents: 100 }],
+        activeCount: 0,
+        emailsSent: 0,
+        winBackCount: 0,
+        expiringCardCount: 2,
+        openDisputeCount: 1,
+        openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
+        currency: "usd",
+        senderName: null,
+        disputesActive: true,
+        highRiskCustomers: [],
+        now: NOW,
+        baseUrl: "https://u.test",
       }),
     );
 
@@ -149,14 +155,15 @@ describe("PLANT 1: the pure copy is legacy's", () => {
 });
 
 describe("PLANT 2: the toggle is NULL-is-OFF", () => {
-
   it("an account with no notification email is skipped", async () => {
     sqlite.prepare("UPDATE accounts SET notification_email = NULL WHERE id = ?").run(ACCOUNT);
     expect(await queryDigestAccounts(db)).toEqual([]);
   });
 
   it("an account whose only connection is disconnected is skipped", async () => {
-    sqlite.prepare("UPDATE stripe_connections SET disconnected_at = 2000 WHERE account_id = ?").run(ACCOUNT);
+    sqlite
+      .prepare("UPDATE stripe_connections SET disconnected_at = 2000 WHERE account_id = ?")
+      .run(ACCOUNT);
     expect(await queryDigestAccounts(db)).toEqual([]);
   });
 });

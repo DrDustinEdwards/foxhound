@@ -28,9 +28,17 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   if (!UPLOAD_KEY.test(key)) return new Response("Not found", { status: 404 });
   const { env } = context.get(cloudflareContext);
   const version = new URL(request.url).searchParams.get("v");
-  const current = version ? (await mediaRow(getDb(env), key))?.sha256.slice(0, VERSION_LENGTH) === version : false;
+  const current = version
+    ? (await mediaRow(getDb(env), key))?.sha256.slice(0, VERSION_LENGTH) === version
+    : false;
   const read = () => env.MEDIA.get(key);
   // `caches.default` is the Workers runtime's; the DOM lib does not declare it.
   const cache = (caches as typeof caches & { default: Cache }).default;
-  return images.respond(request, { object: await read(), images: env.IMAGES, cache, cacheControl: current ? undefined : UNVERSIONED_CACHE_CONTROL, reread: read });
+  return images.respond(request, {
+    object: await read(),
+    images: env.IMAGES,
+    cache,
+    cacheControl: current ? undefined : UNVERSIONED_CACHE_CONTROL,
+    reread: read,
+  });
 }

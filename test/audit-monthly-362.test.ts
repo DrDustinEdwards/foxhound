@@ -248,7 +248,7 @@ function collector() {
 type EmailInput = Parameters<typeof buildMonthlyAuditEmail>[0];
 type EmailResult = EmailInput["result"];
 
-const ok = <T,>(data: T) => ({ ok: true as const, data });
+const ok = <T>(data: T) => ({ ok: true as const, data });
 /** A scope whose Stripe read FAILED. The engine's own shape, so the email is
  *  driven by the real discriminated outcome rather than a reproduction of it. */
 const unread = (reason: string) => ({ ok: false as const, reason });
@@ -256,8 +256,19 @@ const unread = (reason: string) => ({ ok: false as const, reason });
 /** A complete result, with any scope replaceable by a failed one. */
 const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
   ({
-    failedInvoices: ok({ count: 2, totalCents: 4200, totals: [{ currency: "usd", cents: 4200 }], byCategory: {}, byCategoryTotals: {} }),
-    expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }], expiresByMonth: {} }),
+    failedInvoices: ok({
+      count: 2,
+      totalCents: 4200,
+      totals: [{ currency: "usd", cents: 4200 }],
+      byCategory: {},
+      byCategoryTotals: {},
+    }),
+    expiringCards: ok({
+      count: 1,
+      mrrAtRiskCents: 1500,
+      mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }],
+      expiresByMonth: {},
+    }),
     pastDueSubscriptions: ok({ count: 0, totalCents: 0, totals: [] }),
     cardUpdater: ok({
       eventsInWindow: 0,
@@ -331,9 +342,10 @@ describe("the comparison is per currency and never summed across them", () => {
 // ============================================================================
 
 describe("362 ruling 3: the ONE email carries BOTH halves", () => {
-
   it("a FALL reads as down, not as a negative amount", () => {
-    const { body: bodyHtml } = emailFor({ comparisons: [{ currency: "usd", cents: 100, changeCents: -500 }] });
+    const { body: bodyHtml } = emailFor({
+      comparisons: [{ currency: "usd", cents: 100, changeCents: -500 }],
+    });
     expect(bodyHtml).toContain("down $5.00");
     expect(bodyHtml).not.toContain("-$5.00");
   });
@@ -351,9 +363,7 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
     });
 
     expect(bodyHtml).toContain(`Open disputes: ${SCOPE_UNREAD}`);
-    expect(bodyHtml).toContain(
-      `Disputes accepted without response: ${SCOPE_UNREAD}`,
-    );
+    expect(bodyHtml).toContain(`Disputes accepted without response: ${SCOPE_UNREAD}`);
     // A zero would be indistinguishable from a merchant with no open disputes.
     expect(bodyHtml).not.toContain("Open disputes: 0");
     // The win rate has no honest value without the scope, so its row is the
@@ -370,7 +380,10 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
     // A single-scope check would pass against a coalescer that only handled
     // disputes. Each scope is failed on its own and its rows are swept.
     const cases: [Partial<EmailResult>, string[]][] = [
-      [{ health: unread("h") }, ["MRR", "ARR", "Active subs", "Voluntary churn", "Involuntary churn"]],
+      [
+        { health: unread("h") },
+        ["MRR", "ARR", "Active subs", "Voluntary churn", "Involuntary churn"],
+      ],
       [{ failedInvoices: unread("f") }, ["Failed payments detected"]],
       [{ expiringCards: unread("e") }, ["Expiring cards"]],
       [{ pastDueSubscriptions: unread("p") }, ["Past-due subscriptions"]],
@@ -432,7 +445,6 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
 // ============================================================================
 
 describe("(3): the account states every other per-account cron respects", () => {
-
   it("an account with NO notification email is audited but not mailed", async () => {
     // 339: notification_email is the only recipient. The run still happens and
     // is still readable in history, which is the merge's one behavior change
@@ -601,7 +613,6 @@ describe("the absorbed line runs off the prior month's stored snapshot", () => {
 // ============================================================================
 
 describe("(5): a failing account is retried, and never stops another", () => {
-
   it("an account switched off after it was queued is not audited", async () => {
     const db = fresh();
     await seedAccount(db, "acct_on", { auditAutoRun: true });
@@ -648,7 +659,12 @@ describe("the monthly audit email escapes what it interpolates (review of PR 146
     });
   const html = (over: Partial<EmailInput>) => {
     const { subject, blocks } = emailFor(over);
-    return renderFoxhoundEmail({ subject, blocks, brandName: "Foxhound", to: "owner@merchant.test" }).html;
+    return renderFoxhoundEmail({
+      subject,
+      blocks,
+      brandName: "Foxhound",
+      to: "owner@merchant.test",
+    }).html;
   };
 
   it("escapes once, never twice", () => {

@@ -91,10 +91,7 @@ export interface StripeOAuthResult {
  * payment. Strictly true: a response without the field is refused too. The
  * message names the cause and carries no token, so the callback can log it.
  */
-export async function exchangeConnectCode(
-  env: Env,
-  code: string,
-): Promise<StripeOAuthResult> {
+export async function exchangeConnectCode(env: Env, code: string): Promise<StripeOAuthResult> {
   const token = await getStripe(env).oauth.token({
     grant_type: "authorization_code",
     code,
@@ -103,7 +100,9 @@ export async function exchangeConnectCode(
     throw new Error("Stripe OAuth token response missing stripe_user_id/access_token");
   }
   if (token.livemode !== true) {
-    throw new Error("Stripe OAuth returned a test-mode token; check STRIPE_SECRET_KEY is a live key");
+    throw new Error(
+      "Stripe OAuth returned a test-mode token; check STRIPE_SECRET_KEY is a live key",
+    );
   }
   return {
     stripeUserId: token.stripe_user_id,
@@ -126,11 +125,7 @@ export async function fetchConnectedAccountName(
 ): Promise<string | null> {
   try {
     const account = await getStripe(env).accounts.retrieve(stripeUserId);
-    return (
-      account.business_profile?.name ??
-      account.settings?.dashboard?.display_name ??
-      null
-    );
+    return account.business_profile?.name ?? account.settings?.dashboard?.display_name ?? null;
   } catch {
     // Non-fatal: the connection still works without a display name.
     return null;

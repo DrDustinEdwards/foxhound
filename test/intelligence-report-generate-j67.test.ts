@@ -92,8 +92,14 @@ beforeEach(() => {
 describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
   it("refuses a month that is not YYYY-MM, as Recova does", async () => {
     const db = await seed();
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-13", NOW)).toEqual({ ok: false, error: "invalid_month" });
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "oct", NOW)).toEqual({ ok: false, error: "invalid_month" });
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-13", NOW)).toEqual({
+      ok: false,
+      error: "invalid_month",
+    });
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "oct", NOW)).toEqual({
+      ok: false,
+      error: "invalid_month",
+    });
     expect(createMock).not.toHaveBeenCalled();
   });
 
@@ -115,7 +121,10 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
       "The lowest health score is Low Co at 20/100.";
     expect(result).toEqual({ ok: true, month: "2026-10", narrative });
 
-    const reports = await db.select().from(intelligenceReports).where(eq(intelligenceReports.accountId, "acc_1"));
+    const reports = await db
+      .select()
+      .from(intelligenceReports)
+      .where(eq(intelligenceReports.accountId, "acc_1"));
     expect(reports).toHaveLength(1);
     expect(reports[0]!.reportMonth.toISOString()).toBe("2026-10-01T00:00:00.000Z");
     expect(reports[0]!.narrative).toBe(narrative);
@@ -129,23 +138,36 @@ describe("generateMonthlyReport: Recova's button on Foxhound's engine", () => {
     const db = await seed();
     expect(INTELLIGENCE_REPORT_HOURLY_LIMIT).toBe(5);
     for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
-      expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
+      expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({
+        ok: true,
+      });
     }
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({ ok: false, error: "rate_limited" });
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toEqual({
+      ok: false,
+      error: "rate_limited",
+    });
     expect(limiter.names.every((k) => k === "intelligence-report:acc_1")).toBe(true);
   });
 
   it("starts a fresh hour once the hour has passed", async () => {
     const db = await seed();
-    for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
+    for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++)
+      await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
     clock = NOW + 60 * 60 * 1000;
-    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({ ok: true });
+    expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({
+      ok: true,
+    });
   });
 
   it("keeps each account's hour to itself", async () => {
     const db = await seed();
-    await db.insert(accounts).values({ id: "acc_2", name: "Beta", currency: "usd", createdAt: new Date(NOW) });
-    for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
-    expect(await generateMonthlyReport(ENV, db, "acc_2", "2026-10", NOW)).toMatchObject({ ok: true });
+    await db
+      .insert(accounts)
+      .values({ id: "acc_2", name: "Beta", currency: "usd", createdAt: new Date(NOW) });
+    for (let i = 0; i <= INTELLIGENCE_REPORT_HOURLY_LIMIT; i++)
+      await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW);
+    expect(await generateMonthlyReport(ENV, db, "acc_2", "2026-10", NOW)).toMatchObject({
+      ok: true,
+    });
   });
 });

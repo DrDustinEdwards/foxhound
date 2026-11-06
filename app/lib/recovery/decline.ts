@@ -27,11 +27,7 @@ const NETWORK_CODES = new Set([
 // so a retry on the same card cannot work: it falls through to "unknown", the
 // email-only cadence.
 
-const EXPIRED_CODES = new Set([
-  "expired_card",
-  "invalid_expiry_month",
-  "invalid_expiry_year",
-]);
+const EXPIRED_CODES = new Set(["expired_card", "invalid_expiry_month", "invalid_expiry_year"]);
 
 const FRAUD_CODES = new Set([
   "fraudulent",
@@ -56,10 +52,7 @@ const FRAUD_CODES = new Set([
 // own single-email "cancel or update payment method?" hold, never a retry and
 // never a multi-step dunning sequence (schedule.ts RECOVERY_SCHEDULES.revoked).
 // Both the singular Stripe decline_code and the plural form map here.
-const REVOKED_CODES = new Set([
-  "revocation_of_authorization",
-  "revocation_of_all_authorizations",
-]);
+const REVOKED_CODES = new Set(["revocation_of_authorization", "revocation_of_all_authorizations"]);
 
 export function classifyDecline(code: string | null | undefined): DeclineCategory {
   if (!code) return "unknown";

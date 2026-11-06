@@ -80,10 +80,12 @@ function fakeList<T>(items: T[]): AsyncIterable<T> {
  *  measurement rather than an absence of rows. */
 function countingStripe() {
   const calls = { n: 0 };
-  const list = <T,>(items: T[]) => () => {
-    calls.n += 1;
-    return fakeList(items);
-  };
+  const list =
+    <T>(items: T[]) =>
+    () => {
+      calls.n += 1;
+      return fakeList(items);
+    };
   const stripe = {
     invoices: {
       list: list([
@@ -229,7 +231,11 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
     const queued = queue.bodies as { accountId: string }[];
     expect(queued.map((b) => b.accountId).sort()).toEqual(["a_on", "b_on"]);
     for (const body of queued) {
-      expect(body).toEqual({ accountId: body.accountId, periodMonth: PERIOD, cronRunId: runs[0].id });
+      expect(body).toEqual({
+        accountId: body.accountId,
+        periodMonth: PERIOD,
+        cronRunId: runs[0].id,
+      });
     }
 
     // The cron invocation itself touched no Stripe account, wrote no claim and
@@ -260,7 +266,6 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
 });
 
 describe("the consumer audits the one account its message names", () => {
-
   it("A REDELIVERED message audits nothing twice and mails nobody twice", async () => {
     const { db, env, queue, delivered, stripeCalls } = setup();
     await seedAccount(db, "a_on");
@@ -290,7 +295,6 @@ describe("the consumer audits the one account its message names", () => {
 });
 
 describe("a failure logs the whole err and lets the queue retry", () => {
-
   it("the LAST attempt raises the monthly-audit failure alert", async () => {
     const { db, env, queue, failFor } = setup();
     await seedAccount(db, "a_on");
@@ -317,7 +321,9 @@ describe("a failure logs the whole err and lets the queue retry", () => {
 // ============================================================================
 
 const loggedText = (spy: { mock: { calls: unknown[][] } }) =>
-  spy.mock.calls.map((args) => args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "));
+  spy.mock.calls.map((args) =>
+    args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "),
+  );
 
 describe("a claim that cannot be read as taken is not acked as a duplicate", () => {
   it("AN INSERT ERROR WITH NO ROW BEHIND IT is retried, not swallowed", async () => {
@@ -379,7 +385,9 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
     await plant(db, "sent");
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(await deliver(env, [{ body: bodyFor(queue.bodies, "a_on"), attempts: 2 }])).toEqual(["ack"]);
+    expect(await deliver(env, [{ body: bodyFor(queue.bodies, "a_on"), attempts: 2 }])).toEqual([
+      "ack",
+    ]);
     const text = loggedText(logged).join("\n");
     expect(text).toContain("a_on");
     expect(text).toContain("sent");

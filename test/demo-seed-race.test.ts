@@ -26,7 +26,10 @@ function stubLock(acquireImpl: () => Promise<string | null> = async () => "tok_d
 }
 
 async function accountExists(db: ReturnType<typeof createInMemoryDb>["db"]): Promise<boolean> {
-  const rows = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, DEMO_ACCOUNT_ID));
+  const rows = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.id, DEMO_ACCOUNT_ID));
   return rows.length > 0;
 }
 

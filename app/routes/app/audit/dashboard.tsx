@@ -206,9 +206,14 @@ function TrendRow({
       ) : (
         <div className="flex flex-col items-end gap-1">
           {lines.map((line) => (
-            <div key={line.currency} className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label">
+            <div
+              key={line.currency}
+              className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label"
+            >
               <span className="text-text">{formatCents(line.currentCents, line.currency)}</span>
-              <span className="text-text-subtle">vs {formatCents(line.previousCents, line.currency)}</span>
+              <span className="text-text-subtle">
+                vs {formatCents(line.previousCents, line.currency)}
+              </span>
               <Move cmp={line.comparison} />
             </div>
           ))}
@@ -306,8 +311,8 @@ export function AuditSettingsForm({
               Monthly audit digest
             </div>
             <p id={digestHelp} className="m-0 text-micro text-text-subtle">
-              On the 1st of each month, we run a fresh audit and email you a comparison versus the prior
-              month. No extra charge.
+              On the 1st of each month, we run a fresh audit and email you a comparison versus the
+              prior month. No extra charge.
             </p>
           </div>
           {/* Unchecked posts nothing, which the action reads as off. */}
@@ -344,7 +349,8 @@ function SettingsPanel({
   result: SaveResult;
 }) {
   const navigation = useNavigation();
-  const saving = navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
+  const saving =
+    navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
   return (
     <div className="mb-5">
       <Panel title="Settings">
@@ -443,7 +449,14 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
       <div className="mb-5">
         <Panel title="History" flush>
           {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Audit runs" tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-label="Audit runs"
+            tabIndex={0}
+          >
             <table className="cap-table">
               <thead>
                 <tr>

@@ -142,9 +142,7 @@ const FILES_EXACT = new Set([
  * someone deliberately lists it, which is the direction a mistake should fall.
  */
 export function classifyPath(pathname: string): CacheClass {
-  const path = pathname.length > 1 && pathname.endsWith("/")
-    ? pathname.slice(0, -1)
-    : pathname;
+  const path = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 
   if (MARKETING_EXACT.has(path)) return "marketing";
   if (MARKETING_PREFIXES.some((prefix) => path.startsWith(prefix))) return "marketing";
@@ -152,7 +150,13 @@ export function classifyPath(pathname: string): CacheClass {
   if (path === "/blog" || path.startsWith("/blog/")) return "blog";
   // The blog's media library files set their own directive
   // (app/routes/files/media.ts); listed so they get Vary: Cookie like any file.
-  if (FILES_EXACT.has(path) || path === "/og" || path.startsWith("/og/") || path.startsWith("/media/")) return "files";
+  if (
+    FILES_EXACT.has(path) ||
+    path === "/og" ||
+    path.startsWith("/og/") ||
+    path.startsWith("/media/")
+  )
+    return "files";
   return "private";
 }
 
@@ -210,7 +214,10 @@ function cookieNames(request: Request): string[] {
  * stored dark page can never answer a light reader.
  */
 export function edgeRequest(request: Request): { request: Request; theme: string } {
-  const theme = resolveThemePreference({ accountTheme: null, cookieTheme: readThemeCookie(request, THEME_COOKIE) });
+  const theme = resolveThemePreference({
+    accountTheme: null,
+    cookieTheme: readThemeCookie(request, THEME_COOKIE),
+  });
   // A HEAD goes on as a GET (site-runtime forRenderer): app/entry.server.tsx answers a HEAD with an empty body, which
   // must never be stored. forRenderer hands a GET back as it came, and an incoming request's headers are immutable on
   // Workers, so the copy is what takes the theme cookie (a set on the original was a 500 on every page, 2026-10-31).
@@ -250,7 +257,10 @@ function appendVary(headers: Headers, value: string): void {
     headers.set("Vary", value);
     return;
   }
-  const parts = existing.split(",").map((p) => p.trim()).filter(Boolean);
+  const parts = existing
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
   if (parts.some((p) => p.toLowerCase() === value.toLowerCase())) return;
   headers.set("Vary", [...parts, value].join(", "));
 }
@@ -305,15 +315,17 @@ function needsNoTransform(pathname: string, response: Response): boolean {
   if (!type.toLowerCase().includes("text/html")) return false;
   return NO_TRANSFORM_PREFIXES.some(
     (prefix) =>
-      pathname === prefix ||
-      pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
+      pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
   );
 }
 
 /** Merge into the one Cache-Control value; never a second header. */
 function addNoTransform(headers: Headers): void {
   const existing = headers.get("Cache-Control") ?? "";
-  const parts = existing.split(",").map((p) => p.trim()).filter(Boolean);
+  const parts = existing
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
   if (parts.some((p) => p.toLowerCase() === "no-transform")) return;
   headers.set("Cache-Control", [...parts, "no-transform"].join(", "));
 }
@@ -357,7 +369,10 @@ export function applyCachePolicy(request: Request, response: Response, edge = fa
     if (directive === shared["Cache-Control"] && !headers.has("Set-Cookie")) {
       for (const [name, value] of Object.entries(shared)) headers.set(name, value);
     } else {
-      headers.set("Cache-Control", directive === shared["Cache-Control"] ? PRIVATE_DIRECTIVE : directive);
+      headers.set(
+        "Cache-Control",
+        directive === shared["Cache-Control"] ? PRIVATE_DIRECTIVE : directive,
+      );
     }
   }
   if (wantsNoTransform) addNoTransform(headers);

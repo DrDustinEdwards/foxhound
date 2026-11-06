@@ -40,11 +40,19 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 const BAND_TONE: Record<HealthScoreBand, Tone> = { at_risk: "crit", watch: "warn", healthy: "ok" };
 
 /** ChurnRiskSummary's words for the three bands. */
-const BAND_LABEL: Record<HealthScoreBand, string> = { at_risk: "High risk", watch: "Medium", healthy: "Healthy" };
+const BAND_LABEL: Record<HealthScoreBand, string> = {
+  at_risk: "High risk",
+  watch: "Medium",
+  healthy: "Healthy",
+};
 
 /** A label over a figure, as Recova's cards have: micro, uppercase, tertiary. */
 function CardLabel({ children }: { children: React.ReactNode }) {
-  return <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{children}</p>;
+  return (
+    <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">
+      {children}
+    </p>
+  );
 }
 
 /** The width a 320 px phone leaves the chart inside the preview's two panels. */
@@ -55,19 +63,34 @@ function planFrame(draw: (width: number) => string): string {
   const narrow = draw(NARROW_WIDTH);
   const start = narrow.indexOf('<div class="enarratio-frame');
   const end = narrow.indexOf("</svg></div>", start) + "</svg></div>".length;
-  return frameHtml(draw(480), { gridlines: "x", ...(start >= 0 && end > start ? { redraw: { narrow: narrow.slice(start, end) } } : {}) });
+  return frameHtml(draw(480), {
+    gridlines: "x",
+    ...(start >= 0 && end > start ? { redraw: { narrow: narrow.slice(start, end) } } : {}),
+  });
 }
 
 /** Block 1: Recova's dashboard preview, four cards, MRR by plan, the narrative. */
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
-  const draw = (width: number) => drawPlans(dashboard.plans, dashboard.currency, width, {}, { name: "Foxhound demo account (sample data)" });
+  const draw = (width: number) =>
+    drawPlans(
+      dashboard.plans,
+      dashboard.currency,
+      width,
+      {},
+      { name: "Foxhound demo account (sample data)" },
+    );
   const chart = dashboard.plans.length > 0 ? planFrame(draw) : "";
   return (
     <div className="flex flex-col gap-5 p-5">
-      <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4" aria-label="MRR figures">
+      <ul
+        className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4"
+        aria-label="MRR figures"
+      >
         <PreviewStatCard label="MRR">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-accent-text">{dashboard.mrr}</p>
+          <p className="m-0 font-mono text-title font-bold tabular-nums text-accent-text">
+            {dashboard.mrr}
+          </p>
         </PreviewStatCard>
         <PreviewStatCard label="Day-over-day">
           <p
@@ -83,10 +106,14 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
           </p>
         </PreviewStatCard>
         <PreviewStatCard label="Active customers">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{dashboard.activeCustomers}</p>
+          <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
+            {dashboard.activeCustomers}
+          </p>
         </PreviewStatCard>
         <PreviewStatCard label="New MRR (MTD)">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-success-text">{dashboard.newMrrMtd}</p>
+          <p className="m-0 font-mono text-title font-bold tabular-nums text-success-text">
+            {dashboard.newMrrMtd}
+          </p>
         </PreviewStatCard>
       </ul>
       {dashboard.plans.length > 0 ? (
@@ -100,7 +127,9 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
         <div className="cap-panel-body">
           <div>
             <CardLabel>{dashboard.narrativeMonth} narrative</CardLabel>
-            <p className="m-0 text-label leading-relaxed text-text-secondary">{dashboard.narrative}</p>
+            <p className="m-0 text-label leading-relaxed text-text-secondary">
+              {dashboard.narrative}
+            </p>
           </div>
         </div>
       </div>
@@ -115,7 +144,13 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
   return (
     <div className="p-5">
       {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
-      <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={TABLE_CAPTION} tabIndex={0}>
+      <div
+        className="cap-table-wrap"
+        data-reflow=""
+        role="region"
+        aria-labelledby={TABLE_CAPTION}
+        tabIndex={0}
+      >
         <table className="cap-table">
           <caption id={TABLE_CAPTION} className="sr-only">
             Customers by health score, lowest first
@@ -138,7 +173,11 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
                   {/* Capsomer's pill markup rather than its Pill component,
                       which adds a status glyph to any toned pill; a plan is
                       not a status. The same choice as the directory. */}
-                  <span className="cap-pill" data-tone={row.planTone ?? undefined} data-variant="outline">
+                  <span
+                    className="cap-pill"
+                    data-tone={row.planTone ?? undefined}
+                    data-variant="outline"
+                  >
                     {row.planLabel}
                   </span>
                 </td>
@@ -161,7 +200,10 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
 export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="p-5">
-      <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-3" aria-label="MRR by health band">
+      <ul
+        className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-3"
+        aria-label="MRR by health band"
+      >
         {preview.bands.map((b) => (
           <li key={b.band} className="cap-panel">
             <div className="cap-panel-body">
@@ -169,7 +211,9 @@ export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview })
                 <p className="m-0 mb-1">
                   <Pill tone={BAND_TONE[b.band]}>{BAND_LABEL[b.band]}</Pill>
                 </p>
-                <p className="m-0 font-mono text-title font-medium tabular-nums text-text">{b.customerCount}</p>
+                <p className="m-0 font-mono text-title font-medium tabular-nums text-text">
+                  {b.customerCount}
+                </p>
                 <p className="m-0 mt-0.5 font-mono text-label text-text-secondary">
                   {b.mrr}/mo{b.band === "at_risk" ? " at risk" : ""}
                 </p>

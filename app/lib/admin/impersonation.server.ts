@@ -75,7 +75,11 @@ export async function startImpersonation(
   db: Db,
   input: { adminEmail: string; accountId: string; now: Date },
 ): Promise<{ setCookie: string } | null> {
-  const [account] = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, input.accountId)).limit(1);
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.id, input.accountId))
+    .limit(1);
   if (!account) return null;
 
   const token = newToken();
@@ -84,7 +88,11 @@ export async function startImpersonation(
   const audit = buildAdminAuditLogInsert(db, {
     actorEmail: input.adminEmail,
     action: "impersonation_start",
-    metadata: { accountId: input.accountId, impersonationId: id, expiresAt: expiresAt.toISOString() },
+    metadata: {
+      accountId: input.accountId,
+      impersonationId: id,
+      expiresAt: expiresAt.toISOString(),
+    },
   });
   await db.batch([
     db.insert(adminImpersonations).values({
@@ -194,7 +202,10 @@ export async function resolveImpersonation(
     .from(accounts)
     .leftJoin(
       accountMembers,
-      and(eq(accountMembers.accountId, accounts.id), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)),
+      and(
+        eq(accountMembers.accountId, accounts.id),
+        eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
+      ),
     )
     .leftJoin(user, eq(user.id, accountMembers.userId))
     .where(eq(accounts.id, row.accountId))

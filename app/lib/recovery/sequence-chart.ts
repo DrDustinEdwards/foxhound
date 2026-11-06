@@ -53,7 +53,11 @@ const CHART_HEIGHT = 220;
 const X_LABEL_WIDTH = 110;
 
 /** The step performance chart at a width: Open, Click and Recovery rate per step, grouped. */
-export function drawStepPerformance(chart: readonly StepPerformancePoint[], width: number, fit: ChartFit = {}): string {
+export function drawStepPerformance(
+  chart: readonly StepPerformancePoint[],
+  width: number,
+  fit: ChartFit = {},
+): string {
   return barChart({
     title: "Step performance",
     data: stepPerformanceRows(chart),
@@ -65,7 +69,11 @@ export function drawStepPerformance(chart: readonly StepPerformancePoint[], widt
     // Recova's funnel order, Open then Click then Recovery, in its
     // colors, except that Recovery rate takes Foxhound's amber.
     seriesDomain: STEP_PERFORMANCE_SERIES,
-    colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)", "Recovery rate": "var(--brand-ui)" },
+    colors: {
+      "Open rate": "var(--green)",
+      "Click rate": "var(--blue)",
+      "Recovery rate": "var(--brand-ui)",
+    },
     xLabel: null,
     yLabel: "Rate (%)",
     formatValue: (v) => `${v}%`,

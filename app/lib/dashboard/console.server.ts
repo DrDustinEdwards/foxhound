@@ -1,13 +1,6 @@
 import { and, count, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 
-import {
-  accounts,
-  auditRuns,
-  customerContext,
-  disputes,
-  recoveredPayments,
-  type Db,
-} from "~/db";
+import { accounts, auditRuns, customerContext, disputes, recoveredPayments, type Db } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import { byCurrencyCode } from "~/lib/money-format";
@@ -23,7 +16,11 @@ import {
   isCardInAttentionWindow,
   isSequenceExhausted,
 } from "./console";
-import { listActiveFailedPayments, listExpiringCardAlerts, listStepsForFailedPayments } from "~/lib/recovery/queries.server";
+import {
+  listActiveFailedPayments,
+  listExpiringCardAlerts,
+  listStepsForFailedPayments,
+} from "~/lib/recovery/queries.server";
 import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 
 // The console read model: the platform-level hero row, the four product tiles,
@@ -133,7 +130,10 @@ function auditLeaking(audit: {
   failedInvoicesCents: number | null;
   openDisputesCents: number | null;
   currency: string | null;
-  moneyByCurrency: { failedInvoices: CurrencyAmount[] | null; openDisputes: CurrencyAmount[] | null } | null;
+  moneyByCurrency: {
+    failedInvoices: CurrencyAmount[] | null;
+    openDisputes: CurrencyAmount[] | null;
+  } | null;
 }): CurrencyAmount[] {
   const currency = audit.currency ?? "usd";
   const money = audit.moneyByCurrency;
@@ -174,7 +174,12 @@ export async function getConsoleView(
     db
       .select({ cents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
       .from(recoveredPayments)
-      .where(and(eq(recoveredPayments.accountId, accountId), gte(recoveredPayments.recoveredAt, startOfMonth))),
+      .where(
+        and(
+          eq(recoveredPayments.accountId, accountId),
+          gte(recoveredPayments.recoveredAt, startOfMonth),
+        ),
+      ),
     db
       .select({ n: count() })
       .from(recoveredPayments)
@@ -242,7 +247,10 @@ export async function getConsoleView(
       })
       .from(customerContext)
       .where(
-        and(eq(customerContext.accountId, accountId), eq(customerContext.recommendedAction, "personal_outreach")),
+        and(
+          eq(customerContext.accountId, accountId),
+          eq(customerContext.recommendedAction, "personal_outreach"),
+        ),
       )
       .orderBy(sql`${customerContext.mrrContributionCents} desc`)
       .limit(ATTENTION_ROWS_PER_CATEGORY),
@@ -270,16 +278,18 @@ export async function getConsoleView(
   // Grouped per currency, never a flat reduce: summing amountCents across
   // currencies produced a total that was the arithmetic sum of USD and EUR
   // labeled with whichever row sorted first.
-  const protectedThisMonth = groupSumByCurrency(
-    monthRecovered,
+  const protectedThisMonth = groupSumByCurrency(monthRecovered);
+  const atRisk = groupSumByCurrency(
+    activeFailed.map((r) => ({ currency: r.currency, cents: r.amountCents })),
   );
-  const atRisk = groupSumByCurrency(activeFailed.map((r) => ({ currency: r.currency, cents: r.amountCents })));
   // A customer with no MRR currency recorded has no figure to add, so it is
   // counted but not summed.
   const highRisk = highRiskCustomers;
   const highRiskMrr = groupSumByCurrency(
     highRisk.flatMap((c) =>
-      c.currency && c.mrrContributionCents ? [{ currency: c.currency, cents: c.mrrContributionCents }] : [],
+      c.currency && c.mrrContributionCents
+        ? [{ currency: c.currency, cents: c.mrrContributionCents }]
+        : [],
     ),
   );
   const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);
@@ -426,4 +436,3 @@ export async function getConsoleView(
     mrrSync,
   };
 }
-

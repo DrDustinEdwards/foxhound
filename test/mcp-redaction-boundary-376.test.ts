@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts, apiKeys, customerContext, disputes, failedPayments, intelligenceReports, recoverySteps, stripeConnections } from "~/db/schema";
-import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import {
-  type McpToolRegistry,
-} from "~/lib/mcp/registry";
+  accounts,
+  apiKeys,
+  customerContext,
+  disputes,
+  failedPayments,
+  intelligenceReports,
+  recoverySteps,
+  stripeConnections,
+} from "~/db/schema";
+import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
+import { type McpToolRegistry } from "~/lib/mcp/registry";
 import { redactToolResult } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -49,9 +56,8 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import(
-  "~/lib/mcp/tools.server"
-);
+const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } =
+  await import("~/lib/mcp/tools.server");
 
 const MINE = "acct_mine";
 const THEIRS = "acct_theirs";
@@ -133,7 +139,9 @@ async function seed() {
     [MINE, MY_NAME, MY_EMAIL],
     [THEIRS, THEIR_NAME, THEIR_EMAIL],
   ] as const) {
-    await db.insert(accounts).values({ id: account, name: account, createdAt: NOW, currency: "usd" });
+    await db
+      .insert(accounts)
+      .values({ id: account, name: account, createdAt: NOW, currency: "usd" });
     const token = `${MCP_TOKEN_PREFIX}${account}`;
     tokens[account] = token;
     await db.insert(apiKeys).values({
@@ -241,7 +249,6 @@ const READ_TOOL_NAMES = MERCHANT_TOOL_NAMES.filter(
 // ============================================================================
 
 describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
-
   it("the sweep had something to find: the customer-carrying tools returned rows", async () => {
     const { tokens } = await seed();
     // Without this, PLANT 1 passes on seven empty arrays. This is the positive
@@ -275,7 +282,6 @@ describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
 });
 
 describe("PLANT 3: the walk itself", () => {
-
   it("keeps Dates as Dates, which a spread would have destroyed", () => {
     const at = new Date("2026-01-02T03:04:05.000Z");
     const out = redactToolResult({ createdAt: at, customerName: MY_NAME }) as {

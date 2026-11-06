@@ -1,5 +1,9 @@
 import { INTELLIGENCE_MAX_CUSTOMERS_SCANNED, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
-import { HEALTH_SCORE_BASELINE, HEALTH_SIGNAL_LABELS, type HealthSignal } from "~/lib/intelligence/risk";
+import {
+  HEALTH_SCORE_BASELINE,
+  HEALTH_SIGNAL_LABELS,
+  type HealthSignal,
+} from "~/lib/intelligence/risk";
 import { countWord, DECLINE_CATEGORY_COUNT } from "~/lib/marketing/decline-categories";
 import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
@@ -63,17 +67,21 @@ const signalList = series(labels);
  *  words are written here. */
 const SIGNAL_EXPLAINED: Record<HealthSignal, (label: string) => string> = {
   payment_latency: (l) => `${l} (payments drifting later or earlier against their due date)`,
-  billing_volatility: (l) => `${l} (plan, interval, and seat changes on record, and a scheduled cancellation, paused billing, or downgrade as Stripe reports it)`,
+  billing_volatility: (l) =>
+    `${l} (plan, interval, and seat changes on record, and a scheduled cancellation, paused billing, or downgrade as Stripe reports it)`,
   refunds_disputes: (l) => `${l} on record`,
   recovery_engagement: (l) => `${l} (whether the customer engaged with recovery emails)`,
   tenure: (l) => l,
   payment_method: (l) => `${l} (a prepaid card on the latest failed payment)`,
 };
 const signalsExplained = series(
-  (Object.keys(HEALTH_SIGNAL_LABELS) as HealthSignal[]).map((k) => SIGNAL_EXPLAINED[k](HEALTH_SIGNAL_LABELS[k])),
+  (Object.keys(HEALTH_SIGNAL_LABELS) as HealthSignal[]).map((k) =>
+    SIGNAL_EXPLAINED[k](HEALTH_SIGNAL_LABELS[k]),
+  ),
 );
 
-export const INTELLIGENCE_META_DESCRIPTION = "Customer health scoring, churn prediction, and MRR trend analysis for Stripe merchants. Free.";
+export const INTELLIGENCE_META_DESCRIPTION =
+  "Customer health scoring, churn prediction, and MRR trend analysis for Stripe merchants. Free.";
 
 export const INTELLIGENCE_HERO = {
   headline: "Know which customers are about to churn.\nBefore they do.",

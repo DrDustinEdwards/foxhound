@@ -35,7 +35,9 @@ describe("getDefaultCard (the card on file, read only)", () => {
 
   it("is null for a deleted customer, and for a read that fails, rather than breaking the page", async () => {
     expect(
-      await getDefaultCard({} as Env, "cus_1", { retrieveCustomer: async () => ({ deleted: true }) }),
+      await getDefaultCard({} as Env, "cus_1", {
+        retrieveCustomer: async () => ({ deleted: true }),
+      }),
     ).toBeNull();
     const errors = console.error;
     console.error = () => {};
@@ -60,10 +62,20 @@ describe("getDefaultCard (the card on file, read only)", () => {
 describe("billing email for the platform customer (E25)", () => {
   it("prefers support_email, then the account email, then the login email", () => {
     const resolve = platformCustomer.resolveBillingEmailFromStripeAccount;
-    const full = { business_profile: { support_email: "support@example.com" }, email: "acct@example.com" };
+    const full = {
+      business_profile: { support_email: "support@example.com" },
+      email: "acct@example.com",
+    };
     expect(resolve(full, "login@example.com")).toBe("support@example.com");
-    expect(resolve({ business_profile: { support_email: "" }, email: "acct@example.com" }, "login@example.com")).toBe("acct@example.com");
-    expect(resolve({ business_profile: null, email: "" }, "login@example.com")).toBe("login@example.com");
+    expect(
+      resolve(
+        { business_profile: { support_email: "" }, email: "acct@example.com" },
+        "login@example.com",
+      ),
+    ).toBe("acct@example.com");
+    expect(resolve({ business_profile: null, email: "" }, "login@example.com")).toBe(
+      "login@example.com",
+    );
     expect(resolve(null, "login@example.com")).toBe("login@example.com");
     expect(resolve(null, null)).toBeNull();
   });

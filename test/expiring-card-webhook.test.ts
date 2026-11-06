@@ -63,7 +63,9 @@ beforeEach(() => {
   harness.sent = [];
   harness.retrievedPaymentMethods = [];
   harness.paymentMethod = null;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(ACCOUNT);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES ('c1', ?, 'acct_stripe', 1, 'cipher', 1000, 1000)",
@@ -85,16 +87,25 @@ function alertRows() {
     .prepare(
       "SELECT stripe_customer_id AS customer, card_brand AS brand, card_last4 AS last4, expires_month AS m, expires_year AS y, alert_sent_at AS sentAt FROM expiring_card_alerts",
     )
-    .all() as { customer: string; brand: string | null; last4: string | null; m: number; y: number; sentAt: number | null }[];
+    .all() as {
+    customer: string;
+    brand: string | null;
+    last4: string | null;
+    m: number;
+    y: number;
+    sentAt: number | null;
+  }[];
 }
 
 describe("PLANT 1: the classifier reads the card both ways legacy does", () => {
-
   it("ignores a customer with no card and one with no email", () => {
     expect(classifyStripeEvent(customerEvent({})).kind).toBe("ignore");
     expect(
       classifyStripeEvent(
-        customerEvent({ email: null, sources: { data: [{ object: "card", exp_month: 11, exp_year: 2026 }] } }),
+        customerEvent({
+          email: null,
+          sources: { data: [{ object: "card", exp_month: 11, exp_year: 2026 }] },
+        }),
       ).kind,
     ).toBe("ignore");
   });
@@ -104,7 +115,11 @@ describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
   it("writes the candidate from an inline card", async () => {
     const result = await processConnectedWebhook(
       env,
-      customerEvent({ sources: { data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }] } }),
+      customerEvent({
+        sources: {
+          data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }],
+        },
+      }),
       RECEIVED,
     );
 
@@ -117,7 +132,9 @@ describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
   });
 
   it("retrieves the payment method when the event carries only its id", async () => {
-    harness.paymentMethod = { card: { exp_month: 12, exp_year: 2026, brand: "amex", last4: "0005" } };
+    harness.paymentMethod = {
+      card: { exp_month: 12, exp_year: 2026, brand: "amex", last4: "0005" },
+    };
 
     await processConnectedWebhook(
       env,
@@ -135,7 +152,11 @@ describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
     // about a card that already lapsed. Both writers share one band here.
     const result = await processConnectedWebhook(
       env,
-      customerEvent({ sources: { data: [{ object: "card", exp_month: 9, exp_year: 2026, brand: "visa", last4: "4242" }] } }),
+      customerEvent({
+        sources: {
+          data: [{ object: "card", exp_month: 9, exp_year: 2026, brand: "visa", last4: "4242" }],
+        },
+      }),
       RECEIVED,
     );
     expect(result).toEqual({ status: "ignored", reason: "card_outside_lead_window" });
@@ -158,7 +179,11 @@ describe("PLANT 3: the two writers share one dedupe", () => {
   it("a repeated customer.updated for the same card-month writes one row", async () => {
     const event = (id: string) =>
       customerEvent(
-        { sources: { data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }] } },
+        {
+          sources: {
+            data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }],
+          },
+        },
         id,
       );
 
@@ -171,7 +196,11 @@ describe("PLANT 3: the two writers share one dedupe", () => {
   it("the candidate it writes is what the cron's send pass picks up", async () => {
     await processConnectedWebhook(
       env,
-      customerEvent({ sources: { data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }] } }),
+      customerEvent({
+        sources: {
+          data: [{ object: "card", exp_month: 11, exp_year: 2026, brand: "visa", last4: "4242" }],
+        },
+      }),
       RECEIVED,
     );
 
