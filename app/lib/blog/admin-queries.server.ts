@@ -117,7 +117,8 @@ export async function updatePostWithVersion(
   const existing = existingRows[0];
   if (!existing) throw new Error("Post not found");
 
-  const now = new Date();
+  // Past the checked value even within one millisecond, so the next save's guard always sees a change.
+  const now = new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1));
   const updated = await db
     .update(blogPosts)
     .set({

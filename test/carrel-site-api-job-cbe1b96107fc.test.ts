@@ -2,8 +2,11 @@ import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { d1SiteApiStore } from "@dustinedwards/site-api/store";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
+import { blogPostVersions, blogPosts } from "~/db";
+import { updatePostWithVersion } from "~/lib/blog/admin-queries.server";
 import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { handleCarrelRequest } from "~/lib/carrel/handler.server";
@@ -84,6 +87,23 @@ describe("the planted refusals (adapter must never run)", () => {
     });
     expect(stale.status).toBe(409);
     expect(((await stale.json()) as { currentVersion: string }).currentVersion).toBe(version);
+  });
+});
+
+describe("a save that lost a race", () => {
+  it("writes nothing when the post is no longer at the checked updated_at", async () => {
+    const t = setup();
+    await t.call("/content/r1/draft", {
+      method: "PUT",
+      body: JSON.stringify({ source: SOURCE, expectedVersion: null, changeId: "c1" }),
+    });
+    const [row] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "r1"));
+    const before = await t.db.select().from(blogPostVersions);
+    const stale = new Date(row.updatedAt.getTime() - 1);
+    expect(await updatePostWithVersion(t.db, "r1", "carrel:c2", stale, { ...row, body: "Lost." })).toBe(false);
+    const [after] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "r1"));
+    expect(after.body).toBe(row.body);
+    expect(await t.db.select().from(blogPostVersions)).toHaveLength(before.length);
   });
 });
 
