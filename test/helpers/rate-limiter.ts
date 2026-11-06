@@ -13,7 +13,7 @@ export function makeRateLimiterNamespace(now: () => number = () => Date.now()) {
     exec: (query: string, ...bindings: unknown[]) => {
       const stmt = db.prepare(query);
       const rows = stmt.reader ? stmt.all(...bindings) : (stmt.run(...bindings), []);
-      return { toArray: () => rows as unknown[] };
+      return { toArray: () => rows as Record<string, unknown>[] };
     },
   });
   return {
