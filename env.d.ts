@@ -7,8 +7,8 @@ interface Env {
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
-  // Keys site-runtime's admin idle cookie (withAdminIdle `secret`). Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown; unset falls back to the unkeyed cookie and logs admin_idle_unkeyed.
-  ADMIN_IDLE_SECRET?: string;
+  // Keys site-runtime's admin idle cookie (withAdminIdle `secret`). Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown; unset, the admin paths fail (site-runtime 0.82 requires it).
+  ADMIN_IDLE_SECRET: string;
   // Extra exact callbacks a merchant MCP client registration may name, space or
   // comma separated, beside site-runtime's DCR_CALLBACKS (registerClient). A
   // plain list of https URLs, not a secret.
