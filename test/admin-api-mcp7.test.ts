@@ -35,6 +35,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 vi.mock("~/lib/backup/d1-backup", () => ({
   backupFilesNow: async () => [{ name: "media", complete: true, copied: 2 }],
+  backupStatus: async () => ({ last_ok: null, age_hours: null, files: {} }),
 }));
 
 const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
@@ -254,6 +255,9 @@ describe("the files backup", () => {
     expect((await db.select().from(adminAuditLog)).map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "backup.media"]);
     const refused = await api("/backup/media", { key: keys.merchant, actor: ADMIN, method: "POST" });
     expect(refused.status).toBeGreaterThanOrEqual(401);
+    const state = await api("/backup", asAdmin(keys.admin));
+    expect(state.status).toBe(200);
+    expect(state.json.data).toEqual({ last_ok: null, age_hours: null, files: {} });
   });
 });
 
