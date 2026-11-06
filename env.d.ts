@@ -14,7 +14,7 @@ interface Env {
   // plain list of https URLs, not a secret.
   DCR_REDIRECT_URIS?: string;
   SENTRY_DSN?: string;
-  // The seed of the ToolCallLog chain's Ed25519 signing key (site-runtime ./audit-log 0.84, which requires it).
+  // The seed of the ToolCallLog chain's Ed25519 signing key (site-runtime ./audit-log 0.85, which requires it).
   // Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown.
   AUDIT_SIGNING_KEY: string;
   // Reading errors back for /admin/platform/errors (J48). The DSN only sends;
