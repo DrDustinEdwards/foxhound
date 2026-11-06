@@ -54,6 +54,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
           data-reflow=""
           role="region"
           aria-label="Win-back customers"
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           tabIndex={0}
         >
           <table className="cap-table">

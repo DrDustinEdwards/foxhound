@@ -68,12 +68,13 @@ export default function start(el: HTMLElement): void {
     button.replaceChildren(...(busy ? [busyLabel] : idle.map((n) => n.cloneNode(true))));
   };
 
-  button.addEventListener("click", async () => {
+  const onClick = async () => {
     const category = el.querySelector<HTMLInputElement>("input[name='decline-type']:checked")?.value ?? "soft";
     drawResult(out, null);
     setBusy(true);
     const result = await generate(category);
     setBusy(false);
     drawResult(out, result);
-  });
+  };
+  button.addEventListener("click", () => void onClick());
 }

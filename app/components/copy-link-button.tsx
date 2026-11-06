@@ -36,7 +36,7 @@ export function CopyLinkButton({
   return (
     <button
       type="button"
-      onClick={copyLink}
+      onClick={() => void copyLink()}
       data-island="copy-link"
       data-props={JSON.stringify({ url, resetMs })}
       {...button}

@@ -179,6 +179,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
               Every job in Foxhound&apos;s cron registry appears here.
             </Empty>
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">

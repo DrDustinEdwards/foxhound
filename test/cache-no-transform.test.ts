@@ -8,9 +8,10 @@ import { applyCachePolicy } from "~/lib/http/cache-policy";
 
 function html(path: string, init?: HeadersInit): Response {
   const request = new Request(`https://foxhoundapp.com${path}`);
-  const response = new Response("<html></html>", {
-    headers: { "Content-Type": "text/html; charset=utf-8", ...init },
-  });
+  // The test's own headers win, in any form of HeadersInit (an object spread would turn an array into indices).
+  const headers = new Headers(init);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "text/html; charset=utf-8");
+  const response = new Response("<html></html>", { headers });
   return applyCachePolicy(request, response);
 }
 

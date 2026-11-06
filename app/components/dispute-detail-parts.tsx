@@ -81,6 +81,7 @@ export function AcceptControl({
         <button
           type="submit"
           className="cap-btn"
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus returns to the Accept button when the confirm step is canceled
           autoFocus={returnFocus}
           onClick={(e) => {
             e.preventDefault();
@@ -117,6 +118,7 @@ export function AcceptControl({
         data-variant="quiet"
         data-size="sm"
         aria-describedby={lineId}
+        // oxlint-disable-next-line jsx-a11y/no-autofocus -- the confirm step opens on Cancel, so a second Enter cannot concede the dispute
         autoFocus
         onClick={onCancel}
       >

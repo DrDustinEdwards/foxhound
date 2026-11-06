@@ -97,7 +97,7 @@ async function seedMerchant(opts: {
   const { userId, accountId, prefix: p } = opts;
   // The other merchant's values are the deleting merchant's REVERSED, so they
   // are just as present but can never contain one of PERSONAL_VALUES.
-  const t = (s: string) => (opts.personal ? s : `${p}:${[...s].reverse().join("")}`);
+  const t = (s: string) => (opts.personal ? s : `${p}:${s.split("").reverse().join("")}`);
   const at = (ms: number) => new Date(ms);
 
   await db.insert(user).values({ id: userId, name: opts.name, email: opts.email, emailVerified: true, updatedAt: OLD });

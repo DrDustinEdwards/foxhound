@@ -220,6 +220,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
+            {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
             <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Disputes" tabIndex={0}>
               <table className="cap-table">
                 <thead>

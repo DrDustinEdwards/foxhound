@@ -26,6 +26,7 @@ export function AdminTime({ at, empty = "never" }: { at: Date | null | undefined
   if (!at) return <span className="text-text-tertiary">{empty}</span>;
   return (
     <>
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the time takes focus so a keyboard reaches its tooltip */}
       <span ref={triggerRef} tabIndex={0} aria-describedby={id}>
         <Time at={at} />
       </span>

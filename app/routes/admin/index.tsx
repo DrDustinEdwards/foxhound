@@ -1,6 +1,6 @@
 import { useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
-import { AttentionList, type AttentionLinkProps } from "capsomer/react/attention-list";
+import { AttentionList } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
@@ -53,7 +53,8 @@ function tileLink({ href, children, ...rest }: StatTileLinkProps) {
   );
 }
 
-function rowLink({ href, children, ...rest }: RowLinkProps | AttentionLinkProps) {
+// AttentionLinkProps is RowLinkProps (Capsomer), so one renderer serves both lists.
+function rowLink({ href, children, ...rest }: RowLinkProps) {
   return (
     <Link to={href} {...rest}>
       {children}

@@ -26,13 +26,13 @@ export interface McpCallInit {
 export function mcpRequest(init: McpCallInit = {}): Request {
   const method = init.method ?? "tools/list";
   const era = init.era ?? "legacy";
-  const params: Record<string, unknown> = { ...(init.params ?? {}) };
+  const params: Record<string, unknown> = { ...init.params };
   if (era === "modern") {
     params._meta = {
       "io.modelcontextprotocol/protocolVersion": MODERN_VERSION,
       "io.modelcontextprotocol/clientInfo": { name: "foxhound-test", version: "1.0.0" },
       "io.modelcontextprotocol/clientCapabilities": {},
-      ...((params._meta as Record<string, unknown> | undefined) ?? {}),
+      ...(params._meta as Record<string, unknown> | undefined),
     };
   }
   const envelope: Record<string, unknown> = { jsonrpc: "2.0", method, params };

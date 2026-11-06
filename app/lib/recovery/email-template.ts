@@ -1,6 +1,5 @@
 import { escapeHtml } from "capsomer/email";
 
-import type { DeclineCategory } from "~/lib/constants";
 import type { EmailCopy } from "./email-generation";
 
 // Deterministic dunning copy: the safe output when generation cannot be used.
@@ -33,7 +32,8 @@ import type { EmailCopy } from "./email-generation";
 
 export interface TemplateEmailInput {
   merchantName: string;
-  declineCategory: DeclineCategory | string;
+  /** A DeclineCategory (~/lib/constants), or whatever category a stored row holds. */
+  declineCategory: string;
   /** Already formatted for display, e.g. "$49.00". */
   amountFormatted: string;
   /** The click-tracked card-update URL, used as the single call to action. */

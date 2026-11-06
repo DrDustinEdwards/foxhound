@@ -79,7 +79,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
           variant="primary"
           size="lg"
           pending={busy}
-          onClick={async () => {
+          onClick={() => void (async () => {
             setBusy(true);
             setError(null);
             const res = await authClient.passkey.addPasskey();
@@ -90,7 +90,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
               return;
             }
             window.location.assign(next);
-          }}
+          })()}
         >
           {busy ? "Waiting for your device..." : "Create a passkey"}
         </Button>

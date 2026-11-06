@@ -360,6 +360,7 @@ function PasskeyItem({
               maxLength={60}
               autoComplete="off"
               onChange={(event) => setName(event.target.value)}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- the rename field opens on the person's own click, so focus goes into it
               autoFocus
             />
           </div>

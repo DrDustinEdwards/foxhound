@@ -162,6 +162,7 @@ export function FeatureBlocks({ sectionLabel, blocks }: { sectionLabel: string; 
                       <div
                         role="region"
                         aria-label={block.tallLabel}
+                        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
                         tabIndex={0}
                         className="max-h-[480px] overflow-y-auto overflow-x-hidden"
                       >

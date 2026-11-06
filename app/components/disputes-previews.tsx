@@ -120,6 +120,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
       </div>
       <div className="cap-panel">
         <div className="cap-panel-body" data-flush>
+          {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
           <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={DASHBOARD_CAPTION} tabIndex={0}>
             <table className="cap-table">
               <caption id={DASHBOARD_CAPTION} className="sr-only">
@@ -172,6 +173,7 @@ const TABLE_CAPTION = "preview-disputes-table";
 export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
       <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={TABLE_CAPTION} tabIndex={0}>
         <table className="cap-table">
           <caption id={TABLE_CAPTION} className="sr-only">
