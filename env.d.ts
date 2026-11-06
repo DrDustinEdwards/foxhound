@@ -14,9 +14,9 @@ interface Env {
   // plain list of https URLs, not a secret.
   DCR_REDIRECT_URIS?: string;
   SENTRY_DSN?: string;
-  // HMAC key for the merchant MCP's ToolCallLog chain (site-runtime ./audit-log).
-  // Bind it before the first row; unset, the chain is plain SHA-256.
-  AUDIT_CHAIN_KEY?: string;
+  // The seed of the ToolCallLog chain's Ed25519 signing key (site-runtime ./audit-log 0.85, which requires it).
+  // Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown.
+  AUDIT_SIGNING_KEY: string;
   // Reading errors back for /admin/platform/errors (J48). The DSN only sends;
   // listing issues needs a Sentry auth token with event:read and the
   // organization's slug. Either unset => the page says it cannot read them.

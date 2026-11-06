@@ -15,5 +15,5 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RateLimiter", "ToolCallLog"] }],
-  "vars": { "ACCESS_TEAM_DOMAIN": "conformance.cloudflareaccess.com" }
+  "vars": { "ACCESS_TEAM_DOMAIN": "conformance.cloudflareaccess.com", "AUDIT_SIGNING_KEY": "conformance-signing-key-not-a-real-one-0123456789" }
 }

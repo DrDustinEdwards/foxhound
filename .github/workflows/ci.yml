@@ -165,8 +165,8 @@ jobs:
     uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@3480f68abadcbcd50ddd72c826aa50787ea82bcc # v0.23.1
     with:
       worker-name: foxhound
-      # site-runtime withAdminIdle's key, minted once by the deploy and never shown (devkit "generated-secrets").
-      generated-secrets: ADMIN_IDLE_SECRET
+      # site-runtime withAdminIdle's key and audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
+      generated-secrets: ADMIN_IDLE_SECRET AUDIT_SIGNING_KEY
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
       pre-deploy: npx devkit-migrations drizzle/migrations --apply foxhound && npm run build
@@ -190,6 +190,8 @@ jobs:
     uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@3480f68abadcbcd50ddd72c826aa50787ea82bcc # v0.23.1
     with:
       worker-name: foxhound-admin-mcp
+      # site-runtime audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
+      generated-secrets: AUDIT_SIGNING_KEY
       working-directory: mcp
       install: cd .. && npm ci
       health-url: https://admin-mcp.foxhoundapp.com/health
