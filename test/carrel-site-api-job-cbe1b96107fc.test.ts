@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { handleCarrelRequest } from "~/lib/carrel/handler.server";
-import { tombstoned } from "~/lib/http/tombstone";
 import { parsePostSource, serializePostSource } from "~/lib/carrel/source";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
@@ -267,10 +266,9 @@ describe("content round trip against the real schema", () => {
     expect([listed.items.map((i) => i.id), listed.filtered]).toEqual([["why-cards-decline"], ["trashed"]]);
     expect((await del(trashed.version, "c6")).status).toBe(200);
     expect(await getSlugRedirect(t.db, "why-cards-fail")).toBeNull();
-    // Its address now answers 410, never stored and kept out of the index; an address never published stays 404.
-    const gone = await tombstoned(new Response("missing", { status: 404 }), "/blog/why-cards-decline", d1Over(t.sqlite));
-    expect([gone.status, gone.headers.get("cache-control"), gone.headers.get("x-robots-tag")]).toEqual([410, "no-store", "noindex"]);
-    expect((await tombstoned(new Response("missing", { status: 404 }), "/blog/never-existed", d1Over(t.sqlite))).status).toBe(404);
+    // Its address now holds a tombstone (the Worker answers 410 through site-api's tombstoned()); one never published does not.
+    expect(await d1SiteApiStore(d1Over(t.sqlite)).isGone("/blog/why-cards-decline")).toBe(true);
+    expect(await d1SiteApiStore(d1Over(t.sqlite)).isGone("/blog/never-existed")).toBe(false);
   });
 
   it("the package's own conformance suite passes against the adapter", async () => {
