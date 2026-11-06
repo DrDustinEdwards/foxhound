@@ -53,7 +53,7 @@ async function served(path: string): Promise<{ status: number; location: string 
   const request = new Request(`${ORIGIN}${path}`);
   let response: Response;
   try {
-    response = (await loader({ request, params: {}, context: {} } as never)) as Response;
+    response = (loader({ request, params: {}, context: {} } as never)) as Response;
   } catch (thrown) {
     if (thrown instanceof Response) response = thrown;
     else throw thrown;

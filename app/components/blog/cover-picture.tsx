@@ -15,6 +15,7 @@ export function CoverPicture({ cover, className }: { cover: { alt: string; pictu
       {sources.map((source) => (
         <source key={`${source.type}${source.media ?? ""}`} {...source} />
       ))}
+      {/* oxlint-disable-next-line jsx-a11y/alt-text -- pictureProps puts the cover alt into img */}
       <img {...img} />
     </picture>
   );

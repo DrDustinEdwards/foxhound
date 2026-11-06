@@ -173,7 +173,7 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
       (r) => r.action === "brake.engage",
     );
     expect(umbrella).toHaveLength(1);
-    expect((umbrella[0]?.metadata as { intendedCount: number }).intendedCount).toBe(30);
+    expect((umbrella[0]!.metadata as { intendedCount: number }).intendedCount).toBe(30);
 
     // Partial pauses are visible and, critically, MARKED.
     const marked = await listBrakePausedAccountIds(db);

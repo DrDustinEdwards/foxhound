@@ -138,7 +138,7 @@ function fakeList<T>(items: T[]): AsyncIterable<T> {
 
 function throwingList(message: string): AsyncIterable<never> {
   return {
-    // eslint-disable-next-line require-yield
+    // oxlint-disable-next-line require-yield
     async *[Symbol.asyncIterator]() {
       throw new Error(message);
     },

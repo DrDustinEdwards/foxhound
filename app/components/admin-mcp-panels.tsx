@@ -67,6 +67,7 @@ export function AdminMcpPanels({
               A key appears here when a merchant creates one in their settings.
             </Empty>
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={KEYS_HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">API keys, newest first.</caption>
@@ -100,6 +101,7 @@ export function AdminMcpPanels({
           {tools.length === 0 ? (
             <Empty kind="nothing-yet" title="No merchant tools registered." />
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={TOOLS_HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">Merchant MCP tools, as the registry lists them.</caption>
@@ -138,6 +140,7 @@ export function AdminMcpPanels({
               Every tool call a merchant key makes is logged here.
             </Empty>
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={CALLS_HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">Merchant MCP calls, newest first.</caption>

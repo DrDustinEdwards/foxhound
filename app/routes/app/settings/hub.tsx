@@ -218,6 +218,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
         >
           Configuration
         </h2>
+        {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- role="list" keeps list semantics that Safari drops from a ul styled without bullets */}
         <ul role="list" aria-labelledby={CONFIG_HEADING_ID} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {SETTINGS_HUB_ENTRIES.map((entry) => (
             <li key={entry.to}>

@@ -171,6 +171,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               </Empty>
             )
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">
@@ -269,6 +270,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
         <tr id={payloadId}>
           <td colSpan={COLUMNS}>
             <pre
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
               tabIndex={0}
               aria-label={`${event.eventType} payload`}
               className="m-0 max-h-96 overflow-auto rounded-md border border-border bg-sunken p-3 font-mono text-micro text-text"

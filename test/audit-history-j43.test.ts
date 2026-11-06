@@ -59,7 +59,7 @@ function contextFor(accountId: string): unknown {
 describe("J43: the path is Recova's /audit/dashboard", () => {
   it("answers the old /audit/history with one 301 to /audit/dashboard, keeping the query", async () => {
     const mod = await import("~/routes/audit/history-redirect");
-    const res = (await mod.loader({
+    const res = (mod.loader({
       request: new Request("https://foxhoundapp.test/audit/history?x=1"),
       params: {},
       context: {},

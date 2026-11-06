@@ -312,7 +312,7 @@ export async function handleMcpRequest(
   }
 
   const now = new Date();
-  const response = await serveMcp(new Request(request, { body: text }), registry, {
+  const response = await serveMcp(new Request(request, { method: request.method, body: text }), registry, {
     env,
     db: getDb(env),
     accountId: authenticated.auth.accountId,

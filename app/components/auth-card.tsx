@@ -206,12 +206,12 @@ export function PasskeyContinue({ next }: { next: string }) {
         variant="primary"
         size="lg"
         pending={busy}
-        onClick={async () => {
+        onClick={() => void (async () => {
           setBusy(true);
           setError(null);
           await passkeySignIn(false);
           setBusy(false);
-        }}
+        })()}
       >
         Sign in with a passkey
       </Button>

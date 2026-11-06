@@ -123,6 +123,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
             here.
           </Empty>
         ) : (
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={FAILED_HEADING_ID} tabIndex={0}>
             <table className="cap-table">
               <caption className="cap-sr-only">Failed actions from the audit log, newest first.</caption>
@@ -196,6 +197,7 @@ function SentryNotice({ sentry }: { sentry: SentryState }) {
 
 function IssuesTable({ issues }: { issues: SentryIssue[] }) {
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
     <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={ISSUES_HEADING_ID} tabIndex={0}>
       <table className="cap-table">
         <caption className="cap-sr-only">Unresolved errors from Sentry, most recent first.</caption>

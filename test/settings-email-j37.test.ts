@@ -54,7 +54,7 @@ const LOADED = {
 };
 
 function render(opts: { loaderData?: Record<string, unknown>; actionData?: Record<string, unknown> } = {}): string {
-  const loaderData = { ...LOADED, ...(opts.loaderData ?? {}) };
+  const loaderData = { ...LOADED, ...opts.loaderData };
   const Stub = createRoutesStub([
     {
       path: "/settings/email",

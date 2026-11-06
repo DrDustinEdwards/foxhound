@@ -192,7 +192,7 @@ async function fullFlow(): Promise<{ clientId: string; access: string; refresh: 
 describe("F18 and F19: the metadata, at both of Recova's well-known paths", () => {
 
   it("serves Recova's fields with this request's origin as issuer", async () => {
-    const res = (await metadataRoute.loader({
+    const res = (metadataRoute.loader({
       request: new Request(`${ORIGIN}/.well-known/oauth-authorization-server`),
       context: context(),
       params: {},
@@ -220,7 +220,7 @@ describe("F18 and F19: the metadata, at both of Recova's well-known paths", () =
 
 describe("the protected-resource document and the /mcp 401 that points at it", () => {
   it("names /mcp and this origin as its authorization server", async () => {
-    const res = (await resourceRoute.loader({
+    const res = (resourceRoute.loader({
       request: new Request(`${ORIGIN}/.well-known/oauth-protected-resource`),
       context: context(),
       params: {},
@@ -645,7 +645,7 @@ describe("expiry and revocation", () => {
 describe("the shared cache policy owns the private responses (test/cache-policy.test.ts PLANT 7)", () => {
   it("the protected-resource document and revocation get the policy's private, no-store", async () => {
     const prmReq = new Request(`${ORIGIN}/.well-known/oauth-protected-resource`);
-    const prm = applyCachePolicy(prmReq, (await resourceRoute.loader({ request: prmReq } as never)) as Response);
+    const prm = applyCachePolicy(prmReq, (resourceRoute.loader({ request: prmReq } as never)) as Response);
     expect(prm.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
     expect(prm.headers.get("Access-Control-Allow-Origin")).toBe("*");
 

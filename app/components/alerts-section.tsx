@@ -142,6 +142,7 @@ export function AlertsSection({
 
             {alerts.length > 0 ? (
               <div className="mt-5 min-w-0">
+                {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
                 <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Alerts" tabIndex={0}>
                   <table className="cap-table">
                     <thead>
@@ -208,6 +209,7 @@ export function AlertsSection({
               No alerts have fired yet. Triggers will appear here when a threshold crosses.
             </p>
           ) : (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Recent triggers" tabIndex={0}>
               <table className="cap-table">
                 <thead>

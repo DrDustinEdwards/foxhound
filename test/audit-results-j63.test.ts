@@ -271,13 +271,14 @@ const fullDispute = (o: Record<string, unknown>) => ({
 
 const fullEvent = () => ({ id: "evt_1", object: "event", type: "payment_method.automatically_updated", created: 1, data: { object: { note: BULK } } });
 
-const fakeStripe = (lists: { invoices: unknown[]; subscriptions: unknown[]; disputes: unknown[]; events: unknown[] }) =>
-  ({
-    invoices: { list: listOf(lists.invoices) },
-    subscriptions: { list: listOf(lists.subscriptions) },
-    disputes: { list: listOf(lists.disputes) },
-    events: { list: listOf(lists.events) },
-  }) as unknown as Stripe;
+type Lists = { invoices: unknown[]; subscriptions: unknown[]; disputes: unknown[]; events: unknown[] };
+const stripeLists = (lists: Lists) => ({
+  invoices: { list: listOf(lists.invoices) },
+  subscriptions: { list: listOf(lists.subscriptions) },
+  disputes: { list: listOf(lists.disputes) },
+  events: { list: listOf(lists.events) },
+});
+const fakeStripe = (lists: Lists) => stripeLists(lists) as unknown as Stripe;
 
 describe("Review round 1, must-fix 1: the reads keep only what the engine reads", () => {
   let info: ReturnType<typeof vi.spyOn>;
@@ -328,7 +329,7 @@ describe("the audit reads each failed invoice's real decline code", () => {
     // What Stripe sends now: no charge, no last_payment_error on the invoice.
     const bare = fullInvoice({ last_finalization_error: null, last_payment_error: null, charge: undefined });
     const stripe = {
-      ...fakeStripe({ invoices: [bare], subscriptions: [], disputes: [], events: [] }),
+      ...stripeLists({ invoices: [bare], subscriptions: [], disputes: [], events: [] }),
       invoicePayments: { list: listOf([{ created: 1, payment: { payment_intent: "pi_1" } }]) },
       paymentIntents: {
         retrieve: async () => ({ last_payment_error: { decline_code: "expired_card" }, latest_charge: { failure_code: "card_declined" } }),

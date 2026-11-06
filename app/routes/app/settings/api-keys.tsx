@@ -342,7 +342,7 @@ function RevealKey({ rawKey }: { rawKey: string }) {
         </Alert>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={copyKey}>{copied ? "Copied" : "Copy key"}</Button>
+        <Button onClick={() => void copyKey()}>{copied ? "Copied" : "Copy key"}</Button>
         <Link to="?" className="cap-btn" data-variant="quiet">
           Done
         </Link>
@@ -495,6 +495,7 @@ export default function ApiKeySettings({
               data-cap="table"
               role="region"
               aria-label="API keys"
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
               tabIndex={0}
             >
               <table className="cap-table">
@@ -568,6 +569,7 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
         ) : log.calls.length === 0 ? (
           <Empty kind="nothing-yet" flush title={log.newer ? "No older calls." : "No agent has called Foxhound with these keys yet."} />
         ) : (
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Agent activity" tabIndex={0}>
             <table className="cap-table">
               <thead>

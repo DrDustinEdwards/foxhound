@@ -8,9 +8,10 @@ export default function start(el: HTMLElement, props: { url: string; resetMs: nu
       icon.classList.toggle("hidden", icon.getAttribute("data-copied") !== String(copied));
     }
   };
-  el.addEventListener("click", async () => {
+  const copy = async () => {
     await navigator.clipboard.writeText(props.url);
     show(true);
     setTimeout(() => show(false), props.resetMs);
-  });
+  };
+  el.addEventListener("click", () => void copy());
 }
