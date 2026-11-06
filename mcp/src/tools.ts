@@ -201,7 +201,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     name: "foxhound_admin_backup_media",
     title: "Back up the files now",
     description:
-      "Run the nightly files backup now: one pass each over the blog media and the merchants' dispute evidence files into the backups bucket (files/media/ and files/evidence/), which Capsid copies to Amazon. It copies new and changed files and drops a copy only 30 days after its file is gone; it never writes or deletes in the media or evidence buckets and moves no money. A pass stops at its write or time budget and the next goes on from there. Reports each backup's counts and whether its pass completed.",
+      "Run the nightly files backup now: one pass each over the blog media and the merchants' dispute evidence files into the backups bucket (files/media/ and files/evidence/), which Capsid copies to Amazon. It copies new and changed files and drops a copy only 30 days after its file is gone; it never writes or deletes in the media or evidence buckets and moves no money. A pass stops at its write or time budget and the next goes on from there. Reports each backup's counts and whether its pass completed. /health caches the backup read for an hour, so its backup fields may take up to an hour to show this run.",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: output({ files: LIST }),
     scope: "write",
