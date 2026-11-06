@@ -43,7 +43,8 @@
   "r2_buckets": [{ "binding": "AUDIT_BUCKET", "bucket_name": "foxhound-admin-mcp-tool-calls" }],
   "triggers": { "crons": ["29 4 * * *"] },
   "vars": {
-    "ADMIN_MCP_ORIGIN": "https://admin-mcp.foxhoundapp.com",
+    // This Worker's own origin; every token is bound to PUBLIC_ORIGIN + /mcp (RFC 8707). Unset serves nothing.
+    "PUBLIC_ORIGIN": "https://admin-mcp.foxhoundapp.com",
     // The Cloudflare Access team domain: Dustin's, the same team Capsid and
     // dustinedwards.info sign in through. Not a secret.
     "ACCESS_TEAM_DOMAIN": "dustinedwards.cloudflareaccess.com"

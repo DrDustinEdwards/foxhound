@@ -4,35 +4,20 @@
 // writer, no queue. Its one way into Foxhound is FOXHOUND, a service binding to
 // the foxhound Worker, and the admin API behind it. Its two Durable Objects are
 // its own (index.ts): the door's rate limit and the tool-call log; its one R2
-// bucket holds only that log's copies.
+// bucket holds only that log's copies. What the shared door reads (OAUTH_KV,
+// MCP_RATE_LIMIT, TOOL_CALL_LOG, AUDIT_BUCKET, PUBLIC_ORIGIN, the Access for
+// SaaS settings, DCR_REDIRECT_URIS, MCP_PROBE_KEY, DEPLOY_SHA) is site-runtime's
+// AdminMcpEnv.
+
+import type { AdminMcpEnv as DoorEnv } from "@dustinedwards/site-runtime/admin-mcp";
 
 interface ServiceBinding {
   fetch(request: Request): Promise<Response>;
 }
 
-export interface AdminMcpEnv {
+export interface AdminMcpEnv extends DoorEnv {
   /** Service binding to the foxhound Worker. The only route to Foxhound. */
   FOXHOUND: ServiceBinding;
   /** The mcp_admin key (scripts/issue-admin-api-key.mjs). Secret. */
   FOXHOUND_ADMIN_API_KEY?: string;
-  /** Grants and tokens for workers-oauth-provider. */
-  OAUTH_KV: KVNamespace;
-  /** The door's limiter, site-runtime's RateLimiter (checkRateLimit fails closed without it). */
-  MCP_RATE_LIMIT?: DurableObjectNamespace;
-  /** The append-only, hash-chained tool-call log, site-runtime's ToolCallLog. No tool runs unlogged. */
-  TOOL_CALL_LOG?: DurableObjectNamespace;
-  /** The tool-call log's copies (index.ts's daily export, L6-L7). It holds nothing of Foxhound's. */
-  AUDIT_BUCKET?: R2Bucket;
-  /** Cloudflare Access for SaaS, the upstream sign-in (@dustinedwards/site-runtime/access-login). */
-  ACCESS_TEAM_DOMAIN?: string;
-  ACCESS_SAAS_CLIENT_ID?: string;
-  ACCESS_SAAS_CLIENT_SECRET?: string;
-  /** This Worker's own origin. Defaults to https://admin-mcp.foxhoundapp.com. */
-  ADMIN_MCP_ORIGIN?: string;
-  /** The deployed commit, set by CI's deploy (--var DEPLOY_SHA) and reported by /health. */
-  DEPLOY_SHA?: string;
-  /** Extra exact registration callbacks, space or comma separated, beside site-runtime's DCR_CALLBACKS (door.ts). */
-  DCR_REDIRECT_URIS?: string;
-  /** The list-only test key for the daily live check (door.ts, site-runtime probeDoor): lists tools, runs none. Secret. */
-  MCP_PROBE_KEY?: string;
 }
