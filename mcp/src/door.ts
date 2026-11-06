@@ -2,7 +2,7 @@ import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-prov
 import { validateHostHeader } from "@modelcontextprotocol/server";
 
 import { auditLogCheck, recordAudit } from "@dustinedwards/site-runtime/audit-log";
-import { healthResponse } from "@dustinedwards/site-runtime/health";
+import { durableObjectCheck, healthResponse, kvCheck, r2Check, type HealthCheck } from "@dustinedwards/site-runtime/health";
 import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
 import {
   DCR_CALLBACKS,
@@ -42,7 +42,8 @@ import { SERVER, serveAdminMcp } from "./server";
 //                             (site-runtime ./owner-page, mounted by the same login handler)
 //   /register                 tightened registration (rule 13), rate limited here first
 //   /token, /.well-known/*    served by the provider
-//   /health                   liveness, the deployed commit CI's live gate waits for, and the tool-call log's check
+//   /health                   liveness, the deployed commit CI's live gate waits for, a check per binding and the
+//                             tool-call log's check
 //   anything else             404
 
 type DoorEnv = AdminMcpEnv & { OAUTH_PROVIDER: OAuthHelpers };
@@ -63,8 +64,37 @@ const signIn = loginHandler<DoorEnv & { PUBLIC_ORIGIN?: string }>({
   audit: { name: SERVER.name, version: SERVER.version },
   // CI's deploy (devkit's worker-deploy.yml) passes DEPLOY_SHA and waits for /health to report it. The tool-call log's
   // check (L8) warns on a call started and never finished, a spike, or rows uncopied for two days.
-  health: (env) => healthResponse({ sha: env.DEPLOY_SHA, checks: [auditLogCheck(env as Parameters<typeof auditLogCheck>[0])] }),
+  health: (env) =>
+    healthResponse({ sha: env.DEPLOY_SHA, checks: [...bindingChecks(env), auditLogCheck(env as Parameters<typeof auditLogCheck>[0])] }),
 });
+
+/** The admin API answers any path outside /api/admin/v1 with its 404 before it reads D1, a key or its log. */
+const FOXHOUND_PROBE_URL = "https://foxhound.internal/";
+
+/**
+ * One check per binding in wrangler.jsonc (the ops audit's H5), each a single cheap operation, since /health is read
+ * from many data centers an hour. OAUTH_KV (a `get` of a fixed key) and MCP_RATE_LIMIT (mints an id, wakes no object)
+ * fail: without the first no token is checked, without the second every /mcp call is a 429, since the limiter fails
+ * closed. FOXHOUND is reached for real, one request to the AdminApi entrypoint that its 404 answers, and warns: it is
+ * another Worker, so rolling this one back would not mend it. AUDIT_BUCKET (one `head`, never a list) holds only the
+ * log's copies, so it warns. TOOL_CALL_LOG is the tool-call log's own check.
+ */
+function bindingChecks(env: AdminMcpEnv): HealthCheck[] {
+  const foxhound: HealthCheck = {
+    name: "foxhound",
+    run: async () => {
+      const answer = await env.FOXHOUND.fetch(new Request(FOXHOUND_PROBE_URL));
+      await answer.body?.cancel();
+      return answer.status < 500 || { ok: false, detail: `the admin API answered ${answer.status}` };
+    },
+  };
+  return [
+    { ...kvCheck("oauth-kv", env.OAUTH_KV), level: "fail" as const },
+    { ...durableObjectCheck("mcp-rate-limit", env.MCP_RATE_LIMIT), level: "fail" as const },
+    { ...foxhound, level: "warn" as const },
+    { ...r2Check("audit-bucket", env.AUDIT_BUCKET as R2Bucket), level: "warn" as const },
+  ];
+}
 
 /** The provider's defaultHandler: the shared consent and sign-in, with this Worker's origin for the callback. */
 const loginRoutes = {

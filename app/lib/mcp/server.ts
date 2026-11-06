@@ -7,7 +7,8 @@ import {
   McpServer,
   requireScopes,
 } from "@modelcontextprotocol/server";
-import { mcpCacheHints, routeMcpEra } from "@dustinedwards/site-runtime/mcp-server";
+import { probeCaller } from "@dustinedwards/site-runtime/agent-keys";
+import { invokeTool, mcpCacheHints, routeMcpEra } from "@dustinedwards/site-runtime/mcp-server";
 
 import { MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
@@ -47,6 +48,9 @@ export const MCP_SERVER_INFO = {
     { src: "https://foxhoundapp.com/icon-192.png", mimeType: "image/png", sizes: ["192x192"] },
   ],
 };
+
+/** The server as site-runtime's refusals and the shared log name it. */
+export const MCP_SERVER = { site: "Foxhound", scopes: MERCHANT_SCOPES, name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
 
 const INSTRUCTIONS = [
   "Foxhound recovers failed Stripe payments and tracks disputes and subscription health for one merchant: the account this key belongs to, and no other.",
@@ -93,9 +97,10 @@ function errorForAgent(tool: string, err: unknown): string {
 
 /**
  * One server for one request, with every registered tool on it in registry
- * order, so `tools/list` is deterministic.
+ * order, so `tools/list` is deterministic. `scopes` is null for the list-only
+ * test key, which holds no OAuth token and runs nothing.
  */
-function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: readonly string[]): McpServer {
+function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: readonly string[] | null): McpServer {
   // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
   const server = new McpServer(MCP_SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: CACHE_HINTS, maxToolInputElements: 10_000 });
   for (const descriptor of registry.list()) {
@@ -114,13 +119,34 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
         // A key without the scope the tool needs gets the SDK's 403
         // insufficient_scope, naming every scope the call needs and where to
         // find the authorization server, before the tool runs, so the client
-        // can step up instead of failing.
-        scopeChallenge:
-          tool.scope === "write"
-            ? requireScopes(MERCHANT_SCOPES.read, MERCHANT_SCOPES.write)
-            : requireScopes(MERCHANT_SCOPES.read),
+        // can step up instead of failing. The list-only test key gets no
+        // challenge: it has no OAuth token to step up, and its refusal below
+        // is a tool result, so the SDK's own header checks still answer first
+        // and a valid call is a 200 (conformance P4,
+        // sep-2243-server-accepts-whitespace-header-value, run 55).
+        ...(scopes
+          ? {
+              scopeChallenge:
+                tool.scope === "write"
+                  ? requireScopes(MERCHANT_SCOPES.read, MERCHANT_SCOPES.write)
+                  : requireScopes(MERCHANT_SCOPES.read),
+            }
+          : {}),
       },
-      async (args: unknown) => {
+      async (args: unknown, extra: { mcpReq?: { _meta?: Record<string, unknown> } }) => {
+        // THE LIST-ONLY TEST KEY RUNS NOTHING. site-runtime's invokeTool
+        // refuses it in words before `run`, with a `refused` row in the shared
+        // log, as every family server refuses it; `run` throws in case it is
+        // ever reached.
+        if (!scopes) {
+          return invokeTool(ctx.env, MCP_SERVER, {
+            caller: probeCaller(),
+            tool: { name: descriptor.name, scope: tool.scope },
+            args: (args ?? {}) as Record<string, unknown>,
+            meta: extra?.mcpReq?._meta,
+            run: () => Promise.reject(new Error("the list-only test key never runs a tool")),
+          });
+        }
         // The challenge above runs only when the transport is handed the key's
         // scopes; this check holds whatever path reaches the tool.
         const needed = tool.scope === "write" ? MERCHANT_SCOPES.write : MERCHANT_SCOPES.read;
@@ -150,14 +176,14 @@ function buildMcpServer(registry: McpToolRegistry, ctx: McpToolContext, scopes: 
 /** Serve one already-authenticated request through the SDK, in the era that
  *  can answer it: site-runtime's routeMcpEra, the one era router every family
  *  MCP server runs (area 11, P1). `authInfo` carries the key's scopes, for the
- *  per-tool step-up. */
-export function serveMcp(request: Request, registry: McpToolRegistry, ctx: McpToolContext, authInfo: AuthInfo) {
+ *  per-tool step-up; null is the list-only test key, which every tool refuses. */
+export function serveMcp(request: Request, registry: McpToolRegistry, ctx: McpToolContext, authInfo: AuthInfo | null) {
   // `responseMode` stays the SDK's "auto": one JSON body per modern answer,
   // because no tool here emits a message before its result.
   return routeMcpEra(request, ctx.env, undefined, {
-    factory: () => buildMcpServer(registry, ctx, authInfo.scopes),
+    factory: () => buildMcpServer(registry, ctx, authInfo ? authInfo.scopes : null),
     options: {},
-    createMcpHandler: (factory, options) => (req) => createMcpHandler(factory, options).fetch(req, { authInfo }),
+    createMcpHandler: (factory, options) => (req) => createMcpHandler(factory, options).fetch(req, authInfo ? { authInfo } : {}),
     isLegacyRequest: (req) => isLegacyRequest(req),
   });
 }

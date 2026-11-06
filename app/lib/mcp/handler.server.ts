@@ -11,7 +11,7 @@ import { mcpResource, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
 import { answersIn, recordToolCalls, startToolCalls, toolCallsIn, type StartedCall } from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
-import { MCP_SERVER_INFO, serveMcp } from "./server";
+import { MCP_SERVER, MCP_SERVER_INFO, serveMcp } from "./server";
 
 // THE MERCHANT MCP ENDPOINT (370, roadmap item 3; brought to the 2026-10-10
 // MCP ruling by job_874dc20ea9ac).
@@ -64,9 +64,6 @@ function mcpErrorBody(id: string | number | null, code: number, message: string)
 
 /** The server as the shared log names it. */
 const AUDIT_SERVER = { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
-
-/** The server as the list-only test key's door names it in a refusal and the log. */
-const PROBE_SERVER = { site: "Foxhound", scopes: MERCHANT_SCOPES, ...AUDIT_SERVER };
 
 /** The registry as the list-only test key sees it: the read tools only, as a read grant would see them. */
 function readToolsOnly(registry: McpToolRegistry): McpToolRegistry {
@@ -240,7 +237,7 @@ export async function handleMcpRequest(
   // the key holds no scope, so a tool that somehow ran would refuse itself.
   // No key in the request, or no secret set, is null: on to the merchant keys.
   const probed = await probeDoor(request, env, {
-    server: PROBE_SERVER,
+    server: MCP_SERVER,
     limiter: env.RATE_LIMITER,
     serve: (req, caller) => {
       const now = new Date();
@@ -250,12 +247,7 @@ export async function handleMcpRequest(
         accountId: "",
         now,
         trace: { apiKeyId: caller.principal, tool: "", now },
-      }, {
-        token: "",
-        clientId: caller.principal,
-        scopes: [],
-        resource: new URL(mcpResource(url.origin)),
-      });
+      }, null);
     },
   });
   if (probed) return probed;

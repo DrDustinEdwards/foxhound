@@ -1,0 +1,5 @@
+{
+  "unprobed": {
+    "EMAIL": "send_email has no read operation, and a probe would send a real email; a failed send is recorded in email_sends and alerted"
+  }
+}
