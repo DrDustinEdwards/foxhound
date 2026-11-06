@@ -1,5 +1,6 @@
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
 
+import { sendEmail as send } from "@dustinedwards/site-runtime/email";
 import type { Rendered } from "capsomer/email";
 
 import { manageEmailSettingsLine, renderFoxhoundEmail } from "./templates";
@@ -28,19 +29,6 @@ const DEFAULT_FROM_NAME = "Support";
 function fromDisplayName(name: string | null | undefined): string {
   const cleaned = (name ?? DEFAULT_FROM_NAME).replace(/["\r\n]/g, "").trim();
   return cleaned.length > 0 ? cleaned : DEFAULT_FROM_NAME;
-}
-
-/** A Subject header with no line break in it: a CR or LF would start a header
- *  of the sender's choosing, so each run of them becomes one space. */
-function headerSubject(subject: string): string {
-  return subject.replace(/[\r\n]+/g, " ").trim();
-}
-
-/** The To address, refused outright if it carries a line break (a header
- *  injection); there is no safe way to guess which address was meant. */
-function headerRecipient(to: string): string {
-  if (/[\r\n]/.test(to)) throw new Error("email blocked: line break in recipient");
-  return to;
 }
 
 /**
@@ -107,8 +95,8 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   );
   const message: EmailSendMessage = {
     from: `${fromName} <${EMAIL_FROM_ADDRESS}>`,
-    to: headerRecipient(job.to),
-    subject: headerSubject(rendered.subject),
+    to: job.to,
+    subject: rendered.subject,
     html: rendered.html,
     text: rendered.text,
   };
@@ -136,20 +124,12 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   return message;
 }
 
-/** The message id from a binding send. The Email Service binding returns
- *  `{ messageId }` (developers.cloudflare.com/email-service/api/send-emails/workers-api/,
- *  EmailSendResult); `id` was this adapter's placeholder and is still read so
- *  older test doubles keep working. This id is what Email Sending events carry
- *  as payload.messageId, so it is how a bounce finds its send (events.ts). */
-function providerMessageIdOf(result: { id?: string; messageId?: string } | void): string | null {
-  if (!result) return null;
-  return result.messageId ?? result.id ?? null;
-}
-
 /**
- * Send one message through the Email Service binding. The single binding seam;
- * throws if the binding is not configured (Dustin provisions it). Returns the
- * provider message id when the binding surfaces one.
+ * Send one message through the Email Service binding (site-runtime ./email: a
+ * line break in an address is refused, a subject's folded, and `job.redact` and
+ * the recipient are cut out of the error). Throws when it is not sent. Returns
+ * the binding's message id, which Email Sending events carry as
+ * payload.messageId, so it is how a bounce finds its send (events.ts).
  */
 export async function sendEmail(
   env: Env,
@@ -159,9 +139,9 @@ export async function sendEmail(
     throw new Error("EMAIL binding is not configured");
   }
   const baseUrl = env.BETTER_AUTH_URL ?? "";
-  const message = buildEmailMessage(job, baseUrl);
-  const result = await env.EMAIL.send(message);
-  return { providerMessageId: providerMessageIdOf(result) };
+  const sent = await send(env.EMAIL, buildEmailMessage(job, baseUrl), { secrets: job.redact });
+  if (!sent.sent) throw new Error(sent.error);
+  return { providerMessageId: sent.messageId };
 }
 
 /**
@@ -178,11 +158,9 @@ export async function sendTransactionalEmail(
 ): Promise<{ providerMessageId: string | null }> {
   const { fromName, rendered } = renderTransactional(message);
   const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName });
-  // Same behavior as before the shared seam: a missing binding and a provider
-  // throw both reach the caller as throws, the provider's own error unchanged.
+  // A missing binding and a refusal both reach the caller as throws.
   if (sent.status === "sent") return { providerMessageId: sent.providerMessageId };
-  if (sent.reason === "email_binding_missing") throw new Error("EMAIL binding is not configured");
-  throw sent.cause;
+  throw new Error(sent.error ?? "EMAIL binding is not configured");
 }
 
 /** The From name and the rendered parts of a transactional mail. Pure. */
@@ -205,8 +183,8 @@ function renderTransactional(message: { to: string; subject: string; bodyHtml: s
 function authSenderMessage(to: string, rendered: Rendered, fromName: string): EmailSendMessage {
   return {
     from: `${fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
-    to: headerRecipient(to),
-    subject: headerSubject(rendered.subject),
+    to,
+    subject: rendered.subject,
     html: rendered.html,
     text: rendered.text,
   };
@@ -228,24 +206,17 @@ export function buildRenderedTransactionalMessage(message: { to: string; rendere
   return authSenderMessage(message.to, message.rendered, "Foxhound");
 }
 
-type BindingSendResult =
-  | { status: "sent"; providerMessageId: string | null }
-  | { status: "failed"; reason: "email_binding_missing" }
-  | { status: "failed"; reason: "provider_error"; cause: unknown };
-
 /** The one place transactional mail meets env.EMAIL: the auth sender's From,
- *  no headers, and the provider's message id when it gives one. Never throws. */
+ *  no headers, and the binding's message id. Never throws; each of `secrets`
+ *  and the recipient is cut out of a refusal's error. */
 async function sendThroughAuthSender(
   env: Env,
-  message: { to: string; rendered: Rendered; fromName: string },
-): Promise<BindingSendResult> {
-  if (!env.EMAIL) return { status: "failed", reason: "email_binding_missing" };
-  try {
-    const result = await env.EMAIL.send(authSenderMessage(message.to, message.rendered, message.fromName));
-    return { status: "sent", providerMessageId: providerMessageIdOf(result) };
-  } catch (cause) {
-    return { status: "failed", reason: "provider_error", cause };
-  }
+  message: { to: string; rendered: Rendered; fromName: string; secrets?: string[] },
+): Promise<TransactionalSendOutcome> {
+  if (!env.EMAIL) return { status: "failed", reason: "email_binding_missing", error: null };
+  const sent = await send(env.EMAIL, authSenderMessage(message.to, message.rendered, message.fromName), { secrets: message.secrets });
+  if (sent.sent) return { status: "sent", providerMessageId: sent.messageId };
+  return { status: "failed", reason: "provider_error", error: sent.error };
 }
 
 /**
@@ -269,19 +240,5 @@ export async function sendRenderedTransactionalEmail(
   env: Env,
   message: { to: string; rendered: Rendered; redact?: string[] },
 ): Promise<TransactionalSendOutcome> {
-  const sent = await sendThroughAuthSender(env, { to: message.to, rendered: message.rendered, fromName: "Foxhound" });
-  if (sent.status === "sent") return sent;
-  if (sent.reason === "email_binding_missing") return { status: "failed", reason: sent.reason, error: null };
-  const error = redactSecrets(sent.cause instanceof Error ? sent.cause.message : String(sent.cause), message.redact);
-  return { status: "failed", reason: "provider_error", error };
-}
-
-/** Cut each secret (a link, a token) out of a provider's error string. Pure.
- *  An empty or absent list returns the error unchanged. */
-export function redactSecrets(error: string, secrets: readonly string[] | undefined): string {
-  let out = error;
-  for (const secret of secrets ?? []) {
-    if (secret) out = out.split(secret).join("[redacted]");
-  }
-  return out;
+  return sendThroughAuthSender(env, { to: message.to, rendered: message.rendered, fromName: "Foxhound", secrets: message.redact });
 }

@@ -2,7 +2,7 @@ import { escapeHtml } from "capsomer/email";
 
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
-import { redactSecrets } from "~/lib/email/send";
+import { redact } from "@dustinedwards/site-runtime/email";
 import { recoveryFooterNote } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 
@@ -121,7 +121,7 @@ export async function sendTeamInviteEmail(
     return {
       status: "failed",
       providerMessageId: null,
-      error: redactSecrets(err instanceof Error ? err.message : String(err), job.redact),
+      error: redact(err instanceof Error ? err.message : String(err), job.redact),
       retryable: false,
     };
   }
