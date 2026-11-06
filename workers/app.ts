@@ -220,7 +220,9 @@ export default {
     // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
     async (request: Request, env: Env, ctx: ExecutionContext) =>
       withSpeculationRules(
-        await withAdminIdle(request, async () => site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx)),
+        await withAdminIdle(request, async () => site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx), {
+          secret: env.ADMIN_IDLE_SECRET,
+        }),
       ),
     { sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA },
   ),
