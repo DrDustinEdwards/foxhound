@@ -1,12 +1,10 @@
-import { ArrowLeft } from "lucide-react";
-import { Link } from "capsomer/react/link";
 
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { labelForTag } from "~/lib/blog/tags";
 import { getPublishedPostsByTag, getPublishedTagSet } from "~/lib/blog/queries.server";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -17,7 +15,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/tag";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { SectionTrail } from "~/components/section-trail";
 
 // Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
 // 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5.
@@ -61,16 +59,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const label = labelForTag(loaderData.tag);
   return [
     ...marketingMeta({
-      title: `${label} - Foxhound Blog`,
-      description: `Guides on ${label.toLowerCase()} from the Foxhound blog.`,
+      title: label,
+      suffix: " - Foxhound Blog",
+      description: `Every Foxhound blog guide on ${label}, written for Stripe merchants: what goes wrong, why, and the steps to fix it.`,
       path: `/blog/tag/${loaderData.tag}`,
+      pageType: "CollectionPage",
       siteUrl: loaderData.siteUrl,
     }),
-    jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-      { name: "Home", path: "/" },
-      { name: "Blog", path: "/blog" },
-      { name: label, path: `/blog/tag/${loaderData.tag}` },
-    ])),
   ];
 }
 
@@ -92,18 +87,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
     // ring reading the family's ring, as on /blog.
     <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
       <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
-        <Link
-          to="/blog"
-          className="group mb-8 inline-flex items-center gap-1.5 text-label leading-6 text-text-tertiary transition-colors hover:text-text"
-        >
-          <ArrowLeft
-            className="transition-transform group-hover:-translate-x-0.5"
-            size={13}
-            strokeWidth={1.5}
-            aria-hidden
-          />
-          All posts
-        </Link>
+        <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label }]} />
         <h1 className="mb-2 text-section font-medium tracking-tight text-text">{label}</h1>
         <p className="mb-10 font-mono text-label text-text-tertiary">
           {posts.length} {posts.length === 1 ? "article" : "articles"}
@@ -113,7 +97,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <BlogPostCard key={post.id} post={post} />
+              <BlogPostCard key={post.id} post={post} level={2} />
             ))}
           </div>
         )}

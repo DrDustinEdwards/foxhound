@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
+import { errorDetails } from "~/lib/errors/boundary-message";
 
 // TASK-foxhound-demo-system-completion.md Phase 1: the root ErrorBoundary must
 // show a thrown data(message, { status }) payload's message verbatim, not the
@@ -17,35 +17,29 @@ function routeErrorResponse(status: number, statusText: string, responseData: un
   return { status, statusText, internal: false, data: responseData };
 }
 
-describe("resolveErrorBoundaryDetails", () => {
+describe("errorDetails", () => {
   it("shows the thrown message verbatim instead of the generic HTTP reason phrase", () => {
     const error = routeErrorResponse(
       405,
       "Method Not Allowed",
       "Actions are disabled in this demo. Explore freely; nothing here can be changed.",
     );
-    const { message, details } = resolveErrorBoundaryDetails(error, false);
-    expect(message).toBe("Error");
-    expect(details).toBe("Actions are disabled in this demo. Explore freely; nothing here can be changed.");
+    expect(errorDetails(error, false)).toBe("Actions are disabled in this demo. Explore freely; nothing here can be changed.");
   });
 
   it("falls back to statusText when the thrown response has no string body", () => {
     const error = routeErrorResponse(500, "Internal Server Error", undefined);
-    const { message, details } = resolveErrorBoundaryDetails(error, false);
-    expect(message).toBe("Error");
-    expect(details).toBe("Internal Server Error");
+    expect(errorDetails(error, false)).toBe("Internal Server Error");
   });
 
   it("always shows the fixed not-found copy for 404, ignoring any body", () => {
     const error = routeErrorResponse(404, "Not Found", "some internal detail");
-    const { message, details } = resolveErrorBoundaryDetails(error, false);
-    expect(message).toBe("404");
-    expect(details).toBe("The requested page could not be found.");
+    expect(errorDetails(error, false)).toBe("The requested page could not be found.");
   });
 
   it("shows a real Error's message only in dev, never in production", () => {
     const err = new Error("a real stack trace detail");
-    expect(resolveErrorBoundaryDetails(err, true).details).toBe("a real stack trace detail");
-    expect(resolveErrorBoundaryDetails(err, false).details).toBe("An unexpected error occurred.");
+    expect(errorDetails(err, true)).toBe("a real stack trace detail");
+    expect(errorDetails(err, false)).toBe("An unexpected error occurred.");
   });
 });

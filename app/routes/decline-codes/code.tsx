@@ -1,4 +1,3 @@
-import { ArrowLeft } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { Badge } from "~/components/badge";
@@ -8,7 +7,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone, recoveryApproach } from "~/lib/decline-codes/presentation";
-import { breadcrumbListJsonLd, faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
@@ -36,16 +35,10 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: `${view.displayName} (${view.code}) decline code`,
-      suffix: " - Foxhound",
       description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
       path: `/decline-codes/${view.code}`,
       siteUrl: url,
     }),
-    jsonLd(breadcrumbListJsonLd(url, [
-      { name: "Home", path: "/" },
-      { name: "Decline codes", path: "/decline-codes" },
-      { name: view.displayName, path: `/decline-codes/${view.code}` },
-    ])),
     jsonLd(faqPageJsonLd(loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer })))),
   ];
 }
@@ -56,20 +49,13 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <MarketingPageHeader
+        trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
         eyebrow="Decline code"
         title={view.displayName}
         subtext={content.meaning}
       />
 
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
-        <Link
-          to="/decline-codes"
-          className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary hover:text-text"
-        >
-          <ArrowLeft className="transition-transform group-hover:-translate-x-0.5" size={13} strokeWidth={1.5} aria-hidden />
-          Back to decline codes
-        </Link>
-
         <div className="mb-8 flex flex-wrap items-center gap-2">
           <span className="rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-micro text-text-tertiary">
             {view.code}

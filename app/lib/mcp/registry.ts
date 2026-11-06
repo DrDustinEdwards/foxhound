@@ -115,7 +115,10 @@ interface McpToolDescriptor {
   description: string;
   /** JSON Schema. Plain object rather than a zod schema: MCP's `inputSchema` IS
    *  JSON Schema, and the SDK's `fromJsonSchema` takes it as written. */
-  inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[] };
+  inputSchema: { type: "object"; additionalProperties: false; properties?: Record<string, unknown>; required?: string[] };
+  /** JSON Schema of the result's structuredContent (area 11, T3). The SDK
+   *  checks every successful result against it before it leaves. */
+  outputSchema?: { type: "object"; properties: Record<string, unknown>; required?: string[] };
   annotations: McpToolAnnotations;
 }
 
@@ -123,6 +126,14 @@ interface McpToolDescriptor {
  *  carries the account the bearer key resolved to; no tool takes an account as
  *  an argument, so an agent cannot be talked into changing it. */
 export interface McpTool extends McpToolDescriptor {
+  /**
+   * The scope a call needs (MCP ruling 2026-10-10, rule 12.1): "read" is
+   * merchant.read, which every connection holds; "write" is merchant.write,
+   * which the owner ticked. Declared, never read from readOnlyHint: a hint
+   * describes a tool to the client and is not an authorization. The registry
+   * still refuses a tool whose hint and scope disagree.
+   */
+  scope: "read" | "write";
   execute: (ctx: McpToolContext, args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -173,6 +184,9 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
     if (byName.has(tool.name)) {
       throw new Error(`MCP tool "${tool.name}" is registered twice`);
     }
+    if ((tool.scope === "read") !== tool.annotations.readOnlyHint) {
+      throw new Error(`MCP tool "${tool.name}" declares scope ${tool.scope} but readOnlyHint ${tool.annotations.readOnlyHint}`);
+    }
     // REGISTRATION IS WHAT APPLIES THE REDACTION. The executor
     // stored here is the tool's own wrapped in `redactToolResult`, so 370's
     // DEFAULT-REDACT holds for every tool in the registry rather than for the
@@ -191,11 +205,12 @@ export function defineToolRegistry(tools: McpTool[]): McpToolRegistry {
   }
   return {
     list: () =>
-      [...byName.values()].map(({ name, title, description, inputSchema, annotations }) => ({
+      [...byName.values()].map(({ name, title, description, inputSchema, outputSchema, annotations }) => ({
         name,
         title,
         description,
         inputSchema,
+        ...(outputSchema ? { outputSchema } : {}),
         annotations,
       })),
     get: (name: string) => byName.get(name) ?? null,

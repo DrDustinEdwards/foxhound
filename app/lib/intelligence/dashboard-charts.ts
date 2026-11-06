@@ -1,4 +1,5 @@
 import { areaChart } from "enarratio/lite/area";
+import type { ChartFit } from "capsomer/react/chart-frame";
 import { barChart } from "enarratio/lite/bar";
 import { lineChart } from "enarratio/lite/line";
 
@@ -27,7 +28,7 @@ import {
 // accent color: the MRR line and the plan bars are amber, and the
 // "Medium risk" band takes the caution color every other band in the app uses.
 //
-// Enarratio 0.3.1 has no tick formatter, so Recova's "$1,200" and "102%" ticks
+// Enarratio has no tick formatter, so Recova's "$1,200" and "102%" ticks
 // read as plain numbers under an axis label naming the unit, as on the churn
 // chart (an Enarratio gap, named in the J67 pull request).
 
@@ -44,9 +45,10 @@ export interface TrendPoint {
   totalMrrCents: number;
 }
 
-export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number): string {
+export function drawMrrTrend(points: readonly TrendPoint[], currency: string, width: number, fit: ChartFit = {}): string {
   const yLabel = `MRR (${unit(currency)})`;
   return areaChart({
+    title: "MRR trend",
     data: points.map((p) => ({ Date: p.at, mrr: whole(p.totalMrrCents, currency) })),
     x: "Date",
     y: "mrr",
@@ -56,8 +58,10 @@ export function drawMrrTrend(points: readonly TrendPoint[], currency: string, wi
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     formatX: (v) => formatDateMonthDay(new Date(v)),
     alt: mrrTrendAlt(points, currency),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.trend,
+    ...fit,
   });
 }
 
@@ -66,9 +70,10 @@ export interface NrrPoint {
   nrrPct: number | null;
 }
 
-export function drawNrr(points: readonly NrrPoint[], width: number): string {
+export function drawNrr(points: readonly NrrPoint[], width: number, fit: ChartFit = {}): string {
   const yLabel = "NRR (%)";
   return lineChart({
+    title: "Net Revenue Retention",
     data: points.map((p) => ({ Date: p.at, nrr: p.nrrPct === null ? null : Math.round(p.nrrPct * 10) / 10 })),
     x: "Date",
     y: "nrr",
@@ -82,8 +87,10 @@ export function drawNrr(points: readonly NrrPoint[], width: number): string {
     formatValue: formatPct,
     formatX: (v) => formatDateMonthDay(new Date(v)),
     alt: nrrAlt(points),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.nrr,
+    ...fit,
   });
 }
 
@@ -118,8 +125,9 @@ function movementRows(points: readonly MovementPoint[], currency: string) {
   ]);
 }
 
-export function drawMovement(points: readonly MovementPoint[], currency: string, width: number): string {
+export function drawMovement(points: readonly MovementPoint[], currency: string, width: number, fit: ChartFit = {}): string {
   return barChart({
+    title: "MRR movement by week",
     data: movementRows(points, currency),
     x: "Week",
     // One bar per week (weeklyMovements), named by its Monday.
@@ -134,8 +142,10 @@ export function drawMovement(points: readonly MovementPoint[], currency: string,
     yLabel: unit(currency),
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: movementAlt(points, currency),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.movement,
+    ...fit,
   });
 }
 
@@ -144,9 +154,11 @@ function planChartHeight(planCount: number): number {
   return Math.max(140, 64 + planCount * 36);
 }
 
-export function drawPlans(rows: readonly PlanRow[], currency: string, width: number): string {
+export function drawPlans(rows: readonly PlanRow[], currency: string, width: number, fit: ChartFit = {}, source?: { name: string }): string {
   const yLabel = `MRR (${unit(currency)})`;
   return barChart({
+    title: "MRR by plan",
+    source,
     data: rows.map((r) => ({ Plan: r.plan, mrr: whole(r.mrrCents, currency) })),
     x: "Plan",
     y: "mrr",
@@ -157,8 +169,10 @@ export function drawPlans(rows: readonly PlanRow[], currency: string, width: num
     colors: { [yLabel]: "var(--brand-ui)" },
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: planAlt(rows, currency),
+    hoverTitles: false,
     width,
     height: planChartHeight(rows.length),
+    ...fit,
   });
 }
 
@@ -176,9 +190,10 @@ const HEALTH_COLORS: Record<(typeof HEALTH_SERIES)[number], string> = {
   Healthy: "var(--green)",
 };
 
-export function drawHealth(days: readonly HealthDay[], width: number): string {
+export function drawHealth(days: readonly HealthDay[], width: number, fit: ChartFit = {}): string {
   const label = (d: HealthDay) => formatDateMonthDay(new Date(`${d.date}T00:00:00Z`));
   return barChart({
+    title: "Customer health distribution",
     data: days.flatMap((d) => [
       { Day: label(d), band: "High risk", count: d.atRisk },
       { Day: label(d), band: "Medium risk", count: d.watch },
@@ -193,7 +208,9 @@ export function drawHealth(days: readonly HealthDay[], width: number): string {
     xLabel: null,
     yLabel: "Customers",
     alt: healthAlt(days),
+    hoverTitles: false,
     width,
     height: CHART_HEIGHTS.health,
+    ...fit,
   });
 }

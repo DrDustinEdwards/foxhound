@@ -147,4 +147,4 @@ export const PRICING_FAQS: PricingFaq[] = [
   },
 ];
 
-export const PRICING_META_DESCRIPTION = `Pay when Foxhound recovers. Baseline recoveries Stripe would have gotten anyway are free. Nothing billed until the recovery has matured for ${RECOVERY_MATURITY_DAYS} days.`;
+export const PRICING_META_DESCRIPTION = `Pay when Foxhound recovers. Baseline recoveries Stripe would have made anyway are free. Nothing billed until one has matured for ${RECOVERY_MATURITY_DAYS} days.`;

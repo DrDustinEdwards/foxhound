@@ -31,6 +31,9 @@ import { decryptToken } from "~/lib/stripe/encryption";
 
 import type { Route } from "./+types/card-update";
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 // Per-recipient, token-bearing, and it resolves to a specific failed payment
 // and a Stripe Checkout session, so it is never cacheable by a shared
 // intermediary (Dustin, 2026-08-04). See the same note on unsubscribe.tsx:

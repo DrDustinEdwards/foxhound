@@ -8,6 +8,7 @@ import { accounts, auditDigestRuns, auditRuns, emailSends, emailSuppressions, st
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { blockText, type WordsBlock } from "./helpers/email-words";
 
 // J96, parity row E24: the monthly audit report. Recova's buildAuditEmailBody
 // (app/api/cron/run-scheduled-audits/route.ts, blob be1ed2ca, lines 169 to 310)
@@ -158,8 +159,8 @@ const emailFor = (over: Partial<EmailInput> = {}) =>
     ...over,
   });
 
-const texts = (blocks: { type: string; text?: string; label?: string }[]) =>
-  blocks.map((b) => b.text ?? b.label ?? "");
+const texts = (blocks: WordsBlock[]) =>
+  blocks.map((b) => blockText(b) || (b.label ?? ""));
 
 // ============================================================================
 

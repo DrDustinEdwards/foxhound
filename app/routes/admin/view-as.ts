@@ -10,11 +10,12 @@ import { startImpersonation } from "~/lib/admin/impersonation.server";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 
 import type { Route } from "./+types/view-as";
+import { readForm } from "~/lib/http/body";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const admin = context.get(adminContext);
-  const form = await request.formData();
+  const form = await readForm(request);
   const accountId = String(form.get("accountId") ?? "");
   const started = accountId
     ? await startImpersonation(getDb(env), { adminEmail: admin.email, accountId, now: new Date() })

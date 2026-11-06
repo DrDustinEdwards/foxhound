@@ -1,3 +1,4 @@
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { redirect } from "react-router";
 
 import { getDb } from "~/db";
@@ -5,9 +6,11 @@ import { setSessionActiveAccount, safeReturnPath } from "~/lib/auth/active-accou
 import { findActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { DEMO_READ_ONLY_MESSAGE, hasDemoCookie } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
+import { hasDemoCookie } from "~/lib/demo/session";
 
 import type { Route } from "./+types/account-switch";
+import { readForm, readJson } from "~/lib/http/body";
 
 // Switch which account the current session is looking at. Legacy's
 // app/api/account/switch/route.ts (blob `2b8c3628`, 1,141 bytes), which
@@ -21,6 +24,8 @@ import type { Route } from "./+types/account-switch";
 //
 // The account switcher in app/components/site-header.tsx posts here.
 export async function action({ request, context }: Route.ActionArgs) {
+  const refused = refuseCrossSite(request);
+  if (refused) return refused;
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
   }
@@ -78,15 +83,16 @@ async function readAccountId(request: Request): Promise<string | null> {
   const contentType = request.headers.get("content-type") ?? "";
   try {
     if (contentType.includes("application/json")) {
-      const payload = (await request.json()) as { accountId?: unknown } | null;
+      const payload = (await readJson(request)) as { accountId?: unknown } | null;
       return typeof payload?.accountId === "string" && payload.accountId
         ? payload.accountId
         : null;
     }
-    const form = await request.formData();
+    const form = await readForm(request);
     const value = form.get("accountId");
     return typeof value === "string" && value ? value : null;
-  } catch {
+  } catch (error) {
+    if (error instanceof Response) throw error;
     return null;
   }
 }

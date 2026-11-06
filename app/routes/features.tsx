@@ -18,7 +18,7 @@ import {
   type FeatureFilterValue,
 } from "~/lib/marketing/features-content";
 import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -31,7 +31,6 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/features";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // /features. Recova's spec is app/(marketing)/features/page.tsx
 // (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
@@ -99,25 +98,24 @@ function SectionInlineExample({ id }: { id: string }) {
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Features - Foxhound",
+      title: "Features",
       description: FEATURES_META_DESCRIPTION,
       path: "/features",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Features", path: "/features" },
-          ])),
-        ]
-      : []),
   ];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return { siteUrl: siteUrl(env), facts: await readFeatureFacts() };
+}
+
+/** How many features each product has, for the filter's screen reader line. */
+function productCounts(features: { product: string }[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const f of features) counts[f.product] = (counts[f.product] ?? 0) + 1;
+  return counts;
 }
 
 export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
@@ -138,7 +136,12 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
       <div className="mx-auto max-w-[1100px] px-5 pb-16 sm:px-8">
         {/* Recova's FeatureFilterShell: the active value on the wrapper, which
             FEATURE_FILTER_CSS reads; no card re-renders on a press. */}
-        <div data-feature-filter={filter}>
+        <div
+          data-feature-filter={filter}
+          // On a page that does not hydrate, the feature-filter island (islands/feature-filter.ts) moves it.
+          data-island="feature-filter"
+          data-props={JSON.stringify({ total: all.length, counts: productCounts(all) })}
+        >
           <FeatureFilter active={filter} onChange={setFilter} shownCount={shown} totalCount={all.length} />
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">

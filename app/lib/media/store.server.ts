@@ -1,16 +1,18 @@
-import { and, desc, eq, gt, inArray, lte, max, sql } from "drizzle-orm";
+import type { MediaLibraryStore, MediaRecord, MediaRecordFields, MediaRevisionRecord, MediaRecordWrite } from "@dustinedwards/site-api";
+import { and, asc, desc, eq, gt, inArray, lte, max, notExists, sql } from "drizzle-orm";
 
 import { media, mediaChanges, mediaRevisions, type Db } from "~/db";
 
 // The media index in D1 (app/db/schema/media.ts): the one module that reads and
-// writes the three media tables. Every write to a file's own row goes through
-// writeMediaAtRev, which moves `rev` in the statement that checks it.
+// writes the three media tables. `mediaStore` is site-api's MediaLibraryStore
+// over them, mapping only: the columns keep their own types (times as ms
+// integers, tags as JSON), and the library (site-api's mediaLibrary) owns every
+// rule. The page and the media route read rows through mediaRow and
+// mediaRowsByKey.
 
 export type MediaRow = typeof media.$inferSelect;
-export type MediaRevisionRow = typeof mediaRevisions.$inferSelect;
-export type MediaFields = Partial<Omit<MediaRow, "key" | "rev">>;
-
-export type MediaWrite = { ok: true; rev: number } | { ok: false; reason: "missing" } | { ok: false; reason: "stale"; rev: number };
+type MediaRevisionRow = typeof mediaRevisions.$inferSelect;
+type MediaFields = Partial<Omit<MediaRow, "key" | "rev">>;
 
 /** D1 binds at most 100 parameters to a statement. */
 const IN_CHUNK = 90;
@@ -28,95 +30,175 @@ export async function mediaRowsByKey(db: Db, keys: readonly string[]): Promise<M
   return rows;
 }
 
-/** Every file, newest upload first. The library is a blog's pictures, so the
- *  list filters and sorts in memory over one read. */
-export function allMediaRows(db: Db): Promise<MediaRow[]> {
-  return db.select().from(media).orderBy(desc(media.uploadedAt), media.key);
+const iso = (at: Date) => at.toISOString();
+
+function recordOf(row: MediaRow): MediaRecord {
+  return {
+    key: row.key,
+    rev: row.rev,
+    filename: row.filename,
+    contentType: row.contentType,
+    bytes: row.bytes,
+    width: row.width,
+    height: row.height,
+    sha256: row.sha256,
+    alt: row.alt,
+    caption: row.caption,
+    tags: row.tags,
+    focus: row.focus,
+    credit: row.credit,
+    license: row.license,
+    sourceUrl: row.sourceUrl,
+    licenseExpires: row.licenseExpires,
+    takenAt: row.takenAt,
+    placeholder: row.placeholder,
+    color: row.color,
+    uploadedAt: iso(row.uploadedAt),
+    trashedAt: row.trashedAt ? iso(row.trashedAt) : null,
+  };
 }
 
-/** The file holding these bytes now, or the one that was uploaded with them and
- *  shrunk at upload, so sending the same camera file again is a duplicate too. */
-export async function mediaRowByHash(db: Db, sha256: string): Promise<MediaRow | null> {
-  const rows = await db.select().from(media).where(eq(media.sha256, sha256)).orderBy(media.uploadedAt).limit(1);
-  if (rows[0]) return rows[0];
-  const sent = await db
-    .select({ key: mediaRevisions.mediaKey })
-    .from(mediaRevisions)
-    .where(and(eq(mediaRevisions.sha256, sha256), inArray(mediaRevisions.reason, ["upload", "import"])))
-    .limit(1);
-  return sent[0] ? mediaRow(db, sent[0].key) : null;
+/** The record fields stored as they are. */
+const PLAIN = [
+  "filename",
+  "contentType",
+  "bytes",
+  "width",
+  "height",
+  "alt",
+  "caption",
+  "tags",
+  "focus",
+  "credit",
+  "license",
+  "sourceUrl",
+  "licenseExpires",
+  "takenAt",
+  "placeholder",
+  "color",
+] as const satisfies ReadonlyArray<keyof MediaRecordFields & keyof MediaFields>;
+
+/** A write's fields as columns: ISO times as Dates; a field with no column here is dropped. */
+function fieldsOf(fields: MediaRecordFields): MediaFields {
+  const { uploadedAt, trashedAt, sha256 } = fields;
+  return {
+    ...Object.fromEntries(PLAIN.filter((name) => fields[name] !== undefined).map((name) => [name, fields[name]])),
+    ...(uploadedAt !== undefined ? { uploadedAt: new Date(uploadedAt) } : {}),
+    ...(trashedAt !== undefined ? { trashedAt: trashedAt === null ? null : new Date(trashedAt) } : {}),
+    ...(sha256 ? { sha256 } : {}),
+  };
 }
 
-export async function insertMediaRow(db: Db, row: typeof media.$inferInsert): Promise<void> {
-  await db.insert(media).values(row);
+function revisionOf(row: MediaRevisionRow): MediaRevisionRecord {
+  return {
+    id: row.id,
+    at: iso(row.at),
+    bytes: row.bytes,
+    width: row.width,
+    height: row.height,
+    reason: row.reason as MediaRevisionRecord["reason"],
+    sha256: row.sha256 || null,
+    copyKey: row.copyKey,
+  };
 }
 
-/**
- * Writes `fields` and moves the version, only while the row is at
- * `expectedRev` (any rev when it is undefined, for a write the upload itself
- * makes). One statement, so two writers can never both pass the check.
- */
-export async function writeMediaAtRev(db: Db, key: string, fields: MediaFields, expectedRev?: number): Promise<MediaWrite> {
-  const where = expectedRev === undefined ? eq(media.key, key) : and(eq(media.key, key), eq(media.rev, expectedRev));
-  const written = await db
-    .update(media)
-    .set({ ...fields, rev: sql`${media.rev} + 1` })
-    .where(where)
-    .returning({ rev: media.rev });
-  if (written[0]) return { ok: true, rev: written[0].rev };
-  const now = await mediaRow(db, key);
-  return now ? { ok: false, reason: "stale", rev: now.rev } : { ok: false, reason: "missing" };
-}
+/** site-api's media library store over migration 0059's tables. */
+export function mediaStore(db: Db): MediaLibraryStore {
+  const record = async (key: string) => {
+    const row = await mediaRow(db, key);
+    return row ? recordOf(row) : null;
+  };
 
-/** Removes the row only if it is still at `rev`, so a write that landed while
- *  the delete was checked keeps the file. */
-export async function deleteMediaRowAtRev(db: Db, key: string, rev: number): Promise<boolean> {
-  const gone = await db
-    .delete(media)
-    .where(and(eq(media.key, key), eq(media.rev, rev)))
-    .returning({ key: media.key });
-  return gone.length > 0;
-}
+  return {
+    record,
 
-// ---------- byte history
+    records: async (keys) => (await mediaRowsByKey(db, keys)).map(recordOf),
 
-/** A file's revisions, newest first. */
-export function revisionsOf(db: Db, key: string): Promise<MediaRevisionRow[]> {
-  return db.select().from(mediaRevisions).where(eq(mediaRevisions.mediaKey, key)).orderBy(desc(mediaRevisions.id));
-}
+    all: async () => (await db.select().from(media).orderBy(desc(media.uploadedAt), media.key)).map(recordOf),
 
-export async function addRevision(db: Db, row: Omit<typeof mediaRevisions.$inferInsert, "id">): Promise<number> {
-  const added = await db.insert(mediaRevisions).values(row).returning({ id: mediaRevisions.id });
-  return added[0]!.id;
-}
+    async byHash(sha256) {
+      const [current] = await db.select().from(media).where(eq(media.sha256, sha256)).orderBy(asc(media.uploadedAt), asc(media.key)).limit(1);
+      if (current) return recordOf(current);
+      const [sent] = await db
+        .select({ key: mediaRevisions.mediaKey })
+        .from(mediaRevisions)
+        .where(and(eq(mediaRevisions.sha256, sha256), inArray(mediaRevisions.reason, ["upload", "import"])))
+        .orderBy(asc(mediaRevisions.id))
+        .limit(1);
+      return sent ? record(sent.key) : null;
+    },
 
-/** Records where a revision's bytes were kept once newer bytes replaced them. */
-export async function keepRevision(db: Db, id: number, copyKey: string): Promise<void> {
-  await db.update(mediaRevisions).set({ copyKey }).where(eq(mediaRevisions.id, id));
-}
+    async insert(input) {
+      const { key, filename, contentType, bytes, sha256, ...rest } = input;
+      if (!sha256) throw new Error(`${key} has no hash to store`);
+      await db.insert(media).values({ ...fieldsOf(rest), key, filename, contentType, bytes, sha256, uploadedAt: new Date(input.uploadedAt) });
+    },
 
-export async function deleteRevisionsOf(db: Db, key: string): Promise<void> {
-  await db.delete(mediaRevisions).where(eq(mediaRevisions.mediaKey, key));
-}
+    // One statement, so two writers can never both pass the check.
+    async writeAtRev(key, fields, expectedRev): Promise<MediaRecordWrite> {
+      const [row] = await db
+        .update(media)
+        .set({ ...fieldsOf(fields), rev: sql`${media.rev} + 1` })
+        .where(and(eq(media.key, key), eq(media.rev, expectedRev)))
+        .returning();
+      if (row) return { ok: true, record: recordOf(row) };
+      const now = await mediaRow(db, key);
+      return now ? { ok: false, reason: "stale", rev: now.rev } : { ok: false, reason: "missing" };
+    },
 
-// ---------- the change log (written by the triggers in migration 0059)
+    async follow(key, fields) {
+      const set = fieldsOf(fields);
+      const [row] = Object.keys(set).length === 0 ? [await mediaRow(db, key)] : await db.update(media).set(set).where(eq(media.key, key)).returning();
+      if (!row) throw new Error(`${key} changed its bytes, but its row is gone`);
+      return recordOf(row);
+    },
 
-/** The newest change's number, 0 before any. */
-export async function mediaChangeCursor(db: Db): Promise<number> {
-  const rows = await db.select({ seq: max(mediaChanges.seq) }).from(mediaChanges);
-  return rows[0]?.seq ?? 0;
-}
+    async addRevision(key, revision) {
+      const [added] = await db
+        .insert(mediaRevisions)
+        .values({ ...revision, mediaKey: key, at: new Date(revision.at), sha256: revision.sha256 ?? "" })
+        .returning({ id: mediaRevisions.id });
+      return added!.id;
+    },
 
-/** Each key changed after `from` and at or before `head`, once, at its latest
- *  change, oldest first: at most `limit + 1`, so the caller knows whether more wait. */
-export async function mediaChangedSince(db: Db, from: number, head: number, limit: number): Promise<Array<{ key: string; seq: number }>> {
-  const latest = max(mediaChanges.seq);
-  const rows = await db
-    .select({ key: mediaChanges.mediaKey, seq: latest })
-    .from(mediaChanges)
-    .where(and(gt(mediaChanges.seq, from), lte(mediaChanges.seq, head)))
-    .groupBy(mediaChanges.mediaKey)
-    .orderBy(latest)
-    .limit(limit + 1);
-  return rows.map((r) => ({ key: r.key, seq: r.seq ?? 0 }));
+    revisions: async (key, limit = 100) =>
+      (await db.select().from(mediaRevisions).where(eq(mediaRevisions.mediaKey, key)).orderBy(desc(mediaRevisions.id)).limit(limit)).map(revisionOf),
+
+    async keepCopy(revisionId, copyKey) {
+      await db.update(mediaRevisions).set({ copyKey }).where(eq(mediaRevisions.id, revisionId));
+    },
+
+    // Only at the rev the caller saw, so a write that landed meanwhile keeps the file; the revisions go only with the row.
+    async remove(key, rev) {
+      const [gone] = await db.batch([
+        db
+          .delete(media)
+          .where(and(eq(media.key, key), eq(media.rev, rev)))
+          .returning({ key: media.key }),
+        db
+          .delete(mediaRevisions)
+          .where(and(eq(mediaRevisions.mediaKey, key), notExists(db.select({ key: media.key }).from(media).where(eq(media.key, key))))),
+      ]);
+      if (gone.length > 0) return "removed";
+      return (await mediaRow(db, key)) ? "stale" : "missing";
+    },
+
+    // The change log, written by the triggers in migration 0059.
+    async changeCursor() {
+      const rows = await db.select({ seq: max(mediaChanges.seq) }).from(mediaChanges);
+      return rows[0]?.seq ?? 0;
+    },
+
+    async changedSince(from, head, limit) {
+      const latest = max(mediaChanges.seq);
+      const rows = await db
+        .select({ key: mediaChanges.mediaKey, seq: latest })
+        .from(mediaChanges)
+        .where(and(gt(mediaChanges.seq, from), lte(mediaChanges.seq, head)))
+        .groupBy(mediaChanges.mediaKey)
+        .orderBy(latest)
+        .limit(limit + 1);
+      return rows.map((r) => ({ key: r.key, seq: r.seq ?? 0 }));
+    },
+  };
 }

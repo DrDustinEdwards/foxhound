@@ -1,15 +1,11 @@
-import { createAnthropicClient } from "~/lib/ai/client";
+import { askModel, REWRITE } from "~/lib/ai/client";
 import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { AUDIT_SUMMARY_MAX_TOKENS, MODEL_AUDIT_SUMMARY } from "~/lib/constants";
 
 import type { AuditResult } from "./engine";
 import { AUDIT_SUMMARY_FALLBACK, buildAuditSummaryPrompt, sanitizeSummary } from "./summary";
 
-// The audit summary's one call, through the factory. Phase (c).
-//
-// THE SIXTH CALL SITE, and the factory's derived plant caught the addition on
-// the first run rather than after it shipped, which is what 353 binding 9 said
-// it would do.
+// The audit summary's one call, through site-runtime's caller (~/lib/ai/client). Phase (c).
 //
 // NEVER THROWS INTO THE ENGINE. Legacy returns its fallback string with no API
 // key and again inside a catch; Foxhound returns a DISCRIMINATED outcome instead,
@@ -36,16 +32,16 @@ export async function generateAuditSummary(
 
   try {
     // The audit can run before any Foxhound account exists, so its cost row has none.
-    const client = createAnthropicClient(env, { source: "audit_summary", accountId: null });
     const prompt = `${buildAuditSummaryPrompt(result)}\n\n${PLAIN_WRITING_PROMPT}`;
     const call = async (instruction = ""): Promise<string> => {
-      const response = await client.messages.create({
-        model: MODEL_AUDIT_SUMMARY,
-        max_tokens: AUDIT_SUMMARY_MAX_TOKENS,
-        messages: [{ role: "user", content: prompt + instruction }],
-      });
-      const block = response.content.find((b) => b.type === "text");
-      return sanitizeSummary(block && block.type === "text" ? block.text : "");
+      const answer = await askModel(
+        env,
+        { source: "audit_summary", accountId: null },
+        { model: MODEL_AUDIT_SUMMARY, max_tokens: AUDIT_SUMMARY_MAX_TOKENS, messages: [{ role: "user", content: prompt + instruction }] },
+        instruction ? REWRITE : {},
+      );
+      if (!answer.ok) throw new Error(`the model call failed: ${answer.kind}`);
+      return sanitizeSummary(answer.text);
     };
     // One retry when the summary reads as machine-written (ai/plain-writing.ts).
     const summary = await retryStockPhrasing(await call(), (text) => text, call);
@@ -60,8 +56,8 @@ export async function generateAuditSummary(
     }
     return { source: "model", summary };
   } catch (err) {
-    // Do not log the error object: a request error can carry the prompt, and the
-    // prompt carries this merchant's money.
+    // The message only: it names the failure's kind, never the prompt, which
+    // carries this merchant's money.
     const detail = err instanceof Error ? err.message : "unknown error";
     console.error("audit summary generation failed:", detail);
     return { source: "fallback", summary: AUDIT_SUMMARY_FALLBACK, reason: detail };

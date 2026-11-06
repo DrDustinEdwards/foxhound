@@ -882,18 +882,18 @@ body {
   color: var(--text-secondary);
 }
 
-/* The :::faq block (markdown.server.ts). */
-.blog-faq-list {
+/* Prelum's :::faq block. */
+.blog-prose .faq {
   margin: 0;
 }
-.blog-faq-item {
+.blog-prose .faq-item {
   margin-bottom: 1rem;
 }
-.blog-faq-question {
+.blog-prose .faq dt {
   font-weight: 500;
   color: var(--text);
 }
-.blog-faq-answer {
+.blog-prose .faq dd {
   margin: 0.25rem 0 0;
   color: var(--text-secondary);
 }

@@ -64,13 +64,12 @@ describe("PLANT 3: the fallback", () => {
   });
 });
 
-describe("PLANT 4: the call, and what leaves through the factory", () => {
+describe("PLANT 4: the call", () => {
 
-  it("A THROWN CALL FALLS BACK WITH THE REASON, and an EMPTY REPLY does too", async () => {
+  it("A FAILED CALL FALLS BACK WITH THE REASON, and an EMPTY REPLY does too", async () => {
     vi.doMock("~/lib/ai/client", () => ({
-      createAnthropicClient: () => ({
-        messages: { create: () => Promise.reject(new Error("overloaded")) },
-      }),
+      REWRITE: { maxAttempts: 1 },
+      askModel: () => Promise.resolve({ ok: false, kind: "unavailable" }),
     }));
     vi.resetModules();
     const thrown = await (await import("~/lib/audit/summary.server")).generateAuditSummary(
@@ -80,13 +79,12 @@ describe("PLANT 4: the call, and what leaves through the factory", () => {
     expect(thrown).toEqual({
       source: "fallback",
       summary: AUDIT_SUMMARY_FALLBACK,
-      reason: "overloaded",
+      reason: "the model call failed: unavailable",
     });
 
     vi.doMock("~/lib/ai/client", () => ({
-      createAnthropicClient: () => ({
-        messages: { create: () => Promise.resolve({ content: [{ type: "text", text: "   " }] }) },
-      }),
+      REWRITE: { maxAttempts: 1 },
+      askModel: () => Promise.resolve({ ok: true, text: "   " }),
     }));
     vi.resetModules();
     const empty = await (await import("~/lib/audit/summary.server")).generateAuditSummary(

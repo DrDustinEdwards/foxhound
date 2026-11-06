@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { blockText, type WordsBlock } from "./helpers/email-words";
 
 // JOB 2 / 343: THE WIN-BACK SEND CRON, the half legacy has and Foxhound did not.
 //
@@ -156,8 +157,8 @@ describe("PLANT 1: the copy is legacy's, per step", () => {
   /** The template's words, in order, as one string per block (J91: the
    *  template is Capsomer's blocks, so a sentence is a block's text and the
    *  button is its label). */
-  const words = (blocks: { type: string; text?: string; label?: string; url?: string }[]) =>
-    blocks.map((b) => (b.type === "button" ? `[${b.label}](${b.url})` : (b.text ?? "")));
+  const words = (blocks: WordsBlock[]) =>
+    blocks.map((b) => (b.type === "button" ? `[${b.label}](${b.url})` : blockText(b)));
 
   it("substitutes every placeholder, including the resubscribe url", () => {
     const blocks = buildWinbackEmail({

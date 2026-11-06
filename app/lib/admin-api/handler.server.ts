@@ -1,7 +1,9 @@
-import { desc, eq, gte } from "drizzle-orm";
+import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
+import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
+import { eq } from "drizzle-orm";
 
 import { getDb, type Db } from "~/db";
-import { accounts, adminApiCalls, page404Daily } from "~/db/schema";
+import { accounts, adminApiCalls } from "~/db/schema";
 import { listAuditLog } from "~/lib/admin/audit-log.server";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import {
@@ -23,18 +25,20 @@ import {
 import { countStaleMarkers, engageBrake, getBrakeStatus } from "~/lib/admin/brake.server";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { getMerchantDetail, listMerchants, setProcessingPaused } from "~/lib/admin/merchants.server";
+import { backupFilesNow, backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import { describeStaged, listStagedChanges, stageChange, type StagedRow } from "~/lib/admin/staged.server";
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "~/lib/auth/roles";
-import { DAY_MS, RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
+import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { listDisputes } from "~/lib/disputes/queries.server";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import { redactToolResult } from "~/lib/mcp/redact";
 import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
+import { readJson } from "~/lib/http/body";
 
 // THE FOXHOUND ADMIN API at /api/admin/v1 (MCP ruling 2026-10-10, rule 9
 // amendment; job_21de68b30fc2 PR 1).
@@ -53,7 +57,7 @@ import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
 // next call, whatever the MCP still believes. The key failures share one 401
 // body so a guess cannot tell a revoked key from an unknown one.
 //
-// WHAT IT OFFERS. Reads, a pause (one merchant, or every merchant through the
+// WHAT IT OFFERS. Reads, the files backup run now (copy only), a pause (one merchant, or every merchant through the
 // brake), staging, and the owner's test mail (/emails: preview any email, or
 // send it to the caller's own inbox; ../admin/email-send.server.ts, approved by
 // Dustin 2026-10-15). Test mail moves no money and writes no recovery state. Pausing stops money moving, so it is a direct write;
@@ -98,7 +102,7 @@ const UNAUTHORIZED = () => json(401, { ok: false, error: "Unauthorized" });
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const refuse = async (response: Response, reason: string) => {
-    console.debug("admin api refused:", reason);
+    logEvent(OWASP_EVENTS.authorizationFailure, { ...requestFields(request), door: "admin-api", reason }, { level: "warn" });
     const allowed = await isWithinRateLimit(
       env,
       "admin-api-anon",
@@ -348,18 +352,12 @@ const ROUTES: ApiRoute[] = [
     method: "GET",
     pattern: "/health",
     handler: async ({ db, env, now }) => {
-      const since = new Date(now.getTime() - 7 * DAY_MS);
       const [webhooks, crons, migrations, d1SizeBytes, notFound] = await Promise.all([
         getWebhookHealthSummary(db),
         listCronRows(db),
         getMigrationStatus(env),
         getD1SizeBytes(env),
-        db
-          .select({ day: page404Daily.day, path: page404Daily.path, hits: page404Daily.hitCount })
-          .from(page404Daily)
-          .where(gte(page404Daily.day, since))
-          .orderBy(desc(page404Daily.hitCount))
-          .limit(20),
+        notFoundReport(env.DB, { days: 7, limit: 20, now }),
       ]);
       return { webhooks, crons, migrations, d1_size_bytes: d1SizeBytes, top_404s_7d: notFound };
     },
@@ -371,6 +369,28 @@ const ROUTES: ApiRoute[] = [
       const rows = await listAuditLog(db, 500);
       const { items, ...rest } = slice("/audit-log", rows, page(url, "/audit-log"));
       return { entries: items, ...rest };
+    },
+  },
+  {
+    // The backup state now, uncached: the newest complete dump and each files pass, warning past 26 hours. The same
+    // read as /health's backup field, which /health caches for an hour.
+    method: "GET",
+    pattern: "/backup",
+    handler: async ({ env, now }) => ({ ...(await backupStatus(env, now)) }),
+  },
+  {
+    // Runs the files backup now, the same passes as the nightly cron (backupFilesNow). Copy only: it writes
+    // nothing but the backups bucket and moves no money, so it is a direct write and safe to repeat.
+    method: "POST",
+    pattern: "/backup/media",
+    handler: async ({ db, env, caller }) => {
+      const files = await backupFilesNow(env);
+      await logAdminAction(db, {
+        actorEmail: caller.actorEmail,
+        action: "backup.media",
+        metadata: { passes: files.map((f) => f.name), via: "admin-api", keyId: caller.keyId },
+      });
+      return { files };
     },
   },
   {
@@ -556,7 +576,7 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
   let body: Json = {};
   if (request.method === "POST") {
     try {
-      const parsed: unknown = await request.json();
+      const parsed: unknown = await readJson(request);
       body = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Json) : {};
     } catch {
       body = {};

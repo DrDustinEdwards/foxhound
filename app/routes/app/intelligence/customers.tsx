@@ -214,7 +214,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           ) : (
             <div className="cap-panel">
               <div className="cap-panel-body" data-flush="">
-                <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Customers" tabIndex={0}>
+                <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Customers" tabIndex={0}>
                   <table className="cap-table">
                     <thead>
                       <tr>
@@ -260,7 +260,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                 <span className="block text-micro font-normal text-text-secondary">{c.scheduled}</span>
                               ) : null}
                             </th>
-                            <td>
+                            <td data-label="Plan">
                               {/* Capsomer's pill markup rather than its Pill
                                   component, which adds a status glyph to any
                                   toned pill; a plan is not a status. */}
@@ -268,12 +268,12 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                 {pill.label}
                               </span>
                             </td>
-                            <td data-num="">
+                            <td data-label="MRR" data-num="">
                               <span className="font-mono">
                                 {c.mrrContributionCents > 0 ? formatMoney(c.mrrContributionCents, c.currency) : "-"}
                               </span>
                             </td>
-                            <td data-num="">
+                            <td data-label="Health" data-num="">
                               {c.healthScore == null ? (
                                 <span className="font-mono text-text-tertiary">-</span>
                               ) : (
@@ -282,12 +282,12 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                 </span>
                               )}
                             </td>
-                            <td>
+                            <td data-label="Last seen">
                               <span className="font-mono text-text-tertiary">
                                 {formatRelativeLastSeen(c.lastSeenAt, now)}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="Signals">
                               {/* Recova's two signals under Recova's names. An
                                   empty cell is blank, as Recova's is. */}
                               <div className="flex items-center gap-2">

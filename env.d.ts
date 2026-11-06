@@ -7,7 +7,14 @@ interface Env {
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
+  // Extra exact callbacks a merchant MCP client registration may name, space or
+  // comma separated, beside site-runtime's DCR_CALLBACKS (registerClient). A
+  // plain list of https URLs, not a secret.
+  DCR_REDIRECT_URIS?: string;
   SENTRY_DSN?: string;
+  // HMAC key for the merchant MCP's ToolCallLog chain (site-runtime ./audit-log).
+  // Bind it before the first row; unset, the chain is plain SHA-256.
+  AUDIT_CHAIN_KEY?: string;
   // Reading errors back for /admin/platform/errors (J48). The DSN only sends;
   // listing issues needs a Sentry auth token with event:read and the
   // organization's slug. Either unset => the page says it cannot read them.
@@ -77,6 +84,11 @@ interface Env {
   // helper types cleanly). Connected-account endpoint + platform endpoint.
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PLATFORM_WEBHOOK_SECRET?: string;
+  // The merchant MCP's list-only test key for the daily live check
+  // (app/lib/mcp/handler.server.ts, site-runtime probeDoor): it lists the read
+  // tools and runs none, and it never resolves to an account. OPTIONAL: unset,
+  // /mcp admits only merchant keys, as before.
+  MCP_PROBE_KEY?: string;
 
   // ---- Phase 4b: AI dunning-copy generation ----
   // Anthropic API key for Sonnet dunning-copy generation. Dustin-gated secret

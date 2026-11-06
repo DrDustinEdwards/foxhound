@@ -17,6 +17,9 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: verify
@@ -36,6 +39,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       # The second half of the 2026-10-15 ruling above. A merge to main whose
       # tree is byte for byte the tree its pull request already passed verify
@@ -95,6 +100,21 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run build
 
+      # Raw console.* calls in server code against .console.json's baseline (a
+      # rise fails; log through site-runtime ./log instead), and the migrations
+      # against drizzle/migrations-manifest.json (an applied one edited or gone,
+      # or a new one that drops or renames without `-- contract:`, fails).
+      - name: Console ratchet and expand-only migrations
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:console && npm run check:migrations
+
+      # Every server-side Better Auth session read goes through site-runtime
+      # sessionLookup, which always sets asResponse: false (without it a
+      # signed-in person reads as signed out; site-runtime-session-check).
+      - name: Session reads go through sessionLookup
+        if: steps.tested.outputs.same != 'true'
+        run: npm run --silent check:session
+
       # Knip (unused files, exports, dependencies) and jscpd (duplication)
       # against .no-bloat.json: a count above its baseline fails. Lower it with
       # `npx devkit-no-bloat --write-baseline` when a count goes down.
@@ -102,21 +122,36 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run check:bloat
 
-      # Warn only: page weight per route from this build, and tests with no
-      # assertion. continue-on-error keeps a crash from failing the run.
-      - name: Bloat report (warn only)
+      # A gate (area 7, D5): a route over .route-weight.json's budget_bytes, or
+      # grown past its baseline, fails the run.
+      - name: Page weight
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:page-weight
+
+      # Warn only: tests with no assertion. continue-on-error keeps a crash
+      # from failing the run.
+      - name: Assertion report (warn only)
         if: steps.tested.outputs.same != 'true'
         continue-on-error: true
-        run: npm run report:bloat
+        run: npm run report:assertions
 
       - name: Test
         if: steps.tested.outputs.same != 'true'
         run: npm test
 
+      # The official MCP conformance suite against the admin MCP's real
+      # protocol layer and door under wrangler dev (.conformance.json; area 11,
+      # P2 to P7 and P10). A scenario with a recorded count must not move.
+      - name: MCP conformance
+        if: steps.tested.outputs.same != 'true'
+        run: npm run check:conformance
+
   # devkit's shared deploy (worker-deploy.yml). Its deploy job applies the D1
   # migrations first (schema before code: a failing migration never reaches the
-  # Worker, and old code against an old schema still works; DB_MIGRATE_CONFIRM
-  # is the opt-in scripts/db-migrate.mjs demands before touching production),
+  # Worker, and old code against an old schema still works) through
+  # devkit-migrations --apply, which applies only the pending migrations that
+  # add and refuses a drop, rename or row delete (a table recreate included)
+  # with the command to run it by hand, so those wait for Dustin. Then it
   # builds, and deploys with DEPLOY_SHA set to this commit. Its live gate waits
   # for /health to report that commit, then runs scripts/verify-live.mjs (the
   # home page and every hashed asset it names answer 200), and rolls the deploy
@@ -124,12 +159,39 @@ jobs:
   deploy:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@766881e150d2de96689523c4e3530cc748c64cc0 # v0.17.0
+    # worker-deploy.yml's jobs ask for contents: read and nothing more.
+    permissions:
+      contents: read
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@cd31a3eba261e27aa5f4b7a9965f7c4fc59ebe49 # v0.21.5
     with:
       worker-name: foxhound
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
-      pre-deploy: DB_MIGRATE_CONFIRM=1 npm run db:migrate && npm run build
+      pre-deploy: npx devkit-migrations drizzle/migrations --apply foxhound && npm run build
+      # The Time Travel bookmark from before the migrations above, with its restore command, in the run's summary.
+      d1-database: foxhound
+      sha-var: DEPLOY_SHA
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # The admin MCP Worker (mcp/), the one second Worker, through the same shared
+  # deploy once the foxhound Worker it binds is live. mcp/wrangler.jsonc holds
+  # no secret, so the deploy reads it as committed; its dependencies are the
+  # root's. The live gate waits for its /health to report this commit, runs
+  # scripts/verify-admin-mcp.mjs, and rolls it back on a refusal.
+  admin-mcp-deploy:
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@cd31a3eba261e27aa5f4b7a9965f7c4fc59ebe49 # v0.21.5
+    with:
+      worker-name: foxhound-admin-mcp
+      working-directory: mcp
+      install: cd .. && npm ci
+      health-url: https://admin-mcp.foxhoundapp.com/health
+      verify-command: node ../scripts/verify-admin-mcp.mjs
       sha-var: DEPLOY_SHA
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -25,7 +25,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action } = await import("~/routes/app/settings/api-keys");
+const { action, loader } = await import("~/routes/app/settings/api-keys");
 const { verifyMcpToken, MCP_TOKEN_SCOPE, MCP_TOKEN_PREFIX } = await import("~/lib/auth/mcp-tokens");
 const { API_KEY_LABEL_MAX_LENGTH } = await import("~/lib/settings/api-key-label");
 
@@ -210,5 +210,25 @@ describe("PLANT 4: the label is required and bounded", () => {
     const at = await post({ _action: "create", label: "y".repeat(API_KEY_LABEL_MAX_LENGTH) });
     expect(at.status).toBe(200);
     expect(keyRows(ACCOUNT)).toHaveLength(1);
+  });
+});
+
+describe("PLANT 6: the owner's call log is this account's calls only (rule 8)", () => {
+  it("lists the ACTIVE account's calls, newest first, and none of another account's; a member sees no log", async () => {
+    const call = sqlite.prepare(
+      "INSERT INTO mcp_calls (id, account_id, api_key_id, tool, outcome, error, created_at) VALUES (?, ?, 'k', ?, ?, ?, ?)",
+    );
+    call.run("c1", ACCOUNT, "get_overview", "ok", null, 2000);
+    call.run("c2", ACCOUNT, "update_settings", "tool_error", "Refused for someone@example.com", 3000);
+    call.run("c3", OTHER, "get_overview", "ok", null, 4000);
+    const read = async (role: string) =>
+      (await loader({ context: ctxFor(false, role), request: new Request("https://foxhoundapp.test/settings/api-keys"), params: {} } as never)) as {
+        callLog: { state: string; calls?: { id: string; error: string | null }[] };
+      };
+    const owner = await read("owner");
+    expect(owner.callLog.state).toBe("ok");
+    expect(owner.callLog.calls!.map((c) => c.id)).toEqual(["c2", "c1"]);
+    expect(owner.callLog.calls![0]!.error).not.toContain("someone@example.com");
+    expect((await read("member")).callLog.state).toBe("owner-only");
   });
 });

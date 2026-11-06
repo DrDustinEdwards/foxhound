@@ -58,7 +58,7 @@ function planPhrase(planName: string | null): string {
 }
 
 function updateLink(label: string): string {
-  return `<a href="${DEMO_CARD_UPDATE_URL}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  return `<a href="${DEMO_CARD_UPDATE_URL}">${label}</a>`;
 }
 
 /**

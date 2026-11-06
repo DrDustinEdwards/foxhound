@@ -13,7 +13,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { AdminShell, FAMILY_APPS, type AdminApp, type AdminEntry } from "capsomer/react/admin-shell";
-import { refuseCrossOrigin } from "@dustinedwards/site-runtime/origin";
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
@@ -29,6 +29,9 @@ import { noindexHeader } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/admin-shell";
 import type { loader as rootLoader } from "~/root";
+
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
 
 // The ONE gate for /admin. Cloudflare Access signs the person in before a
 // request reaches the Worker; this re-verifies Access's JWT and the
@@ -49,7 +52,7 @@ export const middleware: Route.MiddlewareFunction[] = [
     // cross-site form. Checked after the session, so the 404 still hides
     // /admin from everyone else. site-runtime's shared check: a write whose
     // Origin is another site (or "null") gets its 403.
-    const refusal = refuseCrossOrigin(request);
+    const refusal = refuseCrossSite(request);
     if (refusal) throw refusal;
     context.set(adminContext, { email: session.email });
     return next();

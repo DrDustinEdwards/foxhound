@@ -1,3 +1,4 @@
+import { CONTENT_SIGNAL } from "@drdustinedwards/site-helpers/robots";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -66,8 +67,9 @@ describe("PLANT 1: every named group carries the wildcard's disallow set", () =>
     expect(DISALLOW_PATHS.length).toBeGreaterThan(20);
   });
 
-  it("the WILDCARD group is Allow plus every disallow, in order", () => {
+  it("the WILDCARD group is the content signal, Allow and every disallow, in order", () => {
     expect(GROUPS.get("*")).toEqual([
+      `Content-Signal: ${CONTENT_SIGNAL}`,
       "Allow: /",
       ...DISALLOW_PATHS.map((p) => `Disallow: ${p}`),
     ]);

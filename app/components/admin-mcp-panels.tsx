@@ -67,7 +67,7 @@ export function AdminMcpPanels({
               A key appears here when a merchant creates one in their settings.
             </Empty>
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={KEYS_HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={KEYS_HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">API keys, newest first.</caption>
                 <thead>
@@ -100,7 +100,7 @@ export function AdminMcpPanels({
           {tools.length === 0 ? (
             <Empty kind="nothing-yet" title="No merchant tools registered." />
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={TOOLS_HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={TOOLS_HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">Merchant MCP tools, as the registry lists them.</caption>
                 <thead>
@@ -116,8 +116,8 @@ export function AdminMcpPanels({
                       <th scope="row" className="font-mono text-micro font-normal break-all">
                         {t.name}
                       </th>
-                      <td data-wrap="">{t.title}</td>
-                      <td>{t.writes ? <Status tone="info">Writes</Status> : <Status tone="ok">Reads</Status>}</td>
+                      <td data-label="What it does" data-wrap="">{t.title}</td>
+                      <td data-label="Access">{t.writes ? <Status tone="info">Writes</Status> : <Status tone="ok">Reads</Status>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -138,7 +138,7 @@ export function AdminMcpPanels({
               Every tool call a merchant key makes is logged here.
             </Empty>
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={CALLS_HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={CALLS_HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">Merchant MCP calls, newest first.</caption>
                 <thead>
@@ -179,19 +179,19 @@ function KeyRow({ apiKey: k }: { apiKey: AdminApiKeyRow }) {
       <th scope="row" className="font-normal">
         {k.label ?? <span className="text-text-tertiary">Unlabelled</span>}
       </th>
-      <td>{scopeWords(k.scope)}</td>
-      <td>
+      <td data-label="Scope">{scopeWords(k.scope)}</td>
+      <td data-label="Account">
         {k.accountId ? (
           <AccountLink id={k.accountId} name={k.accountName} />
         ) : (
           <span className="text-text-secondary">{k.scope === MCP_TOKEN_SCOPE.ADMIN ? "Platform" : "No account"}</span>
         )}
       </td>
-      <td>{k.revokedAt ? <Status tone="nodata">Revoked</Status> : <Status tone="ok">Active</Status>}</td>
-      <td>
+      <td data-label="Status">{k.revokedAt ? <Status tone="nodata">Revoked</Status> : <Status tone="ok">Active</Status>}</td>
+      <td data-label="Created">
         <AdminTime at={k.createdAt} />
       </td>
-      <td>
+      <td data-label="Last used">
         <AdminTime at={k.lastUsedAt} />
       </td>
     </tr>
@@ -204,17 +204,17 @@ function CallRow({ call: c }: { call: AdminMcpCallRow }) {
       <th scope="row" className="font-mono text-micro font-normal break-all">
         {c.tool || <span className="text-text-tertiary">No tool named</span>}
       </th>
-      <td>
+      <td data-label="Account">
         <AccountLink id={c.accountId} name={c.accountName} />
       </td>
-      <td>{c.keyLabel ?? <span className="text-text-tertiary">{c.keyFound ? "Unlabelled" : "Removed key"}</span>}</td>
-      <td>
+      <td data-label="Key">{c.keyLabel ?? <span className="text-text-tertiary">{c.keyFound ? "Unlabelled" : "Removed key"}</span>}</td>
+      <td data-label="Outcome">
         <Status tone={c.outcome === "ok" ? "ok" : "crit"}>{outcomeWords(c.outcome)}</Status>
       </td>
-      <td>
+      <td data-label="When">
         <AdminTime at={c.createdAt} />
       </td>
-      <td data-wrap="" className={c.error ? "text-error-text" : "text-text-tertiary"}>
+      <td data-label="Error" data-wrap="" className={c.error ? "text-error-text" : "text-text-tertiary"}>
         {c.error === null ? "None" : maskSecretsInText(c.error)}
       </td>
     </tr>

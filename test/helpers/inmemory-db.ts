@@ -105,11 +105,34 @@ export function inMemoryMoneyWriter(sqlite: () => Database.Database) {
 /** The part of a D1 binding site-api's d1ScheduledUpdates uses, over the same
  *  in-memory SQLite, so the package's own SQL runs against the migrated schema. */
 export function d1Over(sqlite: Database.Database): D1Like {
-  const statement = (sql: string, values: unknown[] = []): D1StatementLike => ({
-    bind: (...next) => statement(sql, next),
-    first: async <T>() => (sqlite.prepare(sql).get(...(values as never[])) ?? null) as T | null,
-    all: async <T>() => ({ results: sqlite.prepare(sql).all(...(values as never[])) as T[] }),
-    run: async () => sqlite.prepare(sql).run(...(values as never[])),
-  });
+  // D1 takes numbered parameters (?1, ?2), which better-sqlite3 refuses; they
+  // become plain ? with the values in the order they appear.
+  const plain = (sql: string, values: unknown[]): [string, never[]] => {
+    if (!/\?\d/.test(sql)) return [sql, values as never[]];
+    const ordered: unknown[] = [];
+    const text = sql.replace(/\?(\d+)/g, (_, n: string) => (ordered.push(values[Number(n) - 1]), "?"));
+    return [text, ordered as never[]];
+  };
+  const statement = (sql: string, values: unknown[] = []): D1StatementLike => {
+    const run = () => {
+      const [text, args] = plain(sql, values);
+      return { stmt: sqlite.prepare(text), args };
+    };
+    return {
+      bind: (...next) => statement(sql, next),
+      first: async <T>() => {
+        const { stmt, args } = run();
+        return (stmt.get(...args) ?? null) as T | null;
+      },
+      all: async <T>() => {
+        const { stmt, args } = run();
+        return { results: stmt.all(...args) as T[] };
+      },
+      run: async () => {
+        const { stmt, args } = run();
+        return stmt.run(...args);
+      },
+    };
+  };
   return { prepare: (sql) => statement(sql) };
 }

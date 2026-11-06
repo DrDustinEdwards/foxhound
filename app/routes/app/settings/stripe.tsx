@@ -39,6 +39,7 @@ import {
 
 import type { Route } from "./+types/stripe";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
@@ -108,7 +109,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("_action") ?? "");
 
   if (auth.membership.role !== MEMBER_ROLE.OWNER) {
@@ -363,7 +364,7 @@ function StripeSection({
                               rel="noreferrer"
                             >
                               Open Stripe dashboard
-                            </a>
+                            <span className="cap-sr-only"> (opens in a new tab)</span></a>
                           }
                         >
                           {conn.healthWarning.join(" ")}

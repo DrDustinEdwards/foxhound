@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { barChart } from "enarratio/lite/bar";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { Disclosure } from "capsomer/react/disclosure";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
@@ -10,9 +10,8 @@ import "capsomer/empty.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-import "./dashboard.css";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "~/lib/cloudflare-context";
@@ -24,12 +23,7 @@ import {
   SEQUENCE_CATEGORY_ORDER,
   sequenceRateClassName,
 } from "~/lib/recovery/sequence-categories";
-import {
-  STEP_PERFORMANCE_NOTE,
-  stepPerformanceAlt,
-  stepPerformanceRows,
-  STEP_PERFORMANCE_SERIES,
-} from "~/lib/recovery/sequence-chart";
+import { drawStepPerformance, STEP_PERFORMANCE_NOTE } from "~/lib/recovery/sequence-chart";
 import {
   buildCategorySections,
   summarizeStepPerformance,
@@ -75,12 +69,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 // The chart draws at the page's content width on the server, then at its
-// measured width in the browser (EnarratioFigure).
+// measured width in the browser (ChartFrame).
 const CHART_WIDTH = 1120;
-// Recova's plot is 220px high (StepPerformanceChart.tsx, h-[220px]).
-const CHART_HEIGHT = 220;
-// About the width of the longest step name ("Revocation email") at the axis's text size.
-const X_LABEL_WIDTH = 110;
 
 /** Recova's StatCard: a label, a figure, and an optional line under it. */
 function StatCard({
@@ -129,7 +119,7 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
   if (chart.length === 0) {
     return (
       <Panel title="Step performance">
-        <p className="m-0 text-label text-text-subtle">No step performance to show yet.</p>
+        <ChartFrame noData={{ title: "Step performance", reason: "No step performance to show yet." }} />
       </Panel>
     );
   }
@@ -138,32 +128,10 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
       title="Step performance"
       description={STEP_PERFORMANCE_NOTE}
     >
-      <EnarratioFigure
-        className="fh-recovery-chart"
-        initialWidth={CHART_WIDTH}
-        draw={(width) =>
-          barChart({
-            data: stepPerformanceRows(chart),
-            x: "Step",
-            xDomain: chart.map((c) => c.label),
-            y: "rate",
-            series: "series",
-            layout: "grouped",
-            // Recova's funnel order, Open then Click then Recovery, in its
-            // colors, except that Recovery rate takes Foxhound's amber.
-            seriesDomain: STEP_PERFORMANCE_SERIES,
-            colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)", "Recovery rate": "var(--brand-ui)" },
-            xLabel: null,
-            yLabel: "Rate (%)",
-            formatValue: (v) => `${v}%`,
-            // Recharts, which drew Recova's chart, skips x labels that would
-            // overlap; this prints every nth label once the steps no longer fit.
-            maxXTicks: Math.max(2, Math.floor(width / X_LABEL_WIDTH)),
-            alt: stepPerformanceAlt(chart),
-            width,
-            height: CHART_HEIGHT,
-          })
-        }
+      <ChartFrame
+        gridlines="none"
+        width={CHART_WIDTH}
+        draw={(width, fit) => drawStepPerformance(chart, width, fit)}
       />
     </Panel>
   );

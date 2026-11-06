@@ -14,6 +14,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StatCard } from "~/components/stat-card";
 import { getDb } from "~/db";
@@ -41,6 +42,7 @@ import { formatAmounts, formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /disputes: Recova's disputes dashboard on Foxhound's engine.
 // Recova is the spec: app/(app)/disputes/dashboard/page.tsx (blob c97c3e93),
@@ -154,7 +156,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
   if (isWarningIntent(intent)) {
     // A refund cannot be undone, so only the account owner makes one.
@@ -165,13 +167,20 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data(result.data, { status: result.status });
   }
   const posted = form.get("stripe_dispute_id");
-  const result = await importDisputeFromStripe(
-    env,
-    auth.membership.accountId,
-    typeof posted === "string" ? posted : "",
-    new Date(),
-  );
-  return { sync: SYNC_RESULT_MESSAGES[result.status] };
+  try {
+    const result = await importDisputeFromStripe(
+      env,
+      auth.membership.accountId,
+      typeof posted === "string" ? posted : "",
+      new Date(),
+    );
+    return { sync: SYNC_RESULT_MESSAGES[result.status] };
+  } catch (err) {
+    // A transient Stripe or D1 failure throws (resolveDisputedRecovery's
+    // contract) and writes nothing, the same answer the detail page gives.
+    logEvent("dispute_sync_failed", { error: err instanceof Error ? err.message : String(err) }, { level: "error" });
+    return data({ sync: { ok: false, message: "Could not import the dispute. Please try again." } }, { status: 500 });
+  }
 }
 
 /** The status tones on Capsomer's pill: won is ok, lost is critical, every
@@ -211,7 +220,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Disputes" tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Disputes" tabIndex={0}>
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -253,17 +262,17 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                           </div>
                           <div className="text-micro text-text-subtle">{d.customerEmail || ""}</div>
                         </td>
-                        <td data-num="">{formatMoney(d.amountCents, d.currency)}</td>
-                        <td className="text-label text-text-secondary">{humanizeDisputeReason(d.reason)}</td>
-                        <td>
+                        <td data-label="Amount" data-num="">{formatMoney(d.amountCents, d.currency)}</td>
+                        <td data-label="Reason" className="text-label text-text-secondary">{humanizeDisputeReason(d.reason)}</td>
+                        <td data-label="Foxhound status">
                           <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
                         </td>
-                        <td
+                        <td data-label="Deadline"
                           className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
                         >
                           {deadlineShort(days, resolved)}
                         </td>
-                        <td>
+                        <td data-label="View">
                           <Link
                             to={`/disputes/${d.id}`}
                             className="inline-flex min-h-6 items-center text-label text-brand-text no-underline hover:text-brand-text-hover"

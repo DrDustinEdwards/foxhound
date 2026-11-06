@@ -20,6 +20,7 @@ import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 export const handle: AdminHandle<{ account: { name: string | null; id: string } }> = {
   page: (data: { account: { name: string | null; id: string } }) => data.account.name ?? data.account.id,
@@ -60,7 +61,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   const db = getDb(env);
   const accountId = params.id;
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
 
   if (intent === "toggle-billing-exempt") {
@@ -214,12 +215,12 @@ function AdjustmentForm({
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
-        <label className="flex flex-col gap-1.5">
+        <label className="flex min-w-0 max-w-full flex-col gap-1.5">
           <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Direction</span>
           <select
             name="direction"
             defaultValue="credit"
-            className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
+            className="max-w-full rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
           >
             <option value="credit">Credit merchant (reduces what they owe)</option>
             <option value="correction">Correction (increases what they owe)</option>

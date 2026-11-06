@@ -1,11 +1,14 @@
+import { runJobs } from "@dustinedwards/site-runtime/cron";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 import { desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { cronConfig, cronRunHistory, getDb } from "~/db";
 import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
 
-import { alertCronFailure, type AlertOutcome } from "./alerts.server";
+import { alertCronFailure, SCHEDULE_PERIOD_MS, type AlertOutcome } from "./alerts.server";
 import { isCronEnabled, isDueByInterval } from "./gating";
+import type { CronJob } from "./registry";
 
 // The cron runner: the single wrapper every scheduled job goes through. It
 // enforces the three gates in order (config-enabled -> min-interval -> per-cron DO
@@ -87,6 +90,56 @@ async function recordRun(
     rowsProcessed,
     message,
   });
+}
+
+/** How often a job's trigger fires, in minutes: its schedule's period. cron_runs and /health's cronCheck judge it by
+ *  this. */
+export function cronEveryMinutes(schedule: string): number {
+  return SCHEDULE_PERIOD_MS[schedule]! / 60_000;
+}
+
+/** Past this, cron_runs records a run as overrun (failed, "timed out"): its own period, at most ten minutes, because
+ *  every job on the daily 03:00 trigger shares one invocation and Cloudflare stops a Cron Trigger at fifteen. */
+const CRON_OVERRUN_CAP_MS = 10 * 60_000;
+function cronTimeoutMs(schedule: string): number {
+  return Math.min(SCHEDULE_PERIOD_MS[schedule]!, CRON_OVERRUN_CAP_MS);
+}
+
+/** A schedule's jobs, each through runCronJob (its gates, lock and cron_run_history, unchanged), with each run that
+ *  really executes also recorded by site-runtime's runJobs in cron_runs, so /health's cronCheck notices one that
+ *  failed, overran or stopped.
+ *
+ *  ONLY A RUN THAT EXECUTES IS RECORDED. runJobs sits inside the handler runCronJob calls, so a job the gates skip
+ *  (disabled, not due, locked) never reaches it and writes nothing to cron_runs: it is logged as cron_job_skipped,
+ *  not recorded as a success it never had. A failure before the handler (the config read, the lock) is recorded
+ *  failed there too.
+ *
+ *  THE TIMEOUT MARKS, IT DOES NOT LET GO. A run past cronTimeoutMs is recorded failed ("timed out") so /health warns,
+ *  but the handler is still awaited and keeps its CRON_LOCK lease until it really ends: handing the lock on while a
+ *  money job is still running would let a second run start beside it. Cloudflare's own fifteen-minute limit is the
+ *  hard stop. After the last job, one Error names the failed ones, so Cloudflare marks the invocation failed. */
+export async function runScheduledJobs(env: Env, jobs: CronJob[], run: typeof runCronJob = runCronJob): Promise<void> {
+  const failed: string[] = [];
+  for (const job of jobs) {
+    const record = { name: job.name, everyMinutes: cronEveryMinutes(job.schedule), timeoutMs: cronTimeoutMs(job.schedule) };
+    let executed = false;
+    const outcome = await run(env, job.name, async (runEnv, ctx) => {
+      executed = true;
+      const work = job.handler(runEnv, ctx);
+      await runJobs(() => env.DB, [{ ...record, run: () => work }]).catch(() => undefined);
+      return work;
+    });
+    if (outcome.status === "skipped") {
+      logEvent("cron_job_skipped", { name: job.name, reason: outcome.message ?? "skipped" });
+    } else if (outcome.status === "failed") {
+      failed.push(job.name);
+      if (!executed) {
+        const error = new Error(outcome.message ?? "failed");
+        await runJobs(() => env.DB, [{ ...record, run: () => Promise.reject(error) }]).catch(() => undefined);
+      }
+    }
+  }
+  if (failed.length) throw new Error(`cron jobs failed: ${failed.join(", ")}`);
 }
 
 /** Run one scheduled job through the config + interval + lock gates, logging the

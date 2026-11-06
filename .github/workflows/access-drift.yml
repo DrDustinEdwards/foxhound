@@ -1,0 +1,27 @@
+name: access-drift
+
+# I2: the daily check that the Cloudflare Access application in front of /admin (foxhound-login) lets in exactly the
+# admins Foxhound names. devkit's reusable workflow reads the application's policies through the Cloudflare API and
+# compares them with the list Foxhound serves hashed at /admin/access-drift (app/routes/admin/access-drift.ts), so no
+# copy of ADMIN_EMAIL is kept in GitHub. Until all four secrets are set the job fails, by design: a red run is the alert.
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    uses: DrDustinEdwards/devkit/.github/workflows/access-drift.yml@cd31a3eba261e27aa5f4b7a9965f7c4fc59ebe49 # v0.21.5
+    with:
+      app: foxhound-login
+      admins-url: https://foxhoundapp.com/admin/access-drift
+      site-runtime-ref: v0.59.0
+    secrets:
+      ACCESS_READ_TOKEN: ${{ secrets.ACCESS_READ_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ACCESS_CLIENT_ID: ${{ secrets.ACCESS_CLIENT_ID }}
+      ACCESS_CLIENT_SECRET: ${{ secrets.ACCESS_CLIENT_SECRET }}

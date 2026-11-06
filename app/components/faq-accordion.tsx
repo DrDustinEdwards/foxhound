@@ -14,7 +14,8 @@ export function FaqAccordion({ faqs }: { faqs: FaqItem[] }) {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <ul className="m-0 flex list-none flex-col gap-3 p-0">
+    // On a page that does not hydrate, the faq island (islands/faq.ts) opens and closes the answers.
+    <ul className="m-0 flex list-none flex-col gap-3 p-0" data-island="faq">
       {faqs.map((faq, i) => (
         <li key={faq.question} className="overflow-hidden rounded-lg border border-border bg-surface">
           <button

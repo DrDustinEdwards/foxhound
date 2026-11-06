@@ -76,13 +76,13 @@ export default async function handleRequest(
     });
   }
 
-  const { nonce } = loadContext.get(cloudflareContext);
+  const { nonce, storedNonce } = loadContext.get(cloudflareContext);
 
   let shellRendered = false;
   const userAgent = request.headers.get("user-agent");
 
   const body = await renderToReadableStream(
-    <ServerRouter context={routerContext} url={request.url} nonce={nonce} />,
+    <ServerRouter context={routerContext} url={request.url} nonce={nonce ?? storedNonce} />,
     {
       signal: AbortSignal.timeout(streamTimeout + 1000),
       onError(error: unknown) {
@@ -108,7 +108,7 @@ export default async function handleRequest(
     await body.allReady;
   }
 
-  responseHeaders.set("Content-Type", "text/html");
+  responseHeaders.set("Content-Type", "text/html; charset=utf-8");
   return new Response(body, {
     headers: responseHeaders,
     status: responseStatusCode,

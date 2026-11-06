@@ -2,7 +2,7 @@ import { useState, type ComponentProps } from "react";
 import { Form, useRouteLoaderData } from "react-router";
 
 import type { loader as appShellLoader } from "~/layouts/app-shell";
-import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/session";
+import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 import { Banner } from "capsomer/react/banner";
 

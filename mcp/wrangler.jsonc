@@ -1,10 +1,12 @@
 // The Foxhound Admin MCP Worker (job_21de68b30fc2). The ONE exception to
 // Foxhound's single-Worker rule (CLAUDE.md), kept apart so the process an admin
-// AI talks to can reach no money: it holds no Stripe key, no D1, no queue, no
-// Durable Object and no money binding. Its only route into Foxhound is the
-// FOXHOUND service binding to the admin API.
+// AI talks to can reach no money: it holds no Stripe key, no D1, no queue and no
+// money binding. Its only route into Foxhound is the FOXHOUND service binding to
+// the admin API. Its two Durable Objects are its own classes (src/index.ts),
+// the door's rate limit and the tool-call log, and hold no Foxhound data.
 //
-// Deploy with: npx wrangler deploy --config mcp/wrangler.jsonc
+// CI deploys it after the foxhound Worker on every merge to main (.github/workflows/ci.yml,
+// admin-mcp-deploy). By hand, only if CI is down: npx wrangler deploy --config mcp/wrangler.jsonc
 // test/admin-mcp-worker-mcp7.test.ts fails if a binding is added here.
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
@@ -24,8 +26,25 @@
     // Grants and tokens for workers-oauth-provider: the foxhound-admin-mcp-oauth namespace.
     { "binding": "OAUTH_KV", "id": "32200ad2d6974a29934965aba8d497ae" }
   ],
+  "durable_objects": {
+    "bindings": [
+      // The door's limit, 30 requests a minute per signed-in person (site-runtime
+      // checkRateLimit). It fails closed: without it every /mcp call is a 429.
+      { "name": "MCP_RATE_LIMIT", "class_name": "RateLimiter" },
+      // The append-only, hash-chained tool-call log (site-runtime audit-log).
+      // No tool runs unlogged: without it every tool call is refused.
+      { "name": "TOOL_CALL_LOG", "class_name": "ToolCallLog" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RateLimiter", "ToolCallLog"] }],
+  // The tool-call log's copies (checklist L6-L7), and nothing of Foxhound's: the daily cron copies new rows here as
+  // tool-calls/<first>-<last>.json, then the log drops copied rows older than 90 days. The bucket's lock rule on
+  // tool-calls/ keeps a copy from being changed or removed.
+  "r2_buckets": [{ "binding": "AUDIT_BUCKET", "bucket_name": "foxhound-admin-mcp-tool-calls" }],
+  "triggers": { "crons": ["29 4 * * *"] },
   "vars": {
-    "ADMIN_MCP_ORIGIN": "https://admin-mcp.foxhoundapp.com",
+    // This Worker's own origin; every token is bound to PUBLIC_ORIGIN + /mcp (RFC 8707). Unset serves nothing.
+    "PUBLIC_ORIGIN": "https://admin-mcp.foxhoundapp.com",
     // The Cloudflare Access team domain: Dustin's, the same team Capsid and
     // dustinedwards.info sign in through. Not a secret.
     "ACCESS_TEAM_DOMAIN": "dustinedwards.cloudflareaccess.com"

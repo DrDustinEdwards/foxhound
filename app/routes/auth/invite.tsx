@@ -27,6 +27,9 @@ import type { Route } from "./+types/invite";
 //   back signed in carrying the cookie, and the invite is accepted without a
 //   second click either way.
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 export function meta() {
   return [{ title: "Team invite - Foxhound" }];
 }

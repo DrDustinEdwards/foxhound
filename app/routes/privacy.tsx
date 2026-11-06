@@ -51,7 +51,7 @@ import type { Route } from "./+types/privacy";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Privacy Policy - Foxhound",
+    title: "Privacy Policy",
     description: "Privacy policy for Foxhound, the payment recovery platform for Stripe merchants.",
     path: "/privacy",
     siteUrl: loaderData?.siteUrl ?? "",

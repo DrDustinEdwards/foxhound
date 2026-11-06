@@ -14,7 +14,6 @@ import {
   recoveryRateAlt,
   recoveryTimingAlt,
   roiColumn,
-  withoutHoverTitles,
 } from "~/lib/dashboard/recovery-dashboard";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import RecoveryDashboard from "~/routes/app/recovery/index";
@@ -274,11 +273,5 @@ describe("J74: display arithmetic", () => {
     expect(onboardingNeeded({ connected: false, senderName: null, notificationEmail: null, onboardingCompleted: false })).toBe(true);
     expect(onboardingNeeded({ connected: true, senderName: "A", notificationEmail: "a@example.com", onboardingCompleted: false })).toBe(false);
     expect(onboardingNeeded({ connected: false, senderName: null, notificationEmail: null, onboardingCompleted: true })).toBe(false);
-  });
-
-  it("strips hover titles and keeps the accessible name", () => {
-    expect(withoutHoverTitles('<svg aria-label="x"><rect><title>x a: 1</title></rect></svg>')).toBe(
-      '<svg aria-label="x"><rect></rect></svg>',
-    );
   });
 });

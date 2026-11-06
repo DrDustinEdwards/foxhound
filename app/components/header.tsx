@@ -73,7 +73,9 @@ export function Header({
   const { pathname } = useLocation();
   const submit = useSubmit();
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme;
-  useThemeMemory(theme ?? rootTheme ?? DEFAULT_THEME, isAuthenticated ? "account" : "cookie");
+  const serverTheme = theme ?? rootTheme ?? DEFAULT_THEME;
+  const save = isAuthenticated ? "account" : "cookie";
+  useThemeMemory(serverTheme, save);
 
   const sections: HeaderSection[] = NAV_LINKS.map((item) => ({
     id: item.to,
@@ -108,7 +110,15 @@ export function Header({
   const switchers = isAuthenticated ? [...(business ? [business] : []), products] : [];
 
   return (
-    <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="amber">
+    // On a page that does not hydrate, the header island (app/islands/header.ts) wires this same markup
+    // with Capsomer's behavior modules and keeps the theme where useThemeMemory keeps it.
+    <div
+      className="fh-cap fh-site-header"
+      data-cap-site="foxhound"
+      data-family="amber"
+      data-island="header"
+      data-props={JSON.stringify({ theme: serverTheme, save, prefKey: THEME_PREF_KEY })}
+    >
       <SiteHeader
         logo={headerLogo("/")}
         links="right"

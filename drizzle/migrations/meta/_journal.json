@@ -400,6 +400,104 @@
       "when": 1793332040933,
       "tag": "0060_first_account_and_dispute_signal",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1793410036664,
+      "tag": "0061_not_found_referrer",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1793427837545,
+      "tag": "0062_media_placeholder_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1793435588268,
+      "tag": "0063_blog_trash_and_renames",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1793435608989,
+      "tag": "0064_site_api_store",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1793441190754,
+      "tag": "0065_search_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1793442357083,
+      "tag": "0066_merchant_mcp_scopes",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1793444575201,
+      "tag": "0067_cron_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1793449636538,
+      "tag": "0068_auth_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1793449976011,
+      "tag": "0069_session_location",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1793463841689,
+      "tag": "0070_mcp_calls_client_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1793463842689,
+      "tag": "0071_session_device",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1793517222028,
+      "tag": "0072_site_api_media_uploads",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1793603622028,
+      "tag": "0073_cron_run_history_cron_finished_idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "6",
+      "when": 1793925723631,
+      "tag": "0074_site_api_store_v0_22",
+      "breakpoints": true
     }
   ]
 }

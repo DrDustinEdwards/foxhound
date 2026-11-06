@@ -20,19 +20,16 @@
 // Usage:
 //   npm run db:migrate                    -> local D1 (safe default)
 //   npm run db:migrate -- --remote-confirm -> remote, i.e. PRODUCTION
-//   DB_MIGRATE_CONFIRM=1 npm run db:migrate -> remote, for CI
 //
-// CI sets DB_MIGRATE_CONFIRM=1 deliberately: applying migrations before the
-// deploy is the point of the step, and CI has no human to prompt.
+// CI does not use this script: its deploy runs devkit-migrations --apply,
+// which applies only the migrations that add.
 
 import { spawnSync } from "node:child_process";
 
 const DATABASE = "foxhound";
 
 const args = process.argv.slice(2);
-const confirmedByFlag = args.includes("--remote-confirm");
-const confirmedByEnv = process.env.DB_MIGRATE_CONFIRM === "1";
-const remote = confirmedByFlag || confirmedByEnv;
+const remote = args.includes("--remote-confirm");
 
 if (args.includes("--remote")) {
   console.error(
@@ -49,8 +46,7 @@ if (args.includes("--remote")) {
 const passthrough = args.filter((a) => a !== "--remote-confirm");
 
 if (remote) {
-  const how = confirmedByFlag ? "--remote-confirm" : "DB_MIGRATE_CONFIRM=1";
-  console.log(`Applying migrations to REMOTE "${DATABASE}" (production), authorized by ${how}.`);
+  console.log(`Applying migrations to REMOTE "${DATABASE}" (production), authorized by --remote-confirm.`);
 } else {
   console.log(
     [

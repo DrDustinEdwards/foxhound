@@ -1,16 +1,18 @@
 import { readFileSync } from "node:fs";
 
+import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { describe, expect, it } from "vitest";
 
 import * as authSchema from "~/db/auth-schema";
-import { authOptions } from "~/lib/auth/options";
+import { withSignIn } from "~/lib/auth/options";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // FH-5: Foxhound stores no Google tokens. A Google sign-in's account writes
 // (createOAuthUser on sign-up, updateAccount on each later sign-in) keep none,
+// through site-runtime's hooks merged as auth.server.ts merges them (withSignIn),
 // and the clear_oauth_tokens migration clears the rows stored before. Fake
 // tokens and a fake secret.
 const TOKENS = {
@@ -24,8 +26,10 @@ const NONE = { access_token: null, refresh_token: null, id_token: null, access_t
 describe("Google tokens", () => {
   it("are never stored, and the migration clears old ones", async () => {
     const { sqlite, db } = createInMemoryDb();
+    const env = { BETTER_AUTH_URL: "https://foxhoundapp.test" };
+    const signIn = await signInOptions(env, { siteName: "Foxhound", social: true, sendMagicLink: async () => {} });
     const { internalAdapter } = await betterAuth({
-      ...authOptions,
+      ...withSignIn(signIn),
       secret: "test-secret-0123456789abcdef0123456789abcdef",
       baseURL: "https://foxhoundapp.test",
       database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),

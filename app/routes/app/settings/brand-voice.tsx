@@ -41,6 +41,7 @@ import {
 
 import type { Route } from "./+types/brand-voice";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S31, /settings/brand-voice.
 //
@@ -115,7 +116,7 @@ interface ActionResult {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await request.formData();
+  const form = await readForm(request);
 
   // FOUR NAMED FIELDS, read here and validated nowhere here. A form posting
   // `voice_revoked`, `brandVoice` or any other column name contributes

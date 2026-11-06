@@ -4,7 +4,9 @@
   "main": "./workers/app.ts",
   // No newer than the workerd that @cloudflare/vite-plugin bundles supports, or `npm run dev` refuses to start.
   "compatibility_date": "2026-10-19",
-  "compatibility_flags": ["nodejs_compat"],
+  // global_fetch_strictly_public: a fetch to a hostname on this zone goes out to the internet, never to the origin, and
+  // @cloudflare/workers-oauth-provider refuses to fetch a client metadata document without it (app/lib/oauth/client-metadata.server.ts).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "upload_source_maps": true,
   // The daily 03:00 run syncs every account's Intelligence in one invocation,
   // several Stripe calls per customer, with about fifteen other daily jobs.
@@ -16,9 +18,16 @@
   "assets": {
     "directory": "./build/client"
   },
+  // Logs: every invocation (head_sampling_rate 1), stated so a change to it is a reviewed one. Traces: one in ten.
   "observability": {
     "enabled": true,
+    "head_sampling_rate": 1,
     "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+  },
+  // The deployed version's upload time, which /health's cron check uses to hold back a job that has not had its first
+  // window since the deploy (app/routes/health.ts).
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
   },
 
   // WORKERS CACHE (345 binding 4; the gateway and Renderer since site-runtime
@@ -99,7 +108,8 @@
     "BETTER_AUTH_URL": "https://foxhoundapp.com",
     // Turnstile site key (public, non-secret; safe to commit), widget
     // "Foxhound" on foxhoundapp.com. TURNSTILE_SECRET_KEY (env.d.ts, wrangler
-    // secret) is the other half; the check runs only when both are set.
+    // secret) is the other half; the check runs only when both are set, and
+    // until then auth.server.ts lets the link through ("off-until-keys").
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFsFHhwjNpVpV-tg"
   },
   "d1_databases": [
@@ -134,6 +144,15 @@
       // THE BUCKET MUST EXIST BEFORE THIS DEPLOYS (a merge to main deploys).
       "binding": "MEDIA",
       "bucket_name": "foxhound-media"
+    },
+    {
+      // The merchant MCP's tool-call log copies (area 11, L6-L7): the daily
+      // tool-call-log-export job copies new TOOL_CALL_LOG rows here as
+      // tool-calls/<first>-<last>.json, then the log drops copied rows older
+      // than 90 days. A lock rule on tool-calls/ keeps a copy from being
+      // changed or removed. THE BUCKET MUST EXIST BEFORE THIS DEPLOYS.
+      "binding": "AUDIT_BUCKET",
+      "bucket_name": "foxhound-tool-calls"
     }
   ],
   // Cloudflare Images, through site-runtime ./image only: the blog's responsive
@@ -341,6 +360,13 @@
         // "auth:<ip>" or "signup:<ip>" (app/lib/auth/rate-limit.server.ts).
         "name": "AUTH_RATE_LIMITER",
         "class_name": "RateLimiter"
+      },
+      {
+        // The merchant MCP's append-only tool-call log beside mcp_calls:
+        // site-runtime's ToolCallLog, exported from workers/app.ts
+        // (app/lib/mcp/call-log.server.ts).
+        "name": "TOOL_CALL_LOG",
+        "class_name": "ToolCallLog"
       }
     ]
   },
@@ -364,7 +390,8 @@
     "CronLockDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "CronTickerDurableObject": { "type": "durable-object", "storage": "sqlite" },
     "RateLimiterDurableObject": { "type": "durable-object", "storage": "sqlite" },
-    "RateLimiter": { "type": "durable-object", "storage": "sqlite" }
+    "RateLimiter": { "type": "durable-object", "storage": "sqlite" },
+    "ToolCallLog": { "type": "durable-object", "storage": "sqlite" }
   },
 
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,

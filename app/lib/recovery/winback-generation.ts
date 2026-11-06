@@ -1,6 +1,7 @@
-import { createAnthropicClient, type AiCallMeter } from "~/lib/ai/client";
+import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
+
+import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
 import { PLAIN_WRITING_LINES, ownPhrasing } from "~/lib/ai/plain-writing";
-import { UNTRUSTED_DATA_RULE, untrusted } from "~/lib/ai/untrusted";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import {
@@ -124,16 +125,16 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     UNTRUSTED_DATA_RULE,
     "",
     "Customer details:",
-    `- Name: ${untrusted(input.customerName)}`,
-    `- Canceled plan: ${untrusted(input.planName)}`,
-    `- Cancellation reason: ${input.cancelReason ? untrusted(input.cancelReason) : "not provided"}`,
+    `- Name: ${untrusted("customer_name", input.customerName)}`,
+    `- Canceled plan: ${untrusted("plan_name", input.planName)}`,
+    `- Cancellation reason: ${input.cancelReason ? untrusted("cancel_reason", input.cancelReason) : "not provided"}`,
     "",
     "Email requirements:",
-    `- Brand voice: ${input.brandVoice ? untrusted(input.brandVoice) : WINBACK_VOICE_FALLBACK}`,
+    `- Brand voice: ${input.brandVoice ? untrusted("brand_voice", input.brandVoice) : WINBACK_VOICE_FALLBACK}`,
     ...voiceSampleLines(input.voiceSamples ?? []),
     "- Keep it under 120 words",
     `- Include a reactivation button linking to: ${input.resubscribeUrl}`,
-    `- Sender name: ${untrusted(input.senderName)}`,
+    `- Sender name: ${untrusted("sender_name", input.senderName)}`,
     "- Do NOT be desperate or salesy, be genuine",
     "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning', 'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day' in the subject or the body, you do not know when the customer will read this",
     "",
@@ -158,9 +159,8 @@ const OUTPUT_SCHEMA = {
 /**
  * Generate one win-back email.
  *
- * THE CLIENT COMES FROM THE FACTORY. This is the FIFTH call site, and it
- * constructs nothing of its own, so the gateway base URL and the
- * no-body-log header apply here exactly as they do to the other four.
+ * THE CALL IS site-runtime's ./anthropic, metered by ~/lib/ai/client, as at
+ * every other call site: the route, the retry layer and the log line are its.
  *
  * The model is `MODEL_RECOVERY_EMAIL`, the same constant the dunning generator
  * uses. Legacy pins `MODEL_PRIMARY`, `claude-sonnet-4-5`; Foxhound's equivalent
@@ -174,23 +174,25 @@ export async function generateWinbackEmail(
   input: WinbackPromptInput,
   meter: AiCallMeter,
 ): Promise<EmailCopy> {
-  const client = createAnthropicClient(env, meter);
   const prompt = buildWinbackPrompt(input);
 
-  // One call shape for the first call and the timing-word retry: the retry is
-  // the same prompt with legacy's instruction appended.
+  // One call shape for the first call and the rewrites: a rewrite is the same
+  // prompt with its instruction appended, and one attempt.
   const call = async (instruction = ""): Promise<EmailCopy> => {
-    const response = await client.messages.create({
-      model: MODEL_RECOVERY_EMAIL,
-      max_tokens: 1000,
-      thinking: { type: "disabled" },
-      output_config: {
-        effort: "low",
-        format: { type: "json_schema", schema: OUTPUT_SCHEMA },
+    const result = await askStructured<{ subject: string; bodyHtml: string }>(
+      env,
+      meter,
+      {
+        model: MODEL_RECOVERY_EMAIL,
+        max_tokens: 1000,
+        thinking: { type: "disabled" },
+        output_config: { effort: "low" },
+        messages: [{ role: "user", content: prompt + instruction }],
       },
-      messages: [{ role: "user", content: prompt + instruction }],
-    });
-    return readGeneratedCopy(response, "win-back email");
+      OUTPUT_SCHEMA,
+      instruction ? REWRITE : {},
+    );
+    return readGeneratedCopy(result, "win-back email");
   };
 
   // Job J01, layers 3 and 4. Legacy's win-back hard-strips subject and body

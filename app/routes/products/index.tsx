@@ -37,10 +37,11 @@ import type { Route } from "./+types/index";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Products - Foxhound",
+    title: "Products",
     description:
       "Audit, Recovery, Disputes, and Intelligence. Four products that recover failed Stripe payments, fight chargebacks, and predict customer churn.",
     path: "/products",
+    pageType: "CollectionPage",
     siteUrl: loaderData?.siteUrl ?? "",
   });
 }

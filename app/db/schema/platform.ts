@@ -86,8 +86,21 @@ export const cronRunHistory = sqliteTable(
     // the five-minute ticks fill at 576 rows a day.
     index("cron_run_history_cron_status_finished_idx").on(t.cronName, t.status, t.finishedAt),
     index("cron_run_history_status_finished_idx").on(t.status, t.finishedAt),
+    // runJobs reads each cron's newest finish (cron/run.ts) without a status.
+    index("cron_run_history_cron_finished_idx").on(t.cronName, t.finishedAt),
   ],
 );
+
+// global: site-runtime ./cron's CRON_SQL (migration 0067), written by runJobs and read by /health's cronCheck. Epoch ms.
+export const cronRuns = sqliteTable("cron_runs", {
+  name: text("name").primaryKey(),
+  everyMinutes: integer("every_minutes").notNull(),
+  firstStartedAt: integer("first_started_at"),
+  lastStartedAt: integer("last_started_at"),
+  lastOkAt: integer("last_ok_at"),
+  lastFailedAt: integer("last_failed_at"),
+  lastError: text("last_error"),
+});
 
 // global
 export const adminAuditLog = sqliteTable("admin_audit_log", {
@@ -192,6 +205,9 @@ export const mcpCalls = sqliteTable(
     accountId: text("account_id").notNull().references(() => accounts.id),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
+    /** oauth_clients.id (or a metadata-document URL) the key was issued to;
+     *  null for a key made in Settings, and on rows from before 0070. */
+    clientId: text("client_id"),
     /** The tool name the call asked for, whether or not it exists. */
     tool: text("tool").notNull(),
     /** The arguments as sent, with credentials replaced. */
@@ -347,7 +363,10 @@ export const page404Daily = sqliteTable(
     id: id(),
     day: ts("day").notNull(),
     path: text("path").notNull(),
+    referrerHost: text("referrer_host").notNull().default(""),
+    kind: text("kind").notNull().default("page"),
     hitCount: integer("hit_count").notNull().default(0),
   },
-  (t) => [uniqueIndex("page_404_daily_day_path_uq").on(t.day, t.path)],
+  // site-runtime ./not-found's shape (NOT_FOUND_UPGRADE_SQL, migration 0061).
+  (t) => [uniqueIndex("page_404_daily_day_path_referrer_uq").on(t.day, t.path, t.referrerHost)],
 );

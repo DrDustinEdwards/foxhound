@@ -51,8 +51,6 @@ export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
       <>
         <a
           href="https://stripe.com/docs/connect/oauth-standard-accounts"
-          target="_blank"
-          rel="noopener noreferrer"
           className={INLINE_LINK}
         >
           OAuth

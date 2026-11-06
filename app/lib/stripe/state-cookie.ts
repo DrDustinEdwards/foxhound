@@ -5,11 +5,12 @@ import {
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
 } from "~/lib/constants";
-import { readCookie } from "~/lib/http/cookies";
+import { readCookie, setHostCookie } from "~/lib/http/cookies";
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 
 // CSRF state cookie for the Stripe Connect OAuth flow (legacy rule: a state
-// cookie set on start and matched on callback). HttpOnly + Secure + SameSite=Lax.
+// cookie set on start and matched on callback), written by setHostCookie: __Host-, HttpOnly, Secure, SameSite=Lax.
+// The state is JSON, whose quotes and commas a cookie cannot carry, so it is percent-encoded.
 //
 // TWO STATE COOKIES, ONE PAIR OF FUNCTIONS. Phase (f) added the anonymous audit
 // flow, which legacy keeps under its own cookie name (`audit_oauth_state`)
@@ -23,18 +24,24 @@ export function setStateCookie(
   state: string,
   name: string = STRIPE_OAUTH_STATE_COOKIE,
 ): string {
-  return `${name}=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${STRIPE_OAUTH_STATE_TTL_SECONDS}`;
+  return setHostCookie(name, encodeURIComponent(state), STRIPE_OAUTH_STATE_TTL_SECONDS);
 }
 
 export function clearStateCookie(name: string = STRIPE_OAUTH_STATE_COOKIE): string {
-  return `${name}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
+  return setHostCookie(name, "", 0);
 }
 
 export function readStateCookie(
   request: Request,
   name: string = STRIPE_OAUTH_STATE_COOKIE,
 ): string | null {
-  return readCookie(request, name);
+  const raw = readCookie(request, name);
+  if (raw === null) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
 }
 
 /** The audit flow's state cookie, under legacy's own name. */
@@ -47,7 +54,7 @@ export function clearAuditStateCookie(): string {
 }
 
 export function readAuditStateCookie(request: Request): string | null {
-  return readCookie(request, AUDIT_OAUTH_STATE_COOKIE);
+  return readStateCookie(request, AUDIT_OAUTH_STATE_COOKIE);
 }
 
 /**

@@ -24,7 +24,6 @@ import {
   HERO_LEAD,
   HOME_META_DESCRIPTION,
   HOME_TITLE,
-  HOME_WEBPAGE_NAME,
   MATURITY_DAYS,
   PRODUCT_CARDS,
   RECOVERY_FEE,
@@ -86,6 +85,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: HOME_TITLE,
+      fullTitle: true,
       description: HOME_META_DESCRIPTION,
       path: "/",
       siteUrl: url,
@@ -96,7 +96,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
           jsonLd(softwareApplicationJsonLd(url)),
           jsonLd(faqPageJsonLd(FAQS)),
           jsonLd(speakableWebPageJsonLd(url, {
-            name: HOME_WEBPAGE_NAME,
             path: "/",
             selectors: [".speakable-hero", ".speakable-how-it-works", ".speakable-faq"],
           })),
@@ -181,8 +180,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 {/* leading-6 keeps the link a 24px target. */}
                 <a
                   href="https://stripe.com/connect"
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="font-mono text-caption leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
                 >
                   Built on Stripe Connect
@@ -232,8 +229,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       {/* RULES.md 2.3: the exact page and the day it was read. */}
                       <a
                         href={item.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="group font-mono text-source leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
                       >
                         Source: {citation(item.href)}, read {STAT_AS_OF} <SourceArrow />
@@ -304,8 +299,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <div className="mt-8 flex justify-center">
               <a
                 href={STAT_SOURCES.stripeBilling}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="group font-mono text-source leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
               >
                 Source: {citation(STAT_SOURCES.stripeBilling)}, read {STAT_AS_OF} <SourceArrow />

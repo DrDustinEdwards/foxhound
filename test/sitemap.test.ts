@@ -65,11 +65,13 @@ const EXCLUDED_PREFIXES = [
   "/help",
   "/welcome",
   "/admin",
-  // Auth flow (login/signup/passkey offer/OAuth/team invite/logout): no SEO
+  // Auth flow (login/signup/passkey offer/email-change confirm/OAuth/team invite/logout): no SEO
   // value, and robots.txt Disallows every one of these.
   "/login",
   "/signup",
   "/passkey",
+  "/sign-in/",
+  "/email/confirm",
   "/connect",
   "/invite",
   "/auth/",
@@ -104,6 +106,7 @@ const EXCLUDED_PREFIXES = [
   // images) or the sitemap/robots routes themselves.
   "/sitemap.xml",
   "/robots.txt",
+  "/site.webmanifest",
   "/llms.txt",
   "/ai.txt",
   "/llms-full.txt",
@@ -117,6 +120,8 @@ const EXCLUDED_PREFIXES = [
   "/sitemap_index.xml",
   // JSON health for monitors, not a page.
   "/health",
+  // The CSP and Reporting API sink, a POST endpoint.
+  "/csp-report",
   // The OAuth consent page: a step inside an agent's connect flow,
   // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
   "/oauth/",

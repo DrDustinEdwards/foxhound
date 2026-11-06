@@ -2,10 +2,12 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
+import { CoverPicture } from "~/components/blog/cover-picture";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { formatTagChip } from "~/lib/blog/format";
+import { coverPicture } from "~/lib/blog/markdown.server";
 import {
   getFeaturedPost,
   getPostsBySlug,
@@ -15,7 +17,7 @@ import {
 } from "~/lib/blog/queries.server";
 import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
 import { BLOG_COVER_FALLBACK_CSS } from "~/lib/http/inline-styles";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -27,7 +29,6 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // Ported from legacy app/(marketing)/blog/page.tsx: a featured-post hero, four
 // curated topic sections, and a "latest" strip of non-featured posts.
@@ -58,19 +59,12 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Blog - Foxhound",
+      title: "Blog",
       description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
       path: "/blog",
+      pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Blog", path: "/blog" },
-          ])),
-        ]
-      : []),
   ];
 }
 
@@ -98,7 +92,9 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   const latest = latest8.filter((p) => p.slug !== featured?.slug).slice(0, 4);
 
-  return { siteUrl: siteUrl(env), featured, sections, latest };
+  const cover = featured ? await coverPicture(db, featured, "featured") : null;
+
+  return { siteUrl: siteUrl(env), featured, cover, sections, latest };
 }
 
 /** The tag a section's See all opens: the last segment of Recova's tagHref. */
@@ -107,7 +103,7 @@ function sectionTag(section: BlogSectionConfig): string {
 }
 
 export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
-  const { featured, sections, latest } = loaderData;
+  const { featured, cover, sections, latest } = loaderData;
   const hasAnyContent = Boolean(featured) || sections.length > 0 || latest.length > 0;
 
   return (
@@ -132,7 +128,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      {featured ? <BlogHero post={featured} /> : null}
+      {featured ? <BlogHero post={featured} cover={cover} /> : null}
 
       {sections.map(({ section, posts }) => (
         <BlogSection key={section.id} section={section} posts={posts} />
@@ -154,7 +150,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function BlogHero({ post }: { post: BlogPostSummary }) {
+function BlogHero({ post, cover }: { post: BlogPostSummary; cover: Route.ComponentProps["loaderData"]["cover"] }) {
   return (
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
@@ -197,18 +193,12 @@ function BlogHero({ post }: { post: BlogPostSummary }) {
             </Link>
           </div>
         </div>
-        {post.coverImageUrl ? (
+        {cover ? (
           <Link
             to={`/blog/${post.slug}`}
             className="block aspect-video w-full overflow-hidden rounded-xl border border-border-sub bg-bg"
           >
-            <img
-              src={post.coverImageUrl}
-              alt={post.coverImageAlt ?? post.title}
-              className="h-full w-full object-cover"
-              loading="eager"
-              fetchPriority="high"
-            />
+            <CoverPicture cover={cover} className="h-full w-full object-cover" />
           </Link>
         ) : (
           <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">

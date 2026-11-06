@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { isAdminPath, resolvesToDemo } from "~/lib/auth/guards";
-import { BOLT_DEMO, DEMO_ACTIVE_ACCOUNT_COOKIE, DEMO_SESSION_COOKIE, TEAMFLOW_DEMO } from "~/lib/demo/constants";
+import {
+  BOLT_DEMO,
+  DEMO_ACTIVE_ACCOUNT_COOKIE,
+  DEMO_READ_ONLY_MESSAGE,
+  DEMO_SESSION_COOKIE,
+  TEAMFLOW_DEMO,
+} from "~/lib/demo/constants";
 import {
   activeDemoBusiness,
   clearDemoCookieHeader,
-  DEMO_READ_ONLY_MESSAGE,
   demoBlocksMethod,
   demoFallbackPath,
   hasDemoCookie,

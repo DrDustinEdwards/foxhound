@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- PLACEHOLDER: a hound's head until Dustin picks the real logo (capsomer #65 item 15).
+       Built by scripts/build-icons.mjs from app/lib/brand/hound-mark.ts; do not edit by hand. -->
+  <rect width="32" height="32" rx="6" fill="#111210"/>
+  <svg x="3" y="3" width="26" height="26" viewBox="6 5 24 24">
+    <path fill="#f0b429" fill-rule="evenodd" d="M9 9C11 6.4 15 5.8 17.6 7.4C18.6 8 19.2 9 19.8 9.6L26.2 10.6C27.2 9.9 28.8 10.2 29.2 11.6C29.5 12.6 29.3 13.6 28.6 14.2C28.9 15.4 28.5 16.6 27.4 17C25.6 17.6 23.8 17.7 22.4 17.5C21.4 19.7 19.2 20.1 17.8 19L15 19.2C14.8 22.2 14.2 25 12.9 26.8C11.7 28.4 9.4 28.4 8.4 26.7C7 24.1 6.5 19 6.9 14.6C7.1 12.1 7.8 10.4 9 9ZM18.4 11.4a1.15 1.15 0 1 0 0.01 0ZM12.3 10.6C13.6 13.4 14.1 16.3 13.6 19.5L15 19.3C15.5 16.2 15.1 13.1 13.8 10.2Z"/>
+  </svg>
+</svg>

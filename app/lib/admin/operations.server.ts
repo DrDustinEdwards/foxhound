@@ -196,6 +196,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["CRON_TICKER", "binding"],
     ["RATE_LIMITER", "binding"],
     ["AUTH_RATE_LIMITER", "binding"],
+    ["TOOL_CALL_LOG", "binding"],
     // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup
     // cron throws on every run and /health reports no backup.
     ["BACKUPS", "binding"],
@@ -208,6 +209,9 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // The blog's media library (Carrel uploads, /media/*). Unset means every
     // media call and every /media file fails.
     ["MEDIA", "binding"],
+    // The merchant MCP's tool-call log copies. Unset means the daily
+    // tool-call-log-export run fails and /health warns after two days.
+    ["AUDIT_BUCKET", "binding"],
     // Cloudflare Images: the blog pictures' sizes and Carrel's turns and
     // shrinks. Unset means /media serves originals only.
     ["IMAGES", "binding"],
@@ -238,6 +242,8 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["SENTRY_AUTH_TOKEN", "secret"],
     ["SENTRY_ORG", "secret"],
     ["EMAIL", "binding"],
+    // The deployed version's time, for /health's cron check.
+    ["CF_VERSION_METADATA", "binding"],
   ];
   const values = env as unknown as Record<string, unknown>;
   return rows.map(([name, kind]) => ({

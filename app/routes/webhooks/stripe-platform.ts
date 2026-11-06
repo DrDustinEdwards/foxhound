@@ -5,6 +5,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { constructStripeEvent } from "~/lib/stripe/webhook";
 
 import type { Route } from "./+types/stripe-platform";
+import { readText, WEBHOOK_BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Platform Stripe webhook (ROUTES.md: /webhooks/stripe-platform). This is
 // Foxhound's OWN Stripe account (billing our merchants), verified with
@@ -35,7 +36,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return new Response("webhook not configured", { status: 500 });
   }
 
-  const payload = await request.text();
+  const payload = await readText(request, WEBHOOK_BODY_MAX_BYTES);
   const signature = request.headers.get("stripe-signature") ?? "";
 
   let event;

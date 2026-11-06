@@ -61,9 +61,11 @@ second database to confuse it with. Every `--remote` command naming `foxhound`
 writes to production.
 
 `npm run db:migrate` therefore defaults to the local database and refuses the
-remote one unless you pass `--remote-confirm` (or set `DB_MIGRATE_CONFIRM=1`,
-which is what CI does). See `scripts/db-migrate.mjs`. CI applies migrations
-after `verify` and before the deploy, so schema always precedes code.
+remote one unless you pass `--remote-confirm`. See `scripts/db-migrate.mjs`.
+CI applies migrations after `verify` and before the deploy, so schema always
+precedes code, with devkit's `devkit-migrations --apply`: it applies only the
+pending migrations that add, and refuses a drop, rename or row delete (a table
+recreate included) with the command to run it by hand.
 
 Migration `0001` (post-review hardening) adds the win_back_steps account index
 and `currency` columns to `accounts` and `customer_context`; it is purely

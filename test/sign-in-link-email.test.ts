@@ -1,10 +1,14 @@
 import type Database from "better-sqlite3";
+import { createHash } from "node:crypto";
+import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cloudflareContext } from "~/lib/cloudflare-context";
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
 // J82, parity row E1, now the sign-in link (the family sign-in has no
 // passwords, so the reset mail is gone; APPROVED-DIFFERENCES, "Sign-in and
@@ -57,7 +61,7 @@ const URL_FIXTURE = `${BASE}/api/auth/magic-link/verify?token=${TOKEN}&callbackU
 const CODE = "000000";
 
 function expectedRender(to: string, url: string, code: string) {
-  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, code, expiresIn: "15 minutes" });
+  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, code, expiresIn: SIGN_IN_EXPIRES_IN_WORDS });
 }
 
 let sqlite: Database.Database;
@@ -67,7 +71,13 @@ function makeEnv(email: unknown = { send: async (m: SentMessage) => (sent.push(m
   return {
     BETTER_AUTH_URL: BASE,
     BETTER_AUTH_SECRET: "test-secret-not-real-0123456789abcdef",
-    DB: {},
+    // site-runtime's sign-in fails closed without both Turnstile keys, as production has them. Cloudflare's
+    // always-pass test keys; siteverify itself is stubbed below.
+    TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+    TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+    // The per-address code limiter refuses without its Durable Object (site-runtime fails it closed).
+    AUTH_RATE_LIMITER: makeRateLimiterNamespace(),
+    DB: d1Over(sqlite),
     EMAIL: email,
   } as unknown as Env;
 }
@@ -90,17 +100,24 @@ beforeEach(() => {
   harness.db = db;
   harness.renderThrows = false;
   sent = [];
+  const realFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input instanceof Request ? input.url : input).startsWith("https://challenges.cloudflare.com/")
+      ? Promise.resolve(Response.json({ success: true }))
+      : realFetch(input, init),
+  );
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 /** What /login sends: the page's own path to Better Auth's handler. */
 function ask(env: Env, email = TO) {
   return requestSignInLink(env, new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }), {
     email,
-    captchaToken: "",
+    captchaToken: "XXXX.DUMMY.TOKEN.XXXX",
     next: "/console",
     newUserNext: "/console",
   });
@@ -129,7 +146,7 @@ function linkTokens(): string[] {
 }
 
 describe("E1: the sign-in link is sent when a page asks for one", () => {
-  it("one mail to the address, rendered by Capsomer's magic-link template, carrying Better Auth's link", async () => {
+  it("one mail to the address, rendered by Capsomer's magic-link template, carrying the confirm page's link", async () => {
     expect(await ask(makeEnv())).toBe("sent");
 
     expect(sent).toHaveLength(1);
@@ -139,17 +156,43 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(hrefs).toHaveLength(1);
     const raw = hrefs[0].replace(/&amp;/g, "&");
     const href = new URL(raw);
-    expect(href.origin + href.pathname).toBe(`${BASE}/api/auth/magic-link/verify`);
-    // The token is the one Better Auth stored, and the link lands on the
-    // passkey offer, which goes on to /console.
-    expect(linkTokens()).toEqual([href.searchParams.get("token")]);
+    // The link opens the confirm page, whose button signs in (site-runtime
+    // ./sign-in). Better Auth stores the token hashed (SHA-256, base64url), and
+    // the link lands on the passkey offer, which goes on to /console.
+    expect(href.origin + href.pathname).toBe(`${BASE}/sign-in/confirm`);
+    const token = href.searchParams.get("token") ?? "";
+    expect(linkTokens()).toEqual([createHash("sha256").update(token).digest("base64url")]);
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
-    expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/login`);
+    expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/sign-in/confirm`);
 
     const want = expectedRender(TO, raw, codeIn(m));
     expect(m.subject).toBe(want.subject);
     expect(m.html).toBe(want.html);
     expect(m.text).toBe(want.text);
+  });
+});
+
+describe("the mailed link opens /sign-in/confirm, and only its button signs in", () => {
+  it("the page's POST to the mailed URL makes the session and goes on to the passkey offer; the token works once", async () => {
+    const env = makeEnv();
+    await ask(env);
+    const link = sent[0].html.match(/<a\b[^>]*href="([^"]*)"/)![1].replace(/&amp;/g, "&");
+    const { action } = await import("~/routes/auth/sign-in-confirm");
+    const context = { get: (key: unknown) => (key === cloudflareContext ? { env } : undefined) };
+    // Better Auth's redirect is a Response; only its 429 comes back as data.
+    const press = async () =>
+      (await action({
+        request: new Request(link, { method: "POST" }),
+        context,
+      } as unknown as Parameters<typeof action>[0])) as Response;
+
+    const first = await press();
+    expect(first.status).toBe(302);
+    expect(first.headers.get("location")).toBe(`${BASE}/passkey?next=%2Fconsole`);
+    expect(first.headers.getSetCookie().join(";")).toContain("session_token");
+    const again = await press();
+    expect(again.headers.get("location")).toContain("error=");
+    expect(again.headers.getSetCookie().join(";")).not.toContain("session_token=");
   });
 });
 
@@ -220,14 +263,16 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
 
   it("through the page, a refused send is surfaced by name and the link never reaches a log", async () => {
     const logged = consoleSpies();
+    let token = "";
     const env = makeEnv({
       send: async (m: SentMessage) => {
+        token = /token=([^&\s]+)/.exec(m.text ?? "")?.[1] ?? "";
         throw new Error(`provider echoed ${m.text}`);
       },
     });
     expect(await ask(env)).toBe("failed");
 
-    const [token] = linkTokens();
+    expect(token).not.toBe("");
     const out = logged();
     expect(out).toContain("sign-in link email not sent: provider_error");
     expect(out).not.toContain(token);
@@ -251,17 +296,19 @@ describe("the code in the same mail signs in the tab that asked", () => {
     expect((await typeCode(env, code)).status).not.toBe("signed_in");
   });
 
-  it("a wrong code counts; after three the code is spent, and the link still works", async () => {
+  it("a wrong code counts; after three the address takes no more codes, and the link still works", async () => {
     const env = makeEnv();
     await ask(env);
     const code = codeIn(sent[0]);
     const wrong = code === "111111" ? "222222" : "111111";
 
-    // From three addresses, so the code's own count is what stops the fourth.
+    // From three IP addresses, so the per-IP limit is not what stops the
+    // fourth: three wrong codes an hour per email address, across links
+    // (site-runtime's CODE_EMAIL_RULES), so a new link brings no fresh tries.
     for (const ip of ["203.0.113.2", "203.0.113.3", "203.0.113.4"]) {
       expect((await typeCode(env, wrong, ip)).status).toBe("wrong");
     }
-    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("spent");
+    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("email_limited");
     expect(linkTokens()).toHaveLength(1);
   });
 

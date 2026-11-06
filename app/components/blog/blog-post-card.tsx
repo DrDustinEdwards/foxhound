@@ -17,7 +17,10 @@ import type { BlogPostSummary } from "~/lib/blog/queries.server";
 // Sizes are Recova's: p-5, the 0.875rem title, the 0.75rem excerpt and the
 // 0.6875rem reading time. Capsomer's linked panel draws Recova's amber edge
 // under the pointer; Recova's post cards do not lift, so the lift is off.
-export function BlogPostCard({ post }: { post: BlogPostSummary }) {
+// `level` keeps the outline whole: an h3 under /blog's section h2s, an h2 on a tag
+// page, where the h1 is the only heading above the cards.
+export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level?: 2 | 3 }) {
+  const Title = level === 2 ? "h2" : "h3";
   const tag = post.tags[0] ? formatTagChip(post.tags[0]) : null;
   return (
     <Link to={`/blog/${post.slug}`} className="cap-panel [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]">
@@ -31,7 +34,7 @@ export function BlogPostCard({ post }: { post: BlogPostSummary }) {
               </span>
             </span>
           ) : null}
-          <h3 className="line-clamp-2 text-copy font-semibold leading-snug text-text">{post.title}</h3>
+          <Title className="line-clamp-2 text-copy font-semibold leading-snug text-text">{post.title}</Title>
           <p className="line-clamp-3 text-caption leading-relaxed text-text-secondary">{post.excerpt}</p>
           <span className="font-mono text-micro text-text-tertiary">{post.readingTimeMinutes} min read</span>
         </div>

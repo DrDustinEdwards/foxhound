@@ -4,11 +4,10 @@ import { Link } from "capsomer/react/link";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
-import { breadcrumbListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // NEW in Phase 6 Pass 3 (net-new). /compare hub: a card grid linking to each
 // of the six named competitor pages (ROUTES.md Rev 2). Honest by
@@ -18,20 +17,13 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Compare Foxhound - Foxhound",
+      title: "Compare Foxhound",
       description:
         "How Foxhound compares to Stripe Smart Retries, Churnkey, Churn Buster, Paddle Retain, Baremetrics Recover and Stunning, with honest pros and cons.",
       path: "/compare",
+      pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [
-            { name: "Home", path: "/" },
-            { name: "Compare", path: "/compare" },
-          ])),
-        ]
-      : []),
   ];
 }
 

@@ -4,7 +4,7 @@ import { Link } from "capsomer/react/link";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { DOC_GUIDES, type DocGuide } from "~/lib/marketing/docs-content";
-import { breadcrumbListJsonLd, docsItemListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { docsItemListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -33,15 +33,15 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // DOC_GUIDES in render order, so a sixth guide joins it by construction.
   return [
     ...marketingMeta({
-      title: "Docs - Foxhound",
+      title: "Docs",
       description: "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
       path: "/docs",
+      pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
     ...(loaderData
       ? [
           jsonLd(docsItemListJsonLd(loaderData.siteUrl, DOC_GUIDES)),
-          jsonLd(breadcrumbListJsonLd(loaderData.siteUrl, [{ name: "Docs", path: "/docs" }])),
         ]
       : []),
   ];

@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { hitRules } from "@dustinedwards/site-runtime/rate-limit";
+import { hitRules, peekRules } from "@dustinedwards/site-runtime/rate-limit";
 
 type Rule = { limit: number; windowSeconds: number };
 
@@ -22,15 +22,20 @@ export function makeRateLimiterNamespace(now: () => number = () => Date.now()) {
       names.push(name);
       return name;
     },
-    get: (id: string) => ({
-      hit: async (rules: Rule[]) => {
+    get: (id: string) => {
+      const dbFor = () => {
         let db = dbs.get(id);
         if (!db) {
           db = new Database(":memory:");
           dbs.set(id, db);
         }
-        return hitRules(sqlFor(db), rules, now());
-      },
-    }),
+        return db;
+      };
+      return {
+        hit: async (rules: Rule[]) => hitRules(sqlFor(dbFor()), rules, now()),
+        // The real object's peek: whether the rules are spent, counting nothing.
+        peek: async (rules: Rule[]) => peekRules(sqlFor(dbFor()), rules, now()),
+      };
+    },
   };
 }

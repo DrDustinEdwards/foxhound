@@ -16,6 +16,7 @@ import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /admin/staged: the changes the Foxhound Admin API was
 // asked for that start or change money, waiting for a person. Confirming one
@@ -51,7 +52,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(adminContext);
   const db = getDb(env);
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
   const id = String(form.get("id") ?? "");
   const now = new Date();

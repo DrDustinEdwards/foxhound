@@ -2,9 +2,11 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
+import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/field.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // buttons, the alert and the focus ring read. The site header loads the same
@@ -20,6 +22,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import { RATE_LIMIT_OAUTH_APPROVE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
+import { grantedScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 import {
   checkAuthorizeRequest,
   denyRedirect,
@@ -28,6 +31,7 @@ import {
 
 import type { Route } from "./+types/authorize";
 import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // /oauth/authorize: the page where a signed-in merchant
 // lets an external agent connect to one Foxhound account.
@@ -52,13 +56,18 @@ import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
 //     (app/lib/http/cache-policy.ts), and the login action answers with a
 //     server redirect that carries the session cookie, so neither has anything
 //     to fix here.
-//   - The scope a URL asks for can never raise what is granted. Foxhound issues
-//     one scope, the merchant MCP for one account, so the page offers no scope
-//     choice at all; Recova's admin-only selector is not built (see the PR).
+//   - The scope a URL asks for can never raise what is granted. Every grant
+//     holds merchant.read; merchant.write only when the owner ticks "Allow
+//     changes", which starts ticked when the client asked for it (MCP ruling
+//     2026-10-10, rule 12.1, least scope first). Recova's admin-only selector is
+//     not built (see the PR).
 //
 // The account is the session's active one, resolved again in the action from
 // the session. The form posts back the id the card showed only
 // so that a switch in another tab is refused rather than silently approved.
+
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
 
 export function meta() {
   return [{ title: "Authorize access - Foxhound" }, NOINDEX];
@@ -74,6 +83,15 @@ type Consent = {
   redirectUri: string;
   state: string | null;
   codeChallenge: string;
+  /** Whether "Allow changes" starts ticked: the client asked for merchant.write. */
+  wantsWrite: boolean;
+  /** The host publishing a metadata-document client's name, or null for a
+   *  registered client, whose name is its own claim. */
+  publishedBy: string | null;
+  /** Where the code goes, and whether that is an app on this computer. */
+  redirectHost: string;
+  /** site-runtime's words when the access goes to an app on this computer, else null. */
+  redirectWarning: string | null;
   /** Posted back as a consistency check only, never as the authority. */
   accountId: string;
   accountName: string;
@@ -88,15 +106,16 @@ function loginRedirect(params: URLSearchParams): Response {
   return redirect(`/login?next=${encodeURIComponent(next)}`);
 }
 
-export async function loader({ request, context }: Route.LoaderArgs): Promise<Consent | Refusal> {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const params = new URL(request.url).searchParams;
   const db = getDb(env);
 
   // The request is checked before the session, as Recova did: a malformed or
-  // unknown-client request is refused without a sign-in detour.
-  const check = await checkAuthorizeRequest(db, params);
-  if (!check.ok) return check;
+  // unknown-client request is refused without a sign-in detour, with a 400
+  // (area 11, A8): the card is the same, and the status says it is a refusal.
+  const check = await checkAuthorizeRequest(db, params, new URL(request.url).origin);
+  if (!check.ok) return data<Refusal>({ ok: false, title: check.title, message: check.message }, { status: 400 });
 
   const session = await getSession(env, request);
   if (!session) throw loginRedirect(params);
@@ -110,20 +129,26 @@ export async function loader({ request, context }: Route.LoaderArgs): Promise<Co
   // The grant carries write tools, so only the account owner approves one, as
   // only an owner creates an API key (/settings/api-keys).
   if (membership.role !== MEMBER_ROLE.OWNER) {
-    return { ok: false, title: "Owner approval needed", message: OWNER_ONLY };
+    return data<Refusal>({ ok: false, title: "Owner approval needed", message: OWNER_ONLY }, { status: 403 });
   }
 
-  return {
+  const redirectTo = describeRedirect(check.redirectUri);
+  const consent: Consent = {
     ok: true,
     clientId: check.clientId,
     clientName: check.clientName,
     redirectUri: check.redirectUri,
     state: check.state,
     codeChallenge: check.codeChallenge,
+    wantsWrite: check.wantsWrite,
+    publishedBy: check.metadataDocument ? new URL(check.clientId).hostname : null,
+    redirectHost: redirectTo.host,
+    redirectWarning: redirectTo.warning,
     accountId: membership.accountId,
     accountName: membership.accountName ?? session.user.email ?? "your Foxhound account",
     email: session.user.email,
   };
+  return consent;
 }
 
 /** The words for a refusal on the card. Recova showed its raw error codes
@@ -148,7 +173,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: EXPIRED_REQUEST }, { status: 403 });
   }
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const params = new URLSearchParams();
   for (const [k, v] of form) if (typeof v === "string") params.append(k, v);
 
@@ -158,11 +183,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   // Re-checked from the posted fields: nothing carried in a hidden input is
   // trusted, so a tampered redirect URI is refused here, never followed.
-  const check = await checkAuthorizeRequest(db, params);
+  const check = await checkAuthorizeRequest(db, params, self);
   if (!check.ok) return data({ error: EXPIRED_REQUEST }, { status: 400 });
 
+  // This origin is the issuer the metadata names, sent back as iss (RFC 9207).
   if (params.get("intent") === "deny") {
-    return redirect(denyRedirect(check.redirectUri, check.state));
+    return redirect(denyRedirect(check.redirectUri, check.state, self));
   }
 
   // Recova's per-user cap on minting codes.
@@ -194,11 +220,15 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const target = await issueAuthorizationCode(db, {
     clientId: check.clientId,
+    metadataDocument: check.metadataDocument ? { clientName: check.clientName, redirectUris: check.redirectUris } : null,
     redirectUri: check.redirectUri,
     state: check.state,
     codeChallenge: check.codeChallenge,
     accountId: membership.accountId,
     userId: session.user.id,
+    // What the owner ticked, never what the client asked for.
+    scopes: grantedScopes(params.get("allow_write") === "1"),
+    issuer: self,
     now: new Date(),
   });
   if (!target) return data({ error: DEMO_REFUSED }, { status: 403 });
@@ -266,9 +296,29 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
       <h1 className="mb-2 text-title font-medium text-text">
         {consent.clientName} wants to connect to your Foxhound account
       </h1>
-      <p className="mb-6 text-label text-text-subtle">
+      <p className="mb-2 text-label text-text-subtle">
         Approving grants access to the account below. You can revoke it any time from Settings.
       </p>
+      {/* Who the client is and where its access goes, as site-runtime's MCP
+          consent page says it (mcp-login.mjs): a metadata-document client's
+          name is vouched for by the host that publishes it, a registered
+          client's is only its own claim. */}
+      <p className="mb-6 text-label text-text-subtle" data-oauth-client="">
+        {consent.publishedBy ? (
+          <>
+            Published by <strong className="font-medium text-text">{consent.publishedBy}</strong>.
+          </>
+        ) : (
+          "This app registered itself, so its name is its own claim, not checked."
+        )}{" "}
+        Its access will be sent to <strong className="font-medium text-text">{consent.redirectHost}</strong>.
+      </p>
+
+      {consent.redirectWarning ? (
+        <div className="mb-5">
+          <Alert tone="warn">{consent.redirectWarning}</Alert>
+        </div>
+      ) : null}
 
       <div className="mb-5 rounded-lg border border-border-sub bg-bg px-4 py-3">
         <Eyebrow className="mb-1">Account</Eyebrow>
@@ -281,7 +331,7 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
           What {consent.clientName} can do
         </Eyebrow>
         <ul aria-labelledby="oauth-can" className="m-0 list-disc pl-4 text-label leading-relaxed text-text-secondary">
-          {CONSENT_CAPABILITIES.map((c) => (
+          {CONSENT_CAPABILITIES.filter((c) => !c.write).map((c) => (
             <li key={c.text}>{c.text}</li>
           ))}
         </ul>
@@ -301,6 +351,21 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
         <input type="hidden" name="code_challenge_method" value="S256" />
         <input type="hidden" name="account_id" value={consent.accountId} />
         {consent.state ? <input type="hidden" name="state" value={consent.state} /> : null}
+        <div className="mb-6 rounded-lg border border-border-sub bg-bg px-4 py-3">
+          <label className="cap-check items-start text-label">
+            <input type="checkbox" name="allow_write" value="1" defaultChecked={consent.wantsWrite} className="mt-1" />
+            <span>
+              <span className="font-medium">Allow changes</span>
+              {CONSENT_CAPABILITIES.filter((c) => c.write).map((c) => (
+                <span key={c.text} className="mt-0.5 block text-text-subtle">
+                  {c.text}
+                </span>
+              ))}
+              <span className="mt-0.5 block text-text-subtle">Without this, {consent.clientName} can only read.</span>
+              <span className="mt-0.5 block font-mono text-micro text-text-subtle">{MERCHANT_SCOPES.write}</span>
+            </span>
+          </label>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Button
             type="submit"

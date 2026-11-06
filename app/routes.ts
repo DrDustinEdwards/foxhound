@@ -74,6 +74,7 @@ export default [
     route("privacy", "./routes/privacy.tsx"),
     route("terms", "./routes/terms.tsx"),
     route("security", "./routes/security.tsx"),
+    route("accessibility", "./routes/accessibility.tsx"),
 
     // Stripe connect and invites stay under the site header: Recova mounts
     // them outside its (auth) group.
@@ -92,12 +93,16 @@ export default [
   ]),
 
   // The sign-in pages: Recova's bare auth layout, no site navigation and the
-  // footer's auth variant. /passkey is where an
-  // emailed sign-in link lands (site-runtime ./sign-in).
+  // footer's auth variant. The emailed sign-in link opens /sign-in/confirm,
+  // then lands on /passkey (site-runtime ./sign-in).
   layout("./layouts/auth.tsx", [
     route("login", "./routes/auth/login.tsx"),
     route("signup", "./routes/auth/signup.tsx"),
     route("passkey", "./routes/auth/passkey-offer.tsx"),
+    // The emailed sign-in link's page (site-runtime's CONFIRM_PATH).
+    route("sign-in/confirm", "./routes/auth/sign-in-confirm.tsx"),
+    // Both email-change links' page (send-auth-email.ts).
+    route("email/confirm", "./routes/auth/email-confirm.tsx"),
   ]),
 
   // Recova's paths: the console is /console and each
@@ -168,6 +173,10 @@ export default [
     route("welcome", "./routes/app/welcome.tsx"),
   ]),
 
+  // The hashed admin list for the access-drift job: behind Access, answered
+  // only to a service token, so outside the admin shell's person check.
+  route("admin/access-drift", "./routes/access-drift.ts"),
+
   // Admin: its own layout, Capsomer's AdminShell, behind Cloudflare Access.
   // Not under the app shell: no merchant session, account or
   // demo cookie is involved. admin-shell.tsx's middleware verifies Access's JWT
@@ -236,6 +245,7 @@ export default [
   // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
   route("robots.txt", "./routes/files/robots.ts"),
+  route("site.webmanifest", "./routes/files/site-webmanifest.ts"),
   route("ai.txt", "./routes/files/ai-txt.ts"),
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
@@ -305,7 +315,7 @@ export default [
 
   // Content-Security-Policy report sink (J22, F16): the policy's report-uri and
   // report-to name it. Action-only resource route at Recova's own path.
-  route("api/csp-report", "./routes/api/csp-report.ts"),
+  route("csp-report", "./routes/csp-report.ts"),
 
   // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),

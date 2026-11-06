@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
+import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
@@ -11,7 +12,7 @@ import "capsomer/status.css";
 // page whole under any layout, as /intelligence/customers does.
 import "~/site-header.css";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
@@ -37,6 +38,7 @@ import { RecommendationBanner } from "~/components/recommendation-banner";
 
 import type { Route } from "./+types/customer";
 import { NOINDEX } from "~/lib/seo/meta";
+import "capsomer/table.css";
 
 // /intelligence/customers/:id. Recova is the spec: its real
 // page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
@@ -343,7 +345,7 @@ function SignalCard({ title, fields, empty }: { title: string; fields: SignalFie
  *  with two readings or more, the chart of the last 30, oldest first. */
 function HealthScoreCard({ score, history }: { score: number | null; history: HealthReading[] }) {
   const readings = useMemo(() => [...history].reverse(), [history]);
-  const draw = useCallback((w: number) => drawHealthHistory(readings, w), [readings]);
+  const draw = useCallback((w: number, fit: ChartFit) => drawHealthHistory(readings, w, fit), [readings]);
   return (
     <Panel title="Health score">
       <p className="m-0 flex items-baseline justify-end gap-3">
@@ -356,7 +358,7 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
         </span>
         <span className="text-label text-text-subtle">/ 100</span>
       </p>
-      {readings.length >= 2 ? <EnarratioFigure draw={draw} /> : null}
+      {readings.length >= 2 ? <ChartFrame draw={draw} /> : null}
     </Panel>
   );
 }
@@ -396,23 +398,30 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
       {customer.predictions.length > 0 ? (
         <section className="mt-8">
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Predictions</p>
-          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-label">
+          <div
+            className="mt-3 cap-table-wrap rounded-lg border border-border"
+            data-cap="table"
+            data-reflow=""
+            role="region"
+            aria-label="Churn predictions"
+            tabIndex={0}
+          >
+            <table className="cap-table">
               <thead>
-                <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                  <th className="px-4 py-3 font-normal">Predicted</th>
-                  <th className="px-4 py-3 font-normal">Score</th>
-                  <th className="px-4 py-3 font-normal">Horizon</th>
-                  <th className="px-4 py-3 font-normal">Outcome</th>
+                <tr>
+                  <th scope="col">Predicted</th>
+                  <th scope="col">Score</th>
+                  <th scope="col">Horizon</th>
+                  <th scope="col">Outcome</th>
                 </tr>
               </thead>
               <tbody>
                 {customer.predictions.map((p, i) => (
-                  <tr key={i} className="border-b border-border-sub last:border-0">
-                    <td className="px-4 py-3 text-text-tertiary">{p.predictedAt.toLocaleDateString()}</td>
-                    <td className="px-4 py-3 font-mono text-text">{p.score}</td>
-                    <td className="px-4 py-3 text-text-tertiary">{p.horizonDays}d</td>
-                    <td className="px-4 py-3 text-text-tertiary">{p.realizedOutcome ?? "pending"}</td>
+                  <tr key={i}>
+                    <td className="text-text-tertiary">{p.predictedAt.toLocaleDateString()}</td>
+                    <td data-label="Score" className="font-mono text-text">{p.score}</td>
+                    <td data-label="Horizon" className="text-text-tertiary">{p.horizonDays}d</td>
+                    <td data-label="Outcome" className="text-text-tertiary">{p.realizedOutcome ?? "pending"}</td>
                   </tr>
                 ))}
               </tbody>

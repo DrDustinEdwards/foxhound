@@ -29,6 +29,7 @@ import { sendTestEmail } from "~/lib/settings/test-email.server";
 
 import type { Route } from "./+types/email";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 // S33, /settings/email, a named launch blocker in core.md: with no writer for
 // `sender_name`, `toEmailContext` fell back to "your subscription" and that
@@ -164,7 +165,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("_action") ?? "");
 
   if (intent === "sender") {

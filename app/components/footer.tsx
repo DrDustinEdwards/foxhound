@@ -66,6 +66,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
       { to: "/privacy", label: "Privacy" },
       { to: "/terms", label: "Terms" },
       { to: "/security", label: "Security" },
+      { to: "/accessibility", label: "Accessibility" },
     ],
   },
 ];
@@ -175,7 +176,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
         >
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <img src="/favicon.svg" alt="" width={28} height={28} className="shrink-0" aria-hidden />
+              <img src="/favicon.svg" alt="" width={28} height={28} loading="lazy" decoding="async" className="shrink-0" aria-hidden />
               <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
                 © 2026 Foxhound.
               </span>

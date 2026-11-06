@@ -13,9 +13,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Four gates run over the codebase; check-gates itself is excluded from the
+// Six gates run over the codebase (the console ratchet and the expand-only
+// migration check joined in area 8); check-gates itself is excluded from the
 // count because it checks the chain rather than the code.
-const MINIMUM_GATES = 4;
+const MINIMUM_GATES = 6;
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const pkg = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"));

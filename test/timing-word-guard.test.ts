@@ -11,33 +11,35 @@ const METER = { source: "test", accountId: null };
 // leaks, and a hard strip of whatever still leaks. These plants prove each
 // layer on both seams.
 //
-// THE MODEL IS STUBBED AT THE CLIENT FACTORY, the pattern
-// audit-summary-phase-c uses: every seam builds its client through
-// createAnthropicClient, so replacing the factory scripts each reply in order
-// and records every request that would have left.
+// THE MODEL IS STUBBED AT ~/lib/ai/client, the pattern audit-summary-phase-c
+// uses: every seam calls askStructured, so replacing it scripts each reply in
+// order and records every request that would have left.
 
 type Reply = { subject: string; bodyHtml: string } | Error;
 
 const harness = vi.hoisted(() => ({
   calls: [] as { system?: unknown; messages: { role: string; content: string }[] }[],
+  options: [] as unknown[],
   replies: [] as ({ subject: string; bodyHtml: string } | Error)[],
 }));
 
 vi.mock("~/lib/ai/client", () => ({
-  createAnthropicClient: () => ({
-    messages: {
-      create: async (params: {
-        system?: unknown;
-        messages: { role: string; content: string }[];
-      }) => {
-        harness.calls.push(params);
-        const next = harness.replies.shift();
-        if (!next) throw new Error("no stub reply queued");
-        if (next instanceof Error) throw next;
-        return { content: [{ type: "text", text: JSON.stringify(next) }] };
-      },
-    },
-  }),
+  REWRITE: { maxAttempts: 1 },
+  askStructured: async (
+    _env: unknown,
+    _meter: unknown,
+    params: { system?: unknown; messages: { role: string; content: string }[] },
+    _schema: unknown,
+    options: unknown,
+  ) => {
+    harness.calls.push(params);
+    harness.options.push(options);
+    const next = harness.replies.shift();
+    if (!next) throw new Error("no stub reply queued");
+    // The shared caller never throws for a failed call; it answers ok: false.
+    if (next instanceof Error) return { ok: false, kind: next.message };
+    return { ok: true, value: next };
+  },
 }));
 
 const {
@@ -102,6 +104,7 @@ afterEach(() => {
 
 beforeEach(() => {
   harness.calls = [];
+  harness.options = [];
   harness.replies = [];
 });
 
@@ -192,6 +195,9 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
     expect(retryUser).toContain("ADDITIONAL INSTRUCTION:");
     // The same system prompt (or none, on win-back) goes out both times.
     expect(harness.calls[1].system).toEqual(harness.calls[0].system);
+    // The rewrite gets one attempt: the retry layer's attempts are the first
+    // call's, so a generation is never retried calls times rewrites.
+    expect(harness.options).toEqual([{}, { maxAttempts: 1 }]);
   });
 
   it("first AND retry leak: two calls, never three, and both fields are hard-stripped", async () => {
@@ -212,7 +218,7 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
   it("the retry THROWS: the first copy is kept, hard-stripped", async () => {
     queue(
       { subject: "Fix it today", bodyHtml: "<p>Update yesterday's card.</p>" },
-      new Error("model outage"),
+      new Error("unavailable"),
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -251,9 +257,9 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
   });
 
   it("a first-call failure still throws, so the caller sends the template (RULES.md 3.15)", async () => {
-    queue(new Error("model outage"));
+    queue(new Error("unavailable"));
 
-    await expect(seam.run()).rejects.toThrow("model outage");
+    await expect(seam.run()).rejects.toThrow("generation failed: unavailable");
     expect(harness.calls).toHaveLength(1);
   });
 });

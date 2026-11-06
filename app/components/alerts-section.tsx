@@ -142,7 +142,7 @@ export function AlertsSection({
 
             {alerts.length > 0 ? (
               <div className="mt-5 min-w-0">
-                <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Alerts" tabIndex={0}>
+                <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Alerts" tabIndex={0}>
                   <table className="cap-table">
                     <thead>
                       <tr>
@@ -163,22 +163,22 @@ export function AlertsSection({
                         return (
                           <tr key={a.id}>
                             <td>{a.label ?? "-"}</td>
-                            <td>
+                            <td data-label="Metric">
                               <span className="text-text-subtle">{alertMetricLabel(a.metric)}</span>
                             </td>
-                            <td>{condition}</td>
-                            <td>
+                            <td data-label="Condition">{condition}</td>
+                            <td data-label="Channel">
                               <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
                                 {a.channel}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="Last triggered">
                               <span className="font-mono text-text-subtle">{formatDate(a.lastTriggeredAt)}</span>
                             </td>
-                            <td>
+                            <td data-label="Status">
                               <AlertSwitch id={a.id} enabled={a.enabled} name={a.label ?? condition} busy={busy} />
                             </td>
-                            <td data-num="">
+                            <td data-label="Actions" data-num="">
                               <DemoGuardedForm method="post">
                                 <input type="hidden" name="_action" value="delete" />
                                 <input type="hidden" name="alertId" value={a.id} />
@@ -208,7 +208,7 @@ export function AlertsSection({
               No alerts have fired yet. Triggers will appear here when a threshold crosses.
             </p>
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-label="Recent triggers" tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Recent triggers" tabIndex={0}>
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -223,20 +223,20 @@ export function AlertsSection({
                   {history.map((h) => (
                     <tr key={h.id}>
                       <td>{alertMetricLabel(h.metric)}</td>
-                      <td>
+                      <td data-label="Condition">
                         <span className="text-text-subtle">
                           {alertShortCondition(h.direction, h.metric, h.thresholdValue)}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Actual value">
                         <span className="font-mono">{formatThresholdValue(h.metric, h.actualValue)}</span>
                       </td>
-                      <td>
+                      <td data-label="Channel">
                         <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
                           {h.channel}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Fired at">
                         <span className="font-mono text-text-subtle">{formatDateTime(h.firedAt)}</span>
                       </td>
                     </tr>

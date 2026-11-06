@@ -1,5 +1,6 @@
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 import { plainMajorAmount } from "~/lib/money-format";
+import { PLAIN_WRITING_PROMPT } from "~/lib/ai/plain-writing";
 
 // Phase (c) of the audit port. Legacy's `generateAiSummary`
 // (`lib/audit-engine.ts` blob `040912f8`), split into a PURE prompt builder here
@@ -100,7 +101,9 @@ export function buildAuditSummaryPrompt(result: AuditResult): string {
       `${d.eventsInWindow} updates fired across ${d.expiredCardDeclinesInWindow} expired-card declines. Advisory: ${d.advisory ?? "none"}.`,
   );
 
-  return `You are writing a 3-sentence audit summary for a SaaS merchant. Do not use em dashes. Do not use bullet points. Reference specific dollar amounts from the data below. Where a line says it could not be read, say that scope is unavailable rather than reporting a number for it.
+  return `You are writing a 3-sentence audit summary for a SaaS merchant. Do not use bullet points. Reference specific dollar amounts from the data below. Where a line says it could not be read, say that scope is unavailable rather than reporting a number for it.
+
+${PLAIN_WRITING_PROMPT}
 
 DATA:
 Failed invoices (last ${result.meta.lookbackDays} days): ${failed}

@@ -5,6 +5,9 @@
 /** Where a sign-in lands when next= is absent or refused, as in Recova. */
 export const DEFAULT_NEXT_PATH = "/console";
 
+/** /login's flag for a signed-in person who must sign in again (signInAgainIfStale). */
+export const REAUTH_PARAM = "reauth";
+
 /**
  * URLSearchParams.get already decodes once. A second decode is Recova's
  * defense against a next= that a link builder encoded twice, and a stray "%"

@@ -1,3 +1,6 @@
+import { exportAuditLog } from "@dustinedwards/site-runtime/audit-log";
+import { pruneNotFound } from "@dustinedwards/site-runtime/not-found";
+
 import { getDb } from "~/db";
 import { describeMonthlyAuditRun, enqueueMonthlyAudits } from "~/lib/audit/monthly.server";
 import { creditOwedFeeLines, creditSweepFailureError, describeCreditSweep } from "~/lib/billing/credit-note";
@@ -11,6 +14,7 @@ import {
   CRON_SCHEDULE_MONTHLY_AUDIT,
   CRON_SCHEDULE_RECOVERY_TICK,
   RECOVERY_TICK_CRON_NAME,
+  RETENTION_PAGE_404_DAILY_DAYS,
 } from "~/lib/constants";
 import { runBlogSchedules } from "~/lib/carrel/handler.server";
 import { DEMO_BUSINESSES, DEMO_RESET_CRON_NAME } from "~/lib/demo/constants";
@@ -20,7 +24,9 @@ import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
-import { runD1Backup } from "~/lib/backup/d1-backup";
+import { pruneAuthEvents } from "@dustinedwards/site-runtime/sign-in";
+
+import { runD1Backup, runEvidenceBackup, runMediaBackup } from "~/lib/backup/d1-backup";
 import {
   deauthorizeRetryFailureError,
   describeDeauthorizeRetry,
@@ -50,7 +56,6 @@ import {
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
-  sweepPage404Daily,
   sweepSocialLeads,
   sweepWebhookEvents,
 } from "./retention";
@@ -148,17 +153,21 @@ const intelligenceAi: CronHandler = async (env) => {
   };
 };
 
-/** Scheduled blog publishing (site-api v0.10.0): puts live every post and
- *  every update to a live post whose scheduled time has come, and tells
- *  IndexNow about each. A schedule that fails is logged by site-api and listed
- *  again on the next pass, so the run stays a success and says so. */
+/** Scheduled blog publishing (site-api's runSchedules): puts live every post
+ *  and every update to a live post whose scheduled time has come, with the
+ *  hooks a Carrel publish runs, retries the hooks that failed before, and
+ *  deletes the posts 30 days in the trash. A schedule that fails is logged by
+ *  site-api and listed again on the next pass, so the run stays a success and
+ *  says so. */
 const blogSchedules: CronHandler = async (env) => {
   const run = await runBlogSchedules(env);
   const failed = run.failed > 0 ? `, ${run.failed} failed (retried next pass)` : "";
+  const retried = run.retried ? `, ${run.retried} hooks retried` : "";
+  const emptied = run.emptied ? `, ${run.emptied} trashed posts deleted` : "";
   const more = run.more ? ", more due" : "";
   return {
     rowsProcessed: run.applied.length,
-    message: `${run.applied.length} applied, ${run.skipped} skipped${failed}${more}`,
+    message: `${run.applied.length} applied, ${run.skipped} skipped${failed}${retried}${emptied}${more}`,
   };
 };
 
@@ -239,6 +248,15 @@ const expiringCards: CronHandler = async (env) => {
 /** The nightly D1 dump into R2. Reuses the daily schedule, so no
  *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
+const mediaBackup: CronHandler = (env) => runMediaBackup(env);
+const evidenceBackup: CronHandler = (env) => runEvidenceBackup(env);
+
+/** The 404 count's retention, by site-runtime's pruneNotFound at Foxhound's own window. It does not count what it
+ *  deletes. */
+const retentionPage404: CronHandler = async (env) => {
+  await pruneNotFound(env.DB, { days: RETENTION_PAGE_404_DAILY_DAYS });
+  return { rowsProcessed: 0, message: `kept the last ${RETENTION_PAGE_404_DAILY_DAYS} days` };
+};
 
 /** The credit-note retry (Grok audit FH-2). A refund or lost dispute credits
  *  its charged fee from the webhook, and that call never throws, so a Stripe
@@ -316,6 +334,23 @@ const stripeMissedEvents: CronHandler = async (env) => {
   return { rowsProcessed: result.replayed, message: describeMissedEventSweep(result) };
 };
 
+/** site-runtime's auth_events (migration 0068): rows with no user go after 30
+ *  days, the rest after a year. The package owns the table and its rule, so
+ *  this is its pruneAuthEvents, not a sweep in retention.ts. */
+const retentionAuthEvents: CronHandler = async (env) => {
+  await pruneAuthEvents(env.DB);
+  return { rowsProcessed: 0, message: "auth_events pruned" };
+};
+
+/** The merchant MCP's tool-call log (TOOL_CALL_LOG): new rows copied to AUDIT_BUCKET, copied rows older than 90 days
+ *  pruned (area 11, L6-L7). A failed write throws, so the run is recorded failed and alerts; /health's tool-call-log
+ *  check warns once rows go uncopied for two days (L8). */
+const toolCallLogExport: CronHandler = async (env) => {
+  if (!env.AUDIT_BUCKET) throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
+  const done = await exportAuditLog(env, env.AUDIT_BUCKET);
+  return { rowsProcessed: done.exported, message: `${done.objects.length} object(s) written, ${done.pruned} row(s) pruned` };
+};
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -358,6 +393,8 @@ export const CRON_JOBS: CronJob[] = [
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
+  { name: "media-backup", schedule: CRON_SCHEDULE_DAILY, handler: mediaBackup },
+  { name: "evidence-backup", schedule: CRON_SCHEDULE_DAILY, handler: evidenceBackup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   { name: "stripe-deauthorize-retry", schedule: CRON_SCHEDULE_DAILY, handler: stripeDeauthorizeRetry },
@@ -373,8 +410,10 @@ export const CRON_JOBS: CronJob[] = [
   { name: "retention-health-score", schedule: CRON_SCHEDULE_DAILY, handler: sweepHealthScoreHistory },
   { name: "retention-cron-history", schedule: CRON_SCHEDULE_DAILY, handler: sweepCronRunHistory },
   { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
-  { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: sweepPage404Daily },
+  { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
+  { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
+  { name: "tool-call-log-export", schedule: CRON_SCHEDULE_DAILY, handler: toolCallLogExport },
 ];
 
 /** The jobs registered for a given cron schedule string. */

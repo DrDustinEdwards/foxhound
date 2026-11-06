@@ -4,6 +4,8 @@
 // MRR-at-risk exposure and the narrative's top-N selection; "watch" is the
 // band between at-risk and clearly healthy.
 
+import type { MeterTone } from "capsomer/behavior/meter";
+
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 
 export type HealthScoreBand = "at_risk" | "watch" | "healthy";
@@ -26,12 +28,12 @@ export function healthScoreClassName(score: number): string {
   return CLASS_NAME[healthScoreBand(score)];
 }
 
-const METER_TONE: Record<HealthScoreBand, "negative" | "caution" | "positive"> = {
-  at_risk: "negative",
-  watch: "caution",
-  healthy: "positive",
+const METER_TONE: Record<HealthScoreBand, MeterTone> = {
+  at_risk: "crit",
+  watch: "warn",
+  healthy: "ok",
 };
 
-export function healthScoreMeterTone(score: number): "negative" | "caution" | "positive" {
+export function healthScoreMeterTone(score: number): MeterTone {
   return METER_TONE[healthScoreBand(score)];
 }

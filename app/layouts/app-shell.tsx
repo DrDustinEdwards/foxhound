@@ -8,7 +8,6 @@ import {
   useSubmit,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
-import { Link } from "capsomer/react/link";
 import {
   ArrowLeft,
   BarChart3,
@@ -29,6 +28,7 @@ import {
 } from "lucide-react";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { ErrorPage } from "capsomer/react/error-page";
 import { Banner } from "capsomer/react/banner";
 import "capsomer/admin-shell.css";
 import "capsomer/banner.css";
@@ -50,12 +50,13 @@ import {
 } from "~/components/site-header";
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
+import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { IMPERSONATION_STOP_PATH } from "~/lib/admin/impersonation.server";
 import { authContext } from "~/lib/auth/context";
 import { adminPageName as routePageName } from "~/lib/admin/page";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { resolveErrorBoundaryDetails } from "~/lib/errors/boundary-message";
+import { errorDetails } from "~/lib/errors/boundary-message";
 import { resolveNavContext } from "~/lib/nav/context.server";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST, PRODUCT_ORDER, type ProductKey, type ProductNavLink } from "~/lib/nav/manifest";
@@ -71,7 +72,19 @@ import type { loader as rootLoader } from "~/root";
 import type { Route } from "./+types/app-shell";
 
 // Server guard for the entire authenticated tree (session + account required).
-export const middleware: Route.MiddlewareFunction[] = [noindexHeader, appShellMiddleware];
+// ONLY THIS ORIGIN MAY WRITE, as in admin-shell.tsx: every merchant action
+// under this shell, page or resource route, gets site-runtime's shared check
+// before any session work.
+const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
+  const refused = refuseCrossSite(request);
+  if (refused) throw refused;
+  return next();
+};
+
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
+export const middleware: Route.MiddlewareFunction[] = [noindexHeader, sameOriginWrites, appShellMiddleware];
 
 // This layout's own route match never changes on a same-shell navigation
 // (no params, no path segment of its own), so React Router's default
@@ -441,23 +454,25 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 // root.tsx, so a thrown data(message, {status}) still reads as its own
 // message rather than a generic HTTP reason phrase.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const { message, details } = resolveErrorBoundaryDetails(error, import.meta.env.DEV);
   // The header's theme button still saves where the layout's did.
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
   useThemeMemory(rootTheme, "account");
 
+  // Capsomer's error page (its failed Empty), as the root boundary draws it (app/root.tsx), under the shell's header.
   return (
-    <div>
-      <div className="fh-cap fh-site-header" data-cap-site="foxhound" data-family="amber">
-        <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
-      </div>
-      <main className="flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-        <h1 className="text-title font-medium text-text">{message}</h1>
-        <p className="max-w-md text-body text-text-secondary">{details}</p>
-        <Link to="/console" className="text-label text-brand-text hover:underline">
-          Back to Foxhound
-        </Link>
-      </main>
+    <div className="fh-cap fh-error-page" data-cap-site="foxhound" data-family="amber">
+      <ErrorPage
+        error={error}
+        home="/console"
+        homeLabel="Back to Foxhound"
+        text={errorDetails(error, import.meta.env.DEV)}
+        siteHeader={
+          <div className="fh-site-header">
+            <SiteHeader logo={headerLogo("/")} themePrefKey={THEME_PREF_KEY} sheetTitle="Foxhound menu" renderLink={renderHeaderLink} />
+          </div>
+        }
+        dev={import.meta.env.DEV}
+      />
     </div>
   );
 }

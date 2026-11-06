@@ -39,6 +39,9 @@ export const oauthAuthorizationCodes = sqliteTable(
     userId: text("user_id").notNull(),
     redirectUri: text("redirect_uri").notNull(),
     codeChallenge: text("code_challenge").notNull(),
+    /** What the owner granted on the consent page. Null on a code minted before
+     *  the read and write split, which grants read only. */
+    scopes: json<string[]>("scopes"),
     expiresAt: ts("expires_at").notNull(),
     usedAt: ts("used_at"),
     createdAt: ts("created_at").notNull(),

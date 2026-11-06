@@ -263,7 +263,7 @@ export function EvidenceFiles({
                       className="text-label text-brand-text hover:opacity-80"
                     >
                       {name}
-                    </a>
+                    <span className="cap-sr-only"> (opens in a new tab)</span></a>
                   ) : (
                     <span className="text-label text-text">{name}</span>
                   )}

@@ -31,6 +31,7 @@ import { cloudflareContext } from "~/lib/cloudflare-context";
 import type { Route } from "./+types/index";
 import { MerchantsList } from "../../../components/admin-merchants-parts";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Merchants" };
 
@@ -71,7 +72,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(adminContext);
   const db = getDb(env);
 
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
   const accountId = String(form.get("accountId") ?? "");
 

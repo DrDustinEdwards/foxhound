@@ -120,7 +120,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
       </div>
       <div className="cap-panel">
         <div className="cap-panel-body" data-flush>
-          <div className="cap-table-wrap" role="region" aria-labelledby={DASHBOARD_CAPTION} tabIndex={0}>
+          <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={DASHBOARD_CAPTION} tabIndex={0}>
             <table className="cap-table">
               <caption id={DASHBOARD_CAPTION} className="sr-only">
                 Disputes
@@ -143,16 +143,16 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
                       <div className="text-label font-normal text-text">{row.customer}</div>
                       {row.email ? <div className="text-micro font-normal text-text-subtle">{row.email}</div> : null}
                     </th>
-                    <td className="whitespace-nowrap text-right">
+                    <td data-label="Amount" className="whitespace-nowrap text-right">
                       <span className="font-mono text-label text-text">{row.amount}</span>
                     </td>
-                    <td>
+                    <td data-label="Reason">
                       <span className="text-label text-text-secondary">{row.reason}</span>
                     </td>
-                    <td>
+                    <td data-label="Foxhound status">
                       <StatePill row={row} />
                     </td>
-                    <td>
+                    <td data-label="Deadline">
                       <DeadlineDays row={row} />
                     </td>
                   </tr>
@@ -172,7 +172,7 @@ const TABLE_CAPTION = "preview-disputes-table";
 export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
-      <div className="cap-table-wrap" role="region" aria-labelledby={TABLE_CAPTION} tabIndex={0}>
+      <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={TABLE_CAPTION} tabIndex={0}>
         <table className="cap-table">
           <caption id={TABLE_CAPTION} className="sr-only">
             Disputes and their evidence deadlines
@@ -193,19 +193,19 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
                 <th scope="row">
                   <span className="text-label font-normal text-text">{row.customer}</span>
                 </th>
-                <td className="whitespace-nowrap">
+                <td data-label="Amount" className="whitespace-nowrap">
                   <span className="font-mono text-label text-text">{row.amount}</span>
                 </td>
-                <td>
+                <td data-label="Reason">
                   <span className="text-label text-text-secondary">{row.reason}</span>
                 </td>
-                <td>
+                <td data-label="Triage">
                   <TriagePill row={row} />
                 </td>
-                <td>
+                <td data-label="Status">
                   <StatePill row={row} />
                 </td>
-                <td className="whitespace-nowrap">
+                <td data-label="Deadline" className="whitespace-nowrap">
                   {/* A closed dispute's deadline is history: no band color. */}
                   <span
                     className={`font-mono text-label ${

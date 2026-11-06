@@ -33,6 +33,7 @@ import {
   listAccountConnections,
 } from "~/lib/settings/queries.server";
 
+import { CONFIRM_ARGUMENT, CONFIRM_PROPERTY, CONFIRM_RESULT_FIELDS, confirmationNeeded } from "./confirm.server";
 import {
   defineToolRegistry,
   type McpTool,
@@ -77,6 +78,22 @@ import {
 // tool's job is to choose WHICH fields to return, never to disguise one.
 
 type ToolArgs = Record<string, unknown>;
+
+/**
+ * A tool's outputSchema (area 11, T3): an object naming its top-level fields,
+ * with `required` only those that are always present (a lookup that may come
+ * back empty is not required, since a missing required field would turn a
+ * good answer into an error). The fields themselves are left open, so the
+ * schema says what an answer holds without pinning every nested shape.
+ * The SDK checks each successful result against it.
+ */
+function result(fields: string[], required: string[] = fields) {
+  return {
+    type: "object" as const,
+    properties: Object.fromEntries(fields.map((field) => [field, {}])),
+    required,
+  };
+}
 
 /** Every read: changes nothing, safe to repeat, touches nothing outside Foxhound. */
 const READ: McpToolAnnotations = {
@@ -266,8 +283,10 @@ const READ_TOOLS: McpTool[] = [
     title: "Account overview",
     description:
       "Start here. Read this account's recurring-revenue overview (MRR, movement, customer counts, the latest report summary), the failed-payment counts by recovery status, and the Stripe accounts connected to it. Access tokens are never returned, and nothing can be connected or disconnected here.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    outputSchema: result(["overview", "payment_status_counts", "connections"], []),
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [overview, payment_status_counts, connections] = await Promise.all([
         getIntelligenceOverview(ctx.db, ctx.accountId, { forAgent: true }),
@@ -284,6 +303,7 @@ const READ_TOOLS: McpTool[] = [
       "List this account's failed payments, newest first, with amount, decline category and recovery status. Filter by status or decline category. Paginated: pass next_cursor back to read on. Customer emails are masked and no name is returned. Use foxhound_get_payment with an id from here for one payment's recovery steps.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         status: {
           type: "string",
@@ -298,7 +318,9 @@ const READ_TOOLS: McpTool[] = [
       },
       required: [],
     },
+    outputSchema: result(["payments", "total", "has_more", "next_cursor"], ["payments", "has_more"]),
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_payments";
       const page = decodeCursor(tool, args);
@@ -327,10 +349,13 @@ const READ_TOOLS: McpTool[] = [
       "Read one of this account's failed payments with its recovery steps in order (what ran, when and how the customer engaged; never the email text), the recovery if there was one, the same customer's previous failures and any open disputes. Payment ids come from foxhound_list_payments. Cannot retry, pause, resume or cancel recovery; that stays in the Foxhound app.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: { payment_id: { type: "string", description: "The failed payment's id, from foxhound_list_payments." } },
       required: ["payment_id"],
     },
+    outputSchema: result(["steps"]),
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const paymentId = required(args, "payment_id", "Take one from foxhound_list_payments.");
       const detail = await getFailedPaymentDetail(ctx.db, ctx.accountId, paymentId);
@@ -349,13 +374,16 @@ const READ_TOOLS: McpTool[] = [
       "List this account's customers with health score, plan tier and MRR, lowest health first, plus the plan tiers present. tier filters to one plan tier. Paginated, 50 a page: pass next_cursor back to read on. Names are never returned and emails are masked; the Stripe customer id is the key for foxhound_get_customer.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         tier: { type: "string", description: "Only customers on this plan tier, as listed in tiers." },
         cursor: CURSOR_PROPERTY,
       },
       required: [],
     },
+    outputSchema: result(["customers", "total", "total_mrr_cents", "tiers", "has_more", "next_cursor"], ["customers", "has_more"]),
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_customers";
       const page = decodeCursor(tool, args);
@@ -389,12 +417,15 @@ const READ_TOOLS: McpTool[] = [
       "Read one of this account's customers: health score, its factors, its history and the churn predictions, with when they became a customer, their current plan name and tier, monthly MRR contribution and lifetime value (null until Foxhound computes it). The name is never returned and the email is masked. Customer ids come from foxhound_list_customers.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         stripe_customer_id: { type: "string", description: "The Stripe customer id, from foxhound_list_customers." },
       },
       required: ["stripe_customer_id"],
     },
+    outputSchema: result(["customer"], []),
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const customerId = required(args, "stripe_customer_id", "Take one from foxhound_list_customers.");
       const customer = await getCustomerHealthDetail(ctx.db, ctx.accountId, customerId);
@@ -411,8 +442,10 @@ const READ_TOOLS: McpTool[] = [
     title: "Churn and alerts",
     description:
       "Read this account's subscription intelligence: churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings. Alert ids from here are the ones foxhound_manage_alerts takes.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    outputSchema: result(["churn", "alerts", "alert_history"], []),
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [churn, alerts] = await Promise.all([
         getChurnView(ctx.db, ctx.accountId, ctx.now.getTime()),
@@ -426,8 +459,10 @@ const READ_TOOLS: McpTool[] = [
     title: "List disputes",
     description:
       "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
-    inputSchema: { type: "object", properties: { cursor: CURSOR_PROPERTY }, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: { cursor: CURSOR_PROPERTY }, required: [] },
+    outputSchema: result(["disputes", "total", "has_more", "next_cursor"], ["disputes", "has_more"]),
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_disputes";
       const page = decodeCursor(tool, args);
@@ -443,13 +478,16 @@ const READ_TOOLS: McpTool[] = [
       "Read this account's audit settings and its stored audit runs, newest first, with each scope's figures or null where a scope could not be read. Pass run_id for one run in full. Paginated, 12 a page: pass next_cursor back to read on.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         run_id: { type: "string", description: "One audit run's id, from an earlier answer. Omit to list runs." },
         cursor: CURSOR_PROPERTY,
       },
       required: [],
     },
+    outputSchema: result(["run", "settings", "runs", "total", "has_more", "next_cursor"], []),
     annotations: READ,
+    scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_review_audits";
       const runId = stringArg(args, "run_id");
@@ -476,8 +514,10 @@ const READ_TOOLS: McpTool[] = [
     title: "Foxhound billing",
     description:
       "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Read only: cannot issue, pay, adjust or void anything.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    outputSchema: result(["ledger", "invoices", "preview"], []),
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [ledger, invoices, preview] = await Promise.all([
         getBillingLedger(ctx.db, ctx.accountId),
@@ -496,8 +536,10 @@ const READ_TOOLS: McpTool[] = [
     title: "Read settings",
     description:
       "Read every setting foxhound_update_settings can change: audit window, the two engine toggles, notification email and toggles, the connected Stripe accounts, the primary connection's sender name and brand voice, and the business context the email writer is given. The Slack webhook URL is never returned, only whether one is set.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    outputSchema: result(["audit", "features", "notifications", "connections", "sender", "brand_voice", "intelligence_context"], ["features", "notifications"]),
     annotations: READ,
+    scope: "read",
     execute: async (ctx) => {
       const [account, audit, connections, sender, voices, intelligence_context] = await Promise.all([
         getAccount(ctx.db, ctx.accountId),
@@ -699,6 +741,18 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
 
 const SECTION_NAMES = Object.keys(SETTINGS_SECTIONS);
 
+/** What a settings call would do, in words the merchant can approve. A Slack
+ *  webhook URL is a credential, so it is named, never shown. */
+function describeSettingsChange(name: string, section: ToolArgs): string {
+  const shown = Object.entries(section).map(([field, value]) =>
+    field === "slack_webhook_url" ? `${field}: ${value ? "a new Slack webhook URL" : "cleared"}` : `${field}: ${JSON.stringify(value)}`,
+  );
+  const cleared = name === "notifications" && section.slack_webhook_url === undefined ? ["slack_webhook_url: cleared"] : [];
+  return `Overwrite the ${name} settings with ${[...shown, ...cleared].join(", ") || "nothing"}.${
+    name === "notifications" ? " Every notification field is replaced, and clearing the email turns every notification off." : ""
+  }`;
+}
+
 const ALERT_ACTIONS = ["create", "enable", "disable", "delete"] as const;
 
 const WRITE_TOOLS: McpTool[] = [
@@ -706,9 +760,10 @@ const WRITE_TOOLS: McpTool[] = [
     name: "foxhound_update_settings",
     title: "Change settings",
     description:
-      "Change one group of this account's settings per call: send exactly one of audit, features, notifications, sender_name, brand_voice or intelligence_context. Read the current values first with foxhound_get_settings. Values overwrite what is there: in notifications every field is replaced and an omitted Slack webhook is cleared; in brand_voice and intelligence_context an omitted field is left alone and an empty string clears it. Connection ids come from foxhound_get_settings and must belong to this account.",
+      "Change one group of this account's settings per call: send exactly one of audit, features, notifications, sender_name, brand_voice or intelligence_context. Read the current values first with foxhound_get_settings. Values overwrite what is there: in notifications every field is replaced and an omitted Slack webhook is cleared; in brand_voice and intelligence_context an omitted field is left alone and an empty string clears it. Connection ids come from foxhound_get_settings and must belong to this account. Every change is confirmed first: the first call changes nothing and answers what it would change and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         audit: {
           type: "object",
@@ -780,13 +835,17 @@ const WRITE_TOOLS: McpTool[] = [
           },
           required: [],
         },
+        [CONFIRM_ARGUMENT]: CONFIRM_PROPERTY,
       },
       required: [],
     },
     // Destructive because a value is overwritten, and clearing the notification
-    // email silences every notification. Idempotent because the same call twice
-    // leaves the same settings.
+    // email silences every notification, so it is confirmed first
+    // (./confirm.server.ts). Idempotent because the same call twice leaves the
+    // same settings.
+    outputSchema: result(["section", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    scope: "write",
     execute: async (ctx, args) => {
       const sent = SECTION_NAMES.filter((name) => args[name] !== undefined);
       if (sent.length !== 1) {
@@ -799,6 +858,8 @@ const WRITE_TOOLS: McpTool[] = [
       if (!section || typeof section !== "object" || Array.isArray(section)) {
         throw new ToolInputError(`${name} must be an object of that group's fields.`);
       }
+      const pending = await confirmationNeeded(ctx, "foxhound_update_settings", args, describeSettingsChange(name, section as ToolArgs));
+      if (pending) return pending;
       return { section: name, ...((await SETTINGS_SECTIONS[name](ctx, section as ToolArgs)) as object) };
     },
   },
@@ -808,9 +869,10 @@ const WRITE_TOOLS: McpTool[] = [
     // DELETION IS NAMED rather than left to be discovered, because it takes the
     // alert's firing history with it and that is not recoverable.
     description:
-      "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day.",
+      "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day. delete is confirmed first: the first call deletes nothing and answers what it would delete and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         action: { type: "string", enum: [...ALERT_ACTIONS], description: "What to do." },
         alert_id: { type: "string", description: "For enable, disable and delete: from foxhound_get_intelligence." },
@@ -822,12 +884,16 @@ const WRITE_TOOLS: McpTool[] = [
         },
         label: { type: "string", description: "For create: an optional name for the alert." },
         channel: { type: "string", enum: ["email", "slack"], description: "For create: where a breach is sent. Defaults to email." },
+        [CONFIRM_ARGUMENT]: { ...CONFIRM_PROPERTY, description: `For delete. ${CONFIRM_PROPERTY.description}` },
       },
       required: ["action"],
     },
-    // Destructive because delete is; not idempotent because create makes a new
-    // alert each time.
+    // Destructive because delete is, so delete is confirmed first
+    // (./confirm.server.ts); not idempotent because create makes a new alert
+    // each time.
+    outputSchema: result(["action", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    scope: "write",
     execute: async (ctx, args) => {
       const action = args["action"];
       if (action === "create") {
@@ -848,7 +914,16 @@ const WRITE_TOOLS: McpTool[] = [
         };
       }
       if (action === "enable" || action === "disable" || action === "delete") {
-        required(args, "alert_id", "Take one from foxhound_get_intelligence.");
+        const alertId = required(args, "alert_id", "Take one from foxhound_get_intelligence.");
+        if (action === "delete") {
+          const pending = await confirmationNeeded(
+            ctx,
+            "foxhound_manage_alerts",
+            args,
+            `Delete alert ${alertId} and every breach recorded for it. This cannot be undone.`,
+          );
+          if (pending) return pending;
+        }
         return {
           action,
           ...applied(

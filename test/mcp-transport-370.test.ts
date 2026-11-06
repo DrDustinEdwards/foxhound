@@ -12,7 +12,7 @@ import {
 import { DISALLOW_PATHS } from "~/routes/files/robots";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, type McpCallInit } from "./helpers/mcp-client";
+import { mcpRequest, readMcp, type McpCallInit, toolCallLogStub } from "./helpers/mcp-client";
 
 // RULING 370, ROADMAP ITEM 3: the transport, driven with an EMPTY tool registry
 // so every assertion here is about the door and the protocol, not a tool.
@@ -45,6 +45,7 @@ const ORIGIN = "https://foxhoundapp.test";
 function env(allowed = true): Env {
   return {
     DB: {},
+    TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: allowed, retryAfterSeconds: 60 }) }),
@@ -103,8 +104,9 @@ function tool(name: string): McpTool {
     name,
     title: "t",
     description: "d",
-    inputSchema: { type: "object" },
+    inputSchema: { type: "object", additionalProperties: false },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    scope: "read",
     execute: async () => ({}),
   };
 }
@@ -137,8 +139,14 @@ describe("PLANT 1: the endpoint's shape", () => {
     // present and invalid, servers MUST respond with HTTP 403 Forbidden." An
     // agent sends none, so absence must NOT be treated as invalid.
     const { good } = await seed();
-    const foreign = await call({ token: good, headers: { Origin: "https://evil.test" } });
+    // site-runtime's refusal (mcpOriginRefusal), plain text, never cached.
+    const foreign = (await handleMcpRequest(
+      mcpRequest({ token: good, headers: { Origin: "https://evil.test" } }),
+      env(),
+      PROBE,
+    )) as Response;
     expect(foreign.status).toBe(403);
+    expect(foreign.headers.get("Cache-Control")).toBe("no-store");
     const sameOrigin = await call({ token: good, headers: { Origin: ORIGIN } });
     expect(sameOrigin.status).toBe(200);
     const absent = await call({ token: good });
@@ -164,6 +172,20 @@ describe("PLANT 2: both eras on one route, through the SDK", () => {
     expect((result.tools as { name: string }[]).map((t) => t.name)).toEqual(PROBE_NAMES);
     expect(result.cacheScope).toBe("private");
     expect(result.ttlMs).toBeGreaterThan(0);
+  });
+
+  it("the list-only test key's tools/call is a 200 refusal in words, not the 403 step-up", async () => {
+    // The live check's conformance run (P4, run 55) calls the first listed
+    // tool with this key and wants a valid call accepted: the SDK's step-up
+    // 403 failed sep-2243-server-accepts-whitespace-header-value.
+    await seed();
+    const probeKey = "p".repeat(43);
+    const request = mcpRequest({ token: probeKey, era: "modern", method: "tools/call", params: { name: "foxhound_get_probe", arguments: {} } });
+    const { status, json } = await readMcp((await handleMcpRequest(request, { ...env(), MCP_PROBE_KEY: probeKey } as Env, PROBE)) as Response);
+    expect(status).toBe(200);
+    const result = (json as { result: { isError: boolean; content: { text: string }[] } }).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain("list-only test key");
   });
 });
 
@@ -192,7 +214,7 @@ describe("PLANT 3: the 401 is byte-stable across every failure", () => {
       // J79: the 401 now names the protected-resource document an MCP client
       // follows to the OAuth provider. Still one value for every failure.
       expect(res.headers.get("WWW-Authenticate")).toBe(
-        `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource", scope="merchant"`,
+        `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp", scope="merchant.read"`,
       );
       seen.add(await res.clone().text());
     }

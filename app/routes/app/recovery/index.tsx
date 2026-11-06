@@ -8,7 +8,6 @@ import "capsomer/row-list.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
 import "capsomer/tabs.css";
-import "./dashboard.css";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
@@ -80,9 +79,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 // secondary stats, then the failed-payments table.
 //
 // Built from Capsomer 0.9.0's parts with every chart drawn by Enarratio,
-// amber throughout. No Foxhound CSS sits over a Capsomer component;
-// dashboard.css only hides Enarratio's gridlines, which Recova's charts never
-// drew. Recova's per-category colors, its green and red figures inside
+// amber throughout. components/charts.css hides Enarratio's gridlines, which
+// Recova's charts never drew, and the frame's title under a Panel heading. Recova's per-category colors, its green and red figures inside
 // panels, and its 12px radius wait for Capsomer's per-site layer (capsomer
 // job_ec5ec0754626), listed in the J74 pull request.
 //

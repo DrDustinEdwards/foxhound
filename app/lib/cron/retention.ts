@@ -11,7 +11,6 @@ import {
   engagementEvents,
   getDb,
   healthScoreHistory,
-  page404Daily,
   socialLeads,
   webhookEvents,
 } from "~/db";
@@ -23,7 +22,6 @@ import {
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
-  RETENTION_PAGE_404_DAILY_DAYS,
   RETENTION_SOCIAL_LEADS_DAYS,
   RETENTION_SWEEP_LIMIT,
   RETENTION_WEBHOOK_EVENTS_DAYS,
@@ -169,12 +167,6 @@ export async function sweepCronRunHistory(env: Env): Promise<CronJobResult> {
     cronRunHistory.createdAt,
     cutoff,
   );
-  return { rowsProcessed: rows };
-}
-
-export async function sweepPage404Daily(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_PAGE_404_DAILY_DAYS, Date.now());
-  const rows = await deleteOlderThan(getDb(env), page404Daily, page404Daily.id, page404Daily.day, cutoff);
   return { rowsProcessed: rows };
 }
 

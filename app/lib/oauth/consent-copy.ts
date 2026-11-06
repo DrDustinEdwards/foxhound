@@ -18,6 +18,9 @@ export interface ConsentCapability {
   text: string;
   /** The merchant MCP tools this line stands for. */
   tools: readonly string[];
+  /** A line for tools that need merchant.write, shown beside "Allow changes"
+   *  rather than in the list every grant gets. */
+  write?: true;
 }
 
 export const CONSENT_CAPABILITIES: readonly ConsentCapability[] = [
@@ -38,7 +41,12 @@ export const CONSENT_CAPABILITIES: readonly ConsentCapability[] = [
     tools: ["foxhound_review_audits", "foxhound_get_billing"],
   },
   {
-    text: "Read and change your settings and alerts",
-    tools: ["foxhound_get_settings", "foxhound_update_settings", "foxhound_manage_alerts"],
+    text: "Read your settings",
+    tools: ["foxhound_get_settings"],
+  },
+  {
+    text: "Change your settings and alerts",
+    tools: ["foxhound_update_settings", "foxhound_manage_alerts"],
+    write: true,
   },
 ];

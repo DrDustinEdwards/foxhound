@@ -14,6 +14,7 @@ import { CRON_SCHEDULE_MONTHLY, CRON_SCHEDULE_MONTHLY_AUDIT } from "~/lib/consta
 import { SCOPE_UNREAD } from "~/lib/audit/render";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { blockText } from "./helpers/email-words";
 
 // PHASE (g), RULING 362 RULING 3: THE ONE MONTHLY EMAIL.
 //
@@ -285,7 +286,7 @@ const resultWith = (over: Partial<EmailResult> = {}): EmailResult =>
 /** The mail as its blocks' words, one block a line, a button as its label and
  *  address. Since E24 the builder returns Capsomer blocks rather than HTML. */
 const asText = (blocks: ReturnType<typeof buildMonthlyAuditEmail>["blocks"]) =>
-  blocks.map((b) => (b.type === "button" ? `${b.label} ${b.url}` : b.text)).join("\n");
+  blocks.map((b) => (b.type === "button" ? `${b.label} ${b.url}` : blockText(b))).join("\n");
 
 const emailFor = (over: Partial<EmailInput> = {}) => {
   const built = buildMonthlyAuditEmail({

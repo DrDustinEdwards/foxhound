@@ -11,6 +11,7 @@
 const HEX_EXEMPT = [
   "app/app.css",
   "app/routes/files/og.ts",
+  "app/routes/files/site-webmanifest.ts",
   "app/lib/email/",
 ];
 

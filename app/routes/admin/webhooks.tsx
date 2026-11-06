@@ -171,7 +171,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               </Empty>
             )
           ) : (
-            <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
               <table className="cap-table">
                 <caption className="cap-sr-only">
                   Webhook events, newest first. Open an event type to see its payload.
@@ -239,7 +239,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
             <span className="cap-sr-only"> payload</span>
           </button>
         </th>
-        <td>
+        <td data-label="Account">
           {event.accountId ? (
             <Link to={merchantHref(event.accountId)} className={`${LINK} font-mono text-micro break-all`}>
               {event.accountId}
@@ -248,7 +248,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
             <span className="text-text-tertiary">No account</span>
           )}
         </td>
-        <td>
+        <td data-label="Status">
           {event.errorMessage ? (
             <Status tone="crit">Error</Status>
           ) : event.processed ? (
@@ -257,24 +257,27 @@ function EventRows({ event }: { event: WebhookEventRow }) {
             <Status tone="info">Pending</Status>
           )}
         </td>
-        <td>
+        <td data-label="Received">
           <AdminTime at={event.receivedAt} />
         </td>
-        <td data-wrap="" className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}>
+        <td data-label="Error" data-wrap="" className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}>
           {event.errorMessage ?? "None"}
         </td>
       </tr>
-      <tr id={payloadId} hidden={!open}>
-        <td colSpan={COLUMNS}>
-          <pre
-            tabIndex={0}
-            aria-label={`${event.eventType} payload`}
-            className="m-0 max-h-96 overflow-auto rounded-md border border-border bg-sunken p-3 font-mono text-micro text-text"
-          >
-            {JSON.stringify(event.payload, null, 2)}
-          </pre>
-        </td>
-      </tr>
+      {/* Rendered only when open: a reflowed row is display: grid, which beats hidden. */}
+      {open ? (
+        <tr id={payloadId}>
+          <td colSpan={COLUMNS}>
+            <pre
+              tabIndex={0}
+              aria-label={`${event.eventType} payload`}
+              className="m-0 max-h-96 overflow-auto rounded-md border border-border bg-sunken p-3 font-mono text-micro text-text"
+            >
+              {JSON.stringify(event.payload, null, 2)}
+            </pre>
+          </td>
+        </tr>
+      ) : null}
     </>
   );
 }

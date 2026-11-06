@@ -1,7 +1,8 @@
-import { and, desc, eq, exists, gt, isNull, or } from "drizzle-orm";
+import { and, desc, eq, exists, gt, isNull, lt, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { apiKeys, oauthGrants } from "~/db";
+import { apiKeys, mcpCalls, oauthGrants } from "~/db";
+import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
 import {
   MCP_TOKEN_SCOPE,
   issueMcpToken,
@@ -118,4 +119,54 @@ export async function revokeAccountApiKey(
     .set({ revokedAt: new Date() })
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.accountId, accountId)));
   return true;
+}
+
+export interface AccountMcpCallRow {
+  id: string;
+  tool: string;
+  outcome: string;
+  /** The error the agent was given, masked for display; null when the call worked. */
+  error: string | null;
+  /** Null when the key is gone: the log's api_key_id outlives the key. */
+  keyLabel: string | null;
+  createdAt: Date;
+}
+
+/**
+ * The account's own MCP calls, newest first, MCP_CALLS_SHOWN a page (area 11, A15 and L9: the owner sees what their
+ * agents did, beside the keys they can revoke). Only this account's rows (rule 8: accountId first), the error masked as
+ * /admin/operations masks it. `before` is the last row (time and id) of the page before; `more` says an older page exists.
+ */
+export async function listAccountMcpCalls(
+  db: Db,
+  accountId: string,
+  before?: { at: Date; id: string },
+): Promise<{ calls: AccountMcpCallRow[]; more: boolean }> {
+  const rows = await db
+    .select({
+      id: mcpCalls.id,
+      tool: mcpCalls.tool,
+      outcome: mcpCalls.outcome,
+      error: mcpCalls.error,
+      keyLabel: apiKeys.label,
+      createdAt: mcpCalls.createdAt,
+    })
+    .from(mcpCalls)
+    // The key must be this account's too, so a label is never read across accounts.
+    .leftJoin(apiKeys, and(eq(apiKeys.id, mcpCalls.apiKeyId), eq(apiKeys.accountId, accountId)))
+    // Keyset on (time, id), the order's own columns, so calls logged in the same millisecond are never skipped.
+    .where(
+      and(
+        eq(mcpCalls.accountId, accountId),
+        before
+          ? or(lt(mcpCalls.createdAt, before.at), and(eq(mcpCalls.createdAt, before.at), lt(mcpCalls.id, before.id)))
+          : undefined,
+      ),
+    )
+    .orderBy(desc(mcpCalls.createdAt), desc(mcpCalls.id))
+    .limit(MCP_CALLS_SHOWN + 1);
+  return {
+    calls: rows.slice(0, MCP_CALLS_SHOWN).map((row) => ({ ...row, error: row.error === null ? null : maskSecretsInText(row.error) })),
+    more: rows.length > MCP_CALLS_SHOWN,
+  };
 }

@@ -1,3 +1,4 @@
+import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { limit } from "@dustinedwards/site-runtime/rate-limit";
 
 // Rate-limit enforcement, keyed on cf-connecting-ip, on site-runtime's
@@ -145,5 +146,7 @@ export async function enforceRateLimit(request: Request, env: Env): Promise<Resp
   if (!rule) return null;
   const key = request.headers.get("cf-connecting-ip") ?? "unknown";
   const verdict = await check(env, rule.bucket, key, rule.limit, rule.periodMs, false);
-  return verdict.status === "limited" ? rateLimitedResponse(verdict.retryAfterSeconds) : null;
+  if (verdict.status !== "limited") return null;
+  logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), bucket: rule.bucket }, { level: "warn" });
+  return rateLimitedResponse(verdict.retryAfterSeconds);
 }

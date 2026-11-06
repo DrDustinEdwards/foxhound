@@ -134,7 +134,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             Each cron in Foxhound&apos;s registry takes its own lock while it runs.
           </Empty>
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={LOCKS_HEADING_ID} tabIndex={0}>
+          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={LOCKS_HEADING_ID} tabIndex={0}>
             <table className="cap-table">
               <caption className="cap-sr-only">
                 Cron locks, one per cron in the registry&apos;s order. A lock not released ran out while still stored:
@@ -181,7 +181,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         {growthTables.length === 0 ? (
           <Empty kind="nothing-yet" title="No tables with a retention rule." />
         ) : (
-          <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={GROWTH_HEADING_ID} tabIndex={0}>
+          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={GROWTH_HEADING_ID} tabIndex={0}>
             <table className="cap-table">
               <caption className="cap-sr-only">Row counts for each table with a retention rule.</caption>
               <thead>
@@ -199,8 +199,8 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                     <th scope="row" className="font-normal text-text">
                       {t.label}
                     </th>
-                    <td className="text-text-secondary">{t.retentionPolicy}</td>
-                    <td data-num="">
+                    <td data-label="Kept for" className="text-text-secondary">{t.retentionPolicy}</td>
+                    <td data-label="Rows" data-num="">
                       {figure(t.rowCount)}
                     </td>
                   </tr>
@@ -233,6 +233,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         ) : (
           <div
             className="cap-table-wrap"
+            data-reflow=""
             data-cap="table"
             role="region"
             aria-labelledby={MIGRATIONS_HEADING_ID}
@@ -253,10 +254,10 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                     <th scope="row" className="font-normal font-mono break-all text-text">
                       {m.name}
                     </th>
-                    <td>
+                    <td data-label="State">
                       <Status tone={m.applied ? "ok" : "crit"}>{m.applied ? "Applied" : "Not applied"}</Status>
                     </td>
-                    <td>
+                    <td data-label="Applied">
                       <AdminTime at={m.appliedAt} empty="Not yet" />
                     </td>
                   </tr>
@@ -274,7 +275,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         description="Whether each binding, variable and secret the Worker uses is set, and whether the Stripe key is a live one. Names only: values are never shown here."
         flush
       >
-        <div className="cap-table-wrap" data-cap="table" role="region" aria-labelledby={SETTINGS_HEADING_ID} tabIndex={0}>
+        <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-labelledby={SETTINGS_HEADING_ID} tabIndex={0}>
           <table className="cap-table">
             <caption className="cap-sr-only">Each setting the Worker uses, its kind, and whether it is set.</caption>
             <thead>
@@ -290,8 +291,8 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                   <th scope="row" className="font-normal font-mono break-all text-text">
                     {row.name}
                   </th>
-                  <td className="text-text-secondary">{settingKindWord(row.kind)}</td>
-                  <td>
+                  <td data-label="Kind" className="text-text-secondary">{settingKindWord(row.kind)}</td>
+                  <td data-label="State">
                     {row.problem ? (
                       <Status tone="crit">{row.problem}</Status>
                     ) : (
@@ -319,10 +320,10 @@ function LockRow({ lock }: { lock: CronLockRow }) {
       <th scope="row" className="font-normal font-mono break-all text-text">
         {lock.name}
       </th>
-      <td>
+      <td data-label="Lock">
         <Status tone={status.tone}>{status.word}</Status>
       </td>
-      <td>
+      <td data-label="Lease">
         {lock.state === "running" && lock.heldUntil ? (
           <>
             Ends <AdminTime at={lock.heldUntil} />

@@ -1,32 +1,20 @@
 import { Link } from "capsomer/react/link";
-import { lineChart } from "enarratio/lite/line";
+import { ChartFrame } from "capsomer/react/chart-frame";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
-import "enarratio/base.css";
-// Capsomer's --enarratio-* mapping onto its tokens, loaded here rather than
-// relied on through the shell's capsomer/tokens.css import, so the chart's
-// colors do not depend on another file's imports.
-import "capsomer/enarratio.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-import "./churn.css";
 
-import { EnarratioFigure } from "~/components/enarratio-figure";
+import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
 import { authContext } from "~/lib/auth/context";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { healthScoreClassName, WATCH_CEILING, type HealthScoreBand } from "~/lib/intelligence/health-band";
-import {
-  churnBandSharePct,
-  churnRateAlt,
-  formatChurnMonth,
-  formatChurnPct,
-  type ChurnRatePointLike,
-} from "~/lib/intelligence/churn";
+import { churnBandSharePct, drawChurnRate, type ChurnRatePointLike } from "~/lib/intelligence/churn";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "~/lib/money-format";
 
@@ -146,6 +134,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
             >
               <div
                 className="cap-table-wrap"
+                data-reflow=""
                 data-cap="table"
                 role="region"
                 // The one landmark here: the panel is a plain section (no
@@ -178,13 +167,13 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                               micro and mono. */}
                           <span className="block font-mono text-micro text-text-subtle">{row.stripeCustomerId}</span>
                         </th>
-                        <td>
+                        <td data-label="Plan">
                           {/* Recova's rounded border pill. Recova labels it from
                               current_plan_tier, which nothing in Foxhound writes
                               (signals.ts), so the plan's own name is shown. */}
                           <Pill variant="outline">{row.currentPlanName ?? "-"}</Pill>
                         </td>
-                        <td data-num="">
+                        <td data-label="Health" data-num="">
                           {/* Toned from the score rather than hardcoded red: the
                               query pre-filters to the high-risk band today, but a
                               widened predicate should not leave the color lying. */}
@@ -192,7 +181,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                             {row.healthScore}
                           </span>
                         </td>
-                        <td data-num="" className="font-mono">
+                        <td data-label="MRR" data-num="" className="font-mono">
                           {row.mrrContributionCents > 0 ? formatMoney(row.mrrContributionCents, currency) : "-"}
                         </td>
                       </tr>
@@ -208,50 +197,6 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   );
 }
 
-// Recova's ResponsiveContainer is 180px tall with its axes inside; Enarratio
-// draws its legend outside the SVG and keeps 64px of the height for its axes.
-const CHART_HEIGHT = 220;
-
-interface ChurnRow {
-  // Capitalized because Enarratio names the data table's first column after it.
-  Month: string;
-  series: "Involuntary" | "Voluntary";
-  rate: number | null;
-}
-
-function drawChurnRate(points: readonly ChurnRatePointLike[], width: number): string {
-  const data: ChurnRow[] = points.flatMap((p) => {
-    const Month = p.at.toISOString().slice(0, 10);
-    return [
-      { Month, series: "Involuntary" as const, rate: p.involuntaryPct },
-      { Month, series: "Voluntary" as const, rate: p.voluntaryPct },
-    ];
-  });
-  return lineChart({
-    data,
-    x: "Month",
-    y: "rate",
-    series: "series",
-    // Recova's legend order: Involuntary, then Voluntary.
-    seriesDomain: ["Involuntary", "Voluntary"],
-    // Recova's colors, through Enarratio's own option: Involuntary on the
-    // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
-    // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio 0.3.1 has
-    // no per-series dash (enarratio gap).
-    colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },
-    xLabel: null,
-    // Enarratio 0.3.1 has no tick format, so Recova's "2%" ticks read as "2"
-    // under this axis label until it does (enarratio gap).
-    yLabel: "Churn rate (%)",
-    formatValue: formatChurnPct,
-    formatX: formatChurnMonth,
-    alt: churnRateAlt(points),
-    width,
-    height: CHART_HEIGHT,
-  });
-}
-
-// fh-churn-chart scopes Enarratio's documented gridline rule (churn.css).
 export function ChurnRateChart({ points }: { points: readonly ChurnRatePointLike[] }) {
-  return <EnarratioFigure className="fh-churn-chart" draw={(width) => drawChurnRate(points, width)} />;
+  return <ChartFrame gridlines="none" draw={(width, fit) => drawChurnRate(points, width, fit)} />;
 }

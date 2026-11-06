@@ -23,6 +23,7 @@ import { sendTeamInviteEmail, teamInviteEmailNotice } from "~/lib/settings/team-
 
 import type { Route } from "./+types/team";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 export function meta() {
   return [{ title: "Team - Foxhound" }, NOINDEX];
@@ -82,7 +83,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { membership } = context.get(authContext);
   const db = getDb(env);
 
-  const form = await request.formData();
+  const form = await readForm(request);
   // No `_action` is an invite, so a plain post keeps working.
   const intent = String(form.get("_action") ?? "invite") === "remove" ? "remove" : "invite";
 

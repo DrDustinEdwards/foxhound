@@ -228,7 +228,7 @@ function CustomerColumns() {
     ["Signals", "Marks for an active recovery and a dispute history."],
   ];
   return (
-    <div className="cap-table-wrap my-6" data-cap="table" role="region" aria-label="Customers page columns" tabIndex={0}>
+    <div className="cap-table-wrap my-6" data-reflow="" data-cap="table" role="region" aria-label="Customers page columns" tabIndex={0}>
       <table className="cap-table">
         <thead>
           <tr>
@@ -240,7 +240,7 @@ function CustomerColumns() {
           {columns.map(([name, description]) => (
             <tr key={name}>
               <th scope="row">{name}</th>
-              <td>{description}</td>
+              <td data-label="What it shows">{description}</td>
             </tr>
           ))}
         </tbody>

@@ -1,27 +1,32 @@
 import {
+  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useMatches,
   useRouteLoaderData,
 } from "react-router";
 
+import { iconLinks } from "@drdustinedwards/site-helpers/icons";
 import type { Route } from "./+types/root";
+import { ErrorPage } from "capsomer/react/error-page";
 import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
-import { ErrorView } from "./components/error-view";
+import { ErrorBar, ErrorFooter, ErrorLinks, HOME_LABEL, recovaWords, WithdrawnView } from "./components/error-view";
 import { cloudflareContext } from "./lib/cloudflare-context";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
+import type { loader as marketingLoader } from "./layouts/marketing";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
-export function meta() {
-  return [{ title: "Foxhound" }];
+export function meta({ error }: Route.MetaArgs) {
+  return [{ title: error ? `${recovaWords(error, false).title} | Foxhound` : "Foxhound" }];
 }
 
 // The font preloads, also sent as the Early Hints `Link` header (lib/preloads.ts).
-export const links: Route.LinksFunction = () => PRELOADS.links;
+export const links: Route.LinksFunction = () => [...iconLinks(), ...PRELOADS.links];
 
 // Theme read once at the root so <html data-theme> is correct on the very
 // first byte (no flash of the wrong mode). resolveThemeForRequest, not the
@@ -66,6 +71,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const theme = data?.theme ?? DEFAULT_THEME;
   const nonce = data?.nonce;
 
+  // HYDRATION IS OPT-IN BY ROUTE (`handle = { hydrate: true }`), as on dustinedwards.info. The public
+  // marketing pages send no React: their few widgets (the theme button and menus, the reveals, the FAQ,
+  // the calculator, the email generator) run from /site.js and its islands (app/site.ts, app/islands/).
+  // The signed-in app, the admin, the sign-in pages, /connect, the audit flow and the token pages
+  // opt in. A signed-in visitor on a marketing page also hydrates: their header carries the business
+  // switcher and Sign out, which are React's, and their pages are private and never edge-cached.
+  const matches = useMatches();
+  const signedIn = useRouteLoaderData<typeof marketingLoader>("layouts/marketing")?.isAuthenticated === true;
+  const hydrates =
+    signedIn || matches.some((match) => (match.handle as { hydrate?: boolean } | undefined)?.hydrate === true);
+
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">
       <head>
@@ -78,20 +94,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onto each style element it injects. Production serves CSS as <link>
             files and never renders this element. */}
         {import.meta.env.DEV ? <meta property="csp-nonce" nonce={nonce} /> : null}
-        {/* Legacy declares icon=/favicon.png and apple=/apple-touch-icon.png from
-            its root layout, both resolving to one 512x512 PNG. Foxhound shipped
-            only the SVG, so both raster paths 404'd and no apple-touch
-            declaration existed at all: ledger row F21, and the blocker on F5's
-            RSS channel image. The rasters are generated from this
-            same SVG by scripts/build-icons.mjs.
-            The SVG stays and is declared first: it is a Foxhound addition legacy
-            has no counterpart for, browsers that understand it prefer it, and
-            removing a working better icon to match legacy's item set exactly
-            would be a parity point bought with a real regression. Recorded on
-            row F21 rather than left as silent drift. */}
-        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <link rel="icon" type="image/png" href="/favicon.png" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Legacy declares the feed site-wide from its root layout
             (app/layout.tsx, metadata.alternates.types), so every legacy page
             carries this link. Foxhound had the feed route but advertised it
@@ -108,8 +110,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-full">
         <LinkPrefetch exclude={NO_PREFETCH}>{children}</LinkPrefetch>
-        <ScrollRestoration nonce={nonce} />
-        <Scripts nonce={nonce} />
+        {hydrates ? (
+          <>
+            <ScrollRestoration nonce={nonce} />
+            <Scripts nonce={nonce} />
+          </>
+        ) : (
+          // Same-origin, so script-src 'self' allows it; the nonce is renewed per reader like every other.
+          <script src="/site.js" defer nonce={nonce} />
+        )}
       </body>
     </html>
   );
@@ -119,10 +128,27 @@ export default function App() {
   return <Outlet />;
 }
 
+// Capsomer's error page under Foxhound's wordmark bar, in Recova's words (components/error-view.tsx),
+// with Recova's dashboard and demo links under its message. The 410 withdrawal keeps its own view.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  // The view lives in components/error-view.tsx so it can be rendered in a
-  // test; root.tsx itself cannot be imported there (app.css, the `?url` font
-  // assets and lib/theme.server). error.data carries whatever a route threw via
-  // data(), which the view resolves through resolveErrorBoundaryDetails.
-  return <ErrorView error={error} isDev={import.meta.env.DEV} />;
+  const routeError = isRouteErrorResponse(error) ? error : null;
+  if (routeError?.status === 410) return <WithdrawnView />;
+  const { title, text } = recovaWords(error, import.meta.env.DEV);
+  return (
+    <div className="fh-cap fh-error-page flex min-h-screen flex-col bg-bg" data-cap-site="foxhound" data-family="amber">
+      <ErrorPage
+        error={error}
+        home="/"
+        title={title}
+        text={text}
+        homeLabel={HOME_LABEL}
+        className="flex-1"
+        siteHeader={<ErrorBar />}
+        siteFooter={<ErrorFooter />}
+        dev={import.meta.env.DEV}
+      >
+        <ErrorLinks notFound={routeError?.status === 404} />
+      </ErrorPage>
+    </div>
+  );
 }

@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import { blockText, type WordsBlock } from "./helpers/email-words";
 
 // SESSION 55 / 337 binding 2: THE WEEKLY DIGEST CRON, the fifth absent engine.
 //
@@ -43,8 +44,8 @@ const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } = await import(
 );
 
 /** The words of a digest's blocks, one line each, for a containment check. */
-function words(blocks: { text?: string; label?: string; url?: string }[]): string {
-  return blocks.map((b) => [b.text, b.label, b.url].filter(Boolean).join(" ")).join("\n");
+function words(blocks: WordsBlock[]): string {
+  return blocks.map((b) => [blockText(b), b.label, b.url].filter(Boolean).join(" ")).join("\n");
 }
 
 const ACCOUNT = "acct_1";

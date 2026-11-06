@@ -1,4 +1,5 @@
 import { barChart } from "enarratio/lite/bar";
+import type { ChartFit } from "capsomer/react/chart-frame";
 
 import type { CohortRow } from "~/lib/intelligence/mrr";
 import { formatMoneyShort, fromMajorUnits } from "~/lib/money-format";
@@ -21,9 +22,10 @@ const MOVEMENT_COLORS: Record<string, string> = {
   Reactivate: "var(--purple)",
 };
 
-export function drawLatestMovement(m: MovementTotals, currency: string, width: number): string {
+export function drawLatestMovement(m: MovementTotals, currency: string, width: number, fit: ChartFit = {}): string {
   const bars = mrrMovementBars(m, currency);
   return barChart({
+    title: "MRR movements, latest month",
     data: bars.map((b) => ({ Movement: b.label, kind: b.label, amount: b.units })),
     x: "Movement",
     xDomain: bars.map((b) => b.label),
@@ -35,8 +37,10 @@ export function drawLatestMovement(m: MovementTotals, currency: string, width: n
     yLabel: currency.toUpperCase(),
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: mrrMovementAlt(m, currency),
+    hoverTitles: false,
     width,
     height: 200,
+    ...fit,
   });
 }
 
@@ -51,9 +55,10 @@ function cohortChartHeight(count: number): number {
   return Math.max(140, 64 + count * 22);
 }
 
-export function drawCohorts(rows: readonly CohortRow[], width: number): string {
+export function drawCohorts(rows: readonly CohortRow[], width: number, fit: ChartFit = {}): string {
   const yLabel = "Still paying (%)";
   return barChart({
+    title: "Customer cohorts still paying",
     data: rows.map((r) => ({ Cohort: r.label, share: r.values[0] ?? 0 })),
     x: "Cohort",
     xDomain: rows.map((r) => r.label),
@@ -66,7 +71,9 @@ export function drawCohorts(rows: readonly CohortRow[], width: number): string {
     colors: { [yLabel]: "var(--brand-ui)" },
     formatValue: (v) => `${v}%`,
     alt: cohortAlt(rows),
+    hoverTitles: false,
     width,
     height: cohortChartHeight(rows.length),
+    ...fit,
   });
 }

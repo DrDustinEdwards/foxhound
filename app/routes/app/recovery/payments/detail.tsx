@@ -58,6 +58,7 @@ import type { loader as appShellLoader } from "~/layouts/app-shell";
 
 import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
+import { readForm } from "~/lib/http/body";
 
 export function meta() {
   return [{ title: "Payment detail - Foxhound" }, NOINDEX];
@@ -120,7 +121,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = form.get("intent");
 
   // The shared dispatcher owns account scoping, ownership and the per-intent
@@ -482,6 +483,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             >
               View invoice in Stripe
               <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
+              <span className="cap-sr-only"> (opens in a new tab)</span>
             </a>
             <a
               className="cap-btn"
@@ -492,6 +494,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             >
               View customer in Stripe
               <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
+              <span className="cap-sr-only"> (opens in a new tab)</span>
             </a>
           </>
         )}

@@ -5,6 +5,9 @@ import { noindexHeader } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/auth";
 
+// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
+export const handle = { hydrate: true };
+
 // Recova's auth layout (app/(auth)/layout.tsx, blob 17a22006), row A1, ruled
 // toward Recova by 403 (Dustin "yes", 2026-09-19): the four sign-in pages
 // leave the marketing shell. No site navigation, then the footer's auth

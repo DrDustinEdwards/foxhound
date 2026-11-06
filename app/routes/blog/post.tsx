@@ -4,16 +4,17 @@ import { Link } from "capsomer/react/link";
 
 import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
+import { CoverPicture } from "~/components/blog/cover-picture";
+import { SectionTrail } from "~/components/section-trail";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
 import { cloudflareContext } from "~/lib/cloudflare-context";
-import { extractFaqPairs, renderMarkdown } from "~/lib/blog/markdown.server";
-import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost } from "~/lib/blog/queries.server";
+import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
+import { getNextPost, getPostBySlug, getPostLinks, getPreviousPost, getSlugRedirect } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
-  breadcrumbListJsonLd,
   faqPageJsonLd,
   organizationJsonLd,
   personJsonLd,
@@ -68,19 +69,25 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 
   const post = await getPostBySlug(db, params.slug);
   if (!post) {
+    // A post Carrel renamed: its old address answers a permanent redirect to
+    // the new one (site-api's rename contract). Read only on a miss, so a live
+    // post's own page costs no extra query.
+    const moved = await getSlugRedirect(db, params.slug);
+    if (moved) throw redirect(`/blog/${moved}`, 301);
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc }, previous, next, related] = await Promise.all([
+  const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
+    coverPicture(db, post, "content"),
+    // The share image Carrel set (site-api's image and imageAlt search fields), read the way the cover is.
+    coverPicture(db, { coverImageUrl: post.ogImageUrl, coverImageAlt: post.ogImageAlt, title: post.title }, "content"),
     post.publishedAt ? getPreviousPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     post.publishedAt ? getNextPost(db, post.publishedAt, post.id) : Promise.resolve(null),
     getPostLinks(db, post.id),
   ]);
 
-  const faqPairs = extractFaqPairs(post.body);
-
-  return { siteUrl: siteUrl(env), post, html, toc, previous, next, related, faqPairs };
+  return { siteUrl: siteUrl(env), post, cover, share, html, version, toc, previous, next, related, faq };
 }
 
 // Legacy passes the post EXCERPT as `description` and renders it on the card
@@ -94,11 +101,16 @@ function ogImageUrl(url: string, title: string, description: string | undefined)
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Blog - Foxhound" }];
-  const { post, siteUrl: url } = loaderData;
+  const { post, cover, share, siteUrl: url } = loaderData;
   const title = post.ogTitle ?? post.title;
   const description = post.ogDescription ?? post.excerpt;
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
-  const image = post.coverImageUrl ?? ogImageUrl(url, title, post.ogDescription ?? post.excerpt);
+  // The share image Carrel set, else the cover, each at its real size (a
+  // library file's stored one), else the generated 1200x630 card.
+  const card = share ?? cover;
+  const image = card
+    ? { ...card.original, url: new URL(card.original.url, url).href }
+    : { url: ogImageUrl(url, title, post.ogDescription ?? post.excerpt), width: 1200, height: 630, type: "image/png", alt: title };
 
   // JSON-LD goes through meta, which React Router escapes, because the title,
   // excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>`
@@ -120,7 +132,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       image,
       ogTitle: title,
       ogType: "article",
-      imageAlt: title,
+      noindex: post.noindex,
     }),
     jsonLd(organizationJsonLd(url)),
     ...(byDustin
@@ -139,27 +151,24 @@ export function meta({ loaderData }: Route.MetaArgs) {
         headline: title,
         description,
         path: `/blog/${post.slug}`,
-        imageUrl: image,
+        imageUrl: image.url,
+        // The cover's crops, else the share image's.
+        images: (cover?.article.length ? cover.article : (share?.article ?? [])).map((crop) => ({
+          url: new URL(crop.url, url).href,
+          width: crop.width,
+          height: crop.height,
+        })),
         datePublished: post.publishedAt?.toISOString() ?? null,
         dateModified: (post.updatedAt ?? post.createdAt).toISOString(),
         authorName: post.author,
       }),
     ),
-    jsonLd(
-      breadcrumbListJsonLd(url, [
-        { name: "Home", path: "/" },
-        { name: "Blog", path: "/blog" },
-        { name: post.title, path: `/blog/${post.slug}` },
-      ]),
-    ),
-    ...(loaderData.faqPairs.length > 0
-      ? [jsonLd(faqPageJsonLd(loaderData.faqPairs.map((f) => ({ question: f.question, answer: f.answer }))))]
-      : []),
+    ...(loaderData.faq.length > 0 ? [jsonLd(faqPageJsonLd(loaderData.faq))] : []),
   ];
 }
 
 export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
-  const { siteUrl: url, post, html, toc, previous, next, related } = loaderData;
+  const { siteUrl: url, post, cover, html, version, toc, previous, next, related } = loaderData;
 
   const canonical = post.canonicalUrl ?? `${url}/blog/${post.slug}`;
 
@@ -174,28 +183,16 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
       <ReadingProgressBar targetId="blog-post-article" />
 
-      <Link
-        to="/blog"
-        className="group mb-8 inline-flex items-center gap-1.5 text-label text-text-tertiary transition-colors hover:text-text"
-      >
-        <ArrowLeft
-          className="transition-transform group-hover:-translate-x-0.5"
-          size={13}
-          strokeWidth={1.5}
-          aria-hidden
-        />
-        Back to blog
-      </Link>
+      <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
-        <article id="blog-post-article">
-          {post.coverImageUrl ? (
+        {/* h-entry and e-content name the post's own text for site-api's
+            webmention hook, which sends to the links inside it only (not the
+            share row's). No style reads either class. */}
+        <article id="blog-post-article" className="h-entry">
+          {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
-              <img
-                src={post.coverImageUrl}
-                alt={post.coverImageAlt ?? post.title}
-                className="h-full w-full object-cover"
-              />
+              <CoverPicture cover={cover} className="h-full w-full object-cover" />
             </div>
           ) : null}
 
@@ -242,7 +239,12 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <TableOfContents items={toc} variant="inline" />
 
-          <div className="blog-prose" dangerouslySetInnerHTML={{ __html: html }} />
+          <div
+            className="blog-prose e-content"
+            data-render-version={version}
+            data-island={html.includes("embed-link") ? "embeds" : undefined}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         </article>
 
         <TableOfContents items={toc} variant="sidebar" />
@@ -273,7 +275,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
-        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} className="h-11 w-11 shrink-0 rounded-[10px]" />
+        <img src="/favicon.svg" alt="Foxhound" width={44} height={44} loading="lazy" decoding="async" className="h-11 w-11 shrink-0 rounded-[10px]" />
         <div>
           <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">Published by</p>
           <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>

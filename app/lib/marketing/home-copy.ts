@@ -51,9 +51,6 @@ export const HOME_TITLE = "Foxhound: Recover failed Stripe payments";
  *  billed until a recovery has matured (Recova said "until then"). */
 export const HOME_META_DESCRIPTION = `Foxhound recovers failed Stripe payments, builds dispute evidence you sign, and adds customer intelligence. You pay ${RECOVERY_FEE} of what it recovers, after ${MATURITY_DAYS} days.`;
 
-/** The JSON-LD WebPage name, Recova's in Foxhound's name. */
-export const HOME_WEBPAGE_NAME = "Foxhound | Recover Failed Stripe Payments Automatically";
-
 /** Recova's first five hero sentences, word for word in Foxhound's name. */
 export const HERO_LEAD =
   "Most churn is not people quitting. It is cards that fail. Foxhound gets that revenue back. Stripe takes the payment. Foxhound wins back the ones that fail.";

@@ -68,6 +68,7 @@ function render(
     keys: opts.keys === undefined ? KEYS : opts.keys,
     loadError: opts.loadError ?? false,
     isAdmin: opts.isAdmin ?? false,
+    callLog: { state: "owner-only" },
   };
   const Stub = createRoutesStub([
     {

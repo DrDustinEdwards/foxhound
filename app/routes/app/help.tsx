@@ -231,8 +231,8 @@ export default function Help({ loaderData }: Route.ComponentProps) {
             {crons.map((cron) => (
               <tr key={cron.cronName}>
                 <th scope="row">{cron.label}</th>
-                <td>{formatTimeAgo(cron.lastSucceededAt, nowMs)}</td>
-                <td>
+                <td data-label="Last succeeded">{formatTimeAgo(cron.lastSucceededAt, nowMs)}</td>
+                <td data-label="Status">
                   <Status tone={CRON_TONE[cron.status].tone}>{CRON_TONE[cron.status].word}</Status>
                 </td>
               </tr>
@@ -251,8 +251,8 @@ export default function Help({ loaderData }: Route.ComponentProps) {
                 {c.name}
                 <span className="cap-table-aside">{c.url}</span>
               </th>
-              <td>{c.note}</td>
-              <td>
+              <td data-label="Tools">{c.note}</td>
+              <td data-label="Status">
                 {/* Legacy's green dot says nothing a reader needs (the row
                     existing is the news), so it stays decorative: Capsomer's
                     ok Status with no word, hidden from assistive tech. */}
@@ -323,6 +323,7 @@ function StatusTable({
       <div
         className="cap-table-wrap"
         data-cap="table"
+        data-reflow=""
         role="region"
         aria-labelledby={headingId}
         tabIndex={0}

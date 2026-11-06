@@ -474,14 +474,16 @@ describe("PLANT 7: no tracking, no billable record, no real customer data", () =
 // ============================================================================
 // The Foxhound Admin MCP's two tools for it.
 
-const KEY = "fox_mcp_test_admin_key";
+const KEY = "fox_mcp_test_admin_key_at_least_32_chars";
 
 function fakeFoxhound() {
   const calls: { method: string; path: string; body: unknown }[] = [];
   return {
     calls,
     binding: {
-      async fetch(request: Request) {
+      // callApi hands a service binding a URL and init, as Fetcher.fetch takes them.
+      async fetch(input: Request | string, init?: RequestInit) {
+        const request = new Request(input, init);
         calls.push({
           method: request.method,
           path: new URL(request.url).pathname,
@@ -493,10 +495,13 @@ function fakeFoxhound() {
   };
 }
 
+/** A TOOL_CALL_LOG that accepts every row: no tool runs unlogged. */
+const toolCallLog = { idFromName: () => "log", get: () => ({ fetch: async () => new Response(null, { status: 204 }) }) };
+
 async function callTool(fox: ReturnType<typeof fakeFoxhound>, name: string, args: Record<string, unknown>, scopes: string[]) {
   const res = await serveAdminMcp(
     mcpRequest({ method: "tools/call", params: { name, arguments: args } }),
-    { FOXHOUND: fox.binding, FOXHOUND_ADMIN_API_KEY: KEY } as never,
+    { FOXHOUND: fox.binding, FOXHOUND_ADMIN_API_KEY: KEY, TOOL_CALL_LOG: toolCallLog } as never,
     { actor: ADMIN, client: "test client", scopes },
   );
   return toolOutput(await readMcp(res));
@@ -522,9 +527,9 @@ describe("PLANT 8: the admin MCP's preview and send tools", () => {
   });
 
   it("send needs the write grant, and passes types, merchant and recipient to the send route", async () => {
+    // A read grant is never offered the send tool (registerTools, T7): the call is an unknown tool and sends nothing.
     const readOnly = fakeFoxhound();
-    const refused = await callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ]);
-    expect(refused.isError).toBe(true);
+    await expect(callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ])).rejects.toThrow(/not found/);
     expect(readOnly.calls).toEqual([]);
 
     const fox = fakeFoxhound();

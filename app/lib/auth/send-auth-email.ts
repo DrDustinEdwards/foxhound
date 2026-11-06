@@ -1,12 +1,16 @@
-import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
+import { emailConfirmURL, SIGN_IN_EXPIRES_IN_WORDS, type NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import type { Rendered } from "capsomer/email";
 
 import { sendRenderedTransactionalEmail, type TransactionalSendOutcome } from "~/lib/email/send";
-import { renderFoxhoundSignInLinkEmail } from "~/lib/email/templates";
+import {
+  renderFoxhoundEmailChangeEmail,
+  renderFoxhoundSecurityNoticeEmail,
+  renderFoxhoundSignInLinkEmail,
+} from "~/lib/email/templates";
 
-// The sign-in link and its code, the one auth email: the family sign-in
-// (site-runtime ./sign-in) has no passwords, so there is no reset or
-// verification mail. The code is for the tab that asked, when the link opens
+// The sign-in link and its code, the security notice, and the two mails of an
+// email change: the family sign-in (site-runtime ./sign-in) has no passwords,
+// so there is no reset mail. The code is for the tab that asked, when the link opens
 // in another browser (the mail app's, a phone). Sent
 // through the ONE email send module on the Cloudflare EMAIL binding
 // (ARCHITECTURE.md #3). It is platform mail to our own users, so it carries no
@@ -49,6 +53,86 @@ export async function sendSignInLinkEmail(
     return { status: "failed", reason: isHttps(url) ? "render_failed" : "link_refused", error: null };
   }
   return sendRenderedTransactionalEmail(env, { to, rendered, redact: [url, token, code, to] });
+}
+
+/** Where a merchant manages how they sign in; the notice's button opens it. */
+const SIGN_IN_SETTINGS_PATH = "/settings/account";
+
+/**
+ * Mail a security notice (a passkey added, a session ended, ...) to `to`, the
+ * way the sign-in link goes. site-runtime calls this after the change is made
+ * and logs a throw as `security_notice_failed` without undoing the change, so a
+ * refusal is thrown by name, with the recipient cut out of the provider's words.
+ */
+export async function sendSecurityNoticeEmail(env: Env, to: string, detail: NoticeDetail): Promise<void> {
+  const rendered = renderFoxhoundSecurityNoticeEmail(to, detail, `${env.BETTER_AUTH_URL}${SIGN_IN_SETTINGS_PATH}`);
+  const sent = await sendRenderedTransactionalEmail(env, { to, rendered, redact: [to] });
+  if (sent.status !== "sent") {
+    throw new Error(`security notice email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
+  }
+}
+
+/** How long each email-change link works: Better Auth's emailVerification
+ *  expiresIn, and the words the mails say. */
+export const EMAIL_CHANGE_EXPIRES_IN_SECONDS = 60 * 60;
+export const EMAIL_CHANGE_EXPIRES_IN_WORDS = "1 hour";
+
+/**
+ * Mail the CURRENT address to confirm a change to `newEmail` (E1). Better
+ * Auth calls this from /change-email; `url` is its own link, which acts on a
+ * GET, so it is never sent or logged: the mail carries site-runtime's
+ * emailConfirmURL of it (app/routes/auth/email-confirm.tsx), the same token on
+ * a page that acts only on its button's POST.
+ * A refused send is thrown by name, as the sign-in link's is.
+ */
+export async function sendEmailChangeConfirmation(
+  env: Env,
+  change: { to: string; newEmail: string; url: string; token: string },
+): Promise<void> {
+  const link = emailConfirmURL(change.url);
+  const rendered = renderFoxhoundEmailChangeEmail({
+    to: change.to,
+    url: link,
+    step: "current",
+    newEmail: change.newEmail,
+    expiresIn: EMAIL_CHANGE_EXPIRES_IN_WORDS,
+    copy: {
+      subject: "Confirm the change to your Foxhound email address",
+      heading: "Change your email address?",
+      intro: `Someone signed in to Foxhound asked to change this account's address from ${change.to} to ${change.newEmail}. Confirm it here, and we then send a link to the new address to finish.`,
+      button: "Confirm the change",
+      ignore: "If this was not you, do not confirm it, and sign out your other devices from Foxhound's account settings. Your address stays as it is.",
+    },
+  });
+  await sendOrThrow(env, change.to, rendered, [change.url, change.token, link, change.newEmail]);
+}
+
+/** Mail the NEW address the link that makes the change, once the current one
+ *  has confirmed it. Better Auth's sendVerificationEmail; /send-verification-
+ *  email is off (auth.server.ts), so an email change is the only caller. */
+export async function sendNewEmailVerification(env: Env, change: { to: string; url: string; token: string }): Promise<void> {
+  const link = emailConfirmURL(change.url);
+  const rendered = renderFoxhoundEmailChangeEmail({
+    to: change.to,
+    url: link,
+    step: "new",
+    expiresIn: EMAIL_CHANGE_EXPIRES_IN_WORDS,
+    copy: {
+      subject: "Confirm your new Foxhound email address",
+      heading: "Confirm your new email address",
+      intro: `Confirm ${change.to} as the address you sign in to Foxhound with.`,
+      button: "Confirm email address",
+      ignore: "If you did not ask for this, ignore this message. Nothing changes.",
+    },
+  });
+  await sendOrThrow(env, change.to, rendered, [change.url, change.token, link]);
+}
+
+async function sendOrThrow(env: Env, to: string, rendered: Rendered, secrets: string[]): Promise<void> {
+  const sent = await sendRenderedTransactionalEmail(env, { to, rendered, redact: [...secrets, to] });
+  if (sent.status !== "sent") {
+    throw new Error(`email change mail not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
+  }
 }
 
 function isHttps(url: string): boolean {
