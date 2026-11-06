@@ -28,7 +28,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendEmail } = await import("~/lib/email/send");
+const { sendJobEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
@@ -176,7 +176,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
         copy,
         { unsubscribeToken: "unsub_tok", physicalAddress: ADDRESS, openUrl: OPEN, honeypotUrl: TRAP },
       );
-      await sendEmail(env, job);
+      await sendJobEmail(env, job);
       const m = only();
       expectBothParts(m, ["$49.00", "Thanks,", "Acme"]);
       expectCustomerFooter(m);
@@ -197,7 +197,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
       `<p>Hi Jane,</p><p>Your payment of <strong>$12.00</strong> did not go through. ` +
       `You can <a href="${CLICK}">update your card here</a>.</p>` +
       `<script>alert(1)</script><ul><li>First point</li></ul><p>Thanks,<br />Acme</p>`;
-    await sendEmail(env, customerJob(body));
+    await sendJobEmail(env, customerJob(body));
     const m = only();
     expectBothParts(m, ["Hi Jane,", "$12.00", "update your card here", "First point", "Acme"]);
     expect(m.html).toContain(`href="${CLICK}"`);
@@ -217,7 +217,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
         senderName: "Acme",
         resubscribeUrl: resubscribe,
       });
-      await sendEmail(
+      await sendJobEmail(
         env,
         customerJob("", { bodyHtml: undefined, blocks, subject: winbackSubject({ stepNumber: step, planName: "Pro" }) }),
       );
@@ -241,7 +241,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
       senderName: "Acme",
       updateUrl: update,
     });
-    await sendEmail(
+    await sendJobEmail(
       env,
       customerJob("", {
         bodyHtml: undefined,
@@ -273,7 +273,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   it("a link the frame cannot carry is dropped to its words, and the send still goes", async () => {
     // Review fix 1. A cached AI body is reused on every retry, so a throw here
     // would fail the step every time and never reach the template fallback.
-    await sendEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a> today.</p>`));
+    await sendJobEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a> today.</p>`));
     const m = only();
     expectBothParts(m, ["Pay today."]);
     for (const part of [m.html, m.text ?? ""]) {
@@ -311,7 +311,7 @@ describe("merchant notices carry both parts and never the footer, except the dig
     // Unsubscribe and the postal address; RULES.md 3.16 keeps every other
     // merchant notice without them.
     const now = new Date("2026-10-12T09:00:00.000Z");
-    await sendEmail(env, {
+    await sendJobEmail(env, {
       accountId: ACCOUNT,
       to: "ops@acme.test",
       ...digestContent({
@@ -415,7 +415,7 @@ describe("transactional mail carries both parts and never the footer", () => {
       comparisons: [{ currency: "usd", cents: 1240, changeCents: 310 }],
     });
     // E24: merchant notice mail, written as Capsomer blocks, as the sender sends it.
-    await sendEmail(env, {
+    await sendJobEmail(env, {
       accountId: ACCOUNT,
       to: "owner@acme.test",
       fromName: "Foxhound",

@@ -131,7 +131,7 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
  * the binding's message id, which Email Sending events carry as
  * payload.messageId, so it is how a bounce finds its send (events.ts).
  */
-export async function sendEmail(
+export async function sendJobEmail(
   env: Env,
   job: OutboundEmailJob,
 ): Promise<{ providerMessageId: string | null }> {

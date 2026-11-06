@@ -33,18 +33,18 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 //      data is read into a message.
 
 const sendSpies = vi.hoisted(() => ({
-  sendEmail: null as unknown as ReturnType<typeof vi.fn>,
+  sendJobEmail: null as unknown as ReturnType<typeof vi.fn>,
   sendTransactionalEmail: null as unknown as ReturnType<typeof vi.fn>,
   sendRenderedTransactionalEmail: null as unknown as ReturnType<typeof vi.fn>,
 }));
 vi.mock("~/lib/email/send", async (importOriginal) => {
   const real = await importOriginal<typeof import("~/lib/email/send")>();
-  sendSpies.sendEmail = vi.fn(real.sendEmail);
+  sendSpies.sendJobEmail = vi.fn(real.sendJobEmail);
   sendSpies.sendTransactionalEmail = vi.fn(real.sendTransactionalEmail);
   sendSpies.sendRenderedTransactionalEmail = vi.fn(real.sendRenderedTransactionalEmail);
   return {
     ...real,
-    sendEmail: sendSpies.sendEmail,
+    sendJobEmail: sendSpies.sendJobEmail,
     sendTransactionalEmail: sendSpies.sendTransactionalEmail,
     sendRenderedTransactionalEmail: sendSpies.sendRenderedTransactionalEmail,
   };
@@ -105,7 +105,7 @@ const ALL_TYPES = [
 ];
 const CUSTOMER_TYPES = ALL_TYPES.slice(0, 12);
 /** Platform mail on the module's rendered sender, and the one on its HTML-body
- *  transactional sender; everything else goes through sendEmail. */
+ *  transactional sender; everything else goes through sendJobEmail. */
 const RENDERED_TYPES = ["sign_in_link", "cron_failure", "cron_stale"];
 const TRANSACTIONAL_TYPES = ["dead_letter_alert"];
 
@@ -242,7 +242,7 @@ function withoutLogs(counts: Record<string, number>) {
 
 beforeEach(() => {
   sent = [];
-  sendSpies.sendEmail?.mockClear();
+  sendSpies.sendJobEmail?.mockClear();
   sendSpies.sendTransactionalEmail?.mockClear();
   sendSpies.sendRenderedTransactionalEmail?.mockClear();
 });
@@ -336,7 +336,7 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
       expect(preview.to, type).toBe(ADMIN);
     }
     expect(sent).toEqual([]);
-    expect(sendSpies.sendEmail).not.toHaveBeenCalled();
+    expect(sendSpies.sendJobEmail).not.toHaveBeenCalled();
     expect(sendSpies.sendTransactionalEmail).not.toHaveBeenCalled();
     expect(sendSpies.sendRenderedTransactionalEmail).not.toHaveBeenCalled();
     expect(withoutLogs(tableCounts(sqlite))).toEqual(before);
@@ -376,9 +376,9 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
     expect(results.map((r) => [r.type, r.status])).toEqual(ALL_TYPES.map((t) => [t, "sent"]));
     expect(sent).toHaveLength(ALL_TYPES.length);
     expect(sent.every((m) => m.to === ADMIN)).toBe(true);
-    // Customer and merchant mail through sendEmail, platform mail through the
+    // Customer and merchant mail through sendJobEmail, platform mail through the
     // module's transactional senders: the binding is reached from nowhere else.
-    expect(sendSpies.sendEmail).toHaveBeenCalledTimes(ALL_TYPES.length - RENDERED_TYPES.length - TRANSACTIONAL_TYPES.length);
+    expect(sendSpies.sendJobEmail).toHaveBeenCalledTimes(ALL_TYPES.length - RENDERED_TYPES.length - TRANSACTIONAL_TYPES.length);
     expect(sendSpies.sendRenderedTransactionalEmail).toHaveBeenCalledTimes(RENDERED_TYPES.length);
     expect(sendSpies.sendTransactionalEmail).toHaveBeenCalledTimes(TRANSACTIONAL_TYPES.length);
   });

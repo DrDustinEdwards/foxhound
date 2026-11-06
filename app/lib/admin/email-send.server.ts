@@ -25,7 +25,7 @@ import {
   buildEmailMessage,
   buildRenderedTransactionalMessage,
   buildTransactionalMessage,
-  sendEmail,
+  sendJobEmail,
   sendRenderedTransactionalEmail,
   sendTransactionalEmail,
 } from "~/lib/email/send";
@@ -86,7 +86,7 @@ import type { Rendered } from "capsomer/email";
 // customer's, which is what lets the unsubscribe path be checked end to end.
 //
 // HOW IT SENDS. Only through the one send module (app/lib/email/send.ts):
-// sendEmail for customer and merchant mail, the transactional senders for
+// sendJobEmail for customer and merchant mail, the transactional senders for
 // platform mail. Customer and merchant mail honors suppression, as
 // processEmailJob does, but skips the per-account live-send gate, because that
 // gate exists to keep a merchant's customers from being mailed before the
@@ -797,7 +797,7 @@ export async function sendAdminEmail(env: Env, type: AdminEmailType, prepared: P
     if (prepared.channel === "job") {
       // The suppression gate every real customer and merchant send passes.
       if (await isSuppressed(env, prepared.job.to)) return done("suppressed");
-      const { providerMessageId } = await sendEmail(env, prepared.job);
+      const { providerMessageId } = await sendJobEmail(env, prepared.job);
       return done("sent", providerMessageId);
     }
     if (prepared.channel === "transactional") {

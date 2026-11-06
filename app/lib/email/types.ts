@@ -162,5 +162,5 @@ interface BlocksEmailJob extends EmailJobFields {
   notice?: never;
 }
 
-/** Any kind of mail, as the send seam (processEmailJob, sendEmail) takes it. */
+/** Any kind of mail, as the send seam (processEmailJob, sendJobEmail) takes it. */
 export type OutboundEmailJob = EmailJob | NoticeEmailJob | BlocksEmailJob;

@@ -6,7 +6,7 @@ import { accounts, getDb, emailSends } from "~/db";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 import { redact } from "@dustinedwards/site-runtime/email";
-import { sendEmail } from "./send";
+import { sendJobEmail } from "./send";
 import { isSuppressed } from "./suppression";
 import type { OutboundEmailJob } from "./types";
 
@@ -31,7 +31,7 @@ import type { OutboundEmailJob } from "./types";
 // 5-minute recovery cron:
 //
 //   runRecoveryTick -> executeEmailStep -> defaultSend -> processEmailJob
-//     -> sendEmail -> env.EMAIL (Cloudflare Email Service binding)
+//     -> sendJobEmail -> env.EMAIL (Cloudflare Email Service binding)
 //
 // defaultSend is at app/lib/engine/execute-step.ts:370 and passes
 // queueMessageId = null, which is how a row in email_sends distinguishes the
@@ -119,7 +119,7 @@ export function buildEmailSendRow(
 //   checked where the send actually happens."
 //
 // What it asked for: a per-account live flag, defaulting OFF, checked in THIS
-// function before sendEmail. processEmailJob is the live path (the recovery cron
+// function before sendJobEmail. processEmailJob is the live path (the recovery cron
 // calls it synchronously via defaultSend); the deleted producer was on no path at
 // all, so gating it would have gated nothing.
 //
@@ -249,7 +249,7 @@ export async function processEmailJob(
   }
 
   try {
-    const { providerMessageId } = await sendEmail(env, job);
+    const { providerMessageId } = await sendJobEmail(env, job);
     await flipClaimToSent(db, job.idempotencyKey, providerMessageId, now);
     return { status: "sent", providerMessageId, error: null, retryable: false };
   } catch (err) {

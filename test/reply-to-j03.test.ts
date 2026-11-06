@@ -54,7 +54,7 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const { buildEmailMessage, sendEmail } = await import("~/lib/email/send");
+const { buildEmailMessage, sendJobEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { queryStepForManualTrigger, toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
@@ -176,7 +176,7 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
         honeypotUrl: `${BASE}/e/h/trap`,
       },
     );
-    await sendEmail(env, job);
+    await sendJobEmail(env, job);
     expect(only().replyTo).toBe(REPLY);
   });
 });
