@@ -14,7 +14,7 @@ import { CRON_SCHEDULE_MONTHLY, CRON_SCHEDULE_MONTHLY_AUDIT } from "~/lib/consta
 import { SCOPE_UNREAD } from "~/lib/audit/render";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { blockText, type WordsBlock } from "./helpers/email-words";
+import { blockText } from "./helpers/email-words";
 
 // PHASE (g), RULING 362 RULING 3: THE ONE MONTHLY EMAIL.
 //
