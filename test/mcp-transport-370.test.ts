@@ -173,6 +173,20 @@ describe("PLANT 2: both eras on one route, through the SDK", () => {
     expect(result.cacheScope).toBe("private");
     expect(result.ttlMs).toBeGreaterThan(0);
   });
+
+  it("the list-only test key's tools/call is a 200 refusal in words, not the 403 step-up", async () => {
+    // The live check's conformance run (P4, run 55) calls the first listed
+    // tool with this key and wants a valid call accepted: the SDK's step-up
+    // 403 failed sep-2243-server-accepts-whitespace-header-value.
+    await seed();
+    const probeKey = "p".repeat(43);
+    const request = mcpRequest({ token: probeKey, era: "modern", method: "tools/call", params: { name: "foxhound_get_probe", arguments: {} } });
+    const { status, json } = await readMcp((await handleMcpRequest(request, { ...env(), MCP_PROBE_KEY: probeKey } as Env, PROBE)) as Response);
+    expect(status).toBe(200);
+    const result = (json as { result: { isError: boolean; content: { text: string }[] } }).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain("list-only test key");
+  });
 });
 
 describe("PLANT 3: the 401 is byte-stable across every failure", () => {

@@ -26,12 +26,13 @@ import type { Route } from "./+types/health";
 // Cache-Control (no-store) and X-Robots-Tag stand: /health is a private path, which the cache policy leaves as it is.
 //
 // FAIL LEVEL IS D1 ALONE: without it no page, sign-in, webhook or money write works, so the site is down and 503 is
-// true. Every other check warns, because the site still serves without it: the buckets (dispute evidence, blog media;
-// the backups bucket is read by the backup check), Images (blog picture sizes), Workers AI (media suggestions only), AUDIT_QUEUE (the monthly audit and the
+// true. Every other check warns, because the site still serves without it: the buckets (dispute evidence, blog media,
+// the merchant MCP's tool-call log copies in AUDIT_BUCKET; the backups bucket is read by the backup check), Images (blog picture sizes), Workers AI (media suggestions only), AUDIT_QUEUE (the monthly audit and the
 // audit grant revoke wait in their producers' retries), and the Durable Objects (MONEY_WRITER and the limiters stop
 // their own writes and sign-ins, CRON_LOCK and CRON_TICKER the crons, which the cron check reports as well).
-// durableObjectCheck mints an id and sends nothing, so no object is woken or billed. Left out: EMAIL (send_email has
-// no read to probe, and a probe would send mail; a failed send is recorded in email_sends and alerted) and the
+// durableObjectCheck mints an id and sends nothing, so no object is woken or billed; r2Check is one `head` of a fixed
+// key, never a list. Left out: EMAIL (send_email has no read to probe, and a probe would send mail; a failed send is
+// recorded in email_sends and alerted; .ops-audit.json names it for the ops audit's H5) and the
 // Renderer entrypoint (the home page check of the deploy's live gate covers it). The tool-call-log check covers the
 // merchant MCP's log and its daily copy.
 export async function loader({ context }: Route.LoaderArgs) {
@@ -45,6 +46,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     checks: [
       r2Check("media", env.MEDIA),
       r2Check("evidence", env.EVIDENCE),
+      r2Check("audit-bucket", env.AUDIT_BUCKET),
       imagesCheck("images", env.IMAGES),
       aiCheck("ai", env.AI),
       queueCheck("audit-queue", env.AUDIT_QUEUE),
