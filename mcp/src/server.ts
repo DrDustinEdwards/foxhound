@@ -14,7 +14,7 @@ import { ADMIN_TOOLS } from "./tools";
 
 // The protocol: the official MCP SDK, stateless, serving 2026-07-28 and, through
 // site-runtime's era router, the 2025-era clients that still open with
-// initialize. Who the caller is was settled by door.ts before this runs.
+// initialize. Who the caller is was settled by index.ts (site-runtime's adminMcpWorker) before this runs.
 
 const SERVER_INFO = {
   name: "foxhound-admin",
@@ -47,7 +47,7 @@ export interface AdminSession {
   scopes: readonly string[];
   /** The verified token, so the SDK can send a write's 403 step-up before the tool runs. */
   authInfo?: AuthInfo;
-  /** The list-only test key (door.ts): listed the read tools, refused every call. */
+  /** The list-only test key (index.ts): listed the read tools, refused every call. */
   probe?: boolean;
 }
 
@@ -62,7 +62,7 @@ function result(data: Record<string, unknown>, isError = false) {
 function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
   // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
   const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: mcpCacheHints({ ttlMs: 3_600_000 }), maxToolInputElements: 10_000 });
-  // WHO IS AN ADMIN IS THE API'S ANSWER (door.ts): it admitted this email at
+  // WHO IS AN ADMIN IS THE API'S ANSWER (index.ts): it admitted this email at
   // sign-in and checks it again on every call. The shared ownership check is
   // handed that same email, so here it proves only that the grant names someone.
   const checkEnv = { ...env, ADMIN_EMAIL: session.actor };

@@ -137,7 +137,7 @@ async function verifyPkceS256(verifier: string, challenge: string): Promise<bool
 /**
  * The exact callbacks a registration may name: site-runtime's DCR_CALLBACKS
  * (Grok, ChatGPT, Gemini Enterprise) and DCR_REDIRECT_URIS, as on the admin
- * MCP (mcp/src/door.ts).
+ * MCP (site-runtime's adminMcpWorker, mcp/src/index.ts).
  */
 export function registrationCallbacks(env: Pick<Env, "DCR_REDIRECT_URIS">): string {
   return [...DCR_CALLBACKS, ...allowedRedirects(env.DCR_REDIRECT_URIS)].join(",");
