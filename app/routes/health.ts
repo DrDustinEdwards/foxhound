@@ -4,6 +4,7 @@ import {
   aiCheck,
   authSpikeCheck,
   durableObjectCheck,
+  emailCheck,
   healthResponse,
   imagesCheck,
   queueCheck,
@@ -31,9 +32,8 @@ import type { Route } from "./+types/health";
 // audit grant revoke wait in their producers' retries), and the Durable Objects (MONEY_WRITER and the limiters stop
 // their own writes and sign-ins, CRON_LOCK and CRON_TICKER the crons, which the cron check reports as well).
 // durableObjectCheck mints an id and sends nothing, so no object is woken or billed; r2Check is one `head` of a fixed
-// key, never a list. Left out: EMAIL (send_email has no read to probe, and a probe would send mail; a failed send is
-// recorded in email_sends and alerted; .ops-audit.json names it for the ops audit's H5) and the
-// Renderer entrypoint (the home page check of the deploy's live gate covers it). The tool-call-log check covers the
+// key, never a list. emailCheck proves the EMAIL binding is there and mails no one (a failed send is recorded in
+// email_sends and alerted). Left out: the Renderer entrypoint (the home page check of the deploy's live gate covers it). The tool-call-log check covers the
 // merchant MCP's log and its daily copy.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -49,6 +49,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       r2Check("audit-bucket", env.AUDIT_BUCKET),
       imagesCheck("images", env.IMAGES),
       aiCheck("ai", env.AI),
+      emailCheck("email", env.EMAIL),
       queueCheck("audit-queue", env.AUDIT_QUEUE),
       durableObjectCheck("money-writer", env.MONEY_WRITER),
       durableObjectCheck("cron-lock", env.CRON_LOCK),
