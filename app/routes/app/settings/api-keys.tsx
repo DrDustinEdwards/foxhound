@@ -550,13 +550,13 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
             }
           />
         ) : (
-          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           <div
             className="cap-table-wrap"
             data-reflow=""
             data-cap="table"
             role="region"
             aria-label="Agent activity"
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             tabIndex={0}
           >
             <table className="cap-table">

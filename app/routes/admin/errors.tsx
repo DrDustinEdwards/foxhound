@@ -139,13 +139,13 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
             revoke, is listed here.
           </Empty>
         ) : (
-          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           <div
             className="cap-table-wrap"
             data-reflow=""
             data-cap="table"
             role="region"
             aria-labelledby={FAILED_HEADING_ID}
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             tabIndex={0}
           >
             <table className="cap-table">
@@ -228,13 +228,13 @@ function SentryNotice({ sentry }: { sentry: SentryState }) {
 
 function IssuesTable({ issues }: { issues: SentryIssue[] }) {
   return (
-    // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
     <div
       className="cap-table-wrap"
       data-reflow=""
       data-cap="table"
       role="region"
       aria-labelledby={ISSUES_HEADING_ID}
+      // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
       tabIndex={0}
     >
       <table className="cap-table">

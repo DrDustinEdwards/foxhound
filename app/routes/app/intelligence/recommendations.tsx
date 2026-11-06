@@ -161,13 +161,13 @@ function NothingToDo() {
 function SectionTable({ section, rows }: { section: Section; rows: RecommendationRow[] }) {
   return (
     <Panel title={section.title} description={section.subtitle} flush>
-      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
       <div
         className="cap-table-wrap"
         data-reflow="medium"
         data-cap="table"
         role="region"
         aria-label={section.title}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
         tabIndex={0}
       >
         <table className="cap-table">

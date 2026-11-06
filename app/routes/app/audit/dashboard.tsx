@@ -448,13 +448,13 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
       <div className="mb-5">
         <Panel title="History" flush>
-          {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
           <div
             className="cap-table-wrap"
             data-reflow=""
             data-cap="table"
             role="region"
             aria-label="Audit runs"
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             tabIndex={0}
           >
             <table className="cap-table">

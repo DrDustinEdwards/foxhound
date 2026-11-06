@@ -267,8 +267,9 @@ describe("PLANT 7: the policy is applied at the one choke point", () => {
     expect(source).toContain(
       "applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))",
     );
-    expect(source).toContain(
-      "withPreloadHeader(applyCachePolicy(request, rendered, true), await preloadHeader())",
+    // Whitespace-free, so where the formatter breaks the call does not matter.
+    expect(source.replace(/\s+/g, "")).toContain(
+      "withPreloadHeader(applyCachePolicy(request,rendered,true),awaitpreloadHeader(),)",
     );
   });
 });

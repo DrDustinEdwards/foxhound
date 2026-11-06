@@ -143,12 +143,12 @@ const TABLE_CAPTION = "preview-intelligence-customers";
 export function CustomerTablePreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="p-5">
-      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
       <div
         className="cap-table-wrap"
         data-reflow=""
         role="region"
         aria-labelledby={TABLE_CAPTION}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
         tabIndex={0}
       >
         <table className="cap-table">

@@ -141,13 +141,13 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             Each cron in Foxhound&apos;s registry takes its own lock while it runs.
           </Empty>
         ) : (
-          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           <div
             className="cap-table-wrap"
             data-reflow=""
             data-cap="table"
             role="region"
             aria-labelledby={LOCKS_HEADING_ID}
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             tabIndex={0}
           >
             <table className="cap-table">
@@ -197,13 +197,13 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         {growthTables.length === 0 ? (
           <Empty kind="nothing-yet" title="No tables with a retention rule." />
         ) : (
-          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           <div
             className="cap-table-wrap"
             data-reflow=""
             data-cap="table"
             role="region"
             aria-labelledby={GROWTH_HEADING_ID}
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             tabIndex={0}
           >
             <table className="cap-table">
@@ -308,13 +308,13 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         description="Whether each binding, variable and secret the Worker uses is set, and whether the Stripe key is a live one. Names only: values are never shown here."
         flush
       >
-        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable) */}
         <div
           className="cap-table-wrap"
           data-reflow=""
           data-cap="table"
           role="region"
           aria-labelledby={SETTINGS_HEADING_ID}
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           tabIndex={0}
         >
           <table className="cap-table">
