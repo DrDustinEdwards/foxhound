@@ -264,7 +264,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
 
   async function writeSource(current: PostRow, post: PostSource, changeId: string) {
     keepSlug(post, current);
-    await updatePostWithVersion(db, current.id, `carrel:${changeId}`, {
+    const saved = await updatePostWithVersion(db, current.id, `carrel:${changeId}`, current.updatedAt, {
       title: post.title,
       excerpt: post.excerpt,
       body: post.body,
@@ -282,6 +282,7 @@ export function carrelAdapter(db: Db, schedules: D1ScheduledUpdates, stylesheets
       showUpdatedAt: current.showUpdatedAt,
       showPublishedAt: current.showPublishedAt,
     });
+    if (!saved) throw new VersionConflictError((await load(current.id))?.version ?? null);
   }
 
   /** Stores the schedule. The parse comes first, so a source that could never
