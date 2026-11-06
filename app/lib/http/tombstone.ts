@@ -6,7 +6,7 @@ import { d1SiteApiStore } from "@dustinedwards/site-api/store";
  * The reader sees the same not-found page: only the status changes, it is never stored, and it is kept out of the
  * index. Asked only on a 404, so a page that answers costs no query; isGone answers false when the store cannot be read.
  */
-export async function tombstoned(response: Response, pathname: string, db: D1Database): Promise<Response> {
+export async function tombstoned(response: Response, pathname: string, db: Parameters<typeof d1SiteApiStore>[0]): Promise<Response> {
   if (response.status !== 404 || !(await d1SiteApiStore(db).isGone(pathname))) return response;
   const gone = new Response(response.body, { status: 410, statusText: "Gone", headers: response.headers });
   gone.headers.set("Cache-Control", "no-store");
