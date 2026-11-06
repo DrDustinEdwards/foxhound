@@ -25,7 +25,7 @@ import {
 import { countStaleMarkers, engageBrake, getBrakeStatus } from "~/lib/admin/brake.server";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { getMerchantDetail, listMerchants, setProcessingPaused } from "~/lib/admin/merchants.server";
-import { backupFilesNow } from "~/lib/backup/d1-backup";
+import { backupFilesNow, backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import { describeStaged, listStagedChanges, stageChange, type StagedRow } from "~/lib/admin/staged.server";
@@ -370,6 +370,13 @@ const ROUTES: ApiRoute[] = [
       const { items, ...rest } = slice("/audit-log", rows, page(url, "/audit-log"));
       return { entries: items, ...rest };
     },
+  },
+  {
+    // The backup state now, uncached: the newest complete dump and each files pass, warning past 26 hours. The same
+    // read as /health's backup field, which /health caches for an hour.
+    method: "GET",
+    pattern: "/backup",
+    handler: async ({ env, now }) => ({ ...(await backupStatus(env, now)) }),
   },
   {
     // Runs the files backup now, the same passes as the nightly cron (backupFilesNow). Copy only: it writes

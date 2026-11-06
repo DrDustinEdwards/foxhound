@@ -9,7 +9,7 @@ import type { AdminMcpEnv } from "./env";
 // each carries honest hints (rule 6) and a read-only grant can still preview
 // (rule 12.3).
 //
-// Eight read and three write. Test mail goes only to the signed-in admin's own
+// Nine read and three write. Test mail goes only to the signed-in admin's own
 // inbox or one on the API's allow list, and moves no money. Pause is the one direct write, because pausing stops
 // money moving. Everything that starts or changes money (resuming a merchant,
 // releasing the brake, enabling a cron, billing exemption) can
@@ -196,6 +196,17 @@ export const ADMIN_TOOLS: AdminTool[] = [
       }
       return Promise.resolve(refuse("Send account_id to pause one merchant, or all: true to pause every merchant, not both."));
     },
+  },
+  {
+    name: "foxhound_admin_check_backup",
+    title: "Check the backups",
+    description:
+      "Read the backup state now, uncached: the newest complete D1 dump's age and each files pass (the blog media and the dispute evidence) with when it last completed, and a warning when any is past 26 hours. /health reports the same fields but caches the read for an hour; this does not. Run foxhound_admin_backup_media to back up now.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    outputSchema: output({ files: OBJECT }),
+    scope: "read",
+    annotations: READ,
+    run: (session) => get(session, "/backup"),
   },
   {
     name: "foxhound_admin_backup_media",
