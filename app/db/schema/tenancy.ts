@@ -33,7 +33,7 @@ export const accounts = sqliteTable("accounts", {
   /**
    * THE LIVE-SEND FLAG, ratified 2026-08-09 in commit 9766ff5 and scheduled onto
    * S7 Phase 2 Session D by ruling 268. Per-account, DEFAULTING OFF, checked in
-   * processEmailJob immediately before sendEmail.
+   * processEmailJob immediately before sendJobEmail.
    *
    * It exists because nothing in this codebase ever CHOSE to be a send kill
    * switch. What actually stopped mail leaving was an UNSET PHYSICAL_ADDRESS

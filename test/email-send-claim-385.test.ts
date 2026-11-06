@@ -35,7 +35,7 @@ const sendBehavior = { mode: "ok" as "ok" | "throw" };
 
 vi.mock("~/lib/email/send", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/email/send")>()),
-  sendEmail: async (_env: unknown, job: EmailJob) => {
+  sendJobEmail: async (_env: unknown, job: EmailJob) => {
     // THE ORDER ASSERTION'S INSTRUMENT (385 plant 5). The stub counts the rows
     // that exist AT THE MOMENT the provider is called, so "the row was written
     // first" is measured rather than inferred from the end state.
