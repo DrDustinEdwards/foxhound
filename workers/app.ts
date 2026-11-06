@@ -19,6 +19,7 @@ import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
 import { applySecurityHeaders } from "~/lib/http/content-security-policy";
+import { tombstoned } from "~/lib/http/tombstone";
 import { SPECULATION_OPTIONS, withSpeculationRules } from "~/lib/http/speculation-rules";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
@@ -142,7 +143,7 @@ const site = withSentry<Env>(
         const edge = edgeRequest(request);
         const key = cacheKey(request.url, { dimensions: { theme: edge.theme } });
         const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: key } });
-        return forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] });
+        return tombstoned(forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] }), new URL(request.url).pathname, env.DB);
       }
 
       const context = new RouterContextProvider();
@@ -152,7 +153,11 @@ const site = withSentry<Env>(
       // passes through. A route's own `headers` export would be
       // per route and a new route would default to nothing, which under RFC
       // 9111 heuristic freshness is not the same as "not cached".
-      return withPreloadHeader(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)), await preloadHeader());
+      return tombstoned(
+        withPreloadHeader(applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)), await preloadHeader()),
+        new URL(request.url).pathname,
+        env.DB,
+      );
     },
     // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
     // foxhound-email (no producer; live sends are synchronous in the recovery
