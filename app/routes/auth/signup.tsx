@@ -22,11 +22,12 @@ import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
 import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/signup";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Row A3, /signup: Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
 // read whole, for the frame: one card, "Connect Stripe once", the fee line,
@@ -81,7 +82,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  return answerSignInForm(env, request, await readForm(request), {
+  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES), {
     isCode,
     limited: SIGN_UP_LIMITED,
   });

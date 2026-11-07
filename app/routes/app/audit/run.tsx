@@ -17,7 +17,7 @@ import { readSavedRunLiveFigures } from "~/lib/audit/live-figures.server";
 import { getAuditRun } from "~/lib/audit/persist.server";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/run";

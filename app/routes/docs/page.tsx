@@ -2,7 +2,7 @@ import { slugify } from "@drdustinedwards/site-helpers/slug";
 
 import { DocBlocks } from "~/components/docs/doc-blocks";
 import { SectionTrail } from "~/components/section-trail";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getDocGuide } from "~/lib/marketing/docs-content";
 import { siteUrl, techArticleJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";

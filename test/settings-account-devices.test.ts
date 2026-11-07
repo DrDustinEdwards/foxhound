@@ -7,7 +7,7 @@ import { accounts } from "~/db";
 import * as authSchema from "~/db/auth-schema";
 import { authContext } from "~/lib/auth/context";
 import { withSignIn } from "~/lib/auth/options";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
@@ -57,7 +57,7 @@ async function cookieFor(token: string): Promise<string> {
 async function load(token: string) {
   const context = {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId,

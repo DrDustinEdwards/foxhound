@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -164,7 +164,6 @@ function contextFor(accountId: string): unknown {
         return {
           env: {} as Env,
           ctx: { waitUntil() {} } as unknown as ExecutionContext,
-          nonce: "n",
         };
       }
       if (key === authContext) {

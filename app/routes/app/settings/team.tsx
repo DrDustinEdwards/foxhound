@@ -20,7 +20,7 @@ import {
   removeMember,
   MEMBER_ROLE,
 } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_INVITE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
@@ -33,7 +33,8 @@ import {
 
 import type { Route } from "./+types/team";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export function meta() {
   return [{ title: "Team - Foxhound" }, NOINDEX];
@@ -93,7 +94,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { membership } = context.get(authContext);
   const db = getDb(env);
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   // No `_action` is an invite, so a plain post keeps working.
   const intent = String(form.get("_action") ?? "invite") === "remove" ? "remove" : "invite";
 

@@ -11,7 +11,7 @@ import "~/site-header.css";
 
 import { Header } from "~/components/header";
 import { Wordmark } from "~/components/wordmark";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_UNSUBSCRIBE } from "~/lib/constants";
 import { recordDigestUnsubscribe, recordUnsubscribe } from "~/lib/email/suppression";
 import {
@@ -21,7 +21,8 @@ import {
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import type { Route } from "./+types/unsubscribe";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -152,7 +153,8 @@ export async function action({
 }: Route.ActionArgs): Promise<Response | LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
-  const fromPage = (await readForm(request).catch(() => null))?.get(CONFIRM_FIELD) === "1";
+  const fromPage =
+    (await readForm(request, BODY_MAX_BYTES).catch(() => null))?.get(CONFIRM_FIELD) === "1";
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
   const outcome: LoaderState =
     payload && token ? await follow(env, payload, token) : { state: "invalid" };

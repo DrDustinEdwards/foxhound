@@ -5,12 +5,13 @@ import { getDb } from "~/db";
 import { setSessionActiveAccount, safeReturnPath } from "~/lib/auth/active-account";
 import { findActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { hasDemoCookie } from "~/lib/demo/session";
 
 import type { Route } from "./+types/account-switch";
-import { readForm, readJson } from "~/lib/http/body";
+import { readForm, readJson } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Switch which account the current session is looking at. Legacy's
 // app/api/account/switch/route.ts (blob `2b8c3628`, 1,141 bytes), which
@@ -83,10 +84,10 @@ async function readAccountId(request: Request): Promise<string | null> {
   const contentType = request.headers.get("content-type") ?? "";
   try {
     if (contentType.includes("application/json")) {
-      const payload = (await readJson(request)) as { accountId?: unknown } | null;
+      const payload = (await readJson(request, BODY_MAX_BYTES)) as { accountId?: unknown } | null;
       return typeof payload?.accountId === "string" && payload.accountId ? payload.accountId : null;
     }
-    const form = await readForm(request);
+    const form = await readForm(request, BODY_MAX_BYTES);
     const value = form.get("accountId");
     return typeof value === "string" && value ? value : null;
   } catch (error) {

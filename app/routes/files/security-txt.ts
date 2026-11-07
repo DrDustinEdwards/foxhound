@@ -1,6 +1,6 @@
 import { securityTxtResponse } from "@dustinedwards/site-runtime/security-txt";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/security-txt";

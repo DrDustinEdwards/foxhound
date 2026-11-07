@@ -2,7 +2,7 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/logout";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 // J20, row F6. Recova's card (legacy app/og/route.tsx, blob 59c49647) is the
 // spec. Two things are checked here:

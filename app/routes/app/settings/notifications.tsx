@@ -21,7 +21,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { syncPlatformCustomerEmail } from "~/lib/billing/platform-customer";
 import {
   ALERT_INTENTS,
@@ -34,7 +34,8 @@ import { SLACK_WEBHOOK_ERROR, SLACK_WEBHOOK_PLACEHOLDER } from "~/lib/settings/s
 
 import type { Route } from "./+types/notifications";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S36, /settings/notifications. THE SURFACE FIVE ENGINES HAVE BEEN WAITING ON.
 //
@@ -154,7 +155,7 @@ function checked(form: FormData, name: string): boolean {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
 
   // The alerts' own forms carry an intent; the delivery form carries none.
   const intent = String(form.get("_action") ?? "");

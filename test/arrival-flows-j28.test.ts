@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -68,7 +68,7 @@ const context = (auth?: unknown) =>
   ({
     get(key: unknown) {
       if (key === cloudflareContext)
-        return { env: { BETTER_AUTH_URL: "https://foxhoundapp.test" }, ctx: {}, nonce: "n" };
+        return { env: { BETTER_AUTH_URL: "https://foxhoundapp.test" }, ctx: {} };
       if (key === authContext && auth) return auth;
       throw new Error("unexpected context key");
     },

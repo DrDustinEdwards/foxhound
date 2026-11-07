@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engine";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -73,7 +73,7 @@ function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        return { env: {} as Env, ctx: {} as ExecutionContext };
       }
       if (key === authContext) {
         return {

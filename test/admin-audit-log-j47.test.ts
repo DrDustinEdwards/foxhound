@@ -2,7 +2,7 @@ import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminAuditLog } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -77,7 +77,7 @@ describe("the loader", () => {
   it("serves each entry's actor, action, target and detail in words, newest first", async () => {
     expect(typeof route.loader).toBe("function");
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
     const loader = route.loader as (
       args: unknown,
     ) => Promise<{ entries: Array<Record<string, unknown>> }>;

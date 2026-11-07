@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -182,7 +182,6 @@ describe("the add-account route marks its OAuth state", () => {
             BETTER_AUTH_URL: "https://foxhoundapp.test",
           } as never,
           ctx: {} as ExecutionContext,
-          nonce: "n",
         };
       }
       throw new Error("unexpected context key");

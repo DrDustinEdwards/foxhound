@@ -4,7 +4,7 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 // J36, row S31, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/brand-voice is Recova's page
@@ -96,8 +96,7 @@ describe("J36 brand voice: each category's picker", () => {
 function ctx() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext)
-        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext)
         return { email: "owner@example.com", membership: { accountId: "acct_1" } };
       throw new Error("unexpected context key");

@@ -2,7 +2,7 @@ import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-re
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
 import { HUB_COPY } from "~/lib/marketing/products-hub";
 import { siteUrl } from "~/lib/seo/jsonld";

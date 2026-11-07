@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -245,8 +245,7 @@ describe("J31: the loader lists the owner first", () => {
   it("owner first, then the rest in the order they joined, a row with no join time last", async () => {
     const ctx = {
       get(key: unknown) {
-        if (key === cloudflareContext)
-          return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
         if (key === authContext) {
           const m = { memberId: "m_owner", accountId: "acct", accountName: "Acme", role: "owner" };
           return {
@@ -272,8 +271,7 @@ describe("J31: the loader lists the owner first", () => {
   it("the action says which form it answers, and a remove result names its row", async () => {
     const ctx = {
       get(key: unknown) {
-        if (key === cloudflareContext)
-          return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
         if (key === authContext) {
           const m = { memberId: "m_owner", accountId: "acct", accountName: "Acme", role: "owner" };
           return {

@@ -20,13 +20,14 @@ import {
 } from "~/lib/admin/brake.server";
 import { setCronEnabled } from "~/lib/admin/crons.server";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Emergency brake" };
 
@@ -62,7 +63,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(adminContext);
   const db = getDb(env);
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
   const confirm = String(form.get("confirm") ?? "");
 

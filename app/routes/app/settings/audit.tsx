@@ -19,12 +19,13 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
 
 import type { Route } from "./+types/audit";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S30, /settings/audit. Legacy, read whole at HEAD: page.tsx (blob 18e6a384),
 // AuditForm.tsx (5bf81c10), settings/components/AuditSection.tsx (58c5abce),
@@ -86,7 +87,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const { membership } = context.get(authContext);
   const db = getDb(env);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
 
   // THE CORE MOVED TO apply.server.ts IN SESSION 79, so this action and the
   // MCP `set_audit_settings` tool validate and write through one implementation.

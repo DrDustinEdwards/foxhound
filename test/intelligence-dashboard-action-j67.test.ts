@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 // J67: the dashboard's action is the one door to report generation. It takes
 // the account from the session, never from the form, and hands
@@ -17,7 +17,7 @@ function ctx(isDemo = false) {
   return {
     get(key: unknown) {
       if (key === cloudflareContext)
-        return { env: { ANTHROPIC_API_KEY: "k" } as unknown as Env, ctx: {}, nonce: "n" };
+        return { env: { ANTHROPIC_API_KEY: "k" } as unknown as Env, ctx: {} };
       if (key === authContext) {
         return {
           userId: "user_1",

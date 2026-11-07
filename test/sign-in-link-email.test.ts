@@ -4,7 +4,7 @@ import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";

@@ -10,7 +10,7 @@ import {
 } from "~/lib/admin/impersonation.server";
 import { authContext } from "~/lib/auth/context";
 import { appShellMiddleware } from "~/lib/auth/guards";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -40,7 +40,7 @@ let db: Db;
 
 function ctx(admin = true) {
   const context = new RouterContextProvider();
-  context.set(cloudflareContext, { env, ctx: {} as ExecutionContext, nonce: "" });
+  context.set(cloudflareContext, { env, ctx: {} as ExecutionContext });
   if (admin) context.set(adminContext, { email: ADMIN });
   return context;
 }

@@ -81,8 +81,7 @@ beforeEach(() => {
   seedAccount(B);
 });
 
-const routeContext = () =>
-  ({ get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }) }) as never;
+const routeContext = () => ({ get: () => ({ env, ctx: {} as ExecutionContext }) }) as never;
 
 /** The page's confirm button: the visit that writes (a GET only offers it). */
 const visit = async (token: string) =>

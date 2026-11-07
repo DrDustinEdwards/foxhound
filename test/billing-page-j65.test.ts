@@ -4,7 +4,7 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { BillingPreview } from "~/lib/billing/preview.server";
 import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.server";
@@ -508,7 +508,7 @@ describe("the setup session's return leg", () => {
     ]) {
       const context = {
         get(key: unknown) {
-          if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+          if (key === cloudflareContext) return { env: {}, ctx: {} };
           if (key === authContext) {
             return {
               userId: "u",
@@ -538,7 +538,7 @@ describe("starting billing setup", () => {
   function contextFor(role: string) {
     return {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+        if (key === cloudflareContext) return { env: {}, ctx: {} };
         if (key === authContext)
           return {
             userId: "u",

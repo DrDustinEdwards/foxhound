@@ -23,7 +23,8 @@ import { canonicalRedirect } from "@dustinedwards/site-runtime/url";
 import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider, type ServerBuild } from "react-router";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext, cspNonceContext } from "@dustinedwards/site-runtime/context";
+import { storedNonceContext } from "~/lib/stored-nonce";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
@@ -177,7 +178,8 @@ const site = withSentry<Env>(sentryOptions, {
     }
 
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env, ctx, nonce });
+    context.set(cloudflareContext, { env, ctx });
+    context.set(cspNonceContext, nonce);
     const response = await requestHandler(request, context);
     // THE CACHE POLICY, applied in the one place every response already
     // passes through. A route's own `headers` export would be
@@ -283,7 +285,8 @@ export class Renderer extends withPurgePages(WorkerEntrypoint<Env>) {
   override async fetch(request: Request): Promise<Response> {
     const storedNonce = generateNonce();
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: this.env, ctx: this.ctx, nonce: undefined, storedNonce });
+    context.set(cloudflareContext, { env: this.env, ctx: this.ctx });
+    context.set(storedNonceContext, storedNonce);
     const origin = new URL(request.url).origin;
     const rendered = await timedRender(async () =>
       applySecurityHeaders(await requestHandler(request, context), storedNonce, origin),

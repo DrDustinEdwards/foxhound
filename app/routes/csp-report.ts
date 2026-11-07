@@ -1,6 +1,6 @@
 import { receiveCspReport } from "@dustinedwards/site-runtime/csp-report";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_CSP_REPORT } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 

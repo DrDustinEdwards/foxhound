@@ -13,7 +13,7 @@ import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth
 import { getAuth } from "~/lib/auth";
 import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "~/lib/auth/send-auth-email";
 import { getSession } from "~/lib/auth/session";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { NOINDEX } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/email-confirm";

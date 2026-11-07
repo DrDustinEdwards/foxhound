@@ -71,7 +71,7 @@ function envWith(allowed = true): Env {
 }
 
 const routeContext = (env: Env = envWith()): unknown => ({
-  get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }),
+  get: () => ({ env, ctx: {} as ExecutionContext }),
 });
 
 const setCookies = (response: Response): string[] => response.headers.getSetCookie();

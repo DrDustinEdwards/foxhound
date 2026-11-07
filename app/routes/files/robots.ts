@@ -7,7 +7,7 @@ import {
   robotsResponse,
 } from "@drdustinedwards/site-helpers/robots";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/robots";

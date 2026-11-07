@@ -27,7 +27,7 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   createAccountApiKey,
   listAccountApiKeys,
@@ -41,7 +41,8 @@ import type { Route } from "./+types/api-keys";
 import { NOINDEX } from "~/lib/seo/meta";
 import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 import { MCP_CALLS_SHOWN, outcomeWords } from "~/lib/admin/mcps";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S29, /settings/api-keys. Legacy: api-keys/page.tsx (blob b50fb228, 624 bytes)
 // and api-keys/ApiKeysClient.tsx (blob 338db3db, 10,371 bytes), with its API at
@@ -149,7 +150,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
   const db = getDb(env);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 
   if (!isOwner(auth)) {

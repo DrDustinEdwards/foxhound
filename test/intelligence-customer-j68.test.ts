@@ -15,7 +15,7 @@ import {
 } from "~/db/schema";
 import CustomerPage from "~/routes/app/intelligence/customer";
 import { tenureFromSince, type CustomerActivity } from "~/lib/intelligence/customer-detail";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { getCustomerActivity } from "~/lib/intelligence/views.server";
 
@@ -410,7 +410,7 @@ describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", 
   function contextFor() {
     return {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+        if (key === cloudflareContext) return { env: {}, ctx: {} };
         if (key === authContext)
           return { membership: { accountId: "acct_live", accountName: "Live Co" }, isDemo: false };
         throw new Error("unexpected context key");

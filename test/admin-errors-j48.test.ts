@@ -2,7 +2,7 @@ import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminAuditLog } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -50,7 +50,7 @@ function sentryIssue(i: number, over: Record<string, unknown> = {}) {
 
 function contextWith(env: Partial<Env>) {
   const context = new RouterContextProvider();
-  context.set(cloudflareContext, { env: env as Env, ctx: {} as ExecutionContext, nonce: "" });
+  context.set(cloudflareContext, { env: env as Env, ctx: {} as ExecutionContext });
   return context;
 }
 
