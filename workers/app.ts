@@ -286,6 +286,8 @@ export class Renderer extends withPurgePages(WorkerEntrypoint<Env>) {
     const storedNonce = generateNonce();
     const context = new RouterContextProvider();
     context.set(cloudflareContext, { env: this.env, ctx: this.ctx });
+    // Set to undefined on purpose: RouterContextProvider.get throws for a context never set (its default is undefined).
+    context.set(cspNonceContext, undefined);
     context.set(storedNonceContext, storedNonce);
     const origin = new URL(request.url).origin;
     const rendered = await timedRender(async () =>
