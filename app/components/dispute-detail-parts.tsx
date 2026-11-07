@@ -19,6 +19,7 @@ import {
   precheckEvidenceFile,
   type EvidenceFileOutcome,
 } from "~/lib/disputes/evidence-files";
+import { confirmSubmit } from "capsomer/behavior/confirm-dialog";
 import { formatDateShort } from "~/lib/date-format";
 import type { action } from "~/routes/app/disputes/detail";
 
@@ -310,7 +311,10 @@ export function EvidenceFiles({
                         aria-label={`Remove file ${name}`}
                         onClick={(e) => {
                           setPrecheck(null);
-                          if (!window.confirm(EVIDENCE_FILE_REMOVE_CONFIRM)) e.preventDefault();
+                          confirmSubmit(e, {
+                            title: EVIDENCE_FILE_REMOVE_CONFIRM,
+                            action: "Remove file",
+                          });
                         }}
                       >
                         Remove file
