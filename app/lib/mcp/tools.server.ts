@@ -1,6 +1,7 @@
 import { getAuditRun, listAuditRuns } from "~/lib/audit/persist.server";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { getBillingPreview } from "~/lib/billing/preview.server";
+import type { EnrichedLineItem } from "~/lib/billing/queries.server";
 import {
   getBillingInvoiceDetail,
   getBillingLedger,
@@ -194,6 +195,42 @@ function slicePage<T>(tool: string, rows: T[], page: number, pageSize: number) {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const items = rows.slice((page - 1) * pageSize, page * pageSize);
   return { items, total: rows.length, ...pageInfo(tool, page, totalPages) };
+}
+
+/** One billing line as an agent sees it: a PICK, because the enriched line
+ *  carries the whole dispute row and the admin audit entry (an admin's address). */
+function lineItemForAgent(l: EnrichedLineItem) {
+  return {
+    id: l.lineItem.id,
+    type: l.lineItem.type,
+    currency: l.lineItem.currency,
+    amountCents: l.lineItem.amountCents,
+    feeCents: l.lineItem.feeCents,
+    description: l.lineItem.description,
+    createdAt: l.lineItem.createdAt,
+    creditsLineItemId: l.lineItem.creditsLineItemId,
+    recovery: l.recoveredPayment
+      ? {
+          recoveredAt: l.recoveredPayment.recoveredAt,
+          amountCents: l.recoveredPayment.amountCents,
+          currency: l.recoveredPayment.currency,
+          recoveryMethod: l.recoveredPayment.recoveryMethod,
+          attributionKind: l.recoveredPayment.attributionKind,
+          daysToRecover: l.recoveredPayment.daysToRecover,
+          creditedStepType: l.creditedStepType,
+        }
+      : null,
+    dispute: l.dispute
+      ? {
+          id: l.dispute.id,
+          stripeDisputeId: l.dispute.stripeDisputeId,
+          amountCents: l.dispute.amountCents,
+          currency: l.dispute.currency,
+          outcome: l.dispute.outcome,
+        }
+      : null,
+    adjustmentRecordedAt: l.adminAuditEntry?.createdAt ?? null,
+  };
 }
 
 /**
@@ -820,37 +857,7 @@ const READ_TOOLS: McpTool[] = [
             createdAt: invoice.createdAt,
             finalizedAt: invoice.finalizedAt,
           },
-          line_items: detail.lineItems.map((l) => ({
-            id: l.lineItem.id,
-            type: l.lineItem.type,
-            currency: l.lineItem.currency,
-            amountCents: l.lineItem.amountCents,
-            feeCents: l.lineItem.feeCents,
-            description: l.lineItem.description,
-            createdAt: l.lineItem.createdAt,
-            creditsLineItemId: l.lineItem.creditsLineItemId,
-            recovery: l.recoveredPayment
-              ? {
-                  recoveredAt: l.recoveredPayment.recoveredAt,
-                  amountCents: l.recoveredPayment.amountCents,
-                  currency: l.recoveredPayment.currency,
-                  recoveryMethod: l.recoveredPayment.recoveryMethod,
-                  attributionKind: l.recoveredPayment.attributionKind,
-                  daysToRecover: l.recoveredPayment.daysToRecover,
-                  creditedStepType: l.creditedStepType,
-                }
-              : null,
-            dispute: l.dispute
-              ? {
-                  id: l.dispute.id,
-                  stripeDisputeId: l.dispute.stripeDisputeId,
-                  amountCents: l.dispute.amountCents,
-                  currency: l.dispute.currency,
-                  outcome: l.dispute.outcome,
-                }
-              : null,
-            adjustmentRecordedAt: l.adminAuditEntry?.createdAt ?? null,
-          })),
+          line_items: detail.lineItems.map(lineItemForAgent),
         };
       }
       const [ledger, invoices, preview] = await Promise.all([
@@ -858,7 +865,23 @@ const READ_TOOLS: McpTool[] = [
         listBillingInvoices(ctx.db, ctx.accountId),
         getBillingPreview(ctx.db, ctx.accountId, ctx.now.getTime()),
       ]);
-      return { ledger, invoices, preview };
+      // The ledger is a PICK too: its enriched lines carry the whole dispute row
+      // and the admin audit entry, the same two things the invoice view cuts.
+      return {
+        ledger: {
+          lineItems: ledger.lineItems.map(lineItemForAgent),
+          freeRecoveries: ledger.freeRecoveries.map((f) => ({
+            recoveredAt: f.recoveredPayment.recoveredAt,
+            amountCents: f.recoveredPayment.amountCents,
+            currency: f.recoveredPayment.currency,
+            recoveryMethod: f.recoveredPayment.recoveryMethod,
+            attributionKind: f.recoveredPayment.attributionKind,
+            daysToRecover: f.recoveredPayment.daysToRecover,
+          })),
+        },
+        invoices,
+        preview,
+      };
     },
   },
   // THE READER FOR EVERY SETTING foxhound_update_settings WRITES (375's

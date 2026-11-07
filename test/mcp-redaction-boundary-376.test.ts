@@ -510,6 +510,14 @@ describe("PLANT 7: the reads added for the full tool set keep names, addresses a
     for (const leaked of [MY_NAME, MY_EMAIL, "203.0.113.77", "Coriander", "dustin.admin"]) {
       expect(text, leaked).not.toContain(leaked);
     }
+    // The summary's ledger is picked the same way: no whole dispute row, no admin address.
+    const summary = await callTool(tokens[MINE], "foxhound_get_billing", {});
+    expect(summary.isError, summary.text).toBe(false);
+    for (const leaked of [MY_NAME, MY_EMAIL, "203.0.113.77", "Coriander", "dustin.admin"]) {
+      expect(summary.text, leaked).not.toContain(leaked);
+    }
+    expect(summary.text).not.toContain("triageReasoning");
+    expect(summary.text).not.toContain("adminAuditEntry");
   });
 
   it("win-back and expiring cards come back masked, with no cancel reason", async () => {
