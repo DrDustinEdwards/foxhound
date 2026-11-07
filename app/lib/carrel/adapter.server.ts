@@ -282,24 +282,31 @@ export function carrelAdapter(
 
   async function writeSource(current: PostRow, post: PostSource, changeId: string) {
     keepSlug(post, current);
-    await updatePostWithVersion(db, current.id, `carrel:${changeId}`, {
-      title: post.title,
-      excerpt: post.excerpt,
-      body: post.body,
-      author: post.author,
-      tags: post.tags,
-      featured: post.featured,
-      coverImageUrl: current.coverImageUrl,
-      coverImageAlt: current.coverImageAlt,
-      ogTitle: post.searchTitle ?? null,
-      ogDescription: post.description ?? null,
-      canonicalUrl: post.canonical ?? null,
-      ogImageUrl: post.image ?? null,
-      ogImageAlt: post.imageAlt ?? null,
-      noindex: post.noindex ?? false,
-      showUpdatedAt: current.showUpdatedAt,
-      showPublishedAt: current.showPublishedAt,
-    });
+    const saved = await updatePostWithVersion(
+      db,
+      current.id,
+      `carrel:${changeId}`,
+      current.updatedAt,
+      {
+        title: post.title,
+        excerpt: post.excerpt,
+        body: post.body,
+        author: post.author,
+        tags: post.tags,
+        featured: post.featured,
+        coverImageUrl: current.coverImageUrl,
+        coverImageAlt: current.coverImageAlt,
+        ogTitle: post.searchTitle ?? null,
+        ogDescription: post.description ?? null,
+        canonicalUrl: post.canonical ?? null,
+        ogImageUrl: post.image ?? null,
+        ogImageAlt: post.imageAlt ?? null,
+        noindex: post.noindex ?? false,
+        showUpdatedAt: current.showUpdatedAt,
+        showPublishedAt: current.showPublishedAt,
+      },
+    );
+    if (!saved) throw new VersionConflictError((await load(current.id))?.version ?? null);
   }
 
   /** Stores the schedule. The parse comes first, so a source that could never
