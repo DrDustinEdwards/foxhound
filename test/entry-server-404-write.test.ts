@@ -32,13 +32,17 @@ beforeEach(() => {
   scheduled = [];
 });
 
-/** The D1 surface countNotFound uses, over the in-memory SQLite. D1 and SQLite
- *  both take `?1`-style numbered parameters, which the upsert reuses. */
+/** The D1 surface countNotFound uses, over the in-memory SQLite. D1 takes `?1`-style numbered
+ *  parameters, which the upsert reuses; better-sqlite3 binds plain `?` in order, so each occurrence
+ *  becomes a `?` and gets the value its number names. */
 function d1() {
   return {
     prepare: (sql: string) => ({
       bind: (...values: unknown[]) => ({
-        run: async () => memory.sqlite.prepare(sql).run(...values),
+        run: async () => {
+          const order = [...sql.matchAll(/\?(\d+)/g)].map((m) => values[Number(m[1]) - 1]);
+          return memory.sqlite.prepare(sql.replace(/\?\d+/g, "?")).run(...order);
+        },
       }),
     }),
   };
