@@ -4,7 +4,7 @@ import {
   mediaLibrary,
   type MediaAdapter,
   type MediaKeyInput,
-  type MediaResize,
+  PICTURE_RESIZE,
 } from "@dustinedwards/site-api";
 
 import type { Db } from "~/db";
@@ -25,9 +25,6 @@ import { mediaUses } from "~/lib/media/usage.server";
 
 /** The pictures a post can show. No SVG (it can carry script) and nothing that is not a picture. */
 const LIMITS = { maxBytes: 20 * 1024 * 1024, types: Object.keys(EXTENSIONS) };
-
-/** What an upload shrinks to unless it says `resize=no`: wide enough for any screen the 680 px column is shown on at 3x. */
-const RESIZE: MediaResize = { maxEdge: 2560, quality: 85 };
 
 /** How much of the upload's hash a key carries, a few more characters on each clash. */
 const HASH_LENGTHS = [8, 12, 16, 64];
@@ -57,7 +54,7 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     limits: LIMITS,
     url: (key) => mediaUrl(key),
     key: uploadKey,
-    resize: RESIZE,
+    resize: PICTURE_RESIZE,
     // One read of the posts answers every key (usage.server.ts).
     usage: () => mediaUses(db),
     // In the served bucket, where they always were: the media route serves only UPLOAD_KEY (app/routes/files/media.ts).
