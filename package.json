@@ -57,7 +57,7 @@
     "remark-rehype": "11.1.2",
     "remark-smartypants": "3.0.3",
     "sanitize-html": "2.18.1",
-    "stripe": "23.1.0",
+    "stripe": "23.0.1",
     "unified": "11.0.5",
     "unist-util-visit": "5.2.0",
     "workers-og": "0.0.27"
