@@ -87,9 +87,9 @@ function LinkColumn({
 }) {
   return (
     <div>
-      <h3 className="m-0 mb-3 font-mono text-[0.6875rem] uppercase tracking-[0.06em] text-chrome-text-secondary">
+      <h2 className="m-0 mb-3 font-mono text-[0.6875rem] uppercase tracking-[0.06em] text-chrome-text-secondary">
         {heading}
-      </h3>
+      </h2>
       <ul className="m-0 list-none space-y-2 p-0">
         {links.map((link) => {
           const isActive = pathname === link.to;
