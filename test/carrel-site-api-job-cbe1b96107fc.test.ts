@@ -102,7 +102,9 @@ describe("a save that lost a race", () => {
     const [row] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "r1"));
     const before = await t.db.select().from(blogPostVersions);
     const stale = new Date(row.updatedAt.getTime() - 1);
-    expect(await updatePostWithVersion(t.db, "r1", "carrel:c2", stale, { ...row, body: "Lost." })).toBe(false);
+    expect(
+      await updatePostWithVersion(t.db, "r1", "carrel:c2", stale, { ...row, body: "Lost." }),
+    ).toBe(false);
     const [after] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "r1"));
     expect(after.body).toBe(row.body);
     expect(await t.db.select().from(blogPostVersions)).toHaveLength(before.length);
