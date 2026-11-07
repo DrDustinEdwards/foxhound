@@ -45,7 +45,7 @@ export function StepChip({ retry, timing }: { retry: boolean; timing: string }) 
       data-tone={retry ? undefined : "info"}
     >
       {retry ? "Retry" : "Email"}
-      <span className="font-mono text-source font-normal opacity-70">{timing}</span>
+      <span className="font-mono text-source font-normal">{timing}</span>
     </span>
   );
 }
