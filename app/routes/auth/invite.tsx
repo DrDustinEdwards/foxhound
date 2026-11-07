@@ -5,7 +5,7 @@ import { AuthCard, AuthHeading } from "~/components/auth-card";
 import { getDb } from "~/db";
 import { acceptInvite, getInviteByToken, getSession, setSessionActiveAccount } from "~/lib/auth";
 import type { Db } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/invite";
 

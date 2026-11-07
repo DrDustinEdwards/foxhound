@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 
 // J30 review, finding 8: the customers page renders no email, so its loader
@@ -62,7 +62,7 @@ const route = await import("~/routes/app/intelligence/customers");
 function context() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
+      if (key === cloudflareContext) return { env: {}, ctx: {} };
       if (key === authContext)
         return { membership: { accountId: "acct_sample", accountName: "Acme" }, isDemo: false };
       throw new Error("unexpected context key");

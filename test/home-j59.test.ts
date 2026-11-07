@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import Home, { loader } from "~/routes/home";
 import { action as generateEmailSample } from "~/routes/marketing/generate-email-sample";
 
@@ -75,7 +75,6 @@ describe("the blog strip puts the featured post first (M3 divergence 34)", () =>
           return {
             env: { DB: failing } as unknown as Env,
             ctx: {} as ExecutionContext,
-            nonce: "n",
           };
         throw new Error("unexpected context key");
       },
@@ -94,8 +93,7 @@ describe("the email generator shows Recova's error when generation fails (M3 div
   it("the action reports a failure instead of passing a canned email off as generated", async () => {
     const fakeContext = {
       get(key: unknown) {
-        if (key === cloudflareContext)
-          return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
         throw new Error("unexpected context key");
       },
     };
@@ -141,7 +139,7 @@ describe("blogStripCards orders the strip as Recova does", async () => {
 function actionContext(env: Env) {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
       throw new Error("unexpected context key");
     },
   };

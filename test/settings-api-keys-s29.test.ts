@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -62,8 +62,7 @@ function keyRows(accountId: string | null) {
 function ctxFor(isAdmin: boolean, role = "owner") {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext)
-        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: "user_1",

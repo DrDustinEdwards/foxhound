@@ -2,14 +2,15 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { getDb } from "~/db";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { hasDemoCookie } from "~/lib/demo/session";
 import { setAccountTheme } from "~/lib/theme.server";
 import { isTheme } from "~/lib/theme";
 
 import type { Route } from "./+types/theme";
-import { readJson } from "~/lib/http/body";
+import { readJson } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Persist an authenticated merchant's theme to accounts.theme so it follows
 // them across devices. Legacy's equivalent is
@@ -48,7 +49,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   let payload: unknown;
   try {
-    payload = await readJson(request);
+    payload = await readJson(request, BODY_MAX_BYTES);
   } catch (error) {
     if (error instanceof Response) throw error;
     return Response.json({ error: "invalid_json" }, { status: 400 });

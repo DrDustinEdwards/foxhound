@@ -5,7 +5,7 @@ import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -144,7 +144,7 @@ function makeEnv(over: Record<string, unknown> = {}): Env {
 function ctx() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: "user_1",

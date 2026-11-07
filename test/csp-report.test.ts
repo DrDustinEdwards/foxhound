@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CSP_REPORT_PATH } from "~/lib/http/content-security-policy";
 import { action } from "~/routes/csp-report";
 

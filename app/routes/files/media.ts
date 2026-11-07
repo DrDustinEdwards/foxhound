@@ -1,6 +1,6 @@
 import { originalKey } from "@dustinedwards/site-runtime/image";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { images, UPLOAD_KEY, VERSION_LENGTH } from "~/lib/media/images";
 import { mediaRow } from "~/lib/media/store.server";
 

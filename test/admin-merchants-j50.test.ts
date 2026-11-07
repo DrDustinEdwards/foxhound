@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { accounts, adminAuditLog } from "~/db";
 import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
@@ -81,7 +81,6 @@ function context() {
       MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
     } as unknown as Env,
     ctx: {} as ExecutionContext,
-    nonce: "",
   });
   c.set(adminContext, { email: ACTOR });
   return c;

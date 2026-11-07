@@ -77,7 +77,7 @@ vi.mock("@sentry/cloudflare", () => ({
 }));
 
 const { action } = await import("~/routes/webhooks/stripe");
-const { cloudflareContext } = await import("~/lib/cloudflare-context");
+const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
 const schema = await import("~/db/schema");
 
 /** An event Stripe would deliver on the connected endpoint. `payout.paid` is
@@ -120,7 +120,7 @@ function call(request: Request, secret: string | undefined): Promise<Response> {
   const context = {
     get: (key: unknown) => {
       if (key !== cloudflareContext) throw new Error("unexpected context key");
-      return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env, ctx: {} as ExecutionContext };
     },
   };
   return action({ request, context } as never) as Promise<Response>;

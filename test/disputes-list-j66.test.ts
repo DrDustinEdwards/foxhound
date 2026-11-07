@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 
 // J66, row S13: the disputes list, against Recova's real page.
@@ -96,7 +96,7 @@ describe("the loader", () => {
   function context() {
     return {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+        if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
         if (key === authContext)
           return { email: "owner@example.com", membership: { accountId: ACCOUNT }, isDemo: false };
         throw new Error("unexpected context key");

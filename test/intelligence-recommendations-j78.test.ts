@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -33,7 +33,7 @@ const env = { BETTER_AUTH_URL: "https://foxhound.example.com" } as unknown as En
 function ctx() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env, ctx: {}, nonce: "n" };
+      if (key === cloudflareContext) return { env, ctx: {} };
       if (key === authContext) {
         return {
           userId: "user_1",

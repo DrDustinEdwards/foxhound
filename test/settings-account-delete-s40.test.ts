@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 // S40, the surface half: the Delete account control on /settings/account, the
 // route branch that runs it, and the rule that it never becomes an agent tool.
@@ -49,8 +49,7 @@ const { action } = await import("~/routes/app/settings/account");
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext)
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: "user_1",

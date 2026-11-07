@@ -14,7 +14,7 @@ import { runAudit, type ScopeOutcome } from "~/lib/audit/engine";
 import { buildMonthlyAuditEmail } from "~/lib/audit/monthly-email";
 import { toAuditRunView, type AuditRunView } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -122,8 +122,7 @@ const ACCOUNT = "acct_alpha";
 function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext)
-        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: "user_1",

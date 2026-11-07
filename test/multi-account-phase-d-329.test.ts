@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -139,7 +139,7 @@ function connections(): { accountId: string; stripeUserId: string }[] {
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env: {} as Env, ctx: {} as ExecutionContext };
     }
     throw new Error("unexpected context key");
   },

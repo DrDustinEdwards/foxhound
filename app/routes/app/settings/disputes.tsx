@@ -19,14 +19,15 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { readDisputeSettings } from "~/lib/disputes/queries.server";
 import { applyDisputeSettings, applyDisputesEnabled } from "~/lib/settings/apply.server";
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-description";
 
 import type { Route } from "./+types/disputes";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S32, /settings/disputes.
 //
@@ -85,7 +86,7 @@ type ActionResult = { ok: true; toggled?: true } | { ok: false; error?: string }
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   if (form.get("_action") === "toggle_disputes") {
     const enabled = form.get("enabled") === "true";
     try {

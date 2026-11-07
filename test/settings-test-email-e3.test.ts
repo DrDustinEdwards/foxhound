@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -106,7 +106,7 @@ function seedConnection(opts: { senderName?: string | null; replyTo?: string | n
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: "user_1",

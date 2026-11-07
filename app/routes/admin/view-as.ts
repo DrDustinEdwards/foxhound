@@ -7,15 +7,16 @@ import { data, redirect } from "react-router";
 import { getDb } from "~/db";
 import { adminContext } from "~/lib/admin/context";
 import { startImpersonation } from "~/lib/admin/impersonation.server";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/view-as";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const admin = context.get(adminContext);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const accountId = String(form.get("accountId") ?? "");
   const started = accountId
     ? await startImpersonation(getDb(env), { adminEmail: admin.email, accountId, now: new Date() })

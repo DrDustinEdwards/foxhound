@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
@@ -100,7 +100,7 @@ describe("the payment detail loader", () => {
     const data = await route.loader({
       context: {
         get(key: unknown) {
-          if (key === cloudflareContext) return { env: {}, ctx: { waitUntil() {} }, nonce: "n" };
+          if (key === cloudflareContext) return { env: {}, ctx: { waitUntil() {} } };
           if (key === authContext) return { membership: { accountId: A } };
           throw new Error("unexpected context key");
         },

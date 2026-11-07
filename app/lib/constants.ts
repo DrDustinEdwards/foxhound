@@ -821,7 +821,7 @@ export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
  * (esm/apiVersion). Pinning here removes dependence on the Stripe account's
  * dashboard default so behavior is reproducible (non-negotiable #6).
  */
-export const STRIPE_API_VERSION = "2026-09-30.endive";
+export const STRIPE_API_VERSION = "2026-10-28.endive";
 /** The public-preview channel of the same release, for preview-only endpoints
  *  such as FX Quotes, which Stripe serves only on a `.preview` version. */
 export const STRIPE_PREVIEW_API_VERSION = STRIPE_API_VERSION.replace(/\.[a-z]+$/, ".preview");

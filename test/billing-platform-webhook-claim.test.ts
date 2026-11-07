@@ -68,7 +68,7 @@ vi.mock("~/lib/stripe/webhook", () => ({
 vi.mock("@sentry/cloudflare", () => ({ captureException: () => {} }));
 
 const { action } = await import("~/routes/webhooks/stripe-platform");
-const { cloudflareContext } = await import("~/lib/cloudflare-context");
+const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
 const schema = await import("~/db/schema");
 
 function invoicePaidEvent(
@@ -95,7 +95,7 @@ function post(): Promise<Response> {
   const context = {
     get: (key: unknown) => {
       if (key !== cloudflareContext) throw new Error("unexpected context key");
-      return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env, ctx: {} as ExecutionContext };
     },
   };
   const request = new Request("https://app.foxhoundapp.com/webhooks/stripe-platform", {

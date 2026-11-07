@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
 
@@ -34,8 +34,7 @@ const ACTOR = "admin@foxhoundapp.com";
 /** The two context keys the action reads, and nothing else. */
 const fakeContext = {
   get(key: unknown) {
-    if (key === cloudflareContext)
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === adminContext) return { email: ACTOR };
     throw new Error("unexpected context key");
   },

@@ -1,9 +1,10 @@
+import { storedNonceContext } from "~/lib/stored-nonce";
 import { createElement } from "react";
 import type { EntryContext, RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { page404Daily } from "~/db/schema";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext, cspNonceContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -48,8 +49,8 @@ function loadContext() {
   const ctx = { waitUntil: vi.fn((p: Promise<unknown>) => void scheduled.push(p)) };
   const provider = {
     get(key: unknown) {
-      if (key === cloudflareContext)
-        return { env: { DB: d1() } as unknown as Env, ctx, nonce: "n" };
+      if (key === cloudflareContext) return { env: { DB: d1() } as unknown as Env, ctx };
+      if (key === cspNonceContext || key === storedNonceContext) return undefined;
       throw new Error("unexpected context key");
     },
   } as unknown as RouterContextProvider;

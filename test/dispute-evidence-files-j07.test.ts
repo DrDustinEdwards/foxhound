@@ -5,7 +5,7 @@ import { checkSecurityHeaders, failures } from "@dustinedwards/site-runtime/chec
 import type { Db } from "~/db";
 import { accounts, disputeApprovals, disputeEvidence, disputes } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyCachePolicy } from "~/lib/http/cache-policy";
 import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import type { DisputeSubmissionContext } from "~/lib/disputes/submission";
@@ -103,7 +103,7 @@ function contextFor(accountId: string, env: Env, isDemo = false): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
+        return { env, ctx: { waitUntil() {} } as unknown as ExecutionContext };
       }
       if (key === authContext) {
         return {

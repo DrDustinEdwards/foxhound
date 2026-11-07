@@ -17,14 +17,15 @@ import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { formatMoney } from "~/lib/money-format";
 import { parseDollarsToCents } from "~/lib/settings/dollars";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle<{ account: { name: string | null; id: string } }> = {
   page: (data: { account: { name: string | null; id: string } }) =>
@@ -66,7 +67,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   const db = getDb(env);
   const accountId = params.id;
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
 
   if (intent === "toggle-billing-exempt") {

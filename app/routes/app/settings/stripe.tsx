@@ -17,7 +17,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { listAccountConnections, listConnectionHealth } from "~/lib/settings/queries.server";
 import {
   currentHealthProblems,
@@ -33,7 +33,8 @@ import {
 
 import type { Route } from "./+types/stripe";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
@@ -100,7 +101,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 
   if (auth.membership.role !== MEMBER_ROLE.OWNER) {
