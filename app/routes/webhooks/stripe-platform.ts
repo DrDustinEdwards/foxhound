@@ -1,10 +1,5 @@
-import * as Sentry from "@sentry/cloudflare";
-
 import { processPlatformWebhook } from "~/lib/billing/platform-webhook";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { verifyStripeRequest } from "~/lib/stripe/verified-event";
-
-import type { Route } from "./+types/stripe-platform";
+import { stripeWebhookRoute } from "~/lib/stripe/verified-event";
 
 // Platform Stripe webhook (ROUTES.md: /webhooks/stripe-platform). This is
 // Foxhound's OWN Stripe account (billing our merchants), verified with
@@ -21,31 +16,12 @@ import type { Route } from "./+types/stripe-platform";
 // never redelivered, and with the platform webhook itself being the only
 // reconciler for platform invoice status, nothing else would have caught it.
 // A GET never reaches the action; without a loader it rendered as a 400 "Unexpected Server Error".
-export function loader() {
-  return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
-}
-
-export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const event = await verifyStripeRequest(
-    request,
-    env,
-    env.STRIPE_PLATFORM_WEBHOOK_SECRET,
-    "stripe-platform-webhook",
-  );
-  if (event instanceof Response) return event;
-
-  const outcome = await processPlatformWebhook(env, event, new Date());
-  if (outcome.status === "error") {
-    Sentry.captureException(new Error(outcome.message), {
-      extra: {
-        scope: "stripe-platform-billing-dispatch",
-        eventType: event.type,
-        eventId: event.id,
-      },
-    });
-    // Nothing was claimed, so Stripe's redelivery is a clean second attempt.
-    return new Response("processing error", { status: 500 });
-  }
-  return Response.json({ received: true, outcome: outcome.status });
-}
+// Nothing was claimed on an error, so Stripe's redelivery is a clean second attempt.
+const route = stripeWebhookRoute({
+  secretKey: "STRIPE_PLATFORM_WEBHOOK_SECRET",
+  endpoint: "stripe-platform-webhook",
+  errorScope: "stripe-platform-billing-dispatch",
+  process: processPlatformWebhook,
+});
+export const loader = route.loader;
+export const action = route.action;
