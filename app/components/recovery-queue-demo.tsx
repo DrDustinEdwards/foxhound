@@ -206,7 +206,7 @@ export function RecoveryQueueDemo() {
                 <span className="block truncate text-label font-medium text-text">
                   {payment.name}
                 </span>
-                <span className="block font-mono text-micro text-text-subtle" data-queue-meta="">
+                <span className="block font-mono text-micro text-text-tertiary" data-queue-meta="">
                   {frame.metas[i]}
                 </span>
               </span>
