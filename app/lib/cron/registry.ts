@@ -486,6 +486,7 @@ const RUN_NOW: Record<string, { backup?: boolean }> = {
   "tool-call-log-export": {},
   "cron-health": {},
   "blog-schedules": {},
+  "page-dates": {},
   "retention-engagement-events": {},
   "retention-email-sends": {},
   "retention-webhook-events": {},
