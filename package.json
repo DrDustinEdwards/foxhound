@@ -33,7 +33,7 @@
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.34.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.13.2",
-    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.27.0",
+    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.28.0",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.88.0",
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.78.0",
