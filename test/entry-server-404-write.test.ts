@@ -49,7 +49,10 @@ function loadContext() {
   const ctx = { waitUntil: vi.fn((p: Promise<unknown>) => void scheduled.push(p)) };
   // A real provider set up as the Renderer sets it: RouterContextProvider.get throws for a context nobody set.
   const provider = new RouterContextProvider();
-  provider.set(cloudflareContext, { env: { DB: d1() } as unknown as Env, ctx });
+  provider.set(cloudflareContext, {
+    env: { DB: d1() } as unknown as Env,
+    ctx: ctx as unknown as ExecutionContext,
+  });
   provider.set(cspNonceContext, undefined);
   provider.set(storedNonceContext, "stored-nonce");
   return { ctx, provider };
