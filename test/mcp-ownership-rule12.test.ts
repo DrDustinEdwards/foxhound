@@ -7,7 +7,9 @@ import {
   alerts,
   apiKeys,
   auditRuns,
+  billingInvoices,
   customerContext,
+  disputes,
   failedPayments,
   stripeConnections,
 } from "~/db/schema";
@@ -130,6 +132,29 @@ async function seed() {
       aiSummary: `summary ${mark}`,
       createdAt: NOW,
     });
+    await db.insert(disputes).values({
+      id: `dp_${account}`,
+      accountId: account,
+      stripeDisputeId: `dp_stripe_${account}`,
+      stripeChargeId: `ch_${account}`,
+      amountCents: 2_500,
+      currency: "usd",
+      reason: "fraudulent",
+      status: "needs_response",
+      state: "draft",
+      createdAt: NOW,
+    });
+    await db.insert(billingInvoices).values({
+      id: `inv_${account}`,
+      accountId: account,
+      currency: "usd",
+      periodStart: new Date("2026-09-01T00:00:00.000Z"),
+      periodEnd: new Date("2026-10-01T00:00:00.000Z"),
+      status: "paid",
+      totalCents: 1_000,
+      idempotencyKey: `idem_${account}`,
+      createdAt: NOW,
+    });
     await db.insert(stripeConnections).values({
       id: `sc_${account}`,
       accountId: account,
@@ -221,6 +246,18 @@ const CASES: OwnershipCase[] = [
     idFor: (a) => `cus_${a}`,
   },
   {
+    tool: "foxhound_list_disputes",
+    path: "dispute_id",
+    args: (id) => ({ dispute_id: id }),
+    idFor: (a) => `dp_${a}`,
+  },
+  {
+    tool: "foxhound_get_billing",
+    path: "invoice_id",
+    args: (id) => ({ invoice_id: id }),
+    idFor: (a) => `inv_${a}`,
+  },
+  {
     tool: "foxhound_review_audits",
     path: "run_id",
     args: (id) => ({ run_id: id }),
@@ -266,7 +303,7 @@ describe("PLANT 1: every id argument has an ownership case", () => {
     const fromCases = CASES.map((c) => `${c.tool} ${c.path}`).sort();
     expect(fromSchemas).toEqual(fromCases);
     // Not vacuous: there are id arguments to cover.
-    expect(fromSchemas.length).toBeGreaterThanOrEqual(6);
+    expect(fromSchemas.length).toBeGreaterThanOrEqual(8);
   });
 });
 

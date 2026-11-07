@@ -465,17 +465,37 @@ export interface ReportArchiveRow {
 
 const REPORTS_ARCHIVE_LIMIT = 24;
 
-/** The narrative archive, most recent report month first. Account-scoped. */
-export async function getReportsArchive(db: Db, accountId: string): Promise<ReportArchiveRow[]> {
-  return db
-    .select({
-      id: intelligenceReports.id,
-      reportMonth: intelligenceReports.reportMonth,
-      narrative: intelligenceReports.narrative,
-      generatedAt: intelligenceReports.generatedAt,
-    })
-    .from(intelligenceReports)
-    .where(eq(intelligenceReports.accountId, accountId))
-    .orderBy(desc(intelligenceReports.reportMonth))
-    .limit(REPORTS_ARCHIVE_LIMIT);
+/** The narrative archive, most recent report month first. Account-scoped. For an
+ *  agent, every narrative reads with Stripe customer ids in place of names (hard
+ *  rule 8), as the overview's latest report does. */
+export async function getReportsArchive(
+  db: Db,
+  accountId: string,
+  options: { forAgent?: boolean } = {},
+): Promise<ReportArchiveRow[]> {
+  const [rows, customers] = await Promise.all([
+    db
+      .select({
+        id: intelligenceReports.id,
+        reportMonth: intelligenceReports.reportMonth,
+        narrative: intelligenceReports.narrative,
+        generatedAt: intelligenceReports.generatedAt,
+      })
+      .from(intelligenceReports)
+      .where(eq(intelligenceReports.accountId, accountId))
+      .orderBy(desc(intelligenceReports.reportMonth))
+      .limit(REPORTS_ARCHIVE_LIMIT),
+    options.forAgent
+      ? db
+          .select({
+            stripeCustomerId: customerContext.stripeCustomerId,
+            customerName: customerContext.customerName,
+          })
+          .from(customerContext)
+          .where(eq(customerContext.accountId, accountId))
+      : Promise.resolve([]),
+  ]);
+  return options.forAgent
+    ? rows.map((r) => ({ ...r, narrative: narrativeWithCustomerIds(r.narrative, customers) }))
+    : rows;
 }

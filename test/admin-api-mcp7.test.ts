@@ -210,6 +210,16 @@ describe("PLANT 2: the reads", () => {
     expect(data.next_cursor).toBeNull();
   });
 
+  it("merchant search can narrow to the paused ones", async () => {
+    const { db, keys } = await seed();
+    await db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, MERCHANT));
+    const { json } = await api("/merchants?filter=paused", asAdmin(keys.admin));
+    expect((json.data as { merchants: { id: string }[] }).merchants.map((m) => m.id)).toEqual([
+      MERCHANT,
+    ]);
+    expect((await api("/merchants?filter=nope", asAdmin(keys.admin))).status).toBe(400);
+  });
+
   it("one merchant's detail never carries a Stripe access token or the Slack webhook URL", async () => {
     const { keys } = await seed();
     const { status, text } = await api(`/merchants/${MERCHANT}`, asAdmin(keys.admin));
@@ -218,6 +228,34 @@ describe("PLANT 2: the reads", () => {
     expect(text).not.toContain(ACCESS_TOKEN);
     expect(text).not.toContain("stripeAccessToken");
     expect(text).not.toContain("adminWombatSecret");
+  });
+
+  it("view runs the merchant's own read tool for that merchant, audits it, and cannot name a write tool", async () => {
+    const { db, keys } = await seed();
+    const view = (account: string, body: unknown) =>
+      api(`/merchants/${account}/view`, { ...asAdmin(keys.admin), method: "POST", body });
+
+    const ok = await view(MERCHANT, { tool: "foxhound_list_disputes" });
+    expect(ok.status).toBe(200);
+    const data = ok.json.data as { tool: string; result: Record<string, unknown> };
+    expect(data.tool).toBe("foxhound_list_disputes");
+    // The merchant's own answer: its settings block is there, and the other merchant's account is not.
+    expect(data.result.auto_submit).toMatchObject({ enabled: false });
+    expect(ok.text).not.toContain(OTHER);
+    expect(ok.text).not.toContain(ACCESS_TOKEN);
+
+    const audit = await db.select().from(adminAuditLog);
+    expect(audit.map((a) => [a.actorEmail, a.action, a.metadata])).toContainEqual([
+      ADMIN,
+      "merchant.view_as_read",
+      { accountId: MERCHANT, tool: "foxhound_list_disputes" },
+    ]);
+
+    for (const tool of ["foxhound_update_settings", "foxhound_manage_alerts", "nope"]) {
+      const refused = await view(MERCHANT, { tool });
+      expect(refused.status, tool).toBe(400);
+    }
+    expect((await view("acct_nope", { tool: "foxhound_get_overview" })).status).toBe(404);
   });
 
   it("an unknown merchant is a 404 that says how to find one", async () => {

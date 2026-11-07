@@ -38,6 +38,7 @@ const ACTIONS: Record<string, string> = {
   user_self_deleted_account_deauthorize_failed:
     "Could not revoke a deleted account's Stripe connection",
   "email.test_send": "Sent a test email",
+  "merchant.view_as_read": "Read a merchant's data as an admin",
   // Recova's codes, written again by Foxhound's read-only "View as merchant"
   // (app/lib/admin/impersonation.server.ts); Recova's own rows read the same.
   impersonation_start: "Started viewing as a merchant",

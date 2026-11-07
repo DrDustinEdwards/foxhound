@@ -42,11 +42,9 @@ import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "~/lib/auth/roles";
 import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
-import { listDisputes } from "~/lib/disputes/queries.server";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
-import { redactToolResult } from "~/lib/mcp/redact";
-import { getGlobalPaymentStatusCounts } from "~/lib/recovery/queries.server";
+import { ToolInputError } from "~/lib/mcp/registry";
+import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
 import { readJson } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -83,6 +81,8 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 const ADMIN_API_PREFIX = "/api/admin/v1";
 const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
 const PAGE_SIZE = 25;
+const MERCHANT_FILTERS = ["paused", "billing_exempt", "canceled"] as const;
+type MerchantFilter = (typeof MERCHANT_FILTERS)[number];
 
 type Json = Record<string, unknown>;
 
@@ -348,7 +348,17 @@ const ROUTES: ApiRoute[] = [
     pattern: "/merchants",
     handler: async ({ db, url }) => {
       const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
-      const all = await listMerchants(db);
+      const filter = url.searchParams.get("filter");
+      if (filter !== null && !MERCHANT_FILTERS.includes(filter as MerchantFilter)) {
+        throw new ApiError(400, `filter must be one of ${MERCHANT_FILTERS.join(", ")}.`);
+      }
+      const all = (await listMerchants(db)).filter(
+        (m) =>
+          filter === null ||
+          (filter === "paused" && m.processingPaused) ||
+          (filter === "billing_exempt" && m.billingExempt) ||
+          (filter === "canceled" && m.cancelledAt !== null),
+      );
       const matching = query
         ? all.filter(
             (m) =>
@@ -365,33 +375,52 @@ const ROUTES: ApiRoute[] = [
     handler: async ({ db, params }) => ({ merchant: await merchantForAgent(db, params[0]) }),
   },
   {
-    method: "GET",
-    pattern: "/merchants/:id/data",
-    handler: async ({ db, params }) => {
-      await merchantForAgent(db, params[0]);
-      const [overview, paymentStatusCounts, disputes] = await Promise.all([
-        getIntelligenceOverview(db, params[0], { forAgent: true }),
-        getGlobalPaymentStatusCounts(db, params[0]),
-        listDisputes(db, params[0]),
-      ]);
-      // The merchant's customers, so the same redaction the merchant MCP
-      // applies: no names, masked emails, no IP or address.
-      return redactToolResult({
-        overview,
-        payment_status_counts: paymentStatusCounts,
-        disputes: disputes.slice(0, PAGE_SIZE).map((d) => ({
-          id: d.id,
-          amountCents: d.amountCents,
-          currency: d.currency,
-          reason: d.reason,
-          state: d.state,
-          outcome: d.outcome,
-          evidenceDeadline: d.evidenceDeadline,
-          customerEmail: d.customerEmail,
-          createdAt: d.createdAt,
-        })),
-        disputes_total: disputes.length,
-      }) as Json;
+    // VIEW AS MERCHANT for an agent: one of the merchant MCP's own READ tools,
+    // run for the named account, so an admin sees exactly the answer the
+    // merchant's agent would get (the same picks, the same masking, the same
+    // pagination) and nothing the merchant's key could not read. Allowlisted by
+    // the registry itself (a tool whose scope is "read"), so a write tool cannot
+    // be named here and a tool added later is covered on the day it is
+    // registered. Reads only, like the signed-in View as merchant (30 minutes,
+    // 405 on every write), and each read leaves an admin_audit_log row naming
+    // the admin, the account and the tool, as that view's start and stop do.
+    method: "POST",
+    pattern: "/merchants/:id/view",
+    handler: async ({ db, env, caller, params, body, now }) => {
+      const accountId = params[0];
+      await merchantForAgent(db, accountId);
+      const toolName = typeof body.tool === "string" ? body.tool : "";
+      const tool = MERCHANT_TOOLS.get(toolName);
+      if (!tool || tool.scope !== "read") {
+        throw new ApiError(
+          400,
+          `tool must be one of the merchant read tools: ${MERCHANT_TOOLS.list()
+            .filter((t) => MERCHANT_TOOLS.get(t.name)?.scope === "read")
+            .map((t) => t.name)
+            .join(", ")}.`,
+        );
+      }
+      const args =
+        body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments)
+          ? (body.arguments as Record<string, unknown>)
+          : {};
+      await logAdminAction(db, {
+        actorEmail: caller.actorEmail,
+        action: "merchant.view_as_read",
+        metadata: { accountId, tool: toolName },
+      });
+      try {
+        const result = await tool.execute(
+          { env, db, accountId, now, trace: { apiKeyId: caller.keyId, tool: toolName, now } },
+          args,
+        );
+        return { tool: toolName, result } as Json;
+      } catch (error) {
+        // A refusal written for the agent (a missing id, a bad cursor) is the
+        // same sentence the merchant's agent would read.
+        if (error instanceof ToolInputError) throw new ApiError(400, error.message);
+        throw error;
+      }
     },
   },
   {

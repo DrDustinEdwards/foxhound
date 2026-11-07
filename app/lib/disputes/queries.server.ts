@@ -437,6 +437,30 @@ export async function readDisputeSettings(
   };
 }
 
+/** Who turned dispute auto-submit on and when: the merchant's standing approval
+ *  that every automatic submission's dispute_approvals row stands on. Read only;
+ *  the toggle is written by applyDisputeSettings from the signed-in settings
+ *  page and by nothing else (no agent tool turns it on, CLAUDE.md hard rule 4). */
+export async function readDisputeAutoSubmit(
+  db: Db,
+  accountId: string,
+): Promise<{ enabled: boolean; optedInByEmail: string | null; optedInAt: Date | null }> {
+  const [row] = await db
+    .select({
+      enabled: accounts.disputeAutoSubmit,
+      byEmail: accounts.disputeAutoSubmitByEmail,
+      at: accounts.disputeAutoSubmitAt,
+    })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  return {
+    enabled: row?.enabled ?? false,
+    optedInByEmail: row?.byEmail ?? null,
+    optedInAt: row?.at ?? null,
+  };
+}
+
 /**
  * The Disputes on/off switch, as dispute intake reads it. Recova's
  * handleDisputeCreated step 1 (lib/dispute-handlers.ts, blob e2bb8de8) returned
