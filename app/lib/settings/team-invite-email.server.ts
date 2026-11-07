@@ -1,4 +1,4 @@
-import { escapeHtml } from "capsomer/email";
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";

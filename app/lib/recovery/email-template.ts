@@ -1,4 +1,4 @@
-import { escapeHtml } from "capsomer/email";
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 
 import type { EmailCopy } from "./email-generation";
 
