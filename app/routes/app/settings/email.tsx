@@ -20,7 +20,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 import { applyFeatureSettings, applySenderName } from "~/lib/settings/apply.server";
@@ -29,7 +29,8 @@ import { sendTestEmail } from "~/lib/settings/test-email.server";
 
 import type { Route } from "./+types/email";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S33, /settings/email, a named launch blocker in core.md: with no writer for
 // `sender_name`, `toEmailContext` fell back to "your subscription" and that
@@ -166,7 +167,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 
   if (intent === "sender") {

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import * as risk from "~/lib/intelligence/risk";
 import IntelligenceProductPage, { loader } from "~/routes/products/intelligence";
 
@@ -22,8 +22,7 @@ import IntelligenceProductPage, { loader } from "~/routes/products/intelligence"
 
 const fakeContext = {
   get(key: unknown) {
-    if (key === cloudflareContext)
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     throw new Error("unexpected context key");
   },
 };

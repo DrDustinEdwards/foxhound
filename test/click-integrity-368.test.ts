@@ -55,7 +55,7 @@ const ENV = {
 } as unknown as Env;
 
 const routeContext = (): unknown => ({
-  get: () => ({ env: ENV, ctx: {} as ExecutionContext, nonce: "n" }),
+  get: () => ({ env: ENV, ctx: {} as ExecutionContext }),
 });
 
 async function seed() {

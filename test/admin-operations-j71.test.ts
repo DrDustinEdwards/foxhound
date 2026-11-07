@@ -1,7 +1,7 @@
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CRON_JOBS } from "~/lib/cron/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -296,7 +296,6 @@ describe("the loader", () => {
     context.set(cloudflareContext, {
       env: env as unknown as Env,
       ctx: {} as ExecutionContext,
-      nonce: "",
     });
     const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
     const data = await loader({

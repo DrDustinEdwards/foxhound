@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
@@ -179,7 +179,6 @@ function contextFor(accountId: string, accountName: string): unknown {
         return {
           env: { DB: d1Over(sqlite) } as unknown as Env,
           ctx: { waitUntil() {} } as unknown as ExecutionContext,
-          nonce: "n",
         };
       }
       if (key === authContext) {
@@ -634,7 +633,6 @@ describe("PHASE (f): the app shell, the ONE surface that must see other accounts
             return {
               env: { DB: d1Over(sqlite) } as unknown as Env,
               ctx: { waitUntil() {} } as unknown as ExecutionContext,
-              nonce: "n",
             };
           }
           return {

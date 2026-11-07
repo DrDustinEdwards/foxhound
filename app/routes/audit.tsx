@@ -19,7 +19,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import {
@@ -32,7 +32,8 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Real no-auth estimator + audit marketing page (Phase 6 Pass 3). Ported the
 // legacy app/audit/page.tsx marketing structure (Capsid read_repo_file,
@@ -102,7 +103,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const mrrDollars = Number(form.get("mrr"));
   const customerCount = Number(form.get("customerCount"));
   const currency = String(form.get("currency") ?? "usd").toLowerCase();
@@ -340,6 +341,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       {/* A 24px target (min-h-6) for a link that stands alone. */}
       <a
         href="/demos/recovery"
+        rel="nofollow"
         className="inline-flex min-h-6 items-center text-copy text-accent-text no-underline transition-opacity duration-500 hover:opacity-80"
       >
         View live demo &rarr;

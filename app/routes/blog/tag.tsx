@@ -1,6 +1,6 @@
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { labelForTag } from "~/lib/blog/tags";
 import { getPublishedPostsByTag, getPublishedTagSet } from "~/lib/blog/queries.server";
 import { siteUrl } from "~/lib/seo/jsonld";

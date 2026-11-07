@@ -13,7 +13,7 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections-cap";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   INTELLIGENCE_BOTTOM_CTA,
   INTELLIGENCE_FAQS,

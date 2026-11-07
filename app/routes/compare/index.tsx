@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";

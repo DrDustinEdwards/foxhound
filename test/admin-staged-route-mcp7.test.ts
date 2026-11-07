@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import routes from "~/routes";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -35,8 +35,7 @@ const NOW = new Date();
 
 const fakeContext = {
   get(key: unknown) {
-    if (key === cloudflareContext)
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === adminContext) return { email: CONFIRMER };
     throw new Error("unexpected context key");
   },

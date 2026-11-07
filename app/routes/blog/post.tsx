@@ -10,7 +10,7 @@ import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
 import {
   getNextPost,

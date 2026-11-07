@@ -45,7 +45,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server";
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
 import { getAccount } from "~/lib/settings/queries.server";
@@ -62,7 +62,8 @@ import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S27, /settings/account, legacy's hub entry 12, "My account".
 //
@@ -245,7 +246,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 
   switch (intent) {

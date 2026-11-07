@@ -18,7 +18,7 @@ import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_OAUTH_APPROVE } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
@@ -31,7 +31,8 @@ import {
 
 import type { Route } from "./+types/authorize";
 import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // /oauth/authorize: the page where a signed-in merchant
 // lets an external agent connect to one Foxhound account.
@@ -182,7 +183,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ error: EXPIRED_REQUEST }, { status: 403 });
   }
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const params = new URLSearchParams();
   for (const [k, v] of form) if (typeof v === "string") params.append(k, v);
 

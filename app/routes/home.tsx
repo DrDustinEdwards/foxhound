@@ -14,7 +14,7 @@ import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
 import { getFeaturedPost, listPublishedPosts } from "~/lib/blog/queries.server";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { blogStripCards } from "~/lib/marketing/blog-strip";
 import {
   citation,
@@ -172,6 +172,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 {/* Recova's outlined button: no fill at rest, amber sweeping in under the pointer. */}
                 <Link
                   to="/demos/recovery"
+                  rel="nofollow"
                   className="cap-btn group [--cap-btn-bg:transparent]"
                   data-size="lg"
                 >
@@ -595,12 +596,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
             <Link
               to="/demos/recovery"
+              rel="nofollow"
               className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
             >
               View Recovery demo <Arrow />
             </Link>
             <Link
               to="/demos/disputes"
+              rel="nofollow"
               className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
             >
               View Disputes demo <Arrow />

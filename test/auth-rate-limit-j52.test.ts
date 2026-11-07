@@ -1,7 +1,7 @@
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
@@ -64,7 +64,7 @@ function makeEnv(ns: unknown = namespace): Env {
 
 function context(env: Env) {
   const ctx = new RouterContextProvider();
-  ctx.set(cloudflareContext, { env, ctx: {} as ExecutionContext, nonce: "n" });
+  ctx.set(cloudflareContext, { env, ctx: {} as ExecutionContext });
   return ctx;
 }
 

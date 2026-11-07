@@ -1,5 +1,5 @@
 import { getAuth } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/google-callback";
 

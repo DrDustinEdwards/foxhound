@@ -7,7 +7,7 @@ import {
   robotsResponse,
 } from "@drdustinedwards/site-helpers/robots";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/robots";
@@ -43,6 +43,9 @@ export const DISALLOW_PATHS = [
   "/recovery/",
   "/disputes/",
   "/intelligence/",
+  // The four demo entries (/demos/recovery and the rest) set the demo cookie and redirect into the app; the /demos
+  // page that lists them, with no slash, stays open.
+  "/demos/",
   "/billing",
   "/settings",
   "/help",

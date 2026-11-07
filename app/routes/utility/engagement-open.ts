@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
 import { recordOpen } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";

@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -103,7 +103,7 @@ function signIn(sessionId: string, userId = USER): void {
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env: {} as Env, ctx: {} as ExecutionContext };
     }
     throw new Error("unexpected context key");
   },

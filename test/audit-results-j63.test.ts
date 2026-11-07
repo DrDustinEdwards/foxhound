@@ -6,7 +6,7 @@ import { showDisputesSection } from "~/components/audit/sections";
 import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engine";
 import { toAuditRunView } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { readDisputes } from "~/lib/stripe/reads";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -88,8 +88,7 @@ const ACCOUNT_B = "acct_beta";
 function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext)
-        return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: "user_1",

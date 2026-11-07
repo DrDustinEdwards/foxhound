@@ -102,33 +102,28 @@ export interface UpdatePostInput {
   showPublishedAt: boolean;
 }
 
-/** Saves the PRE-edit state as a version snapshot, then applies the update.
- *  Every version is kept: site-api's contract (v0.17.0, "Revisions") has a
- *  site never prune one, so any publish can be undone; only a delete removes
- *  them. Plain operational writes (not a money write - content editing, no
+/** Applies the update only while the post still has `expectedUpdatedAt`, then
+ *  saves the PRE-edit state as a version snapshot. The guard sits in the
+ *  UPDATE itself, so of two saves from the same version the second finds
+ *  nothing to update and returns false instead of overwriting the first
+ *  (EmDash 1.4.0, emdash-cms/emdash PR 4286). Every version is kept: site-api's
+ *  contract (v0.17.0, "Revisions") has a site never prune one, so any publish
+ *  can be undone; only a delete removes them. Plain operational writes (not a money write - content editing, no
  *  DO), matching the operational-write precedent (gotcha #25). */
 export async function updatePostWithVersion(
   db: Db,
   postId: string,
   savedBy: string,
+  expectedUpdatedAt: Date,
   input: UpdatePostInput,
-): Promise<void> {
+): Promise<boolean> {
   const existingRows = await db.select().from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
   const existing = existingRows[0];
   if (!existing) throw new Error("Post not found");
 
-  const now = new Date();
-  await db.insert(blogPostVersions).values({
-    id: crypto.randomUUID(),
-    postId,
-    title: existing.title,
-    body: existing.body,
-    excerpt: existing.excerpt,
-    savedAt: now,
-    savedBy,
-  });
-
-  await db
+  // Past the checked value even within one millisecond, so the next save's guard always sees a change.
+  const now = new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1));
+  const updated = await db
     .update(blogPosts)
     .set({
       title: input.title,
@@ -150,7 +145,20 @@ export async function updatePostWithVersion(
       showPublishedAt: input.showPublishedAt,
       updatedAt: now,
     })
-    .where(eq(blogPosts.id, postId));
+    .where(and(eq(blogPosts.id, postId), eq(blogPosts.updatedAt, expectedUpdatedAt)))
+    .returning({ id: blogPosts.id });
+  if (updated.length === 0) return false;
+
+  await db.insert(blogPostVersions).values({
+    id: crypto.randomUUID(),
+    postId,
+    title: existing.title,
+    body: existing.body,
+    excerpt: existing.excerpt,
+    savedAt: now,
+    savedBy,
+  });
+  return true;
 }
 
 /** `firstPublishedAt` is the date a first publication records: now by default,

@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 async function landing(next: string): Promise<string> {
-  const ctx = { get: () => ({ env: {} as Env, ctx: {} as ExecutionContext, nonce: "" }) };
+  const ctx = { get: () => ({ env: {} as Env, ctx: {} as ExecutionContext }) };
   const result = (await loader({
     request: new Request(`https://foxhoundapp.test/passkey?next=${encodeURIComponent(next)}`),
     context: ctx,

@@ -1,6 +1,7 @@
 import { Link } from "capsomer/react/link";
 
 import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content";
+import { appLinkRel } from "~/lib/marketing/app-links";
 
 import { DocWidget } from "./doc-widgets";
 import { HealthScoreBadge } from "./health-score-badge";
@@ -49,7 +50,7 @@ function InlineRun({ inline }: { inline: DocInline }) {
   // An in-app path routes through Link so the marketing shell is not torn down;
   // anything else is a plain anchor.
   return inline.to.startsWith("/") ? (
-    <Link to={inline.to} className={LINK}>
+    <Link to={inline.to} rel={appLinkRel(inline.to)} className={LINK}>
       {inline.link}
     </Link>
   ) : (

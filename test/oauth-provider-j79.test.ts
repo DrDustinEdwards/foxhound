@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiKeys, oauthAuthorizationCodes, oauthGrants } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
 import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
@@ -90,7 +90,7 @@ function env(): Env {
 
 function context(): RouterContextProvider {
   const ctx = new RouterContextProvider();
-  ctx.set(cloudflareContext, { env: env(), ctx: {} as ExecutionContext, nonce: "" });
+  ctx.set(cloudflareContext, { env: env(), ctx: {} as ExecutionContext });
   return ctx;
 }
 

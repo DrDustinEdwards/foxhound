@@ -40,7 +40,7 @@ function makeEnv(rateLimiter = fakeRateLimiter()) {
 }
 
 const context = (env: Env): unknown => ({
-  get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }),
+  get: () => ({ env, ctx: {} as ExecutionContext }),
 });
 
 async function seed() {

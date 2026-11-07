@@ -35,7 +35,7 @@ import dmSans400 from "~/assets/fonts/dm-sans-400.ttf?inline";
 import dmSans500 from "~/assets/fonts/dm-sans-500.ttf?inline";
 import dmSans600 from "~/assets/fonts/dm-sans-600.ttf?inline";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/og";

@@ -2,7 +2,7 @@ import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { webhookEvents } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -165,7 +165,7 @@ describe("the loader", () => {
   async function load(search: string) {
     expect(typeof route.loader).toBe("function");
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
     const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
     return loader({
       request: new Request(`https://foxhoundapp.com/admin/webhooks${search}`),

@@ -12,7 +12,7 @@ import { getAuth } from "~/lib/auth";
 import { getSession } from "~/lib/auth/session";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
 import { knownSignInError } from "~/lib/auth/sign-in-link.server";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { NOINDEX } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/sign-in-confirm";

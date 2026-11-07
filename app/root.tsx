@@ -22,7 +22,7 @@ import {
   recovaWords,
   WithdrawnView,
 } from "./components/error-view";
-import { cloudflareContext } from "./lib/cloudflare-context";
+import { cloudflareContext, getNonce } from "@dustinedwards/site-runtime/context";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
 import type { loader as marketingLoader } from "./layouts/marketing";
@@ -48,7 +48,8 @@ export const links: Route.LinksFunction = () => [...iconLinks(), ...PRELOADS.lin
 // puts in the Content-Security-Policy header - a mismatch would make the
 // browser reject its own hydration scripts.
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { env, nonce } = context.get(cloudflareContext);
+  const { env } = context.get(cloudflareContext);
+  const nonce = getNonce(context);
   return { theme: await resolveThemeForRequest(env, request), nonce };
 }
 

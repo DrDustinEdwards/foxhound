@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterContextProvider, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { safeNextPath } from "~/lib/auth/next-path";
 
 // J79, ruling 8's inherited artifacts on the sign-in side. The authorize page
@@ -48,7 +48,6 @@ function context(): RouterContextProvider {
       GOOGLE_CLIENT_SECRET: "s",
     } as unknown as Env,
     ctx: {} as ExecutionContext,
-    nonce: "",
   });
   return ctx;
 }

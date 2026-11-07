@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -179,7 +179,6 @@ const fakeContext = {
       return {
         env: {} as Env,
         ctx: { waitUntil: () => {} } as unknown as ExecutionContext,
-        nonce: "n",
       };
     }
     throw new Error("unexpected context key");

@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
+import { appLinkRel } from "~/lib/marketing/app-links";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
@@ -40,6 +41,7 @@ function PrimaryLink({ cta }: { cta: CTA }) {
   return (
     <Link
       to={cta.href}
+      rel={appLinkRel(cta.href)}
       className="cap-btn px-6 [--cap-btn-h:3rem]"
       data-variant="primary"
       data-size="lg"

@@ -23,14 +23,15 @@ import {
   resolveActiveMembership,
   resolveMembership,
 } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
 import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { setStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -112,7 +113,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // the account now exists, so both outcomes redirect to /connect, where the
   // loader re-reads the membership and shows the Connect Stripe step.
   if (!membership) {
-    const form = await readForm(request);
+    const form = await readForm(request, BODY_MAX_BYTES);
     const name = String(form.get("name") ?? "").trim();
     if (!name) {
       return data({ error: "Enter a name for your account." }, { status: 400 });

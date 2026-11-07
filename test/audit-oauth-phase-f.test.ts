@@ -88,7 +88,7 @@ const ENV = {
 } as unknown as Env;
 
 const routeContext = (env: Env = ENV): unknown => ({
-  get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }),
+  get: () => ({ env, ctx: {} as ExecutionContext }),
 });
 
 function fakeList<T>(items: T[]): AsyncIterable<T> {
