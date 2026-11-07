@@ -46,9 +46,11 @@ interface Env {
   APPLE_TEAM_ID?: string;
   APPLE_KEY_ID?: string;
   APPLE_PRIVATE_KEY?: string;
-  // Admin allowlist (C4). Comma-separated emails granted the admin role.
-  // Access-control sensitive -> secret, not a committed var. Unset => no admins.
+  // Admins (C4): ADMIN_EMAIL is the main admin, CO_OWNER_EMAILS the comma-separated co-owners
+  // (full use, no say over admins). Access-control sensitive -> secrets, not committed vars.
+  // ADMIN_EMAIL unset => no admins.
   ADMIN_EMAIL?: string;
+  CO_OWNER_EMAILS?: string;
   // Extra inboxes the owner-only admin email send (app/lib/admin/email-send.server.ts)
   // may mail, comma separated. Unset => only the acting admin's own address.
   // A plain list of the owner's own test inboxes; never a customer's address.
@@ -58,7 +60,7 @@ interface Env {
   // application's AUD tag. Either unset => nobody is admin (fails closed).
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
-  // "1" in .dev.vars only: lets localhost into /admin as the first ADMIN_EMAIL,
+  // "1" in .dev.vars only: lets localhost into /admin as ADMIN_EMAIL,
   // since no Access sits in front of `npm run dev`. Ignored on any other host.
   ACCESS_DEV_BYPASS?: string;
 

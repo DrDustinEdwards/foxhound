@@ -171,7 +171,7 @@ export default [
   // Admin: its own layout, Capsomer's AdminShell, behind Cloudflare Access.
   // Not under the app shell: no merchant session, account or
   // demo cookie is involved. admin-shell.tsx's middleware verifies Access's JWT
-  // and the ADMIN_EMAIL allowlist (404 otherwise) before any admin loader runs.
+  // and the ADMIN_EMAIL and CO_OWNER_EMAILS roster (404 otherwise) before any admin loader runs.
   layout("./layouts/admin-shell.tsx", [
     ...prefix("admin", [
       index("./routes/admin/index.tsx"),
