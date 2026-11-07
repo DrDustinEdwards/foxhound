@@ -1,11 +1,4 @@
-import {
-  backupFiles,
-  backupHealth,
-  filesHealth,
-  runCheckedBackup,
-  type BackupHealth,
-  type R2Like,
-} from "@dustinedwards/d1-dump";
+import { createSiteBackup, type SiteBackupStatus } from "@dustinedwards/d1-dump";
 
 import type { CronJobResult } from "~/lib/cron/run";
 
@@ -89,14 +82,32 @@ const BACKUP_CREDENTIAL_ALLOW: Record<string, string> = {
 /** Tables that must be in every dump; their absence means the dump is not real. */
 const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
 
-function requireBucket(env: Env): R2Like {
+/** The backups bucket, or a clear error when the binding is missing. */
+function requireBucket(env: Env) {
   if (!env.BACKUPS) {
     throw new Error(
       "BACKUPS R2 binding is not configured (wrangler.jsonc r2_buckets should bind foxhound-backups)",
     );
   }
-  return env.BACKUPS as unknown as R2Like;
+  return env.BACKUPS;
 }
+
+/** The bucket copies beside the dumps, each under files/<name>/ by d1-dump's backupFiles; each run goes on where the
+ *  last stopped, and Capsid's nightly off-account copy takes all of files/ to Amazon. MEDIA is the blog's media
+ *  library. EVIDENCE is the merchants' dispute evidence files, which exist nowhere else once uploaded. Each has its
+ *  own job, so a failed copy never marks the D1 dump or the other copy failed. */
+const backup = createSiteBackup<Env>({
+  bucket: requireBucket,
+  dump: {
+    exclude: [...BACKUP_EXCLUDED_TABLES],
+    credentials: { allow: BACKUP_CREDENTIAL_ALLOW },
+    required: [...BACKUP_REQUIRED_TABLES],
+  },
+  files: [
+    { name: "media", source: (env) => env.MEDIA },
+    { name: "evidence", source: (env) => env.EVIDENCE },
+  ],
+});
 
 /**
  * The cron handler body, by d1-dump's runCheckedBackup: dump without the marker, refuse a dump
@@ -105,12 +116,7 @@ function requireBucket(env: Env): R2Like {
  * prune.
  */
 export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
-  const { dump, pruned } = await runCheckedBackup(env.DB, requireBucket(env), {
-    now,
-    exclude: [...BACKUP_EXCLUDED_TABLES],
-    credentials: { allow: BACKUP_CREDENTIAL_ALLOW },
-    required: [...BACKUP_REQUIRED_TABLES],
-  });
+  const { dump, pruned } = await backup.runBackup(env, now);
   const rows = dump.tables.reduce((sum, t) => sum + t.rows, 0);
   return {
     rowsProcessed: rows,
@@ -118,41 +124,25 @@ export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
   };
 }
 
-/** The bucket copies beside the dumps, each under files/<name>/ by d1-dump's backupFiles; each run goes on where the
- *  last stopped, and Capsid's nightly off-account copy takes all of files/ to Amazon. MEDIA is the blog's media
- *  library. EVIDENCE is the merchants' dispute evidence files, which exist nowhere else once uploaded. Each has its
- *  own job, so a failed copy never marks the D1 dump or the other copy failed. */
-const MEDIA_BACKUP = { name: "media" };
-const EVIDENCE_BACKUP = { name: "evidence" };
-
-async function runFilesBackup(
-  source: Env["MEDIA"],
-  env: Env,
-  options: { name: string },
-): Promise<CronJobResult> {
-  const run = await backupFiles(source, env.BACKUPS, options);
+async function runFilesBackup(env: Env, name: string): Promise<CronJobResult> {
+  const [run] = (await backup.runFilesBackup(env, [name])).files;
   return {
-    rowsProcessed: run.worked,
-    message: `${run.counts.copied} copied, ${run.counts.skipped} unchanged, ${run.counts.removed} removed${run.complete ? ", pass complete" : ", resumes next run"}`,
+    rowsProcessed: (run?.copied ?? 0) + (run?.removed ?? 0),
+    message: `${run?.copied} copied, ${run?.skipped} unchanged, ${run?.removed} removed${run?.complete ? ", pass complete" : ", resumes next run"}`,
   };
 }
 
-export const runMediaBackup = (env: Env) => runFilesBackup(env.MEDIA, env, MEDIA_BACKUP);
-export const runEvidenceBackup = (env: Env) => runFilesBackup(env.EVIDENCE, env, EVIDENCE_BACKUP);
+export const runMediaBackup = (env: Env) => runFilesBackup(env, "media");
+export const runEvidenceBackup = (env: Env) => runFilesBackup(env, "evidence");
 
-/** The unauthenticated health fields: age of the newest complete dump, with each files copy's; any one's warning warns. */
-export async function backupStatus(
-  env: Env,
-  now = new Date(),
-): Promise<BackupHealth & { files?: { media: BackupHealth; evidence: BackupHealth } }> {
+/** The unauthenticated health fields: age of the newest complete dump, with each files copy's under `files`; any one's warning warns. */
+export async function backupStatus(env: Env, now = new Date()): Promise<SiteBackupStatus> {
   if (!env.BACKUPS) {
-    return { last_ok: null, age_hours: null, warning: "no backup bucket is bound" } as BackupHealth;
+    return {
+      last_ok: null,
+      age_hours: null,
+      warning: "no backup bucket is bound",
+    } as SiteBackupStatus;
   }
-  const [dump, media, evidence] = await Promise.all([
-    backupHealth(env.BACKUPS, { now }),
-    filesHealth(env.BACKUPS, { ...MEDIA_BACKUP, now }),
-    filesHealth(env.BACKUPS, { ...EVIDENCE_BACKUP, now }),
-  ]);
-  const warning = [dump.warning, media.warning, evidence.warning].filter(Boolean).join("; ");
-  return { ...dump, files: { media, evidence }, ...(warning ? { warning } : {}) };
+  return backup.status(env, now);
 }
