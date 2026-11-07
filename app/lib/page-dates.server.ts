@@ -2,7 +2,7 @@ import { trackPageDates, type PageRecord } from "@drdustinedwards/site-helpers/l
 import { htmlToMarkdown } from "@drdustinedwards/site-helpers/markdown-copy";
 import { inArray, sql } from "drizzle-orm";
 
-import { getDb, pageDates, type Db } from "~/db";
+import { getDb, pageDateRows, type Db } from "~/db";
 import type { CronHandler } from "~/lib/cron/run";
 import { siteUrl } from "~/lib/seo/jsonld";
 
@@ -19,7 +19,7 @@ export function setPageRenderer(renderer: PageRenderer): void {
 
 /** Every row of page_dates as the record Prelum's trackPageDates and pageDates take. */
 export async function loadPageDates(db: Db): Promise<PageRecord> {
-  const rows = await db.select().from(pageDates);
+  const rows = await db.select().from(pageDateRows);
   return Object.fromEntries(rows.map((r) => [r.path, { hash: r.hash, lastmod: r.lastmod }]));
 }
 
@@ -31,16 +31,16 @@ async function savePageDates(db: Db, record: PageRecord): Promise<void> {
   // D1 takes 100 bound variables a statement: three columns, so thirty rows at a time.
   for (let i = 0; i < changed.length; i += 30) {
     await db
-      .insert(pageDates)
+      .insert(pageDateRows)
       .values(changed.slice(i, i + 30).map(([path, entry]) => ({ path, ...entry })))
       .onConflictDoUpdate({
-        target: pageDates.path,
+        target: pageDateRows.path,
         set: { hash: sqlExcluded("hash"), lastmod: sqlExcluded("lastmod") },
       });
   }
   const gone = Object.keys(previous).filter((path) => !(path in record));
   for (let i = 0; i < gone.length; i += 90) {
-    await db.delete(pageDates).where(inArray(pageDates.path, gone.slice(i, i + 90)));
+    await db.delete(pageDateRows).where(inArray(pageDateRows.path, gone.slice(i, i + 90)));
   }
 }
 
