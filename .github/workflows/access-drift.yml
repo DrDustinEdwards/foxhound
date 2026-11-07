@@ -3,7 +3,7 @@ name: access-drift
 # I2: the daily check that the Cloudflare Access application in front of /admin (foxhound-login) lets in exactly the
 # admins Foxhound names. devkit's reusable workflow reads the application's policies through the Cloudflare API and
 # compares them with the list Foxhound serves hashed at /admin/access-drift (app/routes/admin/access-drift.ts), so no
-# copy of ADMIN_EMAIL is kept in GitHub. Until all four secrets are set the job fails, by design: a red run is the alert.
+# copy of ADMIN_EMAIL or CO_OWNER_EMAILS is kept in GitHub. Until all four secrets are set the job fails, by design: a red run is the alert.
 
 on:
   schedule:
