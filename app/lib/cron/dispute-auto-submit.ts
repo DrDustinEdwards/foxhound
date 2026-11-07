@@ -4,7 +4,7 @@ import { and, asc, eq, gt, isNotNull, isNull, lte, notExists, notInArray, sql } 
 import { accounts, disputeApprovals, disputes, getDb } from "~/db";
 import { HOUR_MS } from "~/lib/constants";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
-import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
+import { DISPUTE_AUTO_SUBMIT_HOURS, SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 import { sendDisputeAutoSubmittedNotice } from "~/lib/disputes/notices.server";
 import {
   approveAndSubmitDispute,
@@ -50,8 +50,6 @@ import { recordOutcome } from "~/lib/engine/outcomes";
 //   dispute stays approvable, and the page offers Approve and submit again.
 // billing_exempt is not a gate here: it decides only whether a won fee is
 // invoiced, as on the manual path.
-
-const DISPUTE_AUTO_SUBMIT_HOURS = 24;
 
 /** Recova's CRON_BATCH_LIMIT for this query. */
 const DISPUTE_AUTO_SUBMIT_BATCH_LIMIT = 100;

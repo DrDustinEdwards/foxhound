@@ -26,7 +26,12 @@ export interface ConsentCapability {
 export const CONSENT_CAPABILITIES: readonly ConsentCapability[] = [
   {
     text: "Read your failed payments and their recovery status",
-    tools: ["foxhound_get_overview", "foxhound_list_payments", "foxhound_get_payment"],
+    tools: [
+      "foxhound_get_overview",
+      "foxhound_list_payments",
+      "foxhound_get_payment",
+      "foxhound_get_recovery",
+    ],
   },
   {
     text: "Read your disputes",

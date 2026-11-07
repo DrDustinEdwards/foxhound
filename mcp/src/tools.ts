@@ -97,6 +97,23 @@ const refuse = (error: string): ApiResult => ({ ok: false, status: 400, error })
 const get = (session: AdminToolSession, path: string, query?: Record<string, string | undefined>) =>
   callAdminApi(session.env, session.actor, { signal: session.signal, method: "GET", path, query });
 
+/** The merchant MCP's read tools, which View as a merchant may run.
+ *  test/admin-mcp-worker-mcp7.test.ts holds this list equal to the merchant
+ *  registry's reads, so it cannot drift. */
+export const MERCHANT_READ_TOOLS = [
+  "foxhound_get_overview",
+  "foxhound_list_payments",
+  "foxhound_get_payment",
+  "foxhound_list_customers",
+  "foxhound_get_customer",
+  "foxhound_get_intelligence",
+  "foxhound_get_recovery",
+  "foxhound_list_disputes",
+  "foxhound_review_audits",
+  "foxhound_get_billing",
+  "foxhound_get_settings",
+] as const;
+
 export const ADMIN_TOOLS: AdminTool[] = [
   {
     name: "foxhound_admin_whats_next",
@@ -131,7 +148,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     name: "foxhound_admin_find_merchant",
     title: "Find a merchant",
     description:
-      "Find merchants by name or account id, or pass account_id for one merchant in full: its account state, Stripe connections (never their tokens), subscriptions, recovery and dispute activity and recent invoices. Paginated: pass next_cursor back to read on.",
+      "Find merchants by name or account id (filter narrows to the paused, billing-exempt or canceled ones), or pass account_id for one merchant in full: its account state, Stripe connections (never their tokens), subscriptions, recovery and dispute activity and recent invoices. Paginated: pass next_cursor back to read on.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -140,6 +157,11 @@ export const ADMIN_TOOLS: AdminTool[] = [
         account_id: {
           type: "string",
           description: "One merchant's account id, for its full detail.",
+        },
+        filter: {
+          type: "string",
+          enum: ["paused", "billing_exempt", "canceled"],
+          description: "Only merchants that are paused, billing-exempt or canceled.",
         },
         cursor: CURSOR,
       },
@@ -154,39 +176,50 @@ export const ADMIN_TOOLS: AdminTool[] = [
       if (accountId) return get(session, `/merchants/${segment(accountId)}`);
       return get(session, "/merchants", {
         query: text(args, "query"),
+        filter: text(args, "filter"),
         cursor: text(args, "cursor"),
       });
     },
   },
   {
-    name: "foxhound_admin_read_merchant_data",
-    title: "Read a merchant's data",
+    name: "foxhound_admin_view_as_merchant",
+    title: "View as a merchant",
     description:
-      "Read one merchant's own data as an admin: their recurring-revenue overview, failed-payment counts by status and their latest disputes. Customer names are never returned and emails are masked. Read only.",
+      "See what a merchant's own agent sees: run one of the merchant tools for that merchant and get the same answer, with the same masking (customer names never, emails masked) and the same paging. tool is the merchant tool's name (foxhound_get_overview, foxhound_list_payments, foxhound_get_payment, foxhound_list_customers, foxhound_get_customer, foxhound_get_intelligence, foxhound_get_recovery, foxhound_list_disputes, foxhound_review_audits, foxhound_get_billing or foxhound_get_settings) and arguments are that tool's own (view, payment_id, dispute_id, invoice_id, cursor and so on). Read only, like View as merchant in the app: the merchant's write tools cannot be named. Each call is recorded in the audit log under your name, the merchant and the tool.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
         account_id: { type: "string", description: "From foxhound_admin_find_merchant." },
+        tool: { type: "string", enum: [...MERCHANT_READ_TOOLS] },
+        arguments: {
+          type: "object",
+          description: "That merchant tool's own arguments. Omit for none.",
+        },
       },
-      required: ["account_id"],
+      required: ["account_id", "tool"],
     },
-    outputSchema: output({
-      overview: OBJECT,
-      payment_status_counts: OBJECT,
-      disputes: LIST,
-      disputes_total: { type: "number" },
-    }),
+    outputSchema: output({ tool: { type: "string" }, result: OBJECT }),
     outside: "foxhound-data",
+    // A read. Its audit row is bookkeeping, as the tool-call log is for every
+    // tool; the merchant's data is not changed.
     scope: "read",
     annotations: READ,
     run: (session, args) => {
       const accountId = text(args, "account_id");
-      if (!accountId)
+      const tool = text(args, "tool");
+      if (!accountId || !tool)
         return Promise.resolve(
-          refuse("account_id is required. Find one with foxhound_admin_find_merchant."),
+          refuse(
+            "account_id and tool are required. Find an account with foxhound_admin_find_merchant.",
+          ),
         );
-      return get(session, `/merchants/${segment(accountId)}/data`);
+      return callAdminApi(session.env, session.actor, {
+        signal: session.signal,
+        method: "POST",
+        path: `/merchants/${segment(accountId)}/view`,
+        body: { tool, arguments: args.arguments },
+      });
     },
   },
   {

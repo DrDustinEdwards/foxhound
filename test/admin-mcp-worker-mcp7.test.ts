@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { SCOPE_READ, SCOPE_WRITE } from "../mcp/src/scopes";
-import { ADMIN_TOOLS, ADMIN_TOOL_NAMES } from "../mcp/src/tools";
+import { ADMIN_TOOLS, ADMIN_TOOL_NAMES, MERCHANT_READ_TOOLS } from "../mcp/src/tools";
 import { serveAdminMcp } from "../mcp/src/server";
 import { isFoxhoundAdmin } from "../mcp/src/guard";
 
@@ -168,7 +168,7 @@ describe("PLANT 2: the tools", () => {
         "foxhound_admin_whats_next",
         "foxhound_admin_get_platform",
         "foxhound_admin_find_merchant",
-        "foxhound_admin_read_merchant_data",
+        "foxhound_admin_view_as_merchant",
         "foxhound_admin_check_health",
         "foxhound_admin_read_audit_log",
         "foxhound_admin_pause",
@@ -192,6 +192,13 @@ describe("PLANT 2: the tools", () => {
       }
       expect(tool.name).not.toMatch(/refund|adjust|cancel|disconnect|charge|resume/);
     }
+  });
+
+  it("View as a merchant can name exactly the merchant registry's read tools", async () => {
+    const { MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } =
+      await import("../app/lib/mcp/tools.server");
+    const reads = MERCHANT_TOOL_NAMES.filter((n) => !MERCHANT_WRITE_TOOL_NAMES.includes(n));
+    expect([...MERCHANT_READ_TOOLS].sort()).toEqual([...reads].sort());
   });
 
   it("only pause, stage_change and the test-mail send need the write scope, and their hints say so", () => {
@@ -230,10 +237,10 @@ describe("PLANT 2: the tools", () => {
         "/api/admin/v1/merchants/acct_a",
       ],
       [
-        "foxhound_admin_read_merchant_data",
-        { account_id: "acct_a" },
-        "GET",
-        "/api/admin/v1/merchants/acct_a/data",
+        "foxhound_admin_view_as_merchant",
+        { account_id: "acct_a", tool: "foxhound_get_overview" },
+        "POST",
+        "/api/admin/v1/merchants/acct_a/view",
       ],
       ["foxhound_admin_check_health", {}, "GET", "/api/admin/v1/health"],
       ["foxhound_admin_read_audit_log", {}, "GET", "/api/admin/v1/audit-log"],

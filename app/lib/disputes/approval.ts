@@ -133,3 +133,9 @@ export async function approveAndSubmit(
   await deps.confirmSubmission();
   return { status: "submitted" };
 }
+
+/** How long before its evidence deadline an unsubmitted dispute is submitted
+ *  automatically, for an account that turned auto-submit on. Declared here, with
+ *  the approval rules, so the cron that acts on it and the agent read that
+ *  reports it cannot disagree. */
+export const DISPUTE_AUTO_SUBMIT_HOURS = 24;

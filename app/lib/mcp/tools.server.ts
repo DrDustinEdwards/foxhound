@@ -1,22 +1,43 @@
 import { getAuditRun, listAuditRuns } from "~/lib/audit/persist.server";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
-import { listDisputes, type DisputeRow } from "~/lib/disputes/queries.server";
+import {
+  getBillingInvoiceDetail,
+  getBillingLedger,
+  listBillingInvoices,
+} from "~/lib/billing/queries.server";
+import { getRecoveryStats } from "~/lib/dashboard/stats.server";
+import {
+  getDisputeDetail,
+  listDisputes,
+  readDisputeAutoSubmit,
+  readDisputeSettings,
+  type DisputeRow,
+} from "~/lib/disputes/queries.server";
 import {
   getAlertsView,
   getCustomerHealthDetail,
   getIntelligenceOverview,
+  getReportsArchive,
 } from "~/lib/intelligence/views.server";
+import {
+  listActionableRecommendations,
+  RECOMMENDATIONS_PAGE_SIZE,
+} from "~/lib/intelligence/recommendations.server";
+import { DISPUTE_AUTO_SUBMIT_HOURS } from "~/lib/disputes/approval";
+import { isCardExpired, isCardExpiringSoon } from "~/lib/recovery/expiring-card";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/directory.server";
 import {
   getFailedPaymentDetail,
   getGlobalPaymentStatusCounts,
+  listExpiringCardAlerts,
   listFilteredFailedPayments,
+  listWinbackSequences,
   type FailedPaymentPageSize,
   type RecoveryStepRow,
 } from "~/lib/recovery/queries.server";
+import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 import {
   applyAlertConfig,
@@ -43,6 +64,7 @@ import {
   CONFIRM_RESULT_FIELDS,
   confirmationNeeded,
 } from "./confirm.server";
+import { maskEmail } from "./redact";
 import {
   defineToolRegistry,
   type McpTool,
@@ -272,6 +294,7 @@ function stepForAgent(row: RecoveryStepRow) {
 const PAYMENT_PAGE_SIZES = [10, 25, 50, 100] as const;
 const DISPUTE_PAGE_SIZE = 25;
 const AUDIT_RUN_PAGE_SIZE = 12;
+const RECOVERY_LIST_PAGE_SIZE = 25;
 /** The audit-run history the helper is asked for. It takes a limit, not an
  *  offset, so pages are cut from this many of the newest runs. */
 const AUDIT_RUN_HISTORY_LIMIT = 120;
@@ -474,14 +497,76 @@ const READ_TOOLS: McpTool[] = [
   },
   {
     name: "foxhound_get_intelligence",
-    title: "Churn and alerts",
+    title: "Churn, alerts, recommendations and reports",
     description:
-      "Read this account's subscription intelligence: churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings. Alert ids from here are the ones foxhound_manage_alerts takes.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: result(["churn", "alerts", "alert_history"], []),
+      "Read this account's subscription intelligence. view churn (the default): churn bands, the churn chart series, the highest-risk customers, and the metric alerts with their recent firings; alert ids from here are the ones foxhound_manage_alerts takes. view recommendations: customers with a recommended next action, largest MRR first, 50 a page (pass next_cursor back to read on). view reports: the monthly narrative reports, newest first, with Stripe customer ids in place of names. Read only: dismissing or snoozing a recommendation is not offered.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        view: {
+          type: "string",
+          enum: ["churn", "recommendations", "reports"],
+          description: "What to read. Defaults to churn.",
+        },
+        cursor: CURSOR_PROPERTY,
+      },
+      required: [],
+    },
+    outputSchema: result(
+      [
+        "churn",
+        "alerts",
+        "alert_history",
+        "recommendations",
+        "reports",
+        "total",
+        "has_more",
+        "next_cursor",
+      ],
+      [],
+    ),
     annotations: READ,
     scope: "read",
-    execute: async (ctx) => {
+    execute: async (ctx, args) => {
+      const tool = "foxhound_get_intelligence";
+      const view = stringArg(args, "view") ?? "churn";
+      if (view === "recommendations") {
+        const page = decodeCursor(tool, args);
+        const { rows, totalCount } = await listActionableRecommendations(
+          ctx.db,
+          ctx.accountId,
+          page,
+        );
+        const totalPages = Math.max(1, Math.ceil(totalCount / RECOMMENDATIONS_PAGE_SIZE));
+        return {
+          // A PICK: the name is left out here and again by the redactor.
+          recommendations: rows.map((r) => ({
+            stripeCustomerId: r.stripeCustomerId,
+            planName: r.planName,
+            mrrContributionCents: r.mrrContributionCents,
+            currency: r.currency,
+            healthScore: r.healthScore,
+            recommendedAction: r.recommendedAction,
+          })),
+          total: totalCount,
+          ...pageInfo(tool, page, totalPages),
+        };
+      }
+      if (view === "reports") {
+        const reports = await getReportsArchive(ctx.db, ctx.accountId, { forAgent: true });
+        return {
+          reports: reports.map((r) => ({
+            id: r.id,
+            reportMonth: r.reportMonth,
+            generatedAt: r.generatedAt,
+            narrative: r.narrative,
+          })),
+        };
+      }
+      if (view !== "churn") {
+        throw new ToolInputError("view must be one of churn, recommendations or reports.");
+      }
       const [churn, alerts] = await Promise.all([
         getChurnView(ctx.db, ctx.accountId, ctx.now.getTime()),
         getAlertsView(ctx.db, ctx.accountId),
@@ -490,28 +575,163 @@ const READ_TOOLS: McpTool[] = [
     },
   },
   {
-    name: "foxhound_list_disputes",
-    title: "List disputes",
+    name: "foxhound_get_recovery",
+    title: "Recovery performance, win-back and expiring cards",
     description:
-      "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation. Paginated, 25 a page: pass next_cursor back to read on. Read only: cannot submit evidence, approve a submission or accept a dispute; those stay in the Foxhound app.",
+      "Read how recovery is doing. view summary (the default): failed payments active and total, the recovery rate, revenue recovered, the billable subset and the fee that would be owed, per currency. view winback: customers who canceled and Foxhound's win-back sequence for each, newest first, 25 a page. view expiring_cards: cards that are expiring or have expired, soonest first, 25 a page, with whether each has already expired and whether the customer was alerted. Paginated views take next_cursor. Customer emails are masked and no name is returned. Read only: cannot start, pause, resume or cancel a sequence or send an alert; foxhound_list_payments and foxhound_get_payment cover the failed payments themselves.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      properties: { cursor: CURSOR_PROPERTY },
+      properties: {
+        view: {
+          type: "string",
+          enum: ["summary", "winback", "expiring_cards"],
+          description: "What to read. Defaults to summary.",
+        },
+        cursor: CURSOR_PROPERTY,
+      },
+      required: [],
+    },
+    outputSchema: result(["stats", "sequences", "cards", "total", "has_more", "next_cursor"], []),
+    annotations: READ,
+    scope: "read",
+    execute: async (ctx, args) => {
+      const tool = "foxhound_get_recovery";
+      const view = stringArg(args, "view") ?? "summary";
+      if (view === "summary") {
+        return { stats: await getRecoveryStats(ctx.db, ctx.accountId, ctx.now.getTime()) };
+      }
+      const page = decodeCursor(tool, args);
+      if (view === "winback") {
+        const rows = await listWinbackSequences(ctx.db, ctx.accountId);
+        const { items, ...rest } = slicePage(tool, rows, page, RECOVERY_LIST_PAGE_SIZE);
+        // A PICK: cancelReason is the customer's free text, left out.
+        return {
+          sequences: items.map((r) => ({
+            id: r.id,
+            stripeCustomerId: r.stripeCustomerId,
+            customerEmail: r.customerEmail,
+            planName: r.planName,
+            amountCents: r.amountCents,
+            currency: r.currency,
+            status: r.status,
+            createdAt: r.createdAt,
+            resolvedAt: r.resolvedAt,
+            reactivatedAt: r.reactivatedAt,
+          })),
+          ...rest,
+        };
+      }
+      if (view === "expiring_cards") {
+        const rows = await listExpiringCardAlerts(ctx.db, ctx.accountId, {
+          includeNoPaymentMethod: true,
+        });
+        const { items, ...rest } = slicePage(tool, rows, page, RECOVERY_LIST_PAGE_SIZE);
+        return {
+          cards: items.map((r) => ({
+            id: r.id,
+            stripeCustomerId: r.stripeCustomerId,
+            customerEmail: r.customerEmail,
+            reason: r.reason,
+            cardBrand: r.cardBrand,
+            cardLast4: r.cardLast4,
+            expiresMonth: r.expiresMonth,
+            expiresYear: r.expiresYear,
+            expired: isCardExpired(r.expiresYear, r.expiresMonth, ctx.now),
+            expiringSoon: isCardExpiringSoon(r.expiresYear, r.expiresMonth, ctx.now),
+            alertSentAt: r.alertSentAt,
+          })),
+          ...rest,
+        };
+      }
+      throw new ToolInputError("view must be one of summary, winback or expiring_cards.");
+    },
+  },
+  {
+    name: "foxhound_list_disputes",
+    title: "Disputes and auto-submit",
+    description:
+      "List this account's disputes, newest first, with state, amount, evidence deadline and triage recommendation, together with the dispute settings: whether Disputes is on, whether auto-submit is on, who turned it on and when, and the rule (an unsubmitted dispute is submitted automatically when its deadline is within a day). Paginated, 25 a page: pass next_cursor back to read on. Pass dispute_id for one dispute in full: its evidence fields (names and sizes, not the text), the approval trail that says whether a person or auto-submit approved the submission, the money Stripe withdrew and reinstated, and when auto-submit will act on it. Read only: cannot submit evidence, approve a submission, accept a dispute or turn auto-submit on or off; those stay in the Foxhound app, where the merchant signs in.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        dispute_id: {
+          type: "string",
+          description: "One dispute's id, from an earlier answer. Omit to list disputes.",
+        },
+        cursor: CURSOR_PROPERTY,
+      },
       required: [],
     },
     outputSchema: result(
-      ["disputes", "total", "has_more", "next_cursor"],
-      ["disputes", "has_more"],
+      ["disputes", "dispute", "settings", "auto_submit", "total", "has_more", "next_cursor"],
+      [],
     ),
     annotations: READ,
     scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_disputes";
+      const [settings, autoSubmit] = await Promise.all([
+        readDisputeSettings(ctx.db, ctx.accountId),
+        readDisputeAutoSubmit(ctx.db, ctx.accountId),
+      ]);
+      const autoSubmitState = {
+        enabled: autoSubmit.enabled,
+        // The merchant's own sign-in turned it on; the address comes back masked.
+        turned_on_by: maskEmail(autoSubmit.optedInByEmail),
+        turned_on_at: autoSubmit.optedInAt,
+        submits_hours_before_deadline: DISPUTE_AUTO_SUBMIT_HOURS,
+      };
+      const disputeId = stringArg(args, "dispute_id");
+      if (disputeId !== null) {
+        const detail = await getDisputeDetail(ctx.db, ctx.accountId, disputeId);
+        if (!detail) {
+          throw new ToolInputError(
+            `No dispute ${disputeId} on this account. Omit dispute_id to list this account's disputes.`,
+          );
+        }
+        const { dispute, evidence, approval, funds } = detail;
+        const deadline = dispute.evidenceDeadline;
+        const unsubmitted = dispute.submittedAt === null && approval === null;
+        return {
+          dispute: {
+            ...disputeForAgent(dispute),
+            // The evidence is a PICK of its shape: the text can name the
+            // customer, so an agent sees which fields are filled and how long
+            // they are, and the merchant reads the words in the app.
+            evidence: evidence.map((e) => ({
+              field: e.fieldName,
+              characters: e.fieldValue.length,
+              staged_at: e.createdAt,
+            })),
+            approval: approval
+              ? {
+                  approved_at: approval.approvedAt,
+                  approved_by: maskEmail(approval.approvedByEmail),
+                  automatic: approval.standingOptInAt !== null,
+                  standing_opt_in_at: approval.standingOptInAt,
+                }
+              : null,
+            funds,
+            auto_submit_due_at:
+              autoSubmit.enabled && unsubmitted && deadline
+                ? new Date(deadline.getTime() - DISPUTE_AUTO_SUBMIT_HOURS * 3_600_000)
+                : null,
+          },
+          settings,
+          auto_submit: autoSubmitState,
+        };
+      }
       const page = decodeCursor(tool, args);
       const rows = await listDisputes(ctx.db, ctx.accountId);
       const { items, ...rest } = slicePage(tool, rows, page, DISPUTE_PAGE_SIZE);
-      return { disputes: items.map(disputeForAgent), ...rest };
+      return {
+        disputes: items.map(disputeForAgent),
+        settings,
+        auto_submit: autoSubmitState,
+        ...rest,
+      };
     },
   },
   {
@@ -557,14 +777,82 @@ const READ_TOOLS: McpTool[] = [
   },
   {
     name: "foxhound_get_billing",
-    title: "Foxhound billing",
+    title: "Foxhound billing and invoices",
     description:
-      "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Read only: cannot issue, pay, adjust or void anything.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: result(["ledger", "invoices", "preview"], []),
+      "Read this account's own Foxhound billing: the attributed-recovery ledger, past invoices and the next billing run's preview. Pass invoice_id (an id from the invoices in an earlier answer) for one invoice in full, with each line item and the evidence behind it. Read only: cannot issue, pay, adjust or void anything.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        invoice_id: {
+          type: "string",
+          description:
+            "One invoice's id, from invoices in an earlier answer. Omit for the summary.",
+        },
+      },
+      required: [],
+    },
+    outputSchema: result(["ledger", "invoices", "preview", "invoice", "line_items"], []),
     annotations: READ,
     scope: "read",
-    execute: async (ctx) => {
+    execute: async (ctx, args) => {
+      const invoiceId = stringArg(args, "invoice_id");
+      if (invoiceId !== null) {
+        const detail = await getBillingInvoiceDetail(ctx.db, ctx.accountId, invoiceId);
+        if (!detail) {
+          throw new ToolInputError(
+            `No invoice ${invoiceId} on this account. Omit invoice_id to list this account's invoices.`,
+          );
+        }
+        // A PICK, like disputes and steps: the enriched line carries the whole
+        // dispute row and the admin audit entry (an admin's address), neither of
+        // which belongs on this wire.
+        const { invoice } = detail;
+        return {
+          invoice: {
+            id: invoice.id,
+            currency: invoice.currency,
+            periodStart: invoice.periodStart,
+            periodEnd: invoice.periodEnd,
+            status: invoice.status,
+            totalCents: invoice.totalCents,
+            stripeInvoiceUrl: invoice.stripeInvoiceUrl,
+            createdAt: invoice.createdAt,
+            finalizedAt: invoice.finalizedAt,
+          },
+          line_items: detail.lineItems.map((l) => ({
+            id: l.lineItem.id,
+            type: l.lineItem.type,
+            currency: l.lineItem.currency,
+            amountCents: l.lineItem.amountCents,
+            feeCents: l.lineItem.feeCents,
+            description: l.lineItem.description,
+            createdAt: l.lineItem.createdAt,
+            creditsLineItemId: l.lineItem.creditsLineItemId,
+            recovery: l.recoveredPayment
+              ? {
+                  recoveredAt: l.recoveredPayment.recoveredAt,
+                  amountCents: l.recoveredPayment.amountCents,
+                  currency: l.recoveredPayment.currency,
+                  recoveryMethod: l.recoveredPayment.recoveryMethod,
+                  attributionKind: l.recoveredPayment.attributionKind,
+                  daysToRecover: l.recoveredPayment.daysToRecover,
+                  creditedStepType: l.creditedStepType,
+                }
+              : null,
+            dispute: l.dispute
+              ? {
+                  id: l.dispute.id,
+                  stripeDisputeId: l.dispute.stripeDisputeId,
+                  amountCents: l.dispute.amountCents,
+                  currency: l.dispute.currency,
+                  outcome: l.dispute.outcome,
+                }
+              : null,
+            adjustmentRecordedAt: l.adminAuditEntry?.createdAt ?? null,
+          })),
+        };
+      }
       const [ledger, invoices, preview] = await Promise.all([
         getBillingLedger(ctx.db, ctx.accountId),
         listBillingInvoices(ctx.db, ctx.accountId),
@@ -621,6 +909,10 @@ const READ_TOOLS: McpTool[] = [
               expired: voices.expired,
               network: voices.network,
               fraud: voices.fraud,
+              // Counts only: the samples are the merchant's past emails to
+              // customers and greet them by name, so the text stays in the app.
+              sample_count: readVoiceSamples(voices.samples).length,
+              sample_characters: readVoiceSamples(voices.samples).map((x) => x.length),
             };
       return {
         audit,
@@ -770,7 +1062,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
   // sanitize it: `sanitizeCopy` and `passesQualityGate` run on what comes out.
   brand_voice: async (ctx, s) => {
     await requireOwnConnection(ctx, s);
-    return applied(
+    const done = applied(
       await applyBrandVoice(
         ctx.db,
         ctx.accountId,
@@ -782,11 +1074,23 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
             expired: "expired",
             network: "network",
             fraud: "fraud",
+            samples: "samples",
           }),
         },
         ctx.trace,
       ),
     );
+    // The samples were written but are not echoed: they are the merchant's past
+    // emails and name their customers, so the answer carries counts only.
+    const { samples, ...state } = done.state;
+    return {
+      ...done,
+      state: {
+        ...state,
+        sample_count: samples.length,
+        sample_characters: samples.map((x) => x.length),
+      },
+    };
   },
   intelligence_context: async (ctx, s) =>
     applied(
@@ -891,7 +1195,7 @@ const WRITE_TOOLS: McpTool[] = [
         brand_voice: {
           type: "object",
           description:
-            "The tone Foxhound writes one connection's recovery emails in: free-form guidance for the writer, not a template.",
+            "The tone Foxhound writes one connection's recovery emails in: free-form guidance for the writer, not a template, and optionally the merchant's own past emails as samples.",
           properties: {
             connection_id: { type: "string", description: "From foxhound_get_settings." },
             general: {
@@ -905,6 +1209,13 @@ const WRITE_TOOLS: McpTool[] = [
             expired: { type: "string", description: "Expired card." },
             network: { type: "string", description: "Network and issuer declines." },
             fraud: { type: "string", description: "Suspected fraud." },
+            samples: {
+              type: "array",
+              items: { type: "string" },
+              maxItems: 5,
+              description:
+                "Up to five past emails the merchant wrote themselves, up to 3,000 characters each, that the writer matches in length, greeting and sign-off. Replaces the stored samples; an empty list clears them. The merchant supplies the text. They are never read back: foxhound_get_settings reports only how many there are and how long.",
+            },
           },
           required: ["connection_id"],
         },

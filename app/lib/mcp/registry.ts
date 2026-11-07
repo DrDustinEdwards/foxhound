@@ -54,6 +54,12 @@ export const DENIED_TOOL_FRAGMENTS: readonly string[] = [
   "account_delete",
   "delete_user",
   "user_delete",
+  // Dispute auto-submit: turning it on is the merchant's standing approval to
+  // submit evidence to Stripe, the same act as approving a submission. The
+  // setting is readable (foxhound_list_disputes) and changed only by the
+  // merchant, signed in, on /settings/disputes.
+  "auto_submit",
+  "autosubmit",
   // Anything that records an outcome or bills.
   "record_outcome",
   "outcome",

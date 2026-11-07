@@ -243,6 +243,30 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
     expect(theirs.brandVoiceFraud).toBe(`fraud of ${THEIRS}`);
   });
 
+  it("brand_voice samples are stored on MINE, trimmed and capped, and the answer carries counts, never the text", async () => {
+    const { db, tokens } = await seed();
+    const { status, json, text } = await updateSettings(tokens[MINE], "brand_voice", {
+      connection_id: `sc_${MINE}`,
+      samples: ["  Hi Jordan, quick note about your card.  ", "", "x".repeat(3_500)],
+    });
+    expect(status).toBe(200);
+    expect(resultOf(json).isError).toBeUndefined();
+    // Two samples survive (the empty box is dropped), the long one cut to 3,000.
+    expect(JSON.parse((await connectionOf(db, MINE)).brandVoiceSamples as string)).toEqual([
+      "Hi Jordan, quick note about your card.",
+      "x".repeat(3_000),
+    ]);
+    const state = resultOf(json).structuredContent.state as Record<string, unknown>;
+    expect(state.sample_count).toBe(2);
+    expect(state.sample_characters).toEqual([38, 3_000]);
+    expect("samples" in state).toBe(false);
+    expect(text).not.toContain("Jordan");
+    // Nothing of THEIRS moved, and an empty list clears MINE.
+    expect((await connectionOf(db, THEIRS)).brandVoiceSamples).toBeNull();
+    await updateSettings(tokens[MINE], "brand_voice", { connection_id: `sc_${MINE}`, samples: [] });
+    expect((await connectionOf(db, MINE)).brandVoiceSamples).toBeNull();
+  });
+
   it("intelligence_context changes MINE and leaves THEIRS alone", async () => {
     const { db, tokens } = await seed();
     const { json } = await updateSettings(tokens[MINE], "intelligence_context", {

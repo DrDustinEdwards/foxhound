@@ -2,13 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   accounts,
+  adminAuditLog,
   apiKeys,
+  billingInvoices,
+  billingLineItems,
   customerContext,
+  disputeApprovals,
+  disputeEvidence,
   disputes,
+  expiringCardAlerts,
   failedPayments,
   intelligenceReports,
   recoverySteps,
   stripeConnections,
+  winBackSequences,
 } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { type McpToolRegistry } from "~/lib/mcp/registry";
@@ -96,6 +103,7 @@ const READ_TOOL_ARGS: Record<string, Record<string, unknown>> = {
   foxhound_get_customer: { stripe_customer_id: `cus_${MINE}` },
   foxhound_get_intelligence: {},
   foxhound_list_disputes: {},
+  foxhound_get_recovery: {},
   foxhound_review_audits: {},
   foxhound_get_billing: {},
   foxhound_get_settings: {},
@@ -405,5 +413,168 @@ describe("PLANT 6: text the field walk cannot see into", () => {
     expect(voice.general).toBe("warm");
     expect("samples" in voice).toBe(false);
     expect(text).not.toContain("Zebulon");
+  });
+});
+
+describe("PLANT 7: the reads added for the full tool set keep names, addresses and text out", () => {
+  it("one dispute in full returns evidence sizes and the approval trail, never the evidence text, the IP or the approver's address", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(disputeEvidence).values({
+      id: "de_mine",
+      disputeId: `dp_${MINE}`,
+      accountId: MINE,
+      fieldName: "customer_communication",
+      fieldValue: `${MY_NAME} wrote to us on 3 May.`,
+      createdAt: NOW,
+    });
+    await db.insert(disputeApprovals).values({
+      id: "da_mine",
+      disputeId: `dp_${MINE}`,
+      accountId: MINE,
+      approvedByUserId: "user_mine",
+      approvedByEmail: "owner.person@example.test",
+      evidenceVersionHash: "hash",
+      approvedAt: NOW,
+      standingOptInAt: NOW,
+    });
+    const { isError, data, text } = await callTool(tokens[MINE], "foxhound_list_disputes", {
+      dispute_id: `dp_${MINE}`,
+    });
+    expect(isError, text).toBe(false);
+    const dispute = data.dispute as Record<string, unknown>;
+    expect(dispute.evidence).toEqual([
+      {
+        field: "customer_communication",
+        characters: `${MY_NAME} wrote to us on 3 May.`.length,
+        staged_at: NOW.toISOString(),
+      },
+    ]);
+    // Automatic, because the approval stands on an opt-in, and the approver is masked.
+    expect((dispute.approval as Record<string, unknown>).automatic).toBe(true);
+    expect((dispute.approval as Record<string, unknown>).approved_by).toBe("o***@example.test");
+    for (const leaked of [MY_NAME, MY_EMAIL, "203.0.113.77", "Coriander", "owner.person"]) {
+      expect(text, leaked).not.toContain(leaked);
+    }
+  });
+
+  it("an invoice in full returns its lines without the dispute row or the admin's address", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(billingInvoices).values({
+      id: "inv_mine",
+      accountId: MINE,
+      currency: "usd",
+      periodStart: new Date("2026-07-01T00:00:00.000Z"),
+      periodEnd: new Date("2026-08-01T00:00:00.000Z"),
+      status: "paid",
+      totalCents: 840,
+      idempotencyKey: "idem_mine",
+      createdAt: NOW,
+    });
+    await db.insert(adminAuditLog).values({
+      id: "aal_mine",
+      actorEmail: "dustin.admin@example.test",
+      action: "create_adjustment",
+      createdAt: NOW,
+    });
+    await db.insert(billingLineItems).values([
+      {
+        id: "li_dispute",
+        invoiceId: "inv_mine",
+        accountId: MINE,
+        type: "dispute_fee",
+        currency: "usd",
+        amountCents: 4200,
+        feeCents: 840,
+        disputeId: `dp_${MINE}`,
+        createdAt: NOW,
+      },
+      {
+        id: "li_adjust",
+        invoiceId: "inv_mine",
+        accountId: MINE,
+        type: "adjustment",
+        currency: "usd",
+        amountCents: -100,
+        adminAuditLogId: "aal_mine",
+        createdAt: new Date(NOW.getTime() + 1),
+      },
+    ]);
+    const { isError, data, text } = await callTool(tokens[MINE], "foxhound_get_billing", {
+      invoice_id: "inv_mine",
+    });
+    expect(isError, text).toBe(false);
+    const lines = data.line_items as Record<string, unknown>[];
+    expect(lines.map((l) => l.id)).toEqual(["li_dispute", "li_adjust"]);
+    expect((lines[0].dispute as Record<string, unknown>).stripeDisputeId).toBe(`dp_stripe_${MINE}`);
+    expect(lines[1].adjustmentRecordedAt).toBe(NOW.toISOString());
+    for (const leaked of [MY_NAME, MY_EMAIL, "203.0.113.77", "Coriander", "dustin.admin"]) {
+      expect(text, leaked).not.toContain(leaked);
+    }
+  });
+
+  it("win-back and expiring cards come back masked, with no cancel reason", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(winBackSequences).values({
+      id: "wb_mine",
+      stripeCustomerId: `cus_${MINE}`,
+      stripeSubscriptionId: "sub_mine",
+      customerEmail: MY_EMAIL,
+      customerName: MY_NAME,
+      planName: "Pro",
+      amountCents: 2900,
+      currency: "usd",
+      cancelReason: `${MY_NAME} said the price was too high`,
+      status: "active",
+      createdAt: NOW,
+      accountId: MINE,
+    });
+    await db.insert(expiringCardAlerts).values({
+      id: "ec_mine",
+      stripeCustomerId: `cus_${MINE}`,
+      customerEmail: MY_EMAIL,
+      customerName: MY_NAME,
+      cardLast4: "4242",
+      cardBrand: "visa",
+      expiresMonth: 7,
+      expiresYear: 2026,
+      createdAt: NOW,
+      accountId: MINE,
+    });
+    const winback = await callTool(tokens[MINE], "foxhound_get_recovery", { view: "winback" });
+    expect(winback.isError, winback.text).toBe(false);
+    expect((winback.data.sequences as unknown[]).length).toBe(1);
+    const cards = await callTool(tokens[MINE], "foxhound_get_recovery", {
+      view: "expiring_cards",
+    });
+    expect(cards.isError, cards.text).toBe(false);
+    // Expired in July 2026 and now is August 2026.
+    expect((cards.data.cards as Record<string, unknown>[])[0].expired).toBe(true);
+    for (const bytes of [winback.text, cards.text]) {
+      for (const leaked of [MY_NAME, MY_EMAIL, "too high"])
+        expect(bytes, leaked).not.toContain(leaked);
+    }
+  });
+
+  it("recommendations drop the name, and the report archive swaps names for ids", async () => {
+    const { db, tokens } = await seed();
+    await db.insert(intelligenceReports).values({
+      id: "ir_old",
+      accountId: MINE,
+      reportMonth: NOW,
+      narrative: `${MY_NAME} is at risk.`,
+      generatedAt: NOW,
+    });
+    const reports = await callTool(tokens[MINE], "foxhound_get_intelligence", { view: "reports" });
+    expect(reports.isError, reports.text).toBe(false);
+    expect((reports.data.reports as Record<string, unknown>[])[0].narrative).toBe(
+      `cus_${MINE} is at risk.`,
+    );
+    expect(reports.text).not.toContain("Zebulon");
+    const recs = await callTool(tokens[MINE], "foxhound_get_intelligence", {
+      view: "recommendations",
+    });
+    expect(recs.isError, recs.text).toBe(false);
+    expect(recs.text).not.toContain("Zebulon");
+    expect(recs.text).not.toContain(THEIR_NAME);
   });
 });
