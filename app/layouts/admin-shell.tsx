@@ -45,7 +45,7 @@ export const handle = { hydrate: true };
 
 // The ONE gate for /admin. Cloudflare Access signs the person in before a
 // request reaches the Worker; this re-verifies Access's JWT and the
-// ADMIN_EMAIL allowlist (app/lib/auth/access.server.ts), so a request that got
+// ADMIN_EMAIL and CO_OWNER_EMAILS roster (app/lib/auth/access.server.ts), so a request that got
 // round Access, or an Access setup that is wrong, never reaches an admin loader
 // or action. Anything else gets a 404, as before, so /admin's existence is not
 // disclosed. /admin no longer sits under the merchant app shell: no Better Auth

@@ -7,8 +7,8 @@ import { isAdminEmail } from "~/lib/auth/roles";
 // blocklist. The DB-backed account/invite flow is verified against a live D1
 // (staging round-trip / local wrangler dev), not here.
 
-function env(adminEmail?: string): Env {
-  return { ADMIN_EMAIL: adminEmail } as Env;
+function env(adminEmail?: string, coOwners?: string): Env {
+  return { ADMIN_EMAIL: adminEmail, CO_OWNER_EMAILS: coOwners } as Env;
 }
 
 describe("isAdminEmail", () => {
@@ -16,10 +16,12 @@ describe("isAdminEmail", () => {
     expect(isAdminEmail(env(), "anyone@example.com")).toBe(false);
   });
 
-  it("parses a comma-separated allowlist, trimming and lowercasing", () => {
-    const e = env(" Dustin@Example.com , ops@Example.com ");
+  it("reads the main admin and the comma-separated co-owners, trimming and lowercasing", () => {
+    const e = env(" Dustin@Example.com ", " ops@Example.com ,");
     expect(isAdminEmail(e, "DUSTIN@example.com")).toBe(true);
     expect(isAdminEmail(e, "ops@example.com")).toBe(true);
+    // Unset ADMIN_EMAIL closes the site to co-owners too.
+    expect(isAdminEmail(env(undefined, "ops@example.com"), "ops@example.com")).toBe(false);
   });
 
   it("denies non-listed emails and null/undefined", () => {

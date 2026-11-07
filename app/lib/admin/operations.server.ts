@@ -255,6 +255,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["TURNSTILE_SITE_KEY", "var"],
     ["BETTER_AUTH_SECRET", "secret"],
     ["ADMIN_EMAIL", "secret"],
+    ["CO_OWNER_EMAILS", "secret"],
     ["ENCRYPTION_KEY", "secret"],
     ["STRIPE_SECRET_KEY", "secret"],
     ["STRIPE_CLIENT_ID", "secret"],

@@ -68,7 +68,8 @@ function env(): Env {
         bind: () => ({ all: async () => ({ results: [] }) }),
       }),
     },
-    ADMIN_EMAIL: `${ADMIN}, second@foxhound.test`,
+    ADMIN_EMAIL: ADMIN,
+    CO_OWNER_EMAILS: "second@foxhound.test",
     RATE_LIMITER: {
       idFromName: (n: string) => n,
       get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),

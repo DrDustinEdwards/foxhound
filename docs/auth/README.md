@@ -149,7 +149,7 @@ Owners can remove members (not the owner) at `/settings/team`.
 | `GOOGLE_CLIENT_SECRET`                                                  | secret (`wrangler secret`)  | Google OAuth client secret.                                                  |
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | secrets (`wrangler secret`) | Sign in with Apple: the Services ID, the team, and the key's id and PEM.     |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY`                           | var / secret                | the check on the emailed link (and the estimator).                           |
-| `ADMIN_EMAIL`                                                           | secret (`wrangler secret`)  | comma-separated platform-admin allowlist. Unset => no admins.                |
+| `ADMIN_EMAIL`, `CO_OWNER_EMAILS`                                        | secrets (`wrangler secret`) | the main admin; the comma-separated co-owners. `ADMIN_EMAIL` unset => none.  |
 | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`                                      | secrets (`wrangler secret`) | the Access team and the admin app's audience tag. Either unset => no admins. |
 
 Never commit secret values; they live only in `wrangler secret`.
