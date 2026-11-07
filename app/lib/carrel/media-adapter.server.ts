@@ -63,8 +63,5 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     // In the served bucket, where they always were: the media route serves only UPLOAD_KEY (app/routes/files/media.ts).
     history: { prefix: "revisions/" },
     suggest: (picture, id) => suggestFor(env, picture, id),
-    // The package checks every address and each redirect before this fetch runs (importRefusal, fetchImport).
-    importFetch: ((input: RequestInfo | URL, init?: RequestInit) =>
-      fetch(input, init)) as typeof fetch,
   });
 }
