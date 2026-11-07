@@ -211,6 +211,8 @@ describe("webhook batch builders (compile against schema)", () => {
     const flip = sqlOf(batch[1]);
     expect(flip.sql).toMatch(/update .*failed_payments/i);
     expect(flip.params).toContain("recovered");
+    // Pinned to the account, so a foreign failed payment id matches no row.
+    expect(flip.params).toContain("acc_1");
     // The outcomes key first, so a second recorder reads as a replay.
     expect(sqlOf(batch[2]).sql).toMatch(/insert into "outcomes"/i);
     expect(sqlOf(batch[3]).sql).toMatch(/insert into "recovered_payments"/i);
@@ -220,18 +222,29 @@ describe("webhook batch builders (compile against schema)", () => {
     // Three statements, not two: the marker is what makes the refund
     // order-independent (review HIGH-1). It must ride the SAME batch as the
     // claim, or a claim can commit without it and the refund is lost.
-    const refund = buildRefundStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
+    const refund = buildRefundStampBatch(db, {
+      claim,
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      at: now,
+    });
     expect(refund.length).toBe(3);
     expect(sqlOf(refund[0]).sql).toMatch(/insert into .*webhook_events/i);
     const marker = sqlOf(refund[1]);
     expect(marker.sql).toMatch(/update .*failed_payments/i);
     expect(marker.sql).toMatch(/refund_signal_at/i);
     expect(marker.sql).toMatch(/refund_signal_at.*is null/i); // first refund wins
+    expect(marker.params).toContain("acc_1");
     expect(sqlOf(refund[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
   it("dispute stamp batch: claim + the failed payment's dispute marker + conditional update on recovered_payments", () => {
-    const dispute = buildDisputeStampBatch(db, { claim, failedPaymentId: "fp_1", at: now });
+    const dispute = buildDisputeStampBatch(db, {
+      claim,
+      accountId: "acc_1",
+      failedPaymentId: "fp_1",
+      at: now,
+    });
     expect(dispute.length).toBe(3);
     expect(sqlOf(dispute[1]).sql).toMatch(/update .*failed_payments.*dispute_signal_at/i);
     expect(sqlOf(dispute[2]).sql).toMatch(/update .*recovered_payments/i);
