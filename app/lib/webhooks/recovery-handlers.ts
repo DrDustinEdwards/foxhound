@@ -428,6 +428,7 @@ export async function handleStampRefund(
     build: (db) =>
       buildRefundStampBatch(db, {
         claim,
+        accountId,
         failedPaymentId: refundedFailedPaymentId,
         at: receivedAt,
       }),

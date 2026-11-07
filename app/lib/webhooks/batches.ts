@@ -212,6 +212,7 @@ export function buildSequenceStartBatch(db: Db, input: SequenceStartBatchInput):
     .where(
       and(
         eq(failedPayments.id, input.failedPaymentId),
+        eq(failedPayments.accountId, input.accountId),
         eq(failedPayments.status, FAILED_PAYMENT_STATUS_STRIPE_RETRYING),
       ),
     );
@@ -304,6 +305,7 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
     .where(
       and(
         eq(failedPayments.id, input.failedPaymentId),
+        eq(failedPayments.accountId, input.accountId),
         inArray(failedPayments.status, [...RECOVERABLE_FAILED_PAYMENT_STATUSES]),
       ),
     );
@@ -350,7 +352,7 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
  */
 export function buildRefundStampBatch(
   db: Db,
-  input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
+  input: { claim: WebhookClaimInput; accountId: string; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
   return [
     buildWebhookClaim(db, input.claim),
@@ -358,7 +360,11 @@ export function buildRefundStampBatch(
       .update(failedPayments)
       .set({ refundSignalAt: input.at })
       .where(
-        and(eq(failedPayments.id, input.failedPaymentId), isNull(failedPayments.refundSignalAt)),
+        and(
+          eq(failedPayments.id, input.failedPaymentId),
+          eq(failedPayments.accountId, input.accountId),
+          isNull(failedPayments.refundSignalAt),
+        ),
       ),
     db
       .update(recoveredPayments)
@@ -378,7 +384,7 @@ export function buildRefundStampBatch(
  *  no-op, not a second write. Shared by buildDisputeStampBatch and
  *  buildDisputeIntakeBatch (dispute intake also excludes the underlying
  *  recovery from billing when the disputed charge is resolved to one). */
-function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
+function buildDisputedAtStamp(db: Db, accountId: string, failedPaymentId: string, at: Date) {
   return [
     // The order-independent half, as refund_signal_at is for refunds: a dispute
     // that lands BEFORE the recovery row exists stamps the failed payment, and
@@ -387,7 +393,13 @@ function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
     db
       .update(failedPayments)
       .set({ disputeSignalAt: at })
-      .where(and(eq(failedPayments.id, failedPaymentId), isNull(failedPayments.disputeSignalAt))),
+      .where(
+        and(
+          eq(failedPayments.id, failedPaymentId),
+          eq(failedPayments.accountId, accountId),
+          isNull(failedPayments.disputeSignalAt),
+        ),
+      ),
     db
       .update(recoveredPayments)
       .set({ disputedAt: at })
@@ -403,11 +415,11 @@ function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
 /** charge.dispute.created: claim + stamp recovered_payments.disputed_at (feeds the billable predicate). */
 export function buildDisputeStampBatch(
   db: Db,
-  input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
+  input: { claim: WebhookClaimInput; accountId: string; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
   return [
     buildWebhookClaim(db, input.claim),
-    ...buildDisputedAtStamp(db, input.failedPaymentId, input.at),
+    ...buildDisputedAtStamp(db, input.accountId, input.failedPaymentId, input.at),
   ];
 }
 
@@ -489,7 +501,7 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     }),
   );
   const stamp = input.linkedFailedPaymentId
-    ? buildDisputedAtStamp(db, input.linkedFailedPaymentId, input.createdAt)
+    ? buildDisputedAtStamp(db, input.accountId, input.linkedFailedPaymentId, input.createdAt)
     : [];
   return [claim, disputeInsert, ...evidenceInserts, ...stamp];
 }
