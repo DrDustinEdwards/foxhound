@@ -1,4 +1,8 @@
-import { runJobs } from "@dustinedwards/site-runtime/cron";
+import {
+  CRON_SKIPPED,
+  runJobs,
+  type CronJob as SiteCronJob,
+} from "@dustinedwards/site-runtime/cron";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 import { desc, eq } from "drizzle-orm";
 
@@ -159,9 +163,10 @@ export async function runCronJob(
   env: Env,
   cronName: string,
   handler: CronHandler,
+  options: { now?: boolean } = {},
 ): Promise<CronRunOutcome> {
   try {
-    return await executeCronJob(env, cronName, handler);
+    return await executeCronJob(env, cronName, handler, options);
   } catch (err) {
     // THE INFRASTRUCTURE GUARD (376 item 15's verify-first list, session 85).
     //
@@ -235,6 +240,7 @@ async function executeCronJob(
   env: Env,
   cronName: string,
   handler: CronHandler,
+  { now = false }: { now?: boolean },
 ): Promise<CronRunOutcome> {
   const db = getDb(env);
 
@@ -255,7 +261,12 @@ async function executeCronJob(
       .orderBy(desc(cronRunHistory.finishedAt))
       .limit(1)
   )[0];
-  if (!isDueByInterval(last?.finishedAt ?? null, config?.minIntervalMinutes ?? null, new Date())) {
+  // A run now (runJobNowList) asks for this run on purpose, so the interval does not apply; the enabled gate and the
+  // lock still do.
+  if (
+    !now &&
+    !isDueByInterval(last?.finishedAt ?? null, config?.minIntervalMinutes ?? null, new Date())
+  ) {
     return { cronName, status: "skipped", rowsProcessed: 0, message: "not_due" };
   }
 
@@ -318,4 +329,28 @@ async function executeCronJob(
       // Deliberately swallowed. See above.
     }
   }
+}
+
+/** The jobs the operator API's run_job may run now (RUN_NOW_JOBS in registry.ts), each through runCronJob with the
+ *  interval gate off: cron_config's enabled gate, the CRON_LOCK lease, cron_run_history and the failure alert all hold,
+ *  and site-runtime's runJobNow records the run in cron_runs as the trigger does. A disabled or locked job is a skip,
+ *  never a success it did not have; a failure throws its message. */
+export function runJobNowList(
+  env: Env,
+  jobs: (CronJob & { backup?: boolean })[],
+  run: typeof runCronJob = runCronJob,
+): SiteCronJob[] {
+  return jobs.map((job) => ({
+    name: job.name,
+    everyMinutes: cronEveryMinutes(job.schedule),
+    timeoutMs: cronTimeoutMs(job.schedule),
+    holdOnTimeout: true,
+    ...(job.backup ? { backup: true } : {}),
+    run: async () => {
+      const outcome = await run(env, job.name, job.handler, { now: true });
+      if (outcome.status === "skipped") return CRON_SKIPPED;
+      if (outcome.status === "failed") throw new Error(outcome.message ?? "failed");
+      return { rowsProcessed: outcome.rowsProcessed, message: outcome.message };
+    },
+  }));
 }

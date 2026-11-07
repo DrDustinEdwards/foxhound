@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { cronRunHistory } from "~/db/schema";
+import { runJobTool } from "@dustinedwards/site-runtime/cron";
+import { cronConfig, cronRunHistory } from "~/db/schema";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -143,5 +144,66 @@ describe("PLANT 3: the handler path is unchanged", () => {
     const rows = await db.select().from(cronRunHistory);
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("failed");
+  });
+});
+
+// Capsid Admin's run a job now (the operator API's run_job, app/lib/operator.server.ts). A run now is asked for on
+// purpose, so the min-interval gate is off; cron_config's enabled gate and the CRON_LOCK lease still hold, the run is
+// recorded in cron_run_history, and only the allowlisted jobs are offered: none that moves money or mails anyone.
+const { runJobNowList } = await import("~/lib/cron/run");
+const { RUN_NOW_JOBS } = await import("~/lib/cron/registry");
+
+describe("run a job now", () => {
+  it("runs a job its interval says is not due, skips a disabled one, and offers no money or mail job", async () => {
+    const { db } = freshDb();
+    const now = new Date();
+    const handler = vi.fn(async () => ({ rowsProcessed: 3 }));
+    await db.insert(cronConfig).values([
+      { cronName: "retention-page-404", minIntervalMinutes: 1440, updatedAt: now },
+      { cronName: "retention-ai-calls", enabled: false, updatedAt: now },
+    ]);
+    await db.insert(cronRunHistory).values({
+      cronName: "retention-page-404",
+      finishedAt: now,
+      status: "success",
+      createdAt: now,
+    });
+    const tool = runJobTool(
+      null,
+      runJobNowList(envWith(workingLock()), [
+        { name: "retention-page-404", schedule: "0 3 * * *", handler },
+        { name: "retention-ai-calls", schedule: "0 3 * * *", handler },
+      ]),
+    );
+
+    const ran = (await tool.run({ job: "retention-page-404" })) as { runs: { status: string }[] };
+    expect(ran.runs.map((r) => r.status)).toEqual(["ok"]);
+    expect(handler).toHaveBeenCalledTimes(1);
+    const rows = await db.select().from(cronRunHistory);
+    expect(rows.filter((r) => r.cronName === "retention-page-404")).toHaveLength(2);
+
+    const disabled = (await tool.run({ job: "retention-ai-calls" })) as {
+      runs: { status: string }[];
+    };
+    expect(disabled.runs.map((r) => r.status)).toEqual(["skipped"]);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    const names = RUN_NOW_JOBS.map((j) => j.name);
+    for (const money of [
+      "recovery-tick",
+      "billing-monthly",
+      "winback-send",
+      "credit-note-retry",
+      "stripe-deauthorize-retry",
+      "dispute-fee-pricing",
+      "weekly-digest",
+      "expiring-cards",
+    ])
+      expect(names).not.toContain(money);
+    expect(RUN_NOW_JOBS.filter((j) => j.backup).map((j) => j.name)).toEqual([
+      "d1-backup",
+      "media-backup",
+      "evidence-backup",
+    ]);
   });
 });

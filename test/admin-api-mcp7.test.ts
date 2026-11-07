@@ -34,7 +34,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/backup/d1-backup", () => ({
-  backupFilesNow: async () => [{ name: "media", complete: true, copied: 2 }],
   backupStatus: async () => ({ last_ok: null, age_hours: null, files: {} }),
 }));
 
@@ -276,22 +275,10 @@ describe("PLANT 3: pause is a direct write, audited under the acting admin", () 
   });
 });
 
-describe("the files backup", () => {
-  it("runs now for an admin and leaves an audit row; a merchant key is refused", async () => {
-    const { db, keys } = await seed();
-    const ok = await api("/backup/media", { ...asAdmin(keys.admin), method: "POST" });
-    expect(ok.status).toBe(200);
-    expect((ok.json.data as { files: unknown[] }).files).toEqual([
-      { name: "media", complete: true, copied: 2 },
-    ]);
-    expect(
-      (await db.select().from(adminAuditLog)).map((a) => [a.actorEmail, a.action]),
-    ).toContainEqual([ADMIN, "backup.media"]);
-    const refused = await api("/backup/media", {
-      key: keys.merchant,
-      actor: ADMIN,
-      method: "POST",
-    });
+describe("the backup state", () => {
+  it("reads for an admin; a merchant key is refused", async () => {
+    const { keys } = await seed();
+    const refused = await api("/backup", { key: keys.merchant, actor: ADMIN });
     expect(refused.status).toBeGreaterThanOrEqual(401);
     const state = await api("/backup", asAdmin(keys.admin));
     expect(state.status).toBe(200);
