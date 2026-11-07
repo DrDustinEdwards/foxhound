@@ -62,6 +62,14 @@ export const blogSlugRedirects = sqliteTable("blog_slug_redirects", {
   createdAt: ts("created_at").notNull(),
 });
 
+// The day each code-written page of the sitemap last changed, kept by the daily page-dates job (app/lib/page-dates.server.ts):
+// the hash of the page's Markdown text and the day that hash first appeared. /sitemap.xml reads lastmod from here.
+export const pageDates = sqliteTable("page_dates", {
+  path: text("path").primaryKey(),
+  hash: text("hash").notNull(),
+  lastmod: text("lastmod").notNull(),
+});
+
 export const blogPostLinks = sqliteTable(
   "blog_post_links",
   {

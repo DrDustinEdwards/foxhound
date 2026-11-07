@@ -24,6 +24,7 @@ import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider, type ServerBuild } from "react-router";
 
 import { cloudflareContext, cspNonceContext } from "@dustinedwards/site-runtime/context";
+import { setPageRenderer } from "~/lib/page-dates.server";
 import { storedNonceContext } from "~/lib/stored-nonce";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
@@ -60,6 +61,21 @@ export { AdminApi } from "./admin-api";
 
 const serverBuild = () => import("virtual:react-router/server-build") as Promise<ServerBuild>;
 const requestHandler = createRequestHandler(serverBuild, import.meta.env.MODE);
+
+// The daily page-dates job reads each code-written sitemap page as the Renderer would render it (app/lib/page-dates.server.ts).
+setPageRenderer(async (path, env) => {
+  const context = new RouterContextProvider();
+  const noContext = {
+    waitUntil() {},
+    passThroughOnException() {},
+    props: {},
+  } as unknown as ExecutionContext;
+  context.set(cloudflareContext, { env, ctx: noContext });
+  context.set(storedNonceContext, generateNonce());
+  const response = await requestHandler(new Request(`https://foxhoundapp.com${path}`), context);
+  const html = (response.headers.get("content-type") ?? "").includes("text/html");
+  return response.ok && html ? response.text() : null;
+});
 
 // The root stylesheets and the fonts root.tsx links, on every HTML page as the
 // `Link` header Cloudflare Early Hints reads (site-runtime withPreloadHeader

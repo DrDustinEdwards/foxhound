@@ -72,6 +72,7 @@
     "0071_session_device.sql": "8133f63659a3e868ca23c61b9c84beb4e3f655e2a5ba9d04a23a9405951f8445",
     "0072_site_api_media_uploads.sql": "1c82e80037f92520d1ee197119228cf06e9fbd41375441ea87aaeaf5f12ed5ca",
     "0073_cron_run_history_cron_finished_idx.sql": "d4059084e0a8ac1c7d6370dccaf3f34340f5f7717793f2ad8779e306efaff642",
-    "0074_site_api_store_v0_22.sql": "f424282b5ef683b146043c17bebc90eae8080e57c8527e5b946eab905434556c"
+    "0074_site_api_store_v0_22.sql": "f424282b5ef683b146043c17bebc90eae8080e57c8527e5b946eab905434556c",
+    "0075_page_dates.sql": "be89a9652c8ce57cc890a723af49f403de3378026378efedb59523de862cd535"
   }
 }

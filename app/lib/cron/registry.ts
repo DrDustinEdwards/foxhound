@@ -54,6 +54,7 @@ import {
   sweepMissedStripeEvents,
 } from "~/lib/webhooks/missed-events.server";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
+import { runPageDates } from "~/lib/page-dates.server";
 import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
@@ -462,6 +463,8 @@ export const CRON_JOBS: CronJob[] = [
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
   { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
   { name: "tool-call-log-export", schedule: CRON_SCHEDULE_DAILY, handler: toolCallLogExport },
+  // The day each code-written sitemap page last changed, for /sitemap.xml's lastmod.
+  { name: "page-dates", schedule: CRON_SCHEDULE_DAILY, handler: runPageDates },
 ];
 
 /** The jobs registered for a given cron schedule string. */
