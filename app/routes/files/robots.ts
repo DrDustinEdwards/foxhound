@@ -43,6 +43,9 @@ export const DISALLOW_PATHS = [
   "/recovery/",
   "/disputes/",
   "/intelligence/",
+  // The four demo entries (/demos/recovery and the rest) set the demo cookie and redirect into the app; the /demos
+  // page that lists them, with no slash, stays open.
+  "/demos/",
   "/billing",
   "/settings",
   "/help",
