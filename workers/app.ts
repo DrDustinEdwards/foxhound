@@ -11,6 +11,7 @@ import {
   withPurgePages,
 } from "@dustinedwards/site-runtime/edge-cache";
 import { withRequestLog } from "@dustinedwards/site-runtime/log";
+import { maintenanceOn, maintenanceResponse } from "@dustinedwards/site-runtime/maintenance";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
 import {
   SPECULATION_RULES_PATH,
@@ -78,6 +79,10 @@ const site = withSentry<Env>(sentryOptions, {
     // One hop to the canonical address: https, the bare host, no trailing slash.
     const redirect = canonicalRedirect(request, { host: "foxhoundapp.com" });
     if (redirect) return applySecurityHeaders(redirect, nonce, origin);
+
+    // The maintenance page (site-runtime ./maintenance): every path but /health answers 503 while the MAINTENANCE var is on.
+    if (maintenanceOn(env) && new URL(request.url).pathname !== "/health")
+      return applySecurityHeaders(maintenanceResponse({ siteName: "Foxhound" }), nonce, origin);
 
     // The link prefetch rules every HTML page names (lib/http/speculation-rules.ts).
     if (new URL(request.url).pathname === SPECULATION_RULES_PATH) {
