@@ -106,10 +106,10 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
               className="group -mx-2 flex items-start gap-4 rounded-lg px-2 py-4 no-underline transition-colors hover:bg-surface"
             >
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-1 text-sm font-semibold leading-snug text-text transition-colors group-hover:text-brand-text">
+                <p className="text-sm font-semibold leading-snug text-text transition-colors group-hover:text-brand-text">
                   {post.title}
                 </p>
-                <p className="mt-0.5 line-clamp-1 text-xs text-text-secondary">{post.excerpt}</p>
+                <p className="mt-0.5 text-xs text-text-secondary">{post.excerpt}</p>
               </div>
               <span className="mt-0.5 shrink-0 font-mono text-micro text-text-tertiary">
                 {post.readingTimeMinutes} min

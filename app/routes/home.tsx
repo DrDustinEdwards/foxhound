@@ -558,7 +558,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             {post.tags[0].replace(/-/g, " ")}
                           </div>
                         ) : null}
-                        <h3 className="m-0 line-clamp-2 text-item-title font-medium leading-snug text-text">
+                        <h3 className="m-0 text-item-title font-medium leading-snug text-text">
                           {post.title}
                         </h3>
                         <span className="mt-auto font-mono text-micro text-text-tertiary">

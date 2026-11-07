@@ -37,10 +37,10 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
               </span>
             </span>
           ) : null}
-          <Title className="line-clamp-2 text-copy font-semibold leading-snug text-text">
+          <Title className="text-copy font-semibold leading-snug text-text">
             {post.title}
           </Title>
-          <p className="line-clamp-3 text-caption leading-relaxed text-text-secondary">
+          <p className="text-caption leading-relaxed text-text-secondary">
             {post.excerpt}
           </p>
           <span className="font-mono text-micro text-text-tertiary">

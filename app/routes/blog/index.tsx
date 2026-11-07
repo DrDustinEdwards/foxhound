@@ -180,7 +180,7 @@ function BlogHero({
               {post.title}
             </Link>
           </h2>
-          <p className="mt-3 line-clamp-3 text-body leading-relaxed text-text-secondary">
+          <p className="mt-3 text-body leading-relaxed text-text-secondary">
             {post.excerpt}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-copy text-text-tertiary">
