@@ -4,7 +4,7 @@ import { RouterContextProvider, type EntryContext } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { page404Daily } from "~/db/schema";
-import { cloudflareContext, cspNonceContext } from "@dustinedwards/site-runtime/context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -47,13 +47,12 @@ function d1() {
 
 function loadContext() {
   const ctx = { waitUntil: vi.fn((p: Promise<unknown>) => void scheduled.push(p)) };
-  // A real provider set up as the Renderer sets it: RouterContextProvider.get throws for a context nobody set.
+  // A real provider set up as the Renderer sets it (no CSP nonce: site-runtime's default is null).
   const provider = new RouterContextProvider();
   provider.set(cloudflareContext, {
     env: { DB: d1() } as unknown as Env,
     ctx: ctx as unknown as ExecutionContext,
   });
-  provider.set(cspNonceContext, undefined);
   provider.set(storedNonceContext, "stored-nonce");
   return { ctx, provider };
 }
