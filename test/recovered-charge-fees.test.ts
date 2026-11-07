@@ -22,7 +22,9 @@ vi.mock("~/db", async (importOriginal) => ({
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (_env: Env, write: { build: (db: unknown) => unknown[] }) => {
     try {
-      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+      await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+        write.build(harness.db),
+      );
       return { applied: true };
     } catch (err) {
       if (String(err).includes("UNIQUE")) return { applied: false };
@@ -108,11 +110,19 @@ describe("a recovery records Stripe's fee and net from the charge's balance tran
       id: "pi_paid",
       latest_charge: {
         id: "ch_paid",
-        balance_transaction: { id: "txn_paid", amount: 10_000, fee: 320, net: 9_680, currency: "usd" },
+        balance_transaction: {
+          id: "txn_paid",
+          amount: 10_000,
+          fee: 320,
+          net: 9_680,
+          currency: "usd",
+        },
       },
     };
 
-    expect(await processConnectedWebhook({} as Env, paymentSucceeded(), AT)).toEqual({ status: "applied" });
+    expect(await processConnectedWebhook({} as Env, paymentSucceeded(), AT)).toEqual({
+      status: "applied",
+    });
 
     const [recovery] = await db.select().from(schema.recoveredPayments);
     expect(recovery).toMatchObject({
@@ -128,7 +138,9 @@ describe("a recovery records Stripe's fee and net from the charge's balance tran
   it("a Stripe read failure records the recovery with the fee left null", async () => {
     const db = await seed();
 
-    expect(await processConnectedWebhook({} as Env, paymentSucceeded(), AT)).toEqual({ status: "applied" });
+    expect(await processConnectedWebhook({} as Env, paymentSucceeded(), AT)).toEqual({
+      status: "applied",
+    });
 
     const [payment] = await db.select().from(schema.failedPayments);
     expect(payment.status).toBe("recovered");

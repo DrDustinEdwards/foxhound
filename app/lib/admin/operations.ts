@@ -28,7 +28,9 @@ export function lockSummaryWords(locks: ReadonlyArray<{ state: CronLockState }>)
   const first = `${held === 0 ? "No cron lock" : plural(held, "cron lock", "cron locks")} held, ${
     notReleased === 0 ? "none" : notReleased
   } not released.`;
-  return unreadable === 0 ? first : `${first} ${plural(unreadable, "lock", "locks")} could not be read.`;
+  return unreadable === 0
+    ? first
+    : `${first} ${plural(unreadable, "lock", "locks")} could not be read.`;
 }
 
 /** A setting's kind in a plain word. */

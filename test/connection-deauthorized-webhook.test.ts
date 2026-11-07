@@ -17,7 +17,9 @@ vi.mock("~/db", async (importOriginal) => ({
 
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (_env: Env, write: { build: (db: unknown) => unknown[] }) => {
-    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(write.build(harness.db));
+    await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(
+      write.build(harness.db),
+    );
     return { applied: true };
   },
 }));
@@ -61,8 +63,12 @@ describe("account.application.deauthorized", () => {
   it("disconnects the live connection without calling Stripe, and ignores an unknown account", async () => {
     const received = new Date("2026-11-01T00:00:00Z");
 
-    expect(await processConnectedWebhook(env, deauthorized("evt_1", "acct_s"), received)).toEqual({ status: "applied" });
-    expect(sqlite.prepare("SELECT disconnected_at AS at FROM stripe_connections WHERE id = 'c1'").get()).toEqual({
+    expect(await processConnectedWebhook(env, deauthorized("evt_1", "acct_s"), received)).toEqual({
+      status: "applied",
+    });
+    expect(
+      sqlite.prepare("SELECT disconnected_at AS at FROM stripe_connections WHERE id = 'c1'").get(),
+    ).toEqual({
       at: received.getTime(),
     });
     expect(deauthorize).not.toHaveBeenCalled();
@@ -74,11 +80,17 @@ describe("account.application.deauthorized", () => {
     });
 
     // A Stripe account Foxhound never held live (an audit grant is never stored).
-    expect(await processConnectedWebhook(env, deauthorized("evt_2", "acct_audit"), received)).toEqual({
+    expect(
+      await processConnectedWebhook(env, deauthorized("evt_2", "acct_audit"), received),
+    ).toEqual({
       status: "ignored",
       reason: "unknown_account",
     });
-    const claimed = sqlite.prepare("SELECT stripe_event_id AS id, account_id AS account FROM webhook_events ORDER BY id").all();
+    const claimed = sqlite
+      .prepare(
+        "SELECT stripe_event_id AS id, account_id AS account FROM webhook_events ORDER BY id",
+      )
+      .all();
     expect(claimed).toEqual([
       { id: "evt_1", account: "a1" },
       { id: "evt_2", account: null },

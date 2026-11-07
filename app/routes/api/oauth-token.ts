@@ -1,5 +1,5 @@
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_OAUTH_TOKEN } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { exchangeToken, oauthResponse, parseOAuthBody } from "~/lib/oauth/provider.server";
@@ -17,12 +17,26 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
   const { env } = context.get(cloudflareContext);
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  if (!(await isWithinRateLimit(env, "oauth-token", ip, RATE_LIMIT_OAUTH_TOKEN.max, RATE_LIMIT_OAUTH_TOKEN.windowMs))) {
-    return oauthResponse({ status: 429, body: { error: "server_error", error_description: "Too many requests" } });
+  if (
+    !(await isWithinRateLimit(
+      env,
+      "oauth-token",
+      ip,
+      RATE_LIMIT_OAUTH_TOKEN.max,
+      RATE_LIMIT_OAUTH_TOKEN.windowMs,
+    ))
+  ) {
+    return oauthResponse({
+      status: 429,
+      body: { error: "server_error", error_description: "Too many requests" },
+    });
   }
   const params = await parseOAuthBody(request);
   if (!params) {
-    return oauthResponse({ status: 400, body: { error: "invalid_request", error_description: "Unsupported content-type" } });
+    return oauthResponse({
+      status: 400,
+      body: { error: "invalid_request", error_description: "Unsupported content-type" },
+    });
   }
   return oauthResponse(await exchangeToken(getDb(env), params, new Date()));
 }

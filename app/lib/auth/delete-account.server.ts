@@ -20,7 +20,10 @@ import {
 } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
-import { type DeauthorizeFailure, revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
+import {
+  type DeauthorizeFailure,
+  revokeDisconnectedGrants,
+} from "~/lib/stripe/deauthorize-retry.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 import { buildAccountScrubStatements } from "./account-scrub.server";
 
@@ -101,7 +104,11 @@ interface DeletionPlan {
 /** Read what a deletion will act on. Null when the user no longer exists, which
  *  is what makes a second deletion a no-op. */
 async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | null> {
-  const users = await db.select({ id: user.id, email: user.email }).from(user).where(eq(user.id, userId)).limit(1);
+  const users = await db
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
   const found = users[0];
   if (!found) return null;
 
@@ -124,7 +131,12 @@ async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | 
       : await db
           .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
           .from(stripeConnections)
-          .where(and(inArray(stripeConnections.accountId, ownedAccountIds), isNull(stripeConnections.disconnectedAt)));
+          .where(
+            and(
+              inArray(stripeConnections.accountId, ownedAccountIds),
+              isNull(stripeConnections.disconnectedAt),
+            ),
+          );
 
   const kept =
     ownedAccountIds.length === 0
@@ -158,7 +170,9 @@ function buildUserDeletionStatements(
   const { userId, email } = plan;
   return [
     db.delete(accountMembers).where(eq(accountMembers.userId, userId)),
-    db.delete(intelligenceNotificationPreferences).where(eq(intelligenceNotificationPreferences.userId, userId)),
+    db
+      .delete(intelligenceNotificationPreferences)
+      .where(eq(intelligenceNotificationPreferences.userId, userId)),
     db
       .update(disputeApprovals)
       .set({ approvedByEmail: null, approvedByUserId: null })
@@ -174,7 +188,13 @@ function buildUserDeletionStatements(
       .set({ revokedAt: now })
       .where(
         and(
-          inArray(apiKeys.id, db.select({ id: oauthGrants.apiKeyId }).from(oauthGrants).where(eq(oauthGrants.userId, userId))),
+          inArray(
+            apiKeys.id,
+            db
+              .select({ id: oauthGrants.apiKeyId })
+              .from(oauthGrants)
+              .where(eq(oauthGrants.userId, userId)),
+          ),
           isNull(apiKeys.revokedAt),
         ),
       ),
@@ -183,7 +203,9 @@ function buildUserDeletionStatements(
     db.delete(session).where(eq(session.userId, userId)),
     db.delete(authAccount).where(eq(authAccount.userId, userId)),
     db.delete(passkey).where(eq(passkey.userId, userId)),
-    db.delete(verification).where(or(eq(verification.identifier, email), eq(verification.value, userId))),
+    db
+      .delete(verification)
+      .where(or(eq(verification.identifier, email), eq(verification.value, userId))),
     // NOT the user row, which Better Auth's deleteUser deletes after this
     // batch (accountDeletionHooks), so its database hook runs: site-runtime's
     // user_deleted line, the account-deleted notice and the person's
@@ -218,17 +240,29 @@ export type DeleteAccountLocalResult =
 
 /** Read the plan and commit the batch, which leaves only the user row. Writes
  *  nothing when the user is gone. */
-export async function deleteUserAccountLocal(db: Db, userId: string, now: Date): Promise<DeleteAccountLocalResult> {
+export async function deleteUserAccountLocal(
+  db: Db,
+  userId: string,
+  now: Date,
+): Promise<DeleteAccountLocalResult> {
   const plan = await readDeletionPlan(db, userId);
   if (!plan) return { status: "not_found" };
   await db.batch(buildAccountDeletionBatch(db, plan, now));
-  return { status: "deleted", accountIds: plan.ownedAccountIds, liveConnections: plan.liveConnections };
+  return {
+    status: "deleted",
+    accountIds: plan.ownedAccountIds,
+    liveConnections: plan.liveConnections,
+  };
 }
 
 export interface DeleteAccountDeps {
   deleteLocal: (env: Env, userId: string, now: Date) => Promise<DeleteAccountLocalResult>;
   deauthorize: (env: Env, stripeUserId: string) => Promise<{ ok: boolean; error?: string }>;
-  recordDeauthorizeFailure: (env: Env, userId: string, failure: DeauthorizeFailure) => Promise<void>;
+  recordDeauthorizeFailure: (
+    env: Env,
+    userId: string,
+    failure: DeauthorizeFailure,
+  ) => Promise<void>;
 }
 
 const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_deauthorize_failed";
@@ -236,7 +270,11 @@ const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_de
 /** One durable admin_audit_log row for a Stripe grant that could not be revoked
  *  after a deletion, through the one audit writer. Ids and the error only: the
  *  person's email and name are already gone and are not written back here. */
-async function recordDeauthorizeFailure(db: Db, userId: string, failure: DeauthorizeFailure): Promise<void> {
+async function recordDeauthorizeFailure(
+  db: Db,
+  userId: string,
+  failure: DeauthorizeFailure,
+): Promise<void> {
   await logAdminAction(db, {
     actorEmail: ACCOUNT_DELETION_AUDIT_ACTOR,
     action: ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION,
@@ -264,9 +302,11 @@ async function recordDeauthorizeFailure(db: Db, userId: string, failure: Deautho
  * predicates and repeats cleanly).
  */
 export function accountDeletionHooks(env: Env, deps: Partial<DeleteAccountDeps> = {}) {
-  const deleteLocal = deps.deleteLocal ?? ((e, id, now) => deleteUserAccountLocal(getDb(e), id, now));
+  const deleteLocal =
+    deps.deleteLocal ?? ((e, id, now) => deleteUserAccountLocal(getDb(e), id, now));
   const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
-  const recordFailure = deps.recordDeauthorizeFailure ?? ((e, id, f) => recordDeauthorizeFailure(getDb(e), id, f));
+  const recordFailure =
+    deps.recordDeauthorizeFailure ?? ((e, id, f) => recordDeauthorizeFailure(getDb(e), id, f));
   const toRevoke = new Map<string, DeletedConnection[]>();
 
   return {
@@ -286,7 +326,10 @@ export function accountDeletionHooks(env: Env, deps: Partial<DeleteAccountDeps> 
         try {
           await recordFailure(env, deleted.id, failure);
         } catch (err) {
-          console.error(`could not record deauthorize failure for connection ${failure.connectionId}:`, err);
+          console.error(
+            `could not record deauthorize failure for connection ${failure.connectionId}:`,
+            err,
+          );
         }
       }
     },

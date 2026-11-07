@@ -1,22 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import * as constants from "~/lib/constants";
-import {
-  sequenceRateTone,
-} from "~/lib/recovery/sequence-categories";
-import {
-  buildStepCard,
-  sequenceStepLabel,
-} from "~/lib/recovery/sequence-performance";
+import { sequenceRateTone } from "~/lib/recovery/sequence-categories";
+import { buildStepCard, sequenceStepLabel } from "~/lib/recovery/sequence-performance";
 
 describe("J12: Recova's step names, from Foxhound's schedules", () => {
-
   it("names a retry by its own category's offset, so a 24 hour retry never reads 48hr", () => {
     expect(sequenceStepLabel("retry_4hr", constants.STEP_TIMING_RETRY_4HR_HOURS)).toBe("4hr retry");
-    expect(sequenceStepLabel("retry_early", constants.STEP_TIMING_RETRY_EARLY_HOURS)).toBe("4hr retry");
-    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_RETRY_DAY2_HOURS)).toBe("48hr retry");
-    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_NETWORK_RETRY_DAY2_HOURS)).toBe("24hr retry");
-    expect(sequenceStepLabel("retry_day21", constants.STEP_TIMING_RETRY_DAY21_HOURS)).toBe("Day 21 retry");
+    expect(sequenceStepLabel("retry_early", constants.STEP_TIMING_RETRY_EARLY_HOURS)).toBe(
+      "4hr retry",
+    );
+    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_RETRY_DAY2_HOURS)).toBe(
+      "48hr retry",
+    );
+    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_NETWORK_RETRY_DAY2_HOURS)).toBe(
+      "24hr retry",
+    );
+    expect(sequenceStepLabel("retry_day21", constants.STEP_TIMING_RETRY_DAY21_HOURS)).toBe(
+      "Day 21 retry",
+    );
   });
 });
 
@@ -41,8 +43,22 @@ describe("J12: the latest subject is Recova's pick", () => {
     const card = buildStepCard(
       "email_day1",
       [
-        { executedAt: new Date("2026-10-03"), result: "email_sent", openedAt: null, clickedAt: null, aiSubject: null, aiBodyHtml: null },
-        { executedAt: new Date("2026-10-02"), result: "email_sent", openedAt: null, clickedAt: null, aiSubject: "Older subject", aiBodyHtml: "<p>Older body</p>" },
+        {
+          executedAt: new Date("2026-10-03"),
+          result: "email_sent",
+          openedAt: null,
+          clickedAt: null,
+          aiSubject: null,
+          aiBodyHtml: null,
+        },
+        {
+          executedAt: new Date("2026-10-02"),
+          result: "email_sent",
+          openedAt: null,
+          clickedAt: null,
+          aiSubject: "Older subject",
+          aiBodyHtml: "<p>Older body</p>",
+        },
       ],
       1,
     );

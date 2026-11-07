@@ -8,13 +8,24 @@ import { pictureProps, type ImageAttributes } from "@dustinedwards/site-runtime/
  * priority image (eager, fetchpriority high). `contents` leaves the box to the
  * img, as before the picture was added.
  */
-export function CoverPicture({ cover, className }: { cover: { alt: string; picture: ImageAttributes }; className: string }) {
-  const { sources, img } = pictureProps(cover.picture, { alt: cover.alt, priority: true, className });
+export function CoverPicture({
+  cover,
+  className,
+}: {
+  cover: { alt: string; picture: ImageAttributes };
+  className: string;
+}) {
+  const { sources, img } = pictureProps(cover.picture, {
+    alt: cover.alt,
+    priority: true,
+    className,
+  });
   return (
     <picture className="contents">
       {sources.map((source) => (
         <source key={`${source.type}${source.media ?? ""}`} {...source} />
       ))}
+      {/* oxlint-disable-next-line jsx-a11y/alt-text -- pictureProps puts the cover alt into img */}
       <img {...img} />
     </picture>
   );

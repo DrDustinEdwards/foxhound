@@ -4,12 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiKeys, oauthAuthorizationCodes, oauthGrants } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
 import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
 import { safeNextPath } from "~/lib/auth/next-path";
-import { applyCachePolicy, classifyPath, NO_TRANSFORM_PREFIXES, PRIVATE_DIRECTIVE } from "~/lib/http/cache-policy";
+import {
+  applyCachePolicy,
+  classifyPath,
+  NO_TRANSFORM_PREFIXES,
+  PRIVATE_DIRECTIVE,
+} from "~/lib/http/cache-policy";
 import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect } from "~/lib/oauth/redirects";
 import { DISALLOW_PATHS } from "~/routes/files/robots";
@@ -85,7 +90,7 @@ function env(): Env {
 
 function context(): RouterContextProvider {
   const ctx = new RouterContextProvider();
-  ctx.set(cloudflareContext, { env: env(), ctx: {} as ExecutionContext, nonce: "" });
+  ctx.set(cloudflareContext, { env: env(), ctx: {} as ExecutionContext });
   return ctx;
 }
 
@@ -94,13 +99,17 @@ beforeEach(() => {
   harness.db = db;
   harness.allowed = true;
   sqlite
-    .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+    .prepare(
+      "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+    )
     .run(USER, "Dana", "dana@acme.test");
   for (const [id, name, at] of [
     [ACCOUNT_A, "Acme Supply Co.", 1_000],
     [ACCOUNT_B, "Beta Ltd", 2_000],
   ] as const) {
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, ?)").run(id, name, at);
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, ?)")
+      .run(id, name, at);
     sqlite
       .prepare(
         "INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES (?, ?, ?, 'owner', 'active', ?)",
@@ -116,17 +125,27 @@ beforeEach(() => {
 });
 
 function b64url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 async function pkcePair(): Promise<{ verifier: string; challenge: string }> {
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)),
+  );
   return { verifier, challenge: b64url(digest) };
 }
 
 async function registered(redirectUris: string[] = [CLAUDE_REDIRECT]): Promise<string> {
-  const res = await provider.registerClient(db, { client_name: "Claude", redirect_uris: redirectUris }, NOW, ALLOWED);
+  const res = await provider.registerClient(
+    db,
+    { client_name: "Claude", redirect_uris: redirectUris },
+    NOW,
+    ALLOWED,
+  );
   expect(res.status).toBe(201);
   return res.body.client_id as string;
 }
@@ -145,7 +164,12 @@ function authorizeParams(clientId: string, challenge: string, extra: Record<stri
 
 /** Consent through the real action, returning the code from the redirect.
  *  `allowWrite` is the owner ticking "Allow changes". */
-async function consent(clientId: string, challenge: string, intent = "allow", allowWrite = false): Promise<URL> {
+async function consent(
+  clientId: string,
+  challenge: string,
+  intent = "allow",
+  allowWrite = false,
+): Promise<URL> {
   const form = authorizeParams(clientId, challenge);
   form.set("intent", intent);
   if (allowWrite) form.set("allow_write", "1");
@@ -156,19 +180,30 @@ async function consent(clientId: string, challenge: string, intent = "allow", al
     headers: { Origin: ORIGIN, "Content-Type": "application/x-www-form-urlencoded" },
     body: form,
   });
-  const res = (await authorizeRoute.action({ request, context: context(), params: {} } as never)) as Response;
+  const res = (await authorizeRoute.action({
+    request,
+    context: context(),
+    params: {},
+  } as never)) as Response;
   expect(res.status, "the action answers with a redirect").toBeGreaterThanOrEqual(300);
   expect(res.status).toBeLessThan(400);
   return new URL(res.headers.get("Location")!);
 }
 
-async function tokenCall(fields: Record<string, string>, json = false): Promise<{ status: number; body: Record<string, unknown>; res: Response }> {
+async function tokenCall(
+  fields: Record<string, string>,
+  json = false,
+): Promise<{ status: number; body: Record<string, unknown>; res: Response }> {
   const request = new Request(`${ORIGIN}/api/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": json ? "application/json" : "application/x-www-form-urlencoded" },
     body: json ? JSON.stringify(fields) : new URLSearchParams(fields),
   });
-  const res = (await tokenRoute.action({ request, context: context(), params: {} } as never)) as Response;
+  const res = (await tokenRoute.action({
+    request,
+    context: context(),
+    params: {},
+  } as never)) as Response;
   return { status: res.status, body: (await res.json()) as Record<string, unknown>, res };
 }
 
@@ -190,13 +225,12 @@ async function fullFlow(): Promise<{ clientId: string; access: string; refresh: 
 // ============================================================================
 
 describe("F18 and F19: the metadata, at both of Recova's well-known paths", () => {
-
   it("serves Recova's fields with this request's origin as issuer", async () => {
-    const res = (await metadataRoute.loader({
+    const res = metadataRoute.loader({
       request: new Request(`${ORIGIN}/.well-known/oauth-authorization-server`),
       context: context(),
       params: {},
-    } as never)) as Response;
+    } as never) as Response;
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
     const body = (await res.json()) as Record<string, unknown>;
@@ -220,11 +254,11 @@ describe("F18 and F19: the metadata, at both of Recova's well-known paths", () =
 
 describe("the protected-resource document and the /mcp 401 that points at it", () => {
   it("names /mcp and this origin as its authorization server", async () => {
-    const res = (await resourceRoute.loader({
+    const res = resourceRoute.loader({
       request: new Request(`${ORIGIN}/.well-known/oauth-protected-resource`),
       context: context(),
       params: {},
-    } as never)) as Response;
+    } as never) as Response;
     const body = (await res.json()) as Record<string, unknown>;
     expect(body).toEqual(protectedResourceMetadata(ORIGIN));
     expect(body.resource).toBe(`${ORIGIN}/mcp`);
@@ -235,9 +269,13 @@ describe("the protected-resource document and the /mcp 401 that points at it", (
 });
 
 describe("registration (RFC 7591)", () => {
-
   it("answers Recova's shape, defaults included", async () => {
-    const res = await provider.registerClient(db, { redirect_uris: [CLAUDE_REDIRECT] }, NOW, ALLOWED);
+    const res = await provider.registerClient(
+      db,
+      { redirect_uris: [CLAUDE_REDIRECT] },
+      NOW,
+      ALLOWED,
+    );
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       client_name: "OAuth Client",
@@ -250,13 +288,23 @@ describe("registration (RFC 7591)", () => {
   });
 
   it("refuses a body with no usable or no allowlisted redirect URI", async () => {
-    for (const body of [{}, { redirect_uris: [] }, { redirect_uris: "x" }, { redirect_uris: [7] }]) {
+    for (const body of [
+      {},
+      { redirect_uris: [] },
+      { redirect_uris: "x" },
+      { redirect_uris: [7] },
+    ]) {
       const res = await provider.registerClient(db, body, NOW, ALLOWED);
       expect(res.status, JSON.stringify(body)).toBe(400);
       expect(res.body.error).toBe("invalid_redirect_uri");
     }
     // And one that is not on the shared allowlist (area 11, A7).
-    const unlisted = await provider.registerClient(db, { redirect_uris: ["https://evil.example/cb"] }, NOW, ALLOWED);
+    const unlisted = await provider.registerClient(
+      db,
+      { redirect_uris: ["https://evil.example/cb"] },
+      NOW,
+      ALLOWED,
+    );
     expect(unlisted.status).toBe(400);
     expect(unlisted.body.error).toBe("invalid_redirect_uri");
   });
@@ -265,7 +313,9 @@ describe("registration (RFC 7591)", () => {
     expect(isAcceptableRedirectUri("https://claude.ai/api/mcp/auth_callback")).toBe(true);
     expect(isAcceptableRedirectUri("http://localhost:53682/callback")).toBe(true);
     expect(isAcceptableRedirectUri("http://127.0.0.1/callback")).toBe(true);
-    expect(isAcceptableRedirectUri("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe(true);
+    expect(isAcceptableRedirectUri("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe(
+      true,
+    );
     expect(isAcceptableRedirectUri("javascript:alert(1)")).toBe(false);
     expect(isAcceptableRedirectUri("data:text/html,hi")).toBe(false);
     expect(isAcceptableRedirectUri("http://evil.example/cb")).toBe(false);
@@ -292,11 +342,15 @@ describe("registration (RFC 7591)", () => {
 
 describe("Recova's redirect match: exact, except loopback ports (RFC 8252)", () => {
   it("matches a loopback URI on any port and everything else exactly", () => {
-    expect(isRegisteredRedirect("http://localhost:53682/callback", ["http://localhost/callback"])).toBe(true);
+    expect(
+      isRegisteredRedirect("http://localhost:53682/callback", ["http://localhost/callback"]),
+    ).toBe(true);
     expect(isRegisteredRedirect("http://127.0.0.1:9/cb", ["http://127.0.0.1:1234/cb"])).toBe(true);
     expect(isRegisteredRedirect("https://claude.ai/cb", ["https://claude.ai/cb"])).toBe(true);
     expect(isRegisteredRedirect("https://claude.ai:8443/cb", ["https://claude.ai/cb"])).toBe(false);
-    expect(isRegisteredRedirect("http://localhost/other", ["http://localhost/callback"])).toBe(false);
+    expect(isRegisteredRedirect("http://localhost/other", ["http://localhost/callback"])).toBe(
+      false,
+    );
   });
 });
 
@@ -307,12 +361,36 @@ describe("A9: the authorize request is checked in Recova's order, with Recova's 
     const cases: Array<[Record<string, string>, string, string]> = [
       [{ client_id: "" }, "Invalid request", "Missing client_id or redirect_uri."],
       [{ redirect_uri: "" }, "Invalid request", "Missing client_id or redirect_uri."],
-      [{ response_type: "token" }, "Unsupported response_type", "Only response_type=code is supported."],
-      [{ code_challenge: "" }, "PKCE required", "This authorization server requires PKCE with code_challenge_method=S256."],
-      [{ code_challenge_method: "plain" }, "PKCE required", "This authorization server requires PKCE with code_challenge_method=S256."],
-      [{ client_id: "00000000-0000-0000-0000-000000000000" }, "Unknown client", "This client is not registered with Foxhound."],
-      [{ redirect_uri: "https://evil.example/cb" }, "Invalid redirect URI", "The redirect_uri does not match any URI registered for this client."],
-      [{ resource: "https://evil.example/mcp" }, "Invalid request", "This server issues access to its /mcp endpoint only."],
+      [
+        { response_type: "token" },
+        "Unsupported response_type",
+        "Only response_type=code is supported.",
+      ],
+      [
+        { code_challenge: "" },
+        "PKCE required",
+        "This authorization server requires PKCE with code_challenge_method=S256.",
+      ],
+      [
+        { code_challenge_method: "plain" },
+        "PKCE required",
+        "This authorization server requires PKCE with code_challenge_method=S256.",
+      ],
+      [
+        { client_id: "00000000-0000-0000-0000-000000000000" },
+        "Unknown client",
+        "This client is not registered with Foxhound.",
+      ],
+      [
+        { redirect_uri: "https://evil.example/cb" },
+        "Invalid redirect URI",
+        "The redirect_uri does not match any URI registered for this client.",
+      ],
+      [
+        { resource: "https://evil.example/mcp" },
+        "Invalid request",
+        "This server issues access to its /mcp endpoint only.",
+      ],
     ];
     for (const [override, title, message] of cases) {
       const params = authorizeParams(clientId, challenge, override);
@@ -320,19 +398,36 @@ describe("A9: the authorize request is checked in Recova's order, with Recova's 
       const check = await provider.checkAuthorizeRequest(db, params, ORIGIN);
       expect(check, JSON.stringify(override)).toEqual({ ok: false, title, message });
     }
-    const good = await provider.checkAuthorizeRequest(db, authorizeParams(clientId, challenge), ORIGIN);
-    expect(good).toMatchObject({ ok: true, clientId, clientName: "Claude", redirectUri: CLAUDE_REDIRECT, state: "st_123" });
+    const good = await provider.checkAuthorizeRequest(
+      db,
+      authorizeParams(clientId, challenge),
+      ORIGIN,
+    );
+    expect(good).toMatchObject({
+      ok: true,
+      clientId,
+      clientName: "Claude",
+      redirectUri: CLAUDE_REDIRECT,
+      state: "st_123",
+    });
   });
 
   it("a signed-out visitor goes to /login with EVERY parameter kept, resource included", async () => {
     harness.session = null;
     const clientId = await registered();
     const { challenge } = await pkcePair();
-    const params = authorizeParams(clientId, challenge, { resource: `${ORIGIN}/mcp`, prompt: "consent" });
+    const params = authorizeParams(clientId, challenge, {
+      resource: `${ORIGIN}/mcp`,
+      prompt: "consent",
+    });
     const url = `${ORIGIN}/oauth/authorize?${params}`;
     let thrown: unknown;
     try {
-      await authorizeRoute.loader({ request: new Request(url), context: context(), params: {} } as never);
+      await authorizeRoute.loader({
+        request: new Request(url),
+        context: context(),
+        params: {},
+      } as never);
     } catch (e) {
       thrown = e;
     }
@@ -353,7 +448,12 @@ describe("A9: the authorize request is checked in Recova's order, with Recova's 
       context: context(),
       params: {},
     } as never)) as { ok: true; accountName: string; email: string; clientName: string };
-    expect(data).toMatchObject({ ok: true, accountName: "Beta Ltd", email: "dana@acme.test", clientName: "Claude" });
+    expect(data).toMatchObject({
+      ok: true,
+      accountName: "Beta Ltd",
+      email: "dana@acme.test",
+      clientName: "Claude",
+    });
   });
 
   it("a signed-in visitor with no account goes to /connect, as Recova sent them", async () => {
@@ -415,7 +515,11 @@ describe("A9: consent", () => {
       const form = authorizeParams(clientId, challenge, { intent: "allow" });
       if (shown) form.set("account_id", shown);
       const res = (await authorizeRoute.action({
-        request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+        request: new Request(`${ORIGIN}/oauth/authorize`, {
+          method: "POST",
+          headers: { Origin: ORIGIN },
+          body: form,
+        }),
         context: context(),
         params: {},
       } as never)) as { data?: { error?: string }; init?: { status?: number } } | Response;
@@ -431,7 +535,9 @@ describe("A9: consent", () => {
   });
 
   it("a member, not the owner, is refused on the card and on Allow, and nothing is minted", async () => {
-    sqlite.prepare("UPDATE account_members SET role = 'member' WHERE account_id = ?").run(ACCOUNT_B);
+    sqlite
+      .prepare("UPDATE account_members SET role = 'member' WHERE account_id = ?")
+      .run(ACCOUNT_B);
     const clientId = await registered();
     const { challenge } = await pkcePair();
     const loaded = (await authorizeRoute.loader({
@@ -443,7 +549,9 @@ describe("A9: consent", () => {
     expect(loaded.init.status).toBe(403);
     // An unknown client is refused on the card too, with a 400 (area 11, A8).
     const unknown = (await authorizeRoute.loader({
-      request: new Request(`${ORIGIN}/oauth/authorize?${authorizeParams("00000000-0000-0000-0000-000000000000", challenge)}`),
+      request: new Request(
+        `${ORIGIN}/oauth/authorize?${authorizeParams("00000000-0000-0000-0000-000000000000", challenge)}`,
+      ),
       context: context(),
       params: {},
     } as never)) as unknown as { data: { title: string }; init: { status: number } };
@@ -451,7 +559,11 @@ describe("A9: consent", () => {
     expect(unknown.data.title).toBe("Unknown client");
     const form = authorizeParams(clientId, challenge, { intent: "allow", account_id: ACCOUNT_B });
     const res = (await authorizeRoute.action({
-      request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+      request: new Request(`${ORIGIN}/oauth/authorize`, {
+        method: "POST",
+        headers: { Origin: ORIGIN },
+        body: form,
+      }),
       context: context(),
       params: {},
     } as never)) as { init?: { status?: number } } | Response;
@@ -480,9 +592,16 @@ describe("A9: consent", () => {
   it("a tampered redirect URI in the form is refused, never followed", async () => {
     const clientId = await registered();
     const { challenge } = await pkcePair();
-    const form = authorizeParams(clientId, challenge, { intent: "allow", redirect_uri: "https://evil.example/cb" });
+    const form = authorizeParams(clientId, challenge, {
+      intent: "allow",
+      redirect_uri: "https://evil.example/cb",
+    });
     const res = (await authorizeRoute.action({
-      request: new Request(`${ORIGIN}/oauth/authorize`, { method: "POST", headers: { Origin: ORIGIN }, body: form }),
+      request: new Request(`${ORIGIN}/oauth/authorize`, {
+        method: "POST",
+        headers: { Origin: ORIGIN },
+        body: form,
+      }),
       context: context(),
       params: {},
     } as never)) as { data?: { error?: string }; init?: { status?: number } } | Response;
@@ -500,14 +619,29 @@ describe("the token endpoint", () => {
     const verified = await verifyMcpToken(db, access);
     expect(verified).toMatchObject({ accountId: ACCOUNT_B, scope: MCP_TOKEN_SCOPE.MERCHANT });
     const [key] = await db.select().from(apiKeys);
-    expect(key.expiresAt!.getTime() - key.createdAt.getTime()).toBe(OAUTH_ACCESS_TOKEN_TTL_SECONDS * 1000);
+    expect(key.expiresAt!.getTime() - key.createdAt.getTime()).toBe(
+      OAUTH_ACCESS_TOKEN_TTL_SECONDS * 1000,
+    );
     expect(key.label).toBe("Claude (OAuth)");
 
     const res = (await handleMcpRequest(
       new Request(`${ORIGIN}/mcp`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Authorization: `Bearer ${access}` },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          Authorization: `Bearer ${access}`,
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "t", version: "1" },
+          },
+        }),
       }),
       env(),
     )) as Response;
@@ -519,7 +653,12 @@ describe("the token endpoint", () => {
     const { verifier, challenge } = await pkcePair();
     const back = await consent(clientId, challenge);
     const { status, body, res } = await tokenCall(
-      { grant_type: "authorization_code", code: back.searchParams.get("code")!, code_verifier: verifier, client_id: clientId },
+      {
+        grant_type: "authorization_code",
+        code: back.searchParams.get("code")!,
+        code_verifier: verifier,
+        client_id: clientId,
+      },
       true,
     );
     expect(status).toBe(200);
@@ -531,20 +670,49 @@ describe("the token endpoint", () => {
   it("refuses a wrong verifier, a wrong client, a wrong redirect and an expired code", async () => {
     const clientId = await registered();
     const other = await registered();
-    const bad = async (fields: (code: string, verifier: string) => Record<string, string>, label: string, at?: Date) => {
+    const bad = async (
+      fields: (code: string, verifier: string) => Record<string, string>,
+      label: string,
+      at?: Date,
+    ) => {
       const { verifier, challenge } = await pkcePair();
       const code = (await consent(clientId, challenge)).searchParams.get("code")!;
       const res = at
         ? await provider.exchangeToken(db, new URLSearchParams(fields(code, verifier)), at)
-        : (await tokenCall(fields(code, verifier)));
+        : await tokenCall(fields(code, verifier));
       expect(res.status, label).toBe(400);
       expect(res.body.error, label).toBe("invalid_grant");
     };
-    await bad((code) => ({ grant_type: "authorization_code", code, code_verifier: "x".repeat(43), client_id: clientId }), "verifier");
-    await bad((code, v) => ({ grant_type: "authorization_code", code, code_verifier: v, client_id: other }), "client");
-    await bad((code, v) => ({ grant_type: "authorization_code", code, code_verifier: v, client_id: clientId, redirect_uri: "https://claude.ai/other" }), "redirect");
     await bad(
-      (code, v) => ({ grant_type: "authorization_code", code, code_verifier: v, client_id: clientId }),
+      (code) => ({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: "x".repeat(43),
+        client_id: clientId,
+      }),
+      "verifier",
+    );
+    await bad(
+      (code, v) => ({ grant_type: "authorization_code", code, code_verifier: v, client_id: other }),
+      "client",
+    );
+    await bad(
+      (code, v) => ({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: v,
+        client_id: clientId,
+        redirect_uri: "https://claude.ai/other",
+      }),
+      "redirect",
+    );
+    await bad(
+      (code, v) => ({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: v,
+        client_id: clientId,
+      }),
       "expired",
       new Date(Date.now() + OAUTH_CODE_TTL_MS + 1000),
     );
@@ -555,7 +723,12 @@ describe("the token endpoint", () => {
     const clientId = await registered();
     const { verifier, challenge } = await pkcePair();
     const code = (await consent(clientId, challenge)).searchParams.get("code")!;
-    const fields = { grant_type: "authorization_code", code, code_verifier: verifier, client_id: clientId };
+    const fields = {
+      grant_type: "authorization_code",
+      code,
+      code_verifier: verifier,
+      client_id: clientId,
+    };
     const first = await tokenCall(fields);
     expect(first.status).toBe(200);
     const second = await tokenCall(fields);
@@ -569,7 +742,11 @@ describe("the token endpoint", () => {
   it("refuses an unknown grant type and a body it cannot read", async () => {
     expect((await tokenCall({ grant_type: "password" })).body.error).toBe("unsupported_grant_type");
     const res = (await tokenRoute.action({
-      request: new Request(`${ORIGIN}/api/oauth/token`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: "x" }),
+      request: new Request(`${ORIGIN}/api/oauth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: "x",
+      }),
       context: context(),
       params: {},
     } as never)) as Response;
@@ -581,36 +758,61 @@ describe("the token endpoint", () => {
 describe("refresh: rotation in place, replay kills the grant", () => {
   it("rotates both tokens on the same key row, so Settings shows one connection", async () => {
     const { clientId, access, refresh } = await fullFlow();
-    const next = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    const next = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: clientId,
+    });
     expect(next.status).toBe(200);
     expect(next.body.refresh_token).not.toBe(refresh);
     expect(await verifyMcpToken(db, access)).toBeNull();
-    expect(await verifyMcpToken(db, next.body.access_token as string)).toMatchObject({ accountId: ACCOUNT_B });
+    expect(await verifyMcpToken(db, next.body.access_token as string)).toMatchObject({
+      accountId: ACCOUNT_B,
+    });
     expect(await db.select().from(apiKeys)).toHaveLength(1);
   });
 
   it("presenting a replaced refresh token revokes the grant", async () => {
     const { clientId, refresh } = await fullFlow();
-    const next = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
-    const replay = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    const next = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: clientId,
+    });
+    const replay = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: clientId,
+    });
     expect(replay.status).toBe(400);
     expect(replay.body.error).toBe("invalid_grant");
     expect(await verifyMcpToken(db, next.body.access_token as string)).toBeNull();
-    const again = await tokenCall({ grant_type: "refresh_token", refresh_token: next.body.refresh_token as string, client_id: clientId });
+    const again = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: next.body.refresh_token as string,
+      client_id: clientId,
+    });
     expect(again.body.error).toBe("invalid_grant");
   });
 
   it("a key revoked in Settings cannot be refreshed back to life", async () => {
     const { clientId, refresh } = await fullFlow();
     await db.update(apiKeys).set({ revokedAt: new Date() });
-    const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    const res = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: clientId,
+    });
     expect(res.body.error).toBe("invalid_grant");
   });
 
   it("refuses another client's refresh token", async () => {
     const { refresh } = await fullFlow();
     const other = await registered();
-    expect((await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: other })).body.error).toBe("invalid_grant");
+    expect(
+      (await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: other }))
+        .body.error,
+    ).toBe("invalid_grant");
   });
 });
 
@@ -638,14 +840,25 @@ describe("expiry and revocation", () => {
     expect(await verifyMcpToken(db, one.access)).toBeNull();
     const two = await fullFlow();
     expect((await revoke(two.access)).status).toBe(200);
-    expect((await tokenCall({ grant_type: "refresh_token", refresh_token: two.refresh, client_id: two.clientId })).body.error).toBe("invalid_grant");
+    expect(
+      (
+        await tokenCall({
+          grant_type: "refresh_token",
+          refresh_token: two.refresh,
+          client_id: two.clientId,
+        })
+      ).body.error,
+    ).toBe("invalid_grant");
   });
 });
 
 describe("the shared cache policy owns the private responses (test/cache-policy.test.ts PLANT 7)", () => {
   it("the protected-resource document and revocation get the policy's private, no-store", async () => {
     const prmReq = new Request(`${ORIGIN}/.well-known/oauth-protected-resource`);
-    const prm = applyCachePolicy(prmReq, (await resourceRoute.loader({ request: prmReq } as never)) as Response);
+    const prm = applyCachePolicy(
+      prmReq,
+      resourceRoute.loader({ request: prmReq } as never) as Response,
+    );
     expect(prm.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
     expect(prm.headers.get("Access-Control-Allow-Origin")).toBe("*");
 
@@ -654,7 +867,14 @@ describe("the shared cache policy owns the private responses (test/cache-policy.
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ token: "fox_rt_unknown" }),
     });
-    const rev = applyCachePolicy(revReq, (await revokeRoute.action({ request: revReq, context: context(), params: {} } as never)) as Response);
+    const rev = applyCachePolicy(
+      revReq,
+      (await revokeRoute.action({
+        request: revReq,
+        context: context(),
+        params: {},
+      } as never)) as Response,
+    );
     expect(rev.status).toBe(200);
     expect(rev.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
   });
@@ -680,14 +900,18 @@ async function makeMember(): Promise<void> {
 }
 
 describe("a grant ends when the person who approved it leaves the account", () => {
-
   it("removed between consent and exchange: the code is refused and mints nothing", async () => {
     const clientId = await registered();
     const { verifier, challenge } = await pkcePair();
     const code = (await consent(clientId, challenge)).searchParams.get("code")!;
     await makeMember();
     expect((await removeMember(db, ACCOUNT_B, `m_${ACCOUNT_B}`)).ok).toBe(true);
-    const res = await tokenCall({ grant_type: "authorization_code", code, code_verifier: verifier, client_id: clientId });
+    const res = await tokenCall({
+      grant_type: "authorization_code",
+      code,
+      code_verifier: verifier,
+      client_id: clientId,
+    });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("invalid_grant");
     expect(await db.select().from(apiKeys)).toHaveLength(0);
@@ -701,21 +925,31 @@ describe("a grant ends when the person who approved it leaves the account", () =
     expect(await verifyMcpToken(db, access)).toBeNull();
     const [grant] = await db.select().from(oauthGrants);
     expect(grant.revokedAt).not.toBeNull();
-    const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    const res = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: clientId,
+    });
     expect(res.body.error).toBe("invalid_grant");
   });
 
   it("a closed account's access token stops working", async () => {
     const { access } = await fullFlow();
     expect(await verifyMcpToken(db, access)).not.toBeNull();
-    sqlite.prepare("UPDATE accounts SET cancelled_at = ? WHERE id = ?").run(NOW.getTime(), ACCOUNT_B);
+    sqlite
+      .prepare("UPDATE accounts SET cancelled_at = ? WHERE id = ?")
+      .run(NOW.getTime(), ACCOUNT_B);
     expect(await verifyMcpToken(db, access)).toBeNull();
   });
 
   it("a membership gone by any other path: the next refresh refuses and revokes", async () => {
     const { clientId, access, refresh } = await fullFlow();
     sqlite.prepare("DELETE FROM account_members WHERE id = ?").run(`m_${ACCOUNT_B}`);
-    const res = await tokenCall({ grant_type: "refresh_token", refresh_token: refresh, client_id: clientId });
+    const res = await tokenCall({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: clientId,
+    });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("invalid_grant");
     expect(await verifyMcpToken(db, access)).toBeNull();
@@ -726,12 +960,19 @@ describe("a grant ends when the person who approved it leaves the account", () =
   it("deleting the person ends their grant on an account they do not own, under foreign keys", async () => {
     sqlite.pragma("foreign_keys = ON");
     sqlite
-      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)")
+      .prepare(
+        "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES ('user_2', 'Eli', 'eli@acme.test', 0, 0)",
+      )
       .run();
     sqlite
-      .prepare("INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'owner', 'active', 3000)")
+      .prepare(
+        "INSERT INTO account_members (id, account_id, user_id, role, status, created_at) VALUES ('m_eli', ?, 'user_2', 'owner', 'active', 3000)",
+      )
       .run(ACCOUNT_B);
-    harness.session = { user: { id: "user_2", name: "Eli", email: "eli@acme.test" }, session: { id: "s2", activeAccountId: ACCOUNT_B } };
+    harness.session = {
+      user: { id: "user_2", name: "Eli", email: "eli@acme.test" },
+      session: { id: "s2", activeAccountId: ACCOUNT_B },
+    };
     const elis = await fullFlow();
     // Eli consented as an owner and is an ordinary member when deleted.
     sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = 'm_eli'").run();
@@ -739,7 +980,15 @@ describe("a grant ends when the person who approved it leaves the account", () =
     expect(result.status).toBe("deleted");
     expect(await verifyMcpToken(db, elis.access)).toBeNull();
     expect(await db.select().from(oauthGrants)).toHaveLength(0);
-    expect((await tokenCall({ grant_type: "refresh_token", refresh_token: elis.refresh, client_id: elis.clientId })).body.error).toBe("invalid_grant");
+    expect(
+      (
+        await tokenCall({
+          grant_type: "refresh_token",
+          refresh_token: elis.refresh,
+          client_id: elis.clientId,
+        })
+      ).body.error,
+    ).toBe("invalid_grant");
     expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 });
@@ -751,14 +1000,22 @@ describe("least scope: read unless the owner allows changes, with a step-up for 
     title: name,
     description: name,
     inputSchema: { type: "object", additionalProperties: false },
-    annotations: { readOnlyHint: scope === "read", destructiveHint: scope === "write", idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: scope === "read",
+      destructiveHint: scope === "write",
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     scope,
     execute: async () => {
       if (scope === "write") writes.push(name);
       return { ok: true };
     },
   });
-  const REGISTRY = defineToolRegistry([tool("foxhound_get_probe", "read"), tool("foxhound_update_probe", "write")]);
+  const REGISTRY = defineToolRegistry([
+    tool("foxhound_get_probe", "read"),
+    tool("foxhound_update_probe", "write"),
+  ]);
 
   async function grant(allowWrite: boolean): Promise<{ access: string; scope: unknown }> {
     const clientId = await registered();
@@ -783,21 +1040,27 @@ describe("least scope: read unless the owner allows changes, with a step-up for 
     const read = await grant(false);
     expect(read.scope).toBe("merchant.read");
     for (const era of ["legacy", "modern"] as const) {
-      expect(toolOutput(await readMcp(await callTool(read.access, "foxhound_get_probe", era))).isError).toBe(false);
+      expect(
+        toolOutput(await readMcp(await callTool(read.access, "foxhound_get_probe", era))).isError,
+      ).toBe(false);
       const refused = await callTool(read.access, "foxhound_update_probe", era);
       expect(refused.status, era).toBe(403);
       const challenge = refused.headers.get("WWW-Authenticate") ?? "";
       expect(challenge).toMatch(/error="insufficient_scope"/);
       expect(challenge).toMatch(/scope="merchant\.read merchant\.write"/);
-      expect(challenge).toContain(`resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp"`);
+      expect(challenge).toContain(
+        `resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp"`,
+      );
     }
     expect(writes, "the write tool never ran").toEqual([]);
 
     const write = await grant(true);
     expect(write.scope).toBe("merchant.read merchant.write");
-    expect(toolOutput(await readMcp(await callTool(write.access, "foxhound_update_probe", "legacy"))).isError).toBe(false);
+    expect(
+      toolOutput(await readMcp(await callTool(write.access, "foxhound_update_probe", "legacy")))
+        .isError,
+    ).toBe(false);
     expect(writes).toEqual(["foxhound_update_probe"]);
-
   });
 
   it("a grant made before the split, holding no scopes, is read only", async () => {
@@ -830,14 +1093,25 @@ describe("a client known by its metadata document (CIMD)", () => {
     vi.stubGlobal("Cloudflare", { compatibilityFlags: { global_fetch_strictly_public: true } });
     vi.stubGlobal("fetch", async (url: string) => {
       fetched.push(String(url));
-      return new Response(JSON.stringify(served), { headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(served), {
+        headers: { "Content-Type": "application/json" },
+      });
     });
   });
 
   it("fetches the document, connects the client it names, and refuses one that fails a check", async () => {
     const { verifier, challenge } = await pkcePair();
-    const check = await provider.checkAuthorizeRequest(db, authorizeParams(DOC_URL, challenge), ORIGIN);
-    expect(check).toMatchObject({ ok: true, clientId: DOC_URL, clientName: "Example Agent", metadataDocument: true });
+    const check = await provider.checkAuthorizeRequest(
+      db,
+      authorizeParams(DOC_URL, challenge),
+      ORIGIN,
+    );
+    expect(check).toMatchObject({
+      ok: true,
+      clientId: DOC_URL,
+      clientName: "Example Agent",
+      metadataDocument: true,
+    });
     expect(fetched).toEqual([DOC_URL]);
 
     const back = await consent(DOC_URL, challenge);
@@ -860,7 +1134,11 @@ describe("a client known by its metadata document (CIMD)", () => {
       doc({ token_endpoint_auth_method: "client_secret_basic" }),
     ]) {
       served = bad;
-      const refused = await provider.checkAuthorizeRequest(db, authorizeParams(DOC_URL, challenge), ORIGIN);
+      const refused = await provider.checkAuthorizeRequest(
+        db,
+        authorizeParams(DOC_URL, challenge),
+        ORIGIN,
+      );
       expect(refused.ok, JSON.stringify(bad)).toBe(false);
     }
   });

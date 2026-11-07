@@ -73,10 +73,7 @@ export function mintMcpTokenValue(): string {
  * the plaintext once. This is the C6 issuance helper; Phase 7 calls it behind an
  * authenticated, role-checked endpoint.
  */
-export async function issueMcpToken(
-  db: Db,
-  input: IssueMcpTokenInput,
-): Promise<IssuedMcpToken> {
+export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<IssuedMcpToken> {
   const token = mintMcpTokenValue();
   const keyHash = await hashMcpToken(token);
   const keyId = crypto.randomUUID();
@@ -111,10 +108,7 @@ export interface VerifiedMcpToken {
  * or not an MCP token. Stamps last_used_at. Phase 7's MCP request handler calls
  * this; Phase 3 defines it as part of the model.
  */
-export async function verifyMcpToken(
-  db: Db,
-  presented: string,
-): Promise<VerifiedMcpToken | null> {
+export async function verifyMcpToken(db: Db, presented: string): Promise<VerifiedMcpToken | null> {
   if (!presented.startsWith(MCP_TOKEN_PREFIX)) return null;
 
   const keyHash = await hashMcpToken(presented);

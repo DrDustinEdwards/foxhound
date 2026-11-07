@@ -57,7 +57,9 @@ function isKind(value: unknown): value is StagedKind {
 }
 
 /** One sentence a person or an agent can read in a list. */
-export function describeStaged(row: Pick<StagedRow, "kind" | "targetAccountId" | "targetCronName" | "params">): string {
+export function describeStaged(
+  row: Pick<StagedRow, "kind" | "targetAccountId" | "targetCronName" | "params">,
+): string {
   switch (row.kind) {
     case "resume_account":
       return `Resume processing for ${row.targetAccountId}`;
@@ -73,14 +75,21 @@ export function describeStaged(row: Pick<StagedRow, "kind" | "targetAccountId" |
 }
 
 /** The phrase /admin/staged asks for before confirming this row, or null. */
-export function stagedConfirmPhrase(row: Pick<StagedRow, "kind" | "targetCronName">): string | null {
-  if (row.kind === "cron_enable" && row.targetCronName) return cronEnableConfirmPhrase(row.targetCronName);
+export function stagedConfirmPhrase(
+  row: Pick<StagedRow, "kind" | "targetCronName">,
+): string | null {
+  if (row.kind === "cron_enable" && row.targetCronName)
+    return cronEnableConfirmPhrase(row.targetCronName);
   if (row.kind === "release_brake") return BRAKE_CONFIRM_PHRASES.release;
   return null;
 }
 
 async function accountExists(db: Db, accountId: string): Promise<boolean> {
-  const rows = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
+  const rows = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
   return rows.length > 0;
 }
 
@@ -96,20 +105,27 @@ export async function stageChange(db: Db, input: StageInput): Promise<StagedOutc
   let params: Record<string, unknown> | null = null;
 
   if (kind === "resume_account" || kind === "billing_exempt") {
-    if (!accountId) return { ok: false, error: `${kind} needs account_id. Find one with the merchants read.` };
+    if (!accountId)
+      return { ok: false, error: `${kind} needs account_id. Find one with the merchants read.` };
     if (!(await accountExists(db, accountId))) {
       return { ok: false, error: `No merchant ${accountId}. Find one with the merchants read.` };
     }
   }
   if (kind === "billing_exempt") {
     if (typeof input.exempt !== "boolean") {
-      return { ok: false, error: "billing_exempt needs exempt: true to exempt the account, false to bill it again." };
+      return {
+        ok: false,
+        error: "billing_exempt needs exempt: true to exempt the account, false to bill it again.",
+      };
     }
     params = { exempt: input.exempt };
   }
   if (kind === "cron_enable") {
     if (!cronName || !isKnownCronName(cronName)) {
-      return { ok: false, error: "cron_enable needs cron_name, one of the crons the health read lists." };
+      return {
+        ok: false,
+        error: "cron_enable needs cron_name, one of the crons the health read lists.",
+      };
     }
   }
 
@@ -138,7 +154,11 @@ export async function stageChange(db: Db, input: StageInput): Promise<StagedOutc
   return { ok: true, value: row };
 }
 
-export async function listStagedChanges(db: Db, status: string | null, limit = 200): Promise<StagedRow[]> {
+export async function listStagedChanges(
+  db: Db,
+  status: string | null,
+  limit = 200,
+): Promise<StagedRow[]> {
   const query = db.select().from(stagedChanges);
   const rows = await (status ? query.where(eq(stagedChanges.status, status)) : query)
     .orderBy(desc(stagedChanges.requestedAt))
@@ -149,16 +169,26 @@ export async function listStagedChanges(db: Db, status: string | null, limit = 2
 async function loadPending(db: Db, id: string, now: Date): Promise<StagedOutcome<StagedRow>> {
   const [row] = await db.select().from(stagedChanges).where(eq(stagedChanges.id, id)).limit(1);
   if (!row) return { ok: false, error: "No such staged change." };
-  if (row.status !== "pending") return { ok: false, error: `This change is already ${row.status}.` };
+  if (row.status !== "pending")
+    return { ok: false, error: `This change is already ${row.status}.` };
   if (now.getTime() - row.requestedAt.getTime() > STAGED_TTL_MS) {
-    return { ok: false, error: "This change is more than seven days old. Ask for it again if it is still wanted." };
+    return {
+      ok: false,
+      error: "This change is more than seven days old. Ask for it again if it is still wanted.",
+    };
   }
   return { ok: true, value: row };
 }
 
 /** Move a pending row to a decided status, only if it is still pending. False
  *  when another admin decided it first, so a change is never applied twice. */
-async function claim(db: Db, id: string, status: string, actorEmail: string, now: Date): Promise<boolean> {
+async function claim(
+  db: Db,
+  id: string,
+  status: string,
+  actorEmail: string,
+  now: Date,
+): Promise<boolean> {
   const updated = await db
     .update(stagedChanges)
     .set({ status, decidedBy: actorEmail, decidedAt: now })
@@ -167,7 +197,12 @@ async function claim(db: Db, id: string, status: string, actorEmail: string, now
   return updated.length > 0;
 }
 
-async function apply(env: Env, row: StagedRow, actorEmail: string, now: Date): Promise<Record<string, unknown>> {
+async function apply(
+  env: Env,
+  row: StagedRow,
+  actorEmail: string,
+  now: Date,
+): Promise<Record<string, unknown>> {
   const db = getDb(env);
   switch (row.kind as StagedKind) {
     case "resume_account":
@@ -205,7 +240,12 @@ export async function confirmStagedChange(
   await logAdminAction(db, {
     actorEmail: input.actorEmail,
     action: "staged.confirm",
-    metadata: { stagedId: row.id, kind: row.kind, requestedBy: row.requestedBy, summary: describeStaged(row) },
+    metadata: {
+      stagedId: row.id,
+      kind: row.kind,
+      requestedBy: row.requestedBy,
+      summary: describeStaged(row),
+    },
   });
   if (!(await claim(db, row.id, "confirmed", input.actorEmail, input.now))) {
     return { ok: false, error: "Another admin decided this change first." };
@@ -213,10 +253,22 @@ export async function confirmStagedChange(
   try {
     const result = await apply(env, row, input.actorEmail, input.now);
     await db.update(stagedChanges).set({ result }).where(eq(stagedChanges.id, row.id));
-    return { ok: true, value: { ...row, status: "confirmed", decidedBy: input.actorEmail, decidedAt: input.now, result } };
+    return {
+      ok: true,
+      value: {
+        ...row,
+        status: "confirmed",
+        decidedBy: input.actorEmail,
+        decidedAt: input.now,
+        result,
+      },
+    };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
-    await db.update(stagedChanges).set({ status: "failed", result: { error } }).where(eq(stagedChanges.id, row.id));
+    await db
+      .update(stagedChanges)
+      .set({ status: "failed", result: { error } })
+      .where(eq(stagedChanges.id, row.id));
     await logAdminAction(db, {
       actorEmail: input.actorEmail,
       action: "staged.failed",

@@ -1,4 +1,8 @@
-import { dismissPasskeyOffer, sessionLookup, shouldOfferPasskey } from "@dustinedwards/site-runtime/sign-in";
+import {
+  dismissPasskeyOffer,
+  sessionLookup,
+  shouldOfferPasskey,
+} from "@dustinedwards/site-runtime/sign-in";
 import { canOfferPasskey } from "@dustinedwards/site-runtime/sign-in-client";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -10,7 +14,7 @@ import { getAuth } from "~/lib/auth";
 import { authClient, signInAgainIfStale } from "~/lib/auth/client";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { safeNextPath } from "~/lib/auth/next-path";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/passkey-offer";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -35,7 +39,11 @@ async function signedIn(request: Request, env: Env) {
   const auth = await getAuth(env);
   const session = await auth.api.getSession(sessionLookup(request));
   if (!session) throw redirect("/login");
-  const next = await signedInLanding(env, session, safeNextPath(new URL(request.url).searchParams.get("next")));
+  const next = await signedInLanding(
+    env,
+    session,
+    safeNextPath(new URL(request.url).searchParams.get("next")),
+  );
   return { auth, session, next };
 }
 
@@ -79,18 +87,20 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
           variant="primary"
           size="lg"
           pending={busy}
-          onClick={async () => {
-            setBusy(true);
-            setError(null);
-            const res = await authClient.passkey.addPasskey();
-            if (signInAgainIfStale(res?.error)) return;
-            setBusy(false);
-            if (res?.error) {
-              setError("The passkey was not saved. Try again, or skip it for now.");
-              return;
-            }
-            window.location.assign(next);
-          }}
+          onClick={() =>
+            void (async () => {
+              setBusy(true);
+              setError(null);
+              const res = await authClient.passkey.addPasskey();
+              if (signInAgainIfStale(res?.error)) return;
+              setBusy(false);
+              if (res?.error) {
+                setError("The passkey was not saved. Try again, or skip it for now.");
+                return;
+              }
+              window.location.assign(next);
+            })()
+          }
         >
           {busy ? "Waiting for your device..." : "Create a passkey"}
         </Button>

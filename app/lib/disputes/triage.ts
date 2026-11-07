@@ -103,7 +103,8 @@ export function calculateTriage(
     return {
       recommendation: "fight",
       confidence: 80,
-      reasoning: "Subscription billing disputes are generally winnable with Stripe timeline records.",
+      reasoning:
+        "Subscription billing disputes are generally winnable with Stripe timeline records.",
     };
   }
 
@@ -119,7 +120,8 @@ export function calculateTriage(
     return {
       recommendation: "fight",
       confidence: 75,
-      reasoning: "Digital or SaaS delivery. Access logs and account activity generally carry this case.",
+      reasoning:
+        "Digital or SaaS delivery. Access logs and account activity generally carry this case.",
     };
   }
 
@@ -145,7 +147,9 @@ export function calculateTriage(
  * uncategorized_text fact list is not here, because Foxhound's grounded draft
  * (evidence.ts) owns that field.
  */
-export function contextEvidenceFields(context: DisputeContext): { fieldName: string; fieldValue: string }[] {
+export function contextEvidenceFields(
+  context: DisputeContext,
+): { fieldName: string; fieldValue: string }[] {
   const fields: { fieldName: string; fieldValue: string }[] = [];
   const add = (fieldName: string, value: string | null) => {
     if (value) fields.push({ fieldName, fieldValue: value });
@@ -214,7 +218,11 @@ export function humanSmartDisputes(raw: string | null): string {
 /** Recova's humanRadarLevel. */
 function humanRadarLevel(raw: string | null): string {
   if (!raw) return "";
-  const map: Record<string, string> = { normal: "Normal", elevated: "Elevated", highest: "Highest" };
+  const map: Record<string, string> = {
+    normal: "Normal",
+    elevated: "Elevated",
+    highest: "Highest",
+  };
   return map[raw] ?? raw;
 }
 
@@ -229,7 +237,10 @@ export function readPriorCharges(raw: unknown): PriorCharge[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(
     (c): c is PriorCharge =>
-      !!c && typeof c === "object" && typeof (c as PriorCharge).date === "string" && typeof (c as PriorCharge).amount === "number",
+      !!c &&
+      typeof c === "object" &&
+      typeof (c as PriorCharge).date === "string" &&
+      typeof (c as PriorCharge).amount === "number",
   );
 }
 

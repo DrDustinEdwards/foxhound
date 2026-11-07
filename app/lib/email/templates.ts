@@ -19,7 +19,7 @@ import {
 // THE ONE EMAIL TEMPLATES MODULE. Every mail Foxhound sends is rendered
 // here, on Capsomer's shared email component (RULES.md 3.16; Q3, Dustin "yes",
 // 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQL1VeHhPyiYfFgdd86VozbJD).
-// send.ts calls renderFoxhoundEmail for both sendEmail and sendTransactionalEmail,
+// send.ts calls renderFoxhoundEmail for both sendJobEmail and sendTransactionalEmail,
 // so the frame is applied in exactly one place. The sign-in link and the
 // security notice are the exceptions to foxhoundMail: they are rendered on
 // Capsomer's `magicLink` and `securityNotice` templates below, still in this
@@ -43,7 +43,7 @@ import {
 // reader below), because a generated body is cached and re-sent, and a throw
 // would fail that step on every retry. A refused URL Foxhound itself supplies
 // outside the body (the unsubscribe link, the tracking URLs) still throws inside
-// the render, and that throw is NOT caught here: it propagates through sendEmail
+// the render, and that throw is NOT caught here: it propagates through sendJobEmail
 // into processEmailJob, which records it on the email_sends claim like any other
 // send failure.
 
@@ -126,8 +126,16 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
   const rendered = input.notice
     ? renderEmail(notice, { ...common, ...input.notice, copy: { subject: input.subject } })
     : input.blocks
-      ? renderEmail(foxhoundBlocks, { ...common, subjectLine: input.subject, content: input.blocks })
-      : renderEmail(foxhoundMail, { ...common, subjectLine: input.subject, bodyHtml: input.bodyHtml });
+      ? renderEmail(foxhoundBlocks, {
+          ...common,
+          subjectLine: input.subject,
+          content: input.blocks,
+        })
+      : renderEmail(foxhoundMail, {
+          ...common,
+          subjectLine: input.subject,
+          bodyHtml: input.bodyHtml,
+        });
   if (!input.tracking) return rendered;
   // The pixel and the trap go into the HTML part only. In the text part a
   // reader would see them, and a text part cannot load an image anyway.
@@ -202,8 +210,17 @@ export function renderFoxhoundSignInLinkEmail(input: SignInLinkRenderInput): Ren
 /** Render a security notice (site-runtime ./sign-in's `sendSecurityNotice`
  *  detail, taken as it is) on Capsomer's securityNotice template. `url` is the
  *  page where a merchant manages sign-in; the mail holds no link that signs in. */
-export function renderFoxhoundSecurityNoticeEmail(to: string, detail: NoticeDetail, url: string): Rendered {
-  return renderEmail(securityNotice, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, to, ...detail, url });
+export function renderFoxhoundSecurityNoticeEmail(
+  to: string,
+  detail: NoticeDetail,
+  url: string,
+): Rendered {
+  return renderEmail(securityNotice, {
+    brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY },
+    to,
+    ...detail,
+    url,
+  });
 }
 
 /** Render one of an email change's two mails on Capsomer's emailChange
@@ -218,7 +235,10 @@ export function renderFoxhoundEmailChangeEmail(input: {
   expiresIn: string;
   copy: Copy;
 }): Rendered {
-  return renderEmail(emailChange, { brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY }, ...input });
+  return renderEmail(emailChange, {
+    brand: { name: "Foxhound", family: FOXHOUND_EMAIL_FAMILY },
+    ...input,
+  });
 }
 
 // ---- operator alerts (E26, E27) ------------------------------------------------
@@ -372,7 +392,22 @@ const BLOCK_TAGS = new Set([
   "h6",
 ]);
 const DROPPED_WITH_CONTENT = /<(script|style|head|title|template|noscript)\b[\s\S]*?<\/\1\s*>/gi;
-const VOID_TAGS = new Set(["br", "hr", "img", "meta", "link", "input", "wbr", "col", "source", "area", "base", "embed", "param", "track"]);
+const VOID_TAGS = new Set([
+  "br",
+  "hr",
+  "img",
+  "meta",
+  "link",
+  "input",
+  "wbr",
+  "col",
+  "source",
+  "area",
+  "base",
+  "embed",
+  "param",
+  "track",
+]);
 const TAG = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
 const ATTR = /([^\s"'=<>/`]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 
@@ -488,17 +523,48 @@ function acceptedUrl(href: string): string | null {
 // start tags that close one as a sibling, and the elements that, open inside
 // it, make such a start tag a nested child instead of a sibling.
 const P_CLOSERS = [
-  "address", "article", "aside", "blockquote", "dd", "div", "dl", "dt", "fieldset", "footer", "form",
-  "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "menu", "nav", "ol", "p", "pre", "section",
-  "table", "ul",
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "dd",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hr",
+  "li",
+  "menu",
+  "nav",
+  "ol",
+  "p",
+  "pre",
+  "section",
+  "table",
+  "ul",
 ];
 const OPTIONAL_END: Record<string, { closers: Set<string>; scopes: Set<string> }> = {
   p: { closers: new Set(P_CLOSERS), scopes: new Set() },
   li: { closers: new Set(["li"]), scopes: new Set(["ul", "ol"]) },
   dt: { closers: new Set(["dt", "dd"]), scopes: new Set(["dl"]) },
   dd: { closers: new Set(["dt", "dd"]), scopes: new Set(["dl"]) },
-  td: { closers: new Set(["td", "th", "tr", "tbody", "thead", "tfoot"]), scopes: new Set(["table"]) },
-  th: { closers: new Set(["td", "th", "tr", "tbody", "thead", "tfoot"]), scopes: new Set(["table"]) },
+  td: {
+    closers: new Set(["td", "th", "tr", "tbody", "thead", "tfoot"]),
+    scopes: new Set(["table"]),
+  },
+  th: {
+    closers: new Set(["td", "th", "tr", "tbody", "thead", "tfoot"]),
+    scopes: new Set(["table"]),
+  },
   tr: { closers: new Set(["tr", "tbody", "thead", "tfoot"]), scopes: new Set(["table"]) },
   option: { closers: new Set(["option", "optgroup"]), scopes: new Set(["select"]) },
 };
@@ -515,7 +581,12 @@ interface HiddenSkip {
  * end tag), and "end-reprocess" when the tag ends it implicitly and must then be
  * read as an ordinary tag (a sibling start tag or a parent's end tag).
  */
-function feedHidden(h: HiddenSkip, name: string, closing: boolean, selfClose: boolean): "skip" | "end" | "end-reprocess" {
+function feedHidden(
+  h: HiddenSkip,
+  name: string,
+  closing: boolean,
+  selfClose: boolean,
+): "skip" | "end" | "end-reprocess" {
   const optional = OPTIONAL_END[h.tag];
   if (closing) {
     const at = h.stack.lastIndexOf(name);
@@ -528,7 +599,11 @@ function feedHidden(h: HiddenSkip, name: string, closing: boolean, selfClose: bo
     // implicitly ends an optional-end element. Anything else is a stray tag.
     return optional ? "end-reprocess" : "skip";
   }
-  if (optional && optional.closers.has(name) && !h.stack.some((t) => optional.scopes.has(t) || t === h.tag)) {
+  if (
+    optional &&
+    optional.closers.has(name) &&
+    !h.stack.some((t) => optional.scopes.has(t) || t === h.tag)
+  ) {
     return "end-reprocess";
   }
   if (!VOID_TAGS.has(name) && !selfClose) h.stack.push(name);
@@ -587,7 +662,9 @@ export function htmlToBlocks(html: string): Block[] {
     pending = null;
     if (!p) return;
     const text = squash(p.text);
-    const links = p.links.map((l) => ({ label: squash(l.label), url: l.url })).filter((l) => l.label);
+    const links = p.links
+      .map((l) => ({ label: squash(l.label), url: l.url }))
+      .filter((l) => l.label);
     // A block that is nothing but one link is a button.
     if (links.length === 1 && text === links[0].label) {
       blocks.push({ type: "button", label: links[0].label, url: links[0].url });

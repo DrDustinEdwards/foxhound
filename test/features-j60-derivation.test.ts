@@ -16,7 +16,8 @@ vi.mock("~/lib/constants", async (importOriginal) => {
   };
 });
 
-const { featureSections, healthBandExampleScores } = await import("~/lib/marketing/features-content");
+const { featureSections, healthBandExampleScores } =
+  await import("~/lib/marketing/features-content");
 const { healthScoreBand } = await import("~/lib/intelligence/health-band");
 
 describe("/features derivation (J60 review)", () => {

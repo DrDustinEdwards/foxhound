@@ -108,9 +108,7 @@ async function seed(opts: {
   return db;
 }
 
-
 describe("console read model: money per currency (RULES.md 3.20)", () => {
-
   it("formats an attention row's MRR in that customer's own currency", async () => {
     const db = await seed({ atRisk: [{ mrr: 9_000, currency: "eur" }] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
@@ -138,7 +136,6 @@ describe("console read model: the Intelligence tile and rows", () => {
     expect(view.tiles.highRiskMrr).toEqual([{ currency: "usd", cents: 5_000 }]);
     expect(view.attention.filter((r) => r.key.startsWith("outreach-"))).toHaveLength(3);
   });
-
 });
 
 describe("console formatting helpers", () => {
@@ -164,22 +161,26 @@ describe("console formatting helpers", () => {
         },
         "usd",
       ),
-    ).toBe("MRR movements in the latest month: New $100, Expand $20, Contract -$5, Churn -$15, Reactivate $0.");
+    ).toBe(
+      "MRR movements in the latest month: New $100, Expand $20, Contract -$5, Churn -$15, Reactivate $0.",
+    );
     // The alt is built from the same whole units the bars draw, so it cannot
     // disagree with the chart or its data table: a $1.50 contraction draws as
     // Math.round(-1.5) = -1, so the alt must read -$1, not Intl's -$2.
     expect(
       mrrMovementAlt(
-        { newMrrCents: 0, expansionMrrCents: 0, contractionMrrCents: 150, churnMrrCents: 0, reactivationMrrCents: 0 },
+        {
+          newMrrCents: 0,
+          expansionMrrCents: 0,
+          contractionMrrCents: 150,
+          churnMrrCents: 0,
+          reactivationMrrCents: 0,
+        },
         "usd",
       ),
     ).toContain("Contract -$1,");
   });
 });
-
-
-
-
 
 describe("console read model: whether the monthly sync will write a snapshot", () => {
   it("says unconnected without a Stripe connection, eligible with one", async () => {

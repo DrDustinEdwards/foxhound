@@ -8,9 +8,9 @@
       "Unresolved imports": 134
     },
     "jscpd": {
-      "clones": 115,
-      "lines": 1273,
-      "percentage": 1.16
+      "clones": 118,
+      "lines": 1309,
+      "percentage": 1.12
     },
     "tests": {
       "files": 342,

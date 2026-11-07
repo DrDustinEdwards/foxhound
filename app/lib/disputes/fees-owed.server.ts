@@ -31,7 +31,11 @@ import type { MoneyPart } from "./stats";
 
 /** The dispute fees an account still owes, one part per fee, in its currency.
  *  The caller totals them per currency (groupSumByCurrency). */
-export async function getDisputeFeesOwed(db: Db, accountId: string, nowMs: number): Promise<MoneyPart[]> {
+export async function getDisputeFeesOwed(
+  db: Db,
+  accountId: string,
+  nowMs: number,
+): Promise<MoneyPart[]> {
   const [pending, invoiced, credits] = await Promise.all([
     getBillableDisputes(db, accountId, nowMs),
     db
@@ -51,7 +55,10 @@ export async function getDisputeFeesOwed(db: Db, accountId: string, nowMs: numbe
         ),
       ),
     db
-      .select({ creditsLineItemId: billingLineItems.creditsLineItemId, amountCents: billingLineItems.amountCents })
+      .select({
+        creditsLineItemId: billingLineItems.creditsLineItemId,
+        amountCents: billingLineItems.amountCents,
+      })
       .from(billingLineItems)
       .where(
         and(
@@ -65,7 +72,10 @@ export async function getDisputeFeesOwed(db: Db, accountId: string, nowMs: numbe
   const creditedCents = new Map<string, number>();
   for (const c of credits) {
     if (!c.creditsLineItemId) continue;
-    creditedCents.set(c.creditsLineItemId, (creditedCents.get(c.creditsLineItemId) ?? 0) + Math.abs(c.amountCents));
+    creditedCents.set(
+      c.creditsLineItemId,
+      (creditedCents.get(c.creditsLineItemId) ?? 0) + Math.abs(c.amountCents),
+    );
   }
 
   // The run's own fee: the stored snapshot. An unpriced win is not pending.

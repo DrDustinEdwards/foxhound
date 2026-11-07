@@ -73,8 +73,6 @@ function hrefs(html: string): string[] {
   return [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
 }
 
-
-
 afterEach(() => {
   vi.restoreAllMocks();
 });

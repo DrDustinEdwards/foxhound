@@ -20,12 +20,21 @@ type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 export async function signedInLanding(env: Env, session: Session, next: string): Promise<string> {
   if (next !== DEFAULT_NEXT_PATH) return next;
   const db = getDb(env);
-  const membership = await resolveActiveMembership(db, session.user.id, session.session.activeAccountId ?? null);
+  const membership = await resolveActiveMembership(
+    db,
+    session.user.id,
+    session.session.activeAccountId ?? null,
+  );
   if (!membership) return "/connect";
   const live = await db
     .select({ id: stripeConnections.id })
     .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, membership.accountId), isNull(stripeConnections.disconnectedAt)))
+    .where(
+      and(
+        eq(stripeConnections.accountId, membership.accountId),
+        isNull(stripeConnections.disconnectedAt),
+      ),
+    )
     .limit(1);
   return live.length > 0 ? next : "/connect";
 }

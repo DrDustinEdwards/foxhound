@@ -34,4 +34,8 @@ import { INDEXNOW_KEY } from "./indexnow-key";
 
 const INDEXNOW_ORIGIN = "https://foxhoundapp.com";
 
-export const indexNow = indexNowHook({ submit: submitIndexNow, origin: INDEXNOW_ORIGIN, key: INDEXNOW_KEY });
+export const indexNow = indexNowHook({
+  submit: submitIndexNow,
+  origin: INDEXNOW_ORIGIN,
+  key: INDEXNOW_KEY,
+});

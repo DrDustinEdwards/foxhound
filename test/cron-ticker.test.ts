@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CRON_SCHEDULE_RECOVERY_TICK, CRON_TICKER_INTERVAL_MS, RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
+import {
+  CRON_SCHEDULE_RECOVERY_TICK,
+  CRON_TICKER_INTERVAL_MS,
+  RECOVERY_TICK_CRON_NAME,
+} from "~/lib/constants";
 import { DISPUTE_REMINDERS_CRON_NAME } from "~/lib/cron/dispute-reminders";
 import { jobsForSchedule, type CronJob } from "~/lib/cron/registry";
 import { runScheduledJobs } from "~/lib/cron/run";
@@ -83,15 +87,20 @@ const job = (name: string): CronJob => ({
 });
 
 const kinds = (writes: Array<{ sql: string; name: unknown }>) =>
-  writes.map((w) => `${String(w.name)}:${w.sql.includes("last_ok_at)") ? "ok" : w.sql.includes("last_failed_at") ? "failed" : "started"}`);
+  writes.map(
+    (w) =>
+      `${String(w.name)}:${w.sql.includes("last_ok_at)") ? "ok" : w.sql.includes("last_failed_at") ? "failed" : "started"}`,
+  );
 
 describe("runScheduledJobs records only runs that execute", () => {
   it("writes nothing for a skip, ok for a run, failed for an infrastructure failure", async () => {
     const { env, writes } = fakeDb();
     await expect(
       runScheduledJobs(env, [job("off"), job("ran"), job("broke")], async (e, name, handler) => {
-        if (name === "off") return { cronName: name, status: "skipped", rowsProcessed: 0, message: "disabled" };
-        if (name === "broke") return { cronName: name, status: "failed", rowsProcessed: 0, message: "lock rpc failed" };
+        if (name === "off")
+          return { cronName: name, status: "skipped", rowsProcessed: 0, message: "disabled" };
+        if (name === "broke")
+          return { cronName: name, status: "failed", rowsProcessed: 0, message: "lock rpc failed" };
         const result = await handler(e, { runId: "r1" });
         return { cronName: name, status: "success", rowsProcessed: result.rowsProcessed };
       }),

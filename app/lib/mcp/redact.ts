@@ -152,7 +152,10 @@ function maskUnknownEmail(value: unknown): string | null {
  * returns the redacted copy rather than the raw one: a cycle must not be the
  * path where the rule fails open.
  */
-export function redactToolResult(value: unknown, seen: WeakMap<object, unknown> = new WeakMap()): unknown {
+export function redactToolResult(
+  value: unknown,
+  seen: WeakMap<object, unknown> = new WeakMap(),
+): unknown {
   if (value === null || typeof value !== "object") return value;
   if (value instanceof Date) return value;
 

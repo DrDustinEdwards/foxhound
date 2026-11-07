@@ -11,17 +11,23 @@ import {
   SignInLinkSent,
   SocialContinue,
 } from "~/components/auth-card";
-import { checkAuthLimit, limitedData, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "~/lib/auth/rate-limit.server";
+import {
+  checkAuthLimit,
+  limitedData,
+  SIGN_IN_LIMITED,
+  SIGN_UP_LIMITED,
+} from "~/lib/auth/rate-limit.server";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
 import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/signup";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Row A3, /signup: Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
 // read whole, for the frame: one card, "Connect Stripe once", the fee line,
@@ -70,10 +76,16 @@ export async function action({ request, context }: Route.ActionArgs) {
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
   const refusal = await checkAuthLimit(env, request, isCode ? "credential" : "signup");
   if (refusal) {
-    return limitedData({ sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null }, refusal);
+    return limitedData(
+      { sent: null, error: isCode ? SIGN_IN_LIMITED : SIGN_UP_LIMITED, codeError: null },
+      refusal,
+    );
   }
 
-  return answerSignInForm(env, request, await readForm(request), { isCode, limited: SIGN_UP_LIMITED });
+  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES), {
+    isCode,
+    limited: SIGN_UP_LIMITED,
+  });
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {
@@ -114,7 +126,9 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
 
       <AuthFootnote>
         Already have an account?{" "}
-        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>Sign in</AuthLink>
+        <AuthLink to={carriedNext ? `/login?next=${encodeURIComponent(carriedNext)}` : "/login"}>
+          Sign in
+        </AuthLink>
       </AuthFootnote>
     </AuthCard>
   );

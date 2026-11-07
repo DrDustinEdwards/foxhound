@@ -28,16 +28,16 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { sendEmail } = await import("~/lib/email/send");
+const { sendJobEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
 const { buildWinbackEmail, winbackSubject } = await import("~/lib/recovery/winback-email");
-const { buildExpiringCardEmail, expiringCardSubject } = await import("~/lib/recovery/expiring-card-email");
+const { buildExpiringCardEmail, expiringCardSubject } =
+  await import("~/lib/recovery/expiring-card-email");
 const { digestContent } = await import("~/lib/recovery/digest-email");
 const { sendRecoveryNotification } = await import("~/lib/recovery/merchant-notification.server");
-const { sendSequenceCompleteNotification } = await import(
-  "~/lib/recovery/sequence-complete-notification.server"
-);
+const { sendSequenceCompleteNotification } =
+  await import("~/lib/recovery/sequence-complete-notification.server");
 const { resendDepsFor } = await import("~/lib/recovery/manual-action-deps.server");
 const { sendTestEmail } = await import("~/lib/settings/test-email.server");
 const { buildFailureAlertEmail, buildStaleAlertEmail } = await import("~/lib/cron/alerts.server");
@@ -174,9 +174,14 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
           cached: { customBody: null, cachedSubject: null, cachedBodyHtml: null },
         },
         copy,
-        { unsubscribeToken: "unsub_tok", physicalAddress: ADDRESS, openUrl: OPEN, honeypotUrl: TRAP },
+        {
+          unsubscribeToken: "unsub_tok",
+          physicalAddress: ADDRESS,
+          openUrl: OPEN,
+          honeypotUrl: TRAP,
+        },
       );
-      await sendEmail(env, job);
+      await sendJobEmail(env, job);
       const m = only();
       expectBothParts(m, ["$49.00", "Thanks,", "Acme"]);
       expectCustomerFooter(m);
@@ -197,7 +202,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
       `<p>Hi Jane,</p><p>Your payment of <strong>$12.00</strong> did not go through. ` +
       `You can <a href="${CLICK}">update your card here</a>.</p>` +
       `<script>alert(1)</script><ul><li>First point</li></ul><p>Thanks,<br />Acme</p>`;
-    await sendEmail(env, customerJob(body));
+    await sendJobEmail(env, customerJob(body));
     const m = only();
     expectBothParts(m, ["Hi Jane,", "$12.00", "update your card here", "First point", "Acme"]);
     expect(m.html).toContain(`href="${CLICK}"`);
@@ -217,9 +222,13 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
         senderName: "Acme",
         resubscribeUrl: resubscribe,
       });
-      await sendEmail(
+      await sendJobEmail(
         env,
-        customerJob("", { bodyHtml: undefined, blocks, subject: winbackSubject({ stepNumber: step, planName: "Pro" }) }),
+        customerJob("", {
+          bodyHtml: undefined,
+          blocks,
+          subject: winbackSubject({ stepNumber: step, planName: "Pro" }),
+        }),
       );
       const m = only();
       expectBothParts(m, ["Hi Jane,", "Acme"]);
@@ -241,7 +250,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
       senderName: "Acme",
       updateUrl: update,
     });
-    await sendEmail(
+    await sendJobEmail(
       env,
       customerJob("", {
         bodyHtml: undefined,
@@ -250,7 +259,12 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
       }),
     );
     const m = only();
-    expectBothParts(m, ["Hi Jane,", "Visa card ending in 4242", "03/2027", "Update Payment Method"]);
+    expectBothParts(m, [
+      "Hi Jane,",
+      "Visa card ending in 4242",
+      "03/2027",
+      "Update Payment Method",
+    ]);
     expect(m.html).toContain(`href="${update}"`);
     expectCustomerFooter(m);
   });
@@ -273,7 +287,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   it("a link the frame cannot carry is dropped to its words, and the send still goes", async () => {
     // Review fix 1. A cached AI body is reused on every retry, so a throw here
     // would fail the step every time and never reach the template fallback.
-    await sendEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a> today.</p>`));
+    await sendJobEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a> today.</p>`));
     const m = only();
     expectBothParts(m, ["Pay today."]);
     for (const part of [m.html, m.text ?? ""]) {
@@ -299,7 +313,10 @@ describe("merchant notices carry both parts and never the footer, except the dig
   });
 
   it("the sequence-complete notification", async () => {
-    const out = await sendSequenceCompleteNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
+    const out = await sendSequenceCompleteNotification(env, {
+      accountId: ACCOUNT,
+      failedPaymentId: FP,
+    });
     expect(out.kind).toBe("sent");
     const m = only();
     expectBothParts(m, ["Recovery sequence complete.", "View payment"]);
@@ -311,7 +328,7 @@ describe("merchant notices carry both parts and never the footer, except the dig
     // Unsubscribe and the postal address; RULES.md 3.16 keeps every other
     // merchant notice without them.
     const now = new Date("2026-10-12T09:00:00.000Z");
-    await sendEmail(env, {
+    await sendJobEmail(env, {
       accountId: ACCOUNT,
       to: "ops@acme.test",
       ...digestContent({
@@ -340,7 +357,12 @@ describe("merchant notices carry both parts and never the footer, except the dig
       audience: "digest",
     });
     const m = only();
-    expectBothParts(m, ["Your recovery summary", "Failed payments detected", "Revenue recovered", "View Dashboard"]);
+    expectBothParts(m, [
+      "Your recovery summary",
+      "Failed payments detected",
+      "Revenue recovered",
+      "View Dashboard",
+    ]);
     expectCustomerFooter(m);
   });
 });
@@ -373,12 +395,18 @@ describe("transactional mail carries both parts and never the footer", () => {
       now,
     );
     const to = "support@foxhoundapp.test";
-    await sendRenderedTransactionalEmail(env, { to, rendered: renderFoxhoundAlertEmail({ to, ...failure }) });
+    await sendRenderedTransactionalEmail(env, {
+      to,
+      rendered: renderFoxhoundAlertEmail({ to, ...failure }),
+    });
     const stale = buildStaleAlertEmail(
       { cronName: "digest", reason: "never_run", lastRunAt: null, schedule: "0 8 * * MON" },
       now,
     );
-    await sendRenderedTransactionalEmail(env, { to, rendered: renderFoxhoundAlertEmail({ to, ...stale }) });
+    await sendRenderedTransactionalEmail(env, {
+      to,
+      rendered: renderFoxhoundAlertEmail({ to, ...stale }),
+    });
     expect(harness.sent).toHaveLength(2);
     expectBothParts(harness.sent[0], ["recovery", "Run id: run_1", "boom: timed out"]);
     expectBothParts(harness.sent[1], ["digest", "Last succeeded: (never)"]);
@@ -386,13 +414,29 @@ describe("transactional mail carries both parts and never the footer", () => {
   });
 
   it("the monthly audit", async () => {
-    const ok = <T,>(data: T) => ({ ok: true as const, data });
+    const ok = <T>(data: T) => ({ ok: true as const, data });
     const message = buildMonthlyAuditEmail({
       result: {
-        failedInvoices: ok({ count: 2, totalCents: 4200, totals: [{ currency: "usd", cents: 4200 }], byCategory: {}, byCategoryTotals: {} }),
-        expiringCards: ok({ count: 1, mrrAtRiskCents: 1500, mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }], expiresByMonth: {} }),
+        failedInvoices: ok({
+          count: 2,
+          totalCents: 4200,
+          totals: [{ currency: "usd", cents: 4200 }],
+          byCategory: {},
+          byCategoryTotals: {},
+        }),
+        expiringCards: ok({
+          count: 1,
+          mrrAtRiskCents: 1500,
+          mrrAtRiskTotals: [{ currency: "usd", cents: 1500 }],
+          expiresByMonth: {},
+        }),
         pastDueSubscriptions: ok({ count: 0, totalCents: 0, totals: [] }),
-        cardUpdater: ok({ eventsInWindow: 0, expiredCardDeclinesInWindow: 0, advisory: null, windowDays: 30 }),
+        cardUpdater: ok({
+          eventsInWindow: 0,
+          expiredCardDeclinesInWindow: 0,
+          advisory: null,
+          windowDays: 30,
+        }),
         disputes: ok({
           open: { count: 1, totalCents: 9900, totals: [{ currency: "usd", cents: 9900 }] },
           acceptedWithoutFighting: { count: 0, totalCents: 0, totals: [] },
@@ -415,7 +459,7 @@ describe("transactional mail carries both parts and never the footer", () => {
       comparisons: [{ currency: "usd", cents: 1240, changeCents: 310 }],
     });
     // E24: merchant notice mail, written as Capsomer blocks, as the sender sends it.
-    await sendEmail(env, {
+    await sendJobEmail(env, {
       accountId: ACCOUNT,
       to: "owner@acme.test",
       fromName: "Foxhound",
@@ -477,7 +521,9 @@ describe("htmlToBlocks keeps the sender's words and order", async () => {
   });
 
   it("a whole small block is fine print", () => {
-    expect(htmlToBlocks(`<p><small>If the button does not work:<br>https://x.test/a</small></p>`)).toEqual([
+    expect(
+      htmlToBlocks(`<p><small>If the button does not work:<br>https://x.test/a</small></p>`),
+    ).toEqual([
       { type: "fine", text: "If the button does not work:" },
       { type: "fine", text: "https://x.test/a" },
     ]);
@@ -510,19 +556,27 @@ describe("review fixes to the HTML reader", async () => {
   });
 
   it("fix 3: a hidden li, td or p is closed by a sibling or a parent end tag", () => {
-    expect(htmlToBlocks(`<ul><li hidden>secret<li>Shown</ul>`)).toEqual([{ type: "paragraph", text: "Shown" }]);
-    expect(htmlToBlocks(`<ul><li hidden><ul><li>nested</li></ul>still hidden<li>Shown</ul>`)).toEqual([
+    expect(htmlToBlocks(`<ul><li hidden>secret<li>Shown</ul>`)).toEqual([
       { type: "paragraph", text: "Shown" },
     ]);
-    expect(htmlToBlocks(`<table><tr><td hidden>s<td>Cell</tr></table>`)).toEqual([{ type: "paragraph", text: "Cell" }]);
-    expect(htmlToBlocks(`<div><p hidden>secret</div><p>After</p>`)).toEqual([{ type: "paragraph", text: "After" }]);
-    expect(htmlToBlocks(`<p hidden>secret<div>Block</div>`)).toEqual([{ type: "paragraph", text: "Block" }]);
+    expect(
+      htmlToBlocks(`<ul><li hidden><ul><li>nested</li></ul>still hidden<li>Shown</ul>`),
+    ).toEqual([{ type: "paragraph", text: "Shown" }]);
+    expect(htmlToBlocks(`<table><tr><td hidden>s<td>Cell</tr></table>`)).toEqual([
+      { type: "paragraph", text: "Cell" },
+    ]);
+    expect(htmlToBlocks(`<div><p hidden>secret</div><p>After</p>`)).toEqual([
+      { type: "paragraph", text: "After" },
+    ]);
+    expect(htmlToBlocks(`<p hidden>secret<div>Block</div>`)).toEqual([
+      { type: "paragraph", text: "Block" },
+    ]);
   });
 
   it("fix 3: a void or self-closing hidden element never opens a skip", () => {
-    expect(htmlToBlocks(`<p><img hidden src="https://x.test/i.png" alt="">Still here</p>`)).toEqual([
-      { type: "paragraph", text: "Still here" },
-    ]);
+    expect(htmlToBlocks(`<p><img hidden src="https://x.test/i.png" alt="">Still here</p>`)).toEqual(
+      [{ type: "paragraph", text: "Still here" }],
+    );
     expect(htmlToBlocks(`<p><span hidden />Still</p><p>Next</p>`)).toEqual([
       { type: "paragraph", text: "Still" },
       { type: "paragraph", text: "Next" },
@@ -531,7 +585,9 @@ describe("review fixes to the HTML reader", async () => {
 
   it("fix 6: a second link opening inside the first keeps the first link's words", () => {
     expect(
-      htmlToBlocks(`<p><a href="https://x.test/a">First <a href="https://x.test/b">Second</a> end</p>`),
+      htmlToBlocks(
+        `<p><a href="https://x.test/a">First <a href="https://x.test/b">Second</a> end</p>`,
+      ),
     ).toEqual([
       { type: "paragraph", text: "First Second end" },
       { type: "button", label: "First", url: "https://x.test/a" },

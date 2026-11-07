@@ -100,9 +100,7 @@ const PREFETCH_HEADERS: readonly [string, string][] = [
  */
 type AutomatedReason = "bot_user_agent" | "prefetch" | "no_user_agent" | "not_a_get";
 
-export type EngagementSource =
-  | { automated: false }
-  | { automated: true; reason: AutomatedReason };
+export type EngagementSource = { automated: false } | { automated: true; reason: AutomatedReason };
 
 /**
  * Decide whether a request may write an engagement signal.

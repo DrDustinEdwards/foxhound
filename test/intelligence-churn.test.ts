@@ -9,7 +9,12 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 const ACCOUNT_ID = "acct_churn";
 const NOW = Date.parse("2026-07-25T00:00:00.000Z");
 
-async function setup(opts: { scored?: { score: number | null; mrrCents: number; name?: string }[]; snapshots?: { monthsAgo: number; vol: number | null; invol: number | null }[] } = {}) {
+async function setup(
+  opts: {
+    scored?: { score: number | null; mrrCents: number; name?: string }[];
+    snapshots?: { monthsAgo: number; vol: number | null; invol: number | null }[];
+  } = {},
+) {
   const { db } = createInMemoryDb();
   const now = new Date(NOW);
   await db.insert(accounts).values({ id: ACCOUNT_ID, name: "Churn Co", createdAt: now });
@@ -59,7 +64,6 @@ async function setup(opts: { scored?: { score: number | null; mrrCents: number; 
 }
 
 describe("getChurnView bands", () => {
-
   // Legacy's numerators counted only scored customers but its denominator
   // counted every customer, so the three shares silently failed to sum to 100%
   // with nothing on screen explaining the shortfall.

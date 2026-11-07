@@ -196,7 +196,10 @@ export async function claimAlertSlot(
     // Anything else (D1 down, a schema error) is not "already alerted". The
     // alert exists to report a broken system, so it goes out undeduplicated
     // rather than being swallowed.
-    console.error("cron alert dedupe claim failed; sending anyway:", err instanceof Error ? err.message : err);
+    console.error(
+      "cron alert dedupe claim failed; sending anyway:",
+      err instanceof Error ? err.message : err,
+    );
     return true;
   }
 }
@@ -302,7 +305,11 @@ export function buildStaleAlertEmail(
  */
 export function billingFailureError(failedAccountIds: string[], periodStart: Date): string | null {
   if (failedAccountIds.length === 0) return null;
-  const monthLabel = periodStart.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const monthLabel = periodStart.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
   return `${failedAccountIds.length} account(s) failed to invoice for ${monthLabel}: ${failedAccountIds.join(", ")}.`;
 }
 
@@ -310,12 +317,20 @@ export function billingFailureError(failedAccountIds: string[], periodStart: Dat
  *  as wrapEmailHtml(body, 'Recova Ops') writes it with no unsubscribe token:
  *  its sentence, then Manage email settings. Pure; the admin email preview
  *  renders through it too. */
-export function renderCronAlertEmail(to: string, message: CronAlertMessage, baseUrl: string, now: Date): Rendered {
+export function renderCronAlertEmail(
+  to: string,
+  message: CronAlertMessage,
+  baseUrl: string,
+  now: Date,
+): Rendered {
   return renderFoxhoundAlertEmail({
     subject: message.subject,
     to,
     alert: message.alert,
-    footer: [recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()), manageEmailSettingsLine(baseUrl)],
+    footer: [
+      recoveryFooterNote(OPS_SENDER_NAME, now.getUTCFullYear()),
+      manageEmailSettingsLine(baseUrl),
+    ],
   });
 }
 

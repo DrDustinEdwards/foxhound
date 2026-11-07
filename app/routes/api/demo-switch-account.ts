@@ -2,7 +2,8 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { findDemoBusiness, setActiveDemoAccountCookieHeader } from "~/lib/demo/session";
 
 import type { Route } from "./+types/demo-switch-account";
-import { readForm, readJson } from "~/lib/http/body";
+import { readForm, readJson } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Switch which demo business the demo shows. Legacy's
 // app/api/demo/switch-account/route.ts (blob `f6786c87`), at the same path:
@@ -37,10 +38,10 @@ async function readAccountId(request: Request): Promise<string | null> {
   const contentType = request.headers.get("content-type") ?? "";
   try {
     if (contentType.includes("application/json")) {
-      const payload = (await readJson(request)) as { accountId?: unknown } | null;
+      const payload = (await readJson(request, BODY_MAX_BYTES)) as { accountId?: unknown } | null;
       return typeof payload?.accountId === "string" ? payload.accountId : null;
     }
-    const value = (await readForm(request)).get("accountId");
+    const value = (await readForm(request, BODY_MAX_BYTES)).get("accountId");
     return typeof value === "string" ? value : null;
   } catch (error) {
     if (error instanceof Response) throw error;

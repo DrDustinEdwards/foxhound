@@ -35,7 +35,11 @@ function toRouteObjects(entries: RouteConfigEntry[]): RouteObject[] {
   return entries.map((e, i) => {
     const base = { id: `${e.file}#${i}`, handle: { file: e.file } };
     if (e.index) return { ...base, index: true, path: e.path } as RouteObject;
-    return { ...base, path: e.path, children: e.children ? toRouteObjects(e.children) : undefined } as RouteObject;
+    return {
+      ...base,
+      path: e.path,
+      children: e.children ? toRouteObjects(e.children) : undefined,
+    } as RouteObject;
   });
 }
 
@@ -53,7 +57,7 @@ async function served(path: string): Promise<{ status: number; location: string 
   const request = new Request(`${ORIGIN}${path}`);
   let response: Response;
   try {
-    response = (await loader({ request, params: {}, context: {} } as never)) as Response;
+    response = loader({ request, params: {}, context: {} } as never) as Response;
   } catch (thrown) {
     if (thrown instanceof Response) response = thrown;
     else throw thrown;
@@ -125,7 +129,8 @@ describe("the cutover map carries the seven in one hop (CUTOVER-PLAN.md: F17 fol
 
   it("no map target is itself a redirect source, so nothing chains", () => {
     const froms = new Set(RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source));
-    for (const e of RECOVA_REDIRECT_MAP) expect(froms.has(e.to), `${e.from} -> ${e.to}`).toBe(false);
+    for (const e of RECOVA_REDIRECT_MAP)
+      expect(froms.has(e.to), `${e.from} -> ${e.to}`).toBe(false);
   });
 
   it("serves the same map on app.recovamrr.com, Recova's path-preserving host rule", () => {
@@ -141,7 +146,9 @@ describe("the cutover map carries the seven in one hop (CUTOVER-PLAN.md: F17 fol
 
   it("refuses a config redirect to a path Foxhound does not serve", () => {
     expect(() =>
-      deriveRecovaMap([], new Set(["/docs"]), [{ source: "/x", destination: "/nowhere", permanent: true }]),
+      deriveRecovaMap([], new Set(["/docs"]), [
+        { source: "/x", destination: "/nowhere", permanent: true },
+      ]),
     ).toThrow(/does not serve/);
   });
 });

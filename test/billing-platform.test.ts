@@ -2,10 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
 
 import * as schema from "~/db/schema";
-import {
-  buildInvoiceStripeRefUpdate,
-  createPlatformInvoice,
-} from "~/lib/billing/stripe-invoice";
+import { buildInvoiceStripeRefUpdate, createPlatformInvoice } from "~/lib/billing/stripe-invoice";
 
 // These tests exercise charging itself, so the hard-rule-12 switch is on here.
 vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));

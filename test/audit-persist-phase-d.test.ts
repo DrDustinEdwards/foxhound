@@ -1,4 +1,3 @@
-
 import type Database from "better-sqlite3";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -26,9 +25,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { saveAuditRun, getAuditRun } = await import(
-  "~/lib/audit/persist.server"
-);
+const { saveAuditRun, getAuditRun } = await import("~/lib/audit/persist.server");
 
 const RAN_AT = new Date("2026-08-25T09:00:00.000Z");
 const ACCOUNT_A = "acct_alpha";
@@ -63,9 +60,7 @@ beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
   for (const id of [ACCOUNT_A, ACCOUNT_B]) {
-    sqlite
-      .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
-      .run(id, id);
+    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(id, id);
   }
 });
 

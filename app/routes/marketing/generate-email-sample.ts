@@ -1,13 +1,17 @@
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { data, redirect } from "react-router";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import { MARKETING_EMAIL_CATEGORIES, type MarketingEmailCategory } from "~/lib/marketing/email-sample";
+import {
+  MARKETING_EMAIL_CATEGORIES,
+  type MarketingEmailCategory,
+} from "~/lib/marketing/email-sample";
 import { generateMarketingEmailSample } from "~/lib/marketing/home-email-sample.server";
 
 import type { Route } from "./+types/generate-email-sample";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Live generation for the home page's email generator: unauthenticated, so
 // abuse protection is mandatory. The rate limit is a dedicated bucket checked
@@ -37,7 +41,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   let form: FormData;
   try {
-    form = await readForm(request);
+    form = await readForm(request, BODY_MAX_BYTES);
   } catch (err) {
     if (err instanceof Response) throw err;
     console.error("marketing email sample: unreadable form body", err);

@@ -12,6 +12,8 @@
 // longest-lived of those links has aged out.
 
 /** Link keys, newest first. */
-export function linkKeys(env: Pick<Env, "EMAIL_TOKEN_KEY" | "ENCRYPTION_KEY">): (string | undefined)[] {
+export function linkKeys(
+  env: Pick<Env, "EMAIL_TOKEN_KEY" | "ENCRYPTION_KEY">,
+): (string | undefined)[] {
   return [env.EMAIL_TOKEN_KEY, env.ENCRYPTION_KEY];
 }

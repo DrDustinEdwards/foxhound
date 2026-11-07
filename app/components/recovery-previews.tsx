@@ -7,7 +7,11 @@ import { CategoryPill, StepChip } from "~/components/tone-pills";
 import { timingLabel } from "~/components/docs/sequence-timeline";
 import type { DeclineCategory } from "~/lib/constants";
 import type { RecoveryRateTone } from "~/lib/dashboard/recovery-rate";
-import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "~/lib/marketing/recovery-preview";
+import type {
+  PreviewPaymentRow,
+  RecoveryPreview,
+  RoiColumn,
+} from "~/lib/marketing/recovery-preview";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
@@ -38,7 +42,10 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
           {/* Recova's row scrolls sideways on a narrow screen; this one wraps instead, since no
               page may need a sideways scrollbar (Dustin, 2026-10-30). */}
           <div className="pb-2">
-            <ol aria-label={`${label} sequence, ${count}`} className="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0">
+            <ol
+              aria-label={`${label} sequence, ${count}`}
+              className="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0"
+            >
               {steps.map((step, i) => {
                 const retry = isRetryStep(step.stepType);
                 return (
@@ -65,7 +72,9 @@ export function CategorySequencePreview() {
         <div key={category} data-category={category}>
           <div className="mb-2 flex items-center gap-2">
             <CategoryPill category={category} />
-            <span className="font-mono text-label text-text-tertiary">{DECLINE_CATEGORY_LABELS[category]} sequence</span>
+            <span className="font-mono text-label text-text-tertiary">
+              {DECLINE_CATEGORY_LABELS[category]} sequence
+            </span>
           </div>
           <SequenceSteps category={category} />
         </div>
@@ -101,7 +110,9 @@ function Figure({
         <div>
           <Icon className={`mb-2 h-4 w-4 ${className}`} strokeWidth={1.5} aria-hidden />
           <p className="m-0 mb-2 text-micro font-medium text-text-tertiary">{label}</p>
-          <p className={`m-0 font-mono text-display font-bold tracking-[-0.5px] ${className}`}>{value}</p>
+          <p className={`m-0 font-mono text-display font-bold tracking-[-0.5px] ${className}`}>
+            {value}
+          </p>
           {sub ? <div className="mt-1 text-micro">{sub}</div> : null}
         </div>
       </div>
@@ -109,17 +120,33 @@ function Figure({
   );
 }
 
-function RoiRows({ heading, rows }: { heading: string; rows: [string, string, "plain" | "fee" | "net"][] }) {
+function RoiRows({
+  heading,
+  rows,
+}: {
+  heading: string;
+  rows: [string, string, "plain" | "fee" | "net"][];
+}) {
   return (
     <div>
-      <h4 className="m-0 mb-3 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{heading}</h4>
+      <h4 className="m-0 mb-3 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">
+        {heading}
+      </h4>
       <dl className="m-0 flex flex-col gap-2">
         {rows.map(([label, value, kind]) => (
           <div key={label} className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <dt className={`text-label ${kind === "fee" ? "text-text-tertiary" : "text-text-secondary"}`}>{label}</dt>
+            <dt
+              className={`text-label ${kind === "fee" ? "text-text-tertiary" : "text-text-secondary"}`}
+            >
+              {label}
+            </dt>
             <dd
               className={`m-0 font-mono text-body tabular-nums ${
-                kind === "net" ? "font-bold text-success-text" : kind === "fee" ? "text-text-tertiary" : "text-text"
+                kind === "net"
+                  ? "font-bold text-success-text"
+                  : kind === "fee"
+                    ? "text-text-tertiary"
+                    : "text-text"
               }`}
             >
               {value}
@@ -138,9 +165,22 @@ export function DashboardPreview({ preview }: { preview: RecoveryPreview }) {
   const all: RoiColumn = roi.allTime;
   return (
     <div className="p-5">
-      <ul className="m-0 mb-5 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3" aria-label="Recovery figures">
-        <Figure icon={TrendingUp} label="Recovered (30d)" value={dashboard.recovered30d} className="text-success-text" />
-        <Figure icon={AlertCircle} label="Currently at risk" value={dashboard.atRisk} className="text-error-text" />
+      <ul
+        className="m-0 mb-5 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3"
+        aria-label="Recovery figures"
+      >
+        <Figure
+          icon={TrendingUp}
+          label="Recovered (30d)"
+          value={dashboard.recovered30d}
+          className="text-success-text"
+        />
+        <Figure
+          icon={AlertCircle}
+          label="Currently at risk"
+          value={dashboard.atRisk}
+          className="text-error-text"
+        />
         <Figure
           icon={Percent}
           label="Recovery rate"
@@ -220,9 +260,13 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-label font-medium text-text">{row.customer}</div>
-                    {row.email ? <div className="truncate text-micro text-text-subtle">{row.email}</div> : null}
+                    {row.email ? (
+                      <div className="truncate text-micro text-text-subtle">{row.email}</div>
+                    ) : null}
                   </div>
-                  <span className="whitespace-nowrap font-mono text-label text-accent-text">{row.amount}</span>
+                  <span className="whitespace-nowrap font-mono text-label text-accent-text">
+                    {row.amount}
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <CategoryPill category={row.category} />
@@ -232,7 +276,13 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
             ))}
           </ul>
           <div className="hidden sm:block">
-            <div className="cap-table-wrap" data-reflow="" role="region" aria-labelledby={HEADING_ID} tabIndex={0}>
+            <div
+              className="cap-table-wrap"
+              data-reflow=""
+              role="region"
+              aria-labelledby={HEADING_ID}
+              tabIndex={0}
+            >
               <table className="cap-table">
                 <thead>
                   <tr>
@@ -252,8 +302,16 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                           <span className="text-label font-medium text-text">{row.customer}</span>
                           <FailureCount row={row} />
                         </div>
-                        {row.email ? <div className="mt-0.5 text-micro font-normal text-text-subtle">{row.email}</div> : null}
-                        {row.plan ? <div className="mt-0.5 text-micro font-normal text-text-subtle">{row.plan}</div> : null}
+                        {row.email ? (
+                          <div className="mt-0.5 text-micro font-normal text-text-subtle">
+                            {row.email}
+                          </div>
+                        ) : null}
+                        {row.plan ? (
+                          <div className="mt-0.5 text-micro font-normal text-text-subtle">
+                            {row.plan}
+                          </div>
+                        ) : null}
                       </th>
                       <td data-label="Amount" className="whitespace-nowrap">
                         <span className="font-mono text-label text-accent-text">{row.amount}</span>
@@ -261,15 +319,21 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                       <td data-label="Decline">
                         <CategoryPill category={row.category} />
                         {row.declineCode ? (
-                          <div className="mt-1 font-mono text-micro text-text-subtle">{row.declineCode}</div>
+                          <div className="mt-1 font-mono text-micro text-text-subtle">
+                            {row.declineCode}
+                          </div>
                         ) : null}
                       </td>
                       <td data-label="Steps">
-                        <span className={`font-mono text-micro ${row.stepsDone > 0 ? "text-text" : "text-text-subtle"}`}>
+                        <span
+                          className={`font-mono text-micro ${row.stepsDone > 0 ? "text-text" : "text-text-subtle"}`}
+                        >
                           {row.stepsDone}/{row.stepsTotal}
                         </span>
                         {row.nextStep ? (
-                          <div className="mt-0.5 text-micro text-accent-text">Next: {row.nextStep}</div>
+                          <div className="mt-0.5 text-micro text-accent-text">
+                            Next: {row.nextStep}
+                          </div>
                         ) : null}
                       </td>
                       <td data-label="Status">

@@ -6,7 +6,11 @@ import { describe, expect, it } from "vitest";
 import IntelligenceOverviewPage from "~/routes/app/intelligence/index";
 import { accounts, mrrSnapshots } from "~/db";
 import { type IntelligenceOverview } from "~/lib/intelligence/views.server";
-import { getMrrSnapshotSeries, type HealthDistributionDay, type MrrSnapshotPoint } from "~/lib/intelligence/trends.server";
+import {
+  getMrrSnapshotSeries,
+  type HealthDistributionDay,
+  type MrrSnapshotPoint,
+} from "~/lib/intelligence/trends.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -41,7 +45,9 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // its labeled rule, its data table. What each one guards is unchanged. The
 // J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
 
-const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;
+const Page = IntelligenceOverviewPage as unknown as (props: {
+  loaderData: unknown;
+}) => ReactElement;
 
 const overview: IntelligenceOverview = {
   currency: "usd",
@@ -70,7 +76,6 @@ function point(month: number, nrrPct: number | null): MrrSnapshotPoint {
   };
 }
 
-
 function render(mrrSeries: MrrSnapshotPoint[]): string {
   const loaderData = {
     entitled: true,
@@ -88,9 +93,7 @@ function render(mrrSeries: MrrSnapshotPoint[]): string {
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
 }
 
-
 describe("S16 NRR chart, built toward legacy (399)", () => {
-
   it("is withheld entirely when no snapshot carries a retention figure", () => {
     // Legacy's own gate. An account whose first sync has no prior period gets
     // no empty frame.
@@ -105,7 +108,9 @@ describe("getMrrSnapshotSeries", () => {
   async function seed(rows: { monthsAgo: number; nrrBps: number | null }[]) {
     const { db } = createInMemoryDb();
     const now = new Date(NOW);
-    await db.insert(accounts).values({ id: "acc_1", name: "Acme", currency: "usd", createdAt: now });
+    await db
+      .insert(accounts)
+      .values({ id: "acc_1", name: "Acme", currency: "usd", createdAt: now });
     let n = 0;
     for (const r of rows) {
       const snapshotDate = new Date(NOW);

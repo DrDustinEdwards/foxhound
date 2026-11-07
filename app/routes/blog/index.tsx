@@ -5,7 +5,7 @@ import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
 import { CoverPicture } from "~/components/blog/cover-picture";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { formatTagChip } from "~/lib/blog/format";
 import { coverPicture } from "~/lib/blog/markdown.server";
 import {
@@ -60,7 +60,8 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: "Blog",
-      description: "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
+      description:
+        "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
       path: "/blog",
       pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
@@ -109,7 +110,11 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   return (
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as the site
     // header, /products and /docs); the focus ring reads the family's ring.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <BlogHeaderIntro />
@@ -141,7 +146,10 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
           <p className="text-body text-text-secondary">
             Nothing published yet. Check back soon, or read the product docs in the meantime.
           </p>
-          <Link to="/docs" className="mt-4 inline-block text-label leading-6 text-accent-text hover:opacity-80">
+          <Link
+            to="/docs"
+            className="mt-4 inline-block text-label leading-6 text-accent-text hover:opacity-80"
+          >
             Read the docs
           </Link>
         </div>
@@ -150,18 +158,31 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function BlogHero({ post, cover }: { post: BlogPostSummary; cover: Route.ComponentProps["loaderData"]["cover"] }) {
+function BlogHero({
+  post,
+  cover,
+}: {
+  post: BlogPostSummary;
+  cover: Route.ComponentProps["loaderData"]["cover"];
+}) {
   return (
     <section className="border-b border-border-sub bg-surface">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
         <div>
-          <p className="font-mono text-caption uppercase tracking-widest text-accent-text">Featured</p>
+          <p className="font-mono text-caption uppercase tracking-widest text-accent-text">
+            Featured
+          </p>
           <h2 className="mt-3 text-[1.875rem] font-bold leading-tight text-text lg:text-statement">
-            <Link to={`/blog/${post.slug}`} className="text-text transition-colors hover:text-accent-text">
+            <Link
+              to={`/blog/${post.slug}`}
+              className="text-text transition-colors hover:text-accent-text"
+            >
               {post.title}
             </Link>
           </h2>
-          <p className="mt-3 line-clamp-3 text-body leading-relaxed text-text-secondary">{post.excerpt}</p>
+          <p className="mt-3 line-clamp-3 text-body leading-relaxed text-text-secondary">
+            {post.excerpt}
+          </p>
           <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-copy text-text-tertiary">
             <span>{post.readingTimeMinutes} min read</span>
             {post.tags[0] ? (
@@ -172,7 +193,11 @@ function BlogHero({ post, cover }: { post: BlogPostSummary; cover: Route.Compone
                 {/* Capsomer's outline pill as a link: its own focus ring, and a
                     hit area grown to the 24px target. Recova's uppercase mono
                     chip is the per-site layer's (see the PR). */}
-                <Link to={`/blog/tag/${encodeURIComponent(post.tags[0])}`} className="cap-pill" data-variant="outline">
+                <Link
+                  to={`/blog/tag/${encodeURIComponent(post.tags[0])}`}
+                  className="cap-pill"
+                  data-variant="outline"
+                >
                   {formatTagChip(post.tags[0])}
                 </Link>
               </>
@@ -181,7 +206,12 @@ function BlogHero({ post, cover }: { post: BlogPostSummary; cover: Route.Compone
           {/* Wrapped so the spacing above is the page's, not a class on the button. */}
           <div className="mt-6">
             {/* "group" carries no style; it drives Recova's arrow nudge on hover. */}
-            <Link to={`/blog/${post.slug}`} className="cap-btn group" data-variant="primary" data-size="lg">
+            <Link
+              to={`/blog/${post.slug}`}
+              className="cap-btn group"
+              data-variant="primary"
+              data-size="lg"
+            >
               Read the guide
               <ArrowRight
                 data-icon="end"
@@ -250,7 +280,9 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-copy uppercase tracking-widest text-accent-text">{section.label}</p>
+            <p className="font-mono text-copy uppercase tracking-widest text-accent-text">
+              {section.label}
+            </p>
             <p className="mt-1 max-w-2xl text-copy text-text-secondary">{section.description}</p>
           </div>
           <Link

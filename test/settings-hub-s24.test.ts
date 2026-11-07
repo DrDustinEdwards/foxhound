@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import routes from "~/routes";
-import {
-  isSettingsItemActive,
-  SETTINGS_NAV_GROUPS,
-} from "~/components/settings-sidebar";
+import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
 import { SETTINGS_HUB_ENTRIES } from "~/routes/app/settings/hub";
 
 // SESSION 59: S24's hub and S25's sub-nav, replacing the inline-card index
@@ -36,7 +33,6 @@ const REGISTERED: string[] = (() => {
 })();
 
 describe("PLANT 1: the hub has no dead link", () => {
-
   it("EVERY HUB ENTRY RESOLVES to a registered route", () => {
     for (const entry of SETTINGS_HUB_ENTRIES) {
       expect(REGISTERED, `${entry.label} points at ${entry.to}`).toContain(entry.to);

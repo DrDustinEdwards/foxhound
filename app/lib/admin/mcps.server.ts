@@ -64,7 +64,10 @@ export interface AdminMcpCallRow {
 
 /** The newest merchant MCP calls, every account, with the error text masked
  *  for display (maskSecretsInText) so the raw text never reaches the page. */
-export async function listRecentMcpCalls(db: Db, limit = MCP_CALLS_SHOWN): Promise<AdminMcpCallRow[]> {
+export async function listRecentMcpCalls(
+  db: Db,
+  limit = MCP_CALLS_SHOWN,
+): Promise<AdminMcpCallRow[]> {
   return db
     .select({
       id: mcpCalls.id,
@@ -83,11 +86,13 @@ export async function listRecentMcpCalls(db: Db, limit = MCP_CALLS_SHOWN): Promi
     .leftJoin(apiKeys, eq(apiKeys.id, mcpCalls.apiKeyId))
     .orderBy(desc(mcpCalls.createdAt), desc(mcpCalls.id))
     .limit(limit)
-    .then((rows) => rows.map(({ foundKeyId, ...row }) => ({
-      ...row,
-      error: row.error === null ? null : maskSecretsInText(row.error),
-      keyFound: foundKeyId !== null,
-    })));
+    .then((rows) =>
+      rows.map(({ foundKeyId, ...row }) => ({
+        ...row,
+        error: row.error === null ? null : maskSecretsInText(row.error),
+        keyFound: foundKeyId !== null,
+      })),
+    );
 }
 
 export interface McpSummary {
@@ -126,11 +131,19 @@ export interface MerchantToolRow {
 /** The merchant MCP's tools as the live registry lists them, so the page can
  *  never name a tool that does not exist or miss one that does. */
 export function merchantToolCoverage(): MerchantToolRow[] {
-  return MERCHANT_TOOLS.list().map((t) => ({ name: t.name, title: t.title, writes: !t.annotations.readOnlyHint }));
+  return MERCHANT_TOOLS.list().map((t) => ({
+    name: t.name,
+    title: t.title,
+    writes: !t.annotations.readOnlyHint,
+  }));
 }
 
 /** Everything /admin/operations shows about the MCP servers. */
 export async function loadMcpOverview(db: Db) {
-  const [summary, keys, calls] = await Promise.all([getMcpSummary(db), listAdminApiKeys(db), listRecentMcpCalls(db)]);
+  const [summary, keys, calls] = await Promise.all([
+    getMcpSummary(db),
+    listAdminApiKeys(db),
+    listRecentMcpCalls(db),
+  ]);
   return { summary, keys, calls, tools: merchantToolCoverage() };
 }

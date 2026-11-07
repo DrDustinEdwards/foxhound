@@ -196,7 +196,6 @@ const byCurrency = (rows: { currency: string; cents: number }[]) =>
   Object.fromEntries(rows.map((r) => [r.currency, r.cents]));
 
 describe("nextBillingRunAtMs (derived from the '0 4 1 * *' cron, never hardcoded)", () => {
-
   it("on the 1st before 04:00, the next run is later THAT day, not next month", () => {
     // The cron fires at 04:00 on the 1st. A merchant loading /billing at 02:00
     // on the 1st is two hours from being invoiced, and telling them the date is
@@ -206,7 +205,9 @@ describe("nextBillingRunAtMs (derived from the '0 4 1 * *' cron, never hardcoded
   });
 
   it("on the 1st at exactly 04:00, that run is going, so the next one is next month", () => {
-    expect(new Date(nextBillingRunAtMs(NEXT_RUN_MS)).toISOString()).toBe("2026-09-01T04:00:00.000Z");
+    expect(new Date(nextBillingRunAtMs(NEXT_RUN_MS)).toISOString()).toBe(
+      "2026-09-01T04:00:00.000Z",
+    );
   });
 });
 
@@ -239,7 +240,6 @@ describe("getBillingPreview", () => {
   });
 
   describe("recoveredThisMonth", () => {
-
     it("never bills them: neither refunded nor disputed reaches the estimate", async () => {
       const db = await seed();
       const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);

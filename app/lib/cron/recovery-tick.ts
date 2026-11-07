@@ -15,9 +15,7 @@ import {
 import { recordOutcome } from "~/lib/engine/outcomes";
 import { stepAction } from "~/lib/engine/step-runner";
 import { afterTransientFailureWith } from "~/lib/recovery/step-state";
-import {
-  sendSequenceCompleteNotification,
-} from "~/lib/recovery/sequence-complete-notification.server";
+import { sendSequenceCompleteNotification } from "~/lib/recovery/sequence-complete-notification.server";
 import type { CronJobResult } from "./run";
 import {
   accountProcessingEligibleCondition,
@@ -169,7 +167,10 @@ async function hasLostDispute(
       .limit(1);
     return rows.length > 0;
   } catch (err) {
-    console.error("lost-dispute check failed, retry proceeds:", err instanceof Error ? err.message : err);
+    console.error(
+      "lost-dispute check failed, retry proceeds:",
+      err instanceof Error ? err.message : err,
+    );
     return false;
   }
 }
@@ -182,7 +183,9 @@ async function hasLostDispute(
  */
 async function suppressRetryForLostDispute(
   env: Env,
-  row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & { stripeCustomerId: string },
+  row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & {
+    stripeCustomerId: string;
+  },
   now: Date,
 ): Promise<void> {
   const db = getDb(env);
@@ -261,7 +264,9 @@ export interface RecoveryTickDeps {
   /** Stamp the step terminal and record the suppression. */
   suppressRetry: (
     env: Env,
-    row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & { stripeCustomerId: string },
+    row: Pick<DueStepRow, "stepId" | "stepType" | "accountId" | "attemptCount"> & {
+      stripeCustomerId: string;
+    },
     now: Date,
   ) => Promise<void>;
 }
@@ -317,7 +322,9 @@ export async function retryOnUpdatedCard(
   env: Env,
   accountId: string,
   stripeCustomerId: string,
-  deps: Partial<Pick<RecoveryTickDeps, "runRetry" | "checkGuards" | "hasLostDispute" | "suppressRetry">> = {},
+  deps: Partial<
+    Pick<RecoveryTickDeps, "runRetry" | "checkGuards" | "hasLostDispute" | "suppressRetry">
+  > = {},
 ): Promise<number> {
   const io = {
     runRetry: deps.runRetry ?? executeRetryStep,
@@ -337,7 +344,11 @@ export async function retryOnUpdatedCard(
         const result = await runGuardedRetry(env, row, now, io);
         if (typeof result === "object") attempted += 1;
       } catch (err) {
-        console.error("card updater retry failed:", row.stepId, err instanceof Error ? err.message : err);
+        console.error(
+          "card updater retry failed:",
+          row.stepId,
+          err instanceof Error ? err.message : err,
+        );
       }
     }
   } catch (err) {
@@ -391,11 +402,7 @@ export async function flipExhaustedSequences(env: Env, now: Date): Promise<Claim
  * per real transition, the same discipline the recovery notification takes from
  * executeMoneyWrite's `applied`.
  */
-function readClaimedSequences(
-  db: Db,
-  ids: string[],
-  now: Date,
-): Promise<ClaimedSequence[]> {
+function readClaimedSequences(db: Db, ids: string[], now: Date): Promise<ClaimedSequence[]> {
   return db
     .select({ failedPaymentId: failedPayments.id, accountId: failedPayments.accountId })
     .from(failedPayments)
@@ -482,7 +489,11 @@ export async function runRecoveryTick(
           tally.heldChargesDisabled += 1;
           continue;
         }
-        const result = await runGuardedRetry(env, row, now, { runRetry, lostDispute, suppressRetry });
+        const result = await runGuardedRetry(env, row, now, {
+          runRetry,
+          lostDispute,
+          suppressRetry,
+        });
         if (result === "no_connection") {
           // No connected token: cannot safely charge. Record the attempt with
           // bounded grace rather than either leaving it pending (re-selects
@@ -558,10 +569,7 @@ export async function runRecoveryTick(
       }
     } catch (err) {
       sweepNote = ", exhausted-sweep FAILED";
-      console.error(
-        "exhausted-sequence sweep failed:",
-        err instanceof Error ? err.message : err,
-      );
+      console.error("exhausted-sequence sweep failed:", err instanceof Error ? err.message : err);
     }
   }
 

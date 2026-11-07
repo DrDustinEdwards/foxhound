@@ -24,7 +24,10 @@ export const suggestFor = mediaSuggester<Env>({
         createdAt: new Date(),
       });
     } catch (err) {
-      console.error("ai_calls write failed for media-suggest:", err instanceof Error ? err.message : err);
+      console.error(
+        "ai_calls write failed for media-suggest:",
+        err instanceof Error ? err.message : err,
+      );
     }
   },
 });

@@ -46,7 +46,13 @@ export function normalizeSlackWebhookUrl(
   } catch {
     return { ok: false, error: SLACK_WEBHOOK_ERROR };
   }
-  if (url.protocol !== "https:" || url.hostname !== "hooks.slack.com" || url.port !== "" || url.username || url.password) {
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "hooks.slack.com" ||
+    url.port !== "" ||
+    url.username ||
+    url.password
+  ) {
     return { ok: false, error: SLACK_WEBHOOK_ERROR };
   }
   return { ok: true, value: trimmed };

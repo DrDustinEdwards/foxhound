@@ -19,7 +19,10 @@ export const ALERT_INTENTS = ["create", "toggle", "delete"] as const;
 const RECENT_TRIGGERS = 20;
 
 export async function loadAlertsSection(db: Db, accountId: string) {
-  const [view, target] = await Promise.all([getAlertsView(db, accountId), loadAlertTarget(db, accountId)]);
+  const [view, target] = await Promise.all([
+    getAlertsView(db, accountId),
+    loadAlertTarget(db, accountId),
+  ]);
   return {
     alerts: view.alerts,
     history: view.history.slice(0, RECENT_TRIGGERS),
@@ -34,7 +37,12 @@ export interface AlertActionResult {
   error?: string;
 }
 
-export async function answerAlertsAction(db: Db, accountId: string, form: FormData, intent: string) {
+export async function answerAlertsAction(
+  db: Db,
+  accountId: string,
+  form: FormData,
+  intent: string,
+) {
   // TWO BRANCHES, TWO APPLY FUNCTIONS, and the split below is the one this
   // action always had: creating takes four fields and no id, changing takes an
   // id and one verb. Every refusal string moved with the check that produces

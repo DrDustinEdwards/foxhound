@@ -96,6 +96,10 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run lint
 
+      - name: Format check
+        if: steps.tested.outputs.same != 'true'
+        run: npm run format:check
+
       - name: Build
         if: steps.tested.outputs.same != 'true'
         run: npm run build
@@ -162,9 +166,11 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@cd31a3eba261e27aa5f4b7a9965f7c4fc59ebe49 # v0.21.5
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@562daa2dbfb23f2987f81caeac34f9e054b3d03b # v0.26.4
     with:
       worker-name: foxhound
+      # site-runtime withAdminIdle's key and audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
+      generated-secrets: ADMIN_IDLE_SECRET AUDIT_SIGNING_KEY
       health-url: https://foxhoundapp.com/health
       verify-command: node scripts/verify-live.mjs
       pre-deploy: npx devkit-migrations drizzle/migrations --apply foxhound && npm run build
@@ -185,9 +191,11 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@cd31a3eba261e27aa5f4b7a9965f7c4fc59ebe49 # v0.21.5
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@562daa2dbfb23f2987f81caeac34f9e054b3d03b # v0.26.4
     with:
       worker-name: foxhound-admin-mcp
+      # site-runtime audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
+      generated-secrets: AUDIT_SIGNING_KEY
       working-directory: mcp
       install: cd .. && npm ci
       health-url: https://admin-mcp.foxhoundapp.com/health

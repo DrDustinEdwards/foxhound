@@ -38,7 +38,12 @@ interface CTA {
 /** A Capsomer primary button that is a link, at the large size. */
 function PrimaryLink({ cta }: { cta: CTA }) {
   return (
-    <Link to={cta.href} className="cap-btn px-6 [--cap-btn-h:3rem]" data-variant="primary" data-size="lg">
+    <Link
+      to={cta.href}
+      className="cap-btn px-6 [--cap-btn-h:3rem]"
+      data-variant="primary"
+      data-size="lg"
+    >
       {cta.label}
     </Link>
   );
@@ -133,12 +138,20 @@ export interface ProductFeatureBlock {
   tallLabel?: string;
 }
 
-export function FeatureBlocks({ sectionLabel, blocks }: { sectionLabel: string; blocks: ProductFeatureBlock[] }) {
+export function FeatureBlocks({
+  sectionLabel,
+  blocks,
+}: {
+  sectionLabel: string;
+  blocks: ProductFeatureBlock[];
+}) {
   return (
     <section className="speakable-features border-b border-border px-5 py-20 sm:px-8">
       <div className="mx-auto max-w-[1100px]">
         <div className="mb-16 text-center">
-          <h2 className="text-micro font-medium uppercase tracking-widest text-text-tertiary">{sectionLabel}</h2>
+          <h2 className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
+            {sectionLabel}
+          </h2>
         </div>
         <div className="space-y-24">
           {blocks.map((block) => {
@@ -149,7 +162,9 @@ export function FeatureBlocks({ sectionLabel, blocks }: { sectionLabel: string; 
                   <div className="mb-3 text-micro font-medium uppercase tracking-widest text-accent-text">
                     {block.eyebrow}
                   </div>
-                  <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">{block.title}</h3>
+                  <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">
+                    {block.title}
+                  </h3>
                   <p className="text-subhead leading-relaxed text-text-secondary">{block.body}</p>
                 </div>
                 {/* Recova's UI card: a bordered surface with no padding of its
@@ -177,7 +192,11 @@ export function FeatureBlocks({ sectionLabel, blocks }: { sectionLabel: string; 
             if (block.lifted) {
               return (
                 // Recova's lifted block: p-8 and 16px corners.
-                <div key={block.title} className="cap-panel rounded-2xl [--gap:2rem] [--pad-card:2rem]" data-block={kind}>
+                <div
+                  key={block.title}
+                  className="cap-panel rounded-2xl [--gap:2rem] [--pad-card:2rem]"
+                  data-block={kind}
+                >
                   <div className="cap-panel-body">{inner}</div>
                 </div>
               );
@@ -215,7 +234,9 @@ export function ProductPricing({
         <div className="cap-panel [--gap:2rem] [--pad-card:2rem] [--surface:var(--bg)]">
           <div className="cap-panel-body">
             <div>
-              <div className="mb-1 font-mono text-product-price font-medium leading-none text-text">{price}</div>
+              <div className="mb-1 font-mono text-product-price font-medium leading-none text-text">
+                {price}
+              </div>
               <div className="mb-6 text-copy text-text-secondary">{priceLabel}</div>
               <ul className="m-0 mb-8 list-none space-y-3 p-0">
                 {points.map((point) => (
@@ -269,7 +290,17 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
   );
 }
 
-export function BottomCTA({ title, sub, cta, note }: { title: string; sub: string; cta: CTA; note: string }) {
+export function BottomCTA({
+  title,
+  sub,
+  cta,
+  note,
+}: {
+  title: string;
+  sub: string;
+  cta: CTA;
+  note: string;
+}) {
   return (
     <section className="px-5 py-20 text-center sm:px-8">
       <div className="mx-auto max-w-[480px]">

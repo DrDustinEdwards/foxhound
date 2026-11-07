@@ -1,9 +1,8 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -34,16 +33,6 @@ vi.mock("~/db", async (importOriginal) => ({
 const route = await import("~/routes/app/settings/notifications");
 const { ALERT_THRESHOLD_ERROR } = await import("~/lib/settings/apply.server");
 
-
-
-
-
-
-
-
-
-
-
 // The loader, against the in-memory database.
 
 const ACCOUNT = "acct_1";
@@ -52,7 +41,7 @@ let sqlite: Database.Database;
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: "user_1",
@@ -69,7 +58,9 @@ beforeEach(() => {
   const made = createInMemoryDb();
   sqlite = made.sqlite;
   harness.db = made.db;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(ACCOUNT, "Acme");
 });
 
 async function load(): Promise<{ alerts: { id: string }[]; history: { id: string }[] }> {
@@ -82,7 +73,6 @@ async function load(): Promise<{ alerts: { id: string }[]; history: { id: string
 }
 
 describe("J33 alerts: the loader reads as Recova's page does", () => {
-
   it("shows Recova's twenty most recent triggers", async () => {
     sqlite
       .prepare(
@@ -103,7 +93,10 @@ describe("J33 alerts: the loader reads as Recova's page does", () => {
 });
 
 describe("J33 review: a successful create closes the form, as Recova's dismissPanel does", () => {
-  async function post(fields: Record<string, string>, url = "https://x/settings/notifications?new=1"): Promise<unknown> {
+  async function post(
+    fields: Record<string, string>,
+    url = "https://x/settings/notifications?new=1",
+  ): Promise<unknown> {
     const form = new FormData();
     for (const [k, v] of Object.entries(fields)) form.append(k, v);
     return route.action({
@@ -114,7 +107,13 @@ describe("J33 review: a successful create closes the form, as Recova's dismissPa
   }
 
   it("redirects to the page without ?new=1, and the new alert is listed", async () => {
-    const res = await post({ _action: "create", metric: "mrr_at_risk_cents", direction: "below", threshold: "50", label: "Watch" });
+    const res = await post({
+      _action: "create",
+      metric: "mrr_at_risk_cents",
+      direction: "below",
+      threshold: "50",
+      label: "Watch",
+    });
     expect(res).toBeInstanceOf(Response);
     const response = res as Response;
     expect(response.status).toBe(302);
@@ -124,7 +123,12 @@ describe("J33 review: a successful create closes the form, as Recova's dismissPa
   });
 
   it("keeps the form open with the refusal when the create is refused", async () => {
-    const res = (await post({ _action: "create", metric: "mrr_at_risk_cents", direction: "below", threshold: "-1" })) as {
+    const res = (await post({
+      _action: "create",
+      metric: "mrr_at_risk_cents",
+      direction: "below",
+      threshold: "-1",
+    })) as {
       data: { ok: boolean; error: string };
       init?: { status?: number };
     };

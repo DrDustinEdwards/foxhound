@@ -16,13 +16,19 @@ const HOUR = 3_600_000;
 const anchor = new Date("2026-10-01T00:00:00.000Z");
 
 function plan(declineCategory: "soft" | "expired") {
-  return planRecoverySteps({ failedPaymentId: "fp", accountId: "acc", declineCategory, detectedAt: anchor });
+  return planRecoverySteps({
+    failedPaymentId: "fp",
+    accountId: "acc",
+    declineCategory,
+    detectedAt: anchor,
+  });
 }
 
 describe("soft decline: the day 1 email goes 1 hour after the 4 hour silent retry", () => {
   it("plans email_day1 at 5 hours, after retry_early", () => {
     const steps = plan("soft");
-    const at = (type: string) => steps.find((s) => s.stepType === type)!.scheduledAt.getTime() - anchor.getTime();
+    const at = (type: string) =>
+      steps.find((s) => s.stepType === type)!.scheduledAt.getTime() - anchor.getTime();
     expect(at("retry_early")).toBe(4 * HOUR);
     expect(at("email_day1")).toBe(5 * HOUR);
   });
@@ -30,7 +36,9 @@ describe("soft decline: the day 1 email goes 1 hour after the 4 hour silent retr
 
 describe("expired card: Recova's day 21 retry is back", () => {
   it("plans Recova's expired row", () => {
-    expect(plan("expired").map((s) => [s.stepType, (s.scheduledAt.getTime() - anchor.getTime()) / HOUR])).toEqual([
+    expect(
+      plan("expired").map((s) => [s.stepType, (s.scheduledAt.getTime() - anchor.getTime()) / HOUR]),
+    ).toEqual([
       ["email_day1", 1],
       ["email_day3", 72],
       ["email_day7", 168],
@@ -63,7 +71,9 @@ describe("cardChangedSinceDecline: Mastercard's same number and expiry rule", ()
   it("is unchanged when either side cannot be read", () => {
     expect(cardChangedSinceDecline(null, declined)).toBe(false);
     expect(cardChangedSinceDecline(declined, null)).toBe(false);
-    expect(cardChangedSinceDecline(declined, { fingerprint: null, expMonth: null, expYear: null })).toBe(false);
+    expect(
+      cardChangedSinceDecline(declined, { fingerprint: null, expMonth: null, expYear: null }),
+    ).toBe(false);
   });
 });
 
@@ -147,7 +157,15 @@ describe("migration 0040: sequences already scheduled", () => {
         .prepare(
           "insert into recovery_steps (id, failed_payment_id, account_id, step_type, step_number, scheduled_at, executed_at, result) values (?, ?, 'acc', ?, ?, ?, ?, ?)",
         )
-        .run(`${fp}_${type}`, fp, type, n, t + hours * HOUR, executed ? t : null, executed ? "email_sent" : null);
+        .run(
+          `${fp}_${type}`,
+          fp,
+          type,
+          n,
+          t + hours * HOUR,
+          executed ? t : null,
+          executed ? "email_sent" : null,
+        );
 
     payment("soft_pending", "soft");
     step("soft_pending", "retry_early", 1, 4);
@@ -156,7 +174,13 @@ describe("migration 0040: sequences already scheduled", () => {
     step("soft_sent", "retry_early", 1, 4, true);
     step("soft_sent", "email_day1", 2, 24, true);
 
-    const expiredRow = [["email_day1", 1], ["email_day3", 72], ["email_day7", 168], ["email_day14", 336], ["email_day30", 720]] as const;
+    const expiredRow = [
+      ["email_day1", 1],
+      ["email_day3", 72],
+      ["email_day7", 168],
+      ["email_day14", 336],
+      ["email_day30", 720],
+    ] as const;
     payment("exp_live", "expired");
     expiredRow.forEach(([type, hours], i) => step("exp_live", type, i + 1, hours));
     payment("exp_done", "expired");
@@ -164,7 +188,11 @@ describe("migration 0040: sequences already scheduled", () => {
 
     // Filed as soft before transaction_not_allowed became a hard decline.
     payment("tna_live", "soft");
-    sqlite.prepare("update failed_payments set decline_code = 'transaction_not_allowed' where id = 'tna_live'").run();
+    sqlite
+      .prepare(
+        "update failed_payments set decline_code = 'transaction_not_allowed' where id = 'tna_live'",
+      )
+      .run();
     step("tna_live", "retry_early", 1, 4, true);
     step("tna_live", "email_day1", 2, 24);
     step("tna_live", "retry_day2", 3, 48);
@@ -174,12 +202,20 @@ describe("migration 0040: sequences already scheduled", () => {
 
     const rows = (fp: string) =>
       sqlite
-        .prepare("select step_type as type, step_number as n, scheduled_at as at from recovery_steps where failed_payment_id = ? order by scheduled_at")
+        .prepare(
+          "select step_type as type, step_number as n, scheduled_at as at from recovery_steps where failed_payment_id = ? order by scheduled_at",
+        )
         .all(fp) as { type: string; n: number; at: number }[];
     const offsets = (fp: string) => rows(fp).map((r) => [r.type, r.n, (r.at - t) / HOUR]);
 
-    expect(offsets("soft_pending")).toEqual([["retry_early", 1, 4], ["email_day1", 2, 5]]);
-    expect(offsets("soft_sent")).toEqual([["retry_early", 1, 4], ["email_day1", 2, 24]]);
+    expect(offsets("soft_pending")).toEqual([
+      ["retry_early", 1, 4],
+      ["email_day1", 2, 5],
+    ]);
+    expect(offsets("soft_sent")).toEqual([
+      ["retry_early", 1, 4],
+      ["email_day1", 2, 24],
+    ]);
     expect(offsets("exp_live")).toEqual([
       ["email_day1", 1, 1],
       ["email_day3", 2, 72],
@@ -193,7 +229,9 @@ describe("migration 0040: sequences already scheduled", () => {
     // A live transaction_not_allowed payment is refiled as fraud and its unsent
     // retry is canceled, so it is never silently retried; its email keeps its time.
     const tna = sqlite
-      .prepare("select step_type as type, result, scheduled_at as at from recovery_steps where failed_payment_id = 'tna_live' order by step_number")
+      .prepare(
+        "select step_type as type, result, scheduled_at as at from recovery_steps where failed_payment_id = 'tna_live' order by step_number",
+      )
       .all() as { type: string; result: string | null; at: number }[];
     expect(tna.map((r) => [r.type, r.result, (r.at - t) / HOUR])).toEqual([
       ["retry_early", "email_sent", 4],
@@ -201,7 +239,11 @@ describe("migration 0040: sequences already scheduled", () => {
       ["retry_day2", "cancelled", 48],
     ]);
     expect(
-      (sqlite.prepare("select decline_category as c from failed_payments where id = 'tna_live'").get() as { c: string }).c,
+      (
+        sqlite
+          .prepare("select decline_category as c from failed_payments where id = 'tna_live'")
+          .get() as { c: string }
+      ).c,
     ).toBe("fraud");
   });
 });

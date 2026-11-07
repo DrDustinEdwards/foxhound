@@ -14,7 +14,7 @@ import "capsomer/panel.css";
 
 import "~/components/charts.css";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import {
@@ -47,7 +47,8 @@ import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format"
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // /intelligence/dashboard. Recova is the spec: its real
 // page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
@@ -104,7 +105,9 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-type ActionResult = { ok: true; month: string; narrative: string } | { ok: false; error: GenerateReportError };
+type ActionResult =
+  | { ok: true; month: string; narrative: string }
+  | { ok: false; error: GenerateReportError };
 
 /** A refusal, with the status that says what it is. */
 function refused(error: GenerateReportError) {
@@ -127,9 +130,15 @@ export async function action({ context, request }: Route.ActionArgs) {
   // generate the report. Try again or contact support."
   try {
     const db = getDb(env);
-    const form = await readForm(request);
+    const form = await readForm(request, BODY_MAX_BYTES);
     if (form.get("intent") !== "generate") return refused("invalid_intent");
-    const result = await generateMonthlyReport(env, db, accountId, String(form.get("month") ?? ""), Date.now());
+    const result = await generateMonthlyReport(
+      env,
+      db,
+      accountId,
+      String(form.get("month") ?? ""),
+      Date.now(),
+    );
     if (!result.ok) return refused(result.error);
     return data<ActionResult>(result, { status: 200 });
   } catch (err) {
@@ -139,7 +148,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function IntelligenceDashboardPage({ loaderData }: Route.ComponentProps) {
-  const { overview, healthDistribution, mrrSeries, reports, currentMonth, nowMs, isDemo } = loaderData;
+  const { overview, healthDistribution, mrrSeries, reports, currentMonth, nowMs, isDemo } =
+    loaderData;
   const latest = mrrSeries[mrrSeries.length - 1];
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
@@ -239,18 +249,28 @@ type Latest = Series[number];
  */
 function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; nowMs: number }) {
   const delta = dayOverDayCents(series);
-  const deltaClass = !delta ? "text-text-tertiary" : delta > 0 ? "text-success-text" : "text-error-text";
+  const deltaClass = !delta
+    ? "text-text-tertiary"
+    : delta > 0
+      ? "text-success-text"
+      : "text-error-text";
   const figure = "m-0 font-mono text-title font-bold tabular-nums";
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       <Panel title="MRR" size="sm">
-        <p className={`${figure} text-brand-text`}>{formatMoneyShort(latest.totalMrrCents, latest.currency)}</p>
+        <p className={`${figure} text-brand-text`}>
+          {formatMoneyShort(latest.totalMrrCents, latest.currency)}
+        </p>
       </Panel>
       <Panel title="Day-over-day" size="sm">
-        <p className={`${figure} ${deltaClass}`}>{delta ? signedMoney(delta, latest.currency) : "--"}</p>
+        <p className={`${figure} ${deltaClass}`}>
+          {delta ? signedMoney(delta, latest.currency) : "--"}
+        </p>
       </Panel>
       <Panel title="Active customers" size="sm">
-        <p className={`${figure} text-text`}>{latest.activeCustomersCount.toLocaleString("en-US")}</p>
+        <p className={`${figure} text-text`}>
+          {latest.activeCustomersCount.toLocaleString("en-US")}
+        </p>
       </Panel>
       <Panel title="New MRR (MTD)" size="sm">
         <p className={`${figure} text-success-text`}>
@@ -263,7 +283,10 @@ function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; 
 
 /** Recova's MRRTrendChart: total MRR, every daily snapshot of the 90 days. */
 function MrrTrend({ series, currency }: { series: Series; currency: string }) {
-  const draw = useCallback((w: number, fit: ChartFit) => drawMrrTrend(series, currency, w, fit), [series, currency]);
+  const draw = useCallback(
+    (w: number, fit: ChartFit) => drawMrrTrend(series, currency, w, fit),
+    [series, currency],
+  );
   return (
     <Panel title="MRR trend (90 days)">
       <ChartFrame draw={draw} />
@@ -279,7 +302,10 @@ function NrrCard({ series }: { series: Series }) {
   const draw = useCallback((w: number, fit: ChartFit) => drawNrr(sampled, w, fit), [sampled]);
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
   return (
-    <Panel title="Net Revenue Retention" description="Above 100% means expansion exceeds churn (90 days)">
+    <Panel
+      title="Net Revenue Retention"
+      description="Above 100% means expansion exceeds churn (90 days)"
+    >
       <ChartFrame draw={draw} />
     </Panel>
   );
@@ -289,7 +315,10 @@ function NrrCard({ series }: { series: Series }) {
  *  non-zero movement, one bar per week of summed daily movement. */
 function MovementCard({ series, currency }: { series: Series; currency: string }) {
   const weeks = useMemo(() => weeklyMovements(series), [series]);
-  const draw = useCallback((w: number, fit: ChartFit) => drawMovement(weeks, currency, w, fit), [weeks, currency]);
+  const draw = useCallback(
+    (w: number, fit: ChartFit) => drawMovement(weeks, currency, w, fit),
+    [weeks, currency],
+  );
   const moved = weeks.some(
     (p) =>
       Math.round(toMajorUnits(p.newMrrCents, currency)) !== 0 ||
@@ -314,7 +343,10 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
  */
 function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string }) {
   const rows = useMemo(() => planBreakdownRows(perPlan), [perPlan]);
-  const draw = useCallback((w: number, fit: ChartFit) => drawPlans(rows, currency, w, fit), [rows, currency]);
+  const draw = useCallback(
+    (w: number, fit: ChartFit) => drawPlans(rows, currency, w, fit),
+    [rows, currency],
+  );
   if (rows.length === 0) return null;
   return (
     <Panel title="MRR by plan">
@@ -330,7 +362,10 @@ function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["health
   const draw = useCallback((w: number, fit: ChartFit) => drawHealth(days, w, fit), [days]);
   if (days.length === 0) return null;
   return (
-    <Panel title="Customer health distribution" description="Customer count per health band over 90 days">
+    <Panel
+      title="Customer health distribution"
+      description="Customer count per health band over 90 days"
+    >
       <ChartFrame draw={draw} />
     </Panel>
   );
@@ -396,10 +431,18 @@ function MonthlySummary({
       actions={
         <span className="flex flex-wrap items-center gap-3">
           <span className="flex items-center gap-1">
-            <Button variant="quiet" size="sm" iconOnly label="Previous month" onClick={() => go(-1)}>
+            <Button
+              variant="quiet"
+              size="sm"
+              iconOnly
+              label="Previous month"
+              onClick={() => go(-1)}
+            >
               <ChevronLeft aria-hidden="true" size={16} />
             </Button>
-            <span className="min-w-[120px] text-center font-mono text-label text-text">{label}</span>
+            <span className="min-w-[120px] text-center font-mono text-label text-text">
+              {label}
+            </span>
             <Button variant="quiet" size="sm" iconOnly label="Next month" onClick={() => go(1)}>
               <ChevronRight aria-hidden="true" size={16} />
             </Button>
@@ -418,7 +461,9 @@ function MonthlySummary({
         ) : error ? (
           <p className="m-0 text-label text-error-text">{error}</p>
         ) : narrative ? (
-          <p className="m-0 whitespace-pre-wrap text-label leading-relaxed text-text">{narrative}</p>
+          <p className="m-0 whitespace-pre-wrap text-label leading-relaxed text-text">
+            {narrative}
+          </p>
         ) : canGenerate ? (
           <p className="m-0 text-label text-text-tertiary">
             No report yet for {label}. Click Generate report to create one.

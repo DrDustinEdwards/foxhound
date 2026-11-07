@@ -1,4 +1,11 @@
-import { backupFiles, backupHealth, filesHealth, runCheckedBackup, type BackupHealth, type R2Like } from "@dustinedwards/d1-dump";
+import {
+  backupFiles,
+  backupHealth,
+  filesHealth,
+  runCheckedBackup,
+  type BackupHealth,
+  type R2Like,
+} from "@dustinedwards/d1-dump";
 
 import type { CronJobResult } from "~/lib/cron/run";
 
@@ -67,7 +74,8 @@ const BACKUP_CREDENTIAL_ALLOW: Record<string, string> = {
   "stripe_connections.stripe_access_token": "AES-256-GCM ciphertext; the keys are Worker secrets",
   "account_members.invite_token": "a pending invite, expiring; the table is membership data",
   "email_suppressions.token": "the unsubscribe link's token; it only unsubscribes",
-  "admin_impersonations.token_hash": "SHA-256 of a view-as session that expires in hours; the row is the audit of who viewed which merchant",
+  "admin_impersonations.token_hash":
+    "SHA-256 of a view-as session that expires in hours; the row is the audit of who viewed which merchant",
   "passkey.credential_id": "a passkey's public credential id",
   "ai_calls.prompt_tokens": "a count",
   "ai_calls.completion_tokens": "a count",
@@ -117,7 +125,11 @@ export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
 const MEDIA_BACKUP = { name: "media" };
 const EVIDENCE_BACKUP = { name: "evidence" };
 
-async function runFilesBackup(source: Env["MEDIA"], env: Env, options: { name: string }): Promise<CronJobResult> {
+async function runFilesBackup(
+  source: Env["MEDIA"],
+  env: Env,
+  options: { name: string },
+): Promise<CronJobResult> {
   const run = await backupFiles(source, env.BACKUPS, options);
   return {
     rowsProcessed: run.worked,
@@ -127,24 +139,6 @@ async function runFilesBackup(source: Env["MEDIA"], env: Env, options: { name: s
 
 export const runMediaBackup = (env: Env) => runFilesBackup(env.MEDIA, env, MEDIA_BACKUP);
 export const runEvidenceBackup = (env: Env) => runFilesBackup(env.EVIDENCE, env, EVIDENCE_BACKUP);
-
-/** Both files passes now, for the admin API's "run the backup now" (the admin MCP). The same backupFiles calls as the
- *  media-backup and evidence-backup cron jobs, copy only: nothing is written or deleted in MEDIA or EVIDENCE. A failed
- *  pass throws after the other has run. */
-export async function backupFilesNow(env: Env) {
-  const passes = [
-    { name: MEDIA_BACKUP.name, source: env.MEDIA },
-    { name: EVIDENCE_BACKUP.name, source: env.EVIDENCE },
-  ];
-  requireBucket(env);
-  const results = await Promise.allSettled(passes.map((p) => backupFiles(p.source, env.BACKUPS, { name: p.name })));
-  const failed = results.flatMap((r, i) => (r.status === "rejected" ? [`${passes[i]?.name}: ${String(r.reason)}`] : []));
-  if (failed.length > 0) throw new Error(`files backup failed: ${failed.join("; ")}`);
-  return results.map((r) => {
-    const run = (r as PromiseFulfilledResult<Awaited<ReturnType<typeof backupFiles>>>).value;
-    return { name: run.name, complete: run.complete, ...run.counts };
-  });
-}
 
 /** The unauthenticated health fields: age of the newest complete dump, with each files copy's; any one's warning warns. */
 export async function backupStatus(

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -35,7 +35,9 @@ vi.mock("~/lib/recovery/manual-actions.server", async (importOriginal) => {
 });
 
 const route = await import("~/routes/app/recovery/payments/detail");
-const Page = route.default as unknown as (props: Record<string, unknown>) => ReturnType<typeof createElement>;
+const Page = route.default as unknown as (
+  props: Record<string, unknown>,
+) => ReturnType<typeof createElement>;
 
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const HOUR = 3_600_000;
@@ -49,7 +51,10 @@ function contextFor(accountId: string): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env: {} as Env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
+        return {
+          env: {} as Env,
+          ctx: { waitUntil() {} } as unknown as ExecutionContext,
+        };
       }
       if (key === authContext) {
         return {
@@ -122,7 +127,10 @@ async function load(id = "fp_1", accountId = A): Promise<LoaderData> {
   } as never)) as LoaderData;
 }
 
-function render(loaderData: LoaderData, opts: { actionData?: unknown; isDemo?: boolean } = {}): string {
+function render(
+  loaderData: LoaderData,
+  opts: { actionData?: unknown; isDemo?: boolean } = {},
+): string {
   try {
     const Stub = createRoutesStub([
       {
@@ -148,7 +156,6 @@ function render(loaderData: LoaderData, opts: { actionData?: unknown; isDemo?: b
   }
 }
 
-
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
@@ -167,20 +174,28 @@ afterEach(() => {
 // ---- Actions ----
 
 describe("J76: Recova's action row", () => {
-
   it("names the next step on the trigger button, from the engine's schedule", async () => {
     seedPayment();
-    seedStep({ id: "s1", stepType: "email_day1", stepNumber: 1, executedAt: new Date(NOW - 2 * DAY), result: "email_sent" });
+    seedStep({
+      id: "s1",
+      stepType: "email_day1",
+      stepNumber: 1,
+      executedAt: new Date(NOW - 2 * DAY),
+      result: "email_sent",
+    });
     seedStep({ id: "s2", stepType: "email_day3", stepNumber: 2, scheduledAt: new Date(NOW + DAY) });
     const html = render(await load());
-    expect(html).toMatch(/<button[^>]*class="cap-btn"[^>]*data-variant="primary"[^>]*>Trigger Day 3 email now<\/button>/);
-    expect(html).toMatch(/<button[^>]*class="cap-btn"[^>]*data-variant="danger"[^>]*>Stop recovery<\/button>/);
+    expect(html).toMatch(
+      /<button[^>]*class="cap-btn"[^>]*data-variant="primary"[^>]*>Trigger Day 3 email now<\/button>/,
+    );
+    expect(html).toMatch(
+      /<button[^>]*class="cap-btn"[^>]*data-variant="danger"[^>]*>Stop recovery<\/button>/,
+    );
     expect(html).toMatch(/<button[^>]*class="cap-btn"[^>]*>Mark as recovered<\/button>/);
   });
 });
 
 describe("J76: the action result, as Recova reports it", () => {
-
   it("logs the whole error and answers 500 when the dispatcher throws", async () => {
     seedPayment();
     const boom = new Error("d1 went away");
@@ -191,7 +206,10 @@ describe("J76: the action result, as Recova reports it", () => {
     const res = (await route.action({
       context: contextFor(A),
       params: { id: "fp_1" },
-      request: new Request("https://x.test/", { method: "POST", body: new URLSearchParams({ intent: "resend" }) }),
+      request: new Request("https://x.test/", {
+        method: "POST",
+        body: new URLSearchParams({ intent: "resend" }),
+      }),
     } as never)) as { data: { error?: string }; init: { status: number } };
     expect(res.init.status).toBe(500);
     expect(res.data.error).toBe("Email resent failed");
@@ -206,7 +224,11 @@ describe("J76: the dispatcher logs the whole error on every failure line", () =>
   const throwingCommit = (err: Error) => async () => {
     throw err;
   };
-  const noTrigger = { loadStep: async () => null, runRetry: async () => {}, runEmail: async () => ({ suppressed: false }) };
+  const noTrigger = {
+    loadStep: async () => null,
+    runRetry: async () => {},
+    runEmail: async () => ({ suppressed: false }),
+  };
 
   it("logs a failed stop and a failed mark as recovered", async () => {
     seedPayment();
@@ -229,7 +251,13 @@ describe("J76: the dispatcher logs the whole error on every failure line", () =>
 
   it("logs a resend whose send throws, and one whose timeline row fails", async () => {
     seedPayment();
-    seedStep({ id: "s1", executedAt: new Date(NOW - DAY), result: "email_sent", aiSubject: "S", aiBodyHtml: "<p>B</p>" });
+    seedStep({
+      id: "s1",
+      executedAt: new Date(NOW - DAY),
+      result: "email_sent",
+      aiSubject: "S",
+      aiBodyHtml: "<p>B</p>",
+    });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { dispatchManualAction } = await manual();
     const sendErr = new Error("send threw");

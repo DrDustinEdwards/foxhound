@@ -1,4 +1,4 @@
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { enterDemo } from "~/lib/marketing/demo-entry.server";
 
 import type { Route } from "./+types/intelligence";

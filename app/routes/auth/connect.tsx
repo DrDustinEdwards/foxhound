@@ -23,14 +23,15 @@ import {
   resolveActiveMembership,
   resolveMembership,
 } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
 import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { setStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -112,7 +113,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // the account now exists, so both outcomes redirect to /connect, where the
   // loader re-reads the membership and shows the Connect Stripe step.
   if (!membership) {
-    const form = await readForm(request);
+    const form = await readForm(request, BODY_MAX_BYTES);
     const name = String(form.get("name") ?? "").trim();
     if (!name) {
       return data({ error: "Enter a name for your account." }, { status: 400 });
@@ -131,7 +132,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   // ONLY AN OWNER STARTS THE FLOW, on the account the callback will attach to
   // (the active one). The callback asks again before it exchanges the code, so
   // this is the early, clear refusal rather than the only one.
-  const active = await resolveActiveMembership(db, session.user.id, session.session.activeAccountId ?? null);
+  const active = await resolveActiveMembership(
+    db,
+    session.user.id,
+    session.session.activeAccountId ?? null,
+  );
   if (active?.role !== MEMBER_ROLE.OWNER) {
     return data({ error: OWNER_REQUIRED_MESSAGE }, { status: 403 });
   }
@@ -245,7 +250,8 @@ function AccessDisclosure() {
 
 // Foxhound's own refusal: only an account owner attaches a Stripe account.
 // Shown by the action, the callback's bounce and the page itself.
-const OWNER_REQUIRED_MESSAGE = "Only an account owner can connect Stripe. Ask the owner to connect it.";
+const OWNER_REQUIRED_MESSAGE =
+  "Only an account owner can connect Stripe. Ask the owner to connect it.";
 
 // Recova's error words (app/connect/page.tsx lines 11 to 19) for every code
 // Foxhound's callback sends here. Recova's three setup codes (oauth_failed,
@@ -260,7 +266,8 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "Security check failed. Please try again.",
   no_code: "Stripe did not return an authorization code. Please try again.",
   token_exchange_failed: "Stripe could not complete the connection. Please try again.",
-  stripe_account_already_connected: "This Stripe account is already connected to a Foxhound account.",
+  stripe_account_already_connected:
+    "This Stripe account is already connected to a Foxhound account.",
   owner_required: OWNER_REQUIRED_MESSAGE,
   scope_refused: "Stripe did not grant the read and write access Foxhound needs. Please try again.",
 };
@@ -296,7 +303,8 @@ function ConnectFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex justify-center px-4 py-[60px]">
       <div
-        className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]" data-cap-site="foxhound"
+        className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
         data-family="amber"
         data-connect=""
       >
@@ -330,7 +338,10 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
   if (!loaderData.hasAccount) {
     return (
       <ConnectFrame>
-        <ConnectHeading title="Name your account" subtitle="One more step before you connect Stripe." />
+        <ConnectHeading
+          title="Name your account"
+          subtitle="One more step before you connect Stripe."
+        />
         <Form method="post" className="grid gap-4">
           {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
           {/* Capsomer's field through its HTML contract. The React Field

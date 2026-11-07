@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { SLACK_WEBHOOK_ERROR } from "~/lib/settings/slack-webhook";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -39,15 +39,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/settings/notifications");
 
-
-
-
-
-
-
-
-
-
 // ---------------------------------------------------------------------------
 // The loader and the action.
 // ---------------------------------------------------------------------------
@@ -58,7 +49,7 @@ let sqlite: Database.Database;
 function ctx() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: "user_1",
@@ -93,7 +84,9 @@ describe("J39 notifications: the loader and the action", () => {
     sqlite = made.sqlite;
     harness.db = made.db;
     harness.customerUpdate = vi.fn(async () => ({}));
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+      .run(ACCOUNT, "Acme");
   });
 
   afterEach(() => {
@@ -101,7 +94,10 @@ describe("J39 notifications: the loader and the action", () => {
   });
 
   it("names the webhook field on a refused webhook, so the page can put the error beside it", async () => {
-    const res = await post({ notificationEmail: "ops@acme.test", slackWebhookUrl: "https://evil.test/x" });
+    const res = await post({
+      notificationEmail: "ops@acme.test",
+      slackWebhookUrl: "https://evil.test/x",
+    });
     expect(res.init?.status).toBe(400);
     expect(res.data).toEqual({ ok: false, error: SLACK_WEBHOOK_ERROR, field: "slackWebhookUrl" });
   });
@@ -130,12 +126,16 @@ describe("J39 notifications: the loader and the action", () => {
   // and portal follow it.
   it("pushes a changed notification email to the billing customer, and only a changed one", async () => {
     sqlite
-      .prepare("UPDATE accounts SET notification_email = ?, platform_stripe_customer_id = ? WHERE id = ?")
+      .prepare(
+        "UPDATE accounts SET notification_email = ?, platform_stripe_customer_id = ? WHERE id = ?",
+      )
       .run("old@acme.test", "cus_platform_1", ACCOUNT);
 
     expect((await post({ notificationEmail: "new@acme.test" })).data).toEqual({ ok: true });
     expect(harness.customerUpdate).toHaveBeenCalledTimes(1);
-    expect(harness.customerUpdate).toHaveBeenCalledWith("cus_platform_1", { email: "new@acme.test" });
+    expect(harness.customerUpdate).toHaveBeenCalledWith("cus_platform_1", {
+      email: "new@acme.test",
+    });
 
     // Unchanged, and cleared: Recova pushes neither.
     await post({ notificationEmail: "new@acme.test" });
@@ -156,7 +156,9 @@ describe("J39 notifications: the loader and the action", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect((await post({ notificationEmail: "new@acme.test" })).data).toEqual({ ok: true });
-    const saved = sqlite.prepare("SELECT notification_email FROM accounts WHERE id = ?").get(ACCOUNT);
+    const saved = sqlite
+      .prepare("SELECT notification_email FROM accounts WHERE id = ?")
+      .get(ACCOUNT);
     expect(saved).toEqual({ notification_email: "new@acme.test" });
     expect(logged).toHaveBeenCalled();
     expect(JSON.stringify(logged.mock.calls)).not.toContain("new@acme.test");

@@ -20,7 +20,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { DEMO_BUSINESSES } from "~/lib/demo/constants";
 import {
@@ -32,7 +32,11 @@ import {
   scheduledChangeLabel,
 } from "~/lib/intelligence/customer-directory";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
-import { listCustomerDirectory, listCustomerTiers, type CustomerDirectorySort } from "~/lib/intelligence/directory.server";
+import {
+  listCustomerDirectory,
+  listCustomerTiers,
+  type CustomerDirectorySort,
+} from "~/lib/intelligence/directory.server";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney } from "~/lib/money-format";
 import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
@@ -72,7 +76,9 @@ const HEALTH_BAND_LABEL: Record<HealthScoreBand, string> = {
 };
 
 function parseHealthBand(value: string | null): HealthScoreBand | null {
-  return value != null && (HEALTH_BANDS as string[]).includes(value) ? (value as HealthScoreBand) : null;
+  return value != null && (HEALTH_BANDS as string[]).includes(value)
+    ? (value as HealthScoreBand)
+    : null;
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -113,7 +119,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
         hasActiveRecovery: hasActiveRecoverySignal(c.recoverySignals),
         hasDisputeHistory: hasDisputeHistorySignal(c.disputeSignals),
         chip: chipLabelFor(c.recommendedAction),
-        scheduled: scheduledChangeLabel(c.scheduledChangeKind, c.scheduledChangeAt, new Date(nowMs)),
+        scheduled: scheduledChangeLabel(
+          c.scheduledChangeKind,
+          c.scheduledChangeAt,
+          new Date(nowMs),
+        ),
       })),
     },
     tiers,
@@ -198,7 +208,8 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         // churn (gap named in the J30 notes).
         <Panel title="No customer data yet">
           <p className="m-0 text-label text-text-tertiary">
-            Intelligence populates as customers transact in your Stripe account. Check back as data accumulates.
+            Intelligence populates as customers transact in your Stripe account. Check back as data
+            accumulates.
           </p>
         </Panel>
       ) : (
@@ -214,7 +225,14 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           ) : (
             <div className="cap-panel">
               <div className="cap-panel-body" data-flush="">
-                <div className="cap-table-wrap" data-reflow="medium" data-cap="table" role="region" aria-label="Customers" tabIndex={0}>
+                <div
+                  className="cap-table-wrap"
+                  data-reflow="medium"
+                  data-cap="table"
+                  role="region"
+                  aria-label="Customers"
+                  tabIndex={0}
+                >
                   <table className="cap-table">
                     <thead>
                       <tr>
@@ -248,36 +266,50 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               </Link>
                               {/* Recova's recommended-action chip after the name. */}
                               {c.chip ? (
-                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">{c.chip}</span>
+                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">
+                                  {c.chip}
+                                </span>
                               ) : null}
                               {/* Recova's second line under the name: the Stripe
                                   id, micro and mono. */}
-                              <span className="block font-mono text-micro text-text-subtle">{c.stripeCustomerId}</span>
+                              <span className="block font-mono text-micro text-text-subtle">
+                                {c.stripeCustomerId}
+                              </span>
                               {/* A planned change or cancellation from the
                                   customer's Stripe subscription schedule or
                                   cancel_at, under the id. */}
                               {c.scheduled ? (
-                                <span className="block text-micro font-normal text-text-secondary">{c.scheduled}</span>
+                                <span className="block text-micro font-normal text-text-secondary">
+                                  {c.scheduled}
+                                </span>
                               ) : null}
                             </th>
                             <td data-label="Plan">
                               {/* Capsomer's pill markup rather than its Pill
                                   component, which adds a status glyph to any
                                   toned pill; a plan is not a status. */}
-                              <span className="cap-pill" data-tone={pill.tone} data-variant="outline">
+                              <span
+                                className="cap-pill"
+                                data-tone={pill.tone}
+                                data-variant="outline"
+                              >
                                 {pill.label}
                               </span>
                             </td>
                             <td data-label="MRR" data-num="">
                               <span className="font-mono">
-                                {c.mrrContributionCents > 0 ? formatMoney(c.mrrContributionCents, c.currency) : "-"}
+                                {c.mrrContributionCents > 0
+                                  ? formatMoney(c.mrrContributionCents, c.currency)
+                                  : "-"}
                               </span>
                             </td>
                             <td data-label="Health" data-num="">
                               {c.healthScore == null ? (
                                 <span className="font-mono text-text-tertiary">-</span>
                               ) : (
-                                <span className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}>
+                                <span
+                                  className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
+                                >
                                   {c.healthScore}
                                 </span>
                               )}
@@ -325,7 +357,9 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         </>
       )}
 
-      {result.totalPages > 1 ? <Pager filters={filters} page={result.page} totalPages={result.totalPages} /> : null}
+      {result.totalPages > 1 ? (
+        <Pager filters={filters} page={result.page} totalPages={result.totalPages} />
+      ) : null}
 
       {otherDemoName ? (
         <p className="mt-8 mb-0 text-center text-caption text-text-subtle">
@@ -365,7 +399,12 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
               Plan
             </label>
             <div className="cap-select-wrap">
-              <select className="cap-select" id="customers-tier" name="tier" defaultValue={filters.tier}>
+              <select
+                className="cap-select"
+                id="customers-tier"
+                name="tier"
+                defaultValue={filters.tier}
+              >
                 <option value="">All plans</option>
                 {tiers.map((t) => (
                   <option key={t} value={t}>
@@ -380,7 +419,12 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
               Health
             </label>
             <div className="cap-select-wrap">
-              <select className="cap-select" id="customers-band" name="band" defaultValue={filters.healthBand}>
+              <select
+                className="cap-select"
+                id="customers-band"
+                name="band"
+                defaultValue={filters.healthBand}
+              >
                 <option value="">All health bands</option>
                 {HEALTH_BANDS.map((b) => (
                   <option key={b} value={b}>
@@ -395,7 +439,12 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
               Sort
             </label>
             <div className="cap-select-wrap">
-              <select className="cap-select" id="customers-sort" name="sort" defaultValue={filters.sort}>
+              <select
+                className="cap-select"
+                id="customers-sort"
+                name="sort"
+                defaultValue={filters.sort}
+              >
                 <option value="health_asc">Health, lowest first</option>
                 <option value="mrr_desc">MRR, highest first</option>
               </select>
@@ -415,7 +464,15 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
  *  markup with its status line and its two ends; Capsomer's chevrons stand in
  *  for Recova's arrows. Its React Pagination adds page numbers and always shows
  *  both ends, which Recova's page does not (gap named in the J30 notes). */
-function Pager({ filters, page, totalPages }: { filters: Filters; page: number; totalPages: number }) {
+function Pager({
+  filters,
+  page,
+  totalPages,
+}: {
+  filters: Filters;
+  page: number;
+  totalPages: number;
+}) {
   return (
     // Recova's mt-4 sits on a wrapper so the Capsomer nav carries no Foxhound class.
     <div className="mt-4">
@@ -426,14 +483,24 @@ function Pager({ filters, page, totalPages }: { filters: Filters; page: number; 
         <ul className="cap-pagination-list">
           {page > 1 ? (
             <li>
-              <Link className="cap-page" data-kind="prev" to={pageHref(filters, page - 1)} rel="prev">
+              <Link
+                className="cap-page"
+                data-kind="prev"
+                to={pageHref(filters, page - 1)}
+                rel="prev"
+              >
                 Previous
               </Link>
             </li>
           ) : null}
           {page < totalPages ? (
             <li>
-              <Link className="cap-page" data-kind="next" to={pageHref(filters, page + 1)} rel="next">
+              <Link
+                className="cap-page"
+                data-kind="next"
+                to={pageHref(filters, page + 1)}
+                rel="next"
+              >
                 Next
               </Link>
             </li>

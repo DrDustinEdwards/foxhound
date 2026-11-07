@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -65,9 +65,8 @@ const { loader } = await import("~/routes/auth/connect-callback");
 // dot-server build guard refuses a re-export from a route module, so the import
 // path moves with the code rather than being papered over.
 const { findLiveAttachment } = await import("~/lib/stripe/connections.server");
-const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
-  "~/lib/stripe/connect-state"
-);
+const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } =
+  await import("~/lib/stripe/connect-state");
 const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
 
 const USER = "user_1";
@@ -114,7 +113,9 @@ beforeEach(() => {
 
 function seedUser(id: string, email: string): void {
   sqlite
-    .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+    .prepare(
+      "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+    )
     .run(id, id, email);
 }
 
@@ -166,23 +167,29 @@ function connections(): { id: string; accountId: string; stripeUserId: string }[
 }
 
 function markerOf(sessionId: string): string | null {
-  const row = sqlite.prepare("SELECT active_account_id AS m FROM session WHERE id = ?").get(sessionId) as
-    | { m: string | null }
-    | undefined;
+  const row = sqlite
+    .prepare("SELECT active_account_id AS m FROM session WHERE id = ?")
+    .get(sessionId) as { m: string | null } | undefined;
   return row?.m ?? null;
 }
 
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {
-      return { env: {} as Env, ctx: { waitUntil: () => {} } as unknown as ExecutionContext, nonce: "n" };
+      return {
+        env: {} as Env,
+        ctx: { waitUntil: () => {} } as unknown as ExecutionContext,
+      };
     }
     throw new Error("unexpected context key");
   },
 } as unknown as Parameters<typeof loader>[0]["context"];
 
 async function callback(action: string): Promise<Response> {
-  const minted = buildConnectState(action as never, (harness.session as { user: { id: string } } | null)?.user.id ?? null);
+  const minted = buildConnectState(
+    action as never,
+    (harness.session as { user: { id: string } } | null)?.user.id ?? null,
+  );
   const url = new URL("https://foxhoundapp.test/connect/callback");
   url.searchParams.set("code", "ac_123");
   url.searchParams.set("state", minted);
@@ -200,9 +207,10 @@ async function callback(action: string): Promise<Response> {
 }
 
 function errorParam(response: Response): string | null {
-  return new URL(response.headers.get("location") ?? "", "https://foxhoundapp.test").searchParams.get(
-    "error",
-  );
+  return new URL(
+    response.headers.get("location") ?? "",
+    "https://foxhoundapp.test",
+  ).searchParams.get("error");
 }
 
 describe("PLANT 1: the predicate itself, three discriminated answers", () => {
@@ -231,9 +239,7 @@ describe("PLANT 2: DEFECT 4's reproduction is refused in the connect branch", ()
 
     expect(errorParam(response)).toBe("stripe_account_already_connected");
     // Nothing written, and the assertion is on the TABLE, not on the redirect.
-    expect(connections()).toEqual([
-      { id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X },
-    ]);
+    expect(connections()).toEqual([{ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X }]);
     expect(harness.writes).toEqual([]);
     // And no further Stripe call: the refusal lands before the account-name
     // fetch, so a merchant who is going to be refused is not a request Foxhound
@@ -250,15 +256,13 @@ describe("PLANT 3: the same refusal in the add_account branch", () => {
     const response = await callback(ADD_ACCOUNT_ACTION);
 
     expect(errorParam(response)).toBe("stripe_account_already_connected");
-    expect(connections()).toEqual([
-      { id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X },
-    ]);
+    expect(connections()).toEqual([{ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X }]);
     // The branch that mints a whole account must not have minted one.
     expect(harness.writes).toEqual([]);
     expect(harness.nameFetches).toBe(0);
-    expect(
-      sqlite.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number },
-    ).toEqual({ n: 2 });
+    expect(sqlite.prepare("SELECT COUNT(*) AS n FROM accounts").get() as { n: number }).toEqual({
+      n: 2,
+    });
   });
 });
 
@@ -296,7 +300,9 @@ describe("PLANT 4b: the unique index refuses a connection that went live after t
 
     expect(errorParam(response)).toBe("stripe_account_already_connected");
     expect(markerOf(SESSION_B)).toBe(ACCOUNT_B);
-    expect(connections()).toEqual([{ id: "conn_race", accountId: ACCOUNT_A, stripeUserId: STRIPE_X }]);
+    expect(connections()).toEqual([
+      { id: "conn_race", accountId: ACCOUNT_A, stripeUserId: STRIPE_X },
+    ]);
   });
 });
 
@@ -328,9 +334,7 @@ describe("PLANT 5: the cases that must still SUCCEED", () => {
 
     const response = await callback(CONNECT_ACTION);
 
-    expect(connections()).toEqual([
-      { id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X },
-    ]);
+    expect(connections()).toEqual([{ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X }]);
     // Recova sends a reconnect to /console, never the welcome page (J28, A8).
     expect(response.headers.get("location")).toBe("/console");
     expect(

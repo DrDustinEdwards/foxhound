@@ -66,7 +66,9 @@ function foreignKeyViolations(): unknown[] {
 function tableNames(): string[] {
   return (
     sqlite
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle%' AND name NOT LIKE '%_fts%'")
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle%' AND name NOT LIKE '%_fts%'",
+      )
       .all() as { name: string }[]
   ).map((r) => r.name);
 }
@@ -79,7 +81,6 @@ function dumpAll(): Record<string, unknown[]> {
   }
   return out;
 }
-
 
 interface Seeded {
   userId: string;
@@ -97,10 +98,16 @@ async function seedMerchant(opts: {
   const { userId, accountId, prefix: p } = opts;
   // The other merchant's values are the deleting merchant's REVERSED, so they
   // are just as present but can never contain one of PERSONAL_VALUES.
-  const t = (s: string) => (opts.personal ? s : `${p}:${[...s].reverse().join("")}`);
+  const t = (s: string) => (opts.personal ? s : `${p}:${s.split("").reverse().join("")}`);
   const at = (ms: number) => new Date(ms);
 
-  await db.insert(user).values({ id: userId, name: opts.name, email: opts.email, emailVerified: true, updatedAt: OLD });
+  await db.insert(user).values({
+    id: userId,
+    name: opts.name,
+    email: opts.email,
+    emailVerified: true,
+    updatedAt: OLD,
+  });
   await db.insert(session).values({
     id: `${p}-sess`,
     token: `${p}-token`,
@@ -312,7 +319,13 @@ async function seedMerchant(opts: {
   await click("click-billable", "step-billable", "send-billable");
   await click("click-open", "step-open", "send-open");
 
-  const recovered = (id: string, fp: string, recoveredAt: Date, kind: string, stepId: string | null) =>
+  const recovered = (
+    id: string,
+    fp: string,
+    recoveredAt: Date,
+    kind: string,
+    stepId: string | null,
+  ) =>
     db.insert(schema.recoveredPayments).values({
       id: `${p}-${id}`,
       failedPaymentId: `${p}-${fp}`,
@@ -599,7 +612,11 @@ async function seedMerchant(opts: {
     receivedAt: OLD,
     accountId,
     processed: true,
-    payload: { data: { object: { customer_email: t("ada@customer.test"), customer_name: t("Ada Customer") } } },
+    payload: {
+      data: {
+        object: { customer_email: t("ada@customer.test"), customer_name: t("Ada Customer") },
+      },
+    },
   });
 
   return { userId, accountId };
@@ -633,8 +650,16 @@ async function feePicture(accountId: string) {
   const preview = await getBillingPreview(db, accountId, NOW.getTime());
   const ledger = await getBillingLedger(db, accountId);
   return {
-    billableRecoveries: recoveries.map((r) => ({ id: r.id, amountCents: r.amountCents, currency: r.currency })),
-    billableDisputes: disputes.map((d) => ({ id: d.id, amountCents: d.amountCents, fee: d.resolvedFeeCents })),
+    billableRecoveries: recoveries.map((r) => ({
+      id: r.id,
+      amountCents: r.amountCents,
+      currency: r.currency,
+    })),
+    billableDisputes: disputes.map((d) => ({
+      id: d.id,
+      amountCents: d.amountCents,
+      fee: d.resolvedFeeCents,
+    })),
     estimatedInvoice: preview.estimatedInvoice,
     ledgerLines: ledger.lineItems.map((l) => ({
       line: l.lineItem.id,
@@ -644,7 +669,10 @@ async function feePicture(accountId: string) {
       attribution: l.recoveredPayment?.attributionKind ?? null,
       step: l.creditedStepType,
     })),
-    free: ledger.freeRecoveries.map((f) => ({ id: f.recoveredPayment.id, amountCents: f.recoveredPayment.amountCents })),
+    free: ledger.freeRecoveries.map((f) => ({
+      id: f.recoveredPayment.id,
+      amountCents: f.recoveredPayment.amountCents,
+    })),
   };
 }
 
@@ -670,15 +698,27 @@ describe("S40 account deletion: the fee survives", () => {
     const { me } = await seedBoth();
     await deleteUserAccountLocal(db, me.userId, NOW);
 
-    const rp = await db.select().from(schema.recoveredPayments).where(eq(schema.recoveredPayments.accountId, me.accountId));
+    const rp = await db
+      .select()
+      .from(schema.recoveredPayments)
+      .where(eq(schema.recoveredPayments.accountId, me.accountId));
     expect(rp.map((r) => r.id).sort()).toEqual(["me-rp-billable", "me-rp-billed", "me-rp-free"]);
-    const steps = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.accountId, me.accountId));
+    const steps = await db
+      .select()
+      .from(schema.recoverySteps)
+      .where(eq(schema.recoverySteps.accountId, me.accountId));
     expect(steps.map((s) => s.id).sort()).toEqual(["me-step-billable", "me-step-billed"]);
     // The attributing click survives with its timing, so email_engaged stays provable.
-    const clicks = await db.select().from(schema.engagementEvents).where(eq(schema.engagementEvents.accountId, me.accountId));
+    const clicks = await db
+      .select()
+      .from(schema.engagementEvents)
+      .where(eq(schema.engagementEvents.accountId, me.accountId));
     expect(clicks.map((c) => c.id)).toEqual(["me-click-billable"]);
     expect(clicks[0].occurredAt).toEqual(OLDER);
-    const fps = await db.select().from(schema.failedPayments).where(eq(schema.failedPayments.accountId, me.accountId));
+    const fps = await db
+      .select()
+      .from(schema.failedPayments)
+      .where(eq(schema.failedPayments.accountId, me.accountId));
     expect(fps.map((f) => f.id).sort()).toEqual(["me-fp-billable", "me-fp-billed", "me-fp-free"]);
     for (const fp of fps) {
       expect(fp.stripeInvoiceId).toBe(`in_me_${fp.id.slice(3)}`);
@@ -686,16 +726,32 @@ describe("S40 account deletion: the fee survives", () => {
       expect(fp.amountCents).toBe(10_000);
       expect(fp.currency).toBe("usd");
     }
-    const disputes = await db.select().from(schema.disputes).where(eq(schema.disputes.accountId, me.accountId));
+    const disputes = await db
+      .select()
+      .from(schema.disputes)
+      .where(eq(schema.disputes.accountId, me.accountId));
     expect(disputes.map((d) => d.id)).toEqual(["me-d-won"]);
-    expect(disputes[0]).toMatchObject({ stripeDisputeId: "dp_me_d-won", amountCents: 50_000, resolvedFeeCents: 10_000 });
-    const approvals = await db.select().from(schema.disputeApprovals).where(eq(schema.disputeApprovals.accountId, me.accountId));
+    expect(disputes[0]).toMatchObject({
+      stripeDisputeId: "dp_me_d-won",
+      amountCents: 50_000,
+      resolvedFeeCents: 10_000,
+    });
+    const approvals = await db
+      .select()
+      .from(schema.disputeApprovals)
+      .where(eq(schema.disputeApprovals.accountId, me.accountId));
     expect(approvals.map((a) => a.id)).toEqual(["me-d-won-approval"]);
-    const lines = await db.select().from(schema.billingLineItems).where(eq(schema.billingLineItems.accountId, me.accountId));
+    const lines = await db
+      .select()
+      .from(schema.billingLineItems)
+      .where(eq(schema.billingLineItems.accountId, me.accountId));
     expect(lines.map((l) => l.recoveredPaymentId)).toEqual(["me-rp-billed"]);
     // The account row survives as the key the fee and its invoices hang from,
     // with the platform customer the invoice is charged to.
-    const acct = await db.select().from(schema.accounts).where(eq(schema.accounts.id, me.accountId));
+    const acct = await db
+      .select()
+      .from(schema.accounts)
+      .where(eq(schema.accounts.id, me.accountId));
     expect(acct).toHaveLength(1);
     expect(acct[0].platformStripeCustomerId).toBe("cus_platform_me");
     expect(acct[0].cancelledAt).toEqual(NOW);
@@ -704,7 +760,6 @@ describe("S40 account deletion: the fee survives", () => {
 });
 
 describe("S40 account deletion: scope", () => {
-
   it("a second deletion is a no-op and writes nothing", async () => {
     const { me } = await seedBoth();
     await deleteUserAccountLocal(db, me.userId, NOW);
@@ -716,7 +771,12 @@ describe("S40 account deletion: scope", () => {
 
   it("a member who owns nothing loses only their own membership and personal rows", async () => {
     const { other } = await seedBoth();
-    await db.insert(user).values({ id: "user_teammate", name: "Tess Teammate", email: "tess@globex.test", updatedAt: OLD });
+    await db.insert(user).values({
+      id: "user_teammate",
+      name: "Tess Teammate",
+      email: "tess@globex.test",
+      updatedAt: OLD,
+    });
     await db.insert(schema.accountMembers).values({
       id: "ot-tess",
       accountId: other.accountId,
@@ -734,19 +794,35 @@ describe("S40 account deletion: scope", () => {
       evidenceVersionHash: "h",
       approvedAt: OLD,
     });
-    const accountBefore = await db.select().from(schema.accounts).where(eq(schema.accounts.id, other.accountId));
+    const accountBefore = await db
+      .select()
+      .from(schema.accounts)
+      .where(eq(schema.accounts.id, other.accountId));
 
     const result = await deleteUserAccountLocal(db, "user_teammate", NOW);
     expect(result).toEqual({ status: "deleted", accountIds: [], liveConnections: [] });
 
     expect(await db.select().from(user).where(eq(user.id, "user_teammate"))).toEqual([]);
-    expect(await db.select().from(schema.accountMembers).where(eq(schema.accountMembers.id, "ot-tess"))).toEqual([]);
+    expect(
+      await db.select().from(schema.accountMembers).where(eq(schema.accountMembers.id, "ot-tess")),
+    ).toEqual([]);
     // The owner's membership and the account itself are untouched.
-    expect(await db.select().from(schema.accountMembers).where(eq(schema.accountMembers.id, "ot-owner"))).toHaveLength(1);
-    expect(await db.select().from(schema.accounts).where(eq(schema.accounts.id, other.accountId))).toEqual(accountBefore);
+    expect(
+      await db.select().from(schema.accountMembers).where(eq(schema.accountMembers.id, "ot-owner")),
+    ).toHaveLength(1);
+    expect(
+      await db.select().from(schema.accounts).where(eq(schema.accounts.id, other.accountId)),
+    ).toEqual(accountBefore);
     // Their email is gone from the approval they signed, and the approval stays.
-    const approval = await db.select().from(schema.disputeApprovals).where(eq(schema.disputeApprovals.id, "ot-tess-approval"));
-    expect(approval[0]).toMatchObject({ approvedByEmail: null, approvedByUserId: null, evidenceVersionHash: "h" });
+    const approval = await db
+      .select()
+      .from(schema.disputeApprovals)
+      .where(eq(schema.disputeApprovals.id, "ot-tess-approval"));
+    expect(approval[0]).toMatchObject({
+      approvedByEmail: null,
+      approvedByUserId: null,
+      evidenceVersionHash: "h",
+    });
     expect(JSON.stringify(dumpAll())).not.toContain("tess@globex.test");
     expect(foreignKeyViolations()).toEqual([]);
   });

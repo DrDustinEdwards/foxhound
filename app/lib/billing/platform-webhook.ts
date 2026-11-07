@@ -157,7 +157,9 @@ export async function processPlatformWebhook(
       // claim is a plain insert. There are no side effects to be atomic with,
       // which is exactly why this case does not need the folded batch.
       const claimed = await claimUnroutableEvent(env, event, receivedAt);
-      return claimed ? { status: "ignored", reason: "no_billing_invoice" } : { status: "duplicate" };
+      return claimed
+        ? { status: "ignored", reason: "no_billing_invoice" }
+        : { status: "duplicate" };
     }
 
     const claim: WebhookClaimInput = {
@@ -177,7 +179,9 @@ export async function processPlatformWebhook(
         idempotencyKey,
         build: (db) => [buildWebhookClaim(db, { ...claim, payload: {} })],
       });
-      return applied ? { status: "ignored", reason: "status_not_forward" } : { status: "duplicate" };
+      return applied
+        ? { status: "ignored", reason: "status_not_forward" }
+        : { status: "duplicate" };
     }
 
     const { applied } = await executeMoneyWrite(env, {
@@ -187,7 +191,10 @@ export async function processPlatformWebhook(
     });
     return applied ? { status: "applied" } : { status: "duplicate" };
   } catch (err) {
-    return { status: "error", message: err instanceof Error ? err.message : "platform webhook error" };
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "platform webhook error",
+    };
   }
 }
 

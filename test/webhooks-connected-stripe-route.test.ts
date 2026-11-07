@@ -72,10 +72,12 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const captureException = vi.fn();
-vi.mock("@sentry/cloudflare", () => ({ captureException: (...args: unknown[]) => captureException(...args) }));
+vi.mock("@sentry/cloudflare", () => ({
+  captureException: (...args: unknown[]) => captureException(...args),
+}));
 
 const { action } = await import("~/routes/webhooks/stripe");
-const { cloudflareContext } = await import("~/lib/cloudflare-context");
+const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
 const schema = await import("~/db/schema");
 
 /** An event Stripe would deliver on the connected endpoint. `payout.paid` is
@@ -118,17 +120,13 @@ function call(request: Request, secret: string | undefined): Promise<Response> {
   const context = {
     get: (key: unknown) => {
       if (key !== cloudflareContext) throw new Error("unexpected context key");
-      return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env, ctx: {} as ExecutionContext };
     },
   };
   return action({ request, context } as never) as Promise<Response>;
 }
 
-function webhookRequest(
-  payload: string,
-  signature: string,
-  method = "POST",
-): Request {
+function webhookRequest(payload: string, signature: string, method = "POST"): Request {
   return new Request("https://app.foxhoundapp.com/webhooks/stripe", {
     method,
     body: method === "GET" ? undefined : payload,
@@ -145,7 +143,9 @@ async function seed({ connected = true }: { connected?: boolean } = {}) {
   const { sqlite, db } = createInMemoryDb();
   harness.db = db;
   harness.sqlite = sqlite;
-  await db.insert(schema.accounts).values({ id: ACCOUNT_ID, name: "Connected Co", createdAt: RECEIVED_AT });
+  await db
+    .insert(schema.accounts)
+    .values({ id: ACCOUNT_ID, name: "Connected Co", createdAt: RECEIVED_AT });
   if (connected) {
     await db.insert(schema.stripeConnections).values({
       id: CONNECTION_ID,
@@ -183,7 +183,6 @@ describe("connected webhook: the method and configuration rungs", () => {
 });
 
 describe("connected webhook: the signature rung, against a real HMAC", () => {
-
   it("rejects a POST carrying no stripe-signature header at all", async () => {
     const db = await seed();
     const res = await call(webhookRequest(connectedEvent("evt_unsigned"), ""), WEBHOOK_SECRET);

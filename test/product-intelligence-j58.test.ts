@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import * as risk from "~/lib/intelligence/risk";
 import IntelligenceProductPage, { loader } from "~/routes/products/intelligence";
 
@@ -22,7 +22,7 @@ import IntelligenceProductPage, { loader } from "~/routes/products/intelligence"
 
 const fakeContext = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     throw new Error("unexpected context key");
   },
 };
@@ -38,7 +38,9 @@ async function load(): Promise<LoaderData> {
 }
 
 function render(loaderData: LoaderData): string {
-  const Page = IntelligenceProductPage as unknown as (props: { loaderData: LoaderData }) => React.ReactElement;
+  const Page = IntelligenceProductPage as unknown as (props: {
+    loaderData: LoaderData;
+  }) => React.ReactElement;
   const router = createMemoryRouter([{ path: "*", element: createElement(Page, { loaderData }) }], {
     initialEntries: ["/product/intelligence"],
   });
@@ -57,9 +59,6 @@ function text(html: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
-
-
-
 
 const COUNT_WORD = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"];
 
@@ -84,7 +83,8 @@ function emittedSignals(): string[] {
 }
 
 function signalLabels(): string[] {
-  const labels = (risk as unknown as { HEALTH_SIGNAL_LABELS?: Record<string, string> }).HEALTH_SIGNAL_LABELS;
+  const labels = (risk as unknown as { HEALTH_SIGNAL_LABELS?: Record<string, string> })
+    .HEALTH_SIGNAL_LABELS;
   expect(labels, "risk.ts names each signal it scores").toBeTypeOf("object");
   return Object.values(labels as Record<string, string>);
 }
@@ -92,12 +92,6 @@ function signalLabels(): string[] {
 function listOf(words: string[]): string {
   return `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;
 }
-
-
-
-
-
-
 
 // The free tier (PRICING.md, Intelligence: basic MRR analytics are FREE for
 // every Recovery merchant; the $199 is the risk layer). The merchant dashboard
@@ -110,12 +104,17 @@ describe("the copy says only what Foxhound computes (J58)", async () => {
 
   it("names the score's signals from the engine, every one the engine can emit and no other", () => {
     const labels = signalLabels();
-    const keys = Object.keys((risk as unknown as { HEALTH_SIGNAL_LABELS: Record<string, string> }).HEALTH_SIGNAL_LABELS).sort();
+    const keys = Object.keys(
+      (risk as unknown as { HEALTH_SIGNAL_LABELS: Record<string, string> }).HEALTH_SIGNAL_LABELS,
+    ).sort();
     expect(keys).toEqual(emittedSignals());
     const list = listOf(labels);
     expect(body).toContain(`0-100 health scores per customer, derived from ${list}.`);
-    expect(body).toContain(`${COUNT_WORD[labels.length]} signals, ${list}, combine into a 0-100 health score`);
-    expect(body).toContain(`The health score is derived from ${COUNT_WORD[labels.length].toLowerCase()} independent signals: ${list}.`);
+    expect(body).toContain(
+      `${COUNT_WORD[labels.length]} signals, ${list}, combine into a 0-100 health score`,
+    );
+    expect(body).toContain(
+      `The health score is derived from ${COUNT_WORD[labels.length].toLowerCase()} independent signals: ${list}.`,
+    );
   });
 });
-

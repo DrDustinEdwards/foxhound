@@ -11,7 +11,11 @@ import {
   RECOVERY_SEQUENCE_DAYS,
   countWord,
 } from "~/lib/marketing/decline-categories";
-import { STAT_SOURCES, STRIPE_RECOVERY_RATE_PERCENT, STRIPE_UNRECOVERED_RATE_PERCENT } from "~/lib/marketing/statistics";
+import {
+  STAT_SOURCES,
+  STRIPE_RECOVERY_RATE_PERCENT,
+  STRIPE_UNRECOVERED_RATE_PERCENT,
+} from "~/lib/marketing/statistics";
 import { formatMoneyShort } from "~/lib/money-format";
 
 import type { ProductKey } from "./products";
@@ -153,7 +157,8 @@ export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
     price: `${RECOVERY_FEE} of Foxhound-attributed recoveries`,
   },
   disputes: {
-    description: "Evidence drafted for every dispute. You review and sign every submission before it reaches Stripe.",
+    description:
+      "Evidence drafted for every dispute. You review and sign every submission before it reaches Stripe.",
     price: `${DISPUTE_FEE} of won disputes, capped at ${DISPUTE_CAP}`,
   },
   intelligence: {
@@ -226,4 +231,9 @@ export const SECURITY_CHIPS = [
 ];
 
 /** Recova's compatibility line, without Multi-account (divergence 40). */
-export const COMPAT_TAGS = ["Stripe Billing", "Stripe Checkout", "Custom invoices", "Stripe Subscriptions"];
+export const COMPAT_TAGS = [
+  "Stripe Billing",
+  "Stripe Checkout",
+  "Custom invoices",
+  "Stripe Subscriptions",
+];

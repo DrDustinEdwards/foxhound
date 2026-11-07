@@ -16,10 +16,7 @@ interface SqlWrapper {
   toSQL(): { sql: string; params: unknown[] };
 }
 
-export async function executeMoneyWrite(
-  env: Env,
-  write: MoneyWrite,
-): Promise<CommitResult> {
+export async function executeMoneyWrite(env: Env, write: MoneyWrite): Promise<CommitResult> {
   const db = getDb(env);
   const batch = write.build(db);
   const statements: CompiledStatement[] = batch.map((item) => {

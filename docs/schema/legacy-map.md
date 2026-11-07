@@ -5,7 +5,7 @@ Column-level mapping from the legacy Recova Supabase schema to the Foxhound D1 s
 ## Method and provenance
 
 - **Source of column truth:** legacy Supabase project `ejvulqddijapyutvkxxi`, read via the PostgREST OpenAPI spec (`GET /rest/v1/`) using the existing service-role key, strictly read-only. No write, no DDL against legacy.
-- **Scope note (deliberate deviation from the task's prime directive, authorized by Dustin 2026-07-12):** the *verbose* column-level probe (distinct enum values, FK graph traversal, per-table row counts) was **skipped by explicit instruction**. This doc is built from a **light OpenAPI cross-check**: column names, Postgres types, and NOT NULL / PK / FK hints for all legacy tables, cross-referenced against SCHEMA.md. Consequences carried forward honestly:
+- **Scope note (deliberate deviation from the task's prime directive, authorized by Dustin 2026-07-12):** the _verbose_ column-level probe (distinct enum values, FK graph traversal, per-table row counts) was **skipped by explicit instruction**. This doc is built from a **light OpenAPI cross-check**: column names, Postgres types, and NOT NULL / PK / FK hints for all legacy tables, cross-referenced against SCHEMA.md. Consequences carried forward honestly:
   - Legacy text columns that look enum-like (`status`, `event_type`, `recovery_method`, `decline_category`, etc.) are mapped to plain `TEXT` with **no CHECK constraint**, because their distinct value sets were not probed. CHECK constraints are applied ONLY to the NEW canon-defined enums (attribution_kind, dispute state, billing line-item type, engagement event type), whose value sets come from SCHEMA.md/PRICING.md, not from legacy data.
   - Row counts and checksums are produced at transform time (C5), not here.
 - **Tables seen:** 52 via PostgREST. SCHEMA.md cites 53 public tables (2026-07-11 probe). The one-table delta is unresolved (PostgREST omits views and PK-less tables from its OpenAPI definitions); it does not affect any KEEP table below. Flagged for the reviewer.
@@ -13,88 +13,88 @@ Column-level mapping from the legacy Recova Supabase schema to the Foxhound D1 s
 
 ## Type conventions (D1/SQLite, per SCHEMA.md + ARCHITECTURE.md)
 
-| Legacy Postgres type | Foxhound D1 type | Notes |
-|---|---|---|
-| `uuid` | `text` | store the uuid string; PKs default to a generated uuid in app code |
-| `timestamp with time zone` | `integer` | epoch **milliseconds** (uniform convention) |
-| `date` | `integer` | epoch ms at UTC midnight; date-only semantics documented per column |
-| `boolean` | `integer` | 0/1 convention |
-| `integer` (money `_cents`) | `integer` | cents; every money column has a `currency` column in its row |
-| `numeric` (fee pct) | `integer` | basis points where it feeds money math; documented per column |
-| `numeric` (statistical: percentiles, rates) | `real` | genuinely fractional, non-money |
-| `bigint` | `integer` | SQLite INTEGER is 64-bit |
-| `jsonb` | `text` | Drizzle `mode: 'json'` |
-| `text[]` | `text` | Drizzle `mode: 'json'` (SQLite has no array type) |
+| Legacy Postgres type                        | Foxhound D1 type | Notes                                                               |
+| ------------------------------------------- | ---------------- | ------------------------------------------------------------------- |
+| `uuid`                                      | `text`           | store the uuid string; PKs default to a generated uuid in app code  |
+| `timestamp with time zone`                  | `integer`        | epoch **milliseconds** (uniform convention)                         |
+| `date`                                      | `integer`        | epoch ms at UTC midnight; date-only semantics documented per column |
+| `boolean`                                   | `integer`        | 0/1 convention                                                      |
+| `integer` (money `_cents`)                  | `integer`        | cents; every money column has a `currency` column in its row        |
+| `numeric` (fee pct)                         | `integer`        | basis points where it feeds money math; documented per column       |
+| `numeric` (statistical: percentiles, rates) | `real`           | genuinely fractional, non-money                                     |
+| `bigint`                                    | `integer`        | SQLite INTEGER is 64-bit                                            |
+| `jsonb`                                     | `text`           | Drizzle `mode: 'json'`                                              |
+| `text[]`                                    | `text`           | Drizzle `mode: 'json'` (SQLite has no array type)                   |
 
 ## Disposition summary (all 52 legacy tables)
 
-| Legacy table | Disposition | SCHEMA.md basis |
-|---|---|---|
-| users | **BETTER-AUTH-OWNED** (Phase 3) | "users -> Better Auth core tables" |
-| accounts | CARRY+MODIFY | "accounts, account_members -> Better Auth core + accounts, account_members" (business tenant, ours) |
-| account_members | CARRY | membership/invites, ours |
-| account_products | CARRY | "carry, simplified" |
-| account_subscriptions | CARRY | "carry, simplified; Intelligence subscriptions only; admin_granted kept" |
-| api_keys | CARRY | "carry (merchant API/MCP)" |
-| stripe_connections | CARRY | "carry; token encryption ported; never logged" |
-| failed_payments | CARRY | "carry (one active per invoice)" |
-| recovery_steps | CARRY | "carry with send-attempt state machine" (columns already present) |
-| recovered_payments | CARRY+MODIFY | spine #1: + attribution columns + disputed_at |
-| expiring_card_alerts | CARRY | "carry (pre-dunning differentiator)" |
-| win_back_sequences | CARRY | "carry; terminal-state handling" |
-| win_back_steps | CARRY | "carry" |
-| email_events | **REDESIGN -> engagement_events** (rows NOT migrated) | "email_events -> engagement_events; first-party; resend_event_id does not migrate" |
-| email_suppressions | CARRY | "carry semantics + mirror Email Service suppression list" |
-| billing_assessments | **REDESIGN -> billing_invoices + billing_line_items** (rows NOT migrated) | "billing_assessments -> billing_invoices + billing_line_items" |
-| disputes | CARRY+MODIFY | + state CHECK + resolved fee snapshot |
-| dispute_evidence | CARRY | "carry (R2-backed)" |
-| dispute_fees | **FOLD -> billing_line_items** (table dropped, rows NOT migrated) | "dispute_fees -> folded into billing_line_items + resolved fee snapshot" |
-| customer_context | CARRY+MODIFY | + structured billing-behavior signal columns |
-| health_score_history | CARRY+MODIFY | "snapshot-on-change + weekly rollups after 90d" (retention) |
-| mrr_snapshots | CARRY | "carry" |
-| intelligence_reports | CARRY | "carry" |
-| alerts | CARRY | "carry" |
-| alert_history | CARRY | "carry" |
-| intelligence_notification_preferences | CARRY | "carry" |
-| benchmark_data | CARRY | "carry (seeds the no-auth estimator)" |
-| competitor_monitors | **DO-NOT-MIGRATE** | "absorbed-feature artifact, 0 rows" |
-| audit_runs | CARRY+MODIFY | + explicit lift fields (stripe_baseline_recovered, still_dying, foxhound_adds) |
-| outcomes | CARRY+MODIFY | + idempotency key + attribution linkage; PERMANENT retention |
-| webhook_events | CARRY | "carry (claim columns); 90d retention" |
-| cron_config | CARRY | "carry" |
-| cron_locks | **DO-NOT-MIGRATE** | "DO replaces" |
-| cron_runs | **MERGE -> cron_run_history** | "cron_runs + cron_run_history -> ONE cron_run_history" |
-| cron_run_history | CARRY (canonical single table) | as above |
-| admin_audit_log | CARRY | "carry, permanent" |
-| ai_calls | CARRY | "carry; cost map keyed to every model ID; retention" |
-| platform_stats | CARRY | "carry" |
-| customer_notes | CARRY | "carry" |
-| page_404s | **REDESIGN -> page_404_daily + raw w/ retention** (rows NOT migrated) | "daily aggregate per path + 30d raw; 140,428 legacy rows not migrated" |
-| blog_posts | CARRY | "carry + designed-in featured + taxonomy" (featured already present) |
-| blog_post_links | CARRY | "carry" |
-| blog_post_versions | CARRY | "carry (keep last 10 per post)" |
-| social_config | CARRY | "carry" |
-| social_leads | CARRY | "carry; leads retention 180d" |
-| social_posts | CARRY | "carry" |
-| social_topic_log | CARRY | "carry" |
-| social_blocklist | CARRY | "carry" |
-| social_keywords | CARRY | "carry" |
-| oauth_authorization_codes | **DO-NOT-MIGRATE** | "replaced by Better Auth + Foxhound MCP token issuance" |
-| oauth_clients | **DO-NOT-MIGRATE** | as above |
-| oauth_tokens | **DO-NOT-MIGRATE** | as above |
+| Legacy table                          | Disposition                                                               | SCHEMA.md basis                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| users                                 | **BETTER-AUTH-OWNED** (Phase 3)                                           | "users -> Better Auth core tables"                                                                  |
+| accounts                              | CARRY+MODIFY                                                              | "accounts, account_members -> Better Auth core + accounts, account_members" (business tenant, ours) |
+| account_members                       | CARRY                                                                     | membership/invites, ours                                                                            |
+| account_products                      | CARRY                                                                     | "carry, simplified"                                                                                 |
+| account_subscriptions                 | CARRY                                                                     | "carry, simplified; Intelligence subscriptions only; admin_granted kept"                            |
+| api_keys                              | CARRY                                                                     | "carry (merchant API/MCP)"                                                                          |
+| stripe_connections                    | CARRY                                                                     | "carry; token encryption ported; never logged"                                                      |
+| failed_payments                       | CARRY                                                                     | "carry (one active per invoice)"                                                                    |
+| recovery_steps                        | CARRY                                                                     | "carry with send-attempt state machine" (columns already present)                                   |
+| recovered_payments                    | CARRY+MODIFY                                                              | spine #1: + attribution columns + disputed_at                                                       |
+| expiring_card_alerts                  | CARRY                                                                     | "carry (pre-dunning differentiator)"                                                                |
+| win_back_sequences                    | CARRY                                                                     | "carry; terminal-state handling"                                                                    |
+| win_back_steps                        | CARRY                                                                     | "carry"                                                                                             |
+| email_events                          | **REDESIGN -> engagement_events** (rows NOT migrated)                     | "email_events -> engagement_events; first-party; resend_event_id does not migrate"                  |
+| email_suppressions                    | CARRY                                                                     | "carry semantics + mirror Email Service suppression list"                                           |
+| billing_assessments                   | **REDESIGN -> billing_invoices + billing_line_items** (rows NOT migrated) | "billing_assessments -> billing_invoices + billing_line_items"                                      |
+| disputes                              | CARRY+MODIFY                                                              | + state CHECK + resolved fee snapshot                                                               |
+| dispute_evidence                      | CARRY                                                                     | "carry (R2-backed)"                                                                                 |
+| dispute_fees                          | **FOLD -> billing_line_items** (table dropped, rows NOT migrated)         | "dispute_fees -> folded into billing_line_items + resolved fee snapshot"                            |
+| customer_context                      | CARRY+MODIFY                                                              | + structured billing-behavior signal columns                                                        |
+| health_score_history                  | CARRY+MODIFY                                                              | "snapshot-on-change + weekly rollups after 90d" (retention)                                         |
+| mrr_snapshots                         | CARRY                                                                     | "carry"                                                                                             |
+| intelligence_reports                  | CARRY                                                                     | "carry"                                                                                             |
+| alerts                                | CARRY                                                                     | "carry"                                                                                             |
+| alert_history                         | CARRY                                                                     | "carry"                                                                                             |
+| intelligence_notification_preferences | CARRY                                                                     | "carry"                                                                                             |
+| benchmark_data                        | CARRY                                                                     | "carry (seeds the no-auth estimator)"                                                               |
+| competitor_monitors                   | **DO-NOT-MIGRATE**                                                        | "absorbed-feature artifact, 0 rows"                                                                 |
+| audit_runs                            | CARRY+MODIFY                                                              | + explicit lift fields (stripe_baseline_recovered, still_dying, foxhound_adds)                      |
+| outcomes                              | CARRY+MODIFY                                                              | + idempotency key + attribution linkage; PERMANENT retention                                        |
+| webhook_events                        | CARRY                                                                     | "carry (claim columns); 90d retention"                                                              |
+| cron_config                           | CARRY                                                                     | "carry"                                                                                             |
+| cron_locks                            | **DO-NOT-MIGRATE**                                                        | "DO replaces"                                                                                       |
+| cron_runs                             | **MERGE -> cron_run_history**                                             | "cron_runs + cron_run_history -> ONE cron_run_history"                                              |
+| cron_run_history                      | CARRY (canonical single table)                                            | as above                                                                                            |
+| admin_audit_log                       | CARRY                                                                     | "carry, permanent"                                                                                  |
+| ai_calls                              | CARRY                                                                     | "carry; cost map keyed to every model ID; retention"                                                |
+| platform_stats                        | CARRY                                                                     | "carry"                                                                                             |
+| customer_notes                        | CARRY                                                                     | "carry"                                                                                             |
+| page_404s                             | **REDESIGN -> page_404_daily + raw w/ retention** (rows NOT migrated)     | "daily aggregate per path + 30d raw; 140,428 legacy rows not migrated"                              |
+| blog_posts                            | CARRY                                                                     | "carry + designed-in featured + taxonomy" (featured already present)                                |
+| blog_post_links                       | CARRY                                                                     | "carry"                                                                                             |
+| blog_post_versions                    | CARRY                                                                     | "carry (keep last 10 per post)"                                                                     |
+| social_config                         | CARRY                                                                     | "carry"                                                                                             |
+| social_leads                          | CARRY                                                                     | "carry; leads retention 180d"                                                                       |
+| social_posts                          | CARRY                                                                     | "carry"                                                                                             |
+| social_topic_log                      | CARRY                                                                     | "carry"                                                                                             |
+| social_blocklist                      | CARRY                                                                     | "carry"                                                                                             |
+| social_keywords                       | CARRY                                                                     | "carry"                                                                                             |
+| oauth_authorization_codes             | **DO-NOT-MIGRATE**                                                        | "replaced by Better Auth + Foxhound MCP token issuance"                                             |
+| oauth_clients                         | **DO-NOT-MIGRATE**                                                        | as above                                                                                            |
+| oauth_tokens                          | **DO-NOT-MIGRATE**                                                        | as above                                                                                            |
 
 ### NEW tables (no legacy source)
 
-| Foxhound table | SCHEMA.md basis |
-|---|---|
-| billing_invoices | per account per currency; two-layer idempotency |
+| Foxhound table     | SCHEMA.md basis                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| billing_invoices   | per account per currency; two-layer idempotency                                                 |
 | billing_line_items | recovery_fee / dispute_fee / subscription / adjustment; unique per recovery, unique per dispute |
-| dispute_approvals | who approved, when, evidence version hash; submission requires an approval row |
-| predictions | score, band evidence hash, horizon, realized_outcome, graded_at |
-| engagement_events | first-party open/click rows; unique idempotency key; open vs click typed |
-| email_sends | one row per queued/sent message; replaces Resend-shaped logging |
-| estimator_runs | no-auth Turnstile-gated estimator; minimal PII |
-| page_404_daily | daily aggregate per path |
+| dispute_approvals  | who approved, when, evidence version hash; submission requires an approval row                  |
+| predictions        | score, band evidence hash, horizon, realized_outcome, graded_at                                 |
+| engagement_events  | first-party open/click rows; unique idempotency key; open vs click typed                        |
+| email_sends        | one row per queued/sent message; replaces Resend-shaped logging                                 |
+| estimator_runs     | no-auth Turnstile-gated estimator; minimal PII                                                  |
+| page_404_daily     | daily aggregate per path                                                                        |
 
 ### Better-Auth-owned (Phase 3 creates; Phase 2 must NOT create)
 
@@ -168,16 +168,16 @@ Row-count parity and per-table checksums (stable scalar subset, sha256/16, compu
 identically on both sides), verified against staging D1. Idempotent: a second
 consecutive run left every D1 checksum byte-identical.
 
-| Table | Source rows | D1 rows | Checksum (both) | Match |
-|---|---|---|---|---|
-| benchmark_data | 0 | 0 | e3b0c44298fc1c14 | OK |
-| blog_posts | 45 | 45 | 67ade6705759ebd5 | OK |
-| social_config | 3 | 3 | 08ec71dc4e93da0a | OK |
-| social_keywords | 10 | 10 | dca72ad597b204e3 | OK |
-| social_leads | 25 | 25 | 59315ccddd874ee2 | OK |
-| social_posts | 14 | 14 | 200c434479722d82 | OK |
-| social_topic_log | 5 | 5 | c4f3d1b27ca8ee62 | OK |
-| social_blocklist | 11 | 11 | af6fbc91112addf5 | OK |
+| Table            | Source rows | D1 rows | Checksum (both)  | Match |
+| ---------------- | ----------- | ------- | ---------------- | ----- |
+| benchmark_data   | 0           | 0       | e3b0c44298fc1c14 | OK    |
+| blog_posts       | 45          | 45      | 67ade6705759ebd5 | OK    |
+| social_config    | 3           | 3       | 08ec71dc4e93da0a | OK    |
+| social_keywords  | 10          | 10      | dca72ad597b204e3 | OK    |
+| social_leads     | 25          | 25      | 59315ccddd874ee2 | OK    |
+| social_posts     | 14          | 14      | 200c434479722d82 | OK    |
+| social_topic_log | 5           | 5       | c4f3d1b27ca8ee62 | OK    |
+| social_blocklist | 11          | 11      | af6fbc91112addf5 | OK    |
 
 Total: 113 rows imported. No FK references nulled. Excluded by rule (not migrated):
 page_404s rows, oauth_* rows, competitor_monitors, demo-account tenant data,

@@ -1,7 +1,10 @@
 // An island (devkit ./islands): the /features product filter (components/feature-filter.tsx) on a page that
 // does not hydrate. A press moves the one active choice: the wrapper's data-feature-filter, which the page's
 // CSS reads to hide the other cards, each chip's aria-pressed, and the screen reader's line saying what is left.
-export default function start(el: HTMLElement, props: { total: number; counts: Record<string, number> }): void {
+export default function start(
+  el: HTMLElement,
+  props: { total: number; counts: Record<string, number> },
+): void {
   const chips = [...el.querySelectorAll<HTMLButtonElement>(".cap-chip[data-value]")];
   const status = el.querySelector<HTMLElement>(".cap-chips [role='status']");
   for (const chip of chips) {

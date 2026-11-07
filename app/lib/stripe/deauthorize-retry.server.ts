@@ -105,14 +105,24 @@ export async function retryFailedDeauthorizations(
   const pending = await db
     .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
-    .where(and(isNotNull(stripeConnections.deauthorizeFailedAt), isNotNull(stripeConnections.disconnectedAt)));
+    .where(
+      and(
+        isNotNull(stripeConnections.deauthorizeFailedAt),
+        isNotNull(stripeConnections.disconnectedAt),
+      ),
+    );
 
   const result: DeauthorizeRetryResult = { revoked: 0, superseded: 0, failed: [] };
   for (const row of pending) {
     const live = await db
       .select({ id: stripeConnections.id })
       .from(stripeConnections)
-      .where(and(eq(stripeConnections.stripeUserId, row.stripeUserId), isNull(stripeConnections.disconnectedAt)))
+      .where(
+        and(
+          eq(stripeConnections.stripeUserId, row.stripeUserId),
+          isNull(stripeConnections.disconnectedAt),
+        ),
+      )
       .limit(1);
     if (live.length > 0) {
       await clearPending(db, row.id);
@@ -124,14 +134,21 @@ export async function retryFailedDeauthorizations(
       await clearPending(db, row.id);
       result.revoked += 1;
     } else {
-      result.failed.push({ connectionId: row.id, stripeUserId: row.stripeUserId, error: attempt.error ?? "unknown error" });
+      result.failed.push({
+        connectionId: row.id,
+        stripeUserId: row.stripeUserId,
+        error: attempt.error ?? "unknown error",
+      });
     }
   }
   return result;
 }
 
 async function clearPending(db: Db, connectionId: string): Promise<void> {
-  await db.update(stripeConnections).set({ deauthorizeFailedAt: null }).where(eq(stripeConnections.id, connectionId));
+  await db
+    .update(stripeConnections)
+    .set({ deauthorizeFailedAt: null })
+    .where(eq(stripeConnections.id, connectionId));
 }
 
 export function describeDeauthorizeRetry(result: DeauthorizeRetryResult): string {

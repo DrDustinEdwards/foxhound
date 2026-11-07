@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { BRAKE_CONFIRM_PHRASES } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -36,7 +36,7 @@ const ACTOR = "admin@foxhoundapp.com";
 
 const fakeContext = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === adminContext) return { email: ACTOR };
     throw new Error("unexpected context key");
   },
@@ -82,7 +82,6 @@ describe("LOW-4: /admin/crons writes the intent before the state", () => {
 });
 
 describe("LOW-4: the brake panel's tick toggle writes the intent before the state", () => {
-
   it("still stamps via=brake-panel on the happy path, so the two routes stay distinguishable", async () => {
     // The one thing that already went right here, per the review. Kept pinned
     // because reordering the two writes is exactly when it could be dropped.

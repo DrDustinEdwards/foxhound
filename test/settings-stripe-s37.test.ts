@@ -1,9 +1,8 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -64,7 +63,9 @@ beforeEach(() => {
   harness.deauthorizeCalls = [];
 
   sqlite
-    .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+    .prepare(
+      "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+    )
     .run(USER, "Owner", "owner@acme.test");
   // The caller holds TWO accounts and is switched to the LATER one, so every
   // active-account assertion below can fail in the direction that matters.
@@ -125,7 +126,9 @@ function seedSession(id: string, activeAccountId: string): void {
 
 function connectionRow(id: string): { disconnectedAt: number | null; isPrimary: number } {
   return sqlite
-    .prepare("SELECT disconnected_at AS disconnectedAt, is_primary AS isPrimary FROM stripe_connections WHERE id = ?")
+    .prepare(
+      "SELECT disconnected_at AS disconnectedAt, is_primary AS isPrimary FROM stripe_connections WHERE id = ?",
+    )
     .get(id) as { disconnectedAt: number | null; isPrimary: number };
 }
 
@@ -141,7 +144,7 @@ function markerOf(sessionId: string): string | null {
  *  account and never the earliest membership. */
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: USER,
@@ -162,7 +165,9 @@ const ctx = {
   },
 } as unknown as Parameters<typeof stripeAction>[0]["context"];
 
-async function post(fields: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> {
+async function post(
+  fields: Record<string, string>,
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   const owner = fields._action === "cancel-account" ? accountAction : stripeAction;
@@ -170,15 +175,17 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
     context: ctx,
     request: new Request("https://foxhoundapp.test/settings", { method: "POST", body: form }),
     params: {},
-  } as never)) as unknown as Response | { data: Record<string, unknown>; init?: { status?: number } };
+  } as never)) as unknown as
+    | Response
+    | { data: Record<string, unknown>; init?: { status?: number } };
   // J41: a clean disconnect answers with Recova's trip back to /settings, a
   // real redirect Response, so its status is read off the Response itself.
-  if (res instanceof Response) return { status: res.status, body: { location: res.headers.get("Location") } };
+  if (res instanceof Response)
+    return { status: res.status, body: { location: res.headers.get("Location") } };
   return { status: res.init?.status ?? 200, body: res.data };
 }
 
 describe("PLANT 2: disconnect refuses what the active account does not own", () => {
-
   it("400 and NO write when no connection id is sent, which is legacy's actual request", async () => {
     seedConnection({ id: "c_active", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
 
@@ -203,7 +210,10 @@ describe("PLANT 2: disconnect refuses what the active account does not own", () 
 
     const res = (await stripeAction({
       context: memberCtx,
-      request: new Request("https://foxhoundapp.test/settings/stripe", { method: "POST", body: form }),
+      request: new Request("https://foxhoundapp.test/settings/stripe", {
+        method: "POST",
+        body: form,
+      }),
       params: {},
     } as never)) as unknown as { init?: { status?: number } };
 
@@ -213,13 +223,16 @@ describe("PLANT 2: disconnect refuses what the active account does not own", () 
 });
 
 describe("PLANT 3: disconnect stamps the timestamp, leaves is_primary, and the readers stop seeing it", () => {
-
   it("the last connection leaves the account with none live, and the loader renders the empty state", async () => {
     seedConnection({ id: "c_only", accountId: ACTIVE, stripeUserId: "acct_o", isPrimary: true });
 
     await post({ _action: "disconnect-stripe", connectionId: "c_only" });
 
-    const loaded = (await loader({ context: ctx, request: new Request("https://x/settings"), params: {} } as never)) as {
+    const loaded = (await loader({
+      context: ctx,
+      request: new Request("https://x/settings"),
+      params: {},
+    } as never)) as {
       connections: unknown[];
     };
     // J41: Recova has ONE empty state ("No Stripe account connected") whether

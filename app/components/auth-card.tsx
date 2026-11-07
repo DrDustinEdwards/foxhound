@@ -42,7 +42,8 @@ export function AuthCard({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg">
       <div
-        className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)] [--control:2.625rem] [&_.cap-btn]:[--cap-btn-fs:var(--text-subhead)] [&_.cap-btn]:[--cap-btn-h:2.9375rem] [&_.cap-btn]:font-semibold" data-cap-site="foxhound"
+        className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)] [--control:2.625rem] [&_.cap-btn]:[--cap-btn-fs:var(--text-subhead)] [&_.cap-btn]:[--cap-btn-h:2.9375rem] [&_.cap-btn]:font-semibold"
+        data-cap-site="foxhound"
         data-family="amber"
         data-auth-card=""
       >
@@ -61,7 +62,11 @@ export function AuthCard({ children }: { children: ReactNode }) {
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: ReactNode }) {
   return (
     <>
-      <h1 className={`${subtitle ? "mb-2" : "mb-6"} text-center text-subsection font-semibold text-text`}>{title}</h1>
+      <h1
+        className={`${subtitle ? "mb-2" : "mb-6"} text-center text-subsection font-semibold text-text`}
+      >
+        {title}
+      </h1>
       {subtitle ? (
         <p className="mb-8 text-center text-copy leading-relaxed text-text-subtle">{subtitle}</p>
       ) : null}
@@ -172,7 +177,8 @@ export function PasskeyContinue({ next }: { next: string }) {
       // The passkey's provider learns it is still accepted, under the
       // account's address (site-runtime's signalPasskeys). Each passkey has a
       // user handle of its own, so this one is the whole list for its handle.
-      const credentialId = (res as { webauthn?: { response?: { id?: string } } }).webauthn?.response?.id;
+      const credentialId = (res as { webauthn?: { response?: { id?: string } } }).webauthn?.response
+        ?.id;
       if (credentialId) {
         const session = await authClient.getSession().catch(() => null);
         await signalPasskeys({ credentialIds: [credentialId], name: session?.data?.user.email });
@@ -206,12 +212,14 @@ export function PasskeyContinue({ next }: { next: string }) {
         variant="primary"
         size="lg"
         pending={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError(null);
-          await passkeySignIn(false);
-          setBusy(false);
-        }}
+        onClick={() =>
+          void (async () => {
+            setBusy(true);
+            setError(null);
+            await passkeySignIn(false);
+            setBusy(false);
+          })()
+        }
       >
         Sign in with a passkey
       </Button>
@@ -250,7 +258,13 @@ export function SocialContinue({
   afterPasskey?: boolean;
 }) {
   const providers = [
-    methods.google ? { id: "google", label: "Continue with Google", mark: <img src="/google-g.svg" alt="" width={16} height={16} /> } : null,
+    methods.google
+      ? {
+          id: "google",
+          label: "Continue with Google",
+          mark: <img src="/google-g.svg" alt="" width={16} height={16} />,
+        }
+      : null,
     methods.apple ? { id: "apple", label: "Continue with Apple", mark: <AppleMark /> } : null,
   ].filter((p) => p !== null);
   return (
@@ -267,11 +281,11 @@ export function SocialContinue({
         </Form>
       ))}
       {providers.length === 0 && !afterPasskey ? null : (
-      <div className="mb-5 mt-5 flex items-center gap-3">
-        <span className="h-px flex-1 bg-border" />
-        <span className="font-mono text-caption text-text-subtle">or</span>
-        <span className="h-px flex-1 bg-border" />
-      </div>
+        <div className="mb-5 mt-5 flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="font-mono text-caption text-text-subtle">or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
       )}
     </>
   );
@@ -368,13 +382,17 @@ export function SignInLinkSent({
   return (
     <>
       <Banner tone="ok">
-        We sent a sign-in link and a code to {email}. They work once and expire in {SIGN_IN_EXPIRES_IN_WORDS}.
+        We sent a sign-in link and a code to {email}. They work once and expire in{" "}
+        {SIGN_IN_EXPIRES_IN_WORDS}.
       </Banner>
       <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="mt-6">
         <input type="hidden" name="email" value={email} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <div className="cap-field mb-4">
-          <label className="cap-field-label font-normal text-text-tertiary" htmlFor={`${idPrefix}-code`}>
+          <label
+            className="cap-field-label font-normal text-text-tertiary"
+            htmlFor={`${idPrefix}-code`}
+          >
             <span className="text-label">Or enter the code from the email</span>
           </label>
           <input

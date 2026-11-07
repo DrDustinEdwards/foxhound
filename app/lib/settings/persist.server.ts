@@ -13,11 +13,7 @@ export interface AccountProfileInput {
   name: string;
 }
 
-export function buildAccountProfileUpdate(
-  db: Db,
-  accountId: string,
-  input: AccountProfileInput,
-) {
+export function buildAccountProfileUpdate(db: Db, accountId: string, input: AccountProfileInput) {
   return db.update(accounts).set({ name: input.name }).where(eq(accounts.id, accountId));
 }
 
@@ -25,11 +21,7 @@ export interface EmailSettingsInput {
   notificationEmail: string | null;
 }
 
-export function buildEmailSettingsUpdate(
-  db: Db,
-  accountId: string,
-  input: EmailSettingsInput,
-) {
+export function buildEmailSettingsUpdate(db: Db, accountId: string, input: EmailSettingsInput) {
   // ONE column. `digest_email` was here and is gone: no legacy
   // counterpart, no reader, and the audit digest sends to `notification_email`.
   // Leaving it in the set would keep a write alive for a field no form posts.
@@ -86,11 +78,7 @@ export interface FeatureSettingsInput {
   expiringCardNotificationsEnabled: boolean;
 }
 
-export function buildFeatureSettingsUpdate(
-  db: Db,
-  accountId: string,
-  input: FeatureSettingsInput,
-) {
+export function buildFeatureSettingsUpdate(db: Db, accountId: string, input: FeatureSettingsInput) {
   return db.update(accounts).set(input).where(eq(accounts.id, accountId));
 }
 
@@ -167,7 +155,6 @@ export function buildVoiceSamplesUpdate(
 // SENDER_NAME_MAX_LENGTH lives in the client-safe sender-name.ts, because the
 // form renders it as maxLength and a .server import would ship drizzle in that
 // route client chunk. Re-exported so server callers have one import site.
-;
 
 export interface SenderSettingsInput {
   /** NULL when the merchant clears the box, which is legacy's behavior:

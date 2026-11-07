@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
@@ -110,7 +110,10 @@ const SURFACES: { name: string; run: (ctx: unknown, url: string) => Promise<unkn
     name: "intelligence/customers",
     run: (c) => call(intelligenceCustomers.loader, c, "/intelligence/customers"),
   },
-  { name: "intelligence/churn", run: (c) => call(intelligenceChurn.loader, c, "/intelligence/churn") },
+  {
+    name: "intelligence/churn",
+    run: (c) => call(intelligenceChurn.loader, c, "/intelligence/churn"),
+  },
   {
     name: "intelligence/reports",
     run: (c) => call(intelligenceReports.loader, c, "/intelligence/reports"),
@@ -173,7 +176,10 @@ function contextFor(accountId: string, accountName: string): unknown {
   return {
     get(key: unknown) {
       if (key === cloudflareContext) {
-        return { env: { DB: d1Over(sqlite) } as unknown as Env, ctx: { waitUntil() {} } as unknown as ExecutionContext, nonce: "n" };
+        return {
+          env: { DB: d1Over(sqlite) } as unknown as Env,
+          ctx: { waitUntil() {} } as unknown as ExecutionContext,
+        };
       }
       if (key === authContext) {
         return {
@@ -231,7 +237,16 @@ function seed(accountId: string, name: string, mag: number, rows: number): void 
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, stripe_access_token, is_primary, name, sender_name, brand_voice, connected_at, created_at) VALUES (?, ?, ?, 'enc', 1, ?, ?, ?, ?, ?)",
     )
-    .run(`conn_${px}`, accountId, `acct_stripe_${px}`, `Conn ${px}`, `Sender ${px}`, `voice of ${px}`, 1_000, 1_000);
+    .run(
+      `conn_${px}`,
+      accountId,
+      `acct_stripe_${px}`,
+      `Conn ${px}`,
+      `Sender ${px}`,
+      `voice of ${px}`,
+      1_000,
+      1_000,
+    );
 
   sqlite
     .prepare(
@@ -270,14 +285,7 @@ function seed(accountId: string, name: string, mag: number, rows: number): void 
         .prepare(
           "INSERT INTO recovered_payments (id, account_id, failed_payment_id, recovered_at, amount_cents, currency, recovery_method, recovery_trigger, attribution_kind, recovered_by_step_id) VALUES (?, ?, ?, ?, ?, 'usd', 'retry', 'retry', 'foxhound_retry', ?)",
         )
-        .run(
-          `rp_${px}_${i}`,
-          accountId,
-          fpId,
-          NOW - 40 * DAY,
-          1_000 * mag * i,
-          `${fpId}_s1`,
-        );
+        .run(`rp_${px}_${i}`, accountId, fpId, NOW - 40 * DAY, 1_000 * mag * i, `${fpId}_s1`);
     }
 
     sqlite
@@ -361,7 +369,15 @@ function seed(accountId: string, name: string, mag: number, rows: number): void 
       .prepare(
         "INSERT INTO billing_invoices (id, account_id, period_start, period_end, status, total_cents, currency, idempotency_key, created_at) VALUES (?, ?, ?, ?, 'open', ?, 'usd', ?, ?)",
       )
-      .run(`inv_${px}_${i}`, accountId, NOW - 31 * DAY, NOW - DAY, 2_000 * mag * i, `idem_${px}_${i}`, NOW - DAY);
+      .run(
+        `inv_${px}_${i}`,
+        accountId,
+        NOW - 31 * DAY,
+        NOW - DAY,
+        2_000 * mag * i,
+        `idem_${px}_${i}`,
+        NOW - DAY,
+      );
 
     sqlite
       .prepare(
@@ -426,7 +442,6 @@ async function renderAll(accountId: string, withOther: boolean): Promise<Record<
 const ALL_SURFACE_NAMES = [...SURFACES, ...DETAIL_SURFACES].map((s) => s.name);
 
 describe("PHASE (f): every surface renders the active account and nothing else", () => {
-
   const cases = [
     { actor: A, label: "Alpha" },
     { actor: B, label: "Beta" },
@@ -465,7 +480,9 @@ describe("PHASE (f) JOB 3: switching accounts moves every surface", () => {
     sqlite = fresh.sqlite;
     harness.db = fresh.db;
     sqlite
-      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+      .prepare(
+        "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+      )
       .run(USER, USER, "owner@alpha.test");
     seed(A, "Alpha Ltd", 1, 2);
     seed(B, "Beta Ltd", 7, 3);
@@ -616,7 +633,6 @@ describe("PHASE (f): the app shell, the ONE surface that must see other accounts
             return {
               env: { DB: d1Over(sqlite) } as unknown as Env,
               ctx: { waitUntil() {} } as unknown as ExecutionContext,
-              nonce: "n",
             };
           }
           return {
@@ -647,7 +663,9 @@ describe("PHASE (f): the app shell, the ONE surface that must see other accounts
     // readAt is when the loader ran, for the page bar's "Updated ..." line: a
     // clock reading, not account data, so it differs between any two calls.
     const strip = (r: Record<string, unknown>) =>
-      JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k]) => k !== "accounts" && k !== "readAt")));
+      JSON.stringify(
+        Object.fromEntries(Object.entries(r).filter(([k]) => k !== "accounts" && k !== "readAt")),
+      );
     expect(strip(withB)).toBe(strip(alone));
   });
 });

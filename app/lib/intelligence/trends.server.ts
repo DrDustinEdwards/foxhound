@@ -259,7 +259,9 @@ export async function getChurnView(db: Db, accountId: string, nowMs: number): Pr
         involuntaryChurnRateBps: mrrSnapshots.involuntaryChurnRateBps,
       })
       .from(mrrSnapshots)
-      .where(and(eq(mrrSnapshots.accountId, accountId), gte(mrrSnapshots.snapshotDate, chartCutoff)))
+      .where(
+        and(eq(mrrSnapshots.accountId, accountId), gte(mrrSnapshots.snapshotDate, chartCutoff)),
+      )
       .orderBy(asc(mrrSnapshots.snapshotDate)),
   ]);
 

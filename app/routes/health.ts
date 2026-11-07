@@ -4,6 +4,7 @@ import {
   aiCheck,
   authSpikeCheck,
   durableObjectCheck,
+  emailCheck,
   healthResponse,
   imagesCheck,
   queueCheck,
@@ -12,7 +13,7 @@ import {
 
 import { cronConfig, getDb } from "~/db";
 import { backupStatus } from "~/lib/backup/d1-backup";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { isCronEnabled } from "~/lib/cron/gating";
 import { cronEveryMinutes } from "~/lib/cron/run";
 
@@ -31,9 +32,8 @@ import type { Route } from "./+types/health";
 // audit grant revoke wait in their producers' retries), and the Durable Objects (MONEY_WRITER and the limiters stop
 // their own writes and sign-ins, CRON_LOCK and CRON_TICKER the crons, which the cron check reports as well).
 // durableObjectCheck mints an id and sends nothing, so no object is woken or billed; r2Check is one `head` of a fixed
-// key, never a list. Left out: EMAIL (send_email has no read to probe, and a probe would send mail; a failed send is
-// recorded in email_sends and alerted; .ops-audit.json names it for the ops audit's H5) and the
-// Renderer entrypoint (the home page check of the deploy's live gate covers it). The tool-call-log check covers the
+// key, never a list. emailCheck proves the EMAIL binding is there and mails no one (a failed send is recorded in
+// email_sends and alerted). Left out: the Renderer entrypoint (the home page check of the deploy's live gate covers it). The tool-call-log check covers the
 // merchant MCP's log and its daily copy.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -49,6 +49,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       r2Check("audit-bucket", env.AUDIT_BUCKET),
       imagesCheck("images", env.IMAGES),
       aiCheck("ai", env.AI),
+      emailCheck("email", env.EMAIL),
       queueCheck("audit-queue", env.AUDIT_QUEUE),
       durableObjectCheck("money-writer", env.MONEY_WRITER),
       durableObjectCheck("cron-lock", env.CRON_LOCK),
@@ -69,7 +70,9 @@ export async function loader({ context }: Route.LoaderArgs) {
  *  is judged by it. The deploy's own time holds a new job back until its first window has passed. The registry is
  *  imported here, not at the top, to keep its billing and recovery graph out of every other request. */
 function cronJobsCheck(env: Env) {
-  const deployedAt = env.CF_VERSION_METADATA?.timestamp ? new Date(env.CF_VERSION_METADATA.timestamp) : undefined;
+  const deployedAt = env.CF_VERSION_METADATA?.timestamp
+    ? new Date(env.CF_VERSION_METADATA.timestamp)
+    : undefined;
   return {
     ...cronCheck(env.DB),
     run: async () => {
@@ -78,10 +81,15 @@ function cronJobsCheck(env: Env) {
         getDb(env).select().from(cronConfig),
       ]);
       const byName = new Map(config.map((row) => [row.cronName, row]));
-      const jobs = CRON_JOBS.filter((job) => isCronEnabled(byName.get(job.name) ?? null)).map((job) => ({
-        name: job.name,
-        everyMinutes: Math.max(cronEveryMinutes(job.schedule), byName.get(job.name)?.minIntervalMinutes ?? 0),
-      }));
+      const jobs = CRON_JOBS.filter((job) => isCronEnabled(byName.get(job.name) ?? null)).map(
+        (job) => ({
+          name: job.name,
+          everyMinutes: Math.max(
+            cronEveryMinutes(job.schedule),
+            byName.get(job.name)?.minIntervalMinutes ?? 0,
+          ),
+        }),
+      );
       return cronCheck(env.DB, { jobs, deployedAt }).run();
     },
   };

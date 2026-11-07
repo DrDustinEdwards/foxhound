@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -38,12 +38,8 @@ vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }
 const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { listMemberships } = await import("~/lib/auth/account");
 const { ADD_ACCOUNT_PATH } = await import("~/lib/nav/paths");
-const { ADD_ACCOUNT_ACTION, parseConnectState } = await import(
-  "~/lib/stripe/connect-state"
-);
-const { accountLabel, accountInitial } = await import(
-  "~/components/nav/account-switcher"
-);
+const { ADD_ACCOUNT_ACTION, parseConnectState } = await import("~/lib/stripe/connect-state");
+const { accountLabel, accountInitial } = await import("~/components/nav/account-switcher");
 const { loader: addAccountLoader } = await import("~/routes/auth/connect-additional");
 
 const USER = "user_1";
@@ -56,7 +52,9 @@ beforeEach(() => {
   harness.db = db;
   harness.session = null;
   sqlite
-    .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+    .prepare(
+      "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+    )
     .run(USER, "Dustin", "owner@acme.test");
 });
 
@@ -179,9 +177,11 @@ describe("the add-account route marks its OAuth state", () => {
     get(key: unknown) {
       if (key === cloudflareContext) {
         return {
-          env: { STRIPE_CLIENT_ID: "ca_test", BETTER_AUTH_URL: "https://foxhoundapp.test" } as never,
+          env: {
+            STRIPE_CLIENT_ID: "ca_test",
+            BETTER_AUTH_URL: "https://foxhoundapp.test",
+          } as never,
           ctx: {} as ExecutionContext,
-          nonce: "n",
         };
       }
       throw new Error("unexpected context key");

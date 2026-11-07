@@ -1,4 +1,8 @@
-import { runJobs } from "@dustinedwards/site-runtime/cron";
+import {
+  CRON_SKIPPED,
+  runJobs,
+  type CronJob as SiteCronJob,
+} from "@dustinedwards/site-runtime/cron";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 import { desc, eq } from "drizzle-orm";
 
@@ -118,10 +122,18 @@ function cronTimeoutMs(schedule: string): number {
  *  but the handler is still awaited and keeps its CRON_LOCK lease until it really ends: handing the lock on while a
  *  money job is still running would let a second run start beside it. Cloudflare's own fifteen-minute limit is the
  *  hard stop. After the last job, one Error names the failed ones, so Cloudflare marks the invocation failed. */
-export async function runScheduledJobs(env: Env, jobs: CronJob[], run: typeof runCronJob = runCronJob): Promise<void> {
+export async function runScheduledJobs(
+  env: Env,
+  jobs: CronJob[],
+  run: typeof runCronJob = runCronJob,
+): Promise<void> {
   const failed: string[] = [];
   for (const job of jobs) {
-    const record = { name: job.name, everyMinutes: cronEveryMinutes(job.schedule), timeoutMs: cronTimeoutMs(job.schedule) };
+    const record = {
+      name: job.name,
+      everyMinutes: cronEveryMinutes(job.schedule),
+      timeoutMs: cronTimeoutMs(job.schedule),
+    };
     let executed = false;
     const outcome = await run(env, job.name, async (runEnv, ctx) => {
       executed = true;
@@ -135,7 +147,9 @@ export async function runScheduledJobs(env: Env, jobs: CronJob[], run: typeof ru
       failed.push(job.name);
       if (!executed) {
         const error = new Error(outcome.message ?? "failed");
-        await runJobs(() => env.DB, [{ ...record, run: () => Promise.reject(error) }]).catch(() => undefined);
+        await runJobs(() => env.DB, [{ ...record, run: () => Promise.reject(error) }]).catch(
+          () => undefined,
+        );
       }
     }
   }
@@ -149,9 +163,10 @@ export async function runCronJob(
   env: Env,
   cronName: string,
   handler: CronHandler,
+  options: { now?: boolean } = {},
 ): Promise<CronRunOutcome> {
   try {
-    return await executeCronJob(env, cronName, handler);
+    return await executeCronJob(env, cronName, handler, options);
   } catch (err) {
     // THE INFRASTRUCTURE GUARD (376 item 15's verify-first list, session 85).
     //
@@ -209,7 +224,12 @@ async function recordInfrastructureFailure(
     // The same alert a handler failure raises. An infrastructure failure
     // that recorded a row and told nobody would be exactly the silence 313 was
     // built to end.
-    const alert = await alertCronFailure(env, getDb(env), { cronName, runId, error: message }, new Date());
+    const alert = await alertCronFailure(
+      env,
+      getDb(env),
+      { cronName, runId, error: message },
+      new Date(),
+    );
     return { runId, alert };
   } catch {
     return { runId };
@@ -220,15 +240,14 @@ async function executeCronJob(
   env: Env,
   cronName: string,
   handler: CronHandler,
+  { now = false }: { now?: boolean },
 ): Promise<CronRunOutcome> {
   const db = getDb(env);
 
   const cfg = (
     await db.select().from(cronConfig).where(eq(cronConfig.cronName, cronName)).limit(1)
   )[0];
-  const config = cfg
-    ? { enabled: cfg.enabled, minIntervalMinutes: cfg.minIntervalMinutes }
-    : null;
+  const config = cfg ? { enabled: cfg.enabled, minIntervalMinutes: cfg.minIntervalMinutes } : null;
 
   if (!isCronEnabled(config)) {
     return { cronName, status: "skipped", rowsProcessed: 0, message: "disabled" };
@@ -242,7 +261,12 @@ async function executeCronJob(
       .orderBy(desc(cronRunHistory.finishedAt))
       .limit(1)
   )[0];
-  if (!isDueByInterval(last?.finishedAt ?? null, config?.minIntervalMinutes ?? null, new Date())) {
+  // A run now (runJobNowList) asks for this run on purpose, so the interval does not apply; the enabled gate and the
+  // lock still do.
+  if (
+    !now &&
+    !isDueByInterval(last?.finishedAt ?? null, config?.minIntervalMinutes ?? null, new Date())
+  ) {
     return { cronName, status: "skipped", rowsProcessed: 0, message: "not_due" };
   }
 
@@ -262,8 +286,21 @@ async function executeCronJob(
   const runId = crypto.randomUUID();
   try {
     const result = await handler(env, { runId });
-    await recordRun(env, runId, cronName, startedAt, "success", result.rowsProcessed, result.message ?? null);
-    return { cronName, status: "success", rowsProcessed: result.rowsProcessed, message: result.message };
+    await recordRun(
+      env,
+      runId,
+      cronName,
+      startedAt,
+      "success",
+      result.rowsProcessed,
+      result.message ?? null,
+    );
+    return {
+      cronName,
+      status: "success",
+      rowsProcessed: result.rowsProcessed,
+      message: result.message,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "cron error";
     await recordRun(env, runId, cronName, startedAt, "failed", 0, message);
@@ -292,4 +329,28 @@ async function executeCronJob(
       // Deliberately swallowed. See above.
     }
   }
+}
+
+/** The jobs the operator API's run_job may run now (RUN_NOW_JOBS in registry.ts), each through runCronJob with the
+ *  interval gate off: cron_config's enabled gate, the CRON_LOCK lease, cron_run_history and the failure alert all hold,
+ *  and site-runtime's runJobNow records the run in cron_runs as the trigger does. A disabled or locked job is a skip,
+ *  never a success it did not have; a failure throws its message. */
+export function runJobNowList(
+  env: Env,
+  jobs: (CronJob & { backup?: boolean })[],
+  run: typeof runCronJob = runCronJob,
+): SiteCronJob[] {
+  return jobs.map((job) => ({
+    name: job.name,
+    everyMinutes: cronEveryMinutes(job.schedule),
+    timeoutMs: cronTimeoutMs(job.schedule),
+    holdOnTimeout: true,
+    ...(job.backup ? { backup: true } : {}),
+    run: async () => {
+      const outcome = await run(env, job.name, job.handler, { now: true });
+      if (outcome.status === "skipped") return CRON_SKIPPED;
+      if (outcome.status === "failed") throw new Error(outcome.message ?? "failed");
+      return { rowsProcessed: outcome.rowsProcessed, message: outcome.message };
+    },
+  }));
 }

@@ -97,7 +97,12 @@ export async function computedAt(page, selector, props, mediaQuery) {
       const out = { present: true, selector };
       for (const p of props) out[p] = cs.getPropertyValue(p);
       const r = el.getBoundingClientRect();
-      out.rect = { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height), width: Math.round(r.width) };
+      out.rect = {
+        top: Math.round(r.top),
+        bottom: Math.round(r.bottom),
+        height: Math.round(r.height),
+        width: Math.round(r.width),
+      };
       return out;
     },
     { selector, props, mediaQuery },

@@ -65,7 +65,9 @@ export const DECLINE_CATEGORY_COUNT = Object.keys(RECOVERY_SCHEDULES).length;
  * every marketing carrier can take both from one place.
  */
 export const RECOVERY_SEQUENCE_DAYS = Math.round(
-  Math.max(...Object.values(RECOVERY_SCHEDULES).flatMap((steps) => steps.map((s) => s.offsetHours))) / 24,
+  Math.max(
+    ...Object.values(RECOVERY_SCHEDULES).flatMap((steps) => steps.map((s) => s.offsetHours)),
+  ) / 24,
 );
 
 /**

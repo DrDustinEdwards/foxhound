@@ -83,7 +83,9 @@ function committerFor(sqlite: Database.Database, db: Db) {
     committer.commit({
       idempotencyKey: key,
       statements: build(db).map((item) => {
-        const { sql, params } = (item as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
+        const { sql, params } = (
+          item as unknown as { toSQL(): { sql: string; params: unknown[] } }
+        ).toSQL();
         return { sql, params };
       }),
     });
@@ -163,12 +165,16 @@ describe("mark recovered: the schema accepts the manual kind", () => {
     // the fee-bearing table, with billing_line_items holding an inbound FK. Replay
     // the migrations up to 0013, plant a row, then apply 0014 alone.
     const sqlite = new Database(":memory:");
-    const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort();
+    const files = readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
     const upTo13 = files.filter((f) => !f.startsWith("0014"));
     const only14 = files.filter((f) => f.startsWith("0014"));
     expect(only14).toHaveLength(1);
     const apply = (file: string) => {
-      for (const stmt of readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8").split("--> statement-breakpoint")) {
+      for (const stmt of readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8").split(
+        "--> statement-breakpoint",
+      )) {
         const t = stmt.trim();
         if (t) sqlite.exec(t);
       }
@@ -188,7 +194,10 @@ describe("mark recovered: the schema accepts the manual kind", () => {
 
     apply(only14[0]);
 
-    const rows = sqlite.prepare("select * from recovered_payments").all() as Record<string, unknown>[];
+    const rows = sqlite.prepare("select * from recovered_payments").all() as Record<
+      string,
+      unknown
+    >[];
     expect(rows).toHaveLength(1);
     expect(rows[0].id).toBe("rp_keep");
     expect(rows[0].attribution_kind).toBe("foxhound_retry");
@@ -196,7 +205,9 @@ describe("mark recovered: the schema accepts the manual kind", () => {
     expect(rows[0].amount_cents).toBe(4200);
     // The indexes come back too, or every recovery read degrades to a scan.
     const idx = sqlite
-      .prepare("select name from sqlite_master where type='index' and tbl_name='recovered_payments'")
+      .prepare(
+        "select name from sqlite_master where type='index' and tbl_name='recovered_payments'",
+      )
       .all() as { name: string }[];
     const names = idx.map((i) => i.name);
     expect(names).toContain("recovered_payments_account_idx");
@@ -224,14 +235,21 @@ describe("mark recovered: enters through the spine, never as a second writer", (
 
     const outcome = sqlite
       .prepare("select idempotency_key, attribution_kind, outcome, product from outcomes")
-      .all() as { idempotency_key: string; attribution_kind: string; outcome: string; product: string }[];
+      .all() as {
+      idempotency_key: string;
+      attribution_kind: string;
+      outcome: string;
+      product: string;
+    }[];
     expect(outcome).toHaveLength(1);
     // THE SHARED KEY SPACE: identical to what the webhook writes for this payment.
     expect(outcome[0].idempotency_key).toBe("recovery:fp_1");
     expect(outcome[0].attribution_kind).toBe("manual");
     expect(outcome[0].product).toBe("recovery");
 
-    const payment = sqlite.prepare("select status, resolved_at from failed_payments where id='fp_1'").get() as {
+    const payment = sqlite
+      .prepare("select status, resolved_at from failed_payments where id='fp_1'")
+      .get() as {
       status: string;
       resolved_at: number | null;
     };
@@ -293,7 +311,6 @@ describe("mark recovered: exactly once, inherited from the outcomes key", () => 
 });
 
 describe("mark recovered: the dispatcher gates", () => {
-
   it("the manual kind is absent from the billable allow-list", async () => {
     const { BILLABLE_ATTRIBUTION_KINDS } = await import("~/lib/constants");
     expect([...BILLABLE_ATTRIBUTION_KINDS]).not.toContain(MANUAL_ATTRIBUTION_KIND);

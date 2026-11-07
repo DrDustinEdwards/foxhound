@@ -25,8 +25,12 @@ vi.mock("~/db", async (importOriginal) => ({
 
 // Looked up so a missing module fails the assertion that names it, not the
 // whole file.
-const panels: Record<string, unknown> = await import("~/components/admin-mcp-panels").catch(() => ({}));
-const serverLib: Record<string, unknown> = await import("~/lib/admin/mcps.server").catch(() => ({}));
+const panels: Record<string, unknown> = await import("~/components/admin-mcp-panels").catch(
+  () => ({}),
+);
+const serverLib: Record<string, unknown> = await import("~/lib/admin/mcps.server").catch(
+  () => ({}),
+);
 const pageLib: Record<string, unknown> = await import("~/lib/admin/mcps").catch(() => ({}));
 
 const NOW = Date.now();
@@ -42,15 +46,75 @@ async function seed() {
     { id: "acct_quiet", name: null },
   ]);
   await db.insert(apiKeys).values([
-    { id: "key_a", accountId: "acct_north", keyHash: SECRET_HASH, label: "Claude desktop", scope: "mcp_merchant", createdAt: new Date(NOW - 3 * DAY), lastUsedAt: new Date(NOW - HOUR) },
-    { id: "key_b", accountId: "acct_quiet", keyHash: `${SECRET_HASH}b`, label: null, scope: "mcp_merchant", createdAt: new Date(NOW - 2 * DAY), lastUsedAt: null },
-    { id: "key_c", accountId: null, keyHash: `${SECRET_HASH}c`, label: "Admin MCP", scope: "mcp_admin", createdAt: new Date(NOW - DAY), lastUsedAt: null },
-    { id: "key_d", accountId: "acct_north", keyHash: `${SECRET_HASH}d`, label: "Old laptop", scope: "mcp_merchant", createdAt: new Date(NOW - 10 * DAY), lastUsedAt: null, revokedAt: new Date(NOW - 5 * DAY) },
+    {
+      id: "key_a",
+      accountId: "acct_north",
+      keyHash: SECRET_HASH,
+      label: "Claude desktop",
+      scope: "mcp_merchant",
+      createdAt: new Date(NOW - 3 * DAY),
+      lastUsedAt: new Date(NOW - HOUR),
+    },
+    {
+      id: "key_b",
+      accountId: "acct_quiet",
+      keyHash: `${SECRET_HASH}b`,
+      label: null,
+      scope: "mcp_merchant",
+      createdAt: new Date(NOW - 2 * DAY),
+      lastUsedAt: null,
+    },
+    {
+      id: "key_c",
+      accountId: null,
+      keyHash: `${SECRET_HASH}c`,
+      label: "Admin MCP",
+      scope: "mcp_admin",
+      createdAt: new Date(NOW - DAY),
+      lastUsedAt: null,
+    },
+    {
+      id: "key_d",
+      accountId: "acct_north",
+      keyHash: `${SECRET_HASH}d`,
+      label: "Old laptop",
+      scope: "mcp_merchant",
+      createdAt: new Date(NOW - 10 * DAY),
+      lastUsedAt: null,
+      revokedAt: new Date(NOW - 5 * DAY),
+    },
   ]);
   await db.insert(mcpCalls).values([
-    { id: "call_1", accountId: "acct_north", apiKeyId: "key_a", tool: "foxhound_list_recoveries", arguments: { limit: 5 }, outcome: "ok", error: null, createdAt: new Date(NOW - 10 * MIN) },
-    { id: "call_2", accountId: "acct_north", apiKeyId: "key_a", tool: "foxhound_get_nothing", arguments: {}, outcome: "protocol_error", error: "Tool not found", createdAt: new Date(NOW - 20 * MIN) },
-    { id: "call_3", accountId: "acct_quiet", apiKeyId: "key_gone", tool: "foxhound_update_settings", arguments: { slack_webhook_url: "[redacted]" }, outcome: "tool_error", error: "Bad input for j***@example.com", createdAt: new Date(NOW - 2 * DAY) },
+    {
+      id: "call_1",
+      accountId: "acct_north",
+      apiKeyId: "key_a",
+      tool: "foxhound_list_recoveries",
+      arguments: { limit: 5 },
+      outcome: "ok",
+      error: null,
+      createdAt: new Date(NOW - 10 * MIN),
+    },
+    {
+      id: "call_2",
+      accountId: "acct_north",
+      apiKeyId: "key_a",
+      tool: "foxhound_get_nothing",
+      arguments: {},
+      outcome: "protocol_error",
+      error: "Tool not found",
+      createdAt: new Date(NOW - 20 * MIN),
+    },
+    {
+      id: "call_3",
+      accountId: "acct_quiet",
+      apiKeyId: "key_gone",
+      tool: "foxhound_update_settings",
+      arguments: { slack_webhook_url: "[redacted]" },
+      outcome: "tool_error",
+      error: "Bad input for j***@example.com",
+      createdAt: new Date(NOW - 2 * DAY),
+    },
   ]);
   return db;
 }
@@ -67,24 +131,47 @@ interface KeyRow {
 }
 
 describe("the data layer", () => {
-
   it("lists the newest calls with the key's label and the account's name, and no arguments", async () => {
     expect(typeof serverLib.listRecentMcpCalls).toBe("function");
     const db = await seed();
-    const calls = (await (serverLib.listRecentMcpCalls as (db: unknown) => Promise<Record<string, unknown>[]>)(db));
+    const calls = await (
+      serverLib.listRecentMcpCalls as (db: unknown) => Promise<Record<string, unknown>[]>
+    )(db);
     expect(calls.map((c) => c.id)).toEqual(["call_1", "call_2", "call_3"]);
-    expect(calls[0]).toMatchObject({ tool: "foxhound_list_recoveries", outcome: "ok", keyLabel: "Claude desktop", accountName: "North Coffee" });
+    expect(calls[0]).toMatchObject({
+      tool: "foxhound_list_recoveries",
+      outcome: "ok",
+      keyLabel: "Claude desktop",
+      accountName: "North Coffee",
+    });
     expect(calls[0].keyFound).toBe(true);
-    expect(calls[2]).toMatchObject({ keyFound: false, keyLabel: null, accountId: "acct_quiet", error: "Bad input for j***@example.com" });
+    expect(calls[2]).toMatchObject({
+      keyFound: false,
+      keyLabel: null,
+      accountId: "acct_quiet",
+      error: "Bad input for j***@example.com",
+    });
     for (const c of calls) expect(Object.keys(c)).not.toContain("arguments");
   });
 
   it("reads the merchant tools from the live registry, read or write by its hints", async () => {
     expect(typeof serverLib.merchantToolCoverage).toBe("function");
-    const tools = (serverLib.merchantToolCoverage as () => Array<{ name: string; title: string; writes: boolean }>)();
-    const { MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import("~/lib/mcp/tools.server");
+    const tools = (
+      serverLib.merchantToolCoverage as () => Array<{
+        name: string;
+        title: string;
+        writes: boolean;
+      }>
+    )();
+    const { MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } =
+      await import("~/lib/mcp/tools.server");
     expect(tools.map((t) => t.name).sort()).toEqual([...MERCHANT_TOOL_NAMES].sort());
-    expect(tools.filter((t) => t.writes).map((t) => t.name).sort()).toEqual([...MERCHANT_WRITE_TOOL_NAMES].sort());
+    expect(
+      tools
+        .filter((t) => t.writes)
+        .map((t) => t.name)
+        .sort(),
+    ).toEqual([...MERCHANT_WRITE_TOOL_NAMES].sort());
   });
 });
 
@@ -111,10 +198,14 @@ describe("the error text is masked for display", () => {
       expect(out, hostile).not.toMatch(/SECRET/);
       expect(out, hostile).not.toMatch(/alice|BOB%40|carol@/i);
     }
-    expect(mask("Bad key fox_mcp_AbCdEf0123456789xyzSECRET in header")).toBe("Bad key fox_mcp_[redacted] in header");
+    expect(mask("Bad key fox_mcp_AbCdEf0123456789xyzSECRET in header")).toBe(
+      "Bad key fox_mcp_[redacted] in header",
+    );
     expect(mask("Stripe said sk_live_51HabcDEF123SECRET")).toBe("Stripe said sk_live_[redacted]");
     expect(mask("No customer alice%40example.com")).toBe("No customer a***%40example.com");
-    expect(mask("Nothing to hide here: limit must be 1 to 50")).toBe("Nothing to hide here: limit must be 1 to 50");
+    expect(mask("Nothing to hide here: limit must be 1 to 50")).toBe(
+      "Nothing to hide here: limit must be 1 to 50",
+    );
   });
 });
 
@@ -125,8 +216,15 @@ describe("the loader", () => {
 
   it("returns the summary, the keys, the calls and the tools", async () => {
     expect(typeof serverLib.loadMcpOverview).toBe("function");
-    const data = await (serverLib.loadMcpOverview as (db: unknown) => Promise<Record<string, unknown>>)(harness.db);
-    expect(data.summary).toEqual({ keysTotal: 4, keysActive: 3, callsLast24h: 2, failedLast24h: 1 });
+    const data = await (
+      serverLib.loadMcpOverview as (db: unknown) => Promise<Record<string, unknown>>
+    )(harness.db);
+    expect(data.summary).toEqual({
+      keysTotal: 4,
+      keysActive: 3,
+      callsLast24h: 2,
+      failedLast24h: 1,
+    });
     expect((data.keys as unknown[]).length).toBe(4);
     expect((data.calls as unknown[]).length).toBe(3);
     expect((data.tools as unknown[]).length).toBeGreaterThan(0);
@@ -171,11 +269,26 @@ function render(over: { keys?: KeyRow[]; calls?: unknown[]; tools?: unknown[] } 
     summary: { keysTotal: 4, keysActive: 3, callsLast24h: 12, failedLast24h: 2 },
     keys: over.keys ?? [
       key(),
-      key({ id: "key_b", label: null, accountId: "acct_quiet", accountName: null, lastUsedAt: null }),
-      key({ id: "key_c", label: "Admin MCP", scope: "mcp_admin", accountId: null, accountName: null }),
+      key({
+        id: "key_b",
+        label: null,
+        accountId: "acct_quiet",
+        accountName: null,
+        lastUsedAt: null,
+      }),
+      key({
+        id: "key_c",
+        label: "Admin MCP",
+        scope: "mcp_admin",
+        accountId: null,
+        accountName: null,
+      }),
       key({ id: "key_d", label: "Old laptop", revokedAt: new Date(NOW - DAY) }),
     ],
-    calls: over.calls ?? [call(1), call(2, { outcome: "tool_error", error: "Bad input", keyLabel: null, keyFound: false })],
+    calls: over.calls ?? [
+      call(1),
+      call(2, { outcome: "tool_error", error: "Bad input", keyLabel: null, keyFound: false }),
+    ],
     tools: over.tools ?? [
       { name: "foxhound_list_recoveries", title: "List recoveries", writes: false },
       { name: "foxhound_update_settings", title: "Update settings", writes: true },
@@ -183,12 +296,16 @@ function render(over: { keys?: KeyRow[]; calls?: unknown[]; tools?: unknown[] } 
   };
   const Panels = panels.AdminMcpPanels as (props: unknown) => React.ReactNode;
   expect(typeof Panels).toBe("function");
-  const Stub = createRoutesStub([{ path: "/admin/operations", Component: () => createElement(Panels as never, { data } as never) }]);
+  const Stub = createRoutesStub([
+    {
+      path: "/admin/operations",
+      Component: () => createElement(Panels as never, { data } as never),
+    },
+  ]);
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/operations"] }));
 }
 
 describe("the MCP servers panels", () => {
-
   it("never renders key material", () => {
     const html = render({ keys: [{ ...key(), keyHash: SECRET_HASH } as KeyRow] });
     expect(html).not.toContain(SECRET_HASH);

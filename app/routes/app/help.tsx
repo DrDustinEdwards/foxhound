@@ -13,7 +13,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { formatTimeAgo } from "~/lib/date-format";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
@@ -269,10 +269,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
           sentence in its body. */}
       <section>
         <h2 className={SECTION_LABEL}>Contact</h2>
-        <Panel
-          title={<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>}
-          level={3}
-        >
+        <Panel title={<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>} level={3}>
           Email for billing questions, account issues, or anything not covered in the guides.
           Responses within 24 hours on business days.
         </Panel>

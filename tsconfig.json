@@ -1,10 +1,5 @@
 {
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".react-router/types/**/*",
-    "worker-configuration.d.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".react-router/types/**/*", "worker-configuration.d.ts"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "types": ["vite/client"],
@@ -13,7 +8,6 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "rootDirs": [".", "./.react-router/types"],
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./app/*"]
     },

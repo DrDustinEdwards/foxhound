@@ -24,11 +24,7 @@ export function isCardExpiringSoon(
 }
 
 /** True when the card's expiry month is strictly before the current month. */
-export function isCardExpired(
-  expiresYear: number,
-  expiresMonth: number,
-  now: Date,
-): boolean {
+export function isCardExpired(expiresYear: number, expiresMonth: number, now: Date): boolean {
   const cardIndex = expiresYear * 12 + (expiresMonth - 1);
   const nowIndex = now.getUTCFullYear() * 12 + now.getUTCMonth();
   return cardIndex < nowIndex;

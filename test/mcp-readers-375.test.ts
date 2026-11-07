@@ -4,7 +4,14 @@ import { accounts, apiKeys, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
+import {
+  mcpRequest,
+  readMcp,
+  toolOutput,
+  toolCallLogStub,
+  confirmedCall,
+  TEST_LINK_KEY,
+} from "./helpers/mcp-client";
 
 // SESSION 83: THE TWO READERS 375 APPROVED, NOW TWO KEYS OF ONE READER.
 //
@@ -133,7 +140,15 @@ async function seed(options: { disconnectMine?: boolean } = {}) {
 }
 
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
-  const res = (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args));
+  const res = await confirmedCall(
+    (a) =>
+      handleMcpRequest(
+        mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }),
+        env(),
+        MERCHANT_TOOLS,
+      ),
+    args,
+  );
   const answer = await readMcp(res);
   const { isError, data } = toolOutput(answer);
   return { status: answer.status, text: answer.text, isError, data };
@@ -150,10 +165,12 @@ async function readSettings(token: string, args: Record<string, unknown> = {}) {
 // ============================================================================
 
 describe("PLANT 1: both readers are registered and readable", () => {
-
   it("intelligence_context round-trips: changing the industry leaves the other two alone", async () => {
     const { tokens } = await seed();
-    const before = (await readSettings(tokens[MINE])).data.intelligence_context as Record<string, unknown>;
+    const before = (await readSettings(tokens[MINE])).data.intelligence_context as Record<
+      string,
+      unknown
+    >;
     const write = await callTool(tokens[MINE], WRITE, {
       intelligence_context: { merchant_industry: "observatory supplies" },
     });

@@ -52,8 +52,10 @@ export const SEQUENCE_CATEGORY_DESCRIPTIONS: Record<DeclineCategory, string> = {
   // Foxhound keeps that retry and charges only a card updated since the decline
   // (Dustin, 2026-10-25), so the sentence says what the engine does.
   expired: `Expired card declines. Foxhound sends emails, and retries on day ${offsetOf("expired", "retry_day21") / 24} only if the card has been updated. Retrying an unchanged expired card never succeeds.`,
-  network: "Processing errors and issuer timeouts. Foxhound retries first, then emails if retries fail.",
-  fraud: "Fraud flags and security holds. Foxhound sends reassurance emails. Retries are not attempted.",
+  network:
+    "Processing errors and issuer timeouts. Foxhound retries first, then emails if retries fail.",
+  fraud:
+    "Fraud flags and security holds. Foxhound sends reassurance emails. Retries are not attempted.",
   revoked:
     "The customer revoked payment authorization. Foxhound sends one email offering to cancel or add a new payment method. Retries are not attempted.",
   unknown:

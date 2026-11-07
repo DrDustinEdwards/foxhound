@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -58,7 +58,7 @@ let db: ReturnType<typeof createInMemoryDb>["db"];
 function routeContext(accountId = ACCOUNT) {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
       if (key === authContext) return { email: "owner@acme.test", membership: { accountId } };
       throw new Error("unexpected context key");
     },
@@ -119,14 +119,15 @@ function seedExpiringAlert(): void {
 
 function stepResult(): string | null {
   return (
-    sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as
-      | { result: string | null }
-      | undefined
-  )?.result ?? null;
+    (
+      sqlite.prepare("SELECT result FROM win_back_steps WHERE id = 'st_1'").get() as
+        | { result: string | null }
+        | undefined
+    )?.result ?? null
+  );
 }
 
 describe("PLANT 2: the save writes its two columns and only those", () => {
-
   it("AND WRITES NO S36 COLUMN, because those are a different page", async () => {
     sqlite
       .prepare(

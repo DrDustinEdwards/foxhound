@@ -2,16 +2,8 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import {
-  buildSuppressionInsert,
-  shouldSuppress,
-  type EmailServiceEvent,
-} from "~/lib/email/events";
-import {
-  buildClickStamp,
-  buildEngagementInsert,
-  buildOpenStamp,
-} from "~/lib/engagement/record";
+import { buildSuppressionInsert, shouldSuppress, type EmailServiceEvent } from "~/lib/email/events";
+import { buildClickStamp, buildEngagementInsert, buildOpenStamp } from "~/lib/engagement/record";
 
 const db = drizzle({} as never, { schema });
 const now = new Date("2026-07-12T00:00:00.000Z");

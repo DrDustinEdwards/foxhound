@@ -85,7 +85,10 @@ function makeWindow(over: Partial<RecoveryDashboardWindow> = {}): RecoveryDashbo
     },
     bestCategory: { cat: "soft", rate: 50 },
     categorySparkline: {
-      soft: Array.from({ length: 30 }, (_, i) => ({ date: day(29 - i), count: i % 5 === 0 ? 1 : 0 })),
+      soft: Array.from({ length: 30 }, (_, i) => ({
+        date: day(29 - i),
+        count: i % 5 === 0 ? 1 : 0,
+      })),
     },
     recoveryRateDaily: rateDaily,
     emailCategoryPerformance: [
@@ -126,7 +129,12 @@ interface LoaderData {
   data: RecoveryDashboardWindow;
   data30d: RecoveryDashboardWindow;
   roi: ReturnType<typeof makeRoi> | null;
-  onboarding: { needed: boolean; connected: boolean; senderNameSet: boolean; alertAddressSet: boolean };
+  onboarding: {
+    needed: boolean;
+    connected: boolean;
+    senderNameSet: boolean;
+    alertAddressSet: boolean;
+  };
   watchingForFailures: boolean;
   range: "7d" | "30d" | "90d" | "all";
   nowMs: number;
@@ -168,20 +176,23 @@ const Page = RecoveryDashboard as unknown as (props: { loaderData: LoaderData })
 // fails on what the page shows rather than on an exception.
 function render(data: LoaderData = makeLoaderData()): string {
   try {
-    return renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Page, { loaderData: data })));
+    return renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(Page, { loaderData: data })),
+    );
   } catch (err) {
     return `render failed: ${err instanceof Error ? err.message : String(err)}`;
   }
 }
 
-
 function textOf(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ");
 }
 
-
 describe("J74: the ROI widget is Recova's layout on Foxhound's billable figures", () => {
-
   it("never claims fees were paid, and never names Recova", () => {
     const html = render();
     expect(textOf(html)).toContain("Foxhound-attributed revenue");
@@ -239,9 +250,13 @@ describe("J74: display arithmetic", () => {
   });
 
   it("email rows cover every engine category, zero where nothing was sent", () => {
-    const { rows, totalSent } = emailCategoryRows([{ category: "soft", openRatePct: 50, clickRatePct: 10, emailCount: 4 }]);
+    const { rows, totalSent } = emailCategoryRows([
+      { category: "soft", openRatePct: 50, clickRatePct: 10, emailCount: 4 },
+    ]);
     expect(rows).toHaveLength(12);
-    expect(rows.find((r) => r.Category === "Expired card" && r.series === "Open rate")?.rate).toBe(0);
+    expect(rows.find((r) => r.Category === "Expired card" && r.series === "Open rate")?.rate).toBe(
+      0,
+    );
     expect(totalSent).toBe(4);
   });
 
@@ -252,14 +267,23 @@ describe("J74: display arithmetic", () => {
       categoryStats: { soft: { total: 2, recovered: 1 }, fraud: { total: 1, recovered: 1 } },
       categorySparkline: {},
     });
-    expect(declineRowText(rows.find((r) => r.category === "soft")!)).toBe("2 · 67% · 50% recovered");
+    expect(declineRowText(rows.find((r) => r.category === "soft")!)).toBe(
+      "2 · 67% · 50% recovered",
+    );
     expect(declineRowText(rows.find((r) => r.category === "fraud")!)).toBe("1 · 33%");
   });
 
   it("alt sentences carry the numbers", () => {
-    expect(recoveryRateAlt([{ date: "2026-10-01", rate: null }, { date: "2026-10-02", rate: 20 }, { date: "2026-10-03", rate: 30 }], "30d")).toBe(
-      "Running recovery rate, 30d: 20% on Oct 2 and 30% on Oct 3.",
-    );
+    expect(
+      recoveryRateAlt(
+        [
+          { date: "2026-10-01", rate: null },
+          { date: "2026-10-02", rate: 20 },
+          { date: "2026-10-03", rate: 30 },
+        ],
+        "30d",
+      ),
+    ).toBe("Running recovery rate, 30d: 20% on Oct 2 and 30% on Oct 3.");
     expect(
       recoveryTimingAlt([
         { dayBucket: "Day 1", count: 1, percentage: 50 },
@@ -270,8 +294,29 @@ describe("J74: display arithmetic", () => {
   });
 
   it("onboarding: Recova's gate", () => {
-    expect(onboardingNeeded({ connected: false, senderName: null, notificationEmail: null, onboardingCompleted: false })).toBe(true);
-    expect(onboardingNeeded({ connected: true, senderName: "A", notificationEmail: "a@example.com", onboardingCompleted: false })).toBe(false);
-    expect(onboardingNeeded({ connected: false, senderName: null, notificationEmail: null, onboardingCompleted: true })).toBe(false);
+    expect(
+      onboardingNeeded({
+        connected: false,
+        senderName: null,
+        notificationEmail: null,
+        onboardingCompleted: false,
+      }),
+    ).toBe(true);
+    expect(
+      onboardingNeeded({
+        connected: true,
+        senderName: "A",
+        notificationEmail: "a@example.com",
+        onboardingCompleted: false,
+      }),
+    ).toBe(false);
+    expect(
+      onboardingNeeded({
+        connected: false,
+        senderName: null,
+        notificationEmail: null,
+        onboardingCompleted: true,
+      }),
+    ).toBe(false);
   });
 });

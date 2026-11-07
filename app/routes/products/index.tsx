@@ -2,7 +2,7 @@ import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-re
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
 import { HUB_COPY } from "~/lib/marketing/products-hub";
 import { siteUrl } from "~/lib/seo/jsonld";
@@ -61,14 +61,19 @@ const ICONS = {
 export default function ProductsIndexPage() {
   return (
     <>
-      <MarketingPageHeader eyebrow="Products" title="Four products" subtext="Use them independently or together." />
+      <MarketingPageHeader
+        eyebrow="Products"
+        title="Four products"
+        subtext="Use them independently or together."
+      />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark.
           Recova's 720px column, in Capsomer's amber family with Foxhound's own
           neutrals (.fh-cap, as the site header and the legal pages); the focus
           ring reads the family's amber ring here, as in Capsomer's own parts. */}
       <div
-        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]" data-cap-site="foxhound"
+        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
         data-family="amber"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -79,15 +84,25 @@ export default function ProductsIndexPage() {
             return (
               // Capsomer's linked panel, the whole-card link Recova draws. "group"
               // carries no style; it drives the arrow's nudge below.
-              <Link key={key} to={p.href} className="cap-panel group rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]">
+              <Link
+                key={key}
+                to={p.href}
+                className="cap-panel group rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]"
+              >
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                      <Icon className="h-[18px] w-[18px] text-accent-text" strokeWidth={1.8} aria-hidden />
+                      <Icon
+                        className="h-[18px] w-[18px] text-accent-text"
+                        strokeWidth={1.8}
+                        aria-hidden
+                      />
                     </div>
                     <div className="mb-2 text-item-title font-medium text-text">{p.name}</div>
-                    <div className="mb-3 text-label leading-relaxed text-text-secondary">{copy.description}</div>
+                    <div className="mb-3 text-label leading-relaxed text-text-secondary">
+                      {copy.description}
+                    </div>
                     <div className="mb-4 font-mono text-label text-accent-text">{copy.price}</div>
                     <div className="text-label text-accent-text">
                       Learn more{" "}

@@ -55,7 +55,11 @@ export function activeDemoBusiness(request: Request): DemoBusiness {
 }
 
 export function setActiveDemoAccountCookieHeader(business: DemoBusiness): string {
-  return setHostCookie(DEMO_ACTIVE_ACCOUNT_COOKIE, business.accountId, DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS);
+  return setHostCookie(
+    DEMO_ACTIVE_ACCOUNT_COOKIE,
+    business.accountId,
+    DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS,
+  );
 }
 
 /**
@@ -81,7 +85,6 @@ export function demoBlocksMethod(method: string): boolean {
   return m !== "GET" && m !== "HEAD";
 }
 
-
 function demoMembership(business: DemoBusiness, accountName: string | null): Membership {
   return {
     memberId: `${business.accountId}_member`,
@@ -100,7 +103,12 @@ export async function resolveDemoMemberships(db: Db): Promise<Membership[]> {
   const rows = await db
     .select({ id: accounts.id, name: accounts.name })
     .from(accounts)
-    .where(inArray(accounts.id, DEMO_BUSINESSES.map((b) => b.accountId)));
+    .where(
+      inArray(
+        accounts.id,
+        DEMO_BUSINESSES.map((b) => b.accountId),
+      ),
+    );
   const nameById = new Map(rows.map((r) => [r.id, r.name]));
   return DEMO_BUSINESSES.filter((b) => nameById.has(b.accountId)).map((b) =>
     demoMembership(b, nameById.get(b.accountId) ?? null),

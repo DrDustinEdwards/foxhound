@@ -56,8 +56,13 @@ export function cardChangedSinceDecline(
     return true;
   }
   const expiryKnown =
-    declined.expMonth != null && declined.expYear != null && current.expMonth != null && current.expYear != null;
-  return expiryKnown && (declined.expMonth !== current.expMonth || declined.expYear !== current.expYear);
+    declined.expMonth != null &&
+    declined.expYear != null &&
+    current.expMonth != null &&
+    current.expYear != null;
+  return (
+    expiryKnown && (declined.expMonth !== current.expMonth || declined.expYear !== current.expYear)
+  );
 }
 
 /** The card that was last declined on this invoice, from the charge's own
@@ -73,7 +78,11 @@ async function declinedCard(
   const card = charge.payment_method_details?.card;
   if (!card) return null;
   return {
-    snapshot: { fingerprint: card.fingerprint ?? null, expMonth: card.exp_month ?? null, expYear: card.exp_year ?? null },
+    snapshot: {
+      fingerprint: card.fingerprint ?? null,
+      expMonth: card.exp_month ?? null,
+      expYear: card.exp_year ?? null,
+    },
     paymentMethodId: asId(charge.payment_method),
   };
 }
@@ -89,7 +98,10 @@ export interface ChargeMethodSources {
 /** The payment method Stripe will charge: the invoice's own default, else the
  *  subscription's, else the customer's. A level is read from Stripe only when
  *  every earlier one is empty. Null when none of them has one. */
-export async function chargePaymentMethodId(stripe: Stripe, sources: ChargeMethodSources): Promise<string | null> {
+export async function chargePaymentMethodId(
+  stripe: Stripe,
+  sources: ChargeMethodSources,
+): Promise<string | null> {
   if (sources.invoiceDefault) return sources.invoiceDefault;
   if (sources.subscription) {
     const subscription =
@@ -101,7 +113,9 @@ export async function chargePaymentMethodId(stripe: Stripe, sources: ChargeMetho
   }
   if (sources.customer) {
     const customer =
-      typeof sources.customer === "string" ? await stripe.customers.retrieve(sources.customer) : sources.customer;
+      typeof sources.customer === "string"
+        ? await stripe.customers.retrieve(sources.customer)
+        : sources.customer;
     if (!customer.deleted) {
       const fromCustomer = asId(customer.invoice_settings?.default_payment_method);
       if (fromCustomer) return fromCustomer;
@@ -127,14 +141,21 @@ async function currentPaymentMethodId(
 }
 
 /** Compare the declined card with the one the retry would charge. Read-only. */
-async function compareCardsWithClient(stripe: Stripe, invoiceId: string): Promise<CardChangeVerdict> {
+async function compareCardsWithClient(
+  stripe: Stripe,
+  invoiceId: string,
+): Promise<CardChangeVerdict> {
   const declined = await declinedCard(stripe, invoiceId);
   if (!declined) return "unverified";
   const currentId = await currentPaymentMethodId(stripe, invoiceId, declined.paymentMethodId);
   if (!currentId) return "unverified";
   const pm = await stripe.paymentMethods.retrieve(currentId);
   const current: CardSnapshot | null = pm.card
-    ? { fingerprint: pm.card.fingerprint ?? null, expMonth: pm.card.exp_month, expYear: pm.card.exp_year }
+    ? {
+        fingerprint: pm.card.fingerprint ?? null,
+        expMonth: pm.card.exp_month,
+        expYear: pm.card.exp_year,
+      }
     : null;
   if (!current) return "unverified";
   return cardChangedSinceDecline(declined.snapshot, current) ? "changed" : "unchanged";
@@ -146,13 +167,19 @@ async function compareCardsWithClient(stripe: Stripe, invoiceId: string): Promis
  * is read only when there is none. Any read failure is "unverified", so the
  * retry is skipped rather than risked.
  */
-export async function checkCardChanged(env: Env, ctx: RetryStepContext): Promise<CardChangeVerdict> {
+export async function checkCardChanged(
+  env: Env,
+  ctx: RetryStepContext,
+): Promise<CardChangeVerdict> {
   try {
     if (await hasCardUpdateSignal(getDb(env), ctx.failedPaymentId)) return "changed";
     const stripe = getConnectedStripe(await decryptToken(env, ctx.connectionAccessToken));
     return await compareCardsWithClient(stripe, ctx.invoiceId);
   } catch (err) {
-    console.error("expired retry card check failed:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "expired retry card check failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
     return "unverified";
   }
 }

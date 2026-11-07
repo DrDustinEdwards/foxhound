@@ -58,16 +58,15 @@ async function run(opts: {
     generate: opts.generate
       ? (_e, updateUrl) => opts.generate!(updateUrl)
       : () => Promise.reject(new Error("anthropic 503")),
-    send:
-      opts.send
-        ? (_e, job) => {
-            captured.jobs.push(job);
-            return opts.send!(job);
-          }
-        : (_e, job) => {
-            captured.jobs.push(job);
-            return Promise.resolve({ status: "sent" } as EmailJobResult);
-          },
+    send: opts.send
+      ? (_e, job) => {
+          captured.jobs.push(job);
+          return opts.send!(job);
+        }
+      : (_e, job) => {
+          captured.jobs.push(job);
+          return Promise.resolve({ status: "sent" } as EmailJobResult);
+        },
     persistPatch: async (_e, _id, patch, cache) => {
       captured.patches.push({ patch, cache });
     },
@@ -76,13 +75,16 @@ async function run(opts: {
 }
 
 describe("a generation failure sends the template instead of nothing", () => {
-
   // A merchant override must survive the fallback exactly as it survives
   // generation: custom_body wins over the template body too, provided it
   // carries the update link (a custom body without it is replaced, see
   // recovery-update-link-guard.test.ts).
   it("keeps a merchant custom body when falling back", async () => {
-    const { clickTrackedUpdateUrl } = await buildEngagementUrls(env, ctx(), "https://foxhoundapp.com");
+    const { clickTrackedUpdateUrl } = await buildEngagementUrls(
+      env,
+      ctx(),
+      "https://foxhoundapp.com",
+    );
     const customBody = `<p>Merchant wrote this. <a href="${clickTrackedUpdateUrl}">Update</a></p>`;
     const { captured } = await run({
       context: { cached: { customBody, cachedSubject: null, cachedBodyHtml: null } },
@@ -94,8 +96,12 @@ describe("a generation failure sends the template instead of nothing", () => {
   // the revoked notice is the one step Recova has no template for, so it keeps
   // the category's framing.
   it("uses the category's template framing, not a generic one", async () => {
-    const { captured } = await run({ context: { declineCategory: "revoked", stepType: "email_revoked" } });
+    const { captured } = await run({
+      context: { declineCategory: "revoked", stepType: "email_revoked" },
+    });
     expect(captured.jobs[0].subject).toBe("Your subscription payment was canceled");
-    expect(captured.jobs[0].bodyHtml).toContain("authorization for this payment has been withdrawn");
+    expect(captured.jobs[0].bodyHtml).toContain(
+      "authorization for this payment has been withdrawn",
+    );
   });
 });

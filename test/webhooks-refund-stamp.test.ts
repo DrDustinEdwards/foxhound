@@ -150,7 +150,6 @@ beforeEach(() => {
 });
 
 describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
-
   it("ignores a refund with no payment intent to resolve against", () => {
     const event = refundEvent("evt_no_pi", true) as unknown as {
       data: { object: { payment_intent: null } };
@@ -164,13 +163,16 @@ describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
 });
 
 describe("a refunded recovery is not billable at maturity", () => {
-
   it("a replayed refund event is a duplicate no-op", async () => {
     await seedRecoveredPayment();
-    expect(await processConnectedWebhook({} as Env, refundEvent("evt_dup", true), REFUNDED_AT)).toEqual({
+    expect(
+      await processConnectedWebhook({} as Env, refundEvent("evt_dup", true), REFUNDED_AT),
+    ).toEqual({
       status: "applied",
     });
-    expect(await processConnectedWebhook({} as Env, refundEvent("evt_dup", true), REFUNDED_AT)).toEqual({
+    expect(
+      await processConnectedWebhook({} as Env, refundEvent("evt_dup", true), REFUNDED_AT),
+    ).toEqual({
       status: "duplicate",
     });
   });
@@ -264,7 +266,11 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
 
       // 2. The recovery lands afterwards and is born refunded.
       expect(
-        await processConnectedWebhook({} as Env, paymentSucceeded(`evt_late_${label}`), RECOVERED_AT),
+        await processConnectedWebhook(
+          {} as Env,
+          paymentSucceeded(`evt_late_${label}`),
+          RECOVERED_AT,
+        ),
       ).toEqual({ status: "applied" });
 
       const [recovery] = await db.select().from(schema.recoveredPayments);
@@ -326,7 +332,9 @@ describe("refund resolution failure semantics", () => {
     const { db } = await seedRecoveredPayment();
     harness.invoicePaymentsResult = []; // Stripe answered; no invoice payment matches.
 
-    expect(await processConnectedWebhook({} as Env, refundEvent("evt_theirs", true), REFUNDED_AT)).toEqual({
+    expect(
+      await processConnectedWebhook({} as Env, refundEvent("evt_theirs", true), REFUNDED_AT),
+    ).toEqual({
       status: "ignored",
       reason: "refund_not_ours",
     });
@@ -339,7 +347,11 @@ describe("refund resolution failure semantics", () => {
     const { db } = await seedRecoveredPayment();
     harness.invoicePaymentsError = new Error("stripe unavailable");
 
-    const outcome = await processConnectedWebhook({} as Env, refundEvent("evt_flaky", true), REFUNDED_AT);
+    const outcome = await processConnectedWebhook(
+      {} as Env,
+      refundEvent("evt_flaky", true),
+      REFUNDED_AT,
+    );
     expect(outcome.status).toBe("error");
 
     // Nothing claimed: the event must come back. Claiming an unstampable refund
@@ -359,7 +371,15 @@ describe("refund resolution failure semantics", () => {
       id: "evt_dispute_flaky",
       type: "charge.dispute.created",
       account: "acct_connected_1",
-      data: { object: { id: "dp_flaky", charge: "ch_1", payment_intent: "pi_1", amount: 10_000, currency: "usd" } },
+      data: {
+        object: {
+          id: "dp_flaky",
+          charge: "ch_1",
+          payment_intent: "pi_1",
+          amount: 10_000,
+          currency: "usd",
+        },
+      },
     } as unknown as Stripe.Event;
 
     const outcome = await processConnectedWebhook({} as Env, disputeCreated, REFUNDED_AT);

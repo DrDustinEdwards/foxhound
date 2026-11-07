@@ -37,7 +37,9 @@ function formatBillingAddress(billing: Stripe.Address | null | undefined): strin
   return parts.length ? parts.join(", ") : null;
 }
 
-function combineAvs(card: Stripe.Charge.PaymentMethodDetails.Card | null | undefined): string | null {
+function combineAvs(
+  card: Stripe.Charge.PaymentMethodDetails.Card | null | undefined,
+): string | null {
   const line1 = card?.checks?.address_line1_check ?? null;
   const zip = card?.checks?.address_postal_code_check ?? null;
   if (!line1 && !zip) return null;
@@ -65,7 +67,10 @@ export async function fetchDisputeContextWith(
     };
     context.smartDisputesStatus = dispute.smart_disputes?.status ?? null;
   } catch (err) {
-    console.error("dispute context: disputes.retrieve failed", err instanceof Error ? err.message : err);
+    console.error(
+      "dispute context: disputes.retrieve failed",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   let disputedCurrency: string | null = null;
@@ -84,9 +89,13 @@ export async function fetchDisputeContextWith(
     context.threeDSecure = card?.three_d_secure?.result ?? null;
     context.serviceDate = new Date(charge.created * 1000);
     context.customerId =
-      input.customerId ?? (typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null));
+      input.customerId ??
+      (typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null));
   } catch (err) {
-    console.error("dispute context: charges.retrieve failed", err instanceof Error ? err.message : err);
+    console.error(
+      "dispute context: charges.retrieve failed",
+      err instanceof Error ? err.message : err,
+    );
     return context;
   }
 
@@ -131,7 +140,10 @@ export async function fetchDisputeContextWith(
       };
     }
   } catch (err) {
-    console.error("dispute context: subscriptions.list failed", err instanceof Error ? err.message : err);
+    console.error(
+      "dispute context: subscriptions.list failed",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   return context;
@@ -155,7 +167,10 @@ async function fetchDisputeContext(
     const stripe = getConnectedStripe(await decryptToken(env, row.token));
     return await fetchDisputeContextWith(stripe, input);
   } catch (err) {
-    console.error("dispute context: connection read failed", err instanceof Error ? err.message : err);
+    console.error(
+      "dispute context: connection read failed",
+      err instanceof Error ? err.message : err,
+    );
     return emptyDisputeContext(input.customerId);
   }
 }
@@ -191,7 +206,11 @@ export async function readDisputeIntakeContext(
     () => false,
   );
   const triage = calculateTriage(context, input.amountCents, input.reason, shipsPhysical);
-  return { context, columns: disputeContextColumns(context, triage), evidence: contextEvidenceFields(context) };
+  return {
+    context,
+    columns: disputeContextColumns(context, triage),
+    evidence: contextEvidenceFields(context),
+  };
 }
 
 /** The Stripe-read fields first, then the draft's, one per field name. */

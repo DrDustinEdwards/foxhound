@@ -1,12 +1,7 @@
 import { CONTENT_SIGNAL } from "@drdustinedwards/site-helpers/robots";
 import { describe, expect, it } from "vitest";
 
-import {
-  ALLOWED_BOTS,
-  DENIED_BOTS,
-  DISALLOW_PATHS,
-  buildRobotsTxt,
-} from "~/routes/files/robots";
+import { ALLOWED_BOTS, DENIED_BOTS, DISALLOW_PATHS, buildRobotsTxt } from "~/routes/files/robots";
 
 // RULING 368 RULING 1: THE SIXTEEN NAMED GROUPS CARRIED A BARE `Allow: /`.
 //

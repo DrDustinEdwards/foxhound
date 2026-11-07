@@ -29,4 +29,3 @@ export function buildRecoveryStepInserts(db: Db, planned: PlannedRecoveryStep[])
     }),
   );
 }
-

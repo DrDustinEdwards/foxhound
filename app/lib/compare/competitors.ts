@@ -1,7 +1,10 @@
 // Competitor comparison data for /compare (Phase 6 Pass 3, net-new).
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
-import { DECLINE_CATEGORY_COUNT_WORD_LOWER, RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
+import {
+  DECLINE_CATEGORY_COUNT_WORD_LOWER,
+  RECOVERY_SEQUENCE_DAYS,
+} from "~/lib/marketing/decline-categories";
 import { formatMoneyShort } from "~/lib/money-format";
 //
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
@@ -72,32 +75,40 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
   "stripe-smart-retries": {
     slug: "stripe-smart-retries",
     name: "Stripe Smart Retries",
-    oneLiner: "Stripe's own built-in retry-timing feature inside Stripe Billing, not a separate product.",
+    oneLiner:
+      "Stripe's own built-in retry-timing feature inside Stripe Billing, not a separate product.",
     category: "Built-in Stripe feature",
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Included with Stripe Billing at no extra cost. It is a feature of Stripe itself, not a separately priced product.",
+        competitor:
+          "Included with Stripe Billing at no extra cost. It is a feature of Stripe itself, not a separately priced product.",
       },
       {
         dimension: "What it does",
-        foxhound: "Silent retries, then AI-drafted dunning emails in the merchant's brand voice, then a hosted card-update page.",
-        competitor: "Machine-learning-optimized retry timing for failed subscription charges. No dunning email authoring, no card-update page, no dispute handling.",
+        foxhound:
+          "Silent retries, then AI-drafted dunning emails in the merchant's brand voice, then a hosted card-update page.",
+        competitor:
+          "Machine-learning-optimized retry timing for failed subscription charges. No dunning email authoring, no card-update page, no dispute handling.",
       },
       {
         dimension: "Disputes",
-        foxhound: "Evidence drafted from Stripe data and recovery history. Merchant reviews and signs every submission before it reaches Stripe.",
+        foxhound:
+          "Evidence drafted from Stripe data and recovery history. Merchant reviews and signs every submission before it reaches Stripe.",
         competitor: "Not offered. Smart Retries is scoped to retry timing only.",
       },
       {
         dimension: "Subscription intelligence",
-        foxhound: "Free for every account: MRR, movements, churn, and cohort analytics, with churn prediction and customer health scoring.",
+        foxhound:
+          "Free for every account: MRR, movements, churn, and cohort analytics, with churn prediction and customer health scoring.",
         competitor: "Not offered as part of this feature.",
       },
       {
         dimension: "Attribution",
-        foxhound: "Every recovery links to the exact action that caused it: retry, email click, or card update. Baseline recoveries are shown for free in the same ledger.",
-        competitor: "Retry outcomes are visible in the Stripe Dashboard, but there is no separate billing or attribution layer since nothing is charged for this feature.",
+        foxhound:
+          "Every recovery links to the exact action that caused it: retry, email click, or card update. Baseline recoveries are shown for free in the same ledger.",
+        competitor:
+          "Retry outcomes are visible in the Stripe Dashboard, but there is no separate billing or attribution layer since nothing is charged for this feature.",
       },
     ],
     foxhoundCons: [
@@ -110,25 +121,31 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     slug: "churnkey",
     name: "Churnkey",
     category: "Retention and cancellation-flow platform",
-    oneLiner: "A cancellation-flow and retention platform (save offers, downgrade paths) that also offers payment recovery.",
+    oneLiner:
+      "A cancellation-flow and retention platform (save offers, downgrade paths) that also offers payment recovery.",
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Starter tier is a published flat $250/month (billed yearly) for teams under $5k/month in churn volume. Higher tiers (Core, Intelligence, Enterprise) require a custom quote, not published.",
+        competitor:
+          "Starter tier is a published flat $250/month (billed yearly) for teams under $5k/month in churn volume. Higher tiers (Core, Intelligence, Enterprise) require a custom quote, not published.",
       },
       {
         dimension: "What it does",
-        foxhound: "Failed-payment recovery, dispute handling, and subscription intelligence for Stripe merchants specifically.",
-        competitor: "Primarily known for cancellation-flow modals (retention offers, downgrade paths, save flows) with payment recovery as an additional module, marketed heavily to consumer subscription (D2C) brands.",
+        foxhound:
+          "Failed-payment recovery, dispute handling, and subscription intelligence for Stripe merchants specifically.",
+        competitor:
+          "Primarily known for cancellation-flow modals (retention offers, downgrade paths, save flows) with payment recovery as an additional module, marketed heavily to consumer subscription (D2C) brands.",
       },
       {
         dimension: "Disputes",
-        foxhound: "Evidence drafted automatically, human-approved before every submission, capped fee only on wins.",
+        foxhound:
+          "Evidence drafted automatically, human-approved before every submission, capped fee only on wins.",
         competitor: "Not a focus area of the product's public positioning.",
       },
       {
         dimension: "Cancellation flows",
-        foxhound: "Not offered. Foxhound is scoped to recovery, disputes, and intelligence, not retention/save-offer flows at cancellation.",
+        foxhound:
+          "Not offered. Foxhound is scoped to recovery, disputes, and intelligence, not retention/save-offer flows at cancellation.",
         competitor: "A core, differentiated part of the product.",
       },
     ],
@@ -136,7 +153,8 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
       "Foxhound has no cancellation-flow or save-offer product at all; if that is the primary need, Churnkey is built specifically for it and Foxhound is not.",
       "Foxhound is newer and has no comparable public track record yet.",
     ],
-    omittedNote: "Churnkey's Core, Intelligence, and Enterprise tier pricing is not published as a simple public rate, so it is stated as custom-quoted here rather than estimated.",
+    omittedNote:
+      "Churnkey's Core, Intelligence, and Enterprise tier pricing is not published as a simple public rate, so it is stated as custom-quoted here rather than estimated.",
     priceSource: { url: "https://churnkey.co/pricing/", checked: COMPETITOR_PRICES_CHECKED },
   },
 
@@ -144,20 +162,24 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     slug: "churn-buster",
     name: "Churn Buster",
     category: "Dedicated dunning and recovery tool",
-    oneLiner: "One of the longest-running dedicated failed-payment recovery tools for Stripe and Recurly.",
+    oneLiner:
+      "One of the longest-running dedicated failed-payment recovery tools for Stripe and Recurly.",
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Dunning on its own starts at $269/month, scaled to MRR (about 0.1% of MRR, per its pricing page), and billed regardless of how much gets recovered.",
+        competitor:
+          "Dunning on its own starts at $269/month, scaled to MRR (about 0.1% of MRR, per its pricing page), and billed regardless of how much gets recovered.",
       },
       {
         dimension: "What it does",
         foxhound: `AI-drafted dunning email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, tuned to ${DECLINE_CATEGORY_COUNT_WORD_LOWER} decline categories.`,
-        competitor: "Dunning email sequences for failed payments, plus account-management support from a human team on top of the software.",
+        competitor:
+          "Dunning email sequences for failed payments, plus account-management support from a human team on top of the software.",
       },
       {
         dimension: "Disputes",
-        foxhound: "Evidence drafted automatically from Stripe and recovery history; merchant reviews and signs every submission.",
+        foxhound:
+          "Evidence drafted automatically from Stripe and recovery history; merchant reviews and signs every submission.",
         competitor: "Not a core part of the product's public positioning.",
       },
       {
@@ -177,21 +199,27 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     slug: "paddle-retain",
     name: "Paddle Retain",
     category: "Recovery tool bundled with a merchant-of-record platform",
-    oneLiner: "Formerly ProfitWell Retain; failed-payment dunning and retry orchestration, now part of Paddle.",
+    oneLiner:
+      "Formerly ProfitWell Retain; failed-payment dunning and retry orchestration, now part of Paddle.",
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "Included at no additional charge for merchants on Paddle Billing. Historically (as ProfitWell Retain) it was sold standalone on a percentage-of-recovered-revenue basis, but Paddle's current public materials position it as a Paddle Billing feature, not a separately purchasable product, so a standalone price isn't verifiable today.",
+        competitor:
+          "Included at no additional charge for merchants on Paddle Billing. Historically (as ProfitWell Retain) it was sold standalone on a percentage-of-recovered-revenue basis, but Paddle's current public materials position it as a Paddle Billing feature, not a separately purchasable product, so a standalone price isn't verifiable today.",
       },
       {
         dimension: "What it does",
-        foxhound: "Runs directly against your own Stripe account: silent retries, dunning emails, card-update page, disputes, and intelligence in one product.",
-        competitor: "Involuntary-churn recovery: failed-payment dunning, retry orchestration, and account-update emails, most naturally suited to merchants already on Paddle's billing platform.",
+        foxhound:
+          "Runs directly against your own Stripe account: silent retries, dunning emails, card-update page, disputes, and intelligence in one product.",
+        competitor:
+          "Involuntary-churn recovery: failed-payment dunning, retry orchestration, and account-update emails, most naturally suited to merchants already on Paddle's billing platform.",
       },
       {
         dimension: "Merchant-of-record requirement",
-        foxhound: "None. Foxhound connects to your existing Stripe account with read and write scope, used only to retry failed invoices, set a default payment method after a card update, open a Stripe checkout when a former customer chooses to resubscribe, submit dispute evidence you approved, and close a dispute you choose to accept; you remain the merchant of record.",
-        competitor: "Most value is realized on Paddle's own platform, where Paddle is the merchant of record rather than the business using its own direct Stripe account.",
+        foxhound:
+          "None. Foxhound connects to your existing Stripe account with read and write scope, used only to retry failed invoices, set a default payment method after a card update, open a Stripe checkout when a former customer chooses to resubscribe, submit dispute evidence you approved, and close a dispute you choose to accept; you remain the merchant of record.",
+        competitor:
+          "Most value is realized on Paddle's own platform, where Paddle is the merchant of record rather than the business using its own direct Stripe account.",
       },
       {
         dimension: "Disputes",
@@ -213,22 +241,27 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "An add-on at $129/month on top of a Baremetrics analytics plan, not a percentage-of-recovery fee. Baremetrics offers a guarantee: recover more than your Baremetrics cost or your next month is free.",
+        competitor:
+          "An add-on at $129/month on top of a Baremetrics analytics plan, not a percentage-of-recovery fee. Baremetrics offers a guarantee: recover more than your Baremetrics cost or your next month is free.",
       },
       {
         dimension: "What it does",
         foxhound: "A dedicated recovery, disputes, and intelligence product for Stripe merchants.",
-        competitor: "Failed-payment recovery as one module alongside Baremetrics' broader analytics suite (MRR/churn dashboards, forecasting, cancellation insights).",
+        competitor:
+          "Failed-payment recovery as one module alongside Baremetrics' broader analytics suite (MRR/churn dashboards, forecasting, cancellation insights).",
       },
       {
         dimension: "Disputes",
-        foxhound: "Evidence drafted automatically from transaction and recovery history, human-approved before submission, capped fee only on wins.",
+        foxhound:
+          "Evidence drafted automatically from transaction and recovery history, human-approved before submission, capped fee only on wins.",
         competitor: "Not part of the Baremetrics suite.",
       },
       {
         dimension: "Standalone MRR analytics",
-        foxhound: "Free for every account: MRR, movements, churn, and cohort analytics, with churn prediction and customer health scoring.",
-        competitor: "A comprehensive, mature analytics suite is the core product, with Recover as one add-on module inside it.",
+        foxhound:
+          "Free for every account: MRR, movements, churn, and cohort analytics, with churn prediction and customer health scoring.",
+        competitor:
+          "A comprehensive, mature analytics suite is the core product, with Recover as one add-on module inside it.",
       },
     ],
     foxhoundCons: [
@@ -242,31 +275,38 @@ export const COMPETITORS: Record<string, CompetitorDef> = {
     slug: "stunning",
     name: "Stunning",
     category: "Dedicated dunning-email tool",
-    oneLiner: "One of the original standalone dunning-email tools for recovering failed Stripe payments.",
+    oneLiner:
+      "One of the original standalone dunning-email tools for recovering failed Stripe payments.",
     rows: [
       {
         ...FOXHOUND_PRICING_ROW,
-        competitor: "A flat monthly fee based on the merchant's MRR, not a percentage of what gets recovered. Stunning's pricing slider shows $60/month at $8k MRR.",
+        competitor:
+          "A flat monthly fee based on the merchant's MRR, not a percentage of what gets recovered. Stunning's pricing slider shows $60/month at $8k MRR.",
       },
       {
         dimension: "What it does",
         foxhound: `AI-drafted dunning emails and silent retries across ${RECOVERY_SEQUENCE_DAYS} days, then disputes and intelligence in the same product.`,
-        competitor: "Automated dunning-email sequences for failed Stripe payments. Scoped narrowly to email-based recovery.",
+        competitor:
+          "Automated dunning-email sequences for failed Stripe payments. Scoped narrowly to email-based recovery.",
       },
       {
         dimension: "Silent retries before email, where retryable",
-        foxhound: "Yes, wherever the decline can be retried: a scheduled retry runs before any customer-facing email so a quietly recoverable payment is never dunned unnecessarily.",
-        competitor: "Not a stated feature; the product's public positioning centers on the email sequence itself.",
+        foxhound:
+          "Yes, wherever the decline can be retried: a scheduled retry runs before any customer-facing email so a quietly recoverable payment is never dunned unnecessarily.",
+        competitor:
+          "Not a stated feature; the product's public positioning centers on the email sequence itself.",
       },
       {
         dimension: "Disputes and intelligence",
-        foxhound: "Both included in the same product: human-approved dispute evidence and free MRR analytics.",
+        foxhound:
+          "Both included in the same product: human-approved dispute evidence and free MRR analytics.",
         competitor: "Not offered; the product is scoped to dunning emails.",
       },
       {
         dimension: "Cost when little is recovered",
         foxhound: "Zero. Fee only applies to attributed recoveries.",
-        competitor: "The flat subscription tier still applies regardless of how much is actually recovered that month.",
+        competitor:
+          "The flat subscription tier still applies regardless of how much is actually recovered that month.",
       },
     ],
     foxhoundCons: [

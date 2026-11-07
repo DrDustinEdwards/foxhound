@@ -2,13 +2,13 @@ name: scorecard
 
 # OpenSSF Scorecard (area 12, C5): devkit's scorecard.yml publishes the score, uploads it to code scanning and fails when it
 # falls below the last published one. Scorecard publishes only from the default branch, on a push or the schedule. This file
-# keeps no top-level env, defaults or write permissions, which the Scorecard API would refuse.
+# keeps no top-level env, defaults or write permissions, which the Scorecard API would refuse. Nightly, not on every push
+# (devkit README, "No second run on main"): a merge rarely moves the score, and a manual run scores at once.
 
 on:
-  push:
-    branches: [main]
   schedule:
-    - cron: "17 6 * * 1"
+    - cron: "17 6 * * *"
+  workflow_dispatch:
 
 permissions: {}
 
@@ -23,4 +23,4 @@ jobs:
       actions: read
       security-events: write
       id-token: write
-    uses: DrDustinEdwards/devkit/.github/workflows/scorecard.yml@cd31a3eba261e27aa5f4b7a9965f7c4fc59ebe49 # v0.21.5
+    uses: DrDustinEdwards/devkit/.github/workflows/scorecard.yml@562daa2dbfb23f2987f81caeac34f9e054b3d03b # v0.26.4

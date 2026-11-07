@@ -54,7 +54,10 @@ export async function resolveNavContext(
   if (currentProduct && currentProduct !== lastVisitedProduct && !isDemo) {
     waitUntil(
       Promise.resolve(
-        db.update(accounts).set({ lastVisitedProduct: currentProduct }).where(eq(accounts.id, accountId)),
+        db
+          .update(accounts)
+          .set({ lastVisitedProduct: currentProduct })
+          .where(eq(accounts.id, accountId)),
       ),
     );
   }

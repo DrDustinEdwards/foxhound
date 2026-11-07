@@ -226,7 +226,11 @@ export async function sendRecoveryNotification(
     if ("skipped" in data) return { kind: "skipped", reason: data.skipped };
 
     const baseUrl = env.BETTER_AUTH_URL ?? "";
-    const content = recoveryNotifyContent(data, `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`, new Date());
+    const content = recoveryNotifyContent(
+      data,
+      `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`,
+      new Date(),
+    );
 
     const result = await processEmailJob(
       env,

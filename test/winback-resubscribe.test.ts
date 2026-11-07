@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -85,7 +85,7 @@ let db: ReturnType<typeof createInMemoryDb>["db"];
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: ENV, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: ENV, ctx: {} as ExecutionContext };
     throw new Error("unexpected context key");
   },
 } as unknown as Parameters<typeof loader>[0]["context"];
@@ -105,13 +105,15 @@ beforeEach(() => {
 });
 
 function seedAccount(accountId: string, connectionId = "c1"): void {
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(accountId);
   sqlite
-      // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
-      // derived from the Foxhound account rather than hardcoded, because a
-      // shared literal made every two-account fixture violate the unique
-      // index the moment it shipped, and production could never have had two
-      // merchants on one connected account anyway.
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(accountId);
+  sqlite
+    // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
+    // derived from the Foxhound account rather than hardcoded, because a
+    // shared literal made every two-account fixture violate the unique
+    // index the moment it shipped, and production could never have had two
+    // merchants on one connected account anyway.
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES (?, ?, ?, 1, 'cipher', 1000, 1000)",
     )
@@ -119,7 +121,13 @@ function seedAccount(accountId: string, connectionId = "c1"): void {
 }
 
 function seedSequence(
-  opts: { id?: string; status?: string; accountId?: string; connectionId?: string | null; planName?: string | null } = {},
+  opts: {
+    id?: string;
+    status?: string;
+    accountId?: string;
+    connectionId?: string | null;
+    planName?: string | null;
+  } = {},
 ): string {
   const id = opts.id ?? "wb_1";
   sqlite
@@ -168,7 +176,6 @@ function outcomeRows() {
 }
 
 describe("PLANT 1: the resubscribe token round-trips, and a stale one does not", () => {
-
   it("AN EXPIRED TOKEN REFUSES, so a win-back link does not work forever", async () => {
     const issued = Date.now() - CARD_UPDATE_TOKEN_MAX_AGE_MS - 1000;
     const spy = vi.spyOn(Date, "now").mockReturnValue(issued);
@@ -199,7 +206,6 @@ describe("PLANT 1: the resubscribe token round-trips, and a stale one does not",
 });
 
 describe("PLANT 2: the page renders one button and calls no Stripe", () => {
-
   it("a sequence with no plan name still renders, with no subtitle to build", async () => {
     seedSequence({ planName: null });
 
@@ -304,7 +310,10 @@ describe("PLANT 3: the click creates exactly one Checkout Session", () => {
     seedSequence();
     harness.subscription = { items: { data: [] } };
 
-    const res = (await post(await resubscribeToken())) as unknown as { data: { error: string }; init?: { status: number } };
+    const res = (await post(await resubscribeToken())) as unknown as {
+      data: { error: string };
+      init?: { status: number };
+    };
 
     expect(harness.sessionsCreated).toEqual([]);
     expect(JSON.stringify(res)).toContain("no longer available");

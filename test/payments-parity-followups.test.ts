@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "~/db";
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
@@ -30,7 +30,6 @@ const DAY = 86_400_000;
 // ---- 1. Step labels ----
 
 describe("step labels say Recova's day where Foxhound's offset makes it true", () => {
-
   it("ties every retry in every schedule to its offset: the day form only when it is exactly that day", () => {
     let checked = 0;
     for (const [category, schedule] of Object.entries(RECOVERY_SCHEDULES)) {
@@ -39,8 +38,12 @@ describe("step labels say Recova's day where Foxhound's offset makes it true", (
         checked++;
         const day = /^retry_day(\d+)$/.exec(step.stepType);
         const expected =
-          day && step.offsetHours === Number(day[1]) * 24 ? `Day ${day[1]} retry` : `${step.offsetHours}hr retry`;
-        expect(paymentStepLabel(category, step.stepType), `${category} ${step.stepType}`).toBe(expected);
+          day && step.offsetHours === Number(day[1]) * 24
+            ? `Day ${day[1]} retry`
+            : `${step.offsetHours}hr retry`;
+        expect(paymentStepLabel(category, step.stepType), `${category} ${step.stepType}`).toBe(
+          expected,
+        );
       }
     }
     // The walk proves it saw the retries it is about.
@@ -97,7 +100,7 @@ describe("the payment detail loader", () => {
     const data = await route.loader({
       context: {
         get(key: unknown) {
-          if (key === cloudflareContext) return { env: {}, ctx: { waitUntil() {} }, nonce: "n" };
+          if (key === cloudflareContext) return { env: {}, ctx: { waitUntil() {} } };
           if (key === authContext) return { membership: { accountId: A } };
           throw new Error("unexpected context key");
         },

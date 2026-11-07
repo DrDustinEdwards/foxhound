@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import { merchantAccountMenu } from "~/components/site-header";
@@ -10,10 +9,6 @@ import { merchantAccountMenu } from "~/components/site-header";
 // public header) and on the layouts' source where the shell needs a route
 // tree: the order of the slots, the avatar menu that replaced the gear, amber on
 // the band in place of amber, and the owner and user variants.
-
-
-
-
 
 describe("the avatar menu's rows", () => {
   const base = {

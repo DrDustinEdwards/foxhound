@@ -12,7 +12,6 @@ const NOW = Date.parse("2026-07-25T00:00:00.000Z");
 const day = 24 * 60 * 60 * 1000;
 
 describe("humanizeDisputeReason", () => {
-
   // Legacy capitalized the first character and de-underscored only the REST, so
   // a leading underscore survived into the UI.
   it("de-underscores the whole string, including a leading underscore", () => {
@@ -26,7 +25,6 @@ describe("humanizeDisputeReason", () => {
 });
 
 describe("deadline urgency", () => {
-
   it("passes null through for a dispute with no deadline", () => {
     expect(daysUntilDeadline(null, NOW)).toBeNull();
     expect(deadlineUrgency(null)).toBe("normal");

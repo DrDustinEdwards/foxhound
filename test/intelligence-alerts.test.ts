@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  breachesThreshold,
-} from "~/lib/intelligence/alerts";
+import { breachesThreshold } from "~/lib/intelligence/alerts";
 
 describe("breachesThreshold", () => {
   it("breaches 'above' when actual exceeds threshold", () => {

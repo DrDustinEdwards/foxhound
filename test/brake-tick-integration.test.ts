@@ -107,7 +107,6 @@ describe("the real mid-run guard reads live state", () => {
 });
 
 describe("LOW-B: the tick guard fails closed in BOTH halves", () => {
-
   it("throws rather than reading a malformed batch result as enabled", async () => {
     await seed();
     // The fail-open shape the review flagged: `cfgRows[0]?.enabled ?? true`

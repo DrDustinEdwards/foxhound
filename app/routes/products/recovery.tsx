@@ -8,8 +8,12 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections-cap";
-import { CategorySequencePreview, DashboardPreview, PaymentsPreview } from "~/components/recovery-previews";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import {
+  CategorySequencePreview,
+  DashboardPreview,
+  PaymentsPreview,
+} from "~/components/recovery-previews";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   RECOVERY_BLOCKS,
   RECOVERY_BOTTOM_CTA,
@@ -59,10 +63,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
     }),
     ...(loaderData
       ? [
-          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            path: PATH,
-            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-          })),
+          jsonLd(
+            speakableWebPageJsonLd(loaderData.siteUrl, {
+              path: PATH,
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
         ]
       : []),
   ];
@@ -81,7 +87,11 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <ProductHero
         productName="Recovery"
         Icon={RefreshCw}

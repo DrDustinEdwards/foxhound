@@ -19,7 +19,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { flipExhaustedSequences, recordMissingTokenAttempt, RETRY_RESULT_NO_CONNECTION } = await import("~/lib/cron/recovery-tick");
+const { flipExhaustedSequences, recordMissingTokenAttempt, RETRY_RESULT_NO_CONNECTION } =
+  await import("~/lib/cron/recovery-tick");
 const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
 const { RETRY_TOKEN_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } = await import("~/lib/constants");
 const schema = await import("~/db/schema");
@@ -91,7 +92,11 @@ describe.each(["null-token", "no-connection"] as const)(
       const db = await seed(mode);
       expect(await queryDueRecoverySteps({} as Env, T0)).toHaveLength(1);
 
-      const result = await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 0 }, T0);
+      const result = await recordMissingTokenAttempt(
+        {} as Env,
+        { stepId: "step_retry", attemptCount: 0 },
+        T0,
+      );
       expect(result).toBeNull(); // still in grace, no terminal result
 
       const [step] = await db.select().from(schema.recoverySteps);
@@ -107,8 +112,12 @@ describe.each(["null-token", "no-connection"] as const)(
       expect(step.nextRetryAt).toEqual(minutesAfter(T0, firstBackoff));
 
       // Not re-selected until the backoff elapses: the livelock stays fixed.
-      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff - 1))).toHaveLength(0);
-      expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff + 1))).toHaveLength(1);
+      expect(
+        await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff - 1)),
+      ).toHaveLength(0);
+      expect(
+        await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff + 1)),
+      ).toHaveLength(1);
     });
 
     it("goes terminal only on the last attempt, and exactly once", async () => {
@@ -141,7 +150,11 @@ describe.each(["null-token", "no-connection"] as const)(
       // Never selected again, and the conditional claim-on-write means a
       // redelivered tick cannot re-terminate it.
       expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 600))).toHaveLength(0);
-      await recordMissingTokenAttempt({} as Env, { stepId: "step_retry", attemptCount: 9 }, minutesAfter(T0, 10));
+      await recordMissingTokenAttempt(
+        {} as Env,
+        { stepId: "step_retry", attemptCount: 9 },
+        minutesAfter(T0, 10),
+      );
       const [again] = await db.select().from(schema.recoverySteps);
       expect(again.executedAt).toEqual(T0);
       expect(again.attemptCount).toBe(RETRY_TOKEN_MAX_ATTEMPTS);

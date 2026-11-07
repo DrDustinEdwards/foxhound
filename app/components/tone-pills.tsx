@@ -29,7 +29,10 @@ const ACCENT = "[--_bg:var(--accent-soft)] [--_fg:var(--accent-text)]";
 export function CategoryPill({ category }: { category: DeclineCategory }) {
   const tone = TONE[category];
   return (
-    <span className={`cap-pill ${EDGE} ${tone === "accent" ? ACCENT : ""}`} data-tone={tone === "accent" ? undefined : tone}>
+    <span
+      className={`cap-pill ${EDGE} ${tone === "accent" ? ACCENT : ""}`}
+      data-tone={tone === "accent" ? undefined : tone}
+    >
       {CATEGORY_PILL_WORDS[category]}
     </span>
   );
@@ -58,7 +61,10 @@ const PRODUCT_TONE: Record<Feature["product"], string> = {
 export function ProductTag({ product }: { product: Feature["product"] }) {
   const tone = product === "Disputes" ? "info" : product === "Intelligence" ? "ok" : undefined;
   return (
-    <span className={`cap-pill shrink-0 font-mono text-source ${EDGE} ${PRODUCT_TONE[product]}`} data-tone={tone}>
+    <span
+      className={`cap-pill shrink-0 font-mono text-source ${EDGE} ${PRODUCT_TONE[product]}`}
+      data-tone={tone}
+    >
       {product}
     </span>
   );

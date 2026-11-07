@@ -35,7 +35,12 @@ const STEP = "step_sample";
 const SENT = new Date("2026-10-14T09:00:00.000Z");
 const RECOVERED_AT = new Date("2026-10-15T09:00:00.000Z");
 const HUMAN = { automated: false } as const;
-const CLICK = { stepId: STEP, accountId: ACCOUNT, kind: "click", url: "https://merchant.example/pay" } as const;
+const CLICK = {
+  stepId: STEP,
+  accountId: ACCOUNT,
+  kind: "click",
+  url: "https://merchant.example/pay",
+} as const;
 
 const at = (minutes: number) => new Date(SENT.getTime() + minutes * 60_000);
 
@@ -102,12 +107,14 @@ afterEach(() => {
 });
 
 describe("F10: every human click counts, as Recova's email.clicked did", () => {
-
   it("the engagement_events row stays one per step, on its existing key", async () => {
     const db = await seed();
     await clickAt(at(10));
     await clickAt(at(95));
-    const events = await db.select().from(engagementEvents).where(eq(engagementEvents.recoveryStepId, STEP));
+    const events = await db
+      .select()
+      .from(engagementEvents)
+      .where(eq(engagementEvents.recoveryStepId, STEP));
     expect(events).toHaveLength(1);
     expect(events[0].idempotencyKey).toBe(`click:${STEP}`);
     expect(events[0].occurredAt.getTime()).toBe(at(10).getTime());
@@ -115,7 +122,6 @@ describe("F10: every human click counts, as Recova's email.clicked did", () => {
 });
 
 describe("F10: a repeat click never changes what bills (RULES.md 3.4)", () => {
-
   it("a too-fast first click after a honeypot fetch is marked too_fast, as before this row", async () => {
     const db = await seed();
     await recordHoneypot(ENV, { stepId: STEP, accountId: ACCOUNT, kind: "honeypot" });
@@ -125,7 +131,6 @@ describe("F10: a repeat click never changes what bills (RULES.md 3.4)", () => {
 });
 
 describe("F10: a later SUSPECT click never changes the first click's billing input", () => {
-
   it("a honeypot mark stays after a later click that would be too fast, so it never bills", async () => {
     const db = await seed();
     await clickAt(at(10));

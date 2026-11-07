@@ -1,7 +1,7 @@
 import { RouterContextProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
@@ -64,7 +64,7 @@ function makeEnv(ns: unknown = namespace): Env {
 
 function context(env: Env) {
   const ctx = new RouterContextProvider();
-  ctx.set(cloudflareContext, { env, ctx: {} as ExecutionContext, nonce: "n" });
+  ctx.set(cloudflareContext, { env, ctx: {} as ExecutionContext });
   return ctx;
 }
 
@@ -89,7 +89,11 @@ async function run(mod: ActionModule, request: Request, env = makeEnv()) {
     out = thrown;
   }
   if (out instanceof Response) {
-    return { status: out.status, headers: out.headers, body: null as Record<string, unknown> | null };
+    return {
+      status: out.status,
+      headers: out.headers,
+      body: null as Record<string, unknown> | null,
+    };
   }
   const d = out as { type?: string; data?: unknown; init?: ResponseInit | null };
   if (d && d.type === "DataWithResponseInit") {
@@ -107,7 +111,8 @@ const signupForm = (ip?: string) => form("/signup", { email: "a@example.com" }, 
 
 beforeEach(() => {
   namespace = makeRateLimiterNamespace();
-  for (const k of Object.keys(harness.calls) as (keyof typeof harness.calls)[]) harness.calls[k] = 0;
+  for (const k of Object.keys(harness.calls) as (keyof typeof harness.calls)[])
+    harness.calls[k] = 0;
   // Pin the clock to the first second of an hour, so ten requests can never
   // straddle a minute boundary and five can never straddle an hour.
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -184,17 +189,12 @@ describe("the shared auth bucket: every signed-out POST that tests a passkey or 
   it("keys on the client address, and never puts the email in a counter's name", async () => {
     await run(login, loginForm());
     await run(signup, signupForm());
-    expect(namespace.names).toEqual([
-      "auth:203.0.113.7",
-      "auth:203.0.113.7",
-      "signup:203.0.113.7",
-    ]);
+    expect(namespace.names).toEqual(["auth:203.0.113.7", "auth:203.0.113.7", "signup:203.0.113.7"]);
     expect(namespace.names.some((n) => n.includes("example.com"))).toBe(false);
   });
 });
 
 describe("a counter that fails lets the request through, by design (RULES.md 4.10)", () => {
-
   it("signs up when the binding is missing altogether", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const r = await run(signup, signupForm(), makeEnv(undefined));
@@ -203,4 +203,3 @@ describe("a counter that fails lets the request through, by design (RULES.md 4.1
     log.mockRestore();
   });
 });
-

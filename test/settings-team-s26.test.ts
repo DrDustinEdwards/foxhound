@@ -1,9 +1,8 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -40,11 +39,17 @@ beforeEach(() => {
     [MEMBER_USER, "member@acme.test"],
   ] as const) {
     sqlite
-      .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+      .prepare(
+        "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+      )
       .run(id, email, email);
   }
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(OTHER, "Other");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(ACCOUNT, "Acme");
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+    .run(OTHER, "Other");
   seedMember("m_owner", ACCOUNT, OWNER, "owner", "active");
 });
 
@@ -65,7 +70,9 @@ function seedMember(
 
 function memberIds(accountId: string): string[] {
   return (
-    sqlite.prepare("SELECT id FROM account_members WHERE account_id = ? ORDER BY id").all(accountId) as {
+    sqlite
+      .prepare("SELECT id FROM account_members WHERE account_id = ? ORDER BY id")
+      .all(accountId) as {
       id: string;
     }[]
   ).map((r) => r.id);
@@ -74,7 +81,7 @@ function memberIds(accountId: string): string[] {
 function ctxFor(role: string) {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: OWNER,

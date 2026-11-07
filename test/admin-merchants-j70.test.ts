@@ -1,4 +1,3 @@
-
 import { eq } from "drizzle-orm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -19,7 +18,7 @@ import {
 } from "~/db";
 import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
@@ -36,7 +35,11 @@ import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 // (test/admin-view-as.test.ts), never an intent here. Every write goes
 // through Foxhound's existing writers.
 
-const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown, deauthorized: [] as string[] }));
+const harness = vi.hoisted(() => ({
+  db: null as unknown,
+  sqlite: null as unknown,
+  deauthorized: [] as string[],
+}));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
@@ -58,9 +61,17 @@ const route: Record<string, unknown> = await import("~/routes/admin/merchants/in
 /** What a toggle's answer says in the page, and the Undo it offers, if any:
  *  the one decision both the in-page (script) path and the no-script banner
  *  read. */
-function toggleMessage(answer: unknown): { said: string; undo: { intent: string; accountId: string; value: boolean } | null } {
+function toggleMessage(answer: unknown): {
+  said: string;
+  undo: { intent: string; accountId: string; value: boolean } | null;
+} {
   expect(typeof pageLib.toggleMessage).toBe("function");
-  return (pageLib.toggleMessage as (a: unknown) => { said: string; undo: { intent: string; accountId: string; value: boolean } | null })(answer);
+  return (
+    pageLib.toggleMessage as (a: unknown) => {
+      said: string;
+      undo: { intent: string; accountId: string; value: boolean } | null;
+    }
+  )(answer);
 }
 const MerchantsPage = route.default as (props: unknown) => React.ReactNode;
 
@@ -83,14 +94,47 @@ async function seed(): Promise<Seeded> {
     { id: "demo_acct", name: "Demo Shop", createdAt: at(50 * DAY) },
   ]);
   await db.insert(user).values([
-    { id: "u_rosa", name: "Rosa Park", email: "rosa@example.com", createdAt: at(40 * DAY), updatedAt: at(40 * DAY) },
-    { id: "u_sam", name: "Sam Ortiz", email: "sam@example.com", createdAt: at(20 * DAY), updatedAt: at(20 * DAY) },
+    {
+      id: "u_rosa",
+      name: "Rosa Park",
+      email: "rosa@example.com",
+      createdAt: at(40 * DAY),
+      updatedAt: at(40 * DAY),
+    },
+    {
+      id: "u_sam",
+      name: "Sam Ortiz",
+      email: "sam@example.com",
+      createdAt: at(20 * DAY),
+      updatedAt: at(20 * DAY),
+    },
   ]);
   await db.insert(accountMembers).values([
-    { id: "m1", accountId: "acct_north", userId: "u_rosa", role: "owner", status: "active", createdAt: at(40 * DAY) },
+    {
+      id: "m1",
+      accountId: "acct_north",
+      userId: "u_rosa",
+      role: "owner",
+      status: "active",
+      createdAt: at(40 * DAY),
+    },
     // A member who is not the owner is not the account's email.
-    { id: "m2", accountId: "acct_lumen", userId: "u_rosa", role: "member", status: "active", createdAt: at(20 * DAY) },
-    { id: "m3", accountId: "acct_lumen", userId: "u_sam", role: "owner", status: "active", createdAt: at(20 * DAY) },
+    {
+      id: "m2",
+      accountId: "acct_lumen",
+      userId: "u_rosa",
+      role: "member",
+      status: "active",
+      createdAt: at(20 * DAY),
+    },
+    {
+      id: "m3",
+      accountId: "acct_lumen",
+      userId: "u_sam",
+      role: "owner",
+      status: "active",
+      createdAt: at(20 * DAY),
+    },
   ]);
   await db.insert(stripeConnections).values([
     {
@@ -132,7 +176,14 @@ async function seed(): Promise<Seeded> {
       disconnectedAt: at(2 * DAY),
       createdAt: at(9 * DAY),
     },
-    { id: "sc_demo", accountId: "demo_acct", stripeUserId: "acct_demo", isPrimary: true, connectedAt: at(50 * DAY), createdAt: at(50 * DAY) },
+    {
+      id: "sc_demo",
+      accountId: "demo_acct",
+      stripeUserId: "acct_demo",
+      isPrimary: true,
+      connectedAt: at(50 * DAY),
+      createdAt: at(50 * DAY),
+    },
   ]);
 
   const failed = (id: string, accountId: string, status: string, over = {}) => ({
@@ -165,7 +216,14 @@ async function seed(): Promise<Seeded> {
     failed("fp_9", "demo_acct", "active"),
     failed("fp_10", "demo_acct", "recovered"),
   ]);
-  const recovered = (id: string, fp: string, accountId: string, cents: number, currency: string, over = {}) => ({
+  const recovered = (
+    id: string,
+    fp: string,
+    accountId: string,
+    cents: number,
+    currency: string,
+    over = {},
+  ) => ({
     id,
     failedPaymentId: fp,
     accountId,
@@ -184,7 +242,13 @@ async function seed(): Promise<Seeded> {
     recovered("rp_5", "fp_10", "demo_acct", 7700, "usd"),
   ]);
 
-  const snapshot = (id: string, accountId: string, daysAgo: number, cents: number, currency = "usd") => ({
+  const snapshot = (
+    id: string,
+    accountId: string,
+    daysAgo: number,
+    cents: number,
+    currency = "usd",
+  ) => ({
     id,
     accountId,
     snapshotDate: at(daysAgo * DAY),
@@ -203,12 +267,14 @@ async function seed(): Promise<Seeded> {
     currency,
     createdAt: at(daysAgo * DAY),
   });
-  await db.insert(mrrSnapshots).values([
-    snapshot("mrr_north_old", "acct_north", 2, 100000),
-    snapshot("mrr_north", "acct_north", 1, 120000),
-    snapshot("mrr_lumen", "acct_lumen", 1, 30000, "eur"),
-    snapshot("mrr_demo", "demo_acct", 1, 990000),
-  ]);
+  await db
+    .insert(mrrSnapshots)
+    .values([
+      snapshot("mrr_north_old", "acct_north", 2, 100000),
+      snapshot("mrr_north", "acct_north", 1, 120000),
+      snapshot("mrr_lumen", "acct_lumen", 1, 30000, "eur"),
+      snapshot("mrr_demo", "demo_acct", 1, 990000),
+    ]);
 
   const invoice = (id: string, accountId: string, status: string, createdAgo: number) => ({
     id,
@@ -228,7 +294,14 @@ async function seed(): Promise<Seeded> {
     invoice("inv_last_month", "acct_north", "paid", 20),
     invoice("inv_demo", "demo_acct", "paid", 10),
   ]);
-  const line = (id: string, invoiceId: string, accountId: string, type: string, feeCents: number, fp?: string) => ({
+  const line = (
+    id: string,
+    invoiceId: string,
+    accountId: string,
+    type: string,
+    feeCents: number,
+    fp?: string,
+  ) => ({
     id,
     invoiceId,
     accountId,
@@ -272,7 +345,6 @@ async function listRows(db: unknown): Promise<Row[]> {
 }
 
 describe("listAdminMerchants: one row per account, Recova's inventory from Foxhound's engine", () => {
-
   it("gives the active owner's email, never another member's", async () => {
     const rows = await listRows((await seed()).db);
     const by = new Map(rows.map((r) => [r.id, r]));
@@ -284,10 +356,25 @@ describe("listAdminMerchants: one row per account, Recova's inventory from Foxho
   it("reads the live connection for the Stripe link and the last webhook, never a disconnected primary", async () => {
     const rows = await listRows((await seed()).db);
     const by = new Map(rows.map((r) => [r.id, r]));
-    expect(by.get("acct_north")).toMatchObject({ stripeUserId: "acct_1North", lastWebhookAt: at(2 * HOUR), connectionStatus: "connected" });
-    expect(by.get("acct_lumen")).toMatchObject({ stripeUserId: "acct_1Lumen", lastWebhookAt: at(3 * HOUR), connectionStatus: "connected" });
-    expect(by.get("acct_gone")).toMatchObject({ stripeUserId: null, lastWebhookAt: null, connectionStatus: "disconnected" });
-    expect(by.get("acct_new")).toMatchObject({ stripeUserId: null, connectionStatus: "never_connected" });
+    expect(by.get("acct_north")).toMatchObject({
+      stripeUserId: "acct_1North",
+      lastWebhookAt: at(2 * HOUR),
+      connectionStatus: "connected",
+    });
+    expect(by.get("acct_lumen")).toMatchObject({
+      stripeUserId: "acct_1Lumen",
+      lastWebhookAt: at(3 * HOUR),
+      connectionStatus: "connected",
+    });
+    expect(by.get("acct_gone")).toMatchObject({
+      stripeUserId: null,
+      lastWebhookAt: null,
+      connectionStatus: "disconnected",
+    });
+    expect(by.get("acct_new")).toMatchObject({
+      stripeUserId: null,
+      connectionStatus: "never_connected",
+    });
   });
 
   it("works the recovery rate as Recova did: recovered over failed, deleted rows left out, none with no failures", async () => {
@@ -314,9 +401,16 @@ describe("listAdminMerchants: one row per account, Recova's inventory from Foxho
 
   it("keeps Foxhound's own columns: active recoveries, the flags, the pause reason and cancel", async () => {
     const { db } = await seed();
-    await db.update(accounts).set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }).where(eq(accounts.id, "acct_north"));
+    await db
+      .update(accounts)
+      .set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE })
+      .where(eq(accounts.id, "acct_north"));
     const by = new Map((await listRows(db)).map((r) => [r.id, r]));
-    expect(by.get("acct_north")).toMatchObject({ activeRecoveriesCount: 2, processingPaused: true, pauseReason: PAUSE_REASON_BRAKE });
+    expect(by.get("acct_north")).toMatchObject({
+      activeRecoveriesCount: 2,
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_BRAKE,
+    });
     expect(by.get("acct_lumen")).toMatchObject({ billingExempt: true, activeRecoveriesCount: 1 });
     expect(by.get("acct_gone")?.cancelledAt).toEqual(at(2 * DAY));
   });
@@ -365,9 +459,10 @@ describe("getMerchantFigures: Recova's five stat cards, demo accounts not counte
 function context() {
   const c = new RouterContextProvider();
   c.set(cloudflareContext, {
-    env: { MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding } as unknown as Env,
+    env: {
+      MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
+    } as unknown as Env,
     ctx: {} as ExecutionContext,
-    nonce: "",
   });
   c.set(adminContext, { email: ACTOR });
   return c;
@@ -377,7 +472,9 @@ async function post(fields: Record<string, string>) {
   expect(typeof route.action).toBe("function");
   const body = new FormData();
   for (const [k, v] of Object.entries(fields)) body.append(k, v);
-  const action = route.action as (args: unknown) => Promise<{ data: Record<string, unknown>; init?: { status?: number } }>;
+  const action = route.action as (
+    args: unknown,
+  ) => Promise<{ data: Record<string, unknown>; init?: { status?: number } }>;
   return action({
     request: new Request("https://foxhoundapp.com/admin/merchants?index", { method: "POST", body }),
     context: context(),
@@ -390,7 +487,11 @@ async function account(db: Seeded["db"], id: string) {
 }
 
 async function auditActions(db: Seeded["db"]) {
-  return (await db.select({ action: adminAuditLog.action, metadata: adminAuditLog.metadata }).from(adminAuditLog)).map((r) => r.action);
+  return (
+    await db
+      .select({ action: adminAuditLog.action, metadata: adminAuditLog.metadata })
+      .from(adminAuditLog)
+  ).map((r) => r.action);
 }
 
 describe("the action: Foxhound's writers, each with its audit row", () => {
@@ -404,11 +505,24 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
 
   it("pauses and resumes processing through setProcessingPaused, marking a person's pause manual", async () => {
     await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
-    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_MANUAL });
-    const resumed = await post({ intent: "processing-paused", accountId: "acct_north", value: "false" });
+    expect(await account(seeded.db, "acct_north")).toMatchObject({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_MANUAL,
+    });
+    const resumed = await post({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: "false",
+    });
     expect(resumed.data).toMatchObject({ ok: true, value: false, wasBrakePause: false });
-    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: false, pauseReason: null });
-    expect(await auditActions(seeded.db)).toEqual(["merchant.processing.pause", "merchant.processing.resume"]);
+    expect(await account(seeded.db, "acct_north")).toMatchObject({
+      processingPaused: false,
+      pauseReason: null,
+    });
+    expect(await auditActions(seeded.db)).toEqual([
+      "merchant.processing.pause",
+      "merchant.processing.resume",
+    ]);
   });
 
   it("refuses an account that does not exist, writing nothing", async () => {
@@ -419,7 +533,10 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
   });
 
   it("refuses a value that is not true or false, and an unknown intent", async () => {
-    expect((await post({ intent: "billing-exempt", accountId: "acct_north", value: "yes" })).init?.status).toBe(400);
+    expect(
+      (await post({ intent: "billing-exempt", accountId: "acct_north", value: "yes" })).init
+        ?.status,
+    ).toBe(400);
     expect((await post({ intent: "impersonate", accountId: "acct_north" })).init?.status).toBe(400);
     expect(await auditActions(seeded.db)).toEqual([]);
   });
@@ -433,34 +550,70 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     const done = await post({ intent: "cancel", accountId: "acct_north", confirm: "Cancel" });
     expect(done.data).toMatchObject({ ok: true, intent: "cancel", accountId: "acct_north" });
     expect((await account(seeded.db, "acct_north")).cancelledAt).not.toBeNull();
-    const conn = (await seeded.db.select().from(stripeConnections).where(eq(stripeConnections.id, "sc_north")))[0];
+    const conn = (
+      await seeded.db.select().from(stripeConnections).where(eq(stripeConnections.id, "sc_north"))
+    )[0];
     expect(conn.disconnectedAt).not.toBeNull();
     expect(harness.deauthorized).toEqual(["acct_1North"]);
     expect(await auditActions(seeded.db)).toEqual(["merchant.cancel"]);
   });
 
   it("offers no Undo for a stale Pause on a merchant the brake already paused, and Undo can never lift the brake", async () => {
-    await seeded.db.update(accounts).set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }).where(eq(accounts.id, "acct_north"));
+    await seeded.db
+      .update(accounts)
+      .set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE })
+      .where(eq(accounts.id, "acct_north"));
     // A row rendered before the brake engaged still says Pause.
-    const stale = await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
+    const stale = await post({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: "true",
+    });
     expect(stale.data).toMatchObject({ ok: true, value: true, changed: false });
     expect(toggleMessage(stale.data).undo).toBeNull();
-    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE });
+    expect(await account(seeded.db, "acct_north")).toMatchObject({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_BRAKE,
+    });
     // Even an Undo posted by hand resumes only a person's pause.
-    const undo = await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
+    const undo = await post({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: "false",
+      undo: "1",
+    });
     expect(undo.init?.status).toBe(409);
     expect(undo.data.ok).toBe(false);
-    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE });
+    expect(await account(seeded.db, "acct_north")).toMatchObject({
+      processingPaused: true,
+      pauseReason: PAUSE_REASON_BRAKE,
+    });
   });
 
   it("undoes a real Pause: the manual pause it made is resumed", async () => {
-    const paused = await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
+    const paused = await post({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: "true",
+    });
     expect(paused.data).toMatchObject({ ok: true, changed: true });
     const message = toggleMessage(paused.data);
-    expect(message.undo).toEqual({ intent: "processing-paused", accountId: "acct_north", value: false });
-    const undone = await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
+    expect(message.undo).toEqual({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: false,
+    });
+    const undone = await post({
+      intent: "processing-paused",
+      accountId: "acct_north",
+      value: "false",
+      undo: "1",
+    });
     expect(undone.data).toMatchObject({ ok: true, changed: true });
-    expect(await account(seeded.db, "acct_north")).toMatchObject({ processingPaused: false, pauseReason: null });
+    expect(await account(seeded.db, "acct_north")).toMatchObject({
+      processingPaused: false,
+      pauseReason: null,
+    });
   });
 
   it("records in the audit row whether the toggle changed anything (PR 140 review)", async () => {
@@ -469,10 +622,15 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     // North is not: a real Set exempt.
     await post({ intent: "billing-exempt", accountId: "acct_north", value: "true" });
     // The brake paused North: an Undo of a pause cannot resume it.
-    await seeded.db.update(accounts).set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE }).where(eq(accounts.id, "acct_north"));
+    await seeded.db
+      .update(accounts)
+      .set({ processingPaused: true, pauseReason: PAUSE_REASON_BRAKE })
+      .where(eq(accounts.id, "acct_north"));
     await post({ intent: "processing-paused", accountId: "acct_north", value: "true" });
     await post({ intent: "processing-paused", accountId: "acct_north", value: "false", undo: "1" });
-    const rows = await seeded.db.select({ action: adminAuditLog.action, metadata: adminAuditLog.metadata }).from(adminAuditLog);
+    const rows = await seeded.db
+      .select({ action: adminAuditLog.action, metadata: adminAuditLog.metadata })
+      .from(adminAuditLog);
     expect(rows.map((r) => [r.action, r.metadata])).toEqual([
       ["merchant.billing_exempt.enable", { accountId: "acct_lumen", changed: false }],
       ["merchant.billing_exempt.enable", { accountId: "acct_north", changed: true }],
@@ -486,7 +644,9 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     const stale = await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "true" });
     expect(stale.data).toMatchObject({ ok: true, value: true, changed: false });
     expect(toggleMessage(stale.data).undo).toBeNull();
-    expect(toggleMessage(stale.data).said).toMatch(/already billing exempt\. Nothing was changed\./);
+    expect(toggleMessage(stale.data).said).toMatch(
+      /already billing exempt\. Nothing was changed\./,
+    );
     // Neither path offers it: no in-page Undo (undo is null above) and no
     // no-script Undo form. Exemption has no reason column like a pause's, so a
     // hand-posted "End exemption" is an ordinary request the server cannot
@@ -530,10 +690,36 @@ function row(id: string, over: Partial<Row> = {}): Row {
 
 const ROWS: Row[] = [
   row("acct_north"),
-  row("acct_lumen", { name: "Lumen Studio", ownerEmail: "sam@example.com", billingExempt: true, recoveryRatePct: 50, stripeUserId: "acct_1Lumen" }),
-  row("acct_paused", { name: "Paused Pets", processingPaused: true, pauseReason: PAUSE_REASON_BRAKE, recoveryRatePct: 10 }),
-  row("acct_gone", { name: "Gone Goods", cancelledAt: new Date(T - 2 * DAY), connectionStatus: "disconnected", stripeUserId: null, lastWebhookAt: null }),
-  row("acct_new", { name: null, ownerEmail: null, connectionStatus: "never_connected", stripeUserId: null, lastWebhookAt: null, recoveryRatePct: null, recovered: [], activeRecoveriesCount: 0 }),
+  row("acct_lumen", {
+    name: "Lumen Studio",
+    ownerEmail: "sam@example.com",
+    billingExempt: true,
+    recoveryRatePct: 50,
+    stripeUserId: "acct_1Lumen",
+  }),
+  row("acct_paused", {
+    name: "Paused Pets",
+    processingPaused: true,
+    pauseReason: PAUSE_REASON_BRAKE,
+    recoveryRatePct: 10,
+  }),
+  row("acct_gone", {
+    name: "Gone Goods",
+    cancelledAt: new Date(T - 2 * DAY),
+    connectionStatus: "disconnected",
+    stripeUserId: null,
+    lastWebhookAt: null,
+  }),
+  row("acct_new", {
+    name: null,
+    ownerEmail: null,
+    connectionStatus: "never_connected",
+    stripeUserId: null,
+    lastWebhookAt: null,
+    recoveryRatePct: null,
+    recovered: [],
+    activeRecoveriesCount: 0,
+  }),
 ];
 
 const FIGURES: Figures = {
@@ -545,34 +731,68 @@ const FIGURES: Figures = {
   paymentsInQueue: 3,
 };
 
-function render(over: { merchants?: Row[]; confirmCancel?: { id: string; name: string | null } | null; actionData?: unknown } = {}) {
+function render(
+  over: {
+    merchants?: Row[];
+    confirmCancel?: { id: string; name: string | null } | null;
+    actionData?: unknown;
+  } = {},
+) {
   const merchants = over.merchants ?? ROWS;
   const counts = { all: merchants.length, paused: 0, "billing-exempt": 0 };
-  const data = { view: "all", merchants, counts, brakePaused: 0, figures: FIGURES, confirmCancel: over.confirmCancel ?? null };
+  const data = {
+    view: "all",
+    merchants,
+    counts,
+    brakePaused: 0,
+    figures: FIGURES,
+    confirmCancel: over.confirmCancel ?? null,
+  };
   const Stub = createRoutesStub([
     {
       path: "/admin/merchants",
-      Component: () => createElement(MerchantsPage as never, { loaderData: data, actionData: over.actionData } as never),
+      Component: () =>
+        createElement(
+          MerchantsPage as never,
+          { loaderData: data, actionData: over.actionData } as never,
+        ),
     },
   ]);
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/admin/merchants"] }));
 }
 
-
-
 describe("pure helpers", () => {
   it("decides the in-page message and its Undo from the answer alone", () => {
-    const base = { ok: true, accountId: "acct_north", name: "Northwind Coffee", wasBrakePause: false };
-    expect(toggleMessage({ ...base, intent: "billing-exempt", value: true, changed: true })).toMatchObject({
+    const base = {
+      ok: true,
+      accountId: "acct_north",
+      name: "Northwind Coffee",
+      wasBrakePause: false,
+    };
+    expect(
+      toggleMessage({ ...base, intent: "billing-exempt", value: true, changed: true }),
+    ).toMatchObject({
       said: "Northwind Coffee is billing exempt.",
       undo: { intent: "billing-exempt", accountId: "acct_north", value: false },
     });
-    expect(toggleMessage({ ...base, intent: "billing-exempt", value: false, changed: false })).toMatchObject({
+    expect(
+      toggleMessage({ ...base, intent: "billing-exempt", value: false, changed: false }),
+    ).toMatchObject({
       said: "Northwind Coffee was already billed. Nothing was changed.",
       undo: null,
     });
-    expect(toggleMessage({ ...base, intent: "processing-paused", value: false, changed: true, wasBrakePause: true }).undo).toBeNull();
-    expect(toggleMessage({ ...base, intent: "processing-paused", value: false, changed: true }).undo).toEqual({
+    expect(
+      toggleMessage({
+        ...base,
+        intent: "processing-paused",
+        value: false,
+        changed: true,
+        wasBrakePause: true,
+      }).undo,
+    ).toBeNull();
+    expect(
+      toggleMessage({ ...base, intent: "processing-paused", value: false, changed: true }).undo,
+    ).toEqual({
       intent: "processing-paused",
       accountId: "acct_north",
       value: true,

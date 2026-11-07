@@ -57,8 +57,7 @@ import { canApprove } from "./approval";
 // recordOutcome's rows (idempotency_key, unique). Named for the seat in the
 // J06 pull request: it is a third insert site for outcomes.
 
-export type AcceptDisputeResult =
-  { status: "accepted" } | { status: "error"; message: string };
+export type AcceptDisputeResult = { status: "accepted" } | { status: "error"; message: string };
 
 export interface AcceptDisputeInput {
   accountId: string;
@@ -106,12 +105,7 @@ function buildDisputeAcceptBatch(
   db: Db,
   input: Pick<
     AcceptDisputeInput,
-    | "accountId"
-    | "disputeId"
-    | "stripeDisputeId"
-    | "amountCents"
-    | "currency"
-    | "acceptedAt"
+    "accountId" | "disputeId" | "stripeDisputeId" | "amountCents" | "currency" | "acceptedAt"
   >,
 ): MoneyWriteBatch {
   const key = acceptIdempotencyKey(input.disputeId);
@@ -134,17 +128,12 @@ function buildDisputeAcceptBatch(
           accountId: disputes.accountId,
           product: sql<string>`'disputes'`.as("product"),
           eventType: sql<string>`${DISPUTE_ACCEPTED_EVENT}`.as("event_type"),
-          eventData:
-            sql<string>`${JSON.stringify({ dispute_id: input.stripeDisputeId })}`.as(
-              "event_data",
-            ),
+          eventData: sql<string>`${JSON.stringify({ dispute_id: input.stripeDisputeId })}`.as(
+            "event_data",
+          ),
           outcome: sql<string>`${DISPUTE_ACCEPTED_OUTCOME}`.as("outcome"),
-          outcomeAt: sql<number>`${input.acceptedAt.getTime()}`.as(
-            "outcome_at",
-          ),
-          createdAt: sql<number>`${input.acceptedAt.getTime()}`.as(
-            "created_at",
-          ),
+          outcomeAt: sql<number>`${input.acceptedAt.getTime()}`.as("outcome_at"),
+          createdAt: sql<number>`${input.acceptedAt.getTime()}`.as("created_at"),
           idempotencyKey: sql<string>`${key}`.as("idempotency_key"),
           attributionKind: sql<null>`null`.as("attribution_kind"),
           attributedRef: sql<null>`null`.as("attributed_ref"),
@@ -170,11 +159,7 @@ function buildDisputeAcceptBatch(
 export function isDefiniteRefusal(error: unknown): boolean {
   const status = (error as { statusCode?: unknown } | null)?.statusCode;
   return (
-    typeof status === "number" &&
-    status >= 400 &&
-    status < 500 &&
-    status !== 409 &&
-    status !== 429
+    typeof status === "number" && status >= 400 && status < 500 && status !== 409 && status !== 429
   );
 }
 
@@ -197,8 +182,7 @@ async function closeDisputeWithClient(
       return {
         ok: false,
         refused: true,
-        error:
-          error instanceof Error ? error.message : "Stripe refused the request",
+        error: error instanceof Error ? error.message : "Stripe refused the request",
       };
     }
     console.error("dispute close at Stripe has an unknown result", error);
@@ -224,8 +208,7 @@ export async function acceptDispute(
   }
 
   const stripe =
-    deps.stripe ??
-    getConnectedStripe(await decryptToken(env, input.connectionAccessToken));
+    deps.stripe ?? getConnectedStripe(await decryptToken(env, input.connectionAccessToken));
   const closed = await closeDisputeWithClient(
     stripe,
     input.stripeDisputeId,

@@ -87,16 +87,13 @@ export function resolveRateLimitBinding(request: Request): RateLimitRule | null 
 }
 
 export function rateLimitedResponse(retryAfterSeconds: number): Response {
-  return new Response(
-    JSON.stringify({ error: "Too many requests. Please try again shortly." }),
-    {
-      status: 429,
-      headers: {
-        "Content-Type": "application/json",
-        "Retry-After": String(retryAfterSeconds),
-      },
+  return new Response(JSON.stringify({ error: "Too many requests. Please try again shortly." }), {
+    status: 429,
+    headers: {
+      "Content-Type": "application/json",
+      "Retry-After": String(retryAfterSeconds),
     },
-  );
+  });
 }
 
 /**
@@ -115,12 +112,25 @@ class RateLimiterUnavailableError extends Error {
   }
 }
 
-async function check(env: Env, bucket: string, key: string, max: number, periodMs: number, failClosed: boolean) {
+async function check(
+  env: Env,
+  bucket: string,
+  key: string,
+  max: number,
+  periodMs: number,
+  failClosed: boolean,
+) {
   const onUnavailable = failClosed ? "refuse" : "allow";
-  const verdict = await limit(env.RATE_LIMITER, `${bucket}:${key}`, [{ limit: max, windowSeconds: periodMs / 1000 }], {
-    onUnavailable,
-  });
-  if (verdict.status === "unavailable" && failClosed) throw new RateLimiterUnavailableError(verdict.detail);
+  const verdict = await limit(
+    env.RATE_LIMITER,
+    `${bucket}:${key}`,
+    [{ limit: max, windowSeconds: periodMs / 1000 }],
+    {
+      onUnavailable,
+    },
+  );
+  if (verdict.status === "unavailable" && failClosed)
+    throw new RateLimiterUnavailableError(verdict.detail);
   return verdict;
 }
 
@@ -132,7 +142,9 @@ export async function isWithinRateLimit(
   periodMs: number,
   options: { failClosed?: boolean } = {},
 ): Promise<boolean> {
-  return (await check(env, bucket, key, max, periodMs, options.failClosed ?? false)).status !== "limited";
+  return (
+    (await check(env, bucket, key, max, periodMs, options.failClosed ?? false)).status !== "limited"
+  );
 }
 
 /**
@@ -147,6 +159,10 @@ export async function enforceRateLimit(request: Request, env: Env): Promise<Resp
   const key = request.headers.get("cf-connecting-ip") ?? "unknown";
   const verdict = await check(env, rule.bucket, key, rule.limit, rule.periodMs, false);
   if (verdict.status !== "limited") return null;
-  logEvent(OWASP_EVENTS.rateLimitExceeded, { ...requestFields(request), bucket: rule.bucket }, { level: "warn" });
+  logEvent(
+    OWASP_EVENTS.rateLimitExceeded,
+    { ...requestFields(request), bucket: rule.bucket },
+    { level: "warn" },
+  );
   return rateLimitedResponse(verdict.retryAfterSeconds);
 }

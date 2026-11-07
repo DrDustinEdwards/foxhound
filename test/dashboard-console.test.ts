@@ -72,7 +72,9 @@ describe("lastRunPhrase", () => {
 });
 
 describe("isSequenceExhausted", () => {
-  const step = (o: Partial<{ scheduledAt: Date; executedAt: Date | null; result: string | null }>) => ({
+  const step = (
+    o: Partial<{ scheduledAt: Date; executedAt: Date | null; result: string | null }>,
+  ) => ({
     scheduledAt: new Date(NOW),
     executedAt: null,
     result: null,
@@ -107,17 +109,19 @@ describe("hero subtexts", () => {
 // Read model, against the real schema
 // ---------------------------------------------------------------------------
 
-async function seedConsole(opts: {
-  activeAmounts?: number[];
-  recoveredThisMonth?: number[];
-  recoveredEarlier?: number[];
-  disputeDeadlines?: (number | null)[];
-  resolvedDisputes?: number;
-  atRisk?: { score: number; mrr: number }[];
-  cardMonthsOut?: number[];
-  audit?: { daysAgo: number; failedCents: number; disputeCents: number } | null;
-  connected?: boolean;
-} = {}) {
+async function seedConsole(
+  opts: {
+    activeAmounts?: number[];
+    recoveredThisMonth?: number[];
+    recoveredEarlier?: number[];
+    disputeDeadlines?: (number | null)[];
+    resolvedDisputes?: number;
+    atRisk?: { score: number; mrr: number }[];
+    cardMonthsOut?: number[];
+    audit?: { daysAgo: number; failedCents: number; disputeCents: number } | null;
+    connected?: boolean;
+  } = {},
+) {
   const { db } = createInMemoryDb();
   const now = new Date(NOW);
   await db.insert(accounts).values({ id: ACCOUNT_ID, name: "Console Co", createdAt: now });
@@ -292,7 +296,6 @@ async function seedConsole(opts: {
 }
 
 describe("getConsoleView hero", () => {
-
   it("counts only this month's recoveries as protected, but all time in the subtext", async () => {
     const db = await seedConsole({ recoveredThisMonth: [1000, 2000], recoveredEarlier: [9999] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, 50);
@@ -314,7 +317,9 @@ describe("getConsoleView tiles", () => {
   });
 
   it("sums audit leakage across both of its components", async () => {
-    const db = await seedConsole({ audit: { daysAgo: 3, failedCents: 40_000, disputeCents: 2_500 } });
+    const db = await seedConsole({
+      audit: { daysAgo: 3, failedCents: 40_000, disputeCents: 2_500 },
+    });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.tiles.auditLeaking).toEqual([{ currency: "usd", cents: 42_500 }]);
     expect(view.tiles.lastAuditAt).not.toBeNull();
@@ -322,7 +327,6 @@ describe("getConsoleView tiles", () => {
 });
 
 describe("getConsoleView attention feed", () => {
-
   it("puts urgent dispute deadlines before warnings and subtle rows", async () => {
     const db = await seedConsole({
       disputeDeadlines: [HOUR],

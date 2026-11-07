@@ -65,10 +65,11 @@ export interface ReminderBucket {
 
 /** The two bands, as hours before the evidence deadline. Recova's
  *  resolveReminderBucket, verbatim in its numbers. */
-export const REMINDER_BANDS: readonly (ReminderBucket & { fromHours: number; toHours: number })[] = [
-  { eventType: "dispute_reminder_3d", daysLeft: 3, fromHours: 72, toHours: 96 },
-  { eventType: "dispute_reminder_1d", daysLeft: 1, fromHours: 24, toHours: 48 },
-];
+export const REMINDER_BANDS: readonly (ReminderBucket & { fromHours: number; toHours: number })[] =
+  [
+    { eventType: "dispute_reminder_3d", daysLeft: 3, fromHours: 72, toHours: 96 },
+    { eventType: "dispute_reminder_1d", daysLeft: 1, fromHours: 24, toHours: 48 },
+  ];
 
 /** A reminder's idempotency key, `<band>:<dispute id>`: the send claim's key,
  *  the outcome's key, and what the reminder cron's selection excludes on. */
@@ -124,8 +125,14 @@ const DISPUTE_FOOTER_FALLBACK_SENDER = "Foxhound";
 
 /** Recova's footer sentence on these notices (lib/email.ts wrapEmailHtml with
  *  `params.senderName ?? 'Recova'`). Pure. */
-export function disputeNoticeFooterNote(senderName: string | null | undefined, year: number): string {
-  return recoveryFooterNote(senderName?.trim() ? senderName.trim() : DISPUTE_FOOTER_FALLBACK_SENDER, year);
+export function disputeNoticeFooterNote(
+  senderName: string | null | undefined,
+  year: number,
+): string {
+  return recoveryFooterNote(
+    senderName?.trim() ? senderName.trim() : DISPUTE_FOOTER_FALLBACK_SENDER,
+    year,
+  );
 }
 
 export interface CreatedNoticeInput {
@@ -185,7 +192,8 @@ export interface ReminderNoticeInput {
 }
 
 /** Recova's lines, for a dispute nobody has approved yet, by auto-submit. */
-const REMINDER_ACTION_LINE = "Auto-submit is off. You need to review and submit, or choose to accept.";
+const REMINDER_ACTION_LINE =
+  "Auto-submit is off. You need to review and submit, or choose to accept.";
 const REMINDER_AUTO_LINE =
   "Auto-submit is on. We will submit at the 24-hour mark using the staged evidence unless you cancel or override it.";
 
@@ -209,7 +217,11 @@ export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
       body: [
         `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
         "Current status: needs response.",
-        input.approved ? REMINDER_APPROVED_LINE : input.autoSubmit ? REMINDER_AUTO_LINE : REMINDER_ACTION_LINE,
+        input.approved
+          ? REMINDER_APPROVED_LINE
+          : input.autoSubmit
+            ? REMINDER_AUTO_LINE
+            : REMINDER_ACTION_LINE,
       ],
       action: { label: "Review dispute", url: input.disputeUrl },
     },
@@ -271,7 +283,9 @@ function wonFeeTerms(amountCents: number, feeCents: number): string {
   const pct = DISPUTE_FEE_BPS / 100;
   const terms = `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the saved amount`;
   const uncapped = disputeFeeCents(amountCents, Number.POSITIVE_INFINITY);
-  return feeCents < uncapped ? `${terms}, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}` : terms;
+  return feeCents < uncapped
+    ? `${terms}, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`
+    : terms;
 }
 
 /** Recova's sendDisputeOutcomeEmail: two won variants and the lost one, each

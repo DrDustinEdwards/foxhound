@@ -23,7 +23,6 @@ const Page = IntelligenceCustomersPage as unknown as (props: {
   loaderData: Record<string, unknown>;
 }) => ReactElement;
 
-
 const NOW = Date.UTC(2026, 9, 15, 12);
 
 interface Row {
@@ -89,16 +88,17 @@ function render(
     accountName: opts.accountName === undefined ? "Acme" : opts.accountName,
     nowMs: NOW,
   };
-  const Stub = createRoutesStub([{ path: "/", Component: () => createElement(Page, { loaderData }) }]);
+  const Stub = createRoutesStub([
+    { path: "/", Component: () => createElement(Page, { loaderData }) },
+  ]);
   return renderToStaticMarkup(createElement(Stub));
 }
 
-
-
 describe("J30 customers: the table", () => {
-
   it("names an unnamed customer as Recova does, never by email", () => {
-    const html = render({ customers: [row({ stripeCustomerId: "cus_sample_2", customerName: null })] });
+    const html = render({
+      customers: [row({ stripeCustomerId: "cus_sample_2", customerName: null })],
+    });
     expect(html).toContain("(unnamed)");
     expect(html).not.toContain("owner@example.com");
     expect(html).toContain('href="/intelligence/customers/cus_sample_2"');
@@ -106,7 +106,6 @@ describe("J30 customers: the table", () => {
 });
 
 describe("J30 customers: plan pills", () => {
-
   it("gives a dash for no tier, and never shows a raw database value", () => {
     expect(planTierPill(null).label).toBe("-");
     expect(planTierPill("enterprise").label).toBe("Enterprise");
@@ -129,9 +128,16 @@ describe("J30 customers: pagination", () => {
 
   it("keeps the filters when paging", () => {
     const nav = pager(
-      render({ page: 1, totalPages: 2, totalCount: 60, filters: { ...NO_FILTERS, tier: "growth", sort: "mrr_desc" } }),
+      render({
+        page: 1,
+        totalPages: 2,
+        totalCount: 60,
+        filters: { ...NO_FILTERS, tier: "growth", sort: "mrr_desc" },
+      }),
     );
-    expect(nav).toContain('href="/intelligence/customers?tier=growth&amp;sort=mrr_desc&amp;page=2"');
+    expect(nav).toContain(
+      'href="/intelligence/customers?tier=growth&amp;sort=mrr_desc&amp;page=2"',
+    );
   });
 });
 
@@ -143,4 +149,3 @@ describe("J30 review: plan tiers are free text", () => {
     expect(planTierPill("Starter").label).toBe("Starter");
   });
 });
-

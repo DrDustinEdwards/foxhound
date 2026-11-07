@@ -11,14 +11,18 @@ import "~/site-header.css";
 
 import { Header } from "~/components/header";
 import { Wordmark } from "~/components/wordmark";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_UNSUBSCRIBE } from "~/lib/constants";
 import { recordDigestUnsubscribe, recordUnsubscribe } from "~/lib/email/suppression";
-import { verifyUnsubscribeToken, type UnsubscribeTokenPayload } from "~/lib/email/unsubscribe-token";
+import {
+  verifyUnsubscribeToken,
+  type UnsubscribeTokenPayload,
+} from "~/lib/email/unsubscribe-token";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import type { Route } from "./+types/unsubscribe";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -108,9 +112,15 @@ type LoaderState =
  * account sharing the address carry on; "changed" when the
  * account no longer mails the digest to that address.
  */
-async function follow(env: Env, payload: UnsubscribeTokenPayload, token: string): Promise<LoaderState> {
+async function follow(
+  env: Env,
+  payload: UnsubscribeTokenPayload,
+  token: string,
+): Promise<LoaderState> {
   const outcome =
-    payload.list === "digest" ? await recordDigestUnsubscribe(env, payload) : await recordUnsubscribe(env, payload, token);
+    payload.list === "digest"
+      ? await recordDigestUnsubscribe(env, payload)
+      : await recordUnsubscribe(env, payload, token);
   if (outcome === "changed") return { state: "changed" };
   return outcome === "already" ? { state: "already", email: payload.email } : { state: "done" };
 }
@@ -136,12 +146,18 @@ const CONFIRM_FIELD = "confirm";
 // token was good or not, so token validity never leaks to it. The first confirm
 // reads "unsubscribed", any later one (or one for an address a bounce already
 // suppressed) "already unsubscribed".
-export async function action({ params, context, request }: Route.ActionArgs): Promise<Response | LoaderState> {
+export async function action({
+  params,
+  context,
+  request,
+}: Route.ActionArgs): Promise<Response | LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
-  const fromPage = (await readForm(request).catch(() => null))?.get(CONFIRM_FIELD) === "1";
+  const fromPage =
+    (await readForm(request, BODY_MAX_BYTES).catch(() => null))?.get(CONFIRM_FIELD) === "1";
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
-  const outcome: LoaderState = payload && token ? await follow(env, payload, token) : { state: "invalid" };
+  const outcome: LoaderState =
+    payload && token ? await follow(env, payload, token) : { state: "invalid" };
   return fromPage ? outcome : new Response(null, { status: 200 });
 }
 
@@ -201,7 +217,8 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
       <Header isAuthenticated={false} />
       <main className="flex flex-1 items-center justify-center bg-bg">
         <div
-          className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]" data-cap-site="foxhound"
+          className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]"
+          data-cap-site="foxhound"
           data-family="amber"
         >
           {/* The page's heading, for screen readers only: Recova's page has none

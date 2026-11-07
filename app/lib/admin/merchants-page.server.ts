@@ -31,5 +31,12 @@ export async function loadMerchantsPage(env: Env, request: Request, view: Mercha
   // link lands on the table rather than on a confirmation of nothing.
   const asked = new URL(request.url).searchParams.get("cancel");
   const live = all.find((m) => m.id === asked && !m.cancelledAt);
-  return { view, merchants, counts, brakePaused, figures, confirmCancel: live ? { id: live.id, name: live.name } : null };
+  return {
+    view,
+    merchants,
+    counts,
+    brakePaused,
+    figures,
+    confirmCancel: live ? { id: live.id, name: live.name } : null,
+  };
 }

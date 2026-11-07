@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments } from "~/db/schema";
@@ -43,9 +42,9 @@ describe("canceled status: the schema needs no migration to accept it", () => {
       }),
     );
 
-    const row = sqlite
-      .prepare("select status from failed_payments where id = 'fp_1'")
-      .get() as { status: string };
+    const row = sqlite.prepare("select status from failed_payments where id = 'fp_1'").get() as {
+      status: string;
+    };
     expect(row.status).toBe("cancelled");
   });
 });

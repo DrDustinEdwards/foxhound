@@ -34,10 +34,20 @@ export interface AdminTool {
   title: string;
   description: string;
   /** additionalProperties false: an unknown argument is refused, never dropped (checklist T4). */
-  inputSchema: { type: "object"; additionalProperties: false; properties: Record<string, unknown>; required: string[] };
+  inputSchema: {
+    type: "object";
+    additionalProperties: false;
+    properties: Record<string, unknown>;
+    required: string[];
+  };
   /** What structuredContent holds on success; the SDK validates it there. */
   outputSchema: { type: "object"; properties: Record<string, unknown>; required: string[] };
-  annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
   /** The scope a call needs (rule 12.3), declared here and never read from readOnlyHint. */
   scope: "read" | "write";
   /**
@@ -49,17 +59,30 @@ export interface AdminTool {
   run: (session: AdminToolSession, args: Record<string, unknown>) => Promise<ApiResult>;
 }
 
-const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const READ = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+};
 
 const OBJECT = { type: "object" } as const;
 const LIST = { type: "array" } as const;
 
 /** The API's answer: its keys and their shapes. None is required, so a key the
  *  API adds or drops never turns a good answer into an error; a wrong shape does. */
-const output = (properties: Record<string, unknown>) => ({ type: "object" as const, properties, required: [] as string[] });
+const output = (properties: Record<string, unknown>) => ({
+  type: "object" as const,
+  properties,
+  required: [] as string[],
+});
 
 /** A paginated list's own keys beside its rows (admin-api slice()). */
-const PAGE = { total: { type: "number" }, has_more: { type: "boolean" }, next_cursor: { type: ["string", "null"] } };
+const PAGE = {
+  total: { type: "number" },
+  has_more: { type: "boolean" },
+  next_cursor: { type: ["string", "null"] },
+};
 
 const CURSOR = {
   type: "string",
@@ -81,7 +104,13 @@ export const ADMIN_TOOLS: AdminTool[] = [
     description:
       "Start here. What on Foxhound needs an admin now: whether the emergency brake is engaged, accounts with stale brake markers, crons that are off or failed their last run, webhook failures in the last day, and the staged changes waiting for confirmation in /admin/staged.",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: output({ brake: OBJECT, stale_markers: OBJECT, crons_needing_attention: LIST, webhooks: OBJECT, pending_staged: LIST }),
+    outputSchema: output({
+      brake: OBJECT,
+      stale_markers: OBJECT,
+      crons_needing_attention: LIST,
+      webhooks: OBJECT,
+      pending_staged: LIST,
+    }),
     outside: "foxhound-data",
     scope: "read",
     annotations: READ,
@@ -90,7 +119,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
   {
     name: "foxhound_admin_get_platform",
     title: "Platform overview",
-    description: "Read the platform overview: merchant count, active recoveries, MRR by currency and cron health.",
+    description:
+      "Read the platform overview: merchant count, active recoveries, MRR by currency and cron health.",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: output({ platform: OBJECT }),
     scope: "read",
@@ -107,7 +137,10 @@ export const ADMIN_TOOLS: AdminTool[] = [
       additionalProperties: false,
       properties: {
         query: { type: "string", description: "Part of a merchant's name or account id." },
-        account_id: { type: "string", description: "One merchant's account id, for its full detail." },
+        account_id: {
+          type: "string",
+          description: "One merchant's account id, for its full detail.",
+        },
         cursor: CURSOR,
       },
       required: [],
@@ -119,7 +152,10 @@ export const ADMIN_TOOLS: AdminTool[] = [
     run: (session, args) => {
       const accountId = text(args, "account_id");
       if (accountId) return get(session, `/merchants/${segment(accountId)}`);
-      return get(session, "/merchants", { query: text(args, "query"), cursor: text(args, "cursor") });
+      return get(session, "/merchants", {
+        query: text(args, "query"),
+        cursor: text(args, "cursor"),
+      });
     },
   },
   {
@@ -130,16 +166,26 @@ export const ADMIN_TOOLS: AdminTool[] = [
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      properties: { account_id: { type: "string", description: "From foxhound_admin_find_merchant." } },
+      properties: {
+        account_id: { type: "string", description: "From foxhound_admin_find_merchant." },
+      },
       required: ["account_id"],
     },
-    outputSchema: output({ overview: OBJECT, payment_status_counts: OBJECT, disputes: LIST, disputes_total: { type: "number" } }),
+    outputSchema: output({
+      overview: OBJECT,
+      payment_status_counts: OBJECT,
+      disputes: LIST,
+      disputes_total: { type: "number" },
+    }),
     outside: "foxhound-data",
     scope: "read",
     annotations: READ,
     run: (session, args) => {
       const accountId = text(args, "account_id");
-      if (!accountId) return Promise.resolve(refuse("account_id is required. Find one with foxhound_admin_find_merchant."));
+      if (!accountId)
+        return Promise.resolve(
+          refuse("account_id is required. Find one with foxhound_admin_find_merchant."),
+        );
       return get(session, `/merchants/${segment(accountId)}/data`);
     },
   },
@@ -149,7 +195,13 @@ export const ADMIN_TOOLS: AdminTool[] = [
     description:
       "Check Foxhound's health: webhook delivery in the last day, every cron's state and last run, which migrations are applied, the D1 database size, and the most-hit missing pages this week.",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: output({ webhooks: OBJECT, crons: LIST, migrations: OBJECT, d1_size_bytes: { type: "number" }, top_404s_7d: LIST }),
+    outputSchema: output({
+      webhooks: OBJECT,
+      crons: LIST,
+      migrations: OBJECT,
+      d1_size_bytes: { type: "number" },
+      top_404s_7d: LIST,
+    }),
     outside: "foxhound-data",
     scope: "read",
     annotations: READ,
@@ -160,7 +212,12 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Read the audit log",
     description:
       "Read the admin audit log, newest first: who did what and when, including every pause, staging and confirmation. Paginated: pass next_cursor back to read on.",
-    inputSchema: { type: "object", additionalProperties: false, properties: { cursor: CURSOR }, required: [] },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: { cursor: CURSOR },
+      required: [],
+    },
     outputSchema: output({ entries: LIST, ...PAGE }),
     outside: "foxhound-data",
     scope: "read",
@@ -185,39 +242,47 @@ export const ADMIN_TOOLS: AdminTool[] = [
     // resumes them; idempotent because pausing a paused merchant changes nothing.
     outputSchema: output({ paused: { type: "string" }, affected: { type: "number" } }),
     scope: "write",
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     run: (session, args) => {
       const accountId = text(args, "account_id");
       if (args.all === true && !accountId) {
-        return callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/pause", body: { all: true } });
+        return callAdminApi(session.env, session.actor, {
+          signal: session.signal,
+          method: "POST",
+          path: "/pause",
+          body: { all: true },
+        });
       }
       if (accountId && args.all !== true) {
-        return callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/pause", body: { account_id: accountId } });
+        return callAdminApi(session.env, session.actor, {
+          signal: session.signal,
+          method: "POST",
+          path: "/pause",
+          body: { account_id: accountId },
+        });
       }
-      return Promise.resolve(refuse("Send account_id to pause one merchant, or all: true to pause every merchant, not both."));
+      return Promise.resolve(
+        refuse(
+          "Send account_id to pause one merchant, or all: true to pause every merchant, not both.",
+        ),
+      );
     },
   },
   {
     name: "foxhound_admin_check_backup",
     title: "Check the backups",
     description:
-      "Read the backup state now, uncached: the newest complete D1 dump's age and each files pass (the blog media and the dispute evidence) with when it last completed, and a warning when any is past 26 hours. /health reports the same fields but caches the read for an hour; this does not. Run foxhound_admin_backup_media to back up now.",
+      "Read the backup state now, uncached: the newest complete D1 dump's age and each files pass (the blog media and the dispute evidence) with when it last completed, and a warning when any is past 26 hours. /health reports the same fields but caches the read for an hour; this does not. Backing up now is Capsid Admin's site_backup.",
     inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     outputSchema: output({ files: OBJECT }),
     scope: "read",
     annotations: READ,
     run: (session) => get(session, "/backup"),
-  },
-  {
-    name: "foxhound_admin_backup_media",
-    title: "Back up the files now",
-    description:
-      "Run the nightly files backup now: one pass each over the blog media and the merchants' dispute evidence files into the backups bucket (files/media/ and files/evidence/), which Capsid copies to Amazon. It copies new and changed files and drops a copy only 30 days after its file is gone; it never writes or deletes in the media or evidence buckets and moves no money. A pass stops at its write or time budget and the next goes on from there. Reports each backup's counts and whether its pass completed. /health caches the backup read for an hour, so its backup fields may take up to an hour to show this run.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: output({ files: LIST }),
-    scope: "write",
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    run: (session) => callAdminApi(session.env, session.actor, { signal: session.signal, method: "POST", path: "/backup/media" }),
   },
   {
     name: "foxhound_admin_stage_change",
@@ -233,8 +298,14 @@ export const ADMIN_TOOLS: AdminTool[] = [
           enum: ["resume_account", "release_brake", "cron_enable", "billing_exempt"],
         },
         account_id: { type: "string" },
-        cron_name: { type: "string", description: "For cron_enable: a cron foxhound_admin_check_health lists." },
-        exempt: { type: "boolean", description: "For billing_exempt: true to exempt, false to bill again." },
+        cron_name: {
+          type: "string",
+          description: "For cron_enable: a cron foxhound_admin_check_health lists.",
+        },
+        exempt: {
+          type: "boolean",
+          description: "For billing_exempt: true to exempt, false to bill again.",
+        },
         note: { type: "string", description: "Why, for the admin who confirms it." },
       },
       required: ["kind"],
@@ -243,7 +314,12 @@ export const ADMIN_TOOLS: AdminTool[] = [
     // stages another request.
     outputSchema: output({ staged: OBJECT, next: { type: "string" } }),
     scope: "write",
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
     run: async (session, args) => {
       const result = await callAdminApi(session.env, session.actor, {
         signal: session.signal,
@@ -285,7 +361,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
     outside: "foxhound-data",
     scope: "read",
     annotations: READ,
-    run: (session, args) => get(session, "/staged", { status: text(args, "status"), cursor: text(args, "cursor") }),
+    run: (session, args) =>
+      get(session, "/staged", { status: text(args, "status"), cursor: text(args, "cursor") }),
   },
   {
     name: "foxhound_admin_preview_email",
@@ -296,13 +373,26 @@ export const ADMIN_TOOLS: AdminTool[] = [
       type: "object",
       additionalProperties: false,
       properties: {
-        type: { type: "string", description: "An email type, e.g. recovery_day1. Omit to list the types." },
-        account_id: { type: "string", description: "The merchant whose settings to render with. From foxhound_admin_find_merchant." },
+        type: {
+          type: "string",
+          description: "An email type, e.g. recovery_day1. Omit to list the types.",
+        },
+        account_id: {
+          type: "string",
+          description:
+            "The merchant whose settings to render with. From foxhound_admin_find_merchant.",
+        },
         to: { type: "string", description: "Whose inbox to render for. Omit for your own." },
       },
       required: [],
     },
-    outputSchema: output({ types: LIST, recipients: OBJECT, preview: OBJECT, merchant: { type: ["object", "null"] }, note: { type: "string" } }),
+    outputSchema: output({
+      types: LIST,
+      recipients: OBJECT,
+      preview: OBJECT,
+      merchant: { type: ["object", "null"] },
+      note: { type: "string" },
+    }),
     outside: "foxhound-data",
     scope: "read",
     annotations: READ,
@@ -327,19 +417,37 @@ export const ADMIN_TOOLS: AdminTool[] = [
       additionalProperties: false,
       properties: {
         types: {
-          description: 'A list of email types, or "all". foxhound_admin_preview_email with no type lists them.',
-          anyOf: [{ type: "array", items: { type: "string" } }, { type: "string", enum: ["all"] }],
+          description:
+            'A list of email types, or "all". foxhound_admin_preview_email with no type lists them.',
+          anyOf: [
+            { type: "array", items: { type: "string" } },
+            { type: "string", enum: ["all"] },
+          ],
         },
         account_id: { type: "string", description: "The merchant whose settings to send with." },
-        to: { type: "string", description: "Omit to send to yourself. Any other address must be on the allow list." },
+        to: {
+          type: "string",
+          description: "Omit to send to yourself. Any other address must be on the allow list.",
+        },
       },
       required: ["types"],
     },
     // Not destructive: it only mails the caller. Not idempotent: each call sends again.
     // Open world: the mail leaves Foxhound.
-    outputSchema: output({ to: { type: "string" }, account_id: { type: ["string", "null"] }, results: LIST, sent: { type: "number" }, note: { type: "string" } }),
+    outputSchema: output({
+      to: { type: "string" },
+      account_id: { type: ["string", "null"] },
+      results: LIST,
+      sent: { type: "number" },
+      note: { type: "string" },
+    }),
     scope: "write",
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     run: (session, args) =>
       callAdminApi(session.env, session.actor, {
         signal: session.signal,

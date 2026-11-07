@@ -233,7 +233,8 @@ function RecoveryCta({ state }: { state: CtaState }) {
     return (
       <div className="flex flex-col gap-3">
         <p className="m-0 text-label text-text-secondary">
-          Recovery is free until we recover something. You pay {RECOVERY_FEE_PERCENT}% of what we recover.
+          Recovery is free until we recover something. You pay {RECOVERY_FEE_PERCENT}% of what we
+          recover.
         </p>
         <div>
           <Link to="/connect" className="cap-btn" data-variant="primary">
@@ -301,7 +302,8 @@ export function AuditRecoverySection({
                   data-variant="link"
                   data-size="sm"
                 >
-                  {activeSequences} {activeSequences === 1 ? "is" : "are"} in active recovery sequences
+                  {activeSequences} {activeSequences === 1 ? "is" : "are"} in active recovery
+                  sequences
                   <span aria-hidden="true"> →</span>
                 </Link>
               </div>
@@ -348,7 +350,9 @@ export function AuditRecoverySection({
               />
             )}
 
-            {failed !== null ? <RecoverableEstimate totals={recoverableTotals(failed.totals)} currency={cur} /> : null}
+            {failed !== null ? (
+              <RecoverableEstimate totals={recoverableTotals(failed.totals)} currency={cur} />
+            ) : null}
           </>
         )}
       </Panel>
@@ -380,19 +384,24 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
   }, [key, hasFigure]);
-  const shown = totals.map((t) => ({ currency: t.currency, cents: Math.round(t.cents * progress) }));
+  const shown = totals.map((t) => ({
+    currency: t.currency,
+    cents: Math.round(t.cents * progress),
+  }));
   return (
     <>
       <div className="my-5 border-t border-border" />
       <div className="mb-2">
-        <div className="mb-1 text-micro uppercase tracking-[0.06em] text-text-tertiary">Recoverable estimate</div>
+        <div className="mb-1 text-micro uppercase tracking-[0.06em] text-text-tertiary">
+          Recoverable estimate
+        </div>
         <div className="font-mono text-title font-bold text-success-text">
           <Lines lines={formatTotals(shown, currency)} />
         </div>
       </div>
       <p className="m-0 text-micro text-text-subtle">
-        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. This is an assumption,
-        not a measured rate.
+        Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. This is an
+        assumption, not a measured rate.
       </p>
     </>
   );
@@ -400,7 +409,10 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
 
 /** The estimate's totals: the assumed share of each currency's failed invoices. */
 function recoverableTotals(failed: MoneyTotals): MoneyTotals {
-  return failed.map((t) => ({ currency: t.currency, cents: Math.round((t.cents * AUDIT_RECOVERY_ESTIMATE_PCT) / 100) }));
+  return failed.map((t) => ({
+    currency: t.currency,
+    cents: Math.round((t.cents * AUDIT_RECOVERY_ESTIMATE_PCT) / 100),
+  }));
 }
 
 // ---- Disputes unmanaged -----------------------------------------------------
@@ -450,7 +462,11 @@ export function AuditDisputesSection({
         description="Where responses were skipped or evidence was thin."
         footer={<DisputesCta state={ctaState} />}
       >
-        {data === null ? <Unread label="Disputes" /> : <DisputeFigures data={data} cur={cur} foxhoundWinRate={foxhoundWinRate} />}
+        {data === null ? (
+          <Unread label="Disputes" />
+        ) : (
+          <DisputeFigures data={data} cur={cur} foxhoundWinRate={foxhoundWinRate} />
+        )}
       </Panel>
     </div>
   );
@@ -467,7 +483,8 @@ function DisputeFigures({
 }) {
   const { open, acceptedWithoutFighting: accepted, historical } = data;
   const totalHistorical = historical.won + historical.lost;
-  const winRatePct = totalHistorical > 0 ? Math.round((historical.won / totalHistorical) * 100) : null;
+  const winRatePct =
+    totalHistorical > 0 ? Math.round((historical.won / totalHistorical) * 100) : null;
 
   return (
     <>
@@ -528,8 +545,8 @@ function DisputeFigures({
               evidence automatically". Foxhound builds the evidence on its own
               and the merchant approves it before it is sent. */}
           <p className="m-0 text-micro text-text-subtle">
-            Disputes you lost without submitting evidence. Foxhound builds structured evidence automatically,
-            and you approve it before it is submitted.
+            Disputes you lost without submitting evidence. Foxhound builds structured evidence
+            automatically, and you approve it before it is submitted.
           </p>
         </div>
       ) : null}
@@ -587,12 +604,29 @@ export function AuditHealthSection({
         ) : (
           <>
             <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Headline label="MRR" value={formatTotals(health.mrr, cur)} valueClassName="text-text" />
-              <Headline label="ARR" value={formatTotals(health.arr, cur)} valueClassName="text-text" />
+              <Headline
+                label="MRR"
+                value={formatTotals(health.mrr, cur)}
+                valueClassName="text-text"
+              />
+              <Headline
+                label="ARR"
+                value={formatTotals(health.arr, cur)}
+                valueClassName="text-text"
+              />
             </div>
-            <StatRow label="Active subscriptions" primary={String(health.activeSubscriptionsCount)} />
-            <StatRow label="Involuntary churn rate" primary={formatBps(health.involuntaryChurnRateBps)} />
-            <StatRow label="Voluntary churn rate" primary={formatBps(health.voluntaryChurnRateBps)} />
+            <StatRow
+              label="Active subscriptions"
+              primary={String(health.activeSubscriptionsCount)}
+            />
+            <StatRow
+              label="Involuntary churn rate"
+              primary={formatBps(health.involuntaryChurnRateBps)}
+            />
+            <StatRow
+              label="Voluntary churn rate"
+              primary={formatBps(health.voluntaryChurnRateBps)}
+            />
             {recoveryRatePct !== null ? (
               <StatRow
                 label="Recovery rate"

@@ -48,7 +48,9 @@ function evidenceOpen(db: Db, accountId: string, disputeId: string) {
       db
         .select({ one: sql`1` })
         .from(disputeApprovals)
-        .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId))),
+        .where(
+          and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId)),
+        ),
     ),
   );
 }
@@ -88,7 +90,10 @@ export async function uploadEvidenceFile(
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!bytesMatchType(bytes, file.type)) return "file_type_not_allowed";
 
-  const [existing] = await db.select({ n: count() }).from(disputeEvidence).where(fileRowsOf(input.accountId, input.disputeId));
+  const [existing] = await db
+    .select({ n: count() })
+    .from(disputeEvidence)
+    .where(fileRowsOf(input.accountId, input.disputeId));
   if ((existing?.n ?? 0) >= DISPUTE_EVIDENCE_MAX_FILES) return "max_files_exceeded";
 
   const key = evidenceObjectKey(
@@ -154,19 +159,24 @@ export async function deleteEvidenceFile(
   const [row] = await db
     .select({ id: disputeEvidence.id, key: disputeEvidence.fieldValue })
     .from(disputeEvidence)
-    .where(and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)))
+    .where(
+      and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)),
+    )
     .limit(1);
   if (!row) return "not_found";
 
-  const result = await db
-    .delete(disputeEvidence)
-    .where(
-      and(
-        eq(disputeEvidence.id, row.id),
-        fileRowsOf(input.accountId, input.disputeId),
-        exists(db.select({ one: sql`1` }).from(disputes).where(evidenceOpen(db, input.accountId, input.disputeId))),
+  const result = await db.delete(disputeEvidence).where(
+    and(
+      eq(disputeEvidence.id, row.id),
+      fileRowsOf(input.accountId, input.disputeId),
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(disputes)
+          .where(evidenceOpen(db, input.accountId, input.disputeId)),
       ),
-    );
+    ),
+  );
   if (changedRows(result) === 0) return "not_saved";
 
   try {
@@ -195,7 +205,9 @@ export async function readEvidenceFile(
   const [row] = await db
     .select({ key: disputeEvidence.fieldValue })
     .from(disputeEvidence)
-    .where(and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)))
+    .where(
+      and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)),
+    )
     .limit(1);
   if (!row) return { outcome: "not_found" };
   const object = await bucket.get(row.key);

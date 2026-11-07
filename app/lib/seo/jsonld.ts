@@ -1,4 +1,4 @@
-import { article, faqPage, thing, website } from "@drdustinedwards/site-helpers/schema";
+import { article, faqPage, itemList, thing, website } from "@drdustinedwards/site-helpers/schema";
 
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 
@@ -67,8 +67,7 @@ export function softwareApplicationJsonLd(url: string) {
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     url,
-    description:
-      `Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. ${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.`,
+    description: `Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. ${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.`,
     publisher: { "@id": `${url}/#organization` },
     // NO `offers` BLOCK, DELIBERATELY (376 item 22, verified true at 2569400).
     //
@@ -102,10 +101,7 @@ export function faqPageJsonLd(faqs: JsonLdFaq[]) {
 }
 
 /** The speakable parts of a page, on Prelum's WebPage node (marketingMeta) by its `@id`, so the page is one node. */
-export function speakableWebPageJsonLd(
-  url: string,
-  opts: { path: string; selectors: string[] },
-) {
+export function speakableWebPageJsonLd(url: string, opts: { path: string; selectors: string[] }) {
   return thing("WebPage", {
     "@id": `${url}${opts.path}#webpage`,
     url: `${url}${opts.path}`,
@@ -229,22 +225,19 @@ export function techArticleJsonLd(
   });
 }
 
-/** The docs index as an ItemList of its guides, in the order the page renders
- *  them, so a crawler reading the hub gets the set rather than five unrelated
- *  pages it has to discover by link-following. Not Prelum's itemList(): each
- *  guide carries its description, which itemList's items do not. */
+/** The docs index as an ItemList of its guides, in the order the page renders them, each with its description, so a
+ *  crawler reading the hub gets the set rather than five unrelated pages it has to discover by link-following. */
 export function docsItemListJsonLd(
   url: string,
   guides: { title: string; description: string; slug: string }[],
 ) {
-  return thing("ItemList", {
-    name: "Foxhound documentation",
-    itemListElement: guides.map((guide, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
+  return itemList(
+    url,
+    "Foxhound documentation",
+    guides.map((guide) => ({
       name: guide.title,
       description: guide.description,
-      url: `${url}/docs/${guide.slug}`,
+      path: `/docs/${guide.slug}`,
     })),
-  });
+  );
 }

@@ -35,12 +35,18 @@ export function findStockPhrasing(text: string, allow: readonly string[] = []): 
  * draft that matches them is never retried for it. Pure.
  */
 export function ownPhrasing(samples: readonly string[]): string[] {
-  return [...new Set(samples.flatMap((s) => findStockPhrasing(s).flatMap((i) => (i.excerpt ? [i.excerpt] : []))))];
+  return [
+    ...new Set(
+      samples.flatMap((s) => findStockPhrasing(s).flatMap((i) => (i.excerpt ? [i.excerpt] : []))),
+    ),
+  ];
 }
 
 /** The retry's instruction, naming what the first draft used. */
 function stockPhrasingInstruction(issues: readonly ProseIssue[]): string {
-  const named = [...new Set(issues.map((i) => (i.excerpt ? `"${i.excerpt}"` : i.message)))].join(", ");
+  const named = [...new Set(issues.map((i) => (i.excerpt ? `"${i.excerpt}"` : i.message)))].join(
+    ", ",
+  );
   return `\n\nADDITIONAL INSTRUCTION:\nThe previous draft used phrasing that reads as machine-written: ${named}. Write it again in plain words, without them.`;
 }
 
@@ -63,7 +69,10 @@ export async function retryStockPhrasing<T>(
     if (text.trim() && findStockPhrasing(text, allow).length < issues.length) return retried;
   } catch (err) {
     // The message only: an SDK error object can carry request details.
-    console.error("stock-phrasing retry failed; keeping the first draft:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "stock-phrasing retry failed; keeping the first draft:",
+      err instanceof Error ? err.message : "unknown error",
+    );
   }
   return first;
 }

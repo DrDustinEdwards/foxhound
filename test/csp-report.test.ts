@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CSP_REPORT_PATH } from "~/lib/http/content-security-policy";
 import { action } from "~/routes/csp-report";
 
@@ -27,8 +27,13 @@ function call(request: Request, allowed = true) {
       },
     }),
   };
-  const context = { get: (key: unknown) => (key === cloudflareContext ? { env: { RATE_LIMITER: ns } } : undefined) };
-  return { response: action({ request, context, params: {} } as never) as Promise<Response>, calls };
+  const context = {
+    get: (key: unknown) => (key === cloudflareContext ? { env: { RATE_LIMITER: ns } } : undefined),
+  };
+  return {
+    response: action({ request, context, params: {} } as never) as Promise<Response>,
+    calls,
+  };
 }
 
 const TOKEN_REPORT = JSON.stringify({
@@ -48,7 +53,9 @@ describe("POST /csp-report", () => {
     const log = vi.spyOn(console, "info").mockImplementation(() => {});
     const { response, calls } = call(post(TOKEN_REPORT, "198.51.100.9"));
     expect((await response).status).toBe(204);
-    expect(calls).toEqual([{ name: "csp-report:198.51.100.9", rules: [{ limit: 20, windowSeconds: 60 }] }]);
+    expect(calls).toEqual([
+      { name: "csp-report:198.51.100.9", rules: [{ limit: 20, windowSeconds: 60 }] },
+    ]);
     expect(log).toHaveBeenCalledTimes(1);
     const line = String(log.mock.calls[0]?.[0]);
     expect(JSON.parse(line)).toEqual({

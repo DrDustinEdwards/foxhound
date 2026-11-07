@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from "vitest";
 
 import { isPaymentDetailPath, shouldShowRouteSplash } from "~/lib/navigation/route-splash";
@@ -15,12 +14,9 @@ import { isPaymentDetailPath, shouldShowRouteSplash } from "~/lib/navigation/rou
 // is proven by source. What is NOT proven is that React paints it; that rests on
 // the demo probe.
 
-
-
 const DETAIL = "/recovery/payments/dfp_46";
 
 describe("305: the splash shows DURING a pending navigation", () => {
-
   it("is GONE once the data has landed", () => {
     // Absence after data, not merely presence during. An idle navigation has no
     // location at all, which is the settled state's own shape.
@@ -64,7 +60,6 @@ describe("305 THE MONEY GUARD: a POST's revalidation is not a navigation", () =>
 });
 
 describe("305: the path predicate is the detail route and nothing else", () => {
-
   it("does NOT match the list, which is one segment shorter", () => {
     // The PATH predicate still excludes the list: the list is not a detail page.
     expect(isPaymentDetailPath("/recovery/payments")).toBe(false);
@@ -75,8 +70,8 @@ describe("305: the path predicate is the detail route and nothing else", () => {
     // assertion, not a regression guard, so it is re-pointed at the new truth
     // with the reason recorded, the same adjudication 296 applied to the stale
     // note-intent test. The live behavior now lives in route-splash-306.
-    expect(shouldShowRouteSplash({ state: "loading", location: { pathname: "/recovery/payments" } })).toBe(
-      true,
-    );
+    expect(
+      shouldShowRouteSplash({ state: "loading", location: { pathname: "/recovery/payments" } }),
+    ).toBe(true);
   });
 });

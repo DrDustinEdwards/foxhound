@@ -72,7 +72,12 @@ export async function getDisputeFindings(
     db
       .select({ disputeSignals: customerContext.disputeSignals })
       .from(customerContext)
-      .where(and(eq(customerContext.accountId, accountId), eq(customerContext.stripeCustomerId, stripeCustomerId)))
+      .where(
+        and(
+          eq(customerContext.accountId, accountId),
+          eq(customerContext.stripeCustomerId, stripeCustomerId),
+        ),
+      )
       .limit(1),
     db
       .select({ declineCode: failedPayments.declineCode })
@@ -114,7 +119,9 @@ export async function getDisputeFindings(
           isNull(recoverySteps.deletedAt),
         ),
       );
-    const executed = steps.filter((s): s is typeof s & { executedAt: Date } => s.executedAt !== null);
+    const executed = steps.filter(
+      (s): s is typeof s & { executedAt: Date } => s.executedAt !== null,
+    );
     recovery = {
       declineCategory: latest.declineCategory,
       status: latest.status,

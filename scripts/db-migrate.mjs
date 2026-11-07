@@ -46,7 +46,9 @@ if (args.includes("--remote")) {
 const passthrough = args.filter((a) => a !== "--remote-confirm");
 
 if (remote) {
-  console.log(`Applying migrations to REMOTE "${DATABASE}" (production), authorized by --remote-confirm.`);
+  console.log(
+    `Applying migrations to REMOTE "${DATABASE}" (production), authorized by --remote-confirm.`,
+  );
 } else {
   console.log(
     [
@@ -70,7 +72,10 @@ const wranglerArgs = [
   ...passthrough,
 ];
 
-const result = spawnSync("npx", wranglerArgs, { stdio: "inherit", shell: process.platform === "win32" });
+const result = spawnSync("npx", wranglerArgs, {
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
 
 if (result.error) {
   console.error(`Failed to run wrangler: ${result.error.message}`);

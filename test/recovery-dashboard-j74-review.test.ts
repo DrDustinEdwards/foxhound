@@ -5,7 +5,10 @@ import { emailSends, emailSuppressions } from "~/db/schema";
 import { getRecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
-import { getDeliverabilityCounts, listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server";
+import {
+  getDeliverabilityCounts,
+  listExecutedEmailSteps,
+} from "~/lib/recovery/dashboard-queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -24,7 +27,6 @@ async function seededDb() {
   await seedDemoAccount(db, now);
   return db;
 }
-
 
 describe("Emails sent card: the same 30 days as every other stat card", () => {
   it("counts only email steps executed inside the window, with rates over those", async () => {
@@ -56,37 +58,50 @@ describe("Deliverability: sends from email_sends, bounces and complaints from em
     // Clear anything the seed wrote so the counts below are exact.
     await db.delete(emailSends).where(eq(emailSends.accountId, DEMO_ACCOUNT_ID));
     await db.delete(emailSuppressions).where(eq(emailSuppressions.accountId, DEMO_ACCOUNT_ID));
-    const send = (status: string, sentAt: Date | null, accountId: string | null = DEMO_ACCOUNT_ID) => ({
+    const send = (
+      status: string,
+      sentAt: Date | null,
+      accountId: string | null = DEMO_ACCOUNT_ID,
+    ) => ({
       accountId,
       status,
       sentAt,
       createdAt: sentAt ?? inside,
     });
-    await db.insert(emailSends).values([
-      send("sent", inside),
-      send("sent", inside),
-      send("sent", inside),
-      send("sent", inside),
-      send("failed", null),
-      send("suppressed", null),
-      send("sent", outside),
-      send("sent", inside, null),
-    ]);
-    const supp = (email: string, reason: string, at: Date, accountId: string | null = DEMO_ACCOUNT_ID) => ({
+    await db
+      .insert(emailSends)
+      .values([
+        send("sent", inside),
+        send("sent", inside),
+        send("sent", inside),
+        send("sent", inside),
+        send("failed", null),
+        send("suppressed", null),
+        send("sent", outside),
+        send("sent", inside, null),
+      ]);
+    const supp = (
+      email: string,
+      reason: string,
+      at: Date,
+      accountId: string | null = DEMO_ACCOUNT_ID,
+    ) => ({
       email,
       token: `evt_${email}`,
       reason,
       suppressedAt: at,
       accountId,
     });
-    await db.insert(emailSuppressions).values([
-      supp("a@example.com", "bounce", inside),
-      supp("b@example.com", "hard_bounce", inside),
-      supp("c@example.com", "complaint", inside),
-      supp("d@example.com", "unsubscribe", inside),
-      supp("e@example.com", "bounce", outside),
-      supp("f@example.com", "spam", inside, null),
-    ]);
+    await db
+      .insert(emailSuppressions)
+      .values([
+        supp("a@example.com", "bounce", inside),
+        supp("b@example.com", "hard_bounce", inside),
+        supp("c@example.com", "complaint", inside),
+        supp("d@example.com", "unsubscribe", inside),
+        supp("e@example.com", "bounce", outside),
+        supp("f@example.com", "spam", inside, null),
+      ]);
 
     const counts = await getDeliverabilityCounts(db, DEMO_ACCOUNT_ID, now.getTime() - 30 * DAY_MS);
     expect(counts).toEqual({ sent: 4, bounced: 2, complaints: 1 });

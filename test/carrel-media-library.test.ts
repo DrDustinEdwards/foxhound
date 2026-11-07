@@ -8,13 +8,16 @@ import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { carrelMediaAdapter } from "~/lib/carrel/media-adapter.server";
 import { serializePostSource } from "~/lib/carrel/source";
 import { loader as mediaLoader } from "~/routes/files/media";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // The media route reads the index through getDb(env).
 const route = vi.hoisted(() => ({ db: undefined as unknown }));
-vi.mock("~/db", async (importOriginal) => ({ ...(await importOriginal<typeof import("~/db")>()), getDb: () => route.db }));
+vi.mock("~/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/db")>()),
+  getDb: () => route.db,
+}));
 
 // The blog's media library through Carrel's real site-api mount, over the real
 // schema (migration 0059's tables and triggers) and in-memory stand-ins for the
@@ -34,7 +37,10 @@ function png(width: number, height: number, tag = 0): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-const sizeOf = (bytes: Uint8Array) => ({ width: new DataView(bytes.buffer, bytes.byteOffset).getUint32(16), height: new DataView(bytes.buffer, bytes.byteOffset).getUint32(20) });
+const sizeOf = (bytes: Uint8Array) => ({
+  width: new DataView(bytes.buffer, bytes.byteOffset).getUint32(16),
+  height: new DataView(bytes.buffer, bytes.byteOffset).getUint32(20),
+});
 
 async function bytesOf(value: unknown): Promise<Uint8Array> {
   if (value instanceof Uint8Array) return new Uint8Array(value);
@@ -43,7 +49,15 @@ async function bytesOf(value: unknown): Promise<Uint8Array> {
 }
 
 function fakeBucket() {
-  const objects = new Map<string, { bytes: Uint8Array; etag: string; httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }>();
+  const objects = new Map<
+    string,
+    {
+      bytes: Uint8Array;
+      etag: string;
+      httpMetadata?: { contentType?: string };
+      customMetadata?: Record<string, string>;
+    }
+  >();
   let n = 0;
   const view = (key: string) => {
     const o = objects.get(key);
@@ -56,36 +70,63 @@ function fakeBucket() {
       customMetadata: o.customMetadata,
       body: new Response(o.bytes.slice()).body!,
       arrayBuffer: async () => o.bytes.slice().buffer,
-      writeHttpMetadata: (headers: Headers) => headers.set("content-type", o.httpMetadata?.contentType ?? "application/octet-stream"),
+      writeHttpMetadata: (headers: Headers) =>
+        headers.set("content-type", o.httpMetadata?.contentType ?? "application/octet-stream"),
     };
   };
   return {
     objects,
     head: async (key: string) => view(key),
     get: async (key: string) => view(key),
-    async put(key: string, value: unknown, options: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string>; onlyIf?: { etagMatches: string } } = {}) {
+    async put(
+      key: string,
+      value: unknown,
+      options: {
+        httpMetadata?: { contentType?: string };
+        customMetadata?: Record<string, string>;
+        onlyIf?: { etagMatches: string };
+      } = {},
+    ) {
       if (options.onlyIf && objects.get(key)?.etag !== options.onlyIf.etagMatches) return null;
-      objects.set(key, { bytes: await bytesOf(value), etag: `e${++n}`, httpMetadata: options.httpMetadata, customMetadata: options.customMetadata });
+      objects.set(key, {
+        bytes: await bytesOf(value),
+        etag: `e${++n}`,
+        httpMetadata: options.httpMetadata,
+        customMetadata: options.customMetadata,
+      });
       return view(key);
     },
     async delete(keys: string | string[]) {
       for (const key of [keys].flat()) objects.delete(key);
     },
-    list: async ({ prefix }: { prefix: string }) => ({ objects: [...objects.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })), truncated: false }),
+    list: async ({ prefix }: { prefix: string }) => ({
+      objects: [...objects.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })),
+      truncated: false,
+    }),
   };
 }
 
 /** Measures the PNG header; a transform writes a header of the new size, so the bytes really change. */
 const fakeImages = {
-  info: async (stream: ReadableStream) => ({ format: "image/png", fileSize: 40, ...sizeOf(await bytesOf(stream)) }),
+  info: async (stream: ReadableStream) => ({
+    format: "image/png",
+    fileSize: 40,
+    ...sizeOf(await bytesOf(stream)),
+  }),
   input: (stream: ReadableStream) => ({
     transform: (t: { rotate?: number; width?: number; height?: number }) => ({
       output: async () => {
         const { width, height } = sizeOf(await bytesOf(stream));
-        const turned = t.rotate === 90 || t.rotate === 270 ? { width: height, height: width } : { width, height };
+        const turned =
+          t.rotate === 90 || t.rotate === 270
+            ? { width: height, height: width }
+            : { width, height };
         const scale = t.width ? Math.min(1, t.width / Math.max(turned.width, turned.height)) : 1;
         const out = png(Math.round(turned.width * scale), Math.round(turned.height * scale), 200);
-        return { response: () => new Response(out as BodyInit, { headers: { "content-type": "image/png" } }) };
+        return {
+          response: () =>
+            new Response(out as BodyInit, { headers: { "content-type": "image/png" } }),
+        };
       },
     }),
   }),
@@ -116,22 +157,43 @@ function setup() {
   const env = {
     MEDIA: bucket,
     IMAGES: fakeImages,
-    AI: { run: async () => ({ response: '{"alt": "A bar chart of declines", "tags": ["chart", "declines"]}', usage: { prompt_tokens: 10, completion_tokens: 5 } }) },
+    AI: {
+      run: async () => ({
+        response: '{"alt": "A bar chart of declines", "tags": ["chart", "declines"]}',
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      }),
+    },
   } as unknown as Env;
   const api = createSiteApi({
-    adapter: { ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite))), media: carrelMediaAdapter(env, db) },
+    adapter: {
+      ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite))),
+      media: carrelMediaAdapter(env, db),
+    },
     key: KEY,
     limiter: { limit: async () => ({ success: true }) },
     log: () => {},
   });
   const call = (path: string, init: RequestInit = {}) =>
-    api.handle(new Request(`${BASE}${path}`, { ...init, headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json", ...(init.headers as Record<string, string> | undefined) } }));
+    api.handle(
+      new Request(`${BASE}${path}`, {
+        ...init,
+        headers: {
+          authorization: `Bearer ${KEY}`,
+          "content-type": "application/json",
+          ...(init.headers as Record<string, string> | undefined),
+        },
+      }),
+    );
   const json = async (path: string, init: RequestInit = {}) => {
     const response = await call(path, init);
     return { status: response.status, body: (await response.json()) as Answer };
   };
   const upload = (bytes: Uint8Array, name = "declines-chart.png", query = "") =>
-    json(`/media?filename=${name}&decorative=yes&changeId=up-${++uploads}${query}`, { method: "POST", headers: { "content-type": "image/png" }, body: new Blob([bytes as BlobPart]) });
+    json(`/media?filename=${name}&decorative=yes&changeId=up-${++uploads}${query}`, {
+      method: "POST",
+      headers: { "content-type": "image/png" },
+      body: new Blob([bytes as BlobPart]),
+    });
   const at = (id: string) => `/media/${encodeURIComponent(id)}`;
   return { db, sqlite, env, bucket, api, call, json, upload, at };
 }
@@ -139,7 +201,15 @@ function setup() {
 let uploads = 0;
 
 const post = (body: string) =>
-  serializePostSource({ title: "Why cards fail", slug: "why-cards-fail", excerpt: "Reasons.", author: "Foxhound", tags: [], featured: false, body });
+  serializePostSource({
+    title: "Why cards fail",
+    slug: "why-cards-fail",
+    excerpt: "Reasons.",
+    author: "Foxhound",
+    tags: [],
+    featured: false,
+    body,
+  });
 
 describe("the media library through Carrel's site-api mount", () => {
   it("passes site-api's conformance suite, its own upload round trip included", async () => {
@@ -148,7 +218,8 @@ describe("the media library through Carrel's site-api mount", () => {
       baseUrl: ORIGIN,
       key: KEY,
       probeMediaUpload: true,
-      fetch: ((input: RequestInfo | URL, init?: RequestInit) => t.api.handle(new Request(input as string, init))) as typeof fetch,
+      fetch: ((input: RequestInfo | URL, init?: RequestInit) =>
+        t.api.handle(new Request(input as string, init))) as typeof fetch,
     });
     expect(report.checks.filter((c) => !c.ok)).toEqual([]);
   });
@@ -165,7 +236,11 @@ describe("the media library through Carrel's site-api mount", () => {
 
     const created = await t.json("/content/p1/draft", {
       method: "PUT",
-      body: JSON.stringify({ source: post(`![Declines by reason](/media/${id})\n`), expectedVersion: null, changeId: "c1" }),
+      body: JSON.stringify({
+        source: post(`![Declines by reason](/media/${id})\n`),
+        expectedVersion: null,
+        changeId: "c1",
+      }),
     });
     expect(created.status).toBe(200);
 
@@ -181,11 +256,20 @@ describe("the media library through Carrel's site-api mount", () => {
 
     const refused = await t.call(`${t.at(id)}?changeId=d1`, { method: "DELETE" });
     expect(refused.status).toBe(422);
-    expect(((await refused.json()) as { usedBy: Array<{ id: string }> }).usedBy.map((u) => u.id)).toEqual(["p1"]);
+    expect(
+      ((await refused.json()) as { usedBy: Array<{ id: string }> }).usedBy.map((u) => u.id),
+    ).toEqual(["p1"]);
     expect(t.bucket.objects.has(id)).toBe(true);
 
     const doc = await t.json("/content/p1");
-    await t.json("/content/p1/draft", { method: "PUT", body: JSON.stringify({ source: post("No picture now.\n"), expectedVersion: doc.body.version, changeId: "c2" }) });
+    await t.json("/content/p1/draft", {
+      method: "PUT",
+      body: JSON.stringify({
+        source: post("No picture now.\n"),
+        expectedVersion: doc.body.version,
+        changeId: "c2",
+      }),
+    });
     expect((await t.call(`${t.at(id)}?changeId=d2`, { method: "DELETE" })).status).toBe(200);
     expect(t.bucket.objects.has(id)).toBe(false);
   });
@@ -194,7 +278,14 @@ describe("the media library through Carrel's site-api mount", () => {
     const t = setup();
     const { body: item } = await t.upload(png(800, 600));
     const alt = (text: string, expectedVersion: string) =>
-      t.json(`${t.at(item.id)}/alt`, { method: "PUT", body: JSON.stringify({ alt: text, expectedVersion, changeId: `a-${text.replace(/\W/g, "")}` }) });
+      t.json(`${t.at(item.id)}/alt`, {
+        method: "PUT",
+        body: JSON.stringify({
+          alt: text,
+          expectedVersion,
+          changeId: `a-${text.replace(/\W/g, "")}`,
+        }),
+      });
     const first = await alt("A chart", item.version);
     expect(first.status).toBe(200);
     const stale = await alt("Another", item.version);
@@ -213,7 +304,11 @@ describe("the media library through Carrel's site-api mount", () => {
     expect(history.body.revisions.map((r) => r.reason)).toEqual(["resize", "upload"]);
     const reverted = await t.json(`${t.at(up.body.id)}/revert`, {
       method: "POST",
-      body: JSON.stringify({ to: history.body.revisions[1].rev, expectedVersion: up.body.version, changeId: "r1" }),
+      body: JSON.stringify({
+        to: history.body.revisions[1].rev,
+        expectedVersion: up.body.version,
+        changeId: "r1",
+      }),
     });
     expect(reverted.status).toBe(200);
     expect([reverted.body.width, reverted.body.height]).toEqual([4000, 3000]);
@@ -228,7 +323,14 @@ describe("the media library through Carrel's site-api mount", () => {
     const kept = (await t.upload(png(800, 600, 1), "kept.png")).body;
     const gone = (await t.upload(png(800, 600, 2), "gone.png")).body;
     const cursor = (await t.json("/media?limit=1")).body.changeCursor;
-    await t.json(`${t.at(kept.id)}/alt`, { method: "PUT", body: JSON.stringify({ alt: "A bar chart of declines by month", expectedVersion: kept.version, changeId: "a1" }) });
+    await t.json(`${t.at(kept.id)}/alt`, {
+      method: "PUT",
+      body: JSON.stringify({
+        alt: "A bar chart of declines by month",
+        expectedVersion: kept.version,
+        changeId: "a1",
+      }),
+    });
     await t.call(`${t.at(gone.id)}?changeId=d1`, { method: "DELETE" });
     const changes = await t.json(`/media?changedSince=${cursor}`);
     expect(changes.body.items.map((i) => i.id)).toEqual([kept.id]);
@@ -244,11 +346,21 @@ describe("the media library through Carrel's site-api mount", () => {
     route.db = t.db;
     const context = new Map([[cloudflareContext, { env: t.env }]]);
     const get = (key: string, query = "") =>
-      mediaLoader({ params: { "*": key }, request: new Request(`${ORIGIN}/media/${key}${query}`), context } as unknown as Parameters<typeof mediaLoader>[0]);
+      mediaLoader({
+        params: { "*": key },
+        request: new Request(`${ORIGIN}/media/${key}${query}`),
+        context,
+      } as unknown as Parameters<typeof mediaLoader>[0]);
     expect((await get(up.id)).headers.get("cache-control")).toBe("public, max-age=300");
-    const [row] = t.sqlite.prepare("SELECT sha256 FROM media WHERE key = ?").all(up.id) as Array<{ sha256: string }>;
-    expect((await get(up.id, `?v=${row!.sha256.slice(0, 12)}`)).headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
-    expect((await get(up.id, "?v=000000000000")).headers.get("cache-control")).toBe("public, max-age=300");
+    const [row] = t.sqlite.prepare("SELECT sha256 FROM media WHERE key = ?").all(up.id) as Array<{
+      sha256: string;
+    }>;
+    expect((await get(up.id, `?v=${row!.sha256.slice(0, 12)}`)).headers.get("cache-control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+    expect((await get(up.id, "?v=000000000000")).headers.get("cache-control")).toBe(
+      "public, max-age=300",
+    );
     expect((await get(copy!)).status).toBe(404);
     vi.unstubAllGlobals();
   });

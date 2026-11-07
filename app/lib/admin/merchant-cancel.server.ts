@@ -41,12 +41,22 @@ function buildCancelMerchantBatch(
       .where(and(eq(accounts.id, accountId), eq(accounts.cancelledAt, now))),
   );
   return [
-    db.update(accounts).set({ cancelledAt: now }).where(eq(accounts.id, accountId)).returning({ id: accounts.id }),
+    db
+      .update(accounts)
+      .set({ cancelledAt: now })
+      .where(eq(accounts.id, accountId))
+      .returning({ id: accounts.id }),
     ...connections.map((c) =>
       db
         .update(stripeConnections)
         .set({ disconnectedAt: now })
-        .where(and(eq(stripeConnections.id, c.id), eq(stripeConnections.accountId, accountId), cancelledNow)),
+        .where(
+          and(
+            eq(stripeConnections.id, c.id),
+            eq(stripeConnections.accountId, accountId),
+            cancelledNow,
+          ),
+        ),
     ),
   ];
 }
@@ -58,13 +68,19 @@ function buildCancelMerchantBatch(
  * live D1 binding. Returns the connections that were just disconnected, so the
  * caller knows which ones still need a Stripe oauth.deauthorize call.
  */
-async function cancelMerchantLocal(db: Db, accountId: string, now: Date): Promise<CancelledConnection[]> {
+async function cancelMerchantLocal(
+  db: Db,
+  accountId: string,
+  now: Date,
+): Promise<CancelledConnection[]> {
   const activeConnections = await db
     .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
     .where(activeConnectionWhere(accountId));
 
-  const [stamped] = (await db.batch(buildCancelMerchantBatch(db, accountId, activeConnections, now))) as unknown[];
+  const [stamped] = (await db.batch(
+    buildCancelMerchantBatch(db, accountId, activeConnections, now),
+  )) as unknown[];
   // A zero-row account UPDATE is a failure, not a cancel: no such account.
   if (!Array.isArray(stamped) || stamped.length === 0) {
     throw new Error(`cancelMerchant: no account ${accountId} to cancel`);
@@ -130,7 +146,10 @@ export async function cancelMerchant(
  *  instead, which is the change that makes the flag harmless. */
 function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date): CancelBatch {
   return [
-    db.update(stripeConnections).set({ disconnectedAt: now }).where(eq(stripeConnections.id, connectionId)),
+    db
+      .update(stripeConnections)
+      .set({ disconnectedAt: now })
+      .where(eq(stripeConnections.id, connectionId)),
   ];
 }
 
@@ -140,7 +159,11 @@ function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date)
  * their Stripe dashboard, so there is nothing left to revoke and no retry to
  * queue. The same batch, so stripe_connections.disconnected_at keeps one writer.
  */
-export async function disconnectConnectionLocal(db: Db, connectionId: string, now: Date): Promise<void> {
+export async function disconnectConnectionLocal(
+  db: Db,
+  connectionId: string,
+  now: Date,
+): Promise<void> {
   await db.batch(buildDisconnectConnectionBatch(db, connectionId, now));
 }
 
@@ -167,7 +190,9 @@ export async function disconnectConnection(
   await disconnectConnectionLocal(getDb(env), connection.id, now);
 
   const [failure] = await revokeDisconnectedGrants(env, [connection], now, deauthorize);
-  return failure ? { disconnectedAt: now, deauthorizeError: failure.error } : { disconnectedAt: now };
+  return failure
+    ? { disconnectedAt: now, deauthorizeError: failure.error }
+    : { disconnectedAt: now };
 }
 
 /**

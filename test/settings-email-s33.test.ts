@@ -1,9 +1,8 @@
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -60,10 +59,14 @@ beforeEach(() => {
   harness.sent = [];
 
   sqlite
-    .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, ?, 1000, 1)")
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, ?, 1000, 1)",
+    )
     .run(ACCOUNT, "Acme");
   sqlite
-    .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, ?, 1000, 1)")
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, ?, 1000, 1)",
+    )
     .run(OTHER, "Someone else");
 });
 
@@ -92,13 +95,15 @@ function seedConnection(opts: {
 
 function connectionRow(id: string): { senderName: string | null; brandVoice: string | null } {
   return sqlite
-    .prepare("SELECT sender_name AS senderName, brand_voice AS brandVoice FROM stripe_connections WHERE id = ?")
+    .prepare(
+      "SELECT sender_name AS senderName, brand_voice AS brandVoice FROM stripe_connections WHERE id = ?",
+    )
     .get(id) as { senderName: string | null; brandVoice: string | null };
 }
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: USER,
@@ -116,7 +121,9 @@ const ctx = {
   },
 } as unknown as Parameters<typeof action>[0]["context"];
 
-async function post(fields: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> {
+async function post(
+  fields: Record<string, string>,
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
   const res = (await action({
@@ -128,7 +135,6 @@ async function post(fields: Record<string, string>): Promise<{ status: number; b
 }
 
 describe("PLANT 1: the save writes sender_name and nothing else", () => {
-
   it("refuses a connection on ANOTHER account and writes nothing", async () => {
     seedConnection({ id: "c_theirs", accountId: OTHER, senderName: "Theirs" });
     const res = await post({ _action: "sender", connectionId: "c_theirs", senderName: "Hijacked" });
@@ -145,7 +151,6 @@ describe("PLANT 1: the save writes sender_name and nothing else", () => {
 });
 
 describe("PLANT 2: sender_name is required and bounded", () => {
-
   it("400 when the account has no live primary connection", async () => {
     const res = await post({ _action: "sender", senderName: "Alex" });
     expect(res.status).toBe(400);
@@ -223,7 +228,6 @@ describe("PLANT 4: the test email is a real send", () => {
 });
 
 describe("PLANT 7: the shared settings surfaces still stand", () => {
-
   it("the loader hands the form the primary LIVE connection, never a disconnected one", async () => {
     // S37 leaves is_primary SET on a disconnected row, so a reader without the
     // null check would hand this form a severed connection to write to.

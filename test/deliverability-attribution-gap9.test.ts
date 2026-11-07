@@ -36,20 +36,50 @@ describe("deliverability events are attributed to the send's account", () => {
     const before = await getDeliverabilityCounts(db, DEMO_ACCOUNT_ID, null);
 
     await db.insert(emailSends).values([
-      { accountId: DEMO_ACCOUNT_ID, status: "sent", providerMessageId: "msg_bounce", sentAt: now, createdAt: now },
-      { accountId: DEMO_ACCOUNT_ID, status: "sent", providerMessageId: "msg_spam", sentAt: now, createdAt: now },
+      {
+        accountId: DEMO_ACCOUNT_ID,
+        status: "sent",
+        providerMessageId: "msg_bounce",
+        sentAt: now,
+        createdAt: now,
+      },
+      {
+        accountId: DEMO_ACCOUNT_ID,
+        status: "sent",
+        providerMessageId: "msg_spam",
+        sentAt: now,
+        createdAt: now,
+      },
     ]);
 
-    expect(await recordEmailEvent(db, envelope("bounced", "msg_bounce", "gone@example.com"), now)).toBe("suppressed");
-    expect(await recordEmailEvent(db, envelope("complained", "msg_spam", "angry@example.com"), now)).toBe("suppressed");
-    expect(await recordEmailEvent(db, envelope("bounced", "msg_unknown", "stray@example.com"), now)).toBe("suppressed");
+    expect(
+      await recordEmailEvent(db, envelope("bounced", "msg_bounce", "gone@example.com"), now),
+    ).toBe("suppressed");
+    expect(
+      await recordEmailEvent(db, envelope("complained", "msg_spam", "angry@example.com"), now),
+    ).toBe("suppressed");
+    expect(
+      await recordEmailEvent(db, envelope("bounced", "msg_unknown", "stray@example.com"), now),
+    ).toBe("suppressed");
 
     const rows = await db
-      .select({ email: emailSuppressions.email, accountId: emailSuppressions.accountId, reason: emailSuppressions.reason })
+      .select({
+        email: emailSuppressions.email,
+        accountId: emailSuppressions.accountId,
+        reason: emailSuppressions.reason,
+      })
       .from(emailSuppressions);
     const byEmail = Object.fromEntries(rows.map((r) => [r.email, r]));
-    expect(byEmail["gone@example.com"]).toEqual({ email: "gone@example.com", accountId: DEMO_ACCOUNT_ID, reason: "hard_bounce" });
-    expect(byEmail["angry@example.com"]).toEqual({ email: "angry@example.com", accountId: DEMO_ACCOUNT_ID, reason: "complaint" });
+    expect(byEmail["gone@example.com"]).toEqual({
+      email: "gone@example.com",
+      accountId: DEMO_ACCOUNT_ID,
+      reason: "hard_bounce",
+    });
+    expect(byEmail["angry@example.com"]).toEqual({
+      email: "angry@example.com",
+      accountId: DEMO_ACCOUNT_ID,
+      reason: "complaint",
+    });
     expect(byEmail["stray@example.com"]?.accountId).toBeNull();
 
     const after = await getDeliverabilityCounts(db, DEMO_ACCOUNT_ID, null);

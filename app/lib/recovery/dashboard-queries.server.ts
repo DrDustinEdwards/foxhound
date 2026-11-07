@@ -138,9 +138,18 @@ export async function listRecoveredWithFailureContext(
   accountId: string,
   cutoffMs: number | null,
 ): Promise<
-  { recoveredAt: Date; amountCents: number; currency: string; detectedAt: Date; declineCategory: DeclineCategory }[]
+  {
+    recoveredAt: Date;
+    amountCents: number;
+    currency: string;
+    detectedAt: Date;
+    declineCategory: DeclineCategory;
+  }[]
 > {
-  const conditions = [eq(recoveredPayments.accountId, accountId), eq(failedPayments.isRenewalNoise, false)];
+  const conditions = [
+    eq(recoveredPayments.accountId, accountId),
+    eq(failedPayments.isRenewalNoise, false),
+  ];
   if (cutoffMs !== null) conditions.push(gte(recoveredPayments.recoveredAt, new Date(cutoffMs)));
   const rows = await db
     .select({
@@ -209,7 +218,14 @@ export function notCancelledResult(): SQL {
 export async function listExecutedEmailSteps(
   db: Db,
   accountId: string,
-): Promise<{ declineCategory: DeclineCategory; executedAt: Date | null; openedAt: Date | null; clickedAt: Date | null }[]> {
+): Promise<
+  {
+    declineCategory: DeclineCategory;
+    executedAt: Date | null;
+    openedAt: Date | null;
+    clickedAt: Date | null;
+  }[]
+> {
   const rows = await db
     .select({
       declineCategory: failedPayments.declineCategory,
@@ -239,7 +255,10 @@ export async function listReactivatedWinbacks(
   accountId: string,
   cutoffMs: number | null,
 ): Promise<{ amountCents: number | null; currency: string | null }[]> {
-  const conditions = [eq(winBackSequences.accountId, accountId), eq(winBackSequences.status, "reactivated")];
+  const conditions = [
+    eq(winBackSequences.accountId, accountId),
+    eq(winBackSequences.status, "reactivated"),
+  ];
   if (cutoffMs !== null) conditions.push(gte(winBackSequences.reactivatedAt, new Date(cutoffMs)));
   return db
     .select({ amountCents: winBackSequences.amountCents, currency: winBackSequences.currency })
@@ -277,10 +296,16 @@ export interface DashboardOnboardingProfile {
 /** What Recova's dashboard reads for its getting-started checklist
  *  (app/(app)/recovery/dashboard/page.tsx: accounts.notification_email and
  *  onboarding_completed, and the primary connection's sender_name). */
-export async function getDashboardOnboardingProfile(db: Db, accountId: string): Promise<DashboardOnboardingProfile> {
+export async function getDashboardOnboardingProfile(
+  db: Db,
+  accountId: string,
+): Promise<DashboardOnboardingProfile> {
   const [[account], [connection]] = await Promise.all([
     db
-      .select({ notificationEmail: accounts.notificationEmail, onboardingCompleted: accounts.onboardingCompleted })
+      .select({
+        notificationEmail: accounts.notificationEmail,
+        onboardingCompleted: accounts.onboardingCompleted,
+      })
       .from(accounts)
       .where(eq(accounts.id, accountId))
       .limit(1),
@@ -297,7 +322,10 @@ export async function getDashboardOnboardingProfile(db: Db, accountId: string): 
   };
 }
 
-export async function getConnectionSummary(db: Db, accountId: string): Promise<ConnectionSummary | null> {
+export async function getConnectionSummary(
+  db: Db,
+  accountId: string,
+): Promise<ConnectionSummary | null> {
   const [account] = await db
     .select({ name: accounts.name, mrrEstimateCents: accounts.mrrEstimateCents })
     .from(accounts)
@@ -357,7 +385,8 @@ export async function listBillableRecoveredForRoi(
       exemptionForgaveRecovery(nowMs),
     ) as SQL,
   ];
-  if (windowStartMs !== null) conditions.push(gte(recoveredPayments.recoveredAt, new Date(windowStartMs)));
+  if (windowStartMs !== null)
+    conditions.push(gte(recoveredPayments.recoveredAt, new Date(windowStartMs)));
   return db
     .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
     .from(recoveredPayments)
@@ -446,7 +475,9 @@ export async function getMostRecentRecoveryAt(db: Db, accountId: string): Promis
     .select({ recoveredAt: recoveredPayments.recoveredAt })
     .from(recoveredPayments)
     .innerJoin(failedPayments, eq(failedPayments.id, recoveredPayments.failedPaymentId))
-    .where(and(eq(recoveredPayments.accountId, accountId), eq(failedPayments.isRenewalNoise, false)))
+    .where(
+      and(eq(recoveredPayments.accountId, accountId), eq(failedPayments.isRenewalNoise, false)),
+    )
     .orderBy(desc(recoveredPayments.recoveredAt))
     .limit(1);
   return rows[0]?.recoveredAt ?? null;

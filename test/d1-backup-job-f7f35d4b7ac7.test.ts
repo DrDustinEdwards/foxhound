@@ -17,13 +17,25 @@ describe("runD1Backup and backupStatus without a bucket", () => {
 
   it("PLANT: a stale dump (30 hours old) warns", async () => {
     const exported = new Date("2026-10-08T03:00:00.000Z").toISOString();
-    const marker = JSON.stringify({ exported_at: exported, keys: [], tables: [], fts: [], excluded: [] });
+    const marker = JSON.stringify({
+      exported_at: exported,
+      keys: [],
+      tables: [],
+      fts: [],
+      excluded: [],
+    });
     const bucket = {
       put: async () => undefined,
       get: async () => ({ text: async () => marker }),
-      list: async () => ({ objects: [{ key: "backups/json/2026-10-08T03-00-00Z/_complete.json" }], truncated: false }),
+      list: async () => ({
+        objects: [{ key: "backups/json/2026-10-08T03-00-00Z/_complete.json" }],
+        truncated: false,
+      }),
     };
-    const status = await backupStatus({ BACKUPS: bucket } as unknown as Env, new Date("2026-10-09T09:00:00.000Z"));
+    const status = await backupStatus(
+      { BACKUPS: bucket } as unknown as Env,
+      new Date("2026-10-09T09:00:00.000Z"),
+    );
     expect(status.warning).toMatch(/30h ago/);
     expect(status.age_hours).toBeGreaterThan(26);
   });

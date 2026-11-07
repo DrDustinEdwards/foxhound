@@ -29,14 +29,13 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const route = await import("~/routes/app/settings/disputes");
-const { applyDisputeSettings, applyDisputesEnabled, DISPUTE_PRODUCT_DESCRIPTION_ERROR } = await import(
-  "~/lib/settings/apply.server"
-);
-const { readDisputeSettings, readDisputeProductDescription } = await import("~/lib/disputes/queries.server");
+const { applyDisputeSettings, applyDisputesEnabled, DISPUTE_PRODUCT_DESCRIPTION_ERROR } =
+  await import("~/lib/settings/apply.server");
+const { readDisputeSettings, readDisputeProductDescription } =
+  await import("~/lib/disputes/queries.server");
 const { handleStampDispute } = await import("~/lib/webhooks/dispute-handlers");
 const { importDisputeFromStripe } = await import("~/lib/disputes/manual-import.server");
 const { splitEvidence } = await import("~/lib/disputes/detail");
-
 
 let sqlite: Database.Database;
 let db: ReturnType<typeof createInMemoryDb>["db"];
@@ -78,7 +77,10 @@ function render(
 ) {
   const loaderData = { enabled: true, ...settings };
   const Stub = createRoutesStub([
-    { path: "/settings/disputes", Component: () => createElement(Page, { loaderData, actionData }) },
+    {
+      path: "/settings/disputes",
+      Component: () => createElement(Page, { loaderData, actionData }),
+    },
   ]);
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/settings/disputes"] }));
 }
@@ -97,13 +99,23 @@ describe("S32 THE WRITER: three columns, pinned to the account", () => {
     expect(columns("a2")).toEqual({ d: null, s: null, a: null });
 
     // A later save keeps the original opt-in; turning it off clears it.
-    await applyDisputeSettings(db, "a1", { productDescription: "", shipsPhysical: true, autoSubmit: true }, {
-      userId: "u2",
-      email: "other@a1.test",
-      now: new Date(9000),
-    });
+    await applyDisputeSettings(
+      db,
+      "a1",
+      { productDescription: "", shipsPhysical: true, autoSubmit: true },
+      {
+        userId: "u2",
+        email: "other@a1.test",
+        now: new Date(9000),
+      },
+    );
     expect(optIn("a1")).toEqual({ u: "u1", e: "owner@a1.test", t: 5000 });
-    await applyDisputeSettings(db, "a1", { productDescription: "", shipsPhysical: true, autoSubmit: false }, ACTOR);
+    await applyDisputeSettings(
+      db,
+      "a1",
+      { productDescription: "", shipsPhysical: true, autoSubmit: false },
+      ACTOR,
+    );
     expect(columns("a1")).toMatchObject({ a: 0 });
     expect(optIn("a1")).toEqual({ u: null, e: null, t: null });
   });
@@ -139,7 +151,11 @@ describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''
     ];
     const editing = splitEvidence(rows, true, true);
     expect(editing.structured.map((r) => r.fieldName)).toEqual(["product_description"]);
-    expect(editing.shipping).toEqual({ shipping_tracking_number: "1Z999", shipping_carrier: "UPS", shipping_date: "" });
+    expect(editing.shipping).toEqual({
+      shipping_tracking_number: "1Z999",
+      shipping_carrier: "UPS",
+      shipping_date: "",
+    });
     // Once locked (submitted, or the account does not ship), they are rows.
     expect(splitEvidence(rows, false, false).structured).toHaveLength(3);
   });
@@ -152,7 +168,9 @@ describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () 
     expect((await readDisputeSettings(db, "a2")).enabled).toBe(true);
 
     const html = render({ enabled: false, productDescription: "", shipsPhysical: false });
-    expect(html).toContain("Enable Disputes above to configure auto-submit, product description, and shipping settings.");
+    expect(html).toContain(
+      "Enable Disputes above to configure auto-submit, product description, and shipping settings.",
+    );
     expect(html).not.toContain("Save changes");
 
     const claim = {
@@ -163,7 +181,13 @@ describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () 
       payload: {},
     };
     const outcome = await handleStampDispute(
-      { env: {} as Env, accountId: "a1", connectionId: "c1", claim, idempotencyKey: "evt_1" } as never,
+      {
+        env: {} as Env,
+        accountId: "a1",
+        connectionId: "c1",
+        claim,
+        idempotencyKey: "evt_1",
+      } as never,
       { kind: "stamp_dispute", stripeDisputeId: "dp_1", chargeId: "ch_1" } as never,
     );
     expect(outcome).toEqual({ status: "ignored", reason: "disputes_disabled" });
@@ -174,4 +198,3 @@ describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () 
     });
   });
 });
-

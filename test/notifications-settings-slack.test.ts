@@ -34,14 +34,10 @@ vi.mock("~/lib/intelligence/views.server", () => ({
   isIntelligenceEntitled: async () => false,
 }));
 
-const {
-  buildSlackPayload,
-  postToSlack,
-  postSlackNotification,
-} = await import("~/lib/notify/slack.server");
-const { normalizeSlackWebhookUrl, SLACK_WEBHOOK_ERROR } = await import(
-  "~/lib/settings/slack-webhook"
-);
+const { buildSlackPayload, postToSlack, postSlackNotification } =
+  await import("~/lib/notify/slack.server");
+const { normalizeSlackWebhookUrl, SLACK_WEBHOOK_ERROR } =
+  await import("~/lib/settings/slack-webhook");
 const { buildNotificationSettingsUpdate } = await import("~/lib/settings/persist.server");
 const { runWeeklyDigest, queryDigestAccounts } = await import("~/lib/cron/digest");
 
@@ -112,7 +108,6 @@ async function save(input: Record<string, unknown>): Promise<void> {
 }
 
 describe("PLANT 1: the Slack webhook URL is validated to hooks.slack.com", () => {
-
   it("an empty box CLEARS the column, which is legacy's `|| null`", () => {
     expect(normalizeSlackWebhookUrl("")).toEqual({ ok: true, value: null });
     expect(normalizeSlackWebhookUrl("   ")).toEqual({ ok: true, value: null });
@@ -137,7 +132,6 @@ describe("PLANT 1: the Slack webhook URL is validated to hooks.slack.com", () =>
 });
 
 describe("PLANT 2: the save writes its six columns and neither S34 column", () => {
-
   it("AND LEAVES THE S34 COLUMNS UNTOUCHED, because legacy renders them elsewhere", async () => {
     sqlite
       .prepare(
@@ -162,7 +156,6 @@ describe("PLANT 3: THE DIGEST CHAIN, END TO END", () => {
 });
 
 describe("PLANT 4: the Slack payload is legacy's", () => {
-
   it("email_sent carries the envelope and the STEP TYPE in the title", () => {
     expect(
       buildSlackPayload({
@@ -239,7 +232,10 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
       redirectMode = init?.redirect;
       return new Response(null, { status: 302, headers: { Location: "http://169.254.169.254/" } });
     }) as typeof globalThis.fetch;
-    expect(await postToSlack("https://hooks.slack.com/services/x", event)).toEqual({ status: "failed", reason: "http_302" });
+    expect(await postToSlack("https://hooks.slack.com/services/x", event)).toEqual({
+      status: "failed",
+      reason: "http_302",
+    });
     expect(redirectMode).toBe("manual");
 
     harness.posted = [];
@@ -251,7 +247,10 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
       status: "failed",
       reason: "host_not_allowed",
     });
-    expect(await postToSlack("https://internal.example/x", event)).toEqual({ status: "failed", reason: "host_not_allowed" });
+    expect(await postToSlack("https://internal.example/x", event)).toEqual({
+      status: "failed",
+      reason: "host_not_allowed",
+    });
     expect(harness.posted).toEqual([]);
   });
 
@@ -260,8 +259,9 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
       throw new Error("network down");
     }) as typeof globalThis.fetch;
 
-    await expect(
-      postToSlack("https://hooks.slack.com/services/x", event),
-    ).resolves.toEqual({ status: "failed", reason: "threw" });
+    await expect(postToSlack("https://hooks.slack.com/services/x", event)).resolves.toEqual({
+      status: "failed",
+      reason: "threw",
+    });
   });
 });

@@ -75,7 +75,12 @@ const EMAIL_IN_TEXT = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
  * carry an old offer, a customer's name or "add this payment link". A draft
  * with any of them sends the template. Pure.
  */
-export function strayContent(bodyHtml: string, text: string, samples: readonly string[], url: string): string[] {
+export function strayContent(
+  bodyHtml: string,
+  text: string,
+  samples: readonly string[],
+  url: string,
+): string[] {
   const out: string[] = [];
   for (const href of hrefsIn(bodyHtml)) if (href !== url) out.push(`link ${href}`);
   for (const m of text.matchAll(URL_IN_TEXT)) {

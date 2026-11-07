@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import routes from "~/routes";
 import { appShellMiddleware } from "~/lib/auth/guards";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DEMO_SESSION_COOKIE, DEMO_SESSION_COOKIE_VALUE } from "~/lib/demo/constants";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { getSession } from "~/lib/auth/session";
@@ -96,9 +96,10 @@ describe("every action route in the app shell is guarded by appShellMiddleware",
     const guardedFiles = new Set(collectFiles(appShellNode!.children ?? []));
 
     for (const file of actionFiles) {
-      expect(guardedFiles.has(file), `${file} exports an action but is not nested under app-shell.tsx`).toBe(
-        true,
-      );
+      expect(
+        guardedFiles.has(file),
+        `${file} exports an action but is not nested under app-shell.tsx`,
+      ).toBe(true);
     }
   });
 });
@@ -117,7 +118,7 @@ describe("appShellMiddleware still refuses a mutating request in demo mode", () 
       headers: { cookie: `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}` },
     });
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
     const next = vi.fn();
 
     await expect(
@@ -142,8 +143,11 @@ describe("appShellMiddleware still refuses a mutating request in demo mode", () 
     const { action: themeAction } = await import("~/routes/api/theme");
     const { action: switchAction } = await import("~/routes/api/account-switch");
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
-    for (const [path, action] of [["/api/theme", themeAction], ["/api/account/switch", switchAction]] as const) {
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
+    for (const [path, action] of [
+      ["/api/theme", themeAction],
+      ["/api/account/switch", switchAction],
+    ] as const) {
       const request = new Request(`http://localhost${path}`, {
         method: "POST",
         headers: { cookie: `${DEMO_SESSION_COOKIE}=${DEMO_SESSION_COOKIE_VALUE}` },

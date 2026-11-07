@@ -80,13 +80,13 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
         }),
       ).applied,
     ).toBe(true);
-    const statuses = sqlite
-      .prepare("select status from failed_payments order by id")
-      .all() as { status: string }[];
+    const statuses = sqlite.prepare("select status from failed_payments order by id").all() as {
+      status: string;
+    }[];
     expect(statuses.map((s) => s.status)).toEqual(["cancelled", "cancelled"]);
-    const results = sqlite
-      .prepare("select result from recovery_steps order by id")
-      .all() as { result: string | null }[];
+    const results = sqlite.prepare("select result from recovery_steps order by id").all() as {
+      result: string | null;
+    }[];
     expect(results.every((r) => r.result === "cancelled")).toBe(true);
   });
 
@@ -98,7 +98,9 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
       sqlite,
       buildInvoluntaryStopBatch(db, { claim, accountId: "acc_1", failedPaymentIds: ["fp_x"], now }),
     );
-    const first = sqlite.prepare("select resolved_at from failed_payments where id = ?").get("fp_x") as {
+    const first = sqlite
+      .prepare("select resolved_at from failed_payments where id = ?")
+      .get("fp_x") as {
       resolved_at: number;
     };
     const later = new Date(now.getTime() + 90 * 60 * 1000);
@@ -111,7 +113,9 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
         now: later,
       }),
     );
-    const second = sqlite.prepare("select resolved_at from failed_payments where id = ?").get("fp_x") as {
+    const second = sqlite
+      .prepare("select resolved_at from failed_payments where id = ?")
+      .get("fp_x") as {
       resolved_at: number;
     };
     expect(second.resolved_at).toBe(first.resolved_at);

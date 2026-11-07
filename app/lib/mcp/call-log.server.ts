@@ -1,4 +1,9 @@
-import { appendAudit, correlationId, loggedArgs, recordAudit } from "@dustinedwards/site-runtime/audit-log";
+import {
+  appendAudit,
+  correlationId,
+  loggedArgs,
+  recordAudit,
+} from "@dustinedwards/site-runtime/audit-log";
 import { callerName } from "@dustinedwards/site-runtime/mcp-server";
 
 import type { Db } from "~/db";
@@ -66,7 +71,11 @@ interface JsonRpcMessage {
   id?: string | number | null;
   method?: string;
   params?: { name?: unknown; arguments?: unknown; _meta?: unknown };
-  result?: { isError?: boolean; structuredContent?: { error?: unknown }; content?: { text?: unknown }[] };
+  result?: {
+    isError?: boolean;
+    structuredContent?: { error?: unknown };
+    content?: { text?: unknown }[];
+  };
   error?: { message?: unknown };
 }
 
@@ -86,8 +95,13 @@ export function toolCallsIn(body: unknown): McpToolCallRequest[] {
       {
         id: m.id,
         tool: typeof m.params?.name === "string" ? m.params.name : "",
-        arguments: args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {},
-        ...(meta && typeof meta === "object" && !Array.isArray(meta) ? { meta: meta as Record<string, unknown> } : {}),
+        arguments:
+          args && typeof args === "object" && !Array.isArray(args)
+            ? (args as Record<string, unknown>)
+            : {},
+        ...(meta && typeof meta === "object" && !Array.isArray(meta)
+          ? { meta: meta as Record<string, unknown> }
+          : {}),
       },
     ];
   });
@@ -110,13 +124,19 @@ export function answersIn(text: string, contentType: string | null): JsonRpcMess
   });
 }
 
-function outcomeOf(answer: JsonRpcMessage | undefined): { outcome: McpCallOutcome; error: string | null } {
+function outcomeOf(answer: JsonRpcMessage | undefined): {
+  outcome: McpCallOutcome;
+  error: string | null;
+} {
   if (!answer) return { outcome: "protocol_error", error: "No answer was returned for this call." };
   if (answer.error) return { outcome: "protocol_error", error: String(answer.error.message ?? "") };
   if (answer.result?.isError) {
     const structured = answer.result.structuredContent?.error;
     const text = answer.result.content?.[0]?.text;
-    return { outcome: "tool_error", error: String(typeof structured === "string" ? structured : (text ?? "")) };
+    return {
+      outcome: "tool_error",
+      error: String(typeof structured === "string" ? structured : (text ?? "")),
+    };
   }
   return { outcome: "ok", error: null };
 }
@@ -183,7 +203,9 @@ export async function recordToolCalls(
   now: Date,
 ): Promise<void> {
   if (calls.length === 0) return;
-  const byId = new Map(answers.filter((a) => a.id !== undefined && a.id !== null).map((a) => [a.id, a]));
+  const byId = new Map(
+    answers.filter((a) => a.id !== undefined && a.id !== null).map((a) => [a.id, a]),
+  );
   const rows = calls.map((call) => {
     const { outcome, error } = outcomeOf(byId.get(call.id));
     return {

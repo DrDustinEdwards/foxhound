@@ -19,7 +19,7 @@ import { saveAuditRun } from "~/lib/audit/persist.server";
 import { toAuditRunView } from "~/lib/audit/render";
 import { runFullAudit } from "~/lib/audit/run.server";
 import { getSession, resolveActiveMembership } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
@@ -153,13 +153,7 @@ function formatRanAt(value: Date): string {
   });
 }
 
-function WhatsNext({
-  signedIn,
-  notSaved,
-}: {
-  signedIn: boolean;
-  notSaved: NotSavedReason | null;
-}) {
+function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSavedReason | null }) {
   if (signedIn) {
     return (
       <Panel title="What's next">
@@ -202,8 +196,8 @@ function WhatsNext({
           </span>
         </Link>
         <p className="m-0 mt-2 text-label text-text-secondary">
-          Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}% of
-          what we recover. Nothing until then.
+          Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}%
+          of what we recover. Nothing until then.
         </p>
         <p className="m-0 mt-1 text-micro text-text-subtle">
           These results are from a {AUDIT_GRANT_MINUTES}-minute session. Create an account to save
@@ -222,7 +216,11 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   // under the marketing shell, which is not a Capsomer family, so it names the
   // amber family itself, as the legal pages do.
   return (
-    <div className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <div className="mb-6">
         <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">
           Stripe Account Diagnostic

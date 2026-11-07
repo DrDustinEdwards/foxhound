@@ -30,9 +30,6 @@ export { ToolCallLog } from "@dustinedwards/site-runtime/audit-log";
 // ADMIN_EMAIL loses this door on their next request, whatever grant this Worker
 // still holds.
 
-/** The admin API answers any path outside /api/admin/v1 with its 404 before it reads D1, a key or its log. */
-const FOXHOUND_PROBE_URL = "https://foxhound.internal/";
-
 export default adminMcpWorker<AdminMcpEnv>({
   name: "Foxhound Admin",
   server: SERVER,
@@ -42,9 +39,9 @@ export default adminMcpWorker<AdminMcpEnv>({
   about: `<p>It can read Foxhound. With changes allowed, it can also pause merchants, stage changes and send test emails to your own inbox.</p>
 <p>It can never refund, adjust, cancel or disconnect anything. Resuming, releasing the brake, enabling a cron and billing exemption are only staged, for you to confirm in /admin/staged.</p>`,
   admit: (env, user) => isFoxhoundAdmin(env, user.email.toLowerCase()),
-  // FOXHOUND must be bound (fail), and `reach` is one real request to the AdminApi entrypoint that its 404 answers
-  // (warn: it is another Worker, so rolling this one back would not mend it).
-  api: { binding: "FOXHOUND", name: "foxhound", reach: FOXHOUND_PROBE_URL },
+  // FOXHOUND must be bound (fail). site-runtime's foxhound-reach check sends one request to the AdminApi entrypoint,
+  // which answers any path outside /api/admin/v1 with its 404 before it reads D1, a key or its log.
+  api: { binding: "FOXHOUND", name: "foxhound" },
   OAuthProvider,
   serve: (request, env, _ctx, caller) => {
     if (caller.kind === "admin") {
@@ -52,7 +49,8 @@ export default adminMcpWorker<AdminMcpEnv>({
       const clientId = typeof props.clientId === "string" ? props.clientId : undefined;
       return serveAdminMcp(request, env, {
         actor: props.email,
-        client: typeof props.client === "string" && props.client ? props.client : "an unnamed AI client",
+        client:
+          typeof props.client === "string" && props.client ? props.client : "an unnamed AI client",
         clientId,
         scopes,
         // The verified token, so the SDK can send a write's 403 step-up before the tool runs.
@@ -67,6 +65,11 @@ export default adminMcpWorker<AdminMcpEnv>({
       });
     }
     // The list-only test key: it never reaches the admin API (agent keys are off on this server).
-    return serveAdminMcp(request, env, { actor: caller.principal, client: "the list-only test key", scopes: [], probe: true });
+    return serveAdminMcp(request, env, {
+      actor: caller.principal,
+      client: "the list-only test key",
+      scopes: [],
+      probe: true,
+    });
   },
 });

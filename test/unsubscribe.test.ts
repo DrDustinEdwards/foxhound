@@ -46,11 +46,18 @@ describe("unsubscribe suppression write (real sqlite)", () => {
 
 describe("the link signing key (EMAIL_TOKEN_KEY, falling back to ENCRYPTION_KEY)", () => {
   it("signs with EMAIL_TOKEN_KEY once set, and a link signed before it still verifies", async () => {
-    const { signUnsubscribeToken, verifyUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
+    const { signUnsubscribeToken, verifyUnsubscribeToken } =
+      await import("~/lib/email/unsubscribe-token");
     const payload = { email: "cust@example.com", accountId: "acc_1" };
     const before = { ENCRYPTION_KEY: "a".repeat(64) } as unknown as Env;
-    const after = { ENCRYPTION_KEY: "a".repeat(64), EMAIL_TOKEN_KEY: "b".repeat(64) } as unknown as Env;
-    const emailKeyOnly = { ENCRYPTION_KEY: "c".repeat(64), EMAIL_TOKEN_KEY: "b".repeat(64) } as unknown as Env;
+    const after = {
+      ENCRYPTION_KEY: "a".repeat(64),
+      EMAIL_TOKEN_KEY: "b".repeat(64),
+    } as unknown as Env;
+    const emailKeyOnly = {
+      ENCRYPTION_KEY: "c".repeat(64),
+      EMAIL_TOKEN_KEY: "b".repeat(64),
+    } as unknown as Env;
 
     const old = await signUnsubscribeToken(before, payload);
     expect(await verifyUnsubscribeToken(after, old)).toMatchObject(payload);

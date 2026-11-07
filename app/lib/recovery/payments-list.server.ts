@@ -19,7 +19,9 @@ export function paymentHeaderStats(
   const recovered = rows.filter((r) => r.status === "recovered");
   return {
     atRisk: groupSumByCurrency(active.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
-    recovered: groupSumByCurrency(recovered.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
+    recovered: groupSumByCurrency(
+      recovered.map((r) => ({ currency: r.currency, cents: r.amountCents })),
+    ),
     ratePct: rows.length > 0 ? Math.round((recovered.length / rows.length) * 100) : 0,
   };
 }
@@ -34,7 +36,9 @@ export function paymentHeaderStats(
  * sequence page names it.
  */
 export function paymentStepLabel(declineCategory: string, stepType: string): string {
-  const schedule = (RECOVERY_SCHEDULES as Record<string, { stepType: string; offsetHours: number }[]>)[declineCategory];
+  const schedule = (
+    RECOVERY_SCHEDULES as Record<string, { stepType: string; offsetHours: number }[]>
+  )[declineCategory];
   const offset = schedule?.find((s) => s.stepType === stepType)?.offsetHours ?? null;
   const day = /^retry_day(\d+)$/.exec(stepType);
   if (day && offset !== null && offset === Number(day[1]) * 24) return `Day ${day[1]} retry`;

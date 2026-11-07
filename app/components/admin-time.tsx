@@ -14,7 +14,13 @@ import { Time } from "capsomer/react/time";
 // Capsomer's Tooltip wrapper renders its tip as a <div>, which is invalid inside
 // the <p> lines these times sit in, so this wires the same behavior module
 // (show on hover and focus, Esc hides) to a <span> tip with the same classes.
-export function AdminTime({ at, empty = "never" }: { at: Date | null | undefined; empty?: string }) {
+export function AdminTime({
+  at,
+  empty = "never",
+}: {
+  at: Date | null | undefined;
+  empty?: string;
+}) {
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tipRef = useRef<HTMLSpanElement>(null);
@@ -26,6 +32,7 @@ export function AdminTime({ at, empty = "never" }: { at: Date | null | undefined
   if (!at) return <span className="text-text-tertiary">{empty}</span>;
   return (
     <>
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the time takes focus so a keyboard reaches its tooltip */}
       <span ref={triggerRef} tabIndex={0} aria-describedby={id}>
         <Time at={at} />
       </span>

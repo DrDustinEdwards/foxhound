@@ -84,12 +84,19 @@ export function toAuditRunView(result: AuditResult, summary: string | null): Aud
     currency: result.meta.currency,
     summary,
     failedInvoices:
-      failed === null ? null : { count: failed.count, totals: failed.totals, byCategory: failed.byCategoryTotals },
+      failed === null
+        ? null
+        : { count: failed.count, totals: failed.totals, byCategory: failed.byCategoryTotals },
     expiringCards:
       expiring === null
         ? null
-        : { count: expiring.count, mrrAtRisk: expiring.mrrAtRiskTotals, expiresByMonth: expiring.expiresByMonth },
-    pastDueSubscriptions: pastDue === null ? null : { count: pastDue.count, totals: pastDue.totals },
+        : {
+            count: expiring.count,
+            mrrAtRisk: expiring.mrrAtRiskTotals,
+            expiresByMonth: expiring.expiresByMonth,
+          },
+    pastDueSubscriptions:
+      pastDue === null ? null : { count: pastDue.count, totals: pastDue.totals },
     cardUpdater:
       cardUpdater === null
         ? null
@@ -195,7 +202,11 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
         ? null
         : {
             count: row.pastDueSubscriptionsCount,
-            totals: storedTotals(money?.pastDueSubscriptions, row.pastDueSubscriptionsCents, currency),
+            totals: storedTotals(
+              money?.pastDueSubscriptions,
+              row.pastDueSubscriptionsCents,
+              currency,
+            ),
           },
 
     cardUpdater:
@@ -248,7 +259,10 @@ export function formatCents(cents: number, currency: string): string {
  * at all reads as a zero in the run's currency, which is what a
  * single-currency run always showed.
  */
-export function formatTotals(totals: readonly { currency: string; cents: number }[], runCurrency: string): string[] {
+export function formatTotals(
+  totals: readonly { currency: string; cents: number }[],
+  runCurrency: string,
+): string[] {
   if (totals.length === 0) return [formatCents(0, runCurrency)];
   return totals.map((t) => formatCents(t.cents, t.currency));
 }

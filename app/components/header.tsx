@@ -2,7 +2,13 @@ import { useLocation, useRouteLoaderData, useSubmit } from "react-router";
 import { SiteHeader, type HeaderSection, type HeaderSwitcher } from "capsomer/react/site-header";
 
 import { businessSwitcher, type SwitcherAccount } from "./nav/account-switcher";
-import { headerLogo, merchantAccountMenu, renderHeaderLink, THEME_PREF_KEY, useThemeMemory } from "./site-header";
+import {
+  headerLogo,
+  merchantAccountMenu,
+  renderHeaderLink,
+  THEME_PREF_KEY,
+  useThemeMemory,
+} from "./site-header";
 import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
 import { DEFAULT_THEME, type Theme } from "~/lib/theme";
 import type { loader as rootLoader } from "~/root";
@@ -86,7 +92,8 @@ export function Header({
 
   // LEGACY'S RENDER RULE for the business switcher (components/SiteNavClient.tsx):
   // shown from ONE account, hidden only when the visitor has none.
-  const business = isAuthenticated && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
+  const business =
+    isAuthenticated && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
   // The product switcher, legacy's pill, listing legacy's Console, Audit,
   // Recovery, Disputes, Intelligence. It names the product whose pages this
   // header sits on (the anonymous /audit pages are the Audit product), and
@@ -124,7 +131,11 @@ export function Header({
         links="right"
         sections={sections}
         switchers={switchers}
-        extras={isAuthenticated ? [] : [{ id: "audit", label: "Free audit", kind: "button", href: "/audit" }]}
+        extras={
+          isAuthenticated
+            ? []
+            : [{ id: "audit", label: "Free audit", kind: "button", href: "/audit" }]
+        }
         themePrefKey={THEME_PREF_KEY}
         account={
           isAuthenticated

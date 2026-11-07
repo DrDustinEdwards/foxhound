@@ -82,7 +82,10 @@ export function merchantStatus(row: {
 }): { tone: MerchantTone; word: string } {
   if (row.cancelledAt) return { tone: "crit", word: "Canceled" };
   if (row.processingPaused) {
-    return { tone: "crit", word: row.pauseReason === PAUSE_REASON_BRAKE ? "Paused by brake" : "Paused" };
+    return {
+      tone: "crit",
+      word: row.pauseReason === PAUSE_REASON_BRAKE ? "Paused by brake" : "Paused",
+    };
   }
   if (row.billingExempt) return { tone: "info", word: "Billing exempt" };
   if (row.connectionStatus === "connected") return { tone: "ok", word: "Active" };
@@ -97,15 +100,24 @@ export const CONNECTION_WORDS = {
 
 /** Amounts in several currencies are never added together:
  *  each is said once, joined with a plus. */
-export function moneyWords(amounts: ReadonlyArray<{ cents: number; currency: string }>, none: string): string {
-  return amounts.length === 0 ? none : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");
+export function moneyWords(
+  amounts: ReadonlyArray<{ cents: number; currency: string }>,
+  none: string,
+): string {
+  return amounts.length === 0
+    ? none
+    : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");
 }
 
 export type ToggleIntent = "billing-exempt" | "processing-paused";
 
 /** What a row is called: its name, else its owner's email (Recova showed the
  *  email when an account had no name), else its id. */
-export function merchantLabel(row: { id: string; name: string | null; ownerEmail: string | null }): string {
+export function merchantLabel(row: {
+  id: string;
+  name: string | null;
+  ownerEmail: string | null;
+}): string {
   return row.name ?? row.ownerEmail ?? row.id;
 }
 
@@ -141,7 +153,9 @@ export interface ToggleMessage {
  *  - otherwise Undo posts the other value, marked as an Undo, which the
  *    action writes only where the flag still holds what this change set (and
  *    a pause's Undo resumes only a person's pause, never the brake's). */
-export function toggleMessage(r: Pick<ToggleResult, "intent" | "accountId" | "name" | "value" | "changed" | "wasBrakePause">): ToggleMessage {
+export function toggleMessage(
+  r: Pick<ToggleResult, "intent" | "accountId" | "name" | "value" | "changed" | "wasBrakePause">,
+): ToggleMessage {
   const who = r.name ?? r.accountId;
   const undo = { intent: r.intent, accountId: r.accountId, value: !r.value };
   if (!r.changed) {
@@ -161,7 +175,11 @@ export function toggleMessage(r: Pick<ToggleResult, "intent" | "accountId" | "na
       : { said: `${who} is billed again.`, undone: `${who} is billing exempt again.`, undo };
   }
   if (r.value) {
-    return { said: `Paused processing for ${who}.`, undone: `Processing for ${who} is running again.`, undo };
+    return {
+      said: `Paused processing for ${who}.`,
+      undone: `Processing for ${who} is running again.`,
+      undo,
+    };
   }
   if (r.wasBrakePause) {
     return {
@@ -172,5 +190,9 @@ export function toggleMessage(r: Pick<ToggleResult, "intent" | "accountId" | "na
       undo: null,
     };
   }
-  return { said: `Resumed processing for ${who}.`, undone: `Processing for ${who} is paused again.`, undo };
+  return {
+    said: `Resumed processing for ${who}.`,
+    undone: `Processing for ${who} is paused again.`,
+    undo,
+  };
 }

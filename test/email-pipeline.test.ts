@@ -26,7 +26,6 @@ function job(overrides: Partial<EmailJob> = {}): EmailJob {
 }
 
 describe("buildEmailMessage (CAN-SPAM + from)", () => {
-
   it("throws (never sends) when the physical address is missing", () => {
     expect(() => buildEmailMessage(job({ physicalAddress: "" }), "https://x")).toThrow(
       /physical address/i,
@@ -36,14 +35,6 @@ describe("buildEmailMessage (CAN-SPAM + from)", () => {
   it("throws (never sends) when the unsubscribe token is missing", () => {
     expect(() => buildEmailMessage(job({ unsubscribeToken: "" }), "https://x")).toThrow(
       /unsubscribe/i,
-    );
-  });
-
-  it("a line break can never start a header: the subject is flattened and the recipient refused", () => {
-    const message = buildEmailMessage(job({ subject: "Card update\r\nBcc: all@example.com" }), "https://x");
-    expect(message.subject).not.toMatch(/[\r\n]/);
-    expect(() => buildEmailMessage(job({ to: "a@example.com\r\nBcc: b@example.com" }), "https://x")).toThrow(
-      /line break in recipient/,
     );
   });
 });

@@ -9,7 +9,12 @@ import "capsomer/row-list.css";
 import "capsomer/stat-tile.css";
 import "capsomer/status.css";
 
-import { atRiskSubtext, formatCurrencyTotalsShort, lastRunPhrase, protectedSubtext } from "~/lib/dashboard/console";
+import {
+  atRiskSubtext,
+  formatCurrencyTotalsShort,
+  lastRunPhrase,
+  protectedSubtext,
+} from "~/lib/dashboard/console";
 import { recoveryRateBand, recoveryRateClassNameOrNull } from "~/lib/dashboard/recovery-rate";
 import { formatMoneyShort } from "~/lib/money-format";
 import type { AttentionRow, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/console.server";
@@ -43,7 +48,11 @@ function HeroCard({
 }) {
   return (
     <Panel size="sm" title={label}>
-      <p className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}>{value}</p>
+      <p
+        className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}
+      >
+        {value}
+      </p>
       <p className="m-0 mt-1 text-label text-text-subtle">{sub}</p>
     </Panel>
   );
@@ -92,7 +101,10 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
   const recovered = anyAboveZero(tiles.recoveredThisMonth);
   const highRisk = anyAboveZero(tiles.highRiskMrr);
   return (
-    <ul className="m-0 mb-8 grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4" aria-label="Products">
+    <ul
+      className="m-0 mb-8 grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4"
+      aria-label="Products"
+    >
       <li className="grid">
         {tiles.stripeConnected ? (
           <StatTile
@@ -100,12 +112,19 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             figure={formatCurrencyTotalsShort(tiles.recoveredThisMonth)}
             unit="this month"
             tone={recovered ? "ok" : undefined}
-            detail={tiles.recoveryRatePct === null ? "No failures yet" : `${tiles.recoveryRatePct}% rate`}
+            detail={
+              tiles.recoveryRatePct === null ? "No failures yet" : `${tiles.recoveryRatePct}% rate`
+            }
             href="/recovery/dashboard"
             renderLink={routerLink}
           />
         ) : (
-          <StatTile label="Recovery" figure="Connect Stripe" href="/connect" renderLink={routerLink} />
+          <StatTile
+            label="Recovery"
+            figure="Connect Stripe"
+            href="/connect"
+            renderLink={routerLink}
+          />
         )}
       </li>
 
@@ -123,7 +142,9 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           // color and the tile takes none.
           detail={
             tiles.disputesDueSoonCount > 0 ? (
-              <span className="font-medium text-error-text">{tiles.disputesDueSoonCount} due in 48h</span>
+              <span className="font-medium text-error-text">
+                {tiles.disputesDueSoonCount} due in 48h
+              </span>
             ) : undefined
           }
           href="/disputes/dashboard"
@@ -139,7 +160,11 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           // Recova's figure for MRR at risk is amber while any is at risk and
           // green when none is: Capsomer's warn tone, then ok.
           tone={highRisk ? "warn" : "ok"}
-          detail={tiles.highRiskCustomerCount > 0 ? `${tiles.highRiskCustomerCount} high-risk` : "All healthy"}
+          detail={
+            tiles.highRiskCustomerCount > 0
+              ? `${tiles.highRiskCustomerCount} high-risk`
+              : "All healthy"
+          }
           href="/intelligence/dashboard"
           renderLink={routerLink}
         />
@@ -159,7 +184,12 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             renderLink={routerLink}
           />
         ) : (
-          <StatTile label="Audit" figure="Run free audit" href="/audit/connect" renderLink={routerLink} />
+          <StatTile
+            label="Audit"
+            figure="Run free audit"
+            href="/audit/connect"
+            renderLink={routerLink}
+          />
         )}
       </li>
     </ul>
@@ -190,13 +220,20 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
             {row.emphasis ? (
               <>
                 {" "}
-                <span className={row.tone === "urgent" ? "font-medium text-error-text" : "text-text-subtle"}>
+                <span
+                  className={
+                    row.tone === "urgent" ? "font-medium text-error-text" : "text-text-subtle"
+                  }
+                >
                   {row.emphasis}
                 </span>
               </>
             ) : null}
             {row.mrrCents && row.mrrCurrency ? (
-              <span className="text-text-subtle"> ({formatMoneyShort(row.mrrCents, row.mrrCurrency)}/mo)</span>
+              <span className="text-text-subtle">
+                {" "}
+                ({formatMoneyShort(row.mrrCents, row.mrrCurrency)}/mo)
+              </span>
             ) : null}
           </div>
           <span className="cap-row-meta">

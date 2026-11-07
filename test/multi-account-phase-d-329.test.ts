@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -45,9 +45,8 @@ vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 
 const { executeMoneyWrite } = await import("~/lib/money/execute");
 const { loader } = await import("~/routes/auth/connect-callback");
-const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } = await import(
-  "~/lib/stripe/connect-state"
-);
+const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } =
+  await import("~/lib/stripe/connect-state");
 const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
 
 const USER = "user_1";
@@ -89,7 +88,9 @@ beforeEach(() => {
 
 function seedUser(id: string, email: string): void {
   sqlite
-    .prepare("INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)")
+    .prepare(
+      "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
+    )
     .run(id, id, email);
 }
 
@@ -127,17 +128,18 @@ function seedSession(id: string, activeAccountId: string | null, userId = USER):
   };
 }
 
-
 function connections(): { accountId: string; stripeUserId: string }[] {
   return sqlite
-    .prepare("SELECT account_id AS accountId, stripe_user_id AS stripeUserId FROM stripe_connections")
+    .prepare(
+      "SELECT account_id AS accountId, stripe_user_id AS stripeUserId FROM stripe_connections",
+    )
     .all() as { accountId: string; stripeUserId: string }[];
 }
 
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env: {} as Env, ctx: {} as ExecutionContext };
     }
     throw new Error("unexpected context key");
   },
@@ -208,7 +210,6 @@ describe("PLANT 7: the whole of add_account is ONE money write, keyed on the new
 });
 
 describe("PLANT 4: connect attaches to the ACTIVE account, not the earliest", () => {
-
   it("still reconnects in place when the connection is on the ACTIVE account", async () => {
     seedSwitchedToB();
     seedConnection("c_on_b", "acct_b", "acct_NEW");
@@ -222,7 +223,6 @@ describe("PLANT 4: connect attaches to the ACTIVE account, not the earliest", ()
 });
 
 describe("PLANT 5: an unminted or unknown state is refused before any write", () => {
-
   it("refuses an action outside the two known ones, even with a matching cookie", async () => {
     seedSwitchedToB();
     const forged = JSON.stringify({ nonce: "n1", action: "delete_everything" });

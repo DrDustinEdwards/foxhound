@@ -15,7 +15,9 @@ export const billingInvoices = sqliteTable(
   "billing_invoices",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     currency: text("currency").notNull(),
     periodStart: ts("period_start").notNull(),
     periodEnd: ts("period_end").notNull(),
@@ -44,8 +46,12 @@ export const billingLineItems = sqliteTable(
   "billing_line_items",
   {
     id: id(),
-    invoiceId: text("invoice_id").notNull().references(() => billingInvoices.id),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    invoiceId: text("invoice_id")
+      .notNull()
+      .references(() => billingInvoices.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     // recovery_fee | dispute_fee | subscription | adjustment (PRICING.md)
     type: text("type").notNull(),
     currency: text("currency").notNull(),
@@ -129,7 +135,9 @@ export const billingExemptionPeriods = sqliteTable(
   "billing_exemption_periods",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     startedAt: ts("started_at").notNull(),
     endedAt: ts("ended_at"),
     /** The change that ended this stretch, so the caller can tell its own
@@ -139,6 +147,8 @@ export const billingExemptionPeriods = sqliteTable(
   (t) => [
     index("billing_exemption_periods_account_idx").on(t.accountId),
     // At most one open stretch per account.
-    uniqueIndex("billing_exemption_periods_open_uq").on(t.accountId).where(sql`${t.endedAt} is null`),
+    uniqueIndex("billing_exemption_periods_open_uq")
+      .on(t.accountId)
+      .where(sql`${t.endedAt} is null`),
   ],
 );

@@ -20,10 +20,7 @@ import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 // /connect. The name is a parameter here rather than a second module, so the
 // attributes cannot drift between the two.
 
-export function setStateCookie(
-  state: string,
-  name: string = STRIPE_OAUTH_STATE_COOKIE,
-): string {
+export function setStateCookie(state: string, name: string = STRIPE_OAUTH_STATE_COOKIE): string {
   return setHostCookie(name, encodeURIComponent(state), STRIPE_OAUTH_STATE_TTL_SECONDS);
 }
 

@@ -55,7 +55,9 @@ export function isUniqueConstraintError(err: unknown): boolean {
  *  none (a PRIMARY KEY failure on a rowid table, or a driver that drops it). */
 function constraintName(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
-  return /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim().replace(/\s+/g, " ") ?? "unknown";
+  return (
+    /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim().replace(/\s+/g, " ") ?? "unknown"
+  );
 }
 
 /**

@@ -4,7 +4,7 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 // J36, row S31, under Dustin's Q10 and Q11 rulings of
 // 2026-10-14: /settings/brand-voice is Recova's page
@@ -29,7 +29,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/settings/brand-voice");
 
-
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
   actionData?: Record<string, unknown>;
@@ -52,7 +51,6 @@ function render(opts: { stored?: Stored; actionData?: Record<string, unknown> } 
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/settings/brand-voice"] }));
 }
 
-
 function attr(tag: string, name: string): string | undefined {
   return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
 }
@@ -61,14 +59,14 @@ function selects(html: string): string[] {
   return [...html.matchAll(/<select[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
 }
 
-
 describe("J36 brand voice: each category's picker", () => {
-
   it("shows a stored preset as chosen and posts it in the category's hidden field", () => {
     const html = render({ stored: { network: "direct and no-nonsense" } });
     const network = selects(html)[2];
     expect(network).toMatch(/<option value="direct and no-nonsense" selected="">/);
-    expect(html).toMatch(/<input type="hidden" name="voice_network" value="direct and no-nonsense"\/>/);
+    expect(html).toMatch(
+      /<input type="hidden" name="voice_network" value="direct and no-nonsense"\/>/,
+    );
     expect(html).toMatch(/<input type="hidden" name="voice_soft" value=""\/>/);
   });
 
@@ -98,8 +96,9 @@ describe("J36 brand voice: each category's picker", () => {
 function ctx() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
-      if (key === authContext) return { email: "owner@example.com", membership: { accountId: "acct_1" } };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
+      if (key === authContext)
+        return { email: "owner@example.com", membership: { accountId: "acct_1" } };
       throw new Error("unexpected context key");
     },
   } as never;
@@ -128,7 +127,10 @@ describe("J36 brand voice: a failed save", () => {
       context: ctx(),
       request: new Request("https://x/settings/brand-voice", { method: "POST", body: form }),
       params: {},
-    } as never)) as unknown as { data: { ok: boolean; error?: string }; init?: { status?: number } };
+    } as never)) as unknown as {
+      data: { ok: boolean; error?: string };
+      init?: { status?: number };
+    };
     expect(res.data.ok).toBe(false);
     expect(res.data.error).toBeUndefined();
     expect(res.init?.status).toBe(500);

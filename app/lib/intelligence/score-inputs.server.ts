@@ -39,10 +39,18 @@ export async function loadScoreExtras(
         occurredAt: subscriptionChanges.occurredAt,
       })
       .from(subscriptionChanges)
-      .where(and(eq(subscriptionChanges.accountId, accountId), stripeCustomerId ? eq(subscriptionChanges.stripeCustomerId, stripeCustomerId) : undefined))
+      .where(
+        and(
+          eq(subscriptionChanges.accountId, accountId),
+          stripeCustomerId ? eq(subscriptionChanges.stripeCustomerId, stripeCustomerId) : undefined,
+        ),
+      )
       .orderBy(asc(subscriptionChanges.occurredAt), asc(subscriptionChanges.createdAt)),
     db
-      .select({ stripeCustomerId: failedPayments.stripeCustomerId, cardFunding: failedPayments.cardFunding })
+      .select({
+        stripeCustomerId: failedPayments.stripeCustomerId,
+        cardFunding: failedPayments.cardFunding,
+      })
       .from(failedPayments)
       .where(
         and(
@@ -70,7 +78,8 @@ export async function loadScoreExtras(
     }
     return e;
   };
-  for (const [id, rows] of changesBy) entry(id).subscriptionChanges = summarizeSubscriptionChanges(rows, nowMs);
+  for (const [id, rows] of changesBy)
+    entry(id).subscriptionChanges = summarizeSubscriptionChanges(rows, nowMs);
   // Newest first, so the first row seen per customer is the latest.
   for (const row of cardRows) {
     const e = entry(row.stripeCustomerId);
@@ -105,7 +114,11 @@ type ScoreColumnRow = {
 };
 
 /** One customer's score input from its customer_context row and extras. */
-export function healthScoreInput(row: ScoreColumnRow, extras: ScoreExtras | undefined, nowMs: number): HealthScoreInput {
+export function healthScoreInput(
+  row: ScoreColumnRow,
+  extras: ScoreExtras | undefined,
+  nowMs: number,
+): HealthScoreInput {
   return {
     nowMs,
     subscriptionAgeDays: row.subscriptionAgeDays,
@@ -141,11 +154,18 @@ export async function rescoreCustomer(
   const [row] = await db
     .select({ id: customerContext.id, ...scoreColumns })
     .from(customerContext)
-    .where(and(eq(customerContext.accountId, accountId), eq(customerContext.stripeCustomerId, stripeCustomerId)))
+    .where(
+      and(
+        eq(customerContext.accountId, accountId),
+        eq(customerContext.stripeCustomerId, stripeCustomerId),
+      ),
+    )
     .limit(1);
   if (!row) return null;
   const extras = await loadScoreExtras(db, accountId, now.getTime(), stripeCustomerId);
-  const { score, factors } = computeHealthScore(healthScoreInput(row, extras.get(stripeCustomerId), now.getTime()));
+  const { score, factors } = computeHealthScore(
+    healthScoreInput(row, extras.get(stripeCustomerId), now.getTime()),
+  );
   await db
     .update(customerContext)
     .set({ healthScore: score, healthFactors: factors, healthScoreCalculatedAt: now })

@@ -392,7 +392,10 @@ function buildDisputedAtStamp(db: Db, failedPaymentId: string, at: Date) {
       .update(recoveredPayments)
       .set({ disputedAt: at })
       .where(
-        and(eq(recoveredPayments.failedPaymentId, failedPaymentId), isNull(recoveredPayments.disputedAt)),
+        and(
+          eq(recoveredPayments.failedPaymentId, failedPaymentId),
+          isNull(recoveredPayments.disputedAt),
+        ),
       ),
   ] as const;
 }
@@ -402,7 +405,10 @@ export function buildDisputeStampBatch(
   db: Db,
   input: { claim: WebhookClaimInput; failedPaymentId: string; at: Date },
 ): MoneyWriteBatch {
-  return [buildWebhookClaim(db, input.claim), ...buildDisputedAtStamp(db, input.failedPaymentId, input.at)];
+  return [
+    buildWebhookClaim(db, input.claim),
+    ...buildDisputedAtStamp(db, input.failedPaymentId, input.at),
+  ];
 }
 
 export interface DisputeIntakeInput {
@@ -528,7 +534,10 @@ export interface DisputeResolutionInput {
  * loss, snapshots no fee (a lost dispute never carries a stale won-fee; a
  * merchant-fought win is never billed, PRICING.md rev 3).
  */
-export function buildDisputeResolutionBatch(db: Db, input: DisputeResolutionInput): MoneyWriteBatch {
+export function buildDisputeResolutionBatch(
+  db: Db,
+  input: DisputeResolutionInput,
+): MoneyWriteBatch {
   return [buildWebhookClaim(db, input.claim), buildDisputeResolutionUpdate(db, input)];
 }
 
@@ -554,7 +563,10 @@ export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResoluti
       // until a run that can price it. Never the flat 50,000.
       resolvedFeeCents:
         billableWin && input.cap
-          ? feeForCurrency(disputeFeeCents(input.amountCents, input.cap.capMinorUnits), input.currency)
+          ? feeForCurrency(
+              disputeFeeCents(input.amountCents, input.cap.capMinorUnits),
+              input.currency,
+            )
           : null,
       resolvedFeeCurrency: billableWin && input.cap ? input.currency : null,
       resolvedFeeRate: input.cap?.rate ?? null,

@@ -15,7 +15,7 @@ import "~/site-header.css";
 import { disputes, failedPayments, getDb, stripeConnections } from "~/db";
 import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 import type { Route } from "./+types/hub";
@@ -69,11 +69,19 @@ export interface SettingsHubEntry {
  *  Intelligence, which had no working control, removed. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
   { to: "/settings/stripe", label: "Stripe connections", description: "Connected accounts" },
-  { to: "/settings/email", label: "Email", description: "Sender name, reply-to, win-back, expiring cards" },
+  {
+    to: "/settings/email",
+    label: "Email",
+    description: "Sender name, reply-to, win-back, expiring cards",
+  },
   { to: "/settings/brand-voice", label: "Brand voice", description: "Per-category AI tone" },
   { to: "/settings/disputes", label: "Disputes", description: "Auto-submit, product description" },
   { to: "/settings/audit", label: "Audit", description: "Lookback period, auto-run" },
-  { to: "/settings/notifications", label: "Notifications and alerts", description: "Email, Slack, digest, metric thresholds" },
+  {
+    to: "/settings/notifications",
+    label: "Notifications and alerts",
+    description: "Email, Slack, digest, metric thresholds",
+  },
   { to: "/settings/team", label: "Team", description: "Members, invite, roles" },
   { to: "/settings/api-keys", label: "API keys", description: "MCP server credentials" },
   { to: "/settings/account", label: "My account", description: "Profile, sign out" },
@@ -159,9 +167,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
         : `${connectionCount} connected`
       : "Not connected";
   const stripeSub =
-    connectionCount > 0
-      ? (firstStripeUserId ?? "Connected")
-      : "Connect Stripe to start recovering";
+    connectionCount > 0 ? (firstStripeUserId ?? "Connected") : "Connect Stripe to start recovering";
 
   return (
     <>
@@ -181,7 +187,10 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
       {/* Desktop: the overview. */}
       <div className="hidden md:block">
         <div className="mb-6">
-          <PageHead title="Settings" lead="Your account, integrations, and recovery configuration." />
+          <PageHead
+            title="Settings"
+            lead="Your account, integrations, and recovery configuration."
+          />
         </div>
 
         <div className="mb-6">
@@ -218,7 +227,11 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
         >
           Configuration
         </h2>
-        <ul role="list" aria-labelledby={CONFIG_HEADING_ID} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <ul
+          role="list"
+          aria-labelledby={CONFIG_HEADING_ID}
+          className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+        >
           {SETTINGS_HUB_ENTRIES.map((entry) => (
             <li key={entry.to}>
               <RowList>

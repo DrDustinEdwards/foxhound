@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -86,7 +86,9 @@ beforeEach(() => {
   // Live sends OFF, the default for every account: Recova's control has no
   // such switch, so the preview must not depend on it.
   sqlite
-    .prepare("INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 0)")
+    .prepare(
+      "INSERT INTO accounts (id, name, created_at, live_sends_enabled) VALUES (?, 'Acme', 1000, 0)",
+    )
     .run(ACCOUNT);
 });
 
@@ -95,12 +97,16 @@ function seedConnection(opts: { senderName?: string | null; replyTo?: string | n
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, sender_name, reply_to_email, connected_at, created_at) VALUES ('c1', ?, 'acct_s_1', 1, ?, ?, 1000, 1000)",
     )
-    .run(ACCOUNT, opts.senderName === undefined ? SENDER : opts.senderName, opts.replyTo === undefined ? REPLY : opts.replyTo);
+    .run(
+      ACCOUNT,
+      opts.senderName === undefined ? SENDER : opts.senderName,
+      opts.replyTo === undefined ? REPLY : opts.replyTo,
+    );
 }
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: "user_1",
@@ -134,15 +140,16 @@ function only(): SentMessage {
   return harness.sent[0];
 }
 
-
-
 describe("when it sends: Recova's trigger and not otherwise", () => {
-
   it("saving the sender settings, loading the page, or an unknown action sends nothing", async () => {
     seedConnection();
     await post({ _action: "sender", connectionId: "c1", senderName: "Acme" });
     await post({ _action: "nope" });
-    await loader({ context: ctx, request: new Request(`${BASE}/settings/email`), params: {} } as never);
+    await loader({
+      context: ctx,
+      request: new Request(`${BASE}/settings/email`),
+      params: {},
+    } as never);
     expect(harness.sent).toHaveLength(0);
   });
 });
@@ -171,7 +178,9 @@ describe("a refused send returns its named outcome", () => {
   it("a suppressed address: 'suppressed', nothing sent", async () => {
     seedConnection();
     sqlite
-      .prepare("INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)")
+      .prepare(
+        "INSERT INTO email_suppressions (id, email, token, reason, suppressed_at) VALUES ('s1', ?, 't', 'bounce', 2000)",
+      )
       .run(USER_EMAIL);
     const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
     expect(result.status).toBe("suppressed");

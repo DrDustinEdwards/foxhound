@@ -26,14 +26,15 @@ import { formatCents, formatTotals, toStoredAuditRun } from "~/lib/audit/render"
 import { createSaveQueue, type SaveQueue } from "~/lib/audit/save-queue";
 import { compareTotals, type TrendComparison, type TrendSide } from "~/lib/audit/trend";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
 
 import type { Route } from "./+types/dashboard";
 import { NOINDEX } from "~/lib/seo/meta";
 import { formatDateShort } from "~/lib/date-format";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // J43, row U2: Recova's /audit/dashboard, at Recova's path.
 // Read whole at HEAD: app/audit/dashboard/page.tsx (blob 988c190a, 9,206 bytes)
@@ -128,7 +129,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // A failed write throws (the D1 batch lands or throws), so it is caught,
   // logged whole, and answered 500 with Recova's failure line on the page.
   try {
-    const form = await readForm(request);
+    const form = await readForm(request, BODY_MAX_BYTES);
     const result = await applyAuditSettings(getDb(env), membership.accountId, {
       lookbackDays: form.get("audit_lookback_days"),
       autoRun: form.get("audit_auto_run"),
@@ -206,9 +207,14 @@ function TrendRow({
       ) : (
         <div className="flex flex-col items-end gap-1">
           {lines.map((line) => (
-            <div key={line.currency} className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label">
+            <div
+              key={line.currency}
+              className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label"
+            >
               <span className="text-text">{formatCents(line.currentCents, line.currency)}</span>
-              <span className="text-text-subtle">vs {formatCents(line.previousCents, line.currency)}</span>
+              <span className="text-text-subtle">
+                vs {formatCents(line.previousCents, line.currency)}
+              </span>
               <Move cmp={line.comparison} />
             </div>
           ))}
@@ -306,8 +312,8 @@ export function AuditSettingsForm({
               Monthly audit digest
             </div>
             <p id={digestHelp} className="m-0 text-micro text-text-subtle">
-              On the 1st of each month, we run a fresh audit and email you a comparison versus the prior
-              month. No extra charge.
+              On the 1st of each month, we run a fresh audit and email you a comparison versus the
+              prior month. No extra charge.
             </p>
           </div>
           {/* Unchecked posts nothing, which the action reads as off. */}
@@ -344,7 +350,8 @@ function SettingsPanel({
   result: SaveResult;
 }) {
   const navigation = useNavigation();
-  const saving = navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
+  const saving =
+    navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
   return (
     <div className="mb-5">
       <Panel title="Settings">
@@ -442,7 +449,14 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
       <div className="mb-5">
         <Panel title="History" flush>
-          <div className="cap-table-wrap" data-reflow="" data-cap="table" role="region" aria-label="Audit runs" tabIndex={0}>
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-label="Audit runs"
+            tabIndex={0}
+          >
             <table className="cap-table">
               <thead>
                 <tr>

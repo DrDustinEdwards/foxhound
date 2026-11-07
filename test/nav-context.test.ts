@@ -39,7 +39,9 @@ async function storedValue(db: ReturnType<typeof createInMemoryDb>["db"], accoun
 describe("resolveNavContext", () => {
   it("product page, real account, value changed: writes the new value, deferred via waitUntil", async () => {
     const { db } = createInMemoryDb();
-    await db.insert(accounts).values({ id: "acc_1", name: "Acme", lastVisitedProduct: "dashboard" });
+    await db
+      .insert(accounts)
+      .values({ id: "acc_1", name: "Acme", lastVisitedProduct: "dashboard" });
     const updateSpy = vi.spyOn(db, "update");
     const { waitUntil, flush } = collectWaitUntil();
 

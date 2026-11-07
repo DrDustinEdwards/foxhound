@@ -40,7 +40,7 @@ function makeEnv(rateLimiter = fakeRateLimiter()) {
 }
 
 const context = (env: Env): unknown => ({
-  get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }),
+  get: () => ({ env, ctx: {} as ExecutionContext }),
 });
 
 async function seed() {
@@ -76,7 +76,6 @@ const suppressionRows = async (db: Awaited<ReturnType<typeof seed>>) =>
 // ============================================================================
 
 describe("F7 loader: Recova's four states on Foxhound's engine", () => {
-
   it("a migrated Recova row with no suppressed_at is suppressed now and records this opt-out", async () => {
     // Recova registered a token row per send with suppressed_at NULL. Such a row
     // conflicts on the address; skipping it would say "already" while mail kept going.

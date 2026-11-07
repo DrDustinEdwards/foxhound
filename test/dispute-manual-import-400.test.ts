@@ -1,18 +1,11 @@
-
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
 import { accounts, disputes, stripeConnections, type Db } from "~/db";
-import {
-  MANUAL_CLAIM_EVENT_TYPE,
-  manualImportClaimKey,
-} from "~/lib/disputes/manual-import.server";
+import { MANUAL_CLAIM_EVENT_TYPE, manualImportClaimKey } from "~/lib/disputes/manual-import.server";
 import { disputeIntakeFields, isStripeDisputeId } from "~/lib/disputes/stripe-dispute";
-import {
-  SerialMoneyCommitter,
-  type CompiledStatement,
-} from "~/lib/money/serializer";
+import { SerialMoneyCommitter, type CompiledStatement } from "~/lib/money/serializer";
 import { buildDisputeIntakeBatch, type WebhookClaimInput } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -40,8 +33,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // isUniqueConstraintError is matching what it will match in production. The
 // real SerialMoneyCommitter drives them, so the batch atomicity and the
 // applied=false path are the shipped code rather than a restatement of it.
-
-
 
 const NOW = new Date("2026-08-30T00:00:00.000Z");
 const ACCOUNT = "acct_manual";
@@ -121,9 +112,7 @@ const manualClaim: WebhookClaimInput = {
   payload: { stripeDisputeId: STRIPE_DISPUTE_ID, source: "manual_import" },
 };
 
-
 describe("the manual-import claim key", () => {
-
   it("is stable across calls", () => {
     expect(manualImportClaimKey("dp_x")).toBe(manualImportClaimKey("dp_x"));
   });
@@ -135,7 +124,6 @@ describe("the manual-import claim key", () => {
 });
 
 describe("the unique backstop exists in the SQL the fixture runs (381, 386)", () => {
-
   it("fires directly on a second row with the same stripe_dispute_id", async () => {
     // 381's discipline: prove the constraint by hitting it, not by reading that
     // it is there. Two INSERTs, no batch, no committer, no application code.
@@ -146,10 +134,23 @@ describe("the unique backstop exists in the SQL the fixture runs (381, 386)", ()
         .prepare(
           "insert into disputes (id, account_id, stripe_dispute_id, stripe_charge_id, amount_cents, currency, reason, status, created_at, state) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
-        .run(rowId, ACCOUNT, STRIPE_DISPUTE_ID, "ch_1", 100, "usd", "general", "needs_response", 0, "pending_review");
+        .run(
+          rowId,
+          ACCOUNT,
+          STRIPE_DISPUTE_ID,
+          "ch_1",
+          100,
+          "usd",
+          "general",
+          "needs_response",
+          0,
+          "pending_review",
+        );
 
     insert("dsp_first");
-    expect(() => insert("dsp_second")).toThrow(/UNIQUE constraint failed: disputes\.stripe_dispute_id/);
+    expect(() => insert("dsp_second")).toThrow(
+      /UNIQUE constraint failed: disputes\.stripe_dispute_id/,
+    );
   });
 });
 
@@ -196,7 +197,6 @@ describe("two imports of one dispute converge on one row", () => {
 });
 
 describe("the posted id is validated server-side", () => {
-
   it("rejects anything else, including the shapes a typo produces", () => {
     // Legacy checks this in the browser only, which an action cannot rely on.
     for (const bad of ["", "ch_123", "dp_", "dp", " dp_1", "dp_1; drop table disputes", "evt_1"]) {
@@ -219,8 +219,11 @@ describe("the shared Stripe.Dispute mapping", () => {
   } as unknown as Stripe.Dispute;
 
   it("reads an expanded charge object as well as a bare id", () => {
-    expect(disputeIntakeFields({ ...base, charge: { id: "ch_expanded" } } as unknown as Stripe.Dispute, NOW)?.chargeId).toBe(
-      "ch_expanded",
-    );
+    expect(
+      disputeIntakeFields(
+        { ...base, charge: { id: "ch_expanded" } } as unknown as Stripe.Dispute,
+        NOW,
+      )?.chargeId,
+    ).toBe("ch_expanded");
   });
 });

@@ -31,7 +31,11 @@ export async function verifyEngagementToken(
 ): Promise<EngagementTokenPayload | null> {
   const parsed = (await readSignedToken(linkKeys(env), token)) as EngagementTokenPayload | null;
   if (!parsed) return null;
-  if (!parsed.stepId || !parsed.accountId || (parsed.kind !== "open" && parsed.kind !== "click" && parsed.kind !== "honeypot")) {
+  if (
+    !parsed.stepId ||
+    !parsed.accountId ||
+    (parsed.kind !== "open" && parsed.kind !== "click" && parsed.kind !== "honeypot")
+  ) {
     return null;
   }
   return parsed;

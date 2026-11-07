@@ -10,15 +10,15 @@ binding, so it never uses these tokens.
 
 Every token is a row in `api_keys`. Helpers are in `app/lib/auth/mcp-tokens.ts`.
 
-| column         | use                                                          |
-|----------------|--------------------------------------------------------------|
-| `id`           | token id (revocation, last-used stamping)                    |
-| `account_id`   | owning account for merchant tokens; NULL for admin tokens    |
-| `key_hash`     | SHA-256 hex of the plaintext; the plaintext is never stored  |
-| `label`        | human label ("Zapier", "ops laptop")                         |
-| `scope`        | `mcp_merchant` or `mcp_admin`                                |
-| `expires_at`   | set on OAuth-issued tokens (one hour); NULL for Settings keys |
-| `created_at`, `last_used_at`, `revoked_at` | lifecycle                        |
+| column                                     | use                                                           |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| `id`                                       | token id (revocation, last-used stamping)                     |
+| `account_id`                               | owning account for merchant tokens; NULL for admin tokens     |
+| `key_hash`                                 | SHA-256 hex of the plaintext; the plaintext is never stored   |
+| `label`                                    | human label ("Zapier", "ops laptop")                          |
+| `scope`                                    | `mcp_merchant` or `mcp_admin`                                 |
+| `expires_at`                               | set on OAuth-issued tokens (one hour); NULL for Settings keys |
+| `created_at`, `last_used_at`, `revoked_at` | lifecycle                                                     |
 
 ## Format
 

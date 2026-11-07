@@ -5,9 +5,7 @@ import { DEMO_ACCOUNT_ID, DEMO_BOLT_ACCOUNT_ID } from "~/lib/demo/constants";
 import { listDisputes } from "~/lib/disputes/queries.server";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
-import {
-  listFailedPayments,
-} from "~/lib/recovery/queries.server";
+import { listFailedPayments } from "~/lib/recovery/queries.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -76,7 +74,11 @@ describe("demo seeder -> real loaders render populated data", () => {
     expect(mrr.latest!.totalMrrCents).toBeLessThan(2_000_000);
 
     const disputes = await listDisputes(db, DEMO_BOLT_ACCOUNT_ID);
-    expect(disputes.map((d) => d.customerName).sort()).toEqual(["Drift Logic", "Lane Owens", "Sage Pulse"]);
+    expect(disputes.map((d) => d.customerName).sort()).toEqual([
+      "Drift Logic",
+      "Lane Owens",
+      "Sage Pulse",
+    ]);
   });
 
   it("is deterministic + idempotent: re-seeding yields the same single portfolio", async () => {

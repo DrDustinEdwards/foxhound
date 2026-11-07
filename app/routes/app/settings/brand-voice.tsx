@@ -20,7 +20,7 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyBrandVoice } from "~/lib/settings/apply.server";
 import { getPrimaryBrandVoices } from "~/lib/settings/queries.server";
 import {
@@ -41,7 +41,8 @@ import {
 
 import type { Route } from "./+types/brand-voice";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S31, /settings/brand-voice.
 //
@@ -116,7 +117,7 @@ interface ActionResult {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
 
   // FOUR NAMED FIELDS, read here and validated nowhere here. A form posting
   // `voice_revoked`, `brandVoice` or any other column name contributes
@@ -137,7 +138,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       expired: read("expired"),
       network: read("network"),
       fraud: read("fraud"),
-      samples: Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => String(form.get(voiceSampleFieldName(i)) ?? "")),
+      samples: Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) =>
+        String(form.get(voiceSampleFieldName(i)) ?? ""),
+      ),
     });
   } catch (err) {
     console.error("brand voice write failed:", err);
@@ -264,7 +267,9 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
                   rows={i < 2 ? 6 : 3}
                   maxLength={VOICE_SAMPLE_MAX_CHARS}
                   defaultValue={samples[i] ?? ""}
-                  placeholder={i === 0 ? "Hi Sam, thanks for sticking with us this year..." : undefined}
+                  placeholder={
+                    i === 0 ? "Hi Sam, thanks for sticking with us this year..." : undefined
+                  }
                 />
               ))}
             </div>

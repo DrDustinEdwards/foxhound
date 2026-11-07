@@ -6,7 +6,7 @@ import { SequenceTimeline } from "~/components/docs/sequence-timeline";
 import { FeatureFilter } from "~/components/feature-filter";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { ProductTag } from "~/components/tone-pills";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { FEATURE_FILTER_CSS } from "~/lib/http/inline-styles";
 import {
   FEATURES_META_DESCRIPTION,
@@ -61,14 +61,19 @@ function FeatureCard({ feature }: { feature: Feature }) {
   return (
     // data-product is what FEATURE_FILTER_CSS reads to hide a card.
     // Recova's feature card: p-4 and 8px corners.
-    <div className="cap-panel rounded-lg [--gap:1rem] [--pad-card:1rem]" data-product={feature.product}>
+    <div
+      className="cap-panel rounded-lg [--gap:1rem] [--pad-card:1rem]"
+      data-product={feature.product}
+    >
       <div className="cap-panel-body">
         <div>
           <div className="mb-2 flex items-start justify-between gap-3">
             <span className="text-copy font-medium text-text">{feature.name}</span>
             <ProductTag product={feature.product} />
           </div>
-          <p className="m-0 text-label leading-relaxed text-text-secondary">{feature.description}</p>
+          <p className="m-0 text-label leading-relaxed text-text-secondary">
+            {feature.description}
+          </p>
         </div>
       </div>
     </div>
@@ -129,7 +134,11 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
     // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
     // ring reads --border-focus (app.css); inside this page it reads the
     // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div className="fh-cap fh-features [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap fh-features [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <style>{FEATURE_FILTER_CSS}</style>
       <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
 
@@ -142,7 +151,12 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           data-island="feature-filter"
           data-props={JSON.stringify({ total: all.length, counts: productCounts(all) })}
         >
-          <FeatureFilter active={filter} onChange={setFilter} shownCount={shown} totalCount={all.length} />
+          <FeatureFilter
+            active={filter}
+            onChange={setFilter}
+            shownCount={shown}
+            totalCount={all.length}
+          />
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
             {/* Recova's sticky section nav. Capsomer's anchor bar is a
@@ -192,7 +206,12 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           {/* Comfortable density for Capsomer's lg button, as /pricing: 40px
               tall with a pointer, 44px on a touch screen. */}
           <div data-density="comfortable">
-            <Link to="/audit" className="cap-btn px-6 [--cap-btn-h:3rem]" data-variant="primary" data-size="lg">
+            <Link
+              to="/audit"
+              className="cap-btn px-6 [--cap-btn-h:3rem]"
+              data-variant="primary"
+              data-size="lg"
+            >
               Run your free audit
             </Link>
           </div>

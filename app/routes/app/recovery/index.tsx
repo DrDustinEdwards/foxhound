@@ -15,7 +15,7 @@ import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import {
   getRecoveryDashboardWindow,
@@ -110,7 +110,9 @@ export function meta() {
 }
 
 function parseRange(value: string | null): RecoveryRange {
-  return (RECOVERY_RANGES as readonly string[]).includes(value ?? "") ? (value as RecoveryRange) : "30d";
+  return (RECOVERY_RANGES as readonly string[]).includes(value ?? "")
+    ? (value as RecoveryRange)
+    : "30d";
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -126,7 +128,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // already 30d, as in Recova's page.
   const [data, data30dRaw, lifetimeStats, profile] = await Promise.all([
     getRecoveryDashboardWindow(db, accountId, range, nowMs),
-    range === "30d" ? Promise.resolve(null) : getRecoveryDashboardWindow(db, accountId, "30d", nowMs),
+    range === "30d"
+      ? Promise.resolve(null)
+      : getRecoveryDashboardWindow(db, accountId, "30d", nowMs),
     getRecoveryStats(db, accountId, nowMs),
     getDashboardOnboardingProfile(db, accountId),
   ]);
@@ -145,7 +149,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     roi = { thisMonth: roiColumn(thisMonth), allTime: roiColumn(allTime) };
   }
 
-  const deliverability = await getDeliverabilityCounts(db, accountId, resolveRangeCutoff(range, nowMs).cutoffMs);
+  const deliverability = await getDeliverabilityCounts(
+    db,
+    accountId,
+    resolveRangeCutoff(range, nowMs).cutoffMs,
+  );
 
   const stepRows = await listStepsForFailedPayments(
     db,
@@ -163,7 +171,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const onboarding = onboardingChecklistState(profile, Boolean(data.connection));
   // Recova's banner: connected, onboarding out of the way, and no failed
   // payment ever recorded (renewal noise excluded).
-  const watchingForFailures = onboarding.connected && !onboarding.needed && lifetimeStats.totalFailedCount === 0;
+  const watchingForFailures =
+    onboarding.connected && !onboarding.needed && lifetimeStats.totalFailedCount === 0;
 
   return {
     data,
@@ -182,8 +191,18 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 // ---- Page ----
 
 export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) {
-  const { data, data30d, roi, onboarding, watchingForFailures, range, nowMs, queueHours, paymentSteps, deliverability } =
-    loaderData;
+  const {
+    data,
+    data30d,
+    roi,
+    onboarding,
+    watchingForFailures,
+    range,
+    nowMs,
+    queueHours,
+    paymentSteps,
+    deliverability,
+  } = loaderData;
   const hasBanners = onboarding.needed || watchingForFailures;
 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10, with
@@ -193,13 +212,11 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 pb-8 md:px-8 md:pb-10">
       {hasBanners ? (
         <div className="mt-6">
-          {onboarding.needed ? (
-            <OnboardingChecklist {...onboarding} />
-          ) : null}
+          {onboarding.needed ? <OnboardingChecklist {...onboarding} /> : null}
           {watchingForFailures ? (
             <Banner tone="neutral" title="We're watching for failed payments.">
-              Stripe is connected. The first failed renewal or one-time charge will appear here within minutes of
-              the decline. No action needed until then.
+              Stripe is connected. The first failed renewal or one-time charge will appear here
+              within minutes of the decline. No action needed until then.
             </Banner>
           ) : null}
         </div>
@@ -218,7 +235,9 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
               <div className="flex flex-col items-end gap-1.5">
                 <RangeSelector range={range} />
                 {data.webhookHealth ? (
-                  <Status tone={WEBHOOK_TONE[data.webhookHealth.tone]}>{data.webhookHealth.label}</Status>
+                  <Status tone={WEBHOOK_TONE[data.webhookHealth.tone]}>
+                    {data.webhookHealth.label}
+                  </Status>
                 ) : null}
                 {data.lastRecoveryAgo ? (
                   <p className="m-0 text-micro text-text-subtle">
@@ -251,7 +270,9 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
 
       {/* ROW 4: decline analysis, 3/2. */}
       <div className="mb-5">
-        <p className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">Decline analysis</p>
+        <p className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">
+          Decline analysis
+        </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div className="min-w-0 md:col-span-3">
             <DeclineBreakdown w={data} />
@@ -284,8 +305,13 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
       {/* ROW 9: failed payments. */}
       <PaymentsTable w={data} steps={paymentSteps} nowMs={nowMs} />
       <div className="mt-3 text-right">
-        <Link to="/recovery/payments" aria-label="View all failed payments" className="text-label text-brand-text">
-          View all payments <ArrowRight className="inline-block" size={13} strokeWidth={1.5} aria-hidden />
+        <Link
+          to="/recovery/payments"
+          aria-label="View all failed payments"
+          className="text-label text-brand-text"
+        >
+          View all payments{" "}
+          <ArrowRight className="inline-block" size={13} strokeWidth={1.5} aria-hidden />
         </Link>
       </div>
     </div>

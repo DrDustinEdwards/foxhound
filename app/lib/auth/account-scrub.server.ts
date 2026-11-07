@@ -55,7 +55,10 @@ import {
 /** A failed payment is evidence when a recovery was recorded against it. */
 function paymentRecovered(db: Db, failedPaymentId: AnySQLiteColumn): SQL {
   return exists(
-    db.select({ one: sql`1` }).from(recoveredPayments).where(eq(recoveredPayments.failedPaymentId, failedPaymentId)),
+    db
+      .select({ one: sql`1` })
+      .from(recoveredPayments)
+      .where(eq(recoveredPayments.failedPaymentId, failedPaymentId)),
   );
 }
 
@@ -68,7 +71,10 @@ function stepKept(db: Db, stepId: AnySQLiteColumn): SQL {
     db
       .select({ one: sql`1` })
       .from(recoverySteps)
-      .innerJoin(recoveredPayments, eq(recoveredPayments.failedPaymentId, recoverySteps.failedPaymentId))
+      .innerJoin(
+        recoveredPayments,
+        eq(recoveredPayments.failedPaymentId, recoverySteps.failedPaymentId),
+      )
       .where(eq(recoverySteps.id, stepId)),
   );
 }
@@ -80,27 +86,42 @@ function sendKept(db: Db, sendId: AnySQLiteColumn): SQL {
       .select({ one: sql`1` })
       .from(emailSends)
       .innerJoin(recoverySteps, eq(recoverySteps.id, emailSends.recoveryStepId))
-      .innerJoin(recoveredPayments, eq(recoveredPayments.failedPaymentId, recoverySteps.failedPaymentId))
+      .innerJoin(
+        recoveredPayments,
+        eq(recoveredPayments.failedPaymentId, recoverySteps.failedPaymentId),
+      )
       .where(eq(emailSends.id, sendId)),
   );
 }
 
 /** A dispute was billed when any line item points at it (a fee or its credit). */
 function disputeBilled(db: Db, disputeId: AnySQLiteColumn): SQL {
-  return exists(db.select({ one: sql`1` }).from(billingLineItems).where(eq(billingLineItems.disputeId, disputeId)));
+  return exists(
+    db
+      .select({ one: sql`1` })
+      .from(billingLineItems)
+      .where(eq(billingLineItems.disputeId, disputeId)),
+  );
 }
 
 /**
  * The statements that delete one owned account's personal data, in
  * foreign-key order. Pure: compiles without a database.
  */
-export function buildAccountScrubStatements(db: Db, accountId: string, now: Date): BatchItem<"sqlite">[] {
+export function buildAccountScrubStatements(
+  db: Db,
+  accountId: string,
+  now: Date,
+): BatchItem<"sqlite">[] {
   const nowMs = now.getTime();
 
   // The account's own rows in tables whose account_id is nullable, reached
   // through their parent as well, so a row written without its account id is
   // still found and cannot block its parent's delete.
-  const stepsOfAccount = db.select({ id: recoverySteps.id }).from(recoverySteps).where(eq(recoverySteps.accountId, accountId));
+  const stepsOfAccount = db
+    .select({ id: recoverySteps.id })
+    .from(recoverySteps)
+    .where(eq(recoverySteps.accountId, accountId));
   const sequencesOfAccount = db
     .select({ id: winBackSequences.id })
     .from(winBackSequences)
@@ -108,7 +129,12 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
   const winBackStepsOfAccount = db
     .select({ id: winBackSteps.id })
     .from(winBackSteps)
-    .where(or(eq(winBackSteps.accountId, accountId), inArray(winBackSteps.winBackSequenceId, sequencesOfAccount)));
+    .where(
+      or(
+        eq(winBackSteps.accountId, accountId),
+        inArray(winBackSteps.winBackSequenceId, sequencesOfAccount),
+      ),
+    );
   const sendsOfAccount = db
     .select({ id: emailSends.id })
     .from(emailSends)
@@ -182,7 +208,12 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
       .where(
         and(
           engagementOfAccount,
-          not(or(stepKept(db, engagementEvents.recoveryStepId), sendKept(db, engagementEvents.emailSendId)) as SQL),
+          not(
+            or(
+              stepKept(db, engagementEvents.recoveryStepId),
+              sendKept(db, engagementEvents.emailSendId),
+            ) as SQL,
+          ),
         ),
       ),
     db.update(engagementEvents).set({ targetUrl: null }).where(engagementOfAccount),
@@ -201,14 +232,21 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     // ---- recovery steps and failed payments: kept for recovered payments only.
     db
       .delete(recoverySteps)
-      .where(and(eq(recoverySteps.accountId, accountId), not(paymentRecovered(db, recoverySteps.failedPaymentId)))),
+      .where(
+        and(
+          eq(recoverySteps.accountId, accountId),
+          not(paymentRecovered(db, recoverySteps.failedPaymentId)),
+        ),
+      ),
     db
       .update(recoverySteps)
       .set({ aiSubject: null, aiBodyHtml: null, customBody: null, lastAttemptError: null })
       .where(eq(recoverySteps.accountId, accountId)),
     db
       .delete(failedPayments)
-      .where(and(eq(failedPayments.accountId, accountId), not(paymentRecovered(db, failedPayments.id)))),
+      .where(
+        and(eq(failedPayments.accountId, accountId), not(paymentRecovered(db, failedPayments.id))),
+      ),
     db
       .update(failedPayments)
       .set({
@@ -248,7 +286,9 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, accountId)),
     // Stripe's own balance transactions for the disputes: Stripe's ledger,
     // not evidence of a Foxhound fee (the kept dispute row is).
-    db.delete(disputeBalanceTransactions).where(eq(disputeBalanceTransactions.accountId, accountId)),
+    db
+      .delete(disputeBalanceTransactions)
+      .where(eq(disputeBalanceTransactions.accountId, accountId)),
     db.delete(disputeApprovals).where(
       and(
         eq(disputeApprovals.accountId, accountId),
@@ -281,7 +321,12 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
           and(
             eq(disputes.state, "resolved_won"),
             isNotNull(disputes.submittedAt),
-            exists(db.select({ one: sql`1` }).from(disputeApprovals).where(eq(disputeApprovals.disputeId, disputes.id))),
+            exists(
+              db
+                .select({ one: sql`1` })
+                .from(disputeApprovals)
+                .where(eq(disputeApprovals.disputeId, disputes.id)),
+            ),
           ) as SQL,
         ),
       ),
@@ -327,7 +372,9 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     db.delete(intelligenceReports).where(eq(intelligenceReports.accountId, accountId)),
     db.delete(alertHistory).where(eq(alertHistory.accountId, accountId)),
     db.delete(alerts).where(eq(alerts.accountId, accountId)),
-    db.delete(intelligenceNotificationPreferences).where(eq(intelligenceNotificationPreferences.accountId, accountId)),
+    db
+      .delete(intelligenceNotificationPreferences)
+      .where(eq(intelligenceNotificationPreferences.accountId, accountId)),
     db.delete(auditRuns).where(eq(auditRuns.accountId, accountId)),
     db.delete(auditDigestRuns).where(eq(auditDigestRuns.accountId, accountId)),
     db.delete(aiCalls).where(eq(aiCalls.accountId, accountId)),
@@ -345,7 +392,10 @@ export function buildAccountScrubStatements(db: Db, accountId: string, now: Date
     // The claim row stays (its stripe_event_id is what stops a redelivered
     // event being processed twice); the Stripe payload, full of customer
     // details, goes.
-    db.update(webhookEvents).set({ payload: {}, errorMessage: null }).where(eq(webhookEvents.accountId, accountId)),
+    db
+      .update(webhookEvents)
+      .set({ payload: {}, errorMessage: null })
+      .where(eq(webhookEvents.accountId, accountId)),
     db.delete(accountMembers).where(eq(accountMembers.accountId, accountId)),
   ];
 }

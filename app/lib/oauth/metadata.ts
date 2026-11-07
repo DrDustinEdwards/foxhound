@@ -41,7 +41,9 @@ export function requestsWrite(requested: string | null): boolean {
 /** The scopes a key holds. A key with none recorded is read only, the least,
  *  so a row the backfill missed can never write. */
 export function keyScopes(stored: readonly string[] | null | undefined): string[] {
-  const known = (stored ?? []).filter((s) => s === MERCHANT_SCOPES.read || s === MERCHANT_SCOPES.write);
+  const known = (stored ?? []).filter(
+    (s) => s === MERCHANT_SCOPES.read || s === MERCHANT_SCOPES.write,
+  );
   return known.includes(MERCHANT_SCOPES.write) ? [...MERCHANT_SCOPES.all] : [MERCHANT_SCOPES.read];
 }
 

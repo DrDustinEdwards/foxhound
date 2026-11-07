@@ -77,7 +77,9 @@ function safePermalink(value: unknown): string | null {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") return null;
-    return url.hostname === "sentry.io" || url.hostname.endsWith(".sentry.io") ? url.toString() : null;
+    return url.hostname === "sentry.io" || url.hostname.endsWith(".sentry.io")
+      ? url.toString()
+      : null;
   } catch {
     return null;
   }
@@ -114,7 +116,8 @@ function failureMessage(status: number, org: string): string {
   if (status === 401 || status === 403) {
     return `Sentry refused the token (${status}). It needs the event:read scope on this organization.`;
   }
-  if (status === 404) return `Sentry found no organization named ${org}, or no project with this DSN's id in it.`;
+  if (status === 404)
+    return `Sentry found no organization named ${org}, or no project with this DSN's id in it.`;
   if (status === 429) return "Sentry asked Foxhound to slow down (429). Read again in a minute.";
   return `Sentry answered ${status}.`;
 }
@@ -149,7 +152,10 @@ export async function readSentry(env: Env): Promise<SentryState> {
   }
   if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
     const status = response.status >= 300 ? ` (${response.status})` : "";
-    return { state: "failed", message: `Sentry answered with a redirect${status}, which this page does not follow.` };
+    return {
+      state: "failed",
+      message: `Sentry answered with a redirect${status}, which this page does not follow.`,
+    };
   }
   if (!response.ok) return { state: "failed", message: failureMessage(response.status, org) };
 
@@ -159,7 +165,8 @@ export async function readSentry(env: Env): Promise<SentryState> {
   } catch {
     return { state: "failed", message: "Sentry's answer was not a list of issues." };
   }
-  if (!Array.isArray(body)) return { state: "failed", message: "Sentry's answer was not a list of issues." };
+  if (!Array.isArray(body))
+    return { state: "failed", message: "Sentry's answer was not a list of issues." };
   const issues = body
     .filter((raw): raw is Record<string, unknown> => typeof raw === "object" && raw !== null)
     .map(toIssue);

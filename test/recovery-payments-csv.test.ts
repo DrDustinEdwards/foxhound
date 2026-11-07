@@ -86,14 +86,15 @@ describe("buildPaymentsCsv", () => {
   });
 
   it("falls back to empty strings for null customer name / plan / decline code", () => {
-    const csv = buildPaymentsCsv([fakeRow({ customerName: null, planName: null, declineCode: null })]);
+    const csv = buildPaymentsCsv([
+      fakeRow({ customerName: null, planName: null, declineCode: null }),
+    ]);
     const dataLine = csv.split("\n")[1];
     expect(dataLine.startsWith(",jordan@example.com,,")).toBe(true);
   });
 });
 
 describe("buildPaymentsCsv: spreadsheet-formula safety", () => {
-
   it("a CR-led cell is both neutralised and quoted", () => {
     const csv = buildPaymentsCsv([fakeRow({ notes: "\r=1+1" })]);
     expect(csv).toContain(`"'\r=1+1"`);

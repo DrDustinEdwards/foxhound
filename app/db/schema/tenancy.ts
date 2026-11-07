@@ -33,7 +33,7 @@ export const accounts = sqliteTable("accounts", {
   /**
    * THE LIVE-SEND FLAG, ratified 2026-08-09 in commit 9766ff5 and scheduled onto
    * S7 Phase 2 Session D by ruling 268. Per-account, DEFAULTING OFF, checked in
-   * processEmailJob immediately before sendEmail.
+   * processEmailJob immediately before sendJobEmail.
    *
    * It exists because nothing in this codebase ever CHOSE to be a send kill
    * switch. What actually stopped mail leaving was an UNSET PHYSICAL_ADDRESS
@@ -109,7 +109,9 @@ export const accountMembers = sqliteTable(
   "account_members",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     // soft ref to Better Auth user.id; no enforced FK yet
     userId: text("user_id"),
     role: text("role").notNull(),
@@ -166,7 +168,9 @@ export const accountFirstCreations = sqliteTable(
   {
     id: id(),
     userId: text("user_id").notNull(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
@@ -179,7 +183,9 @@ export const stripeConnections = sqliteTable(
   "stripe_connections",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     stripeUserId: text("stripe_user_id").notNull(),
     // encrypted at rest by app code; never logged (ARCHITECTURE.md non-negotiable #5)
     stripeAccessToken: text("stripe_access_token"),
@@ -247,7 +253,9 @@ export const accountSubscriptions = sqliteTable(
   "account_subscriptions",
   {
     id: id(),
-    accountId: text("account_id").notNull().references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     product: text("product").notNull(),
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripePriceId: text("stripe_price_id"),

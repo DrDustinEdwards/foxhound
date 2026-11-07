@@ -3,7 +3,7 @@ import { Link } from "capsomer/react/link";
 
 import { FadeUp } from "~/components/fade-up";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -90,7 +90,11 @@ export default function DemosPage() {
           /products hub). The buttons are the only focusable parts here; their
           amber ring is Capsomer's own, handed back by app.css
           (.fh-cap .cap-btn:focus-visible). */}
-      <div className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8" data-cap-site="foxhound" data-family="amber">
+      <div
+        className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         {/* Four cards against legacy's three: legacy filters to products with a
             demoHref, Foxhound also entry-points the console demo. Ratified
             (Dustin, 2026-07-31, "Four demo cards, in Recova's treatment") on
@@ -107,7 +111,10 @@ export default function DemosPage() {
             The panel's body does not fill the panel, so a button sits under
             its own blurb rather than at the foot of a taller neighbor, as
             on the blog's cards; that is the layer's too. */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-density="comfortable">
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          data-density="comfortable"
+        >
           {PRODUCT_ENTRIES.map((entry, index) => (
             <FadeUp key={entry.href} delay={index * 100} className="grid">
               <div className="cap-panel">
@@ -133,7 +140,8 @@ export default function DemosPage() {
         </div>
 
         <p className="mt-8 text-center text-label text-text-subtle">
-          The demo is read-only. When you're done, you can leave it from the banner at the top of the app.
+          The demo is read-only. When you're done, you can leave it from the banner at the top of
+          the app.
         </p>
       </div>
     </>

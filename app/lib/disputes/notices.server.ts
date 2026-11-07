@@ -80,7 +80,11 @@ interface NoticeRow {
 }
 
 /** The dispute and its account's notice settings, pinned to the account. */
-async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Promise<NoticeRow | null> {
+async function loadNoticeRow(
+  env: Env,
+  accountId: string,
+  disputeId: string,
+): Promise<NoticeRow | null> {
   const [row] = await getDb(env)
     .select({
       id: disputes.id,
@@ -116,7 +120,10 @@ async function loadNoticeRow(env: Env, accountId: string, disputeId: string): Pr
     .limit(1);
   if (!row) return null;
   const { autoSubmitSetting, autoSubmitAt, disputesEnabled, ...rest } = row;
-  return { ...rest, autoSubmit: autoSubmitSetting === true && autoSubmitAt != null && disputesEnabled };
+  return {
+    ...rest,
+    autoSubmit: autoSubmitSetting === true && autoSubmitAt != null && disputesEnabled,
+  };
 }
 
 export function appUrl(env: Env, path: string): string {
@@ -150,13 +157,24 @@ export async function send(
   };
   // Capsomer's notice template, and Recova's footer line, under which send.ts
   // puts "Manage email settings" on merchant mail (E16, E17, E19, E20).
-  const result = await processEmailJob(env, { ...common, notice: content.notice, footerNote: content.footerNote }, null);
+  const result = await processEmailJob(
+    env,
+    { ...common, notice: content.notice, footerNote: content.footerNote },
+    null,
+  );
   return { kind: "sent", result };
 }
 
-function failed(scope: string, ctx: { accountId: string; disputeId: string }, err: unknown): DisputeNoticeOutcome {
+function failed(
+  scope: string,
+  ctx: { accountId: string; disputeId: string },
+  err: unknown,
+): DisputeNoticeOutcome {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`dispute ${scope} notice failed for account ${ctx.accountId} dispute ${ctx.disputeId}:`, message);
+  console.error(
+    `dispute ${scope} notice failed for account ${ctx.accountId} dispute ${ctx.disputeId}:`,
+    message,
+  );
   return { kind: "error", message };
 }
 
@@ -235,7 +253,9 @@ export async function sendDisputeOutcomeNotice(
         feeCurrency: row.resolvedFeeCurrency ?? row.currency,
         // A paused account is skipped by the billing run until it resumes, so no
         // date is promised (accountBillingEligibleCondition, PR 149 review).
-        invoiceDate: row.processingPaused ? null : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
+        invoiceDate: row.processingPaused
+          ? null
+          : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
         listUrl: appUrl(env, "/disputes/dashboard"),
       }),
       footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
@@ -307,11 +327,17 @@ export async function sendDisputeFeeNotice(
 /** A dispute_approvals row exists for the dispute, pinned to the account. The
  *  cron selects only unsubmitted disputes, so a row here is an approval Stripe
  *  has not confirmed. */
-async function hasStandingApproval(env: Env, accountId: string, disputeId: string): Promise<boolean> {
+async function hasStandingApproval(
+  env: Env,
+  accountId: string,
+  disputeId: string,
+): Promise<boolean> {
   const rows = await getDb(env)
     .select({ id: disputeApprovals.id })
     .from(disputeApprovals)
-    .where(and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId)))
+    .where(
+      and(eq(disputeApprovals.disputeId, disputeId), eq(disputeApprovals.accountId, accountId)),
+    )
     .limit(1);
   return rows.length > 0;
 }

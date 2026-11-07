@@ -5,7 +5,7 @@ import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -32,7 +32,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/settings/api-keys");
 
-
 const Page = route.default as unknown as (props: {
   loaderData: Record<string, unknown>;
   actionData?: Record<string, unknown>;
@@ -46,7 +45,12 @@ interface KeyRow {
 }
 
 const KEYS: KeyRow[] = [
-  { id: "k_2", label: "Newer agent", createdAt: new Date(Date.UTC(2026, 9, 14, 12)), lastUsedAt: null },
+  {
+    id: "k_2",
+    label: "Newer agent",
+    createdAt: new Date(Date.UTC(2026, 9, 14, 12)),
+    lastUsedAt: null,
+  },
   {
     id: "k_1",
     label: "My Claude agent",
@@ -76,7 +80,9 @@ function render(
       Component: () => createElement(Page, { loaderData, actionData: opts.actionData }),
     },
   ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: [opts.url ?? "/settings/api-keys"] }));
+  return renderToStaticMarkup(
+    createElement(Stub, { initialEntries: [opts.url ?? "/settings/api-keys"] }),
+  );
 }
 
 function text(html: string): string {
@@ -116,7 +122,7 @@ let sqlite: Database.Database;
 function ctx() {
   return {
     get(key: unknown) {
-      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
       if (key === authContext) {
         return {
           userId: "user_1",
@@ -140,7 +146,9 @@ describe("J34 api keys: the loader", () => {
     const made = createInMemoryDb();
     sqlite = made.sqlite;
     harness.db = made.db;
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)").run(ACCOUNT, "Acme");
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, 1000)")
+      .run(ACCOUNT, "Acme");
   });
 
   afterEach(() => {
@@ -157,7 +165,11 @@ describe("J34 api keys: the loader", () => {
       },
     );
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const loaded = (await route.loader({ context: ctx(), request: new Request("https://x/"), params: {} } as never)) as {
+    const loaded = (await route.loader({
+      context: ctx(),
+      request: new Request("https://x/"),
+      params: {},
+    } as never)) as {
       keys: unknown;
       loadError: boolean;
     };

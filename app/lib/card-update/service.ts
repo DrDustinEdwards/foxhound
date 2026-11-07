@@ -122,7 +122,6 @@ export async function finalizeCardUpdateSession(input: {
 // The metadata keys the created Checkout Session and its subscription carry.
 // They live in ~/lib/recovery/winback-metadata so the webhook classifier that
 // READS them and this creator that WRITES them share one definition.
-;
 
 interface ResubscribeSessionParamsInput {
   customerId: string;

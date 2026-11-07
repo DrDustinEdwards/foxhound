@@ -15,7 +15,12 @@ import { DAY_MS } from "~/lib/constants";
 
 import { monthlyEquivalentCents, type BillingInterval } from "./signals";
 
-type SubscriptionChangeKind = "cancel_scheduled" | "cancel_reversed" | "paused" | "resumed" | "downgraded";
+type SubscriptionChangeKind =
+  | "cancel_scheduled"
+  | "cancel_reversed"
+  | "paused"
+  | "resumed"
+  | "downgraded";
 
 export interface SubscriptionChange {
   kind: SubscriptionChangeKind;
@@ -53,14 +58,20 @@ function interval(item: ItemLike): BillingInterval {
  *  drop in the same measure the sync reports. */
 function itemsMrrCents(items: ItemLike[]): number {
   return items.reduce(
-    (sum, item) => sum + monthlyEquivalentCents(item.price?.unit_amount ?? 0, item.quantity ?? 1, interval(item)),
+    (sum, item) =>
+      sum +
+      monthlyEquivalentCents(item.price?.unit_amount ?? 0, item.quantity ?? 1, interval(item)),
     0,
   );
 }
 
-const fromUnixSeconds = (unixSeconds: number | null | undefined) => (unixSeconds ? toDate(unixSeconds * 1000) : null);
+const fromUnixSeconds = (unixSeconds: number | null | undefined) =>
+  unixSeconds ? toDate(unixSeconds * 1000) : null;
 
-function scheduled(cancelAtPeriodEnd: boolean | null | undefined, cancelAt: number | null | undefined): boolean {
+function scheduled(
+  cancelAtPeriodEnd: boolean | null | undefined,
+  cancelAt: number | null | undefined,
+): boolean {
   return cancelAtPeriodEnd === true || (cancelAt ?? null) !== null;
 }
 
@@ -103,7 +114,12 @@ export function detectSubscriptionChanges(
   if ("pause_collection" in prev) {
     const now = (sub.pause_collection ?? null) !== null;
     const was = (prev.pause_collection ?? null) !== null;
-    if (now) changes.push({ ...blank, kind: "paused", resumesAt: fromUnixSeconds(sub.pause_collection?.resumes_at) });
+    if (now)
+      changes.push({
+        ...blank,
+        kind: "paused",
+        resumesAt: fromUnixSeconds(sub.pause_collection?.resumes_at),
+      });
     else if (was) changes.push({ ...blank, kind: "resumed" });
   }
 
@@ -159,11 +175,13 @@ export function summarizeSubscriptionChanges(
   for (const row of rows) {
     if (row.kind === "downgraded") {
       if (nowMs - row.occurredAt.getTime() <= DOWNGRADE_WINDOW_DAYS * DAY_MS) {
-        if (!recentDowngradeAt || row.occurredAt > recentDowngradeAt) recentDowngradeAt = row.occurredAt;
+        if (!recentDowngradeAt || row.occurredAt > recentDowngradeAt)
+          recentDowngradeAt = row.occurredAt;
       }
       continue;
     }
-    const family = row.kind === "cancel_scheduled" || row.kind === "cancel_reversed" ? "cancel" : "pause";
+    const family =
+      row.kind === "cancel_scheduled" || row.kind === "cancel_reversed" ? "cancel" : "pause";
     const key = `${row.stripeSubscriptionId}:${family}`;
     const seen = latest.get(key);
     if (!seen || row.occurredAt >= seen.occurredAt) latest.set(key, row);
@@ -174,7 +192,10 @@ export function summarizeSubscriptionChanges(
   for (const row of latest.values()) {
     if (row.kind === "cancel_scheduled" && (!row.cancelAt || row.cancelAt.getTime() > nowMs)) {
       const at = row.cancelAt;
-      if (!cancellationPending || (at && (!cancellationPending.at || at < cancellationPending.at))) {
+      if (
+        !cancellationPending ||
+        (at && (!cancellationPending.at || at < cancellationPending.at))
+      ) {
         cancellationPending = { at };
       }
     }

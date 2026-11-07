@@ -27,7 +27,9 @@ afterEach(() => {
 function seed() {
   const { db, sqlite } = createInMemoryDb();
   harness.db = db;
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(ACCOUNT);
   const dispute = sqlite.prepare(
     "INSERT INTO disputes (id, account_id, stripe_dispute_id, stripe_charge_id, amount_cents, currency, reason, status, state, resolved_at, resolved_fee_cents, resolved_fee_currency, created_at) VALUES (?, ?, ?, 'ch_1', ?, 'usd', 'fraudulent', 'won', 'resolved_won', ?, ?, 'usd', 1000)",
   );
@@ -65,10 +67,8 @@ describe("the pricing cron checks priced fees against Stripe's withdrawal", () =
       stripeWithdrawnCents: 8_000,
       stripeDisputeFeeCents: 1_500,
     });
-    expect(sqlite.prepare("SELECT resolved_fee_cents AS fee FROM disputes ORDER BY id").all()).toEqual([
-      { fee: 2_000 },
-      { fee: 2_000 },
-      { fee: 2_000 },
-    ]);
+    expect(
+      sqlite.prepare("SELECT resolved_fee_cents AS fee FROM disputes ORDER BY id").all(),
+    ).toEqual([{ fee: 2_000 }, { fee: 2_000 }, { fee: 2_000 }]);
   });
 });

@@ -1,5 +1,11 @@
 import { schedulePurgeHook } from "@dustinedwards/site-runtime/edge-cache";
-import { createSiteApi, webmentionHook, type RateLimiter, type ScheduleRun, type SiteApi } from "@dustinedwards/site-api";
+import {
+  createSiteApi,
+  webmentionHook,
+  type RateLimiter,
+  type ScheduleRun,
+  type SiteApi,
+} from "@dustinedwards/site-api";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { d1SiteApiStore } from "@dustinedwards/site-api/store";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
@@ -27,9 +33,16 @@ const CARREL_RATE_LIMIT = { limit: 120, periodMs: 60_000 } as const;
 function carrelLimiter(env: Env): RateLimiter {
   return {
     async limit({ key }) {
-      const within = await isWithinRateLimit(env, "carrel", key, CARREL_RATE_LIMIT.limit, CARREL_RATE_LIMIT.periodMs, {
-        failClosed: true,
-      });
+      const within = await isWithinRateLimit(
+        env,
+        "carrel",
+        key,
+        CARREL_RATE_LIMIT.limit,
+        CARREL_RATE_LIMIT.periodMs,
+        {
+          failClosed: true,
+        },
+      );
       return { success: within };
     },
   };

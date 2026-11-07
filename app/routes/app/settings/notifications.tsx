@@ -21,7 +21,7 @@ import { SettingsBackLink } from "~/components/settings-back-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { syncPlatformCustomerEmail } from "~/lib/billing/platform-customer";
 import {
   ALERT_INTENTS,
@@ -30,14 +30,12 @@ import {
   type AlertActionResult,
 } from "~/lib/settings/alerts-section.server";
 import { applyNotificationSettings } from "~/lib/settings/apply.server";
-import {
-  SLACK_WEBHOOK_ERROR,
-  SLACK_WEBHOOK_PLACEHOLDER,
-} from "~/lib/settings/slack-webhook";
+import { SLACK_WEBHOOK_ERROR, SLACK_WEBHOOK_PLACEHOLDER } from "~/lib/settings/slack-webhook";
 
 import type { Route } from "./+types/notifications";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // S36, /settings/notifications. THE SURFACE FIVE ENGINES HAVE BEEN WAITING ON.
 //
@@ -133,8 +131,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     slackNotificationsEnabled: row?.slackNotificationsEnabled ?? NULL_IS_OFF,
     digestEnabled: row?.digestEnabled ?? NULL_IS_OFF,
     recoveryNotificationsEnabled: row?.recoveryNotificationsEnabled ?? NULL_IS_ON,
-    sequenceCompleteNotificationsEnabled:
-      row?.sequenceCompleteNotificationsEnabled ?? NULL_IS_ON,
+    sequenceCompleteNotificationsEnabled: row?.sequenceCompleteNotificationsEnabled ?? NULL_IS_ON,
     // The alerts, once /settings/alerts, under the delivery settings
     // (Dustin, 2026-10-29).
     alerts: await alertsSection,
@@ -158,7 +155,7 @@ function checked(form: FormData, name: string): boolean {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
 
   // The alerts' own forms carry an intent; the delivery form carries none.
   const intent = String(form.get("_action") ?? "");
@@ -170,7 +167,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   // the MCP `set_notification_settings` tool, so an agent sees the same
   // refusal sentence a person does.
   let result: Awaited<ReturnType<typeof applyNotificationSettings>>;
-  let before: { notificationEmail: string | null; platformStripeCustomerId: string | null } | undefined;
+  let before:
+    | { notificationEmail: string | null; platformStripeCustomerId: string | null }
+    | undefined;
   try {
     const db = getDb(env);
     // Read before the write, as Recova does, so a changed address can be
@@ -264,7 +263,12 @@ function TextField({
       <p className="cap-field-help" id={helpId}>
         {help}
       </p>
-      <p className="cap-field-error" id={errorId} role={error ? "alert" : undefined} hidden={!error}>
+      <p
+        className="cap-field-error"
+        id={errorId}
+        role={error ? "alert" : undefined}
+        hidden={!error}
+      >
         {error ?? null}
       </p>
     </div>
@@ -279,7 +283,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
   const alertResult = posted?.action ? (posted as AlertActionResult) : undefined;
   const result = posted?.action ? undefined : posted;
   const webhookError = result?.field === "slackWebhookUrl" ? result.error : undefined;
-  const otherError = result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
+  const otherError =
+    result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
     <>
@@ -287,7 +292,10 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
       {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
           keeps that space without styling Capsomer's head. */}
       <div className="mb-8">
-        <PageHead title="Notifications" lead="Email, Slack, and digest delivery preferences, and alerts on your metrics." />
+        <PageHead
+          title="Notifications"
+          lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
+        />
       </div>
 
       <DemoGuardedForm method="post">

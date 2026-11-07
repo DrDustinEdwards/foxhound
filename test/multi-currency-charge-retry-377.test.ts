@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 // These tests exercise charging itself, so the hard-rule-12 switch is on here.
 vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
 
-
 // RULING 377(6): MULTI-CURRENCY IS ONE PLATFORM CUSTOMER, AND STRIPE NEEDS TO BE
 // TOLD THE CURRENCY EVERY TIME.
 //
@@ -93,7 +92,6 @@ async function createIn(currency: string) {
 }
 
 describe("every Stripe call in a platform invoice carries the currency", () => {
-
   it("each item still carries its own evidence-derived idempotency key", async () => {
     const { itemCreates } = await createIn("usd");
     expect(itemCreates.map((c) => c.options?.idempotencyKey)).toEqual([

@@ -15,7 +15,11 @@ import { estimateReadingTime } from "./format";
 /** A slug candidate derived from a title, deduped against existing slugs by
  *  appending -2, -3, ... Bounded loop (100 tries) so a pathological input
  *  can never spin forever. */
-export async function uniqueSlugFromTitle(db: Db, title: string, excludePostId?: string): Promise<string> {
+export async function uniqueSlugFromTitle(
+  db: Db,
+  title: string,
+  excludePostId?: string,
+): Promise<string> {
   const base = slugify(title, { max: 80 }) || "post";
   for (let i = 0; i < 100; i++) {
     const candidate = i === 0 ? base : `${base}-${i + 1}`;
@@ -165,9 +169,16 @@ export async function setPublished(
   db: Db,
   postId: string,
   published: boolean,
-  { firstPublishedAt = new Date(), publishedAt }: { firstPublishedAt?: Date; publishedAt?: Date } = {},
+  {
+    firstPublishedAt = new Date(),
+    publishedAt,
+  }: { firstPublishedAt?: Date; publishedAt?: Date } = {},
 ): Promise<void> {
-  const rows = await db.select({ publishedAt: blogPosts.publishedAt }).from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
+  const rows = await db
+    .select({ publishedAt: blogPosts.publishedAt })
+    .from(blogPosts)
+    .where(eq(blogPosts.id, postId))
+    .limit(1);
   const current = rows[0];
   await db
     .update(blogPosts)
@@ -176,7 +187,9 @@ export async function setPublished(
       // First publish stamps publishedAt; unpublishing never clears it (so a
       // later republish keeps its original publish date, matching how the
       // public blog's "showPublishedAt" toggle is meant to work).
-      publishedAt: publishedAt ?? (published && !current?.publishedAt ? firstPublishedAt : current?.publishedAt),
+      publishedAt:
+        publishedAt ??
+        (published && !current?.publishedAt ? firstPublishedAt : current?.publishedAt),
       updatedAt: new Date(),
     })
     .where(eq(blogPosts.id, postId));
@@ -196,7 +209,9 @@ export async function setTrashed(db: Db, postId: string, trashed: boolean): Prom
  *  and from it, and the redirects that led to it, as one batch. */
 export async function deletePost(db: Db, postId: string, slug: string): Promise<void> {
   await db.batch([
-    db.delete(blogPostLinks).where(or(eq(blogPostLinks.sourceId, postId), eq(blogPostLinks.targetId, postId))),
+    db
+      .delete(blogPostLinks)
+      .where(or(eq(blogPostLinks.sourceId, postId), eq(blogPostLinks.targetId, postId))),
     db.delete(blogPostVersions).where(eq(blogPostVersions.postId, postId)),
     db.delete(blogSlugRedirects).where(eq(blogSlugRedirects.toSlug, slug)),
     db.delete(blogPosts).where(eq(blogPosts.id, postId)),
@@ -235,10 +250,16 @@ export async function renamePost(
   }
   await db.batch([
     ...moved,
-    db.update(blogSlugRedirects).set({ toSlug: newId }).where(eq(blogSlugRedirects.toSlug, row.slug)),
+    db
+      .update(blogSlugRedirects)
+      .set({ toSlug: newId })
+      .where(eq(blogSlugRedirects.toSlug, row.slug)),
     db
       .insert(blogSlugRedirects)
       .values({ fromSlug: row.slug, toSlug: newId, createdAt: now })
-      .onConflictDoUpdate({ target: blogSlugRedirects.fromSlug, set: { toSlug: newId, createdAt: now } }),
+      .onConflictDoUpdate({
+        target: blogSlugRedirects.fromSlug,
+        set: { toSlug: newId, createdAt: now },
+      }),
   ]);
 }

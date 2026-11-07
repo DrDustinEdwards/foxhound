@@ -10,11 +10,19 @@ import "capsomer/table.css";
 
 import "~/components/charts.css";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
-import { healthScoreClassName, WATCH_CEILING, type HealthScoreBand } from "~/lib/intelligence/health-band";
-import { churnBandSharePct, drawChurnRate, type ChurnRatePointLike } from "~/lib/intelligence/churn";
+import {
+  healthScoreClassName,
+  WATCH_CEILING,
+  type HealthScoreBand,
+} from "~/lib/intelligence/health-band";
+import {
+  churnBandSharePct,
+  drawChurnRate,
+  type ChurnRatePointLike,
+} from "~/lib/intelligence/churn";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "~/lib/money-format";
 
@@ -105,7 +113,9 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
         // Capsomer part that keeps the heading is a Panel (gap named in the
         // J29 notes).
         <Panel title="Health scores are being calculated.">
-          <p className="m-0 text-label text-text-tertiary">Check back after the next Intelligence sync.</p>
+          <p className="m-0 text-label text-text-tertiary">
+            Check back after the next Intelligence sync.
+          </p>
         </Panel>
       ) : (
         <>
@@ -160,12 +170,17 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                     {view.topHighRisk.map((row) => (
                       <tr key={row.stripeCustomerId}>
                         <th scope="row">
-                          <Link className="cap-table-open" to={`/intelligence/customers/${row.stripeCustomerId}`}>
+                          <Link
+                            className="cap-table-open"
+                            to={`/intelligence/customers/${row.stripeCustomerId}`}
+                          >
                             {row.customerName ?? "(unnamed)"}
                           </Link>
                           {/* Recova's second line under the name: the Stripe id,
                               micro and mono. */}
-                          <span className="block font-mono text-micro text-text-subtle">{row.stripeCustomerId}</span>
+                          <span className="block font-mono text-micro text-text-subtle">
+                            {row.stripeCustomerId}
+                          </span>
                         </th>
                         <td data-label="Plan">
                           {/* Recova's rounded border pill. Recova labels it from
@@ -177,12 +192,16 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                           {/* Toned from the score rather than hardcoded red: the
                               query pre-filters to the high-risk band today, but a
                               widened predicate should not leave the color lying. */}
-                          <span className={`font-mono font-semibold ${healthScoreClassName(row.healthScore)}`}>
+                          <span
+                            className={`font-mono font-semibold ${healthScoreClassName(row.healthScore)}`}
+                          >
                             {row.healthScore}
                           </span>
                         </td>
                         <td data-label="MRR" data-num="" className="font-mono">
-                          {row.mrrContributionCents > 0 ? formatMoney(row.mrrContributionCents, currency) : "-"}
+                          {row.mrrContributionCents > 0
+                            ? formatMoney(row.mrrContributionCents, currency)
+                            : "-"}
                         </td>
                       </tr>
                     ))}

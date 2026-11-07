@@ -52,7 +52,9 @@ export function ErrorBar({ overlay = false }: { overlay?: boolean }) {
 
 export function ErrorFooter({ overlay = false }: { overlay?: boolean }) {
   return (
-    <footer className={`w-full p-6 text-center text-label text-text-tertiary${overlay ? " absolute bottom-0" : ""}`}>
+    <footer
+      className={`w-full p-6 text-center text-label text-text-tertiary${overlay ? " absolute bottom-0" : ""}`}
+    >
       &copy; 2026 Foxhound
     </footer>
   );
@@ -65,7 +67,10 @@ export function ErrorFooter({ overlay = false }: { overlay?: boolean }) {
 export const HOME_LABEL = "Go home";
 export function recovaWords(error: unknown, isDev: boolean): { title: string; text: string } {
   if (isRouteErrorResponse(error) && error.status === 404) {
-    return { title: "Page not found", text: "The page you're looking for doesn't exist or has been moved." };
+    return {
+      title: "Page not found",
+      text: "The page you're looking for doesn't exist or has been moved.",
+    };
   }
   return { title: "Something went wrong", text: errorDetails(error, isDev) };
 }
@@ -97,9 +102,17 @@ export function ErrorLinks({ notFound }: { notFound: boolean }) {
 // five standard sizes everywhere". The numeral takes the expected tone (app/error-page.css).
 export function WithdrawnView() {
   return (
-    <div className="fh-cap fh-error-page relative flex min-h-screen flex-col bg-bg" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap fh-error-page relative flex min-h-screen flex-col bg-bg"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <ErrorBar overlay />
-      <main id="main" tabIndex={-1} className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+      >
         <meta name="robots" content="noindex" />
         <p
           className="fh-error-numeral m-0 mb-4 font-mono text-display font-bold leading-none"

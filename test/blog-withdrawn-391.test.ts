@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  WITHDRAWN_BLOG_MESSAGE,
-  WITHDRAWN_BLOG_SLUGS,
-} from "~/lib/blog/withdrawn";
+import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -25,7 +22,7 @@ vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
 }));
-vi.mock("~/lib/cloudflare-context", () => ({
+vi.mock("@dustinedwards/site-runtime/context", () => ({
   cloudflareContext: Symbol("cloudflare") as unknown,
 }));
 
@@ -66,7 +63,6 @@ describe("PLANT 1: a withdrawn slug answers 410", () => {
 });
 
 describe("PLANT 2: the withdrawal does not catch anything else", () => {
-
   it("an ordinary unknown slug still 404s, not 410", async () => {
     // The discriminator. If everything 410'd, a typo would claim the page once
     // existed and was deliberately removed, which is a different and false

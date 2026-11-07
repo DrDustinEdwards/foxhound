@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 // S40, the surface half: the Delete account control on /settings/account, the
 // route branch that runs it, and the rule that it never becomes an agent tool.
@@ -28,7 +28,10 @@ vi.mock("~/db", async (importOriginal) => ({
 vi.mock("~/lib/auth/auth.server", () => ({
   getAuth: () => ({
     api: {
-      getSession: async () => ({ session: { createdAt: harness.signedInAt }, user: { id: "user_1" } }),
+      getSession: async () => ({
+        session: { createdAt: harness.signedInAt },
+        user: { id: "user_1" },
+      }),
       // Better Auth's /delete-user, whose hooks are the deletion; it takes no
       // id, so the session's user is the one deleted.
       deleteUser: async () => {
@@ -46,7 +49,7 @@ const { action } = await import("~/routes/app/settings/account");
 
 const ctx = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === authContext) {
       return {
         userId: "user_1",
@@ -70,7 +73,10 @@ async function post(fields: Record<string, string>): Promise<unknown> {
   try {
     return await action({
       context: ctx,
-      request: new Request("https://foxhoundapp.test/settings/account", { method: "POST", body: form }),
+      request: new Request("https://foxhoundapp.test/settings/account", {
+        method: "POST",
+        body: form,
+      }),
       params: {},
     } as never);
   } catch (thrown) {
@@ -97,7 +103,10 @@ describe("S40: the delete-account action", () => {
 
   it("refuses a sign-in older than 10 minutes and deletes nothing", async () => {
     harness.signedInAt = new Date(Date.now() - 11 * 60_000);
-    const res = (await post({ _action: "delete-account" })) as { data: Record<string, unknown>; init?: { status?: number } };
+    const res = (await post({ _action: "delete-account" })) as {
+      data: Record<string, unknown>;
+      init?: { status?: number };
+    };
     expect(harness.deleteCalls).toBe(0);
     expect(res.init?.status).toBe(403);
     expect(res.data).toEqual({ action: "delete-account", ok: false, error: "stale" });
@@ -105,7 +114,10 @@ describe("S40: the delete-account action", () => {
 
   it("on failure keeps the person signed in and tells them, in Recova's words", async () => {
     harness.deleteThrows = true;
-    const res = (await post({ _action: "delete-account" })) as { data: Record<string, unknown>; init?: { status?: number } };
+    const res = (await post({ _action: "delete-account" })) as {
+      data: Record<string, unknown>;
+      init?: { status?: number };
+    };
     expect(res.init?.status).toBe(500);
     expect(res.data).toEqual({
       action: "delete-account",
@@ -116,9 +128,9 @@ describe("S40: the delete-account action", () => {
 });
 
 describe("S40: deletion is never an agent tool (RULES.md 3.6)", () => {
-
   it("no agent surface reaches the deletion module", () => {
-    const read = (p: string) => readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
+    const read = (p: string) =>
+      readFileSync(fileURLToPath(new URL(`../${p}`, import.meta.url)), "utf8");
     for (const path of [
       "app/lib/mcp/tools.server.ts",
       "app/lib/mcp/server.ts",

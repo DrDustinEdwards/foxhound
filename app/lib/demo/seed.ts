@@ -46,7 +46,13 @@ import {
   type DemoBusiness,
 } from "./constants";
 import { buildBoltBase, buildTeamflowBase, type DemoCustomer } from "./customer-base";
-import { BOLT_DISPUTE_SPECS, buildDisputesSeed, buildEarlyFraudWarningsSeed, TEAMFLOW_DISPUTE_SPECS, type DisputeSpec } from "./disputes-seed";
+import {
+  BOLT_DISPUTE_SPECS,
+  buildDisputesSeed,
+  buildEarlyFraudWarningsSeed,
+  TEAMFLOW_DISPUTE_SPECS,
+  type DisputeSpec,
+} from "./disputes-seed";
 import {
   boltDisputeOnlyPlan,
   buildIntelligenceSeed,
@@ -238,9 +244,9 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     db,
     intelligence.customerContext.map((row) => {
       const aiAssessment = narrative.assessments.get(row.id!) ?? null;
-      return db.insert(customerContext).values(
-        aiAssessment ? { ...row, aiAssessment, aiAssessmentGeneratedAt: now } : row,
-      );
+      return db
+        .insert(customerContext)
+        .values(aiAssessment ? { ...row, aiAssessment, aiAssessmentGeneratedAt: now } : row);
     }),
   );
   await runBatched(
@@ -304,8 +310,15 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     subjects.map((s) =>
       db
         .update(customerContext)
-        .set({ recommendedAction: recommended.get(s.stripeCustomerId)?.recommendation.action ?? null })
-        .where(and(eq(customerContext.accountId, accountId), eq(customerContext.stripeCustomerId, s.stripeCustomerId))),
+        .set({
+          recommendedAction: recommended.get(s.stripeCustomerId)?.recommendation.action ?? null,
+        })
+        .where(
+          and(
+            eq(customerContext.accountId, accountId),
+            eq(customerContext.stripeCustomerId, s.stripeCustomerId),
+          ),
+        ),
     ),
   );
 
@@ -325,13 +338,17 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
   );
   await runBatched(
     db,
-    disputesSeed.disputeBalanceTransactions.map((row) => db.insert(disputeBalanceTransactions).values(row)),
+    disputesSeed.disputeBalanceTransactions.map((row) =>
+      db.insert(disputeBalanceTransactions).values(row),
+    ),
   );
   // Early fraud warnings: a few open ones so the dashboard's section shows,
   // and one refunded. Never billable, so nothing below reads them.
   await runBatched(
     db,
-    buildEarlyFraudWarningsSeed(accountId, now).map((row) => db.insert(earlyFraudWarnings).values(row)),
+    buildEarlyFraudWarningsSeed(accountId, now).map((row) =>
+      db.insert(earlyFraudWarnings).values(row),
+    ),
   );
 
   // 5) Intelligence: mrr_snapshots (12 monthly points) + demo alert rules.
@@ -339,8 +356,14 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     db,
     intelligence.mrrSnapshots.map((row) => db.insert(mrrSnapshots).values(row)),
   );
-  await runBatched(db, intelligence.alerts.map((row) => db.insert(alerts).values(row)));
-  await runBatched(db, intelligence.alertHistory.map((row) => db.insert(alertHistory).values(row)));
+  await runBatched(
+    db,
+    intelligence.alerts.map((row) => db.insert(alerts).values(row)),
+  );
+  await runBatched(
+    db,
+    intelligence.alertHistory.map((row) => db.insert(alertHistory).values(row)),
+  );
 
   // 6) Intelligence report narrative (the merchants' template, NEVER an AI call).
   await db.insert(intelligenceReports).values(narrative.report);
@@ -416,7 +439,10 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
       );
     }
     await runBatched(db, lineItemStmts);
-    await db.update(billingInvoices).set({ totalCents: invoiceTotal }).where(eq(billingInvoices.id, invoiceId));
+    await db
+      .update(billingInvoices)
+      .set({ totalCents: invoiceTotal })
+      .where(eq(billingInvoices.id, invoiceId));
   }
 }
 
@@ -426,7 +452,12 @@ async function demoAccountExists(db: Db): Promise<boolean> {
   const existing = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(inArray(accounts.id, DEMO_BUSINESSES.map((b) => b.accountId)));
+    .where(
+      inArray(
+        accounts.id,
+        DEMO_BUSINESSES.map((b) => b.accountId),
+      ),
+    );
   return existing.length === DEMO_BUSINESSES.length;
 }
 

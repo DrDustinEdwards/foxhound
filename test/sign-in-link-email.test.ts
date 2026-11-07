@@ -4,7 +4,7 @@ import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
 import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
@@ -37,7 +37,9 @@ vi.mock("~/lib/email/templates", async (importOriginal) => {
   const real = await importOriginal<typeof import("~/lib/email/templates")>();
   return {
     ...real,
-    renderFoxhoundSignInLinkEmail: (input: Parameters<typeof real.renderFoxhoundSignInLinkEmail>[0]) => {
+    renderFoxhoundSignInLinkEmail: (
+      input: Parameters<typeof real.renderFoxhoundSignInLinkEmail>[0],
+    ) => {
       if (harness.renderThrows) throw new Error(`render broke on ${input.url}`);
       return real.renderFoxhoundSignInLinkEmail(input);
     },
@@ -61,13 +63,21 @@ const URL_FIXTURE = `${BASE}/api/auth/magic-link/verify?token=${TOKEN}&callbackU
 const CODE = "000000";
 
 function expectedRender(to: string, url: string, code: string) {
-  return renderEmail(magicLink, { brand: { name: "Foxhound", family: "amber" }, to, url, code, expiresIn: SIGN_IN_EXPIRES_IN_WORDS });
+  return renderEmail(magicLink, {
+    brand: { name: "Foxhound", family: "amber" },
+    to,
+    url,
+    code,
+    expiresIn: SIGN_IN_EXPIRES_IN_WORDS,
+  });
 }
 
 let sqlite: Database.Database;
 let sent: SentMessage[];
 
-function makeEnv(email: unknown = { send: async (m: SentMessage) => (sent.push(m), { id: "msg_1" }) }): Env {
+function makeEnv(
+  email: unknown = { send: async (m: SentMessage) => (sent.push(m), { id: "msg_1" }) },
+): Env {
   return {
     BETTER_AUTH_URL: BASE,
     BETTER_AUTH_SECRET: "test-secret-not-real-0123456789abcdef",
@@ -102,7 +112,9 @@ beforeEach(() => {
   sent = [];
   const realFetch = globalThis.fetch;
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
-    String(input instanceof Request ? input.url : input).startsWith("https://challenges.cloudflare.com/")
+    String(input instanceof Request ? input.url : input).startsWith(
+      "https://challenges.cloudflare.com/",
+    )
       ? Promise.resolve(Response.json({ success: true }))
       : realFetch(input, init),
   );
@@ -115,12 +127,16 @@ afterEach(() => {
 
 /** What /login sends: the page's own path to Better Auth's handler. */
 function ask(env: Env, email = TO) {
-  return requestSignInLink(env, new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }), {
-    email,
-    captchaToken: "XXXX.DUMMY.TOKEN.XXXX",
-    next: "/console",
-    newUserNext: "/console",
-  });
+  return requestSignInLink(
+    env,
+    new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }),
+    {
+      email,
+      captchaToken: "XXXX.DUMMY.TOKEN.XXXX",
+      next: "/console",
+      newUserNext: "/console",
+    },
+  );
 }
 
 /** The six-digit code the mail's text part carries on its own line. */
@@ -134,12 +150,17 @@ function codeIn(m: SentMessage): string {
  *  from one address, beside the code's own three). */
 function typeCode(env: Env, code: string, ip = "203.0.113.1") {
   const headers = { origin: BASE, "cf-connecting-ip": ip };
-  return signInWithCode(env, new Request(`${BASE}/login?code`, { method: "POST", headers }), { email: TO, code });
+  return signInWithCode(env, new Request(`${BASE}/login?code`, { method: "POST", headers }), {
+    email: TO,
+    code,
+  });
 }
 
 function linkTokens(): string[] {
   return (
-    sqlite.prepare("SELECT identifier FROM verification WHERE identifier LIKE 'magic-link:%'").all() as {
+    sqlite
+      .prepare("SELECT identifier FROM verification WHERE identifier LIKE 'magic-link:%'")
+      .all() as {
       identifier: string;
     }[]
   ).map((r) => r.identifier.slice("magic-link:".length));
@@ -197,7 +218,6 @@ describe("the mailed link opens /sign-in/confirm, and only its button signs in",
 });
 
 describe("E1: what the sign-in link mail says and carries", () => {
-
   it("comes from Foxhound at the auth sender, with no Reply-To, footer, unsubscribe or tracking", async () => {
     await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
     const m = sent[0];
@@ -220,7 +240,12 @@ describe("E1: what the sign-in link mail says and carries", () => {
 describe("E1: a refused send comes back named, and the link is never logged", () => {
   it("no EMAIL binding: email_binding_missing", async () => {
     const logged = consoleSpies();
-    const outcome = await sendSignInLinkEmail(makeEnv(null), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
+    const outcome = await sendSignInLinkEmail(makeEnv(null), {
+      to: TO,
+      url: URL_FIXTURE,
+      token: TOKEN,
+      code: CODE,
+    });
     expect(outcome).toEqual({ status: "failed", reason: "email_binding_missing", error: null });
     expect(logged()).not.toContain("EXAMPLE-NOT-A-TOKEN");
   });
@@ -229,10 +254,17 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
     const logged = consoleSpies();
     const env = makeEnv({
       send: async () => {
-        throw new Error(`rejected message to ${TO} with link ${URL_FIXTURE}, token ${TOKEN} and code ${CODE}`);
+        throw new Error(
+          `rejected message to ${TO} with link ${URL_FIXTURE}, token ${TOKEN} and code ${CODE}`,
+        );
       },
     });
-    const outcome = await sendSignInLinkEmail(env, { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
+    const outcome = await sendSignInLinkEmail(env, {
+      to: TO,
+      url: URL_FIXTURE,
+      token: TOKEN,
+      code: CODE,
+    });
     expect(outcome.status).toBe("failed");
     if (outcome.status !== "failed") return;
     expect(outcome.reason).toBe("provider_error");
@@ -256,7 +288,12 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
 
   it("an https link whose render throws: render_failed, nothing sent, nothing thrown", async () => {
     harness.renderThrows = true;
-    const outcome = await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
+    const outcome = await sendSignInLinkEmail(makeEnv(), {
+      to: TO,
+      url: URL_FIXTURE,
+      token: TOKEN,
+      code: CODE,
+    });
     expect(outcome).toEqual({ status: "failed", reason: "render_failed", error: null });
     expect(sent).toHaveLength(0);
   });

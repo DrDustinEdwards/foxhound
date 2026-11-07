@@ -32,7 +32,6 @@ function declaredBindings(): Set<string> {
 }
 
 describe("env sanity: no phantom bindings", () => {
-
   it("every row getEnvSanity calls a binding is declared in wrangler.jsonc", () => {
     const declared = declaredBindings();
     const claimed = getEnvSanity({} as Env)

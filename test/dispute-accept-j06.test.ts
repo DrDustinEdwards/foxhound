@@ -63,14 +63,10 @@ beforeEach(() => {
   harness.seen = new Set();
   harness.writes = 0;
   sqlite
-    .prepare(
-      "INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)",
-    )
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
     .run(ACCOUNT);
   sqlite
-    .prepare(
-      "INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)",
-    )
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)")
     .run();
   sqlite
     .prepare(
@@ -104,8 +100,7 @@ function stripeError(behavior: Exclude<StripeBehavior, "ok">): Error {
     conflict: {
       type: "StripeIdempotencyError",
       statusCode: 409,
-      message:
-        "There is currently another in-progress request using this Idempotent Key",
+      message: "There is currently another in-progress request using this Idempotent Key",
     },
   } as const;
   const shape = shapes[behavior];
@@ -120,11 +115,7 @@ function fakeStripe(behavior: StripeBehavior) {
   const keys: (string | undefined)[] = [];
   const stripe = {
     disputes: {
-      close: async (
-        id: string,
-        _params?: unknown,
-        options?: { idempotencyKey?: string },
-      ) => {
+      close: async (id: string, _params?: unknown, options?: { idempotencyKey?: string }) => {
         keys.push(options?.idempotencyKey);
         if (behavior !== "ok") throw stripeError(behavior);
         closed.push(id);
@@ -206,9 +197,7 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
     const result = await acceptDispute(env, input(), { stripe });
 
     expect(result.status).toBe("error");
-    expect(result.status === "error" && result.message).toContain(
-      "This dispute is already closed",
-    );
+    expect(result.status === "error" && result.message).toContain("This dispute is already closed");
     expect(dispute().state).toBe("pending_review");
     expect(outcomes()).toHaveLength(0);
     expect(harness.writes).toBe(0);
@@ -232,7 +221,6 @@ describe("ACCEPT: Stripe first, then the accepted state and its outcome together
 });
 
 describe("PR 149 review: an unknown Stripe result is never reported as a refusal", () => {
-
   it.each(["outage", "network", "conflict"] as const)(
     "%s: Stripe may have closed it, so the merchant is told to check Stripe, and nothing is written",
     async (behavior) => {
@@ -242,9 +230,7 @@ describe("PR 149 review: an unknown Stripe result is never reported as a refusal
       expect(result.status).toBe("error");
       const message = result.status === "error" ? result.message : "";
       expect(message).not.toContain("Stripe did not accept");
-      expect(message).toContain(
-        "Stripe may or may not have closed this dispute",
-      );
+      expect(message).toContain("Stripe may or may not have closed this dispute");
       expect(message).toContain("check it in Stripe before trying again");
       // job_2663d92094ab: Stripe replays a stored result, a 500 included, for 24
       // hours under the same idempotency key, and the key is kept stable (one

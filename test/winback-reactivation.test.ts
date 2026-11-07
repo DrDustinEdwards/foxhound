@@ -77,7 +77,9 @@ beforeEach(() => {
   harness.db = db;
   harness.subscriptions = {};
   harness.retrieved = [];
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)").run(ACCOUNT);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
+    .run(ACCOUNT);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, connected_at, created_at) VALUES ('c1', ?, 'acct_stripe', 1, 'cipher', 1000, 1000)",
@@ -147,7 +149,6 @@ function outcomeRows() {
 }
 
 describe("PLANT 1: the classifier reads the sequence id off the session", () => {
-
   it("IGNORES an ordinary checkout that carries no win-back metadata", () => {
     expect(classifyStripeEvent(checkoutEvent(null)).kind).toBe("ignore");
     expect(classifyStripeEvent(checkoutEvent({ other: "x" })).kind).toBe("ignore");
@@ -179,7 +180,9 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
   });
 
   it("a sequence on ANOTHER account is not found, and nothing flips", async () => {
-    sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)").run();
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)")
+      .run();
     seedSequence({ accountId: "acct_other" });
 
     const result = await processConnectedWebhook(
@@ -211,7 +214,11 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     // The webhook claim cannot refuse this one, so only the status condition
     // on the flip can.
     seedSequence();
-    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }, "evt_c1"), RECEIVED);
+    await processConnectedWebhook(
+      env,
+      checkoutEvent({ win_back_sequence_id: "wb_1" }, "evt_c1"),
+      RECEIVED,
+    );
 
     const again = await processConnectedWebhook(
       env,
@@ -277,7 +284,6 @@ describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by c
 });
 
 describe("PLANT 4: nothing about a reactivation is billable", () => {
-
   it("NEITHER BILLING MODULE NAMES A WIN-BACK TABLE OR EVENT", async () => {
     // Reading the sources is the only way to prove a module does NOT reference
     // something. 343 binding 1 asks for exactly this assertion.

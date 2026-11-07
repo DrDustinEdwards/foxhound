@@ -12,7 +12,10 @@ export class AdminApi extends WorkerEntrypoint<Env> {
     const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
     return (
       (await handleAdminApiRequest(request, this.env)) ??
-      Response.json({ ok: false, error: "Not found." }, { status: 404, headers: { "Cache-Control": "no-store" } })
+      Response.json(
+        { ok: false, error: "Not found." },
+        { status: 404, headers: { "Cache-Control": "no-store" } },
+      )
     );
   }
 }

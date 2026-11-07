@@ -24,7 +24,7 @@ vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
 }));
-vi.mock("~/lib/cloudflare-context", () => ({
+vi.mock("@dustinedwards/site-runtime/context", () => ({
   cloudflareContext: Symbol("cloudflare") as unknown,
 }));
 

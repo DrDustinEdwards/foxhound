@@ -7,7 +7,7 @@ import {
   robotsResponse,
 } from "@drdustinedwards/site-helpers/robots";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/robots";
@@ -88,7 +88,12 @@ export { DENIED_BOTS };
  * ROBOTS.TXT IS THE ADVISORY HALF: the enforcing half is the server-side guard
  * at the click recorder, app/lib/engagement/agents.ts.
  */
-const POLICY = { disallow: DISALLOW_PATHS, allowBots: ALLOWED_BOTS, denyBots: DENIED_BOTS, notes: [] };
+const POLICY = {
+  disallow: DISALLOW_PATHS,
+  allowBots: ALLOWED_BOTS,
+  denyBots: DENIED_BOTS,
+  notes: [],
+};
 
 export function buildRobotsTxt(url: string): string {
   return robotsDocument({ origin: url, ...POLICY });

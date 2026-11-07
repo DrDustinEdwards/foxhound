@@ -128,11 +128,18 @@ export async function getPublishedTagSet(db: Db): Promise<string[]> {
  *  getPublishedPostsByTag instead (SQL-filtered, perf-audit fix M-2), not
  *  this. Content volume here is small (dozens of posts, not thousands), so a
  *  full scan is the simplest correct query; there is no pagination need yet. */
-export async function getAllPublishedPosts(db: Db, { indexedOnly = false } = {}): Promise<BlogPostSummary[]> {
+export async function getAllPublishedPosts(
+  db: Db,
+  { indexedOnly = false } = {},
+): Promise<BlogPostSummary[]> {
   const rows = await db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)
-    .where(indexedOnly ? and(eq(blogPosts.published, true), eq(blogPosts.noindex, false)) : eq(blogPosts.published, true))
+    .where(
+      indexedOnly
+        ? and(eq(blogPosts.published, true), eq(blogPosts.noindex, false))
+        : eq(blogPosts.published, true),
+    )
     .orderBy(desc(blogPosts.publishedAt));
   return rows.map(toSummary);
 }

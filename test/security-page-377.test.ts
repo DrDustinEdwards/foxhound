@@ -1,11 +1,7 @@
-
 import { describe, expect, it } from "vitest";
 
 import { classifyPath } from "~/lib/http/cache-policy";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
-
-
-
 
 describe("PLANT 4: the page is reachable", () => {
   it("it is in the sitemap", () => {
@@ -31,7 +27,9 @@ describe("PLANT 5: every page in the sitemap is publicly cacheable", () => {
     const paths = STATIC_PAGES.map((p) => p.path);
     expect(paths.length).toBeGreaterThan(5);
     for (const path of paths) {
-      expect(classifyPath(path), `${path} is in the sitemap but served private`).not.toBe("private");
+      expect(classifyPath(path), `${path} is in the sitemap but served private`).not.toBe(
+        "private",
+      );
     }
   });
 

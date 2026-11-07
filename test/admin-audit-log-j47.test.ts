@@ -1,9 +1,8 @@
-
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminAuditLog } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -45,8 +44,6 @@ function detail(e: Entry): string | null {
   return (describeLib.auditDetail as (e: Entry) => string | null)(e);
 }
 
-
-
 // ---------------------------------------------------------------- the loader
 
 describe("the loader", () => {
@@ -54,8 +51,25 @@ describe("the loader", () => {
     const { db } = createInMemoryDb();
     const at = (min: number) => new Date(Date.now() - min * 60 * 1000);
     await db.insert(adminAuditLog).values([
-      { id: "a1", actorEmail: "ops@example.com", action: "cron.disable", metadata: { cronName: "recovery-tick", via: "brake-panel" }, createdAt: at(5) },
-      { id: "a2", actorEmail: "account-owner", action: "user_self_deleted_account", targetUserId: "u1", metadata: { account_ids: ["x"], kept_recovered_payments: 0, stripe_connections_disconnected: 0 }, createdAt: at(1) },
+      {
+        id: "a1",
+        actorEmail: "ops@example.com",
+        action: "cron.disable",
+        metadata: { cronName: "recovery-tick", via: "brake-panel" },
+        createdAt: at(5),
+      },
+      {
+        id: "a2",
+        actorEmail: "account-owner",
+        action: "user_self_deleted_account",
+        targetUserId: "u1",
+        metadata: {
+          account_ids: ["x"],
+          kept_recovered_payments: 0,
+          stripe_connections_disconnected: 0,
+        },
+        createdAt: at(1),
+      },
     ]);
     harness.db = db;
   });
@@ -63,23 +77,30 @@ describe("the loader", () => {
   it("serves each entry's actor, action, target and detail in words, newest first", async () => {
     expect(typeof route.loader).toBe("function");
     const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext, nonce: "" });
-    const loader = route.loader as (args: unknown) => Promise<{ entries: Array<Record<string, unknown>> }>;
+    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
+    const loader = route.loader as (
+      args: unknown,
+    ) => Promise<{ entries: Array<Record<string, unknown>> }>;
     const { entries } = await loader({
       request: new Request("https://foxhoundapp.com/admin/platform/audit-log"),
       context,
       params: {},
     });
     expect(entries.map((e) => e.id)).toEqual(["a2", "a1"]);
-    expect(entries[0]).toMatchObject({ actor: "The account owner", action: "Deleted their own account" });
-    expect(entries[0].detail).toBe("1 merchant account deleted, 0 Stripe connections disconnected, 0 recovered payments kept");
-    expect(entries[1]).toMatchObject({ actor: "ops@example.com", action: "Disabled a cron", detail: "From the emergency brake page" });
+    expect(entries[0]).toMatchObject({
+      actor: "The account owner",
+      action: "Deleted their own account",
+    });
+    expect(entries[0].detail).toBe(
+      "1 merchant account deleted, 0 Stripe connections disconnected, 0 recovered payments kept",
+    );
+    expect(entries[1]).toMatchObject({
+      actor: "ops@example.com",
+      action: "Disabled a cron",
+      detail: "From the emergency brake page",
+    });
   });
 });
-
-
-
-
 
 describe("the fallback never shows a secret or a long value", () => {
   it("skips keys that may hold a credential, an address or a Stripe user", () => {
@@ -103,6 +124,8 @@ describe("the fallback never shows a secret or a long value", () => {
   it("cuts a long value at 80 characters with an ellipsis", () => {
     const long = "x".repeat(200);
     expect(detail(entry("something.new", { note: long }))).toBe(`note: ${"x".repeat(80)}…`);
-    expect(detail(entry("something.new", { note: "x".repeat(80) }))).toBe(`note: ${"x".repeat(80)}`);
+    expect(detail(entry("something.new", { note: "x".repeat(80) }))).toBe(
+      `note: ${"x".repeat(80)}`,
+    );
   });
 });

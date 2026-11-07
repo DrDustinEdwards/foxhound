@@ -9,7 +9,7 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections-cap";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   AUDIT_BLOCKS,
   AUDIT_BOTTOM_CTA,
@@ -57,10 +57,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
     }),
     ...(loaderData
       ? [
-          jsonLd(speakableWebPageJsonLd(loaderData.siteUrl, {
-            path: PATH,
-            selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-          })),
+          jsonLd(
+            speakableWebPageJsonLd(loaderData.siteUrl, {
+              path: PATH,
+              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
+            }),
+          ),
         ]
       : []),
   ];
@@ -75,7 +77,11 @@ export default function AuditProductPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals, and the family's focus
     // ring inside the page, as on the other three spokes.
-    <div className="fh-cap [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <ProductHero
         productName="Audit"
         Icon={ScanSearch}
@@ -101,7 +107,12 @@ export default function AuditProductPage() {
         cta={AUDIT}
       />
       <ProductFAQ name="audit-faq" faqs={AUDIT_FAQS} />
-      <BottomCTA title={AUDIT_BOTTOM_CTA.title} sub={AUDIT_BOTTOM_CTA.sub} cta={AUDIT} note={AUDIT_BOTTOM_CTA.note} />
+      <BottomCTA
+        title={AUDIT_BOTTOM_CTA.title}
+        sub={AUDIT_BOTTOM_CTA.sub}
+        cta={AUDIT}
+        note={AUDIT_BOTTOM_CTA.note}
+      />
     </div>
   );
 }

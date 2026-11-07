@@ -118,7 +118,9 @@ function buildSystemPrompt(): string {
 function buildUserPrompt(facts: EvidenceFacts): string {
   const lines = ["Known facts about this transaction and customer contact:"];
   if (facts.merchantProductDescription) {
-    lines.push(`Product description (stated by the merchant): ${untrusted("product_description", facts.merchantProductDescription)}`);
+    lines.push(
+      `Product description (stated by the merchant): ${untrusted("product_description", facts.merchantProductDescription)}`,
+    );
   }
   if (facts.productName) lines.push(`Product/plan: ${untrusted("plan_name", facts.productName)}`);
   if (facts.serviceDate) {
@@ -126,7 +128,9 @@ function buildUserPrompt(facts: EvidenceFacts): string {
   }
   const log = formatCommunicationLog(facts.communications);
   if (log) lines.push(`Customer communication log:\n${log}`);
-  lines.push("Summarize only the facts above in a few sentences for a dispute evidence submission.");
+  lines.push(
+    "Summarize only the facts above in a few sentences for a dispute evidence submission.",
+  );
   return lines.join("\n\n");
 }
 
@@ -158,7 +162,10 @@ export async function draftDisputeEvidence(
     fields.push({ fieldName: "product_description", fieldValue: productDescription });
   }
   if (facts.serviceDate) {
-    fields.push({ fieldName: "service_date", fieldValue: facts.serviceDate.toISOString().slice(0, 10) });
+    fields.push({
+      fieldName: "service_date",
+      fieldValue: facts.serviceDate.toISOString().slice(0, 10),
+    });
   }
   const log = formatCommunicationLog(facts.communications);
   if (log) fields.push({ fieldName: "customer_communication", fieldValue: log });
@@ -190,7 +197,10 @@ export async function draftDisputeEvidence(
     const clean = await retryStockPhrasing(await call(), (text) => text, call);
     if (clean.trim()) fields.push({ fieldName: "uncategorized_text", fieldValue: clean });
   } catch (err) {
-    console.error("dispute evidence drafting failed; the deterministic fields stand:", err instanceof Error ? err.message : "unknown error");
+    console.error(
+      "dispute evidence drafting failed; the deterministic fields stand:",
+      err instanceof Error ? err.message : "unknown error",
+    );
   }
   return fields;
 }

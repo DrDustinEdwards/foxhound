@@ -1,6 +1,6 @@
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
 import {
   parsePaymentsAmount,
@@ -42,10 +42,20 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
-  const amountMinParsed = parsePaymentsAmount(params.get("amountMin"), bounds.minCents, bounds.maxCents);
-  const amountMaxParsed = parsePaymentsAmount(params.get("amountMax"), bounds.minCents, bounds.maxCents);
-  const amountMinCents = amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
-  const amountMaxCents = amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
+  const amountMinParsed = parsePaymentsAmount(
+    params.get("amountMin"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
+  const amountMaxParsed = parsePaymentsAmount(
+    params.get("amountMax"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
+  const amountMinCents =
+    amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
+  const amountMaxCents =
+    amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
   const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);
 
   const result = await listFilteredFailedPayments(db, accountId, {

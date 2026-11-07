@@ -11,7 +11,7 @@ import {
 } from "~/lib/auth";
 import type { Membership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { isConstraintOn } from "~/lib/money/serializer";
 import {
@@ -71,7 +71,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // is visible. Only these two params: there is no code on this path, and a
     // code is a credential that is never logged.
     const description = url.searchParams.get("error_description") ?? "";
-    console.warn("connect callback: Stripe returned an error:", oauthError.slice(0, 100), description.slice(0, 300));
+    console.warn(
+      "connect callback: Stripe returned an error:",
+      oauthError.slice(0, 100),
+      description.slice(0, 300),
+    );
     return bounce("denied");
   }
   if (!code) return bounce("no_code");
@@ -108,7 +112,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // no check: it mints a new account with the caller as its owner.
   let target: Membership | null = null;
   if (action !== ADD_ACCOUNT_ACTION) {
-    target = await resolveActiveMembershipFrom(db, memberships, session.session.activeAccountId ?? null);
+    target = await resolveActiveMembershipFrom(
+      db,
+      memberships,
+      session.session.activeAccountId ?? null,
+    );
     // No account to attach to; back to setup, where /connect creates one.
     if (!target) return bounce("no_code");
     if (target.role !== MEMBER_ROLE.OWNER) return bounce("owner_required");
@@ -124,7 +132,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ctx.waitUntil(
       import("~/lib/intelligence/sync.server")
         .then((m) => m.runIntelligenceSyncForAccount(env, accountId, Date.now()))
-        .catch((err) => console.error("first intelligence sync failed:", err instanceof Error ? err.message : err)),
+        .catch((err) =>
+          console.error(
+            "first intelligence sync failed:",
+            err instanceof Error ? err.message : err,
+          ),
+        ),
     );
 
   try {
@@ -133,19 +146,34 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // grants what the authorize URL asked for, so anything else is refused
     // rather than stored as a connection that would fail on its first retry.
     if (!isMerchantConnectScope(oauth.scope)) {
-      console.error("connect callback: Stripe granted less than the write scope; refusing the connection");
+      console.error(
+        "connect callback: Stripe granted less than the write scope; refusing the connection",
+      );
       return bounce("scope_refused");
     }
 
     return target
       ? await attachToActiveAccount(env, db, target, memberships, oauth, syncSoon)
-      : await addAccount(env, db, session.session.id, session.user.id, memberships, oauth, syncSoon);
+      : await addAccount(
+          env,
+          db,
+          session.session.id,
+          session.user.id,
+          memberships,
+          oauth,
+          syncSoon,
+        );
   } catch (err) {
     // Log only the error's type, code and message, never the object: it can
     // carry request context. Without this line a misconfigured key or client ID
     // is invisible (the first live connect failed here with nothing in the logs).
     const e = err as { type?: unknown; code?: unknown; message?: unknown };
-    console.error("connect callback failed:", String(e?.type ?? ""), String(e?.code ?? ""), String(e?.message ?? ""));
+    console.error(
+      "connect callback failed:",
+      String(e?.type ?? ""),
+      String(e?.code ?? ""),
+      String(e?.message ?? ""),
+    );
     return bounce("token_exchange_failed");
   }
 }
@@ -169,7 +197,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
  * needs the id and goes to /console without it, as Recova's does.
  */
 function destinationFor(newConnectionId: string | null): string {
-  return newConnectionId ? `/welcome?connection=${encodeURIComponent(newConnectionId)}` : "/console";
+  return newConnectionId
+    ? `/welcome?connection=${encodeURIComponent(newConnectionId)}`
+    : "/console";
 }
 
 /** Land on `accountId` with this session pointed at it. */

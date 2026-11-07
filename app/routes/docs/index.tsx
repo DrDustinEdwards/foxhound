@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DOC_GUIDES, type DocGuide } from "~/lib/marketing/docs-content";
 import { docsItemListJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -34,16 +34,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: "Docs",
-      description: "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
+      description:
+        "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
       path: "/docs",
       pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
-    ...(loaderData
-      ? [
-          jsonLd(docsItemListJsonLd(loaderData.siteUrl, DOC_GUIDES)),
-        ]
-      : []),
+    ...(loaderData ? [jsonLd(docsItemListJsonLd(loaderData.siteUrl, DOC_GUIDES))] : []),
   ];
 }
 
@@ -58,13 +55,21 @@ export default function DocsIndexPage() {
 
   return (
     <>
-      <MarketingPageHeader eyebrow="User guides" title="Documentation" subtext="Documentation for the Foxhound platform." />
+      <MarketingPageHeader
+        eyebrow="User guides"
+        title="Documentation"
+        subtext="Documentation for the Foxhound platform."
+      />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark.
           Recova's 720px column, in Capsomer's amber family with Foxhound's own
           neutrals (.fh-cap, as the site header and the /products hub); the focus
           ring reads the family's amber ring here, as in Capsomer's own parts. */}
-      <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+      <div
+        className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         <div className="flex flex-col gap-4">
           {/* Platform: full width, the same card as the product guides below. */}
           <GuideCard guide={platform} />
@@ -91,7 +96,8 @@ export default function DocsIndexPage() {
   );
 }
 
-const CROSS_LINK = "group leading-6 text-accent-text no-underline transition-opacity duration-150 hover:opacity-80";
+const CROSS_LINK =
+  "group leading-6 text-accent-text no-underline transition-opacity duration-150 hover:opacity-80";
 
 /** Recova's 13px arrow, nudged on the link's hover. Decorative. */
 function Arrow() {
@@ -113,12 +119,17 @@ function Arrow() {
  */
 function GuideCard({ guide }: { guide: DocGuide }) {
   return (
-    <Link to={`/docs/${guide.slug}`} className="cap-panel group rounded-lg [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]">
+    <Link
+      to={`/docs/${guide.slug}`}
+      className="cap-panel group rounded-lg [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]"
+    >
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div>
           <div className="mb-2 text-item-title font-medium text-text">{guide.title}</div>
-          <div className="mb-4 text-label leading-relaxed text-text-secondary">{guide.description}</div>
+          <div className="mb-4 text-label leading-relaxed text-text-secondary">
+            {guide.description}
+          </div>
           <div className="text-label text-accent-text">
             Read guide <Arrow />
           </div>

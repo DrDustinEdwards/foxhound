@@ -36,8 +36,6 @@ function links(html: string): string[] {
 
 const href = (a: string) => /href="([^"]+)"/.exec(a)?.[1];
 
-
-
 interface RouteEntry {
   path?: string;
   index?: boolean;

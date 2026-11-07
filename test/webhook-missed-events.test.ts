@@ -45,12 +45,20 @@ let sqlite: Database.Database;
 
 /** Ignored-type events with no `account`, as a list read with the merchant's own token returns them. */
 function event(id: string, created: number): Stripe.Event {
-  return { id, type: "customer.created", created, livemode: true, data: { object: { id: "cus_1" } } } as unknown as Stripe.Event;
+  return {
+    id,
+    type: "customer.created",
+    created,
+    livemode: true,
+    data: { object: { id: "cus_1" } },
+  } as unknown as Stripe.Event;
 }
 
 function claims(): { id: string; account: string | null }[] {
   return sqlite
-    .prepare("SELECT stripe_event_id AS id, account_id AS account FROM webhook_events ORDER BY rowid")
+    .prepare(
+      "SELECT stripe_event_id AS id, account_id AS account FROM webhook_events ORDER BY rowid",
+    )
     .all() as { id: string; account: string | null }[];
 }
 
@@ -71,7 +79,9 @@ beforeEach(() => {
     }
     return { applied: true };
   });
-  sqlite.prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, ?)").run(ACCOUNT_A, "Acme", 1_000);
+  sqlite
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, ?)")
+    .run(ACCOUNT_A, "Acme", 1_000);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, stripe_access_token, is_primary, connected_at, created_at) VALUES (?, ?, ?, ?, 1, 1000, 1000)",
@@ -87,12 +97,24 @@ beforeEach(() => {
 describe("missed-event sweep", () => {
   it("replays only unclaimed events, oldest first, on the connected account, and is idempotent", async () => {
     // Stripe lists newest first.
-    harness.events = [event("evt_missed_new", 300), event("evt_delivered", 200), event("evt_missed_old", 100)];
+    harness.events = [
+      event("evt_missed_new", 300),
+      event("evt_delivered", 200),
+      event("evt_missed_old", 100),
+    ];
 
     const first = await sweepMissedStripeEvents({} as Env, NOW);
 
-    expect(harness.listArgs[0]).toMatchObject({ created: { gte: Math.floor(NOW.getTime() / 1000) - 4 * 86_400 } });
-    expect(first).toMatchObject({ accounts: 1, listed: 3, replayed: 2, failed: 0, accountErrors: 0 });
+    expect(harness.listArgs[0]).toMatchObject({
+      created: { gte: Math.floor(NOW.getTime() / 1000) - 4 * 86_400 },
+    });
+    expect(first).toMatchObject({
+      accounts: 1,
+      listed: 3,
+      replayed: 2,
+      failed: 0,
+      accountErrors: 0,
+    });
     expect(claims()).toEqual([
       { id: "evt_delivered", account: ACCOUNT_A },
       { id: "evt_missed_old", account: ACCOUNT_A },

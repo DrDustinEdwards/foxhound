@@ -37,7 +37,12 @@ export function shouldRenderBanner(p: CustomerRecommendation | null): p is Custo
   if (!p) return false;
   const automated = p.recommendation.action === "continue_automated";
   if (automated && p.engagement.band === "green" && p.history.band === "green") return false;
-  if (automated && p.engagement.band === "unknown" && p.history.band === "unknown" && p.value.band !== "high") {
+  if (
+    automated &&
+    p.engagement.band === "unknown" &&
+    p.history.band === "unknown" &&
+    p.value.band !== "high"
+  ) {
     return false;
   }
   return true;
@@ -57,11 +62,17 @@ export function bannerHeadline(action: RecommendedAction, surface: BannerSurface
         ? "Intelligence recommends personal outreach to this customer"
         : "Intelligence recommends personal outreach this week";
     case "continue_automated_priority":
-      return surface === "customer" ? "Continue automated: watch closely" : "Continue automated recovery: but watch closely";
+      return surface === "customer"
+        ? "Continue automated: watch closely"
+        : "Continue automated recovery: but watch closely";
     case "continue_automated_deprioritize":
-      return surface === "customer" ? "Continue automated: low-yield case" : "Continue automated recovery: low-yield case";
+      return surface === "customer"
+        ? "Continue automated: low-yield case"
+        : "Continue automated recovery: low-yield case";
     case "continue_automated":
-      return surface === "customer" ? "Signals worth knowing" : "Continue automated recovery: signals worth knowing";
+      return surface === "customer"
+        ? "Signals worth knowing"
+        : "Continue automated recovery: signals worth knowing";
   }
 }
 
@@ -97,7 +108,10 @@ export function valueEvidence(v: CustomerRecommendation["value"], currency: stri
  * risk", which overstated it twelvefold as a monthly figure, so the line names
  * it as a year.
  */
-export function atRiskText(r: CustomerRecommendation["recommendation"], currency: string): string | null {
+export function atRiskText(
+  r: CustomerRecommendation["recommendation"],
+  currency: string,
+): string | null {
   if (r.annualizedMrrAtRiskCents === null) return null;
   return `${formatMoney(r.annualizedMrrAtRiskCents, currency)} a year at risk`;
 }

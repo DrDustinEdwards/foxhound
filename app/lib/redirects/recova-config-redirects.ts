@@ -28,7 +28,12 @@ export const RECOVA_CONFIG_REDIRECTS: readonly RecovaConfigRedirect[] = [
   { source: "/recovery/audit", destination: "/audit", permanent: true },
   { source: "/recovery/audit/connect", destination: "/audit/connect", permanent: true },
   { source: "/recovery/audit/results", destination: "/audit/results", permanent: true },
-  { source: "/:path*", destination: "https://recovamrr.com/:path*", permanent: true, host: "app.recovamrr.com" },
+  {
+    source: "/:path*",
+    destination: "https://recovamrr.com/:path*",
+    permanent: true,
+    host: "app.recovamrr.com",
+  },
   { source: "/user-guides/:path*", destination: "/docs/:path*", permanent: true },
   { source: "/user-guides", destination: "/docs", permanent: true },
   { source: "/sitemap_index.xml", destination: "/sitemap.xml", permanent: true },
@@ -68,7 +73,10 @@ function decodedSegments(pathname: string): string[] {
  *  beneath the rule's fixed prefix, and "." and ".." segments are dropped, so
  *  no request can climb out of that prefix or start a protocol-relative or
  *  absolute Location. */
-export function resolveRecovaConfigRedirect(pathname: string, search = ""): ResolvedRedirect | null {
+export function resolveRecovaConfigRedirect(
+  pathname: string,
+  search = "",
+): ResolvedRedirect | null {
   const segments = decodedSegments(pathname);
   const lower = segments.map((segment) => segment.toLowerCase());
   for (const rule of RECOVA_CONFIG_REDIRECTS) {

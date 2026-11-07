@@ -1,7 +1,4 @@
-import {
-  DISPUTE_FEE_CAP_CENTS,
-  STRIPE_PREVIEW_API_VERSION,
-} from "~/lib/constants";
+import { DISPUTE_FEE_CAP_CENTS, STRIPE_PREVIEW_API_VERSION } from "~/lib/constants";
 import { currencyExponent } from "~/lib/money-format";
 import { getStripe } from "~/lib/stripe/client";
 
@@ -113,10 +110,7 @@ export async function resolveDisputeCap(
   // Dispute-currency units per one USD.
   const rate = quote.rates?.usd?.exchange_rate;
   if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
-    throw new DisputeCapQuoteError(
-      code,
-      new Error("quote carried no usable exchange rate"),
-    );
+    throw new DisputeCapQuoteError(code, new Error("quote carried no usable exchange rate"));
   }
 
   // USD 500 in major units, converted, then expressed in the target's minor

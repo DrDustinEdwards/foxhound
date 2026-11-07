@@ -3,18 +3,26 @@
 // Env interface in worker-configuration.d.ts. Non-secret config (BETTER_AUTH_URL,
 // GOOGLE_CLIENT_ID) lives in wrangler.jsonc `vars` and is typed by `wrangler types`.
 interface Env {
+  // "1" or "true" puts the site in maintenance: every path but /health answers the 503 page (site-runtime ./maintenance).
+  // Set in the dashboard.
+  MAINTENANCE?: string;
   // Carrel's key for the site-api mount at /api/carrel/v1 (job_cbe1b96107fc).
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
+  // The operator API's bearer (/api/operator, app/lib/operator.server.ts): Capsid Admin's backup check, back up now
+  // and run a job now. Set by Capsid Admin's site key control, never shown; unset or under 32 characters, 503.
+  OPERATOR_TOKEN?: string;
+  // Keys site-runtime's admin idle cookie (withAdminIdle `secret`). Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown; unset, the admin paths fail (site-runtime 0.82 requires it).
+  ADMIN_IDLE_SECRET: string;
   // Extra exact callbacks a merchant MCP client registration may name, space or
   // comma separated, beside site-runtime's DCR_CALLBACKS (registerClient). A
   // plain list of https URLs, not a secret.
   DCR_REDIRECT_URIS?: string;
   SENTRY_DSN?: string;
-  // HMAC key for the merchant MCP's ToolCallLog chain (site-runtime ./audit-log).
-  // Bind it before the first row; unset, the chain is plain SHA-256.
-  AUDIT_CHAIN_KEY?: string;
+  // The seed of the ToolCallLog chain's Ed25519 signing key (site-runtime ./audit-log 0.85, which requires it).
+  // Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown.
+  AUDIT_SIGNING_KEY: string;
   // Reading errors back for /admin/platform/errors (J48). The DSN only sends;
   // listing issues needs a Sentry auth token with event:read and the
   // organization's slug. Either unset => the page says it cannot read them.

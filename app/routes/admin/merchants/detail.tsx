@@ -8,22 +8,28 @@ import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import { getMerchantDetail, setBillingExempt, setProcessingPaused } from "~/lib/admin/merchants.server";
+import {
+  getMerchantDetail,
+  setBillingExempt,
+  setProcessingPaused,
+} from "~/lib/admin/merchants.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { formatMoney } from "~/lib/money-format";
 import { parseDollarsToCents } from "~/lib/settings/dollars";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle<{ account: { name: string | null; id: string } }> = {
-  page: (data: { account: { name: string | null; id: string } }) => data.account.name ?? data.account.id,
+  page: (data: { account: { name: string | null; id: string } }) =>
+    data.account.name ?? data.account.id,
 };
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -61,7 +67,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   const db = getDb(env);
   const accountId = params.id;
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
 
   if (intent === "toggle-billing-exempt") {
@@ -110,12 +116,20 @@ export async function action({ context, request, params }: Route.ActionArgs) {
 
   if (intent === "create-adjustment") {
     const direction = String(form.get("direction") ?? "");
-    const currency = String(form.get("currency") ?? "").trim().toLowerCase();
+    const currency = String(form.get("currency") ?? "")
+      .trim()
+      .toLowerCase();
     const description = String(form.get("description") ?? "").trim();
     const magnitudeCents = parseDollarsToCents(String(form.get("amount") ?? ""));
     const idempotencyToken = String(form.get("idempotencyToken") ?? "");
 
-    if (!magnitudeCents || !currency || !description || !idempotencyToken || (direction !== "credit" && direction !== "correction")) {
+    if (
+      !magnitudeCents ||
+      !currency ||
+      !description ||
+      !idempotencyToken ||
+      (direction !== "credit" && direction !== "correction")
+    ) {
       return data<ActionResult>(
         { ok: false, error: "Enter a nonzero amount, a currency, and a reason." },
         { status: 400 },
@@ -138,7 +152,13 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   return data<ActionResult>({ ok: false, error: "Unknown action." }, { status: 400 });
 }
 
-function ActionButton({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "danger" }) {
+function ActionButton({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: "default" | "danger";
+}) {
   const busy = useNavigation().state !== "idle";
   return (
     <button
@@ -175,7 +195,8 @@ function CancelForm({ accountId }: { accountId: string }) {
     <Form method="post" className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="intent" value="cancel" />
       <span className="text-label text-error-text">
-        Disconnects Stripe and stops all processing for {accountId}. Already-matured, unbilled fees still bill. Confirm?
+        Disconnects Stripe and stops all processing for {accountId}. Already-matured, unbilled fees
+        still bill. Confirm?
       </span>
       <ActionButton tone="danger">Yes, cancel</ActionButton>
       <button
@@ -205,18 +226,26 @@ function AdjustmentForm({
       <input type="hidden" name="intent" value="create-adjustment" />
       <input type="hidden" name="idempotencyToken" value={idempotencyToken} />
       {actionData?.error ? (
-        <p role="alert" className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+        <p
+          role="alert"
+          className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+        >
           {actionData.error}
         </p>
       ) : null}
       {actionData?.adjustmentInvoiceId ? (
-        <p role="status" className="rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text">
+        <p
+          role="status"
+          className="rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text"
+        >
           Adjustment recorded.
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">
         <label className="flex min-w-0 max-w-full flex-col gap-1.5">
-          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Direction</span>
+          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Direction
+          </span>
           <select
             name="direction"
             defaultValue="credit"
@@ -227,7 +256,9 @@ function AdjustmentForm({
           </select>
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Amount</span>
+          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Amount
+          </span>
           <input
             name="amount"
             type="text"
@@ -238,7 +269,9 @@ function AdjustmentForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Currency</span>
+          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Currency
+          </span>
           <input
             name="currency"
             type="text"
@@ -249,7 +282,9 @@ function AdjustmentForm({
         </label>
       </div>
       <label className="flex flex-col gap-1.5">
-        <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Reason</span>
+        <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+          Reason
+        </span>
         <textarea
           name="description"
           rows={2}
@@ -268,19 +303,26 @@ function AdjustmentForm({
         </button>
       </div>
       <p className="text-micro text-text-tertiary">
-        Adjustments never touch Stripe: they are internal ledger entries only, never a card charge or refund.
+        Adjustments never touch Stripe: they are internal ledger entries only, never a card charge
+        or refund.
       </p>
     </Form>
   );
 }
 
 export default function AdminMerchantDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, connections, subscriptions, recoveryActivity, disputeActivity, recentInvoices, adjustmentToken } =
-    loaderData;
+  const {
+    account,
+    connections,
+    subscriptions,
+    recoveryActivity,
+    disputeActivity,
+    recentInvoices,
+    adjustmentToken,
+  } = loaderData;
 
   return (
     <div>
-
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
           {account.cancelledAt ? <Badge tone="failure">Canceled</Badge> : null}
@@ -307,11 +349,16 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         ) : null}
         <p className="text-label text-text-tertiary">
           Platform Stripe customer:{" "}
-          <span className="font-mono text-text">{account.platformStripeCustomerId ?? "not set up"}</span>
+          <span className="font-mono text-text">
+            {account.platformStripeCustomerId ?? "not set up"}
+          </span>
         </p>
 
         {actionData?.warning ? (
-          <p role="alert" className="mt-3 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+          <p
+            role="alert"
+            className="mt-3 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+          >
             {actionData.warning}
           </p>
         ) : null}
@@ -320,13 +367,17 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
           <Form method="post">
             <input type="hidden" name="intent" value="toggle-billing-exempt" />
             <input type="hidden" name="nextExempt" value={String(!account.billingExempt)} />
-            <ActionButton>{account.billingExempt ? "Remove billing exemption" : "Exempt from billing"}</ActionButton>
+            <ActionButton>
+              {account.billingExempt ? "Remove billing exemption" : "Exempt from billing"}
+            </ActionButton>
           </Form>
 
           <Form method="post">
             <input type="hidden" name="intent" value="toggle-processing-paused" />
             <input type="hidden" name="nextPaused" value={String(!account.processingPaused)} />
-            <ActionButton>{account.processingPaused ? "Resume processing" : "Pause processing"}</ActionButton>
+            <ActionButton>
+              {account.processingPaused ? "Resume processing" : "Pause processing"}
+            </ActionButton>
           </Form>
 
           <ViewAsForm accountId={account.id} who={account.name ?? account.id} />
@@ -342,30 +393,45 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
             Release. The stale-tab version of that (a form rendered before the
             brake engaged, submitted after) is exactly how an operator hits it. */}
         {account.processingPaused && account.pauseReason === PAUSE_REASON_BRAKE ? (
-          <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
+          <p
+            role="status"
+            className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text"
+          >
             The global emergency brake paused this account, not a person. Resuming here takes it off
-            the brake&apos;s books for good, and a later Release will leave it alone. Pausing it again
-            while the brake still holds it keeps the brake marker, so that pause will NOT survive the
-            next Release. To hold this merchant for its own reasons, resume it first, then pause it.
+            the brake&apos;s books for good, and a later Release will leave it alone. Pausing it
+            again while the brake still holds it keeps the brake marker, so that pause will NOT
+            survive the next Release. To hold this merchant for its own reasons, resume it first,
+            then pause it.
           </p>
         ) : null}
       </section>
 
       <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Record a billing adjustment</p>
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+          Record a billing adjustment
+        </p>
         <div className="mt-3">
-          <AdjustmentForm defaultCurrency={account.currency ?? "usd"} actionData={actionData} idempotencyToken={adjustmentToken} />
+          <AdjustmentForm
+            defaultCurrency={account.currency ?? "usd"}
+            actionData={actionData}
+            idempotencyToken={adjustmentToken}
+          />
         </div>
       </section>
 
       <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Stripe connections</p>
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+          Stripe connections
+        </p>
         {connections.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">No Stripe connections.</p>
         ) : (
           <div className="mt-3 flex flex-col gap-2">
             {connections.map((c) => (
-              <div key={c.id} className="flex items-center justify-between border-b border-border-sub py-2 last:border-0">
+              <div
+                key={c.id}
+                className="flex items-center justify-between border-b border-border-sub py-2 last:border-0"
+              >
                 <div>
                   <p className="text-text">{c.name ?? c.stripeUserId}</p>
                   <p className="font-mono text-micro text-text-subtle">{c.stripeUserId}</p>
@@ -389,7 +455,9 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
           full-width section, matching this page's four other full-width sections
           rather than sitting alone in a grid built for two. */}
       <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Subscriptions</p>
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+          Subscriptions
+        </p>
         {subscriptions.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">None.</p>
         ) : (
@@ -398,7 +466,9 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
               <li key={s.id} className="flex items-center justify-between text-label">
                 <span className="text-text">
                   {s.product}
-                  {s.adminGranted ? <span className="ml-1.5 text-text-subtle">(admin-granted)</span> : null}
+                  {s.adminGranted ? (
+                    <span className="ml-1.5 text-text-subtle">(admin-granted)</span>
+                  ) : null}
                 </span>
                 <Badge tone={s.status === "active" ? "success" : "neutral"}>{s.status}</Badge>
               </li>
@@ -409,14 +479,18 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Recovery activity</p>
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Recovery activity
+          </p>
           <p className="mt-2 text-label text-text-tertiary">
             <span className="font-mono text-text">{recoveryActivity.activeCount}</span> active,{" "}
             <span className="font-mono text-text">{recoveryActivity.recoveredCount}</span> recovered
           </p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Dispute activity</p>
+          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+            Dispute activity
+          </p>
           <p className="mt-2 text-label text-text-tertiary">
             <span className="font-mono text-text">{disputeActivity.openCount}</span> open,{" "}
             <span className="font-mono text-text">{disputeActivity.resolvedWonCount}</span> won,{" "}
@@ -426,7 +500,9 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
       </section>
 
       <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Recent invoices</p>
+        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
+          Recent invoices
+        </p>
         {recentInvoices.length === 0 ? (
           <p className="mt-2 text-label text-text-tertiary">No invoices yet.</p>
         ) : (
@@ -445,7 +521,9 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
                     <td className="py-2 pr-4 text-text-tertiary">
                       {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
                     </td>
-                    <td className="py-2 pr-4 font-mono text-text">{formatMoney(inv.totalCents, inv.currency)}</td>
+                    <td className="py-2 pr-4 font-mono text-text">
+                      {formatMoney(inv.totalCents, inv.currency)}
+                    </td>
                     <td className="py-2">
                       <Badge tone={billingInvoiceStatusTone(inv.status)}>
                         {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}

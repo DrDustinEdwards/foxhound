@@ -4,11 +4,4 @@ export * from "./schema";
 // names from our plural accounts/account_members, so no collision.
 export * from "./auth-schema";
 export { changedRows, getDb, type Db } from "./client";
-;
-;
-export type {
-  MoneyWrite,
-  MoneyWriteBatch,
-  
-  
-} from "./money-write";
+export type { MoneyWrite, MoneyWriteBatch } from "./money-write";

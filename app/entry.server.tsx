@@ -3,7 +3,8 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext, getNonce } from "@dustinedwards/site-runtime/context";
+import { storedNonceContext } from "~/lib/stored-nonce";
 import { countNotFound } from "@dustinedwards/site-runtime/not-found";
 
 export const streamTimeout = 5_000;
@@ -76,13 +77,13 @@ export default async function handleRequest(
     });
   }
 
-  const { nonce, storedNonce } = loadContext.get(cloudflareContext);
+  const nonce = getNonce(loadContext) ?? loadContext.get(storedNonceContext);
 
   let shellRendered = false;
   const userAgent = request.headers.get("user-agent");
 
   const body = await renderToReadableStream(
-    <ServerRouter context={routerContext} url={request.url} nonce={nonce ?? storedNonce} />,
+    <ServerRouter context={routerContext} url={request.url} nonce={nonce} />,
     {
       signal: AbortSignal.timeout(streamTimeout + 1000),
       onError(error: unknown) {

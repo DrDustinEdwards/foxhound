@@ -48,8 +48,7 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const { runWinbackSends, claimStepSent } =
-  await import("~/lib/cron/winback");
+const { runWinbackSends, claimStepSent } = await import("~/lib/cron/winback");
 const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
 const { verifyCardUpdateToken } = await import("~/lib/card-update/token");
 
@@ -81,11 +80,11 @@ function seedAccount(accountId: string, opts: { toggle?: number | null } = {}): 
     )
     .run(accountId, opts.toggle === undefined ? null : opts.toggle);
   sqlite
-      // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
-      // derived from the Foxhound account rather than hardcoded, because a
-      // shared literal made every two-account fixture violate the unique
-      // index the moment it shipped, and production could never have had two
-      // merchants on one connected account anyway.
+    // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
+    // derived from the Foxhound account rather than hardcoded, because a
+    // shared literal made every two-account fixture violate the unique
+    // index the moment it shipped, and production could never have had two
+    // merchants on one connected account anyway.
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES (?, ?, ?, 1, 'cipher', 'Teamflow', 1000, 1000)",
     )
@@ -93,7 +92,13 @@ function seedAccount(accountId: string, opts: { toggle?: number | null } = {}): 
 }
 
 function seedSequence(
-  opts: { id?: string; accountId?: string; status?: string; planName?: string | null; name?: string | null } = {},
+  opts: {
+    id?: string;
+    accountId?: string;
+    status?: string;
+    planName?: string | null;
+    name?: string | null;
+  } = {},
 ): string {
   const id = opts.id ?? "wb_1";
   sqlite
@@ -113,7 +118,14 @@ function seedSequence(
 }
 
 function seedStep(
-  opts: { id?: string; sequenceId?: string; accountId?: string; stepNumber?: number; scheduledAt?: Date; executedAt?: Date | null } = {},
+  opts: {
+    id?: string;
+    sequenceId?: string;
+    accountId?: string;
+    stepNumber?: number;
+    scheduledAt?: Date;
+    executedAt?: Date | null;
+  } = {},
 ): string {
   const id = opts.id ?? "st_1";
   sqlite
@@ -136,7 +148,12 @@ function stepRows() {
     .prepare(
       "SELECT id, step_number AS stepNumber, executed_at AS executedAt, result FROM win_back_steps ORDER BY step_number",
     )
-    .all() as { id: string; stepNumber: number; executedAt: number | null; result: string | null }[];
+    .all() as {
+    id: string;
+    stepNumber: number;
+    executedAt: number | null;
+    result: string | null;
+  }[];
 }
 
 function sequenceRows() {
@@ -234,7 +251,6 @@ describe("PLANT 3: a send claims the step and records one outcome", () => {
 });
 
 describe("PLANT 4: the refusals, each with legacy's result string", () => {
-
   it("a SUPPRESSED address is stamped with legacy's skipped_unsubscribed", async () => {
     seedSequence();
     seedStep();

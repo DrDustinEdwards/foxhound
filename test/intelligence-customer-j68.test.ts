@@ -14,11 +14,8 @@ import {
   recoverySteps,
 } from "~/db/schema";
 import CustomerPage from "~/routes/app/intelligence/customer";
-import {
-  tenureFromSince,
-  type CustomerActivity,
-} from "~/lib/intelligence/customer-detail";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { tenureFromSince, type CustomerActivity } from "~/lib/intelligence/customer-detail";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { getCustomerActivity } from "~/lib/intelligence/views.server";
 
@@ -107,7 +104,12 @@ const BUSY: CustomerActivity = {
     lastDisputeAt: new Date(Date.UTC(2026, 9, 3)),
     lastOutcome: "resolved_lost",
   },
-  engagement: { everEngaged: true, opens30d: 4, clicks30d: 1, lastOpenAt: new Date(Date.UTC(2026, 9, 10)) },
+  engagement: {
+    everEngaged: true,
+    opens30d: 4,
+    clicks30d: 1,
+    lastOpenAt: new Date(Date.UTC(2026, 9, 10)),
+  },
   lastActivityAt: new Date(NOW - 2 * DAY),
 };
 
@@ -119,7 +121,13 @@ describe("getCustomerActivity: one customer's rows, this account only", () => {
       { id: "acct_b", name: "Beta" },
     ]);
     let n = 0;
-    const fp = async (accountId: string, customer: string, status: string, daysAgo: number, deleted = false) => {
+    const fp = async (
+      accountId: string,
+      customer: string,
+      status: string,
+      daysAgo: number,
+      deleted = false,
+    ) => {
       n += 1;
       const id = `fp_${n}`;
       await db.insert(failedPayments).values({
@@ -138,7 +146,13 @@ describe("getCustomerActivity: one customer's rows, this account only", () => {
       });
       return id;
     };
-    const rp = async (accountId: string, failedPaymentId: string, cents: number, currency: string, daysAgo: number) => {
+    const rp = async (
+      accountId: string,
+      failedPaymentId: string,
+      cents: number,
+      currency: string,
+      daysAgo: number,
+    ) => {
       await db.insert(recoveredPayments).values({
         id: `rp_${failedPaymentId}`,
         accountId,
@@ -149,7 +163,12 @@ describe("getCustomerActivity: one customer's rows, this account only", () => {
         recoveryMethod: "email",
       });
     };
-    const event = async (accountId: string, failedPaymentId: string, eventType: string, daysAgo: number) => {
+    const event = async (
+      accountId: string,
+      failedPaymentId: string,
+      eventType: string,
+      daysAgo: number,
+    ) => {
       n += 1;
       const stepId = `step_${n}`;
       await db.insert(recoverySteps).values({
@@ -169,7 +188,13 @@ describe("getCustomerActivity: one customer's rows, this account only", () => {
         createdAt: new Date(NOW - daysAgo * DAY),
       });
     };
-    const dispute = async (accountId: string, customer: string, state: string, cents: number, daysAgo: number) => {
+    const dispute = async (
+      accountId: string,
+      customer: string,
+      state: string,
+      cents: number,
+      daysAgo: number,
+    ) => {
       n += 1;
       await db.insert(disputes).values({
         id: `dp_${n}`,
@@ -283,7 +308,13 @@ function loaderData(over: Record<string, unknown> = {}) {
       ltvCents: null,
       customerSince: new Date(NOW - 450 * DAY),
       healthScore: 41,
-      healthFactors: [{ signal: "refunds_disputes", deltaPoints: -16, detail: "1 refund(s) and 1 dispute(s) on record" }],
+      healthFactors: [
+        {
+          signal: "refunds_disputes",
+          deltaPoints: -16,
+          detail: "1 refund(s) and 1 dispute(s) on record",
+        },
+      ],
       aiAssessment: "Two failed payments in a month and a lost dispute.",
       aiAssessmentGeneratedAt: new Date(Date.UTC(2026, 9, 14)),
       history,
@@ -296,9 +327,14 @@ function loaderData(over: Record<string, unknown> = {}) {
 
 function render(data: unknown = loaderData()): string {
   const Stub = createRoutesStub([
-    { path: "/intelligence/customers/:id", Component: () => createElement(Page, { loaderData: data }) },
+    {
+      path: "/intelligence/customers/:id",
+      Component: () => createElement(Page, { loaderData: data }),
+    },
   ]);
-  return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/customers/cus_sample_1"] }));
+  return renderToStaticMarkup(
+    createElement(Stub, { initialEntries: ["/intelligence/customers/cus_sample_1"] }),
+  );
 }
 
 function text(html: string): string {
@@ -312,8 +348,6 @@ function text(html: string): string {
     .replace(/ ([.,])/g, "$1")
     .trim();
 }
-
-
 
 // J68 review, must-fix 1: the nightly sync writes customer_context.last_seen_at
 // as the sync's own time for every customer (sync.server.ts
@@ -376,8 +410,9 @@ describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", 
   function contextFor() {
     return {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {}, ctx: {}, nonce: "n" };
-        if (key === authContext) return { membership: { accountId: "acct_live", accountName: "Live Co" }, isDemo: false };
+        if (key === cloudflareContext) return { env: {}, ctx: {} };
+        if (key === authContext)
+          return { membership: { accountId: "acct_live", accountName: "Live Co" }, isDemo: false };
         throw new Error("unexpected context key");
       },
     } as never;
@@ -386,11 +421,17 @@ describe("J68 review: 'Last seen' on rows shaped the way the sync writes them", 
   async function renderThroughLoader(id: string): Promise<string> {
     harness.db = await syncShaped();
     const { loader } = await import("~/routes/app/intelligence/customer");
-    const data = await loader({ context: contextFor(), params: { id }, request: new Request("https://x.test/") } as never);
+    const data = await loader({
+      context: contextFor(),
+      params: { id },
+      request: new Request("https://x.test/"),
+    } as never);
     // The loader's data goes through the page exactly as React Router hands it over.
-    return render(JSON.parse(JSON.stringify(data), (_k, v) =>
-      typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v,
-    ));
+    return render(
+      JSON.parse(JSON.stringify(data), (_k, v) =>
+        typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v,
+      ),
+    );
   }
 
   it("shows the customer's latest event, never the sync time", async () => {

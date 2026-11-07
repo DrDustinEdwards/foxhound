@@ -40,17 +40,29 @@ export interface LegalSectionDef {
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
-    <div className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       {children}
     </div>
   );
 }
 
 /** Recova's contents block: a mono micro heading over a two-column numbered list. */
-export function LegalContents({ heading, sections }: { heading: string; sections: LegalSectionDef[] }) {
+export function LegalContents({
+  heading,
+  sections,
+}: {
+  heading: string;
+  sections: LegalSectionDef[];
+}) {
   return (
     <section className="mb-12">
-      <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">{heading}</h2>
+      <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+        {heading}
+      </h2>
       <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
         {sections.map((s) => (
           <li key={s.id} className="list-none text-label">
@@ -70,7 +82,12 @@ export function LegalRule() {
 
 const LEGAL_H2 = "mb-4 mt-12 text-title font-medium text-text";
 
-export function LegalSection({ id, number, title, children }: LegalSectionDef & { children: ReactNode }) {
+export function LegalSection({
+  id,
+  number,
+  title,
+  children,
+}: LegalSectionDef & { children: ReactNode }) {
   return (
     <section>
       <h2 id={id} className={`${LEGAL_H2} scroll-mt-20`}>
@@ -95,7 +112,11 @@ export function LegalP({ children }: { children: ReactNode }) {
 }
 
 export function LegalList({ children }: { children: ReactNode }) {
-  return <ul className="mb-4 list-disc space-y-1.5 pl-6 text-subhead leading-relaxed text-text-secondary">{children}</ul>;
+  return (
+    <ul className="mb-4 list-disc space-y-1.5 pl-6 text-subhead leading-relaxed text-text-secondary">
+      {children}
+    </ul>
+  );
 }
 
 export function LegalMailto({ email }: { email: string }) {

@@ -22,7 +22,13 @@ export const noindexHeader: MiddlewareFunction<Response> = async (_args, next) =
 };
 
 /** The section pages a breadcrumb trail passes through, by path. */
-const SECTIONS = { "/blog": "Blog", "/docs": "Docs", "/compare": "Compare", "/decline-codes": "Decline codes", "/products": "Products" };
+const SECTIONS = {
+  "/blog": "Blog",
+  "/docs": "Docs",
+  "/compare": "Compare",
+  "/decline-codes": "Decline codes",
+  "/products": "Products",
+};
 
 export interface MarketingMetaInput {
   /** The page's own title, without the site's suffix, unless `fullTitle`. */
@@ -70,7 +76,13 @@ export function marketingMeta({
   return defineHead({
     origin: siteUrl,
     siteName: "Foxhound",
-    image: { url: `${siteUrl}/og/default`, width: 1200, height: 630, type: "image/png", alt: "Foxhound" },
+    image: {
+      url: `${siteUrl}/og/default`,
+      width: 1200,
+      height: 630,
+      type: "image/png",
+      alt: "Foxhound",
+    },
     suffix,
     sections: SECTIONS,
   })({

@@ -24,7 +24,9 @@ describe("errorDetails", () => {
       "Method Not Allowed",
       "Actions are disabled in this demo. Explore freely; nothing here can be changed.",
     );
-    expect(errorDetails(error, false)).toBe("Actions are disabled in this demo. Explore freely; nothing here can be changed.");
+    expect(errorDetails(error, false)).toBe(
+      "Actions are disabled in this demo. Explore freely; nothing here can be changed.",
+    );
   });
 
   it("falls back to statusText when the thrown response has no string body", () => {

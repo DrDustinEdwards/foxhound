@@ -186,9 +186,7 @@ export function extractDeclineCode(invoice: AuditInvoice): string | null {
   const fromFinalization = invoice.last_finalization_error?.decline_code;
   const fromLastPayment = invoice.last_payment_error?.code;
   const fromCharge =
-    typeof invoice.charge === "object" && invoice.charge
-      ? invoice.charge.failure_code
-      : null;
+    typeof invoice.charge === "object" && invoice.charge ? invoice.charge.failure_code : null;
   return fromFinalization ?? fromLastPayment ?? fromCharge ?? null;
 }
 
@@ -274,10 +272,7 @@ function counted(count: number, amounts: Amount[], runCurrency: string): Counted
  * open invoices whose due date has passed. Both reads are required, so a failure
  * in either fails the scope rather than halving it silently.
  */
-function resolveFailedInvoices(
-  inputs: AuditInputs,
-  nowMs: number,
-): ScopeOutcome<AuditInvoice[]> {
+function resolveFailedInvoices(inputs: AuditInputs, nowMs: number): ScopeOutcome<AuditInvoice[]> {
   if (!inputs.uncollectibleInvoices.ok) {
     return { ok: false, reason: inputs.uncollectibleInvoices.reason };
   }
@@ -344,9 +339,7 @@ function computeExpiringCards(
     const expYear = card.exp_year ?? 0;
     const expMonth = card.exp_month ?? 0;
     const customerId =
-      typeof subscription.customer === "string"
-        ? subscription.customer
-        : subscription.customer?.id;
+      typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
     if (!customerId) continue;
 
     // ALREADY-EXPIRED CARDS COUNT HERE, which is the opposite of the expiring-card
@@ -383,7 +376,11 @@ function computeExpiringCards(
 
   const expiresByMonth: Record<string, number> = {};
   for (const [key, customers] of buckets) expiresByMonth[key] = customers.size;
-  const { totalCents: mrrAtRiskCents, totals: mrrAtRiskTotals } = counted(count, atRisk, runCurrency);
+  const { totalCents: mrrAtRiskCents, totals: mrrAtRiskTotals } = counted(
+    count,
+    atRisk,
+    runCurrency,
+  );
   return { count, mrrAtRiskCents, mrrAtRiskTotals, expiresByMonth };
 }
 
@@ -397,7 +394,11 @@ function computePastDue(subscriptions: AuditSubscription[], runCurrency: string)
     // and its own comment: this is the next cycle's value, so a render calls it
     // subscription value and never MRR.
     amounts.push(
-      amountOf(subscription.items?.data?.[0]?.price?.unit_amount ?? 0, subscription.currency, runCurrency),
+      amountOf(
+        subscription.items?.data?.[0]?.price?.unit_amount ?? 0,
+        subscription.currency,
+        runCurrency,
+      ),
     );
   }
   return counted(count, amounts, runCurrency);

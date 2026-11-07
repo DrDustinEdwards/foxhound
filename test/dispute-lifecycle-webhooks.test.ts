@@ -55,7 +55,9 @@ function disputeEvent(
     type,
     created: sec(created),
     account: "acct_connected_lifecycle",
-    data: { object: { id: "dp_1", object: "dispute", charge: "ch_1", currency: "usd", ...dispute } },
+    data: {
+      object: { id: "dp_1", object: "dispute", charge: "ch_1", currency: "usd", ...dispute },
+    },
   } as unknown as Stripe.Event;
 }
 
@@ -103,16 +105,29 @@ describe("charge.dispute.updated", () => {
       status: "under_review",
       amount: 4500,
       reason: "fraudulent",
-      evidence_details: { due_by: sec(newDeadline), has_evidence: true, submission_count: 1 } as Stripe.Dispute.EvidenceDetails,
+      evidence_details: {
+        due_by: sec(newDeadline),
+        has_evidence: true,
+        submission_count: 1,
+      } as Stripe.Dispute.EvidenceDetails,
     });
     expect(await processConnectedWebhook({} as Env, updated, at)).toEqual({ status: "applied" });
 
     // An update Stripe created earlier, delivered late.
-    const stale = disputeEvent("evt_upd_1", "charge.dispute.updated", new Date(at.getTime() - 60_000), {
-      status: "needs_response",
-      amount: 5000,
-      evidence_details: { due_by: sec(NOW), has_evidence: false, submission_count: 0 } as Stripe.Dispute.EvidenceDetails,
-    });
+    const stale = disputeEvent(
+      "evt_upd_1",
+      "charge.dispute.updated",
+      new Date(at.getTime() - 60_000),
+      {
+        status: "needs_response",
+        amount: 5000,
+        evidence_details: {
+          due_by: sec(NOW),
+          has_evidence: false,
+          submission_count: 0,
+        } as Stripe.Dispute.EvidenceDetails,
+      },
+    );
     expect(await processConnectedWebhook({} as Env, stale, at)).toEqual({ status: "applied" });
 
     const row = await readDispute(db);
@@ -184,7 +199,9 @@ describe("charge.dispute.funds_withdrawn and funds_reinstated", () => {
       state: "pending_review",
       funds: rows,
     }).map((i) => i.label);
-    expect(labels).toContain("Funds withdrawn by Stripe: $50.00, plus a $15.00 Stripe dispute fee.");
+    expect(labels).toContain(
+      "Funds withdrawn by Stripe: $50.00, plus a $15.00 Stripe dispute fee.",
+    );
     expect(labels).toContain("Funds reinstated by Stripe: $50.00.");
   });
 });
@@ -192,7 +209,9 @@ describe("charge.dispute.funds_withdrawn and funds_reinstated", () => {
 describe("charge.dispute.closed as warning_closed", () => {
   it("closes the inquiry with no ruling and nothing billable", async () => {
     const db = await seed({ withDispute: true, status: "warning_needs_response" });
-    const closed = disputeEvent("evt_closed", "charge.dispute.closed", NOW, { status: "warning_closed" });
+    const closed = disputeEvent("evt_closed", "charge.dispute.closed", NOW, {
+      status: "warning_closed",
+    });
     expect(await processConnectedWebhook({} as Env, closed, NOW)).toEqual({ status: "applied" });
 
     const row = await readDispute(db);
@@ -205,9 +224,14 @@ describe("charge.dispute.closed as warning_closed", () => {
     });
 
     // A late update does not reopen it.
-    const late = disputeEvent("evt_late", "charge.dispute.updated", new Date(NOW.getTime() + 1000), {
-      status: "warning_under_review",
-    });
+    const late = disputeEvent(
+      "evt_late",
+      "charge.dispute.updated",
+      new Date(NOW.getTime() + 1000),
+      {
+        status: "warning_under_review",
+      },
+    );
     await processConnectedWebhook({} as Env, late, NOW);
     expect((await readDispute(db)).state).toBe("inquiry_closed");
   });

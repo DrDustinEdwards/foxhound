@@ -113,19 +113,26 @@ const CANCELLATION_PENDING_POINTS = -40;
 const PAUSE_PENDING_POINTS = -20;
 const RECENT_DOWNGRADE_POINTS = -10;
 
-function subscriptionChangePart(
-  changes: SubscriptionChangeState | null | undefined,
-): { deltaPoints: number; details: string[] } {
+function subscriptionChangePart(changes: SubscriptionChangeState | null | undefined): {
+  deltaPoints: number;
+  details: string[];
+} {
   const details: string[] = [];
   let deltaPoints = 0;
   if (changes?.cancellationPending) {
     const at = changes.cancellationPending.at;
     deltaPoints += CANCELLATION_PENDING_POINTS;
-    details.push(at ? `cancellation scheduled for ${formatDateShort(at)}` : "cancellation scheduled");
+    details.push(
+      at ? `cancellation scheduled for ${formatDateShort(at)}` : "cancellation scheduled",
+    );
   } else if (changes?.pausePending) {
     const until = changes.pausePending.resumesAt;
     deltaPoints += PAUSE_PENDING_POINTS;
-    details.push(until ? `payment collection paused until ${formatDateShort(until)}` : "payment collection paused");
+    details.push(
+      until
+        ? `payment collection paused until ${formatDateShort(until)}`
+        : "payment collection paused",
+    );
   }
   if (changes?.recentDowngradeAt) {
     deltaPoints += RECENT_DOWNGRADE_POINTS;
@@ -147,7 +154,9 @@ function scoreBillingVolatility(
   if (deltaPoints === 0) return null;
   const details = [...stated.details];
   if (volatility !== 0) {
-    details.push(`${changeCount} plan/interval change(s) and ${seatChangeCount} seat change(s) on record`);
+    details.push(
+      `${changeCount} plan/interval change(s) and ${seatChangeCount} seat change(s) on record`,
+    );
   }
   return {
     signal: "billing_volatility" satisfies HealthSignal,
@@ -201,7 +210,9 @@ function scoreEngagement(
 // which of the two fails more for this merchant.
 const PREPAID_CARD_POINTS = -5;
 
-function scorePaymentMethod(latestFailedCardFunding: string | null | undefined): HealthFactor | null {
+function scorePaymentMethod(
+  latestFailedCardFunding: string | null | undefined,
+): HealthFactor | null {
   if (latestFailedCardFunding !== "prepaid") return null;
   return {
     signal: "payment_method" satisfies HealthSignal,

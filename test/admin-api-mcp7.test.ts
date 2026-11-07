@@ -34,7 +34,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/backup/d1-backup", () => ({
-  backupFilesNow: async () => [{ name: "media", complete: true, copied: 2 }],
   backupStatus: async () => ({ last_ok: null, age_hours: null, files: {} }),
 }));
 
@@ -135,7 +134,11 @@ async function api(
     env(),
   )) as Response;
   const text = await res.text();
-  return { status: res.status, text, json: (text ? JSON.parse(text) : null) as Record<string, unknown> };
+  return {
+    status: res.status,
+    text,
+    json: (text ? JSON.parse(text) : null) as Record<string, unknown>,
+  };
 }
 
 const asAdmin = (key: string) => ({ key, actor: ADMIN });
@@ -172,7 +175,14 @@ describe("PLANT 1: two credentials on every call", () => {
 describe("PLANT 2: the reads", () => {
   it("platform, merchants, health, whats-next and the audit log answer 200 with data", async () => {
     const { keys } = await seed();
-    for (const path of ["/platform", "/merchants", "/health", "/whats-next", "/audit-log", "/staged"]) {
+    for (const path of [
+      "/platform",
+      "/merchants",
+      "/health",
+      "/whats-next",
+      "/audit-log",
+      "/staged",
+    ]) {
       const { status, json } = await api(path, asAdmin(keys.admin));
       expect(status, path).toBe(200);
       expect(json.ok, path).toBe(true);
@@ -190,7 +200,11 @@ describe("PLANT 2: the reads", () => {
   it("merchant search finds by name or id, and pages with a cursor", async () => {
     const { keys } = await seed();
     const { json } = await api("/merchants?query=beta", asAdmin(keys.admin));
-    const data = json.data as { merchants: { id: string }[]; has_more: boolean; next_cursor: string | null };
+    const data = json.data as {
+      merchants: { id: string }[];
+      has_more: boolean;
+      next_cursor: string | null;
+    };
     expect(data.merchants.map((m) => m.id)).toEqual([OTHER]);
     expect(data.has_more).toBe(false);
     expect(data.next_cursor).toBeNull();
@@ -217,19 +231,30 @@ describe("PLANT 2: the reads", () => {
 describe("PLANT 3: pause is a direct write, audited under the acting admin", () => {
   it("pausing one merchant stops processing now and records who did it", async () => {
     const { db, keys } = await seed();
-    const { status } = await api("/pause", { ...asAdmin(keys.admin), method: "POST", body: { account_id: MERCHANT } });
+    const { status } = await api("/pause", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { account_id: MERCHANT },
+    });
     expect(status).toBe(200);
     const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.processingPaused).toBe(true);
     const [other] = await db.select().from(accounts).where(eq(accounts.id, OTHER));
     expect(other.processingPaused).toBe(false);
     const audit = await db.select().from(adminAuditLog);
-    expect(audit.map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "merchant.processing.pause"]);
+    expect(audit.map((a) => [a.actorEmail, a.action])).toContainEqual([
+      ADMIN,
+      "merchant.processing.pause",
+    ]);
   });
 
   it("pausing all engages the brake", async () => {
     const { db, keys } = await seed();
-    const { status } = await api("/pause", { ...asAdmin(keys.admin), method: "POST", body: { all: true } });
+    const { status } = await api("/pause", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { all: true },
+    });
     expect(status).toBe(200);
     const rows = await db.select().from(accounts);
     expect(rows.every((r) => r.processingPaused)).toBe(true);
@@ -238,7 +263,11 @@ describe("PLANT 3: pause is a direct write, audited under the acting admin", () 
   it("a pause naming nothing, or an unknown merchant, changes nothing and says why", async () => {
     const { db, keys } = await seed();
     for (const body of [{}, { account_id: "acct_nope" }]) {
-      const { status, json } = await api("/pause", { ...asAdmin(keys.admin), method: "POST", body });
+      const { status, json } = await api("/pause", {
+        ...asAdmin(keys.admin),
+        method: "POST",
+        body,
+      });
       expect(status, JSON.stringify(body)).toBe(400);
       expect(String(json.error).length).toBeGreaterThan(10);
     }
@@ -246,14 +275,10 @@ describe("PLANT 3: pause is a direct write, audited under the acting admin", () 
   });
 });
 
-describe("the files backup", () => {
-  it("runs now for an admin and leaves an audit row; a merchant key is refused", async () => {
-    const { db, keys } = await seed();
-    const ok = await api("/backup/media", { ...asAdmin(keys.admin), method: "POST" });
-    expect(ok.status).toBe(200);
-    expect((ok.json.data as { files: unknown[] }).files).toEqual([{ name: "media", complete: true, copied: 2 }]);
-    expect((await db.select().from(adminAuditLog)).map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "backup.media"]);
-    const refused = await api("/backup/media", { key: keys.merchant, actor: ADMIN, method: "POST" });
+describe("the backup state", () => {
+  it("reads for an admin; a merchant key is refused", async () => {
+    const { keys } = await seed();
+    const refused = await api("/backup", { key: keys.merchant, actor: ADMIN });
     expect(refused.status).toBeGreaterThanOrEqual(401);
     const state = await api("/backup", asAdmin(keys.admin));
     expect(state.status).toBe(200);
@@ -264,7 +289,10 @@ describe("the files backup", () => {
 describe("PLANT 4: money starts only after a human confirms in /admin", () => {
   it("staging a resume leaves the merchant paused and writes a pending row plus an audit entry", async () => {
     const { db, keys } = await seed();
-    await db.update(accounts).set({ processingPaused: true, pauseReason: "manual" }).where(eq(accounts.id, MERCHANT));
+    await db
+      .update(accounts)
+      .set({ processingPaused: true, pauseReason: "manual" })
+      .where(eq(accounts.id, MERCHANT));
     const { status, json } = await api("/staged", {
       ...asAdmin(keys.admin),
       method: "POST",
@@ -279,7 +307,12 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     expect(audit.map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "staged.create"]);
 
     // Confirmed by a person in /admin: now, and only now, the merchant resumes.
-    const result = await confirmStagedChange(env(), { id: staged.id, actorEmail: "second@foxhound.test", confirmPhrase: "", now: NOW });
+    const result = await confirmStagedChange(env(), {
+      id: staged.id,
+      actorEmail: "second@foxhound.test",
+      confirmPhrase: "",
+      now: NOW,
+    });
     expect(result.ok).toBe(true);
     const [after] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(after.processingPaused).toBe(false);
@@ -287,7 +320,12 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     expect(actions).toContainEqual(["second@foxhound.test", "staged.confirm"]);
 
     // A confirmed change cannot be applied twice.
-    const again = await confirmStagedChange(env(), { id: staged.id, actorEmail: ADMIN, confirmPhrase: "", now: NOW });
+    const again = await confirmStagedChange(env(), {
+      id: staged.id,
+      actorEmail: ADMIN,
+      confirmPhrase: "",
+      now: NOW,
+    });
     expect(again.ok).toBe(false);
   });
 
@@ -302,27 +340,47 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     let [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.billingExempt).toBe(false);
     const id = (exempt.json.data as { staged: { id: string } }).staged.id;
-    expect((await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(true);
+    expect(
+      (await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok,
+    ).toBe(true);
     [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.billingExempt).toBe(true);
   });
 
   it("a staged cron enable needs the same typed phrase /admin/crons asks for", async () => {
     const { db, keys } = await seed();
-    await db.insert(cronConfig).values({ cronName: "recovery-tick", enabled: false, updatedAt: NOW });
+    await db
+      .insert(cronConfig)
+      .values({ cronName: "recovery-tick", enabled: false, updatedAt: NOW });
     const staged = await api("/staged", {
       ...asAdmin(keys.admin),
       method: "POST",
       body: { kind: "cron_enable", cron_name: "recovery-tick" },
     });
     const id = (staged.json.data as { staged: { id: string } }).staged.id;
-    const wrong = await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "yes", now: NOW });
+    const wrong = await confirmStagedChange(env(), {
+      id,
+      actorEmail: ADMIN,
+      confirmPhrase: "yes",
+      now: NOW,
+    });
     expect(wrong.ok).toBe(false);
-    const [still] = await db.select().from(cronConfig).where(eq(cronConfig.cronName, "recovery-tick"));
+    const [still] = await db
+      .select()
+      .from(cronConfig)
+      .where(eq(cronConfig.cronName, "recovery-tick"));
     expect(still.enabled).toBe(false);
-    const right = await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "ENABLE recovery-tick", now: NOW });
+    const right = await confirmStagedChange(env(), {
+      id,
+      actorEmail: ADMIN,
+      confirmPhrase: "ENABLE recovery-tick",
+      now: NOW,
+    });
     expect(right.ok).toBe(true);
-    const [now] = await db.select().from(cronConfig).where(eq(cronConfig.cronName, "recovery-tick"));
+    const [now] = await db
+      .select()
+      .from(cronConfig)
+      .where(eq(cronConfig.cronName, "recovery-tick"));
     expect(now.enabled).toBe(true);
   });
 
@@ -331,18 +389,40 @@ describe("PLANT 4: money starts only after a human confirms in /admin", () => {
     await db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, MERCHANT));
     const stage = async () =>
       (
-        (await api("/staged", {
-          ...asAdmin(keys.admin),
-          method: "POST",
-          body: { kind: "resume_account", account_id: MERCHANT },
-        })).json.data as { staged: { id: string } }
+        (
+          await api("/staged", {
+            ...asAdmin(keys.admin),
+            method: "POST",
+            body: { kind: "resume_account", account_id: MERCHANT },
+          })
+        ).json.data as { staged: { id: string } }
       ).staged.id;
     const rejected = await stage();
-    expect((await rejectStagedChange(db, { id: rejected, actorEmail: ADMIN, now: NOW })).ok).toBe(true);
-    expect((await confirmStagedChange(env(), { id: rejected, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok).toBe(false);
+    expect((await rejectStagedChange(db, { id: rejected, actorEmail: ADMIN, now: NOW })).ok).toBe(
+      true,
+    );
+    expect(
+      (
+        await confirmStagedChange(env(), {
+          id: rejected,
+          actorEmail: ADMIN,
+          confirmPhrase: "",
+          now: NOW,
+        })
+      ).ok,
+    ).toBe(false);
     const stale = await stage();
     const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
-    expect((await confirmStagedChange(env(), { id: stale, actorEmail: ADMIN, confirmPhrase: "", now: later })).ok).toBe(false);
+    expect(
+      (
+        await confirmStagedChange(env(), {
+          id: stale,
+          actorEmail: ADMIN,
+          confirmPhrase: "",
+          now: later,
+        })
+      ).ok,
+    ).toBe(false);
     const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
     expect(row.processingPaused).toBe(true);
   });
@@ -415,6 +495,8 @@ describe("PLANT 6: every call is logged, append-only", () => {
     ]);
     expect(rows[0].api_key_id).toBe(`key_${keys.admin}`);
     expect(() => sqlite.prepare("DELETE FROM admin_api_calls").run()).toThrow(/append-only/);
-    expect(() => sqlite.prepare("UPDATE admin_api_calls SET path = 'x'").run()).toThrow(/append-only/);
+    expect(() => sqlite.prepare("UPDATE admin_api_calls SET path = 'x'").run()).toThrow(
+      /append-only/,
+    );
   });
 });

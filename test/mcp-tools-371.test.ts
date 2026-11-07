@@ -8,7 +8,13 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { maskEmail } from "~/lib/mcp/redact";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput, type McpCallInit, toolCallLogStub } from "./helpers/mcp-client";
+import {
+  mcpRequest,
+  readMcp,
+  toolOutput,
+  type McpCallInit,
+  toolCallLogStub,
+} from "./helpers/mcp-client";
 
 // SESSION 77: THE THIRTEEN READ TOOLS, under 370's DEFAULT-REDACT. The read
 // count is fifteen since session 83 added 375's two approved readers, and the
@@ -42,9 +48,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { MERCHANT_TOOLS } = await import(
-  "~/lib/mcp/tools.server"
-);
+const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
@@ -93,7 +97,9 @@ async function seed(extraPayments = 0) {
     [MINE, MY_NAME, MY_EMAIL],
     [THEIRS, THEIR_NAME, THEIR_EMAIL],
   ] as const) {
-    await db.insert(accounts).values({ id: account, name: account, createdAt: NOW, currency: "usd" });
+    await db
+      .insert(accounts)
+      .values({ id: account, name: account, createdAt: NOW, currency: "usd" });
     const token = `${MCP_TOKEN_PREFIX}${account}`;
     tokens[account] = token;
     await db.insert(apiKeys).values({
@@ -153,8 +159,17 @@ async function seed(extraPayments = 0) {
   return { db, tokens };
 }
 
-async function call(token: string | null, method: string, params: Record<string, unknown> = {}, init: McpCallInit = {}) {
-  const res = (await handleMcpRequest(mcpRequest({ token, method, params, ...init }), env(), MERCHANT_TOOLS)) as Response;
+async function call(
+  token: string | null,
+  method: string,
+  params: Record<string, unknown> = {},
+  init: McpCallInit = {},
+) {
+  const res = (await handleMcpRequest(
+    mcpRequest({ token, method, params, ...init }),
+    env(),
+    MERCHANT_TOOLS,
+  )) as Response;
   return readMcp(res);
 }
 
@@ -162,7 +177,6 @@ const callTool = (token: string, name: string, args: Record<string, unknown> = {
   call(token, "tools/call", { name, arguments: args });
 
 describe("PLANT 3: the redaction default (370)", () => {
-
   it("the masker itself: first character plus domain, and a malformed address fails CLOSED", () => {
     expect(maskEmail("alice@example.com")).toBe("a***@example.com");
     expect(maskEmail(null)).toBeNull();
@@ -176,7 +190,6 @@ describe("PLANT 3: the redaction default (370)", () => {
 });
 
 describe("PLANT 4: failures are tool errors, not transport throws", () => {
-
   it("a refused id does not take the transport down", async () => {
     // An audit run id that does not exist is a tool error carrying a sentence
     // (the old tool answered { run: null }); the point is that the transport
@@ -208,7 +221,11 @@ describe("PLANT 5: pagination is one shape, and a cursor belongs to its tool", (
       expect(answer.text).not.toContain(THEIRS);
       const payments = data.payments as { id: string }[];
       expect(data.total).toBe(23);
-      pages.push({ count: payments.length, has_more: data.has_more, next_cursor: data.next_cursor });
+      pages.push({
+        count: payments.length,
+        has_more: data.has_more,
+        next_cursor: data.next_cursor,
+      });
       seen.push(...payments.map((p) => p.id));
       if (data.has_more !== true) break;
       expect(typeof data.next_cursor).toBe("string");
@@ -229,10 +246,16 @@ describe("PLANT 5: pagination is one shape, and a cursor belongs to its tool", (
     // read as a page number would come back as an empty, valid answer. Only the
     // tool check in the cursor can make it an error.
     const { tokens } = await seed(22);
-    const first = toolOutput(await callTool(tokens[MINE], "foxhound_list_payments", { page_size: 10 }));
+    const first = toolOutput(
+      await callTool(tokens[MINE], "foxhound_list_payments", { page_size: 10 }),
+    );
     const foreign = first.data.next_cursor as string;
     expect(typeof foreign).toBe("string");
-    for (const name of ["foxhound_list_disputes", "foxhound_list_customers", "foxhound_review_audits"]) {
+    for (const name of [
+      "foxhound_list_disputes",
+      "foxhound_list_customers",
+      "foxhound_review_audits",
+    ]) {
       const answer = await callTool(tokens[MINE], name, { cursor: foreign });
       expect(answer.status, name).toBe(200);
       const { isError, data } = toolOutput(answer);
@@ -246,7 +269,9 @@ describe("PLANT 5: pagination is one shape, and a cursor belongs to its tool", (
     expect(own.data.has_more).toBe(false);
     expect(own.data.next_cursor).toBeNull();
     // A cursor that is not one of ours at all is refused the same way.
-    const junk = toolOutput(await callTool(tokens[MINE], "foxhound_list_payments", { cursor: "not-a-cursor" }));
+    const junk = toolOutput(
+      await callTool(tokens[MINE], "foxhound_list_payments", { cursor: "not-a-cursor" }),
+    );
     expect(junk.isError).toBe(true);
   });
 });
@@ -286,6 +311,8 @@ describe("PLANT 7: the tool module holds no money writer", () => {
     }
     // persist.server holds a writer too (saveAuditRun, above); only its two
     // readers are taken from it.
-    expect(tools).toMatch(/import \{ getAuditRun, listAuditRuns \} from "~\/lib\/audit\/persist\.server"/);
+    expect(tools).toMatch(
+      /import \{ getAuditRun, listAuditRuns \} from "~\/lib\/audit\/persist\.server"/,
+    );
   });
 });

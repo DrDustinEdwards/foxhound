@@ -45,12 +45,8 @@ vi.mock("~/db/billable", async (importOriginal) => {
   };
 });
 
-const {
-  alertCronFailure,
-  buildFailureAlertEmail,
-  describeAge,
-  runCronHealthCheck,
-} = await import("~/lib/cron/alerts.server");
+const { alertCronFailure, buildFailureAlertEmail, describeAge, runCronHealthCheck } =
+  await import("~/lib/cron/alerts.server");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { runCronJob } = await import("~/lib/cron/run");
 const constants = await import("~/lib/constants");
@@ -66,7 +62,10 @@ function env(): Env {
         return { id: "msg_1" };
       },
     },
-    CRON_LOCK: { get: () => ({ acquire: async () => "tok", release: async () => {} }), idFromName: (n: string) => n },
+    CRON_LOCK: {
+      get: () => ({ acquire: async () => "tok", release: async () => {} }),
+      idFromName: (n: string) => n,
+    },
     DB: {},
   } as unknown as Env;
 }
@@ -80,7 +79,12 @@ function only(): Sent {
 /** Each line in BOTH parts, the text part as written and the HTML part escaped. */
 function expectBothParts(m: Sent, lines: string[]): void {
   const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   for (const line of lines) {
     expect(m.text, `text part: ${line}`).toContain(line);
     expect(m.html, `html part: ${line}`).toContain(esc(line));
@@ -99,7 +103,8 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
     cronName: "billing-monthly",
     runId: "run_abc",
     error: "D1 timeout",
-    stack: "Error: D1 timeout\n    at bill (app/lib/billing/run.ts:12:3)\n    at run (app/lib/cron/run.ts:9:1)",
+    stack:
+      "Error: D1 timeout\n    at bill (app/lib/billing/run.ts:12:3)\n    at run (app/lib/cron/run.ts:9:1)",
     lastSuccessAt: new Date("2026-07-01T04:00:00.000Z"),
   };
 
@@ -121,7 +126,14 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
   it("a refused send returns its named outcome and never throws", async () => {
     const db = createInMemoryDb().db;
     harness.db = db;
-    const broken = { ...env(), EMAIL: { send: async () => { throw new Error("binding exploded"); } } } as unknown as Env;
+    const broken = {
+      ...env(),
+      EMAIL: {
+        send: async () => {
+          throw new Error("binding exploded");
+        },
+      },
+    } as unknown as Env;
     expect(await alertCronFailure(broken, db, input, NOW)).toEqual({
       sent: false,
       reason: "send_failed",
@@ -196,7 +208,6 @@ describe("E26 trigger: the billing run alerts when any account fails to invoice"
 // ---- E27 ------------------------------------------------------------------------
 
 describe("E27: the cron stale alert says what Recova's notifyCronStale says", () => {
-
   it("Recova's describeAge, its units and its floor", () => {
     expect(describeAge(59_000)).toBe("59 seconds ago");
     expect(describeAge(61_000)).toBe("1 minutes ago");
@@ -225,15 +236,28 @@ describe("E27: the cron stale alert says what Recova's notifyCronStale says", ()
       status: "success",
       createdAt: oldSuccess,
     });
-    await runCronHealthCheck(env(), db, [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }], NOW);
+    await runCronHealthCheck(
+      env(),
+      db,
+      [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }],
+      NOW,
+    );
     const m = only();
-    expectBothParts(m, [`Last succeeded: ${oldSuccess.toISOString()}`, "Age: last succeeded 3 days ago"]);
+    expectBothParts(m, [
+      `Last succeeded: ${oldSuccess.toISOString()}`,
+      "Age: last succeeded 3 days ago",
+    ]);
   });
 
   it("an unmapped schedule is reported in the run, never emailed (Recova alerts only on its schedule list)", async () => {
     const db = createInMemoryDb().db;
     harness.db = db;
-    const result = await runCronHealthCheck(env(), db, [{ name: "mystery", schedule: "0 0 */3 * *" }], NOW);
+    const result = await runCronHealthCheck(
+      env(),
+      db,
+      [{ name: "mystery", schedule: "0 0 */3 * *" }],
+      NOW,
+    );
     expect(result.message).toContain("mystery(unknown_schedule)");
     expect(sent()).toHaveLength(0);
     expect(await db.select().from(cronAlerts)).toHaveLength(0);

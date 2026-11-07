@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatStepResult, formatStepType, recoveryLifecycleStatus, recoveryLifecycleTone } from "~/lib/recovery/labels";
+import {
+  formatStepResult,
+  formatStepType,
+  recoveryLifecycleStatus,
+  recoveryLifecycleTone,
+} from "~/lib/recovery/labels";
 
 describe("formatStepType", () => {
   it("formats retry and email step types with their timing detail", () => {

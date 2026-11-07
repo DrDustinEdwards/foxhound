@@ -128,10 +128,7 @@ export const engagementEvents = sqliteTable(
     // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
     index("engagement_events_occurred_idx").on(t.occurredAt),
     uniqueIndex("engagement_events_idempotency_uq").on(t.idempotencyKey),
-    check(
-      "engagement_events_type_ck",
-      sql`${t.eventType} in ('open', 'click')`,
-    ),
+    check("engagement_events_type_ck", sql`${t.eventType} in ('open', 'click')`),
   ],
 );
 

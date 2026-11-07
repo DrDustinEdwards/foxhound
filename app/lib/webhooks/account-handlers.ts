@@ -40,7 +40,8 @@ export async function handleAccountHealth(
     .from(stripeConnections)
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)))
     .limit(1);
-  const stale = !prev || (prev.healthUpdatedAt != null && prev.healthUpdatedAt >= intent.observedAt);
+  const stale =
+    !prev || (prev.healthUpdatedAt != null && prev.healthUpdatedAt >= intent.observedAt);
 
   const { applied } = await executeMoneyWrite(env, {
     accountId,

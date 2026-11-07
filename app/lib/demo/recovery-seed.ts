@@ -10,8 +10,18 @@ import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attri
 import { DAY_MS, DECLINE_CATEGORIES, HOUR_MS } from "~/lib/constants";
 import type { DeclineCategory } from "~/lib/constants";
 import { classifyDecline } from "~/lib/recovery/decline";
-import { isEmailStep, isRetryStep, planRecoverySteps, WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
-import { isLastWinbackStep, nextWinbackStatus, planWinbackSteps, type WinbackStatus } from "~/lib/recovery/winback";
+import {
+  isEmailStep,
+  isRetryStep,
+  planRecoverySteps,
+  WIN_BACK_SCHEDULE,
+} from "~/lib/recovery/schedule";
+import {
+  isLastWinbackStep,
+  nextWinbackStatus,
+  planWinbackSteps,
+  type WinbackStatus,
+} from "~/lib/recovery/winback";
 
 import { TEAMFLOW_DEMO, type DemoBusiness } from "./constants";
 import { demoEmailCopyFor, demoWinBackCopyFor } from "./email-copy";
@@ -201,7 +211,12 @@ function pickCustomerForDay(
 
 function randomBusinessHour(day: Date, seed: string): Date {
   const d = new Date(day);
-  d.setUTCHours(9 + seededInt(`${seed}:hr`, 9), seededInt(`${seed}:min`, 60), seededInt(`${seed}:sec`, 60), 0);
+  d.setUTCHours(
+    9 + seededInt(`${seed}:hr`, 9),
+    seededInt(`${seed}:min`, 60),
+    seededInt(`${seed}:sec`, 60),
+    0,
+  );
   return d;
 }
 
@@ -264,7 +279,9 @@ function resolveOutcome(
     }
     return { kind: "active" };
   }
-  return ageMs > scheduleSpanHours(schedule) * HOUR_MS ? { kind: "failed_unrecovered" } : { kind: "active" };
+  return ageMs > scheduleSpanHours(schedule) * HOUR_MS
+    ? { kind: "failed_unrecovered" }
+    : { kind: "active" };
 }
 
 // ============================================================================
@@ -316,7 +333,9 @@ function buildFailure(
       category,
       detectedAt,
       now,
-      schedule.map((s) => ({ offsetHours: (s.scheduledAt.getTime() - detectedAt.getTime()) / HOUR_MS })),
+      schedule.map((s) => ({
+        offsetHours: (s.scheduledAt.getTime() - detectedAt.getTime()) / HOUR_MS,
+      })),
       seed,
     );
 
@@ -382,7 +401,11 @@ function buildFailure(
     for (const planned of schedule) {
       // Not due yet: exists (the real intake inserts the whole schedule up
       // front), unexecuted.
-      steps.push(planned.scheduledAt.getTime() > now.getTime() ? stepFor(planned) : ranWithoutRecovery(planned));
+      steps.push(
+        planned.scheduledAt.getTime() > now.getTime()
+          ? stepFor(planned)
+          : ranWithoutRecovery(planned),
+      );
     }
   }
 
@@ -424,7 +447,10 @@ function buildFailure(
     resolvedAt,
     accountId,
     isRenewalNoise,
-    customerAgeDays: Math.max(1, Math.round((now.getTime() - customer.customerSince.getTime()) / DAY_MS)),
+    customerAgeDays: Math.max(
+      1,
+      Math.round((now.getTime() - customer.customerSince.getTime()) / DAY_MS),
+    ),
   };
 
   let recovered: RecoveredPaymentInsert | null = null;
@@ -486,8 +512,14 @@ function buildWinback(
   now: Date,
 ): { sequences: WinBackSequenceInsert[]; steps: WinBackStepInsert[] } {
   const eligible = customers
-    .filter((c) => c.scripted === null && c.tier !== "hobby" && c.status === "churned" && c.churnedAt !== null)
-    .map((c) => ({ c, daysAgoChurned: Math.max(1, Math.floor((now.getTime() - c.churnedAt!.getTime()) / DAY_MS)) }))
+    .filter(
+      (c) =>
+        c.scripted === null && c.tier !== "hobby" && c.status === "churned" && c.churnedAt !== null,
+    )
+    .map((c) => ({
+      c,
+      daysAgoChurned: Math.max(1, Math.floor((now.getTime() - c.churnedAt!.getTime()) / DAY_MS)),
+    }))
     .sort((a, b) => a.daysAgoChurned - b.daysAgoChurned)
     .slice(0, WINBACK_CANDIDATE_LIMIT);
 
@@ -509,8 +541,11 @@ function buildWinback(
     // churning customer in the pool (the surface Recovery's overview card
     // points to would then look empty despite the feature working).
     const scheduleSpanDays = WIN_BACK_SCHEDULE[WIN_BACK_SCHEDULE.length - 1].offsetHours / 24;
-    const willReactivate = daysAgoChurned >= scheduleSpanDays && seededInt(`${seed}:react`, 3) === 0;
-    const reactivateAfterStep = willReactivate ? 1 + seededInt(`${seed}:step`, planned.length) : null;
+    const willReactivate =
+      daysAgoChurned >= scheduleSpanDays && seededInt(`${seed}:react`, 3) === 0;
+    const reactivateAfterStep = willReactivate
+      ? 1 + seededInt(`${seed}:step`, planned.length)
+      : null;
 
     let status: WinbackStatus = "active";
     let resolvedAt: Date | null = null;
@@ -671,7 +706,10 @@ export function buildRecoverySeed(
             : {
                 kind: "recovered",
                 recoveredAt: new Date(detectedAt.getTime() + (ev.daysToRecover ?? 0) * DAY_MS),
-                causeMode: ev.declineCategory === "soft" || ev.declineCategory === "network" ? "retry" : "click",
+                causeMode:
+                  ev.declineCategory === "soft" || ev.declineCategory === "network"
+                    ? "retry"
+                    : "click",
               };
       const built = buildFailure(
         biz,
@@ -706,7 +744,16 @@ export function buildRecoverySeed(
       const category = classifyDecline(declineCode);
       const detectedAt = randomBusinessHour(day, pickSeed);
       idSeq++;
-      const built = buildFailure(biz, customer, category, declineCode, detectedAt, now, idSeq, false);
+      const built = buildFailure(
+        biz,
+        customer,
+        category,
+        declineCode,
+        detectedAt,
+        now,
+        idSeq,
+        false,
+      );
       failedPayments.push(built.failedPayment);
       recoverySteps.push(...built.steps);
       if (built.recovered) recoveredPayments.push(built.recovered);
@@ -739,8 +786,7 @@ export function buildRecoverySeed(
     topUpIndex++;
     const day = daysAgo(dayAgoVal);
     const pickSeed = `${biz.walkSalt}walk:topup:${category}`;
-    const customer =
-      pickCustomerForDay(eligible, day, pickSeed, recentByCustomer) ?? eligible[0];
+    const customer = pickCustomerForDay(eligible, day, pickSeed, recentByCustomer) ?? eligible[0];
     if (!customer) continue;
     const declineCode = sampleDeclineCodeForCategory(pickSeed, category);
     const detectedAt = randomBusinessHour(day, pickSeed);
@@ -754,7 +800,11 @@ export function buildRecoverySeed(
     recentByCustomer.set(customer.stripeCustomerId, arr);
   }
 
-  const { sequences: winBackSequenceRows, steps: winBackStepRows } = buildWinback(biz, customers, now);
+  const { sequences: winBackSequenceRows, steps: winBackStepRows } = buildWinback(
+    biz,
+    customers,
+    now,
+  );
   const expiringCardAlertRows = buildExpiringCardAlerts(biz, customers, now);
 
   return {

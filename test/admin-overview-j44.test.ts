@@ -21,7 +21,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // Imported so that a missing helper fails the assertion that names it, not the
 // whole file.
-const overviewLib: Partial<typeof import("~/lib/admin/overview")> = await import("~/lib/admin/overview").catch(() => ({}));
+const overviewLib: Partial<typeof import("~/lib/admin/overview")> =
+  await import("~/lib/admin/overview").catch(() => ({}));
 
 // The page's read is getAdminOverview; getPlatformOverview stays the admin
 // API's (GET /platform) four fields. Looked up so a missing export fails the
@@ -29,7 +30,10 @@ const overviewLib: Partial<typeof import("~/lib/admin/overview")> = await import
 const serverLib: Record<string, unknown> = await import("~/lib/admin/overview.server");
 async function adminOverview(db: unknown, nowMs: number): Promise<AdminOverview> {
   expect(typeof serverLib.getAdminOverview).toBe("function");
-  return (serverLib.getAdminOverview as (db: unknown, nowMs: number) => Promise<AdminOverview>)(db, nowMs);
+  return (serverLib.getAdminOverview as (db: unknown, nowMs: number) => Promise<AdminOverview>)(
+    db,
+    nowMs,
+  );
 }
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
@@ -41,17 +45,48 @@ async function seed() {
   await db.insert(accounts).values([
     { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
     { id: "acct_lumen", name: "Lumen Studio", createdAt: at(3 * DAY), processingPaused: true },
-    { id: "acct_brake", name: "Harbor Yoga", createdAt: at(90 * DAY), processingPaused: true, pauseReason: "brake", billingExempt: true },
+    {
+      id: "acct_brake",
+      name: "Harbor Yoga",
+      createdAt: at(90 * DAY),
+      processingPaused: true,
+      pauseReason: "brake",
+      billingExempt: true,
+    },
     // Paused but canceled: processing is already gated by the cancel, so there
     // is nothing to resume and it is not a problem to act on.
-    { id: "acct_gone", name: "Gone Co", createdAt: at(60 * DAY), processingPaused: true, cancelledAt: at(5 * DAY) },
+    {
+      id: "acct_gone",
+      name: "Gone Co",
+      createdAt: at(60 * DAY),
+      processingPaused: true,
+      cancelledAt: at(5 * DAY),
+    },
     // Demo accounts never count on the operator surface.
-    { id: "demo_acct", name: "Demo", createdAt: at(1 * DAY), processingPaused: true, billingExempt: true },
+    {
+      id: "demo_acct",
+      name: "Demo",
+      createdAt: at(1 * DAY),
+      processingPaused: true,
+      billingExempt: true,
+    },
   ]);
 
   await db.insert(stripeConnections).values([
-    { id: "sc_new", accountId: "acct_lumen", stripeUserId: "acct_s1", connectedAt: at(2 * DAY), createdAt: at(2 * DAY) },
-    { id: "sc_old", accountId: "acct_north", stripeUserId: "acct_s2", connectedAt: at(30 * DAY), createdAt: at(30 * DAY) },
+    {
+      id: "sc_new",
+      accountId: "acct_lumen",
+      stripeUserId: "acct_s1",
+      connectedAt: at(2 * DAY),
+      createdAt: at(2 * DAY),
+    },
+    {
+      id: "sc_old",
+      accountId: "acct_north",
+      stripeUserId: "acct_s2",
+      connectedAt: at(30 * DAY),
+      createdAt: at(30 * DAY),
+    },
     {
       id: "sc_gone",
       accountId: "acct_gone",
@@ -60,10 +95,21 @@ async function seed() {
       disconnectedAt: at(1 * DAY),
       createdAt: at(3 * DAY),
     },
-    { id: "sc_demo", accountId: "demo_acct", stripeUserId: "acct_s4", connectedAt: at(1 * DAY), createdAt: at(1 * DAY) },
+    {
+      id: "sc_demo",
+      accountId: "demo_acct",
+      stripeUserId: "acct_s4",
+      connectedAt: at(1 * DAY),
+      createdAt: at(1 * DAY),
+    },
   ]);
 
-  const dispute = (id: string, accountId: string, daysAgo: number, over: Partial<typeof disputes.$inferInsert> = {}) => ({
+  const dispute = (
+    id: string,
+    accountId: string,
+    daysAgo: number,
+    over: Partial<typeof disputes.$inferInsert> = {},
+  ) => ({
     id,
     accountId,
     stripeDisputeId: `dp_${id}`,
@@ -77,7 +123,11 @@ async function seed() {
   });
   await db.insert(disputes).values([
     dispute("d_stale_old", "acct_north", 12, { evidenceDeadline: at(-10 * DAY) }),
-    dispute("d_stale", "acct_lumen", 9, { currency: "eur", amountCents: 4500, evidenceDeadline: at(-2 * DAY) }),
+    dispute("d_stale", "acct_lumen", 9, {
+      currency: "eur",
+      amountCents: 4500,
+      evidenceDeadline: at(-2 * DAY),
+    }),
     // Its deadline has passed: nothing can be sent, so it goes after the ones
     // that can still be answered.
     dispute("d_stale_past", "acct_north", 15, { evidenceDeadline: at(1 * DAY) }),
@@ -87,7 +137,12 @@ async function seed() {
     dispute("d_demo", "demo_acct", 20),
   ]);
 
-  const invoice = (id: string, accountId: string, status: string, over: Partial<typeof billingInvoices.$inferInsert> = {}) => ({
+  const invoice = (
+    id: string,
+    accountId: string,
+    status: string,
+    over: Partial<typeof billingInvoices.$inferInsert> = {},
+  ) => ({
     id,
     accountId,
     currency: "usd",
@@ -100,11 +155,17 @@ async function seed() {
     ...over,
   });
   await db.insert(billingInvoices).values([
-    invoice("inv_failed", "acct_north", "payment_failed", { chargeAttemptCount: 2, lastChargeAttemptAt: at(1 * DAY) }),
+    invoice("inv_failed", "acct_north", "payment_failed", {
+      chargeAttemptCount: 2,
+      lastChargeAttemptAt: at(1 * DAY),
+    }),
     invoice("inv_paid", "acct_lumen", "paid"),
     // The retry sweep stopped chasing it: the fee is owed and nobody will
     // collect it unless a person does something.
-    invoice("inv_gave_up", "acct_lumen", "gave_up", { chargeAttemptCount: 4, lastChargeAttemptAt: at(3 * DAY) }),
+    invoice("inv_gave_up", "acct_lumen", "gave_up", {
+      chargeAttemptCount: 4,
+      lastChargeAttemptAt: at(3 * DAY),
+    }),
     invoice("inv_uncollectible", "acct_north", "uncollectible", { createdAt: at(5 * DAY) }),
     // Voided on purpose, and an old write-off outside the 30-day window.
     invoice("inv_void", "acct_north", "void"),
@@ -125,16 +186,26 @@ async function seed() {
     status,
     detectedAt: at(20 * DAY),
   });
-  await db.insert(failedPayments).values([
-    failed("fp_1", "acct_north"),
-    failed("fp_2", "acct_lumen"),
-    failed("fp_3", "acct_north"),
-    failed("fp_4", "acct_north"),
-    failed("fp_5", "demo_acct"),
-    failed("fp_6", "acct_north"),
-    failed("fp_7", "acct_north"),
-  ]);
-  const recovered = (id: string, fp: string, accountId: string, cents: number, currency: string, recoveredAt: Date, over = {}) => ({
+  await db
+    .insert(failedPayments)
+    .values([
+      failed("fp_1", "acct_north"),
+      failed("fp_2", "acct_lumen"),
+      failed("fp_3", "acct_north"),
+      failed("fp_4", "acct_north"),
+      failed("fp_5", "demo_acct"),
+      failed("fp_6", "acct_north"),
+      failed("fp_7", "acct_north"),
+    ]);
+  const recovered = (
+    id: string,
+    fp: string,
+    accountId: string,
+    cents: number,
+    currency: string,
+    recoveredAt: Date,
+    over = {},
+  ) => ({
     id,
     failedPaymentId: fp,
     accountId,
@@ -146,13 +217,21 @@ async function seed() {
   });
   // The month began on 1 October 2026 (UTC).
   await db.insert(recoveredPayments).values([
-    recovered("rp_usd", "fp_1", "acct_north", 5000, "usd", at(2 * DAY), { attributionKind: "foxhound_retry" }),
-    recovered("rp_eur", "fp_2", "acct_lumen", 3000, "eur", at(3 * DAY), { attributionKind: "email_engaged" }),
-    recovered("rp_usd2", "fp_6", "acct_north", 2500, "usd", at(4 * DAY), { attributionKind: "card_update" }),
+    recovered("rp_usd", "fp_1", "acct_north", 5000, "usd", at(2 * DAY), {
+      attributionKind: "foxhound_retry",
+    }),
+    recovered("rp_eur", "fp_2", "acct_lumen", 3000, "eur", at(3 * DAY), {
+      attributionKind: "email_engaged",
+    }),
+    recovered("rp_usd2", "fp_6", "acct_north", 2500, "usd", at(4 * DAY), {
+      attributionKind: "card_update",
+    }),
     // Stripe recovered it on its own: not Foxhound's, so not counted, as on /billing.
     recovered("rp_baseline", "fp_7", "acct_north", 6666, "usd", at(1 * DAY)),
     recovered("rp_last_month", "fp_3", "acct_north", 9999, "usd", at(20 * DAY)),
-    recovered("rp_deleted", "fp_4", "acct_north", 7777, "usd", at(1 * DAY), { deletedAt: at(1 * DAY / 2) }),
+    recovered("rp_deleted", "fp_4", "acct_north", 7777, "usd", at(1 * DAY), {
+      deletedAt: at((1 * DAY) / 2),
+    }),
     recovered("rp_demo", "fp_5", "demo_acct", 8888, "usd", at(1 * DAY)),
   ]);
 
@@ -160,7 +239,6 @@ async function seed() {
 }
 
 describe("the Overview's figures come from Foxhound's engine", () => {
-
   it("counts billing exempt merchants without the demo", async () => {
     const overview = await adminOverview(await seed(), NOW);
     expect(overview.billingExemptCount).toBe(1);
@@ -180,7 +258,14 @@ describe("the Overview's figures come from Foxhound's engine", () => {
     expect(overview).toHaveProperty("staleDisputesCount", 3);
     // Soonest evidence deadline first among those still answerable, then the
     // ones whose deadline has passed (or that have none), oldest first.
-    expect(overview.attention.staleDisputes.map((d) => [d.id, d.merchantName, d.amountCents, d.currency])).toEqual([
+    expect(
+      overview.attention.staleDisputes.map((d) => [
+        d.id,
+        d.merchantName,
+        d.amountCents,
+        d.currency,
+      ]),
+    ).toEqual([
       ["d_stale", "Lumen Studio", 4500, "eur"],
       ["d_stale_old", "Northwind Coffee", 12000, "usd"],
       ["d_stale_past", "Northwind Coffee", 12000, "usd"],
@@ -191,7 +276,13 @@ describe("the Overview's figures come from Foxhound's engine", () => {
     const overview = await adminOverview(await seed(), NOW);
     expect(overview).toHaveProperty("attention.failedFeeInvoices");
     expect(
-      overview.attention.failedFeeInvoices.map((i) => [i.id, i.merchantName, i.status, i.chargeAttemptCount, i.failedAt.getTime()]),
+      overview.attention.failedFeeInvoices.map((i) => [
+        i.id,
+        i.merchantName,
+        i.status,
+        i.chargeAttemptCount,
+        i.failedAt.getTime(),
+      ]),
     ).toEqual([
       ["inv_failed", "Northwind Coffee", "payment_failed", 2, NOW - DAY],
       ["inv_gave_up", "Lumen Studio", "gave_up", 4, NOW - 3 * DAY],
@@ -204,7 +295,11 @@ describe("the Overview's figures come from Foxhound's engine", () => {
     const overview = await adminOverview(await seed(), NOW);
     expect(overview).toHaveProperty("recoveredThisMonth.paymentCount");
     expect(overview.recoveredThisMonth.paymentCount).toBe(3);
-    expect([...overview.recoveredThisMonth.byCurrency].sort((a, b) => a.currency.localeCompare(b.currency))).toEqual([
+    expect(
+      [...overview.recoveredThisMonth.byCurrency].sort((a, b) =>
+        a.currency.localeCompare(b.currency),
+      ),
+    ).toEqual([
       { currency: "eur", cents: 3000 },
       { currency: "usd", cents: 7500 },
     ]);
@@ -222,7 +317,12 @@ function overviewData(over: Partial<AdminOverview> = {}): AdminOverview {
       { currency: "usd", totalCents: 1_250_000, accountCount: 2 },
       { currency: "eur", totalCents: 300_000, accountCount: 1 },
     ],
-    cronHealth: { failedLast24h: 0, failedRuns: [], lastRunAt: at(20 * 60 * 1000), disabledCount: 0 },
+    cronHealth: {
+      failedLast24h: 0,
+      failedRuns: [],
+      lastRunAt: at(20 * 60 * 1000),
+      disabledCount: 0,
+    },
     pausedCount: 0,
     billingExemptCount: 1,
     newConnectionsCount: 2,
@@ -274,16 +374,18 @@ const busyAttention: Partial<AdminOverview> = {
   },
   cronHealth: {
     failedLast24h: 1,
-    failedRuns: [{ id: "run_1", cronName: "weekly-digest", finishedAt: at(5 * 60 * 60 * 1000), message: "Email binding unavailable" }],
+    failedRuns: [
+      {
+        id: "run_1",
+        cronName: "weekly-digest",
+        finishedAt: at(5 * 60 * 60 * 1000),
+        message: "Email binding unavailable",
+      },
+    ],
     lastRunAt: at(20 * 60 * 1000),
     disabledCount: 0,
   },
 };
-
-
-
-
-
 
 describe("Needs attention, as Capsomer's attention list wants it", () => {
   it("folds like rows into groups and keeps every row's own link", () => {
@@ -306,7 +408,14 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
     const data = overviewData({
       cronHealth: {
         failedLast24h: 1,
-        failedRuns: [{ id: "r", cronName: "weekly-digest", finishedAt: new Date(lateNow - 26 * 60 * 60 * 1000), message: null }],
+        failedRuns: [
+          {
+            id: "r",
+            cronName: "weekly-digest",
+            finishedAt: new Date(lateNow - 26 * 60 * 60 * 1000),
+            message: null,
+          },
+        ],
         lastRunAt: null,
         disabledCount: 0,
       },
@@ -337,7 +446,9 @@ describe("Needs attention, as Capsomer's attention list wants it", () => {
       ...busyAttention,
       attention: {
         ...busyAttention.attention!,
-        failedFeeInvoices: [{ ...busyAttention.attention!.failedFeeInvoices[0], status: "gave_up" }],
+        failedFeeInvoices: [
+          { ...busyAttention.attention!.failedFeeInvoices[0], status: "gave_up" },
+        ],
       },
     });
     const row = overviewLib.overviewAttention!(data, NOW).find((i) => i.group === "billing");
@@ -368,7 +479,9 @@ describe("the recent admin actions read", () => {
     );
     const lib: Record<string, unknown> = await import("~/lib/admin/overview.server");
     expect(typeof lib.listRecentAdminActions).toBe("function");
-    const listRecentAdminActions = lib.listRecentAdminActions as (db: unknown) => Promise<Array<{ id: string }>>;
+    const listRecentAdminActions = lib.listRecentAdminActions as (
+      db: unknown,
+    ) => Promise<Array<{ id: string }>>;
     const rows = await listRecentAdminActions(db);
     expect(rows.map((r) => r.id)).toEqual(Array.from({ length: 10 }, (_, i) => `log_${i}`));
     expect(rows[0]).toMatchObject({

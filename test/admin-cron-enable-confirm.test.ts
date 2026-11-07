@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
 
@@ -34,7 +34,7 @@ const ACTOR = "admin@foxhoundapp.com";
 /** The two context keys the action reads, and nothing else. */
 const fakeContext = {
   get(key: unknown) {
-    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
     if (key === adminContext) return { email: ACTOR };
     throw new Error("unexpected context key");
   },
@@ -50,7 +50,10 @@ async function run(fields: Record<string, string>) {
   const { db } = createInMemoryDb();
   harness.db = db;
   const result = await action({ context: fakeContext, request: post(fields), params: {} } as never);
-  return { db, result: result as unknown as { data: { error?: string; ok?: boolean }; init?: ResponseInit } };
+  return {
+    db,
+    result: result as unknown as { data: { error?: string; ok?: boolean }; init?: ResponseInit },
+  };
 }
 
 async function stateOf(db: Awaited<ReturnType<typeof run>>["db"], cronName: string) {
@@ -64,7 +67,6 @@ async function auditRows(db: Awaited<ReturnType<typeof run>>["db"]) {
 }
 
 describe("the phrase itself", () => {
-
   it("is case-sensitive, exact, and tolerates surrounding whitespace only", () => {
     const p = cronEnableConfirmPhrase("recovery-tick");
     expect(isCronEnableConfirmValid("recovery-tick", `  ${p}  `)).toBe(true);
@@ -76,7 +78,6 @@ describe("the phrase itself", () => {
 });
 
 describe("the /admin/crons action enforces the asymmetry", () => {
-
   it("allows an enable with the exact phrase", async () => {
     const { db, result } = await run({
       cronName: RECOVERY_TICK_CRON_NAME,

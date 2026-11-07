@@ -17,7 +17,10 @@ function makeEnv(namespace: unknown = makeRateLimiterNamespace()) {
   return { RATE_LIMITER: namespace } as unknown as Env;
 }
 
-const broken = { idFromName: (name: string) => name, get: () => ({ hit: () => Promise.reject(new Error("DO unavailable")) }) };
+const broken = {
+  idFromName: (name: string) => name,
+  get: () => ({ hit: () => Promise.reject(new Error("DO unavailable")) }),
+};
 
 const PUBLIC_RULE = { bucket: "public", limit: 20, periodMs: 60_000 };
 
@@ -73,8 +76,12 @@ describe("resolveRateLimitBinding", () => {
   });
 
   it("does not rate-limit GET /demos or GET /audit (page renders)", () => {
-    expect(resolveRateLimitBinding(new Request("http://localhost/demos", { method: "GET" }))).toBeNull();
-    expect(resolveRateLimitBinding(new Request("http://localhost/audit", { method: "GET" }))).toBeNull();
+    expect(
+      resolveRateLimitBinding(new Request("http://localhost/demos", { method: "GET" })),
+    ).toBeNull();
+    expect(
+      resolveRateLimitBinding(new Request("http://localhost/audit", { method: "GET" })),
+    ).toBeNull();
   });
 
   it("does not rate-limit unrelated routes, including other POST surfaces like webhooks", () => {
@@ -110,7 +117,14 @@ describe("resolveRateLimitBinding", () => {
   });
 
   it("does not fire on paths that merely start with an auth path's letters", () => {
-    for (const path of ["/loginx", "/signups", "/logout-all", "/auth/googlebot", "/audits", "/demos-2"]) {
+    for (const path of [
+      "/loginx",
+      "/signups",
+      "/logout-all",
+      "/auth/googlebot",
+      "/audits",
+      "/demos-2",
+    ]) {
       expect(resolveRateLimitBinding(post(path))).toBeNull();
     }
   });
@@ -193,14 +207,23 @@ describe("enforceRateLimit", () => {
   it("keys the DO id on bucket + cf-connecting-ip, or a stable key without one", async () => {
     const namespace = makeRateLimiterNamespace();
     const env = makeEnv(namespace);
-    await enforceRateLimit(new Request("http://localhost/audit", { method: "POST", headers: { "cf-connecting-ip": "9.8.7.6" } }), env);
+    await enforceRateLimit(
+      new Request("http://localhost/audit", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "9.8.7.6" },
+      }),
+      env,
+    );
     await enforceRateLimit(new Request("http://localhost/audit", { method: "POST" }), env);
     expect(namespace.names).toEqual(["public:9.8.7.6", "public:unknown"]);
   });
 
   it("fails open when the Durable Object call throws", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const request = new Request("http://localhost/demos", { method: "POST", headers: { "cf-connecting-ip": "1.1.1.1" } });
+    const request = new Request("http://localhost/demos", {
+      method: "POST",
+      headers: { "cf-connecting-ip": "1.1.1.1" },
+    });
     await expect(enforceRateLimit(request, makeEnv(broken))).resolves.toBeNull();
     log.mockRestore();
   });

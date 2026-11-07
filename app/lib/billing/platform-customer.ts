@@ -54,7 +54,9 @@ export function resolveBillingEmailFromStripeAccount(
   stripeAccount: BillingEmailAccountFields | null,
   loginEmail: string | null,
 ): string | null {
-  return stripeAccount?.business_profile?.support_email || stripeAccount?.email || loginEmail || null;
+  return (
+    stripeAccount?.business_profile?.support_email || stripeAccount?.email || loginEmail || null
+  );
 }
 
 export interface BillingEmailDeps {
@@ -79,7 +81,9 @@ export async function lookupPlatformBillingEmail(
   const [connection] = await db
     .select({ stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
-    .where(and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)))
+    .where(
+      and(eq(stripeConnections.accountId, accountId), isNull(stripeConnections.disconnectedAt)),
+    )
     .orderBy(desc(stripeConnections.isPrimary), asc(stripeConnections.createdAt))
     .limit(1);
   const [owner] = await db
@@ -210,9 +214,7 @@ export interface FinalizeSetupResult {
 
 /** Extract the customer id from a Checkout Session's `customer` field, whether
  *  it is an id string, an expanded object, or null. Pure. */
-function sessionCustomerId(
-  customer: string | { id: string } | null | undefined,
-): string | null {
+function sessionCustomerId(customer: string | { id: string } | null | undefined): string | null {
   if (!customer) return null;
   return typeof customer === "string" ? customer : customer.id;
 }

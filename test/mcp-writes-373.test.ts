@@ -9,7 +9,14 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { mcpRequest, readMcp, toolOutput, toolCallLogStub, confirmedCall, TEST_LINK_KEY } from "./helpers/mcp-client";
+import {
+  mcpRequest,
+  readMcp,
+  toolOutput,
+  toolCallLogStub,
+  confirmedCall,
+  TEST_LINK_KEY,
+} from "./helpers/mcp-client";
 
 // SESSION 79: THE FIRST FOUR WRITE TOOLS (372's item-4 ruling).
 //
@@ -41,9 +48,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
-const { MERCHANT_TOOLS } = await import(
-  "~/lib/mcp/tools.server"
-);
+const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
@@ -52,7 +57,14 @@ const MINE = "acct_mine";
 const THEIRS = "acct_theirs";
 const NOW = new Date("2026-08-25T12:00:00.000Z");
 const UPDATE = "foxhound_update_settings";
-const SECTIONS = ["audit", "features", "notifications", "sender_name", "brand_voice", "intelligence_context"];
+const SECTIONS = [
+  "audit",
+  "features",
+  "notifications",
+  "sender_name",
+  "brand_voice",
+  "intelligence_context",
+];
 
 function env(): Env {
   return {
@@ -105,7 +117,15 @@ async function seed() {
 
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
   const answer = await readMcp(
-    (await confirmedCall((a) => handleMcpRequest(mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }), env(), MERCHANT_TOOLS), args)),
+    await confirmedCall(
+      (a) =>
+        handleMcpRequest(
+          mcpRequest({ token, method: "tools/call", params: { name, arguments: a } }),
+          env(),
+          MERCHANT_TOOLS,
+        ),
+      args,
+    ),
   );
   return { status: answer.status, text: answer.text, ...toolOutput(answer) };
 }
@@ -118,7 +138,6 @@ const updateSettings = (token: string, section: string, fields: Record<string, u
 const errorOf = (data: Record<string, unknown>) => (data as { error: string }).error;
 
 describe("PLANT 2: a write lands on the caller's account and nowhere else", () => {
-
   it("SET THEN GET: the read tool reflects the write, end to end", async () => {
     const { tokens } = await seed();
     await updateSettings(tokens[MINE], "audit", { lookback_days: 180, auto_run: true });
@@ -128,7 +147,6 @@ describe("PLANT 2: a write lands on the caller's account and nowhere else", () =
 });
 
 describe("PLANT 3: validator parity, over the shared function", () => {
-
   it("an over-long sender name is refused with the form's own sentence and bound", async () => {
     const { tokens } = await seed();
     const { isError, data } = await updateSettings(tokens[MINE], "sender_name", {
@@ -242,9 +260,9 @@ describe("PLANT 6: exactly one section per call", () => {
 
   it("and EACH of those sections alone is accepted, so the refusal is the count", async () => {
     const { db, tokens } = await seed();
-    expect((await updateSettings(tokens[MINE], "audit", { lookback_days: 30, auto_run: true })).isError).toBe(
-      false,
-    );
+    expect(
+      (await updateSettings(tokens[MINE], "audit", { lookback_days: 30, auto_run: true })).isError,
+    ).toBe(false);
     expect(
       (
         await updateSettings(tokens[MINE], "notifications", {

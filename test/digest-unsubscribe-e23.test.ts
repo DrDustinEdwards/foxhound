@@ -1,7 +1,6 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // E23 review round 1 (PR 158): the digest's Unsubscribe switches the digest
@@ -82,14 +81,16 @@ beforeEach(() => {
   seedAccount(B);
 });
 
-const routeContext = () =>
-  ({ get: () => ({ env, ctx: {} as ExecutionContext, nonce: "n" }) }) as never;
+const routeContext = () => ({ get: () => ({ env, ctx: {} as ExecutionContext }) }) as never;
 
 /** The page's confirm button: the visit that writes (a GET only offers it). */
 const visit = async (token: string) =>
   route.action({
     params: { token },
-    request: new Request(`${BASE}/u/${token}`, { method: "POST", body: new URLSearchParams({ confirm: "1" }) }),
+    request: new Request(`${BASE}/u/${token}`, {
+      method: "POST",
+      body: new URLSearchParams({ confirm: "1" }),
+    }),
     context: routeContext(),
   } as never);
 
@@ -101,7 +102,11 @@ const post = async (token: string) =>
   } as never)) as Response;
 
 const digestOn = (id: string) =>
-  (sqlite.prepare("SELECT digest_enabled AS d FROM accounts WHERE id = ?").get(id) as { d: number | null }).d;
+  (
+    sqlite.prepare("SELECT digest_enabled AS d FROM accounts WHERE id = ?").get(id) as {
+      d: number | null;
+    }
+  ).d;
 
 const suppressionCount = () =>
   (sqlite.prepare("SELECT count(*) AS n FROM email_suppressions").get() as { n: number }).n;
@@ -110,7 +115,9 @@ const suppressionCount = () =>
 async function digestTokenForA(): Promise<string> {
   await runWeeklyDigest(env, MONDAY_1);
   for (const m of harness.sent) {
-    const href = /href="https:\/\/foxhoundapp\.test\/u\/([^"]+)"[^>]*>Unsubscribe</.exec(m.html)?.[1];
+    const href = /href="https:\/\/foxhoundapp\.test\/u\/([^"]+)"[^>]*>Unsubscribe</.exec(
+      m.html,
+    )?.[1];
     if (!href) continue;
     const token = decodeURIComponent(href);
     if ((await verifyUnsubscribeToken(env, token))?.accountId === A) return token;

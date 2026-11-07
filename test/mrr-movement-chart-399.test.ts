@@ -43,7 +43,9 @@ import type { HealthDistributionDay, MrrSnapshotPoint } from "~/lib/intelligence
 // its labeled rule, its data table. What each one guards is unchanged. The
 // J67 suite (test/intelligence-dashboard-j67.test.ts) pins the page around it.
 
-const Page = IntelligenceOverviewPage as unknown as (props: { loaderData: unknown }) => ReactElement;
+const Page = IntelligenceOverviewPage as unknown as (props: {
+  loaderData: unknown;
+}) => ReactElement;
 
 const overview: IntelligenceOverview = {
   currency: "usd",
@@ -73,7 +75,6 @@ function point(month: number, cents: Partial<MrrSnapshotPoint> = {}): MrrSnapsho
   };
 }
 
-
 function render(mrrSeries: MrrSnapshotPoint[]): string {
   const loaderData = {
     entitled: true,
@@ -91,9 +92,7 @@ function render(mrrSeries: MrrSnapshotPoint[]): string {
   return renderToStaticMarkup(createElement(Stub, { initialEntries: ["/intelligence/dashboard"] }));
 }
 
-
 describe("S16 MRR movement chart, built toward legacy (399)", () => {
-
   it("is withheld when every bucket is flat", () => {
     // Legacy's own gate. An account with snapshots but no movement gets no
     // empty frame.

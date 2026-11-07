@@ -7,5 +7,8 @@ const BLOG_STRIP_SIZE = 3;
 
 export function blogStripCards<T extends { slug: string }>(featured: T | null, latest: T[]): T[] {
   if (!featured) return latest.slice(0, BLOG_STRIP_SIZE);
-  return [featured, ...latest.filter((p) => p.slug !== featured.slug).slice(0, BLOG_STRIP_SIZE - 1)];
+  return [
+    featured,
+    ...latest.filter((p) => p.slug !== featured.slug).slice(0, BLOG_STRIP_SIZE - 1),
+  ];
 }

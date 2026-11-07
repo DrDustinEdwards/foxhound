@@ -11,40 +11,20 @@
 // With no STRYKER_CHUNK it mutates everything in one run. Each chunk writes
 // reports/mutation/<chunk>.json and its own incremental file (reports/ is
 // ignored); `npm run report:mutation` (devkit-mutation-report) merges every JSON report it finds.
-import process from "node:process";
+import { chunkedStryker } from "@dustinedwards/devkit/stryker";
 
-const ALL = ["app/lib/**/*.ts", "app/db/**/*.ts", "workers/**/*.ts"];
-const lib = (...dirs) => dirs.map((dir) => `app/lib/${dir}/**/*.ts`);
-const CHUNKS = {
-  db: ["app/db/**/*.ts"],
-  audit: lib("decline-codes", "audit"),
-  admin: lib("admin", "intelligence"),
-  content: lib("blog", "recovery", "mcp"),
-  core: lib("cron", "auth", "marketing", "webhooks", "compare", "seo", "billing"),
-};
-// Everything not named above: the remaining app/lib directories, app/lib/*.ts
-// and workers/.
-CHUNKS.rest = [...ALL, ...Object.values(CHUNKS).flat().map((glob) => `!${glob}`)];
+const lib = (/** @type {string[]} */ ...dirs) => dirs.map((dir) => `app/lib/${dir}/**/*.ts`);
 
-const chunk = process.env.STRYKER_CHUNK;
-if (chunk && !CHUNKS[chunk]) {
-  throw new Error(`Unknown STRYKER_CHUNK "${chunk}"; one of ${Object.keys(CHUNKS).join(", ")}`);
-}
-const name = chunk ?? "mutation";
-
-/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
-export default {
-  testRunner: "vitest",
-  vitest: { configFile: "vitest.stryker.config.ts" },
-  coverageAnalysis: "perTest",
-  disableBail: true,
-  incremental: true,
-  incrementalFile: `reports/stryker-incremental-${name}.json`,
-  mutate: [...(chunk ? CHUNKS[chunk] : ALL), "!app/lib/demo/**", "!**/*.d.ts"],
-  ignoreStatic: true,
-  reporters: ["json", "clear-text", "progress"],
-  jsonReporter: { fileName: `reports/mutation/${name}.json` },
-  concurrency: 4,
-  timeoutMS: 30000,
-  tempDirName: ".stryker-tmp",
-};
+// `rest` is everything not named below: the remaining app/lib directories, app/lib/*.ts and workers/.
+export default chunkedStryker({
+  all: ["app/lib/**/*.ts", "app/db/**/*.ts", "workers/**/*.ts"],
+  chunks: {
+    db: ["app/db/**/*.ts"],
+    audit: lib("decline-codes", "audit"),
+    admin: lib("admin", "intelligence"),
+    content: lib("blog", "recovery", "mcp"),
+    core: lib("cron", "auth", "marketing", "webhooks", "compare", "seo", "billing"),
+  },
+  exclude: ["app/lib/demo/**"],
+  vitestConfig: "vitest.stryker.config.ts",
+});

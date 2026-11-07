@@ -66,7 +66,12 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
         message: cronRunHistory.message,
       })
       .from(cronRunHistory)
-      .where(and(eq(cronRunHistory.status, "failed"), gte(cronRunHistory.finishedAt, new Date(now - FAILURE_WINDOW_MS))))
+      .where(
+        and(
+          eq(cronRunHistory.status, "failed"),
+          gte(cronRunHistory.finishedAt, new Date(now - FAILURE_WINDOW_MS)),
+        ),
+      )
       .orderBy(desc(cronRunHistory.finishedAt)),
   ]);
 
@@ -79,7 +84,8 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
     if (!n.finishedAt) continue;
     const at = n.finishedAt;
     const seen = lastFinishByName.get(n.cronName);
-    if (!seen || at.getTime() > seen.at.getTime()) lastFinishByName.set(n.cronName, { status: n.status, at });
+    if (!seen || at.getTime() > seen.at.getTime())
+      lastFinishByName.set(n.cronName, { status: n.status, at });
     if (n.status === "success") lastSuccessByName.set(n.cronName, at);
   }
 
@@ -92,7 +98,8 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
   const pairs = [...lastFinishByName].filter(([name]) => registered.has(name));
   const lastRunByName = new Map<string, typeof cronRunHistory.$inferSelect>();
   const chunks: Array<typeof pairs> = [];
-  for (let i = 0; i < pairs.length; i += PAIRS_PER_READ) chunks.push(pairs.slice(i, i + PAIRS_PER_READ));
+  for (let i = 0; i < pairs.length; i += PAIRS_PER_READ)
+    chunks.push(pairs.slice(i, i + PAIRS_PER_READ));
   const lastRuns = (
     await Promise.all(
       chunks.map((chunk) =>
@@ -102,7 +109,11 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
           .where(
             or(
               ...chunk.map(([name, { status, at }]) =>
-                and(eq(cronRunHistory.cronName, name), eq(cronRunHistory.status, status), eq(cronRunHistory.finishedAt, at)),
+                and(
+                  eq(cronRunHistory.cronName, name),
+                  eq(cronRunHistory.status, status),
+                  eq(cronRunHistory.finishedAt, at),
+                ),
               ),
             ),
           ),
@@ -170,9 +181,16 @@ export async function setCronEnabled(db: Db, cronName: string, enabled: boolean)
   if (!isKnownCronName(cronName)) {
     throw new Error(`unknown cron name: ${cronName}`);
   }
-  const existing = await db.select().from(cronConfig).where(eq(cronConfig.cronName, cronName)).limit(1);
+  const existing = await db
+    .select()
+    .from(cronConfig)
+    .where(eq(cronConfig.cronName, cronName))
+    .limit(1);
   if (existing.length > 0) {
-    await db.update(cronConfig).set({ enabled, updatedAt: new Date() }).where(eq(cronConfig.cronName, cronName));
+    await db
+      .update(cronConfig)
+      .set({ enabled, updatedAt: new Date() })
+      .where(eq(cronConfig.cronName, cronName));
   } else {
     await db.insert(cronConfig).values({ cronName, enabled, updatedAt: new Date() });
   }

@@ -60,7 +60,15 @@ function fmt(cents: number, currency: string, fee: boolean): string {
   return fee ? formatMoney(cents, currency) : formatMoneyShort(cents, currency);
 }
 
-function Amounts({ rows, className, fee }: { rows: CurrencyAmount[]; className: string; fee: boolean }) {
+function Amounts({
+  rows,
+  className,
+  fee,
+}: {
+  rows: CurrencyAmount[];
+  className: string;
+  fee: boolean;
+}) {
   if (rows.length === 0) return <span className={className}>{fmt(0, "usd", fee)}</span>;
   return (
     <span className="flex flex-col items-end">
@@ -99,7 +107,9 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <span className={`text-label ${muted ? "text-text-tertiary" : "text-text-secondary"}`}>{label}</span>
+      <span className={`text-label ${muted ? "text-text-tertiary" : "text-text-secondary"}`}>
+        {label}
+      </span>
       <Amounts
         rows={value}
         fee={fee}
@@ -110,7 +120,11 @@ function SummaryRow({
 }
 
 function StatusPill({ label, tone }: { label: string; tone: FeeStatusTone }) {
-  return tone === "neutral" ? <Pill variant="outline">{label}</Pill> : <Pill tone={tone}>{label}</Pill>;
+  return tone === "neutral" ? (
+    <Pill variant="outline">{label}</Pill>
+  ) : (
+    <Pill tone={tone}>{label}</Pill>
+  );
 }
 
 const routerLink = ({ href, children, ...rest }: RowLinkProps) => (
@@ -131,7 +145,8 @@ function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | 
         className="inline-flex min-h-6 items-center gap-0.5 text-micro text-accent-text hover:text-accent-hover"
       >
         View invoice <ArrowUpRight size={12} strokeWidth={1.5} aria-hidden />
-      <span className="cap-sr-only"> (opens in a new tab)</span></a>
+        <span className="cap-sr-only"> (opens in a new tab)</span>
+      </a>
     );
   }
   if (stripeId) return <span className="font-mono text-micro text-text-tertiary">{stripeId}</span>;
@@ -177,9 +192,16 @@ export function RecoverySection({
       <SummaryBox>
         <div className="flex flex-col gap-2">
           <SummaryRow label="Recovered this month" value={attributedThisMonth} />
-          <SummaryRow label={`Estimated fee (${RECOVERY_FEE_PERCENT}%)`} value={estimatedRecoveryFees} muted fee />
+          <SummaryRow
+            label={`Estimated fee (${RECOVERY_FEE_PERCENT}%)`}
+            value={estimatedRecoveryFees}
+            muted
+            fee
+          />
         </div>
-        <p className="mt-3 text-micro text-text-subtle">{stateNote ?? `Next invoice: ${formatLongDate(nextRunAtMs)}`}</p>
+        <p className="mt-3 text-micro text-text-subtle">
+          {stateNote ?? `Next invoice: ${formatLongDate(nextRunAtMs)}`}
+        </p>
         {accountBillingState.cancelledAt && !stateNote ? (
           <p className="mt-1 text-micro text-text-subtle">
             This account is canceled. Fees already earned still appear on the next invoice.
@@ -191,7 +213,8 @@ export function RecoverySection({
             the estimate is the next run's recovery fees and this line says why
             it is not the rate times the line above, in PRICING's own words. */}
         <p className="mt-1 text-micro text-text-subtle">
-          We never bill a recovery until you&apos;ve held the money for {RECOVERY_MATURITY_DAYS} days.
+          We never bill a recovery until you&apos;ve held the money for {RECOVERY_MATURITY_DAYS}{" "}
+          days.
         </p>
       </SummaryBox>
 
@@ -199,8 +222,8 @@ export function RecoverySection({
         // Truthfulness fix: Recova promised the first invoice "on the 1st of next
         // month", which maturity makes false for a recovery made after the 1st.
         <p className="text-label text-text-subtle">
-          No billing history yet. Your first invoice comes on the {INVOICE_DAY} of a month, once a recovery
-          Foxhound earned is {RECOVERY_MATURITY_DAYS} days old.
+          No billing history yet. Your first invoice comes on the {INVOICE_DAY} of a month, once a
+          recovery Foxhound earned is {RECOVERY_MATURITY_DAYS} days old.
         </p>
       ) : (
         <RowList label="Recovery invoices" gap="sm">
@@ -315,10 +338,17 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
               href={PRODUCT_HREF[s.product] ?? ""}
               renderLink={PRODUCT_HREF[s.product] ? routerLink : plainTitle}
               detail={
-                detail ? <span className={detail.warn ? "text-accent-text" : undefined}>{detail.text}</span> : undefined
+                detail ? (
+                  <span className={detail.warn ? "text-accent-text" : undefined}>
+                    {detail.text}
+                  </span>
+                ) : undefined
               }
               actions={
-                <StatusPill label={subscriptionStatusLabel(s.status)} tone={subscriptionStatusTone(s.status)} />
+                <StatusPill
+                  label={subscriptionStatusLabel(s.status)}
+                  tone={subscriptionStatusTone(s.status)}
+                />
               }
             />
           );
@@ -348,7 +378,8 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
                 each invoice". Foxhound's invoices are charge_automatically with
                 no emailed link (app/lib/billing/stripe-invoice.ts). */}
             <p className="mt-1 text-micro text-text-subtle">
-              Add one so Foxhound can charge each monthly invoice automatically on the {INVOICE_DAY}.
+              Add one so Foxhound can charge each monthly invoice automatically on the {INVOICE_DAY}
+              .
             </p>
           </div>
         )}

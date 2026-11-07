@@ -40,7 +40,11 @@ export function fraudTypeWords(fraudType: string): string {
 /** A warning the merchant can still act on: Stripe still calls it actionable
  *  (the charge is neither fully refunded nor disputed), and nobody has refunded
  *  or dismissed it in Foxhound. */
-export function isOpenWarning(row: { actionable: boolean; refundedAt: Date | null; dismissedAt: Date | null }): boolean {
+export function isOpenWarning(row: {
+  actionable: boolean;
+  refundedAt: Date | null;
+  dismissedAt: Date | null;
+}): boolean {
   return row.actionable && row.refundedAt === null && row.dismissedAt === null;
 }
 
@@ -85,9 +89,12 @@ export const REFUND_MESSAGES = {
   not_found: "That warning was not found.",
   already_refunded: "This charge was already refunded through Foxhound.",
   dismissed: "This warning was dismissed.",
-  not_actionable: "Stripe no longer marks this warning as actionable: the charge was refunded or disputed.",
-  stripe_refunded: "This charge is already fully refunded in Stripe, so there is nothing to refund. Dismiss the warning to clear it.",
-  stripe_disputed: "This charge is already disputed, so it cannot be refunded here. Respond to the dispute instead.",
+  not_actionable:
+    "Stripe no longer marks this warning as actionable: the charge was refunded or disputed.",
+  stripe_refunded:
+    "This charge is already fully refunded in Stripe, so there is nothing to refund. Dismiss the warning to clear it.",
+  stripe_disputed:
+    "This charge is already disputed, so it cannot be refunded here. Respond to the dispute instead.",
   no_connection: "No connected Stripe account for this warning.",
   stripe_refused: "Stripe did not refund the charge.",
   unknown:

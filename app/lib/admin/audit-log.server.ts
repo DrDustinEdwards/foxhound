@@ -21,10 +21,16 @@ export async function loadAuditLookups(
   const { accountIds, postIds } = auditLookupIds(entries);
   const [merchantRows, postRows] = await Promise.all([
     accountIds.length > 0
-      ? db.select({ id: accounts.id, name: accounts.name }).from(accounts).where(inArray(accounts.id, accountIds))
+      ? db
+          .select({ id: accounts.id, name: accounts.name })
+          .from(accounts)
+          .where(inArray(accounts.id, accountIds))
       : Promise.resolve([]),
     postIds.length > 0
-      ? db.select({ id: blogPosts.id, title: blogPosts.title }).from(blogPosts).where(inArray(blogPosts.id, postIds))
+      ? db
+          .select({ id: blogPosts.id, title: blogPosts.title })
+          .from(blogPosts)
+          .where(inArray(blogPosts.id, postIds))
       : Promise.resolve([]),
   ]);
   return {

@@ -2,7 +2,7 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/logout";
 
@@ -11,7 +11,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   const refused = refuseCrossSite(request);
   if (refused) return refused;
   const { env } = context.get(cloudflareContext);
-  const res = await (await getAuth(env)).api.signOut({
+  const res = await (
+    await getAuth(env)
+  ).api.signOut({
     headers: request.headers,
     asResponse: true,
   });

@@ -9,7 +9,12 @@ import { timingLabel } from "~/components/docs/sequence-timeline";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, type DeclineCategory } from "~/lib/constants";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
-import { DECLINE_CATEGORY_LABELS, FAILED_PAYMENT_STATUS_LABELS, formatStepResult, formatStepType } from "~/lib/recovery/labels";
+import {
+  DECLINE_CATEGORY_LABELS,
+  FAILED_PAYMENT_STATUS_LABELS,
+  formatStepResult,
+  formatStepType,
+} from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
 import { HealthScoreBadge } from "./health-score-badge";
@@ -41,9 +46,21 @@ import "capsomer/table.css";
  *  the app's step icons (APPROVED-DIFFERENCES, 2026-08-15). */
 function AuditScopes() {
   const scopes: [LucideIcon, string, string][] = [
-    [AlertTriangle, "Failed invoices", "Unrecovered failed invoices, their total, and the decline category behind each"],
-    [CreditCard, "Expiring cards", "Cards that have expired or expire this month or next, and the MRR at risk"],
-    [Scale, "Open disputes", "Open disputes, disputes lost with no evidence, and your won and lost record"],
+    [
+      AlertTriangle,
+      "Failed invoices",
+      "Unrecovered failed invoices, their total, and the decline category behind each",
+    ],
+    [
+      CreditCard,
+      "Expiring cards",
+      "Cards that have expired or expire this month or next, and the MRR at risk",
+    ],
+    [
+      Scale,
+      "Open disputes",
+      "Open disputes, disputes lost with no evidence, and your won and lost record",
+    ],
     [Activity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
   ];
   return (
@@ -52,7 +69,12 @@ function AuditScopes() {
         <div key={title} className="cap-panel">
           <div className="cap-panel-body">
             <div className="flex items-start gap-3">
-              <Icon className="mt-0.5 shrink-0 text-accent-text" size={18} strokeWidth={1.75} aria-hidden />
+              <Icon
+                className="mt-0.5 shrink-0 text-accent-text"
+                size={18}
+                strokeWidth={1.75}
+                aria-hidden
+              />
               <div>
                 <div className="mb-1 text-label font-medium text-text">{title}</div>
                 <div className="text-label leading-relaxed text-text-secondary">{description}</div>
@@ -68,7 +90,10 @@ function AuditScopes() {
 /** Recova's StatusPillShowcase (blob `37614382`), from
  *  `FAILED_PAYMENT_STATUS_LABELS`, so Foxhound's fifth status (Stripe
  *  retrying, 377) is drawn and the last one reads "Failed", the tab word. */
-const STATUS_PILL: Record<string, { tone?: Tone; variant?: "outline" | "secondary"; caption: string }> = {
+const STATUS_PILL: Record<
+  string,
+  { tone?: Tone; variant?: "outline" | "secondary"; caption: string }
+> = {
   stripe_retrying: { variant: "outline", caption: "Stripe is still retrying" },
   active: { tone: "info", caption: "Sequence running" },
   recovered: { tone: "ok", caption: "Invoice paid" },
@@ -102,8 +127,14 @@ function PaymentStatuses() {
  *  the decline codes that land in it. SIX, not Recova's four. Every code named
  *  here is checked against classifyDecline by test/docs-guides-j73.test.ts. */
 const CATEGORY_CODES: Record<DeclineCategory, { codes: string[]; note: string }> = {
-  soft: { codes: ["insufficient_funds", "do_not_honor", "generic_decline"], note: "The card is good, the charge was refused for now" },
-  network: { codes: ["processing_error", "issuer_not_available", "try_again_later"], note: "A processor or bank problem, usually passing" },
+  soft: {
+    codes: ["insufficient_funds", "do_not_honor", "generic_decline"],
+    note: "The card is good, the charge was refused for now",
+  },
+  network: {
+    codes: ["processing_error", "issuer_not_available", "try_again_later"],
+    note: "A processor or bank problem, usually passing",
+  },
   expired: { codes: ["expired_card"], note: "The card has passed its expiry date" },
   fraud: { codes: ["stolen_card", "lost_card", "fraudulent"], note: "The issuer blocked the card" },
   revoked: { codes: ["revocation_of_authorization"], note: "The customer withdrew the mandate" },
@@ -121,7 +152,9 @@ function DeclineCategories() {
               <div className="flex items-start gap-3">
                 <CategoryPill category={category} />
                 <span className="text-label leading-relaxed text-text-secondary">
-                  <span className="font-medium text-text">{DECLINE_CATEGORY_LABELS[category]}.</span>{" "}
+                  <span className="font-medium text-text">
+                    {DECLINE_CATEGORY_LABELS[category]}.
+                  </span>{" "}
                   {note}
                   {codes.length > 0 ? ": " : null}
                   {codes.map((code, i) => (
@@ -171,7 +204,9 @@ function PaymentTimeline() {
           {steps.map((step, i) => (
             <li key={step.stepType} className="flex items-center gap-4 px-4 py-3">
               <span className="w-6 font-mono text-micro text-text-tertiary">{i + 1}</span>
-              <span className="flex-1 truncate text-label text-text-secondary">{formatStepType(step.stepType)}</span>
+              <span className="flex-1 truncate text-label text-text-secondary">
+                {formatStepType(step.stepType)}
+              </span>
               <span className="whitespace-nowrap font-mono text-micro text-text-tertiary">
                 {timingLabel(step.offsetHours)}
               </span>
@@ -196,9 +231,24 @@ function HealthBands() {
   return (
     <div className="my-6">
       <StatTiles label="Health bands">
-        <StatTile label="Health score" tone="crit" word="At risk" figure={`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`} />
-        <StatTile label="Health score" tone="warn" word="Watch" figure={`${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${last}`} />
-        <StatTile label="Health score" tone="ok" word="Healthy" figure={`${WATCH_CEILING} and above`} />
+        <StatTile
+          label="Health score"
+          tone="crit"
+          word="At risk"
+          figure={`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`}
+        />
+        <StatTile
+          label="Health score"
+          tone="warn"
+          word="Watch"
+          figure={`${HEALTH_SCORE_AT_RISK_THRESHOLD} to ${last}`}
+        />
+        <StatTile
+          label="Health score"
+          tone="ok"
+          word="Healthy"
+          figure={`${WATCH_CEILING} and above`}
+        />
       </StatTiles>
     </div>
   );
@@ -210,7 +260,11 @@ function HealthBands() {
  *  Signals, so this draws the page's columns in its order, with a badge in each
  *  band in the Health row, rather than invented customers. */
 function CustomerColumns() {
-  const examples = [HEALTH_SCORE_AT_RISK_THRESHOLD - 15, HEALTH_SCORE_AT_RISK_THRESHOLD + 10, WATCH_CEILING + 12];
+  const examples = [
+    HEALTH_SCORE_AT_RISK_THRESHOLD - 15,
+    HEALTH_SCORE_AT_RISK_THRESHOLD + 10,
+    WATCH_CEILING + 12,
+  ];
   const columns: [string, React.ReactNode][] = [
     ["Customer", "Name and email, from Stripe."],
     ["Plan", "The current plan."],
@@ -228,7 +282,14 @@ function CustomerColumns() {
     ["Signals", "Marks for an active recovery and a dispute history."],
   ];
   return (
-    <div className="cap-table-wrap my-6" data-reflow="" data-cap="table" role="region" aria-label="Customers page columns" tabIndex={0}>
+    <div
+      className="cap-table-wrap my-6"
+      data-reflow=""
+      data-cap="table"
+      role="region"
+      aria-label="Customers page columns"
+      tabIndex={0}
+    >
       <table className="cap-table">
         <thead>
           <tr>
@@ -260,7 +321,8 @@ function DisputeStates() {
     submitted: "Sent to Stripe. Waiting on the issuer.",
     resolved_won: "The issuer found for you.",
     resolved_lost: "The issuer found for the cardholder.",
-    inquiry_closed: "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
+    inquiry_closed:
+      "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
     <ol className="my-6 flex list-none flex-col gap-2 p-0">
@@ -268,10 +330,14 @@ function DisputeStates() {
         <li key={key} className="cap-panel">
           <div className="cap-panel-body">
             <div className="flex items-start gap-3">
-              <span className="shrink-0 font-mono text-micro text-accent-text">{String(i + 1).padStart(2, "0")}</span>
+              <span className="shrink-0 font-mono text-micro text-accent-text">
+                {String(i + 1).padStart(2, "0")}
+              </span>
               <div className="flex flex-col items-start gap-1">
                 <Pill variant="outline">{label}</Pill>
-                <span className="text-label leading-relaxed text-text-secondary">{meaning[key] ?? ""}</span>
+                <span className="text-label leading-relaxed text-text-secondary">
+                  {meaning[key] ?? ""}
+                </span>
               </div>
             </div>
           </div>
@@ -301,4 +367,3 @@ export function DocWidget({ name }: { name: DocWidgetName }) {
 
 /** Exported so a plant can assert the bands the picture draws are the bands the
  *  engine computes, rather than trusting two hand-kept lists to agree. */
-;

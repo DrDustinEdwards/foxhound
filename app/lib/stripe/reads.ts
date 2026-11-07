@@ -80,7 +80,10 @@ type InvoiceWithCharge = Stripe.Invoice & {
  *  places a decline code can sit (engine.ts extractDeclineCode). */
 function narrowInvoice(invoice: Stripe.Invoice): AuditInvoice {
   const full = invoice as InvoiceWithCharge;
-  const charge = typeof full.charge === "object" && full.charge ? { failure_code: full.charge.failure_code } : null;
+  const charge =
+    typeof full.charge === "object" && full.charge
+      ? { failure_code: full.charge.failure_code }
+      : null;
   return {
     id: full.id,
     amount_due: full.amount_due,
@@ -100,17 +103,24 @@ function narrowInvoice(invoice: Stripe.Invoice): AuditInvoice {
 function narrowSubscription(subscription: Stripe.Subscription): AuditSubscription {
   // The subscription's own card, else the customer's default (what Stripe
   // charges when the subscription names none).
-  const customer = typeof subscription.customer === "object" && !("deleted" in subscription.customer)
-    ? subscription.customer
-    : null;
-  const pm = subscription.default_payment_method ?? customer?.invoice_settings?.default_payment_method ?? null;
+  const customer =
+    typeof subscription.customer === "object" && !("deleted" in subscription.customer)
+      ? subscription.customer
+      : null;
+  const pm =
+    subscription.default_payment_method ??
+    customer?.invoice_settings?.default_payment_method ??
+    null;
   const card = pm && typeof pm === "object" ? pm.card : null;
   const price = subscription.items?.data?.[0]?.price;
   return {
     status: subscription.status,
     currency: subscription.currency,
-    customer: typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id,
-    default_payment_method: card ? { card: { exp_month: card.exp_month, exp_year: card.exp_year } } : null,
+    customer:
+      typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id,
+    default_payment_method: card
+      ? { card: { exp_month: card.exp_month, exp_year: card.exp_year } }
+      : null,
     items: {
       data: price
         ? [
@@ -118,7 +128,10 @@ function narrowSubscription(subscription: Stripe.Subscription): AuditSubscriptio
               price: {
                 unit_amount: price.unit_amount,
                 recurring: price.recurring
-                  ? { interval: price.recurring.interval, interval_count: price.recurring.interval_count }
+                  ? {
+                      interval: price.recurring.interval,
+                      interval_count: price.recurring.interval_count,
+                    }
                   : null,
               },
             },
@@ -154,12 +167,14 @@ export function readUncollectibleInvoices(
   stripe: Stripe,
   lookbackStartSeconds: number,
 ): Promise<ReadOutcome<AuditInvoice>> {
-  return read("failed invoices", () =>
-    stripe.invoices.list({
-      status: "uncollectible",
-      created: { gte: lookbackStartSeconds },
-      limit: 100,
-    }),
+  return read(
+    "failed invoices",
+    () =>
+      stripe.invoices.list({
+        status: "uncollectible",
+        created: { gte: lookbackStartSeconds },
+        limit: 100,
+      }),
     narrowInvoice,
   );
 }
@@ -167,7 +182,11 @@ export function readUncollectibleInvoices(
 /** Open invoices. The overdue filter is the ENGINE's, not this module's: a read
  *  returns what Stripe has and the pure half decides what counts. */
 export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<AuditInvoice>> {
-  return read("open invoices", () => stripe.invoices.list({ status: "open", limit: 100 }), narrowInvoice);
+  return read(
+    "open invoices",
+    () => stripe.invoices.list({ status: "open", limit: 100 }),
+    narrowInvoice,
+  );
 }
 
 /**
@@ -179,12 +198,17 @@ export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<AuditInvoi
  * subscriptions are two of its six scopes. Same call, one parameter apart.
  */
 export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<AuditSubscription>> {
-  return read("subscriptions", () =>
-    stripe.subscriptions.list({
-      status: "all",
-      limit: 100,
-      expand: ["data.default_payment_method", "data.customer.invoice_settings.default_payment_method"],
-    }),
+  return read(
+    "subscriptions",
+    () =>
+      stripe.subscriptions.list({
+        status: "all",
+        limit: 100,
+        expand: [
+          "data.default_payment_method",
+          "data.customer.invoice_settings.default_payment_method",
+        ],
+      }),
     narrowSubscription,
   );
 }
@@ -207,12 +231,14 @@ export function readCardUpdaterEvents(
   stripe: Stripe,
   windowStartSeconds: number,
 ): Promise<ReadOutcome<AuditEvent>> {
-  return read("card updater events", () =>
-    stripe.events.list({
-      type: "payment_method.automatically_updated",
-      created: { gte: windowStartSeconds },
-      limit: 100,
-    }),
+  return read(
+    "card updater events",
+    () =>
+      stripe.events.list({
+        type: "payment_method.automatically_updated",
+        created: { gte: windowStartSeconds },
+        limit: 100,
+      }),
     narrowEvent,
   );
 }

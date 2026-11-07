@@ -129,4 +129,11 @@ export const CATEGORY_LABEL: Record<DeclineCategory, string> = {
   unknown: "Unclassified",
 };
 
-export const CATEGORY_ORDER: DeclineCategory[] = ["soft", "network", "expired", "fraud", "revoked", "unknown"];
+export const CATEGORY_ORDER: DeclineCategory[] = [
+  "soft",
+  "network",
+  "expired",
+  "fraud",
+  "revoked",
+  "unknown",
+];

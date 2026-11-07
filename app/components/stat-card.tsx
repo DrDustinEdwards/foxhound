@@ -59,7 +59,9 @@ export function PreviewStatCard({ label, children }: { label: string; children: 
     <li className="cap-panel">
       <div className="cap-panel-body">
         <div>
-          <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">{label}</p>
+          <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">
+            {label}
+          </p>
           {children}
         </div>
       </div>

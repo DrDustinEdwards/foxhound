@@ -1,4 +1,3 @@
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -62,11 +61,9 @@ function renderWidget(name: DocWidgetName): string {
   );
 }
 
-
 const DISPUTES = textOf("disputes");
 
 describe("PLANT 2: the widgets draw what the engine computes", () => {
-
   it("HEALTH BANDS: Foxhound's cutoffs, and the picture agrees with the scorer", () => {
     const html = renderWidget("health-bands");
     expect(html).toContain(`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`);
@@ -80,7 +77,6 @@ describe("PLANT 2: the widgets draw what the engine computes", () => {
 });
 
 describe("PLANT 3: every capability sentence, tied to its code", () => {
-
   it("DISPUTES: the cap sentence carries the real number, per 359 binding 3", () => {
     expect(DISPUTES).toContain("capped at $500 per dispute");
   });

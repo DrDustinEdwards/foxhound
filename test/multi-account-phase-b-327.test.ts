@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -34,8 +34,7 @@ vi.mock("~/lib/auth/session", () => ({
 
 const { action } = await import("~/routes/api/account-switch");
 const { safeReturnPath } = await import("~/lib/auth/active-account");
-const { listMemberships, resolveActiveMembershipFrom } =
-  await import("~/lib/auth/account");
+const { listMemberships, resolveActiveMembershipFrom } = await import("~/lib/auth/account");
 
 const USER = "user_1";
 const OTHER_USER = "user_2";
@@ -104,7 +103,7 @@ function signIn(sessionId: string, userId = USER): void {
 const fakeContext = {
   get(key: unknown) {
     if (key === cloudflareContext) {
-      return { env: {} as Env, ctx: {} as ExecutionContext, nonce: "n" };
+      return { env: {} as Env, ctx: {} as ExecutionContext };
     }
     throw new Error("unexpected context key");
   },
@@ -229,7 +228,6 @@ describe("safeReturnPath refuses an off-origin referer", () => {
 });
 
 describe("resolution follows legacy's fallback order", () => {
-
   it("with no marker, an account carrying last_visited_path beats the earliest", async () => {
     // Legacy's tier 2, lib/account.ts:139-148 (blob 9bb58874): "No cookie:
     // prefer the account that has a non-null last_visited_path".

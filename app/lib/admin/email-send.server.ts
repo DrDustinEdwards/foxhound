@@ -3,7 +3,11 @@ import { eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db/schema";
 import type { AuditResult } from "~/lib/audit/engine";
-import { compareTotals, buildMonthlyAuditEmail, MONTHLY_AUDIT_FROM_NAME } from "~/lib/audit/monthly-email";
+import {
+  compareTotals,
+  buildMonthlyAuditEmail,
+  MONTHLY_AUDIT_FROM_NAME,
+} from "~/lib/audit/monthly-email";
 import { renderSignInLinkEmail } from "~/lib/auth/send-auth-email";
 import { CRON_SCHEDULE_DAILY, DAY_MS } from "~/lib/constants";
 import {
@@ -25,7 +29,7 @@ import {
   buildEmailMessage,
   buildRenderedTransactionalMessage,
   buildTransactionalMessage,
-  sendEmail,
+  sendJobEmail,
   sendRenderedTransactionalEmail,
   sendTransactionalEmail,
 } from "~/lib/email/send";
@@ -34,7 +38,10 @@ import type { EmailNotice } from "~/lib/email/templates";
 import type { EmailAudience, OutboundEmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recoveryFooterNote } from "~/lib/engine/execute-step";
-import { criticalCustomersContent, thresholdAlertContent } from "~/lib/intelligence/alert-notify.server";
+import {
+  criticalCustomersContent,
+  thresholdAlertContent,
+} from "~/lib/intelligence/alert-notify.server";
 import { digestContent } from "~/lib/recovery/digest-email";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import {
@@ -86,7 +93,7 @@ import type { Rendered } from "capsomer/email";
 // customer's, which is what lets the unsubscribe path be checked end to end.
 //
 // HOW IT SENDS. Only through the one send module (app/lib/email/send.ts):
-// sendEmail for customer and merchant mail, the transactional senders for
+// sendJobEmail for customer and merchant mail, the transactional senders for
 // platform mail. Customer and merchant mail honors suppression, as
 // processEmailJob does, but skips the per-account live-send gate, because that
 // gate exists to keep a merchant's customers from being mailed before the
@@ -113,14 +120,19 @@ export const ADMIN_EMAIL_STAND_IN_PATH = "/settings/email";
 
 export const ADMIN_EMAIL_AUDIT_ACTION = "email.test_send";
 
-const RECOVERY_STEPS: Record<string, { stepType: string; declineCategory: string; label: string }> = {
-  recovery_day1: { stepType: "email_day1", declineCategory: "soft", label: "first" },
-  recovery_day3: { stepType: "email_day3", declineCategory: "soft", label: "day 3" },
-  recovery_day7: { stepType: "email_day7", declineCategory: "soft", label: "day 7" },
-  recovery_day14: { stepType: "email_day14", declineCategory: "soft", label: "day 14" },
-  recovery_day30: { stepType: "email_day30", declineCategory: "soft", label: "final (day 30)" },
-  recovery_revoked: { stepType: "email_revoked", declineCategory: "revoked", label: "revoked authorization" },
-};
+const RECOVERY_STEPS: Record<string, { stepType: string; declineCategory: string; label: string }> =
+  {
+    recovery_day1: { stepType: "email_day1", declineCategory: "soft", label: "first" },
+    recovery_day3: { stepType: "email_day3", declineCategory: "soft", label: "day 3" },
+    recovery_day7: { stepType: "email_day7", declineCategory: "soft", label: "day 7" },
+    recovery_day14: { stepType: "email_day14", declineCategory: "soft", label: "day 14" },
+    recovery_day30: { stepType: "email_day30", declineCategory: "soft", label: "final (day 30)" },
+    recovery_revoked: {
+      stepType: "email_revoked",
+      declineCategory: "revoked",
+      label: "revoked authorization",
+    },
+  };
 
 /** The five dispute notices, by type (E16, E17, E19, E20, and the
  *  auto-submitted notice). */
@@ -151,22 +163,26 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "expiring_card_no_payment_method",
     audience: "customer",
-    description: "The expiring-card alert's variant for a trialing customer with no payment method set up, sent before the trial converts.",
+    description:
+      "The expiring-card alert's variant for a trialing customer with no payment method set up, sent before the trial converts.",
   },
   {
     type: "recovery_resend",
     audience: "customer",
-    description: "The recovery email a merchant resends by hand from a payment's page: the step's stored copy (here the first email's template) with the resend's own footer line.",
+    description:
+      "The recovery email a merchant resends by hand from a payment's page: the step's stored copy (here the first email's template) with the resend's own footer line.",
   },
   {
     type: "settings_test",
     audience: "customer",
-    description: "What the merchant's own Send test email button sends: a sample recovery email marked PREVIEW, with the merchant's sender name and Reply-To and no unsubscribe.",
+    description:
+      "What the merchant's own Send test email button sends: a sample recovery email marked PREVIEW, with the merchant's sender name and Reply-To and no unsubscribe.",
   },
   {
     type: "weekly_digest",
     audience: "merchant",
-    description: "The weekly recovery summary a merchant gets at their notification address, with sample numbers and a working unsubscribe. Needs account_id.",
+    description:
+      "The weekly recovery summary a merchant gets at their notification address, with sample numbers and a working unsubscribe. Needs account_id.",
   },
   {
     type: "recovery_notification",
@@ -181,32 +197,38 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "alert_threshold",
     audience: "merchant",
-    description: "The Intelligence threshold alert (E21) a merchant gets when a metric crosses the threshold they set; sample: MRR at risk above $1,000.",
+    description:
+      "The Intelligence threshold alert (E21) a merchant gets when a metric crosses the threshold they set; sample: MRR at risk above $1,000.",
   },
   {
     type: "alert_critical_customers",
     audience: "merchant",
-    description: "The critical customers alert (E22): customers with an active recovery, a low health score and an open dispute at once.",
+    description:
+      "The critical customers alert (E22): customers with an active recovery, a low health score and an open dispute at once.",
   },
   {
     type: "dispute_created",
     audience: "merchant",
-    description: "The notice a merchant gets when a new dispute arrives, with its evidence deadline and triage recommendation.",
+    description:
+      "The notice a merchant gets when a new dispute arrives, with its evidence deadline and triage recommendation.",
   },
   {
     type: "dispute_reminder",
     audience: "merchant",
-    description: "The deadline reminder a merchant gets 3 days (and again 1 day) before a dispute's evidence is due.",
+    description:
+      "The deadline reminder a merchant gets 3 days (and again 1 day) before a dispute's evidence is due.",
   },
   {
     type: "dispute_auto_submitted",
     audience: "merchant",
-    description: "The notice a merchant with auto-submit on gets when Foxhound submits a dispute's response 24 hours before its deadline.",
+    description:
+      "The notice a merchant with auto-submit on gets when Foxhound submits a dispute's response 24 hours before its deadline.",
   },
   {
     type: "dispute_won",
     audience: "merchant",
-    description: "The notice a merchant gets when a dispute Foxhound submitted is won, with the fee and when it is invoiced.",
+    description:
+      "The notice a merchant gets when a dispute Foxhound submitted is won, with the fee and when it is invoiced.",
   },
   {
     type: "dispute_lost",
@@ -216,17 +238,20 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "monthly_audit",
     audience: "merchant",
-    description: "The monthly Foxhound report (E24) a merchant with audit auto-run on gets, on a sample audit. Its View full audit button goes to a sample run id, which no account holds.",
+    description:
+      "The monthly Foxhound report (E24) a merchant with audit auto-run on gets, on a sample audit. Its View full audit button goes to a sample run id, which no account holds.",
   },
   {
     type: "team_invite",
     audience: "merchant",
-    description: "The team invite (E2) a teammate gets. Its Accept Invite button goes to /settings/team with no token, so it joins nobody to anything.",
+    description:
+      "The team invite (E2) a teammate gets. Its Accept Invite button goes to /settings/team with no token, so it joins nobody to anything.",
   },
   {
     type: "sign_in_link",
     audience: "platform",
-    description: "The email with a sign-in link. Its button goes to the sign-in page with no token, so it signs nobody in.",
+    description:
+      "The email with a sign-in link. Its button goes to the sign-in page with no token, so it signs nobody in.",
   },
   {
     type: "cron_failure",
@@ -236,12 +261,14 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
   {
     type: "cron_stale",
     audience: "platform",
-    description: "The operations alert (E27) the support inbox gets when a cron has not succeeded within its expected interval.",
+    description:
+      "The operations alert (E27) the support inbox gets when a cron has not succeeded within its expected interval.",
   },
   {
     type: "dead_letter_alert",
     audience: "platform",
-    description: "The operations alert the support inbox gets when dunning emails exhaust their queue retries and are dead-lettered.",
+    description:
+      "The operations alert the support inbox gets when dunning emails exhaust their queue retries and are dead-lettered.",
   },
 ];
 
@@ -267,7 +294,9 @@ export function testRecipientAllowList(env: Env): string[] {
     .filter(Boolean);
 }
 
-export type Recipient = { ok: true; to: string; kind: "self" | "allow_list" } | { ok: false; error: string };
+export type Recipient =
+  | { ok: true; to: string; kind: "self" | "allow_list" }
+  | { ok: false; error: string };
 
 /**
  * Who a test mail goes to. Omitted, the acting admin. Given, it must be one
@@ -300,12 +329,21 @@ export interface MerchantEmailSettings {
   name: string | null;
   senderName: string | null;
   replyTo: string | null;
-  brandVoice: { default: string | null; soft: string | null; expired: string | null; network: string | null; fraud: string | null };
+  brandVoice: {
+    default: string | null;
+    soft: string | null;
+    expired: string | null;
+    network: string | null;
+    fraud: string | null;
+  };
 }
 
 /** The account and its primary live connection's sender settings, or null for
  *  an unknown account. Reads no customer data. */
-export async function loadMerchantEmailSettings(db: Db, accountId: string): Promise<MerchantEmailSettings | null> {
+export async function loadMerchantEmailSettings(
+  db: Db,
+  accountId: string,
+): Promise<MerchantEmailSettings | null> {
   const [account] = await db
     .select({ id: accounts.id, name: accounts.name })
     .from(accounts)
@@ -359,7 +397,11 @@ const SAMPLE_CUSTOMER_LABEL = "Sample Customer";
 /** A sample audit for the monthly report: every scope read, in US dollars. */
 function sampleAuditResult(now: Date): AuditResult {
   const usd = (cents: number) => [{ currency: SAMPLE_CURRENCY, cents }];
-  const counted = (count: number, cents: number) => ({ count, totalCents: cents, totals: usd(cents) });
+  const counted = (count: number, cents: number) => ({
+    count,
+    totalCents: cents,
+    totals: usd(cents),
+  });
   return {
     failedInvoices: {
       ok: true,
@@ -387,7 +429,11 @@ function sampleAuditResult(now: Date): AuditResult {
     },
     disputes: {
       ok: true,
-      data: { open: counted(1, 4900), acceptedWithoutFighting: counted(0, 0), historical: { won: 3, lost: 1 } },
+      data: {
+        open: counted(1, 4900),
+        acceptedWithoutFighting: counted(0, 0),
+        historical: { won: 3, lost: 1 },
+      },
     },
     health: {
       ok: true,
@@ -401,7 +447,12 @@ function sampleAuditResult(now: Date): AuditResult {
         involuntaryChurnRateBps: 90,
       },
     },
-    meta: { stripeAccountId: "acct_sample", lookbackDays: 30, currency: SAMPLE_CURRENCY, ranAt: now },
+    meta: {
+      stripeAccountId: "acct_sample",
+      lookbackDays: 30,
+      currency: SAMPLE_CURRENCY,
+      ranAt: now,
+    },
   };
 }
 
@@ -430,7 +481,10 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       to,
       fromName: senderName,
       replyTo: merchant.replyTo,
-      unsubscribeToken: await signUnsubscribeToken(env, { email: to, accountId: merchant.accountId }),
+      unsubscribeToken: await signUnsubscribeToken(env, {
+        email: to,
+        accountId: merchant.accountId,
+      }),
       physicalAddress: env.PHYSICAL_ADDRESS ?? "",
       template: `admin_test:${type.type}`,
       idempotencyKey: `admin-test:${crypto.randomUUID()}`,
@@ -466,7 +520,13 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       const stepNumber = Number(winback[1]);
       return job({
         subject: winbackSubject({ stepNumber, planName: null }),
-        blocks: buildWinbackEmail({ stepNumber, customerName: null, planName: null, senderName, resubscribeUrl: standIn }),
+        blocks: buildWinbackEmail({
+          stepNumber,
+          customerName: null,
+          planName: null,
+          senderName,
+          resubscribeUrl: standIn,
+        }),
         footerNote: recoveryFooterNote(senderName, now.getUTCFullYear()),
       });
     }
@@ -558,7 +618,11 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
         audience: "merchant",
       },
     });
-    const sample = { amountCents: SAMPLE_AMOUNT_CENTS, currency: SAMPLE_CURRENCY, customerLabel: SAMPLE_CUSTOMER_LABEL };
+    const sample = {
+      amountCents: SAMPLE_AMOUNT_CENTS,
+      currency: SAMPLE_CURRENCY,
+      customerLabel: SAMPLE_CUSTOMER_LABEL,
+    };
     const paymentUrl = `${baseUrl}/recovery/payments`;
     if (type.type === "weekly_digest") {
       // The digest's own content function and its own audience (E23): the
@@ -609,7 +673,9 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     }
     if (type.type === "recovery_notification") {
       // The notifier's own content function (E10): the notice and its footer.
-      return merchantJob(recoveryNotifyContent({ ...sample, declineCategory: "soft" }, paymentUrl, now));
+      return merchantJob(
+        recoveryNotifyContent({ ...sample, declineCategory: "soft" }, paymentUrl, now),
+      );
     }
     if (type.type === "sequence_complete") {
       // The notifier's own content function (E11): the notice and its footer.
@@ -649,7 +715,11 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
           ? createdNotice({
               ...dispute,
               evidenceDeadline: new Date(now.getTime() + 10 * 86_400_000),
-              triage: { recommendation: "fight", confidence: 78, reasoning: "Delivery was confirmed by the carrier." },
+              triage: {
+                recommendation: "fight",
+                confidence: 78,
+                reasoning: "Delivery was confirmed by the carrier.",
+              },
               autoSubmit: false,
             })
           : type.type === "dispute_reminder"
@@ -679,7 +749,10 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
         summary: "A sample month: recoveries are up, and three cards expire soon.",
         runId: "sample",
         baseUrl,
-        comparisons: compareTotals([{ currency: SAMPLE_CURRENCY, cents: 69300 }], [{ currency: SAMPLE_CURRENCY, cents: 41500 }]),
+        comparisons: compareTotals(
+          [{ currency: SAMPLE_CURRENCY, cents: 69300 }],
+          [{ currency: SAMPLE_CURRENCY, cents: 41500 }],
+        ),
       });
       return merchantJob({
         fromName: MONTHLY_AUDIT_FROM_NAME,
@@ -709,7 +782,11 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   }
 
   if (type.type === "sign_in_link") {
-    return { channel: "rendered", to, rendered: renderSignInLinkEmail(to, `${baseUrl}/login`, "000000") };
+    return {
+      channel: "rendered",
+      to,
+      rendered: renderSignInLinkEmail(to, `${baseUrl}/login`, "000000"),
+    };
   }
   // The operations mail, built by its own functions and rendered for the
   // caller's inbox instead of the support inbox (SUPPORT_EMAIL).
@@ -728,13 +805,22 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   }
   if (type.type === "cron_stale") {
     const message = buildStaleAlertEmail(
-      { cronName: "retention-sweep", lastRunAt: new Date(now.getTime() - 3 * 86_400_000), reason: "overdue", schedule: CRON_SCHEDULE_DAILY },
+      {
+        cronName: "retention-sweep",
+        lastRunAt: new Date(now.getTime() - 3 * 86_400_000),
+        reason: "overdue",
+        schedule: CRON_SCHEDULE_DAILY,
+      },
       now,
     );
     return { channel: "rendered", to, rendered: renderCronAlertEmail(to, message, baseUrl, now) };
   }
   if (type.type === "dead_letter_alert") {
-    return { channel: "transactional", to, ...deadLetterAlertMessage({ written: 2, failed: 0 }, now) };
+    return {
+      channel: "transactional",
+      to,
+      ...deadLetterAlertMessage({ written: 2, failed: 0 }, now),
+    };
   }
   throw new Error(`no builder for ${type.type}`);
 }
@@ -756,7 +842,11 @@ export interface EmailPreview {
 }
 
 /** The message the send module would hand the binding, without sending. Pure. */
-export function previewAdminEmail(env: Env, type: AdminEmailType, prepared: PreparedEmail): EmailPreview {
+export function previewAdminEmail(
+  env: Env,
+  type: AdminEmailType,
+  prepared: PreparedEmail,
+): EmailPreview {
   const message =
     prepared.channel === "job"
       ? buildEmailMessage({ ...prepared.job }, env.BETTER_AUTH_URL ?? "")
@@ -786,8 +876,16 @@ export interface AdminSendResult {
 }
 
 /** Send one prepared email through the send module. Never throws. */
-export async function sendAdminEmail(env: Env, type: AdminEmailType, prepared: PreparedEmail): Promise<AdminSendResult> {
-  const done = (status: AdminSendStatus, providerMessageId: string | null = null, error: string | null = null): AdminSendResult => ({
+export async function sendAdminEmail(
+  env: Env,
+  type: AdminEmailType,
+  prepared: PreparedEmail,
+): Promise<AdminSendResult> {
+  const done = (
+    status: AdminSendStatus,
+    providerMessageId: string | null = null,
+    error: string | null = null,
+  ): AdminSendResult => ({
     type: type.type,
     status,
     provider_message_id: providerMessageId,
@@ -797,14 +895,18 @@ export async function sendAdminEmail(env: Env, type: AdminEmailType, prepared: P
     if (prepared.channel === "job") {
       // The suppression gate every real customer and merchant send passes.
       if (await isSuppressed(env, prepared.job.to)) return done("suppressed");
-      const { providerMessageId } = await sendEmail(env, prepared.job);
+      const { providerMessageId } = await sendJobEmail(env, prepared.job);
       return done("sent", providerMessageId);
     }
     if (prepared.channel === "transactional") {
       const { providerMessageId } = await sendTransactionalEmail(env, prepared);
       return done("sent", providerMessageId);
     }
-    const outcome = await sendRenderedTransactionalEmail(env, { to: prepared.to, rendered: prepared.rendered, redact: [prepared.to] });
+    const outcome = await sendRenderedTransactionalEmail(env, {
+      to: prepared.to,
+      rendered: prepared.rendered,
+      redact: [prepared.to],
+    });
     return outcome.status === "sent"
       ? done("sent", outcome.providerMessageId)
       : done("failed", null, outcome.error ?? outcome.reason);

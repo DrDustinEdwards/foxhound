@@ -44,7 +44,9 @@ async function buildAuth(env: Env) {
       // never the link. Better Auth answers the form the same way whether or
       // not an address exists.
       if (sent.status !== "sent") {
-        throw new Error(`sign-in link email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`);
+        throw new Error(
+          `sign-in link email not sent: ${sent.reason}${sent.error ? ` (${sent.error})` : ""}`,
+        );
       }
     },
     // Five sign-in links an hour per address; wrong codes three an hour and ten
@@ -62,7 +64,8 @@ async function buildAuth(env: Env) {
     // A passkey added or removed, Google or Apple joined or left, sessions
     // ended, the account deleted, a new device, a recovery: mailed to the
     // account's address.
-    sendSecurityNotice: (_kind, { user, detail }) => sendSecurityNoticeEmail(env, user.email, detail),
+    sendSecurityNotice: (_kind, { user, detail }) =>
+      sendSecurityNoticeEmail(env, user.email, detail),
   });
 
   const google = signIn.socialProviders.google;
@@ -74,7 +77,12 @@ async function buildAuth(env: Env) {
     // Deleting the account is only the Delete account action on
     // /settings/account (auth.api.deleteUser, after its fresh sign-in check),
     // never Better Auth's /delete-user over HTTP, as on Foxing.
-    disabledPaths: [...options.disabledPaths, "/send-verification-email", "/delete-user", "/delete-user/callback"],
+    disabledPaths: [
+      ...options.disabledPaths,
+      "/send-verification-email",
+      "/delete-user",
+      "/delete-user/callback",
+    ],
     // E1: an email change is confirmed from the CURRENT address first, then
     // from the new one (Better Auth's change-email-confirmation flow), and
     // only from a sign-in in the last 10 minutes (site-runtime holds
@@ -116,7 +124,9 @@ async function buildAuth(env: Env) {
       // forwards into the Better Auth handler, so the redirect_uri sent to
       // Google, the token exchange, and the CSRF state cookie validation all
       // agree. This is the URI registered on the Google OAuth client.
-      ...(google ? { google: { ...google, redirectURI: `${env.BETTER_AUTH_URL}/auth/google/callback` } } : {}),
+      ...(google
+        ? { google: { ...google, redirectURI: `${env.BETTER_AUTH_URL}/auth/google/callback` } }
+        : {}),
     },
   });
 }

@@ -14,8 +14,15 @@ import type { Route } from "./+types/root";
 import { ErrorPage } from "capsomer/react/error-page";
 import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
-import { ErrorBar, ErrorFooter, ErrorLinks, HOME_LABEL, recovaWords, WithdrawnView } from "./components/error-view";
-import { cloudflareContext } from "./lib/cloudflare-context";
+import {
+  ErrorBar,
+  ErrorFooter,
+  ErrorLinks,
+  HOME_LABEL,
+  recovaWords,
+  WithdrawnView,
+} from "./components/error-view";
+import { cloudflareContext, getNonce } from "@dustinedwards/site-runtime/context";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
 import type { loader as marketingLoader } from "./layouts/marketing";
@@ -41,7 +48,8 @@ export const links: Route.LinksFunction = () => [...iconLinks(), ...PRELOADS.lin
 // puts in the Content-Security-Policy header - a mismatch would make the
 // browser reject its own hydration scripts.
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { env, nonce } = context.get(cloudflareContext);
+  const { env } = context.get(cloudflareContext);
+  const nonce = getNonce(context);
   return { theme: await resolveThemeForRequest(env, request), nonce };
 }
 
@@ -78,9 +86,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // opt in. A signed-in visitor on a marketing page also hydrates: their header carries the business
   // switcher and Sign out, which are React's, and their pages are private and never edge-cached.
   const matches = useMatches();
-  const signedIn = useRouteLoaderData<typeof marketingLoader>("layouts/marketing")?.isAuthenticated === true;
+  const signedIn =
+    useRouteLoaderData<typeof marketingLoader>("layouts/marketing")?.isAuthenticated === true;
   const hydrates =
-    signedIn || matches.some((match) => (match.handle as { hydrate?: boolean } | undefined)?.hydrate === true);
+    signedIn ||
+    matches.some((match) => (match.handle as { hydrate?: boolean } | undefined)?.hydrate === true);
 
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">
@@ -135,7 +145,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (routeError?.status === 410) return <WithdrawnView />;
   const { title, text } = recovaWords(error, import.meta.env.DEV);
   return (
-    <div className="fh-cap fh-error-page flex min-h-screen flex-col bg-bg" data-cap-site="foxhound" data-family="amber">
+    <div
+      className="fh-cap fh-error-page flex min-h-screen flex-col bg-bg"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <ErrorPage
         error={error}
         home="/"

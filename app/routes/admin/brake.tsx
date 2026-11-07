@@ -20,13 +20,14 @@ import {
 } from "~/lib/admin/brake.server";
 import { setCronEnabled } from "~/lib/admin/crons.server";
 import { adminContext } from "~/lib/admin/context";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Emergency brake" };
 
@@ -62,7 +63,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const auth = context.get(adminContext);
   const db = getDb(env);
 
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
   const confirm = String(form.get("confirm") ?? "");
 
@@ -127,7 +128,9 @@ export async function action({ context, request }: Route.ActionArgs) {
   await setCronEnabled(db, RECOVERY_TICK_CRON_NAME, nextEnabled);
   return data<ActionResult>({
     ok: true,
-    message: nextEnabled ? "Recovery tick enabled." : "Recovery tick disabled. The loop is stopped for every account.",
+    message: nextEnabled
+      ? "Recovery tick enabled."
+      : "Recovery tick disabled. The loop is stopped for every account.",
   });
 }
 
@@ -179,11 +182,18 @@ function ConfirmForm({
   );
 }
 
-function EventLine({ label, event }: { label: string; event: { actorEmail: string; at: Date; count: number | null } | null }) {
+function EventLine({
+  label,
+  event,
+}: {
+  label: string;
+  event: { actorEmail: string; at: Date; count: number | null } | null;
+}) {
   if (!event) return <p className="text-label text-text-tertiary">{label}: never</p>;
   return (
     <p className="text-label text-text-tertiary">
-      {label}: <AdminTime at={event.at} /> by <span className="font-mono text-text-secondary">{event.actorEmail}</span>
+      {label}: <AdminTime at={event.at} /> by{" "}
+      <span className="font-mono text-text-secondary">{event.actorEmail}</span>
       {/* "intended", because the umbrella row is written before the account
           writes so that a partial failure still leaves a record of the attempt.
           The live truth is the count in the state grid above. */}
@@ -199,14 +209,19 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div>
-
       {actionData?.error ? (
-        <p role="alert" className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text">
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
+        >
           {actionData.error}
         </p>
       ) : null}
       {actionData?.ok && actionData.message ? (
-        <p role="status" className="mb-4 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text">
+        <p
+          role="status"
+          className="mb-4 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text"
+        >
           {actionData.message}
         </p>
       ) : null}
@@ -215,7 +230,9 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-label font-semibold text-text">Current state</h2>
           <div className="flex items-center gap-2">
-            <Badge tone={engaged ? "failure" : "neutral"}>{engaged ? "Brake ENGAGED" : "Brake not engaged"}</Badge>
+            <Badge tone={engaged ? "failure" : "neutral"}>
+              {engaged ? "Brake ENGAGED" : "Brake not engaged"}
+            </Badge>
             <Badge tone={status.tickEnabled ? "success" : "failure"}>
               {status.tickEnabled ? "Tick enabled" : "Tick DISABLED"}
             </Badge>
@@ -243,15 +260,21 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
           <EventLine label="Last release" event={status.lastRelease} />
         </div>
         {staleMarkers.markedButNotPaused > 0 ? (
-          <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
-            {staleMarkers.markedButNotPaused} account(s) carry a pause reason but are not paused. Something wrote
-            processing_paused outside setProcessingPaused.
+          <p
+            role="status"
+            className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text"
+          >
+            {staleMarkers.markedButNotPaused} account(s) carry a pause reason but are not paused.
+            Something wrote processing_paused outside setProcessingPaused.
           </p>
         ) : null}
         {staleMarkers.pausedWithUnknownReason > 0 ? (
-          <p role="status" className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text">
-            {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognized pause reason. Release
-            matches only the brake marker, so it will never resume them.
+          <p
+            role="status"
+            className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text"
+          >
+            {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognized pause
+            reason. Release matches only the brake marker, so it will never resume them.
           </p>
         ) : null}
       </section>
@@ -259,13 +282,14 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
       <section className="mb-6 rounded-lg border border-border bg-surface p-4">
         <h2 className="mb-1 text-label font-semibold text-text">The brake: pause every merchant</h2>
         <p className="mb-3 text-label text-text-tertiary">
-          Pauses processing for every account except demo accounts, accounts already paused, and canceled accounts.
-          Merchants paused outside the brake keep their pause and are never resumed by a release.
+          Pauses processing for every account except demo accounts, accounts already paused, and
+          canceled accounts. Merchants paused outside the brake keep their pause and are never
+          resumed by a release.
         </p>
         <p className="mb-3 text-label text-text-tertiary">
-          What this does not stop: a canceled account still pays fees it already owed, because those were earned
-          before it canceled and the brake has no lever over them. Everything else, including billing-exempt
-          accounts, stops.
+          What this does not stop: a canceled account still pays fees it already owed, because those
+          were earned before it canceled and the brake has no lever over them. Everything else,
+          including billing-exempt accounts, stops.
         </p>
         <div className="flex flex-col gap-4">
           <ConfirmForm
@@ -274,7 +298,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
             danger
             busy={busy}
             description={`Will pause ${status.eligibleCount} account(s).`}
-            />
+          />
           <div className="border-t border-border-sub pt-4">
             <ConfirmForm
               intent="release"
@@ -289,8 +313,8 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
       <section className="rounded-lg border border-border bg-surface p-4">
         <h2 className="mb-1 text-label font-semibold text-text">The harder stop: recovery tick</h2>
         <p className="mb-3 text-label text-text-tertiary">
-          The brake pauses accounts. This stops the loop itself, for everyone, including accounts the brake skips. Use
-          it when the problem is the engine rather than a merchant.
+          The brake pauses accounts. This stops the loop itself, for everyone, including accounts
+          the brake skips. Use it when the problem is the engine rather than a merchant.
         </p>
         {status.tickEnabled ? (
           <ConfirmForm

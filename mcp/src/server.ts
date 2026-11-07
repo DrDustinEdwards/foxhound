@@ -6,7 +6,13 @@ import {
   type AuthInfo,
   type JsonSchemaType,
 } from "@modelcontextprotocol/server";
-import { mcpCacheHints, outsideResult, registerTools, routeMcpEra, type McpServerInfo } from "@dustinedwards/site-runtime/mcp-server";
+import {
+  mcpCacheHints,
+  outsideResult,
+  registerTools,
+  routeMcpEra,
+  type McpServerInfo,
+} from "@dustinedwards/site-runtime/mcp-server";
 
 import type { AdminMcpEnv } from "./env";
 import { SCOPE_READ, SCOPE_WRITE } from "./scopes";
@@ -21,7 +27,9 @@ const SERVER_INFO = {
   title: "Foxhound Admin",
   version: "1.1.0",
   websiteUrl: "https://foxhoundapp.com",
-  icons: [{ src: "https://foxhoundapp.com/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] }],
+  icons: [
+    { src: "https://foxhoundapp.com/favicon.svg", mimeType: "image/svg+xml", sizes: ["any"] },
+  ],
 };
 
 /** This server as refusals, the step-up challenge and the tool-call log name it. */
@@ -61,14 +69,22 @@ function result(data: Record<string, unknown>, isError = false) {
 
 function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
   // The element cap on tool arguments (GHSA-46jr-4wx8-v453): the SDK leaves it off by default.
-  const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS, cacheHints: mcpCacheHints({ ttlMs: 3_600_000 }), maxToolInputElements: 10_000 });
+  const server = new McpServer(SERVER_INFO, {
+    instructions: INSTRUCTIONS,
+    cacheHints: mcpCacheHints({ ttlMs: 3_600_000 }),
+    maxToolInputElements: 10_000,
+  });
   // WHO IS AN ADMIN IS THE API'S ANSWER (index.ts): it admitted this email at
   // sign-in and checks it again on every call. The shared ownership check is
   // handed that same email, so here it proves only that the grant names someone.
   const checkEnv = { ...env, ADMIN_EMAIL: session.actor };
   const caller = session.probe
     ? { kind: "probe" as const, principal: session.actor, scopes: [] }
-    : { kind: "admin" as const, props: { email: session.actor, client: session.client, clientId: session.clientId }, scopes: session.scopes };
+    : {
+        kind: "admin" as const,
+        props: { email: session.actor, client: session.client, clientId: session.clientId },
+        scopes: session.scopes,
+      };
   // site-runtime's registerTools: only the tools the grant can call are listed (T7), each with the server's icon (T9),
   // the 403 step-up before a tool runs, and invokeTool, which still checks the scope, logs the call and hands the run
   // the request's abort signal (P11), which reaches the admin API call (api-client.ts).
@@ -93,8 +109,15 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
       } catch (err) {
         // An unexpected failure's text stays in the log: it was not written
         // for an agent and could carry anything.
-        console.error("admin mcp tool failed:", tool.name, err instanceof Error ? err.message : String(err));
-        return result({ error: `${tool.name} could not reach Foxhound. Try again.`, tool: tool.name }, true);
+        console.error(
+          "admin mcp tool failed:",
+          tool.name,
+          err instanceof Error ? err.message : String(err),
+        );
+        return result(
+          { error: `${tool.name} could not reach Foxhound. Try again.`, tool: tool.name },
+          true,
+        );
       }
     },
   });
@@ -102,11 +125,16 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
 }
 
 /** Serve one already-authenticated request, in the era that can answer it. */
-export function serveAdminMcp(request: Request, env: AdminMcpEnv, session: AdminSession): Promise<Response> {
+export function serveAdminMcp(
+  request: Request,
+  env: AdminMcpEnv,
+  session: AdminSession,
+): Promise<Response> {
   return routeMcpEra(request, env, undefined, {
     factory: () => buildServer(env, session),
     options: {},
-    createMcpHandler: (factory, options) => (req) => createMcpHandler(factory, options).fetch(req, { authInfo: session.authInfo }),
+    createMcpHandler: (factory, options) => (req) =>
+      createMcpHandler(factory, options).fetch(req, { authInfo: session.authInfo }),
     isLegacyRequest: (req) => isLegacyRequest(req),
   });
 }

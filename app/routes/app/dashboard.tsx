@@ -9,7 +9,7 @@ import "capsomer/panel.css";
 import { ConsoleAttentionFeed, ConsoleHeroRow, ConsoleTileRow } from "~/components/console-panels";
 import "~/components/charts.css";
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { mrrEmptySentence } from "~/lib/dashboard/console";
 import { drawCohorts, drawLatestMovement } from "~/lib/dashboard/console-charts";
@@ -86,7 +86,11 @@ function StatPanel({
 }) {
   return (
     <Panel size="sm" title={label}>
-      <p className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}>{value}</p>
+      <p
+        className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}
+      >
+        {value}
+      </p>
       {sub ? <p className="m-0 mt-1 text-label text-text-subtle">{sub}</p> : null}
     </Panel>
   );
@@ -97,7 +101,10 @@ export default function Console({ loaderData }: Route.ComponentProps) {
   const latest = mrr.latest;
   const rawCohorts = latest?.perCohortBreakdown;
   const cohortRows = isCohortRows(rawCohorts) ? rawCohorts : [];
-  const trend = mrr.trend.map((s) => ({ at: new Date(s.snapshotDate), totalMrrCents: s.totalMrrCents }));
+  const trend = mrr.trend.map((s) => ({
+    at: new Date(s.snapshotDate),
+    totalMrrCents: s.totalMrrCents,
+  }));
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
@@ -109,19 +116,30 @@ export default function Console({ loaderData }: Route.ComponentProps) {
       <ConsoleTileRow tiles={consoleView.tiles} nowMs={nowMs} />
       <ConsoleAttentionFeed rows={consoleView.attention} />
 
-      <section className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Recovery figures">
+      <section
+        className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        aria-label="Recovery figures"
+      >
         <StatPanel label="Revenue recovered" value={formatCurrencyTotals(stats.revenueRecovered)} />
         <StatPanel
           label="Recovery rate"
           value={stats.recoveryRatePct === null ? "-" : `${stats.recoveryRatePct}%`}
-          valueClassName={stats.recoveryRatePct === null ? undefined : recoveryRateClassName(stats.recoveryRatePct)}
+          valueClassName={
+            stats.recoveryRatePct === null
+              ? undefined
+              : recoveryRateClassName(stats.recoveryRatePct)
+          }
           sub={
             stats.totalFailedCount === 0
               ? "No failed payments yet"
               : `${stats.recoveredCount} of ${stats.totalFailedCount} recovered`
           }
         />
-        <StatPanel label="Failed payments" value={String(stats.activeFailedCount)} sub="Currently in recovery" />
+        <StatPanel
+          label="Failed payments"
+          value={String(stats.activeFailedCount)}
+          sub="Currently in recovery"
+        />
         <StatPanel
           label="Fee owed"
           value={formatCurrencyTotals(stats.feeOwed)}

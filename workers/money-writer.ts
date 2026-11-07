@@ -48,5 +48,3 @@ export class MoneyWriteDurableObject extends DurableObject<Env> {
 function seenKey(idempotencyKey: string): string {
   return `idem:${idempotencyKey}`;
 }
-
-;

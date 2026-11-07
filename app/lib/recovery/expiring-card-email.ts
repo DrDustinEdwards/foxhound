@@ -88,7 +88,10 @@ export function buildExpiringCardEmail(input: ExpiringCardCopyInput): Block[] {
       text: "To avoid any interruption to your service, please update your payment method before it expires.",
     },
     { type: "button", label: "Update Payment Method", url: input.updateUrl },
-    { type: "paragraph", text: "If you've already updated your card, you can ignore this message." },
+    {
+      type: "paragraph",
+      text: "If you've already updated your card, you can ignore this message.",
+    },
     { type: "paragraph", text: "Thanks," },
     { type: "paragraph", text: senderName },
   ];
@@ -133,7 +136,10 @@ export function buildNoPaymentMethodEmail(input: NoPaymentMethodCopyInput): Bloc
       text: "To avoid any interruption to your service, please add a payment method before your trial ends.",
     },
     { type: "button", label: "Add Payment Method", url: input.updateUrl },
-    { type: "paragraph", text: "If you've already added a payment method, you can ignore this message." },
+    {
+      type: "paragraph",
+      text: "If you've already added a payment method, you can ignore this message.",
+    },
     { type: "paragraph", text: "Thanks," },
     { type: "paragraph", text: senderName },
   ];

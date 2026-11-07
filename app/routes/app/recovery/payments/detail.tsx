@@ -1,6 +1,15 @@
 import { useEffect, useId, useState } from "react";
 
-import { ArrowRight, ArrowUpRight, Check, ChevronDown, Circle, Mail, RotateCcw, Shield } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  Circle,
+  Mail,
+  RotateCcw,
+  Shield,
+} from "lucide-react";
 
 import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -17,9 +26,14 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import { getDb } from "~/db";
-import { cloudflareContext } from "~/lib/cloudflare-context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { formatDateMonthDay, formatDateShort, formatRelativeFuture, formatTimeAgo } from "~/lib/date-format";
+import {
+  formatDateMonthDay,
+  formatDateShort,
+  formatRelativeFuture,
+  formatTimeAgo,
+} from "~/lib/date-format";
 import { formatMoney } from "~/lib/money-format";
 import {
   ATTRIBUTION_KIND_LABELS,
@@ -58,7 +72,8 @@ import type { loader as appShellLoader } from "~/layouts/app-shell";
 
 import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
-import { readForm } from "~/lib/http/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export function meta() {
   return [{ title: "Payment detail - Foxhound" }, NOINDEX];
@@ -86,7 +101,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   // (page.tsx 6034a8ba, `.order('scheduled_at', { ascending: true })`), so a
   // resend, which has no step number, sits last rather than first.
   const steps = [...detail.steps]
-    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime() || (a.stepNumber ?? 0) - (b.stepNumber ?? 0))
+    .sort(
+      (a, b) =>
+        a.scheduledAt.getTime() - b.scheduledAt.getTime() ||
+        (a.stepNumber ?? 0) - (b.stepNumber ?? 0),
+    )
     .map(({ aiBodyHtml, ...step }) => ({
       ...step,
       label: paymentStepLabel(category, step.stepType),
@@ -121,7 +140,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const form = await readForm(request);
+  const form = await readForm(request, BODY_MAX_BYTES);
   const intent = form.get("intent");
 
   // The shared dispatcher owns account scoping, ownership and the per-intent
@@ -153,12 +172,15 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   }
 
   if (outcome.ok) {
-    if (outcome.intent === "note") return data({ notice: "Note saved", intent: "note" }, { status: 200 });
+    if (outcome.intent === "note")
+      return data({ notice: "Note saved", intent: "note" }, { status: 200 });
     return data(
       {
         notice: actionSuccessNotice(
           outcome.intent,
-          outcome.intent === "trigger" ? { action: outcome.action, result: outcome.result } : undefined,
+          outcome.intent === "trigger"
+            ? { action: outcome.action, result: outcome.result }
+            : undefined,
         ),
         intent: outcome.intent,
       },
@@ -191,20 +213,35 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     case "live_sends_disabled":
       // No legacy counterpart: legacy has no send switch. Honest rather than a
       // silent success, because nothing was mailed.
-      return data({ error: "Live email sending is switched off for this account." }, { status: 409 });
+      return data(
+        { error: "Live email sending is switched off for this account." },
+        { status: 409 },
+      );
     case "resend_failed":
-      return data({ error: `Failed to resend${outcome.detail ? `: ${outcome.detail}` : ""}` }, { status: 500 });
+      return data(
+        { error: `Failed to resend${outcome.detail ? `: ${outcome.detail}` : ""}` },
+        { status: 500 },
+      );
     case "resend_logged_failed":
       // The mail IS gone; only the timeline row failed. Reporting a plain failure
       // would contradict the customer's inbox and invite a second send.
       return data(
-        { error: "The email was resent, but recording it on the timeline failed. Do not resend again." },
+        {
+          error:
+            "The email was resent, but recording it on the timeline failed. Do not resend again.",
+        },
         { status: 500 },
       );
     case "send_retrying":
-      return data({ error: "Email send failed temporarily; it will retry automatically" }, { status: 503 });
+      return data(
+        { error: "Email send failed temporarily; it will retry automatically" },
+        { status: 503 },
+      );
     case "step_failed":
-      return data({ error: `Step failed${outcome.result ? `: ${outcome.result}` : ""}` }, { status: 502 });
+      return data(
+        { error: `Step failed${outcome.result ? `: ${outcome.result}` : ""}` },
+        { status: 502 },
+      );
     case "already_resolved":
       // Legacy answers 200 `{ success: true, alreadyResolved: true }` and its
       // client then reports plain success, which tells the merchant something
@@ -222,7 +259,10 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     case "write_failed":
       return data(
         {
-          error: outcome.intent === "note" ? "Failed to save note" : "Could not stop recovery. Please try again.",
+          error:
+            outcome.intent === "note"
+              ? "Failed to save note"
+              : "Could not stop recovery. Please try again.",
           intent: outcome.intent,
         },
         { status: 500 },
@@ -301,7 +341,11 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const notice = actionData && "notice" in actionData ? actionData.notice : null;
   const [clearedNoticeFor, setClearedNoticeFor] = useState<unknown>(null);
   // Pressing an action clears the last result at once, as Recova's does.
-  const actionResult = visibleActionResult({ actionData, clearedFor: clearedNoticeFor, pendingIntent: pressedIntent });
+  const actionResult = visibleActionResult({
+    actionData,
+    clearedFor: clearedNoticeFor,
+    pendingIntent: pressedIntent,
+  });
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setClearedNoticeFor(actionData), ACTION_SUCCESS_CLEAR_MS);
@@ -330,7 +374,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
-    recovery?.recoveredByStepId != null ? steps.find((s) => s.id === recovery.recoveredByStepId) : undefined;
+    recovery?.recoveredByStepId != null
+      ? steps.find((s) => s.id === recovery.recoveredByStepId)
+      : undefined;
 
   const executedSteps = steps.filter((s) => s.executedAt !== null);
   const emailSteps = executedSteps.filter((s) => isEmailStep(s.stepType));
@@ -340,7 +386,10 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const actionsVisible = failedPayment.status === ACTIONS_VISIBLE_STATUS;
   const visibleActions = MANUAL_ACTIONS.filter(
     (a) => a.needs === null || (a.needs === "nextStep" ? nextStepLabel !== null : canResend),
-  ).map((a) => ({ ...a, label: a.intent === "trigger" ? `Trigger ${nextStepLabel} now` : a.label }));
+  ).map((a) => ({
+    ...a,
+    label: a.intent === "trigger" ? `Trigger ${nextStepLabel} now` : a.label,
+  }));
 
   return (
     <div className="mx-auto max-w-[1000px] px-8 py-10">
@@ -368,7 +417,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               {openDisputes.length > 0 ? (
                 <Pill variant="outline" href={`/disputes/${openDisputes[0].id}`}>
                   <Shield className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                  {openDisputes.length === 1 ? "1 open dispute" : `${openDisputes.length} open disputes`}
+                  {openDisputes.length === 1
+                    ? "1 open dispute"
+                    : `${openDisputes.length} open disputes`}
                   <ArrowRight className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
                 </Pill>
               ) : null}
@@ -519,13 +570,19 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           </p>
         </Panel>
         <Panel size="sm" title="Decline">
-          <p className={`m-0 text-title font-bold ${declineValueClass(failedPayment.declineCategory)}`}>
+          <p
+            className={`m-0 text-title font-bold ${declineValueClass(failedPayment.declineCategory)}`}
+          >
             {declineWord(failedPayment.declineCategory)}
           </p>
         </Panel>
         <Panel size="sm" title="Detected">
-          <p className="m-0 text-title font-bold text-text">{formatTimeAgo(failedPayment.detectedAt, nowMs)}</p>
-          <p className="m-0 mt-1 text-micro text-text-subtle">{formatDateMonthDay(failedPayment.detectedAt)}</p>
+          <p className="m-0 text-title font-bold text-text">
+            {formatTimeAgo(failedPayment.detectedAt, nowMs)}
+          </p>
+          <p className="m-0 mt-1 text-micro text-text-subtle">
+            {formatDateMonthDay(failedPayment.detectedAt)}
+          </p>
         </Panel>
         <Panel size="sm" title="Customer age">
           <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
@@ -549,7 +606,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               value={declineWord(failedPayment.declineCategory)}
               valueClass={declineValueClass(failedPayment.declineCategory)}
             />
-            {failedPayment.declineCode ? <DetailRow label="Code" value={failedPayment.declineCode} mono /> : null}
+            {failedPayment.declineCode ? (
+              <DetailRow label="Code" value={failedPayment.declineCode} mono />
+            ) : null}
             <DetailRow label="Invoice ID" value={failedPayment.stripeInvoiceId} mono small />
             <DetailRow label="Customer ID" value={failedPayment.stripeCustomerId} mono small />
             {failedPayment.customerSince ? (
@@ -609,7 +668,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       href={`/recovery/payments/${p.id}`}
                       className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
                     >
-                      <span className="text-micro text-text-subtle">{formatTimeAgo(p.detectedAt, nowMs)}</span>
+                      <span className="text-micro text-text-subtle">
+                        {formatTimeAgo(p.detectedAt, nowMs)}
+                      </span>
                       <span className="flex items-center gap-2">
                         <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
                         <span className={`font-mono text-micro ${statusValueClass(p.status)}`}>
@@ -629,7 +690,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           success banner, distinct from every other card (approved 2026-08-10).
           It is the receipt for the attribution fee. */}
       <div className="mb-5 rounded-lg border border-brand bg-brand-bg p-4">
-        <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-brand-text">Outcome</h2>
+        <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-brand-text">
+          Outcome
+        </h2>
         {recovery ? (
           <div className="mt-2 flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -639,25 +702,35 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             </div>
             {attributionKind ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-micro uppercase tracking-wide text-text-secondary">Attribution</span>
+                <span className="font-mono text-micro uppercase tracking-wide text-text-secondary">
+                  Attribution
+                </span>
                 <Pill variant="outline">
                   {ATTRIBUTION_KIND_LABELS[attributionKind]}
                   {attributionKind === "stripe_baseline" ? " - FREE" : ""}
                 </Pill>
                 {creditedStep ? (
-                  <span className="text-label text-text-secondary">Credited to {creditedStep.label}</span>
+                  <span className="text-label text-text-secondary">
+                    Credited to {creditedStep.label}
+                  </span>
                 ) : null}
               </div>
             ) : null}
           </div>
         ) : (
-          <p className="m-0 mt-2 text-label text-text-secondary">Still in recovery, no outcome yet.</p>
+          <p className="m-0 mt-2 text-label text-text-secondary">
+            Still in recovery, no outcome yet.
+          </p>
         )}
       </div>
 
       {/* Recova's recovery timeline, PaymentDetailClient.tsx 423-571. */}
       <div className="mb-5">
-        <Panel title="Recovery timeline" src={`${executedSteps.length} of ${steps.length} steps executed`} flush>
+        <Panel
+          title="Recovery timeline"
+          src={`${executedSteps.length} of ${steps.length} steps executed`}
+          flush
+        >
           {steps.length === 0 ? (
             <div className="px-6 py-10 text-center">
               <p className="m-0 text-label text-text-subtle">No recovery steps scheduled</p>
@@ -674,8 +747,15 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 const showExpander = executed && step.previewHtml !== null;
                 const expanded = expandedStepId === step.id;
                 return (
-                  <li key={step.id} className="flex gap-4 border-b border-border px-6 py-4 last:border-0">
-                    <StepGlyph executed={executed} isEmail={email} tone={stepResultTone(step.result)} />
+                  <li
+                    key={step.id}
+                    className="flex gap-4 border-b border-border px-6 py-4 last:border-0"
+                  >
+                    <StepGlyph
+                      executed={executed}
+                      isEmail={email}
+                      tone={stepResultTone(step.result)}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2.5">
@@ -693,7 +773,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                         </span>
                       </div>
                       {email && step.aiSubject ? (
-                        <p className="m-0 mb-1 text-micro text-text-subtle">&quot;{step.aiSubject}&quot;</p>
+                        <p className="m-0 mb-1 text-micro text-text-subtle">
+                          &quot;{step.aiSubject}&quot;
+                        </p>
                       ) : null}
                       <p className="m-0 text-micro text-text-subtle">
                         {executed
@@ -713,21 +795,33 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                 {step.openedAt ? (
                                   <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
                                 ) : (
-                                  <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                  <Circle
+                                    className="h-3 w-3"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                  />
                                 )}
-                                {step.openedAt ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}` : "Not opened"}
+                                {step.openedAt
+                                  ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}`
+                                  : "Not opened"}
                               </span>
                               {/* A suspect click is shown as what it is:
                                   something fetched the link, and it is not billed. */}
                               <span
                                 className={`inline-flex items-center gap-1 text-micro ${
-                                  step.clickedAt && !step.clickSuspectReason ? "text-green" : "text-text-subtle"
+                                  step.clickedAt && !step.clickSuspectReason
+                                    ? "text-green"
+                                    : "text-text-subtle"
                                 }`}
                               >
                                 {step.clickedAt && !step.clickSuspectReason ? (
                                   <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
                                 ) : (
-                                  <Circle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                  <Circle
+                                    className="h-3 w-3"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                  />
                                 )}
                                 {step.clickedAt
                                   ? step.clickSuspectReason
@@ -828,8 +922,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           }
         >
           {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
-          {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")} &middot;{" "}
-          {formatTimeAgo(recovery.recoveredAt, nowMs)}
+          {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")}{" "}
+          &middot; {formatTimeAgo(recovery.recoveredAt, nowMs)}
           {/* Only once Stripe's balance transaction has been read. Billing stays
               on the gross amount above. */}
           {recovery.netAmountCents != null && recovery.netCurrency ? (
@@ -851,7 +945,15 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
  * the result chip beside it, so the two always agree. Capsomer has no timeline
  * node; this is the page's own until it does.
  */
-function StepGlyph({ executed, isEmail, tone }: { executed: boolean; isEmail: boolean; tone: Tone }) {
+function StepGlyph({
+  executed,
+  isEmail,
+  tone,
+}: {
+  executed: boolean;
+  isEmail: boolean;
+  tone: Tone;
+}) {
   const skin = !executed
     ? "border-border bg-border text-text-tertiary"
     : tone === "success"
@@ -861,7 +963,9 @@ function StepGlyph({ executed, isEmail, tone }: { executed: boolean; isEmail: bo
         : "border-border-sub bg-surface2 text-text-subtle";
   const Glyph = isEmail ? Mail : RotateCcw;
   return (
-    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${skin}`}>
+    <span
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${skin}`}
+    >
       <Glyph className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
     </span>
   );
