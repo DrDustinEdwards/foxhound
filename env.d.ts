@@ -3,6 +3,9 @@
 // Env interface in worker-configuration.d.ts. Non-secret config (BETTER_AUTH_URL,
 // GOOGLE_CLIENT_ID) lives in wrangler.jsonc `vars` and is typed by `wrangler types`.
 interface Env {
+  // "1" or "true" puts the site in maintenance: every path but /health answers the 503 page (site-runtime ./maintenance).
+  // Set in the dashboard.
+  MAINTENANCE?: string;
   // Carrel's key for the site-api mount at /api/carrel/v1 (job_cbe1b96107fc).
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
