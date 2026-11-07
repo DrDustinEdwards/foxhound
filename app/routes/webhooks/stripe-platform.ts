@@ -2,8 +2,7 @@ import * as Sentry from "@sentry/cloudflare";
 
 import { processPlatformWebhook } from "~/lib/billing/platform-webhook";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { logEvent } from "@dustinedwards/site-runtime/log";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { reportBadSignature } from "~/lib/stripe/signature-report";
 import { constructStripeEvent } from "~/lib/stripe/webhook";
 
 import type { Route } from "./+types/stripe-platform";
@@ -29,8 +28,6 @@ export function loader() {
   return new Response("method not allowed", { status: 405, headers: { Allow: "POST" } });
 }
 
-const SIGNATURE_REPORTS_PER_HOUR = 5;
-
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
@@ -48,24 +45,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   try {
     event = await constructStripeEvent(env, payload, signature, secret);
   } catch (err) {
-    // The endpoint is public, so every junk POST lands here: report at most
-    // SIGNATURE_REPORTS_PER_HOUR across the Worker (as the connected endpoint does), enough to
-    // show a secret-rotation slip and not enough to spend the Sentry quota.
-    if (
-      await isWithinRateLimit(
-        env,
-        "sentry",
-        "stripe-platform-webhook-signature",
-        SIGNATURE_REPORTS_PER_HOUR,
-        3_600_000,
-      )
-    ) {
-      Sentry.captureException(err, {
-        extra: { scope: "stripe-platform-webhook-signature", hasSignature: signature.length > 0 },
-      });
-    } else {
-      logEvent("stripe_webhook_signature_invalid", { reported: false }, { level: "warn" });
-    }
+    await reportBadSignature(env, "stripe-platform-webhook", err, signature.length > 0);
     return new Response("invalid signature", { status: 400 });
   }
 
