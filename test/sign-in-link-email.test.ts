@@ -82,7 +82,7 @@ function makeEnv(
     BETTER_AUTH_URL: BASE,
     BETTER_AUTH_SECRET: "test-secret-not-real-0123456789abcdef",
     // site-runtime's sign-in fails closed without both Turnstile keys, as production has them. Cloudflare's
-    // always-pass test keys; siteverify itself is stubbed below.
+    // always-pass test keys; siteverify itself is stubbed below, and names this site's host as Turnstile does.
     TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
     TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
     // The per-address code limiter refuses without its Durable Object (site-runtime fails it closed).
@@ -115,7 +115,7 @@ beforeEach(() => {
     String(input instanceof Request ? input.url : input).startsWith(
       "https://challenges.cloudflare.com/",
     )
-      ? Promise.resolve(Response.json({ success: true }))
+      ? Promise.resolve(Response.json({ success: true, hostname: new URL(BASE).hostname }))
       : realFetch(input, init),
   );
 });
