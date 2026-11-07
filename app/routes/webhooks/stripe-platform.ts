@@ -2,12 +2,9 @@ import * as Sentry from "@sentry/cloudflare";
 
 import { processPlatformWebhook } from "~/lib/billing/platform-webhook";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { reportBadSignature } from "~/lib/stripe/signature-report";
-import { constructStripeEvent } from "~/lib/stripe/webhook";
+import { verifyStripeRequest } from "~/lib/stripe/verified-event";
 
 import type { Route } from "./+types/stripe-platform";
-import { readText } from "@dustinedwards/site-runtime/body";
-import { WEBHOOK_BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Platform Stripe webhook (ROUTES.md: /webhooks/stripe-platform). This is
 // Foxhound's OWN Stripe account (billing our merchants), verified with
@@ -29,25 +26,14 @@ export function loader() {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  if (request.method !== "POST") {
-    return new Response("method not allowed", { status: 405 });
-  }
   const { env } = context.get(cloudflareContext);
-  const secret = env.STRIPE_PLATFORM_WEBHOOK_SECRET;
-  if (!secret) {
-    return new Response("webhook not configured", { status: 500 });
-  }
-
-  const payload = await readText(request, WEBHOOK_BODY_MAX_BYTES);
-  const signature = request.headers.get("stripe-signature") ?? "";
-
-  let event;
-  try {
-    event = await constructStripeEvent(env, payload, signature, secret);
-  } catch (err) {
-    await reportBadSignature(env, "stripe-platform-webhook", err, signature.length > 0);
-    return new Response("invalid signature", { status: 400 });
-  }
+  const event = await verifyStripeRequest(
+    request,
+    env,
+    env.STRIPE_PLATFORM_WEBHOOK_SECRET,
+    "stripe-platform-webhook",
+  );
+  if (event instanceof Response) return event;
 
   const outcome = await processPlatformWebhook(env, event, new Date());
   if (outcome.status === "error") {

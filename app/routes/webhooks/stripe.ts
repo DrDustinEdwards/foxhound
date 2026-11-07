@@ -1,13 +1,10 @@
 import * as Sentry from "@sentry/cloudflare";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { reportBadSignature } from "~/lib/stripe/signature-report";
-import { constructStripeEvent } from "~/lib/stripe/webhook";
+import { verifyStripeRequest } from "~/lib/stripe/verified-event";
 import { processConnectedWebhook } from "~/lib/webhooks/process";
 
 import type { Route } from "./+types/stripe";
-import { readText } from "@dustinedwards/site-runtime/body";
-import { WEBHOOK_BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Connected-account Stripe webhook (ROUTES.md: /webhooks/stripe). Signature is
 // verified with STRIPE_WEBHOOK_SECRET (constructEventAsync, Web Crypto). The
@@ -25,26 +22,14 @@ export function loader() {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  if (request.method !== "POST") {
-    return new Response("method not allowed", { status: 405 });
-  }
   const { env } = context.get(cloudflareContext);
-  const secret = env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) {
-    // Misconfiguration: fail closed so events are retried, not silently dropped.
-    return new Response("webhook not configured", { status: 500 });
-  }
-
-  const payload = await readText(request, WEBHOOK_BODY_MAX_BYTES);
-  const signature = request.headers.get("stripe-signature") ?? "";
-
-  let event;
-  try {
-    event = await constructStripeEvent(env, payload, signature, secret);
-  } catch (err) {
-    await reportBadSignature(env, "stripe-webhook", err, signature.length > 0);
-    return new Response("invalid signature", { status: 400 });
-  }
+  const event = await verifyStripeRequest(
+    request,
+    env,
+    env.STRIPE_WEBHOOK_SECRET,
+    "stripe-webhook",
+  );
+  if (event instanceof Response) return event;
 
   const outcome = await processConnectedWebhook(env, event, new Date());
   if (outcome.status === "error") {
