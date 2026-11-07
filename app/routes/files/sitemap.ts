@@ -6,6 +6,7 @@ import {
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getAllPublishedPosts } from "~/lib/blog/queries.server";
+import { loadPageDates } from "~/lib/page-dates.server";
 import { COMPETITOR_ORDER } from "~/lib/compare/competitors";
 import { DECLINE_CODES } from "~/lib/decline-codes/codes";
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
@@ -50,7 +51,8 @@ type SitemapEntry = Omit<PrelumEntry, "loc"> & { path: string };
 // corrected. Legacy's lastModified is deliberately NOT restored: it sets
 // `new Date()` on every static entry, telling crawlers every page changed on
 // this request, which is false and degrades crawl scheduling. Ruling 39
-// class, do not restore a legacy defect.
+// class, do not restore a legacy defect. A static entry's lastmod is the day its text last
+// changed, which the daily page-dates job keeps (app/lib/page-dates.server.ts).
 //
 // The product pages are Recova's /product/* (singular), served at the same
 // path since J09. The old /products/<name> addresses this file
@@ -93,6 +95,19 @@ const docEntries: SitemapEntry[] = DOC_GUIDES.map((g) => ({
   priority: 0.7,
 }));
 
+const declineCodeEntriesOf = () => DECLINE_CODES.map((c) => ({ path: `/decline-codes/${c.code}` }));
+const compareEntriesOf = () => COMPETITOR_ORDER.map((slug) => ({ path: `/compare/${slug}` }));
+
+/** The paths no database row dates: the pages written in code. The daily page-dates job dates them by what they say. */
+export function codePagePaths(): string[] {
+  return [
+    ...STATIC_PAGES.map((p) => p.path),
+    ...docEntries.map((p) => p.path),
+    ...declineCodeEntriesOf().map((p) => p.path),
+    ...compareEntriesOf().map((p) => p.path),
+  ];
+}
+
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
@@ -100,6 +115,12 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   // A post marked noindex (its search field) is left out.
   const posts = await getAllPublishedPosts(db, { indexedOnly: true });
+  // The day each code-written page last changed (the daily page-dates job); a page it has not dated yet has no lastmod.
+  const dates = await loadPageDates(db);
+  const dated = <T extends { path: string }>(entry: T): T & { lastmod?: string } => ({
+    ...entry,
+    lastmod: dates[entry.path]?.lastmod,
+  });
 
   const postEntries: SitemapEntry[] = posts.map((post) => ({
     path: `/blog/${post.slug}`,
@@ -108,37 +129,46 @@ export async function loader({ context }: Route.LoaderArgs) {
     priority: 0.7,
   }));
 
-  const tagsWithPosts = new Set<string>();
-  for (const post of posts) for (const tag of post.tags) tagsWithPosts.add(tag);
+  // A tag page changed when the newest of its posts did.
+  const tagNewest = new Map<string, Date>();
+  for (const post of posts) {
+    const changed = post.updatedAt ?? post.publishedAt;
+    for (const tag of post.tags) {
+      const seen = tagNewest.get(tag);
+      if (changed && (!seen || changed > seen)) tagNewest.set(tag, changed);
+    }
+  }
+  const tagsWithPosts = new Set<string>(posts.flatMap((post) => post.tags));
   // Legacy hardcodes five tag URLs at 0.7, except comparisons at 0.6. A
   // generator cannot reproduce a per-tag exception without hand-listing the
   // very data it derives from, so all tags take legacy's majority value; the
   // comparisons nuance is recorded rather than encoded.
   const tagEntries: SitemapEntry[] = [...tagsWithPosts].map((tag) => ({
     path: `/blog/tag/${tag}`,
+    lastmod: tagNewest.get(tag),
     changefreq: "weekly",
     priority: 0.7,
   }));
 
-  const declineCodeEntries: SitemapEntry[] = DECLINE_CODES.map((c) => ({
-    path: `/decline-codes/${c.code}`,
+  const declineCodeEntries: SitemapEntry[] = declineCodeEntriesOf().map((entry) => ({
+    ...entry,
     changefreq: "monthly",
     priority: 0.6,
   }));
 
-  const compareEntries: SitemapEntry[] = COMPETITOR_ORDER.map((slug) => ({
-    path: `/compare/${slug}`,
+  const compareEntries: SitemapEntry[] = compareEntriesOf().map((entry) => ({
+    ...entry,
     changefreq: "monthly",
     priority: 0.6,
   }));
 
   const entries = [
-    ...STATIC_PAGES,
-    ...docEntries,
+    ...STATIC_PAGES.map(dated),
+    ...docEntries.map(dated),
     ...postEntries,
     ...tagEntries,
-    ...declineCodeEntries,
-    ...compareEntries,
+    ...declineCodeEntries.map(dated),
+    ...compareEntries.map(dated),
   ];
 
   const xml = sitemapDocument(
