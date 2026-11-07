@@ -191,7 +191,6 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               data-cap="table"
               role="region"
               aria-labelledby={HEADING_ID}
-              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
               tabIndex={0}
             >
               <table className="cap-table">

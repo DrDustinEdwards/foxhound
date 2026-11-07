@@ -114,7 +114,6 @@ export function OnboardingChecklist({
   const allDone = connected && senderNameSet && alertAddressSet;
   return (
     <Panel title="Getting started">
-      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- role="list" keeps list semantics that Safari drops from a ul styled without bullets */}
       <ul className="cap-rows" role="list" data-gap="sm">
         <StaticRow
           status={<ChecklistStatus done={connected} />}
@@ -392,7 +391,6 @@ export function RecoveryQueue({
   }
   return (
     <Panel title={`Recovery queue · next ${hours}h`}>
-      {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- role="list" keeps list semantics that Safari drops from a ul styled without bullets */}
       <ul className="cap-rows" role="list" data-gap="xs">
         {w.upcomingSteps.map((s) => (
           <StaticRow
@@ -510,7 +508,6 @@ export function PaymentsTable({
       ) : (
         <>
           {/* Recova's phone layout: one card per payment. */}
-          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- role="list" keeps list semantics that Safari drops from a ul styled without bullets */}
           <ul className="cap-rows sm:hidden" role="list">
             {payments.map((p) => (
               <StaticRow
@@ -549,7 +546,6 @@ export function PaymentsTable({
               data-cap="table"
               role="region"
               aria-label="Failed payments"
-              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
               tabIndex={0}
             >
               <table className="cap-table">

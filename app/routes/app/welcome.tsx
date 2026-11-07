@@ -86,7 +86,6 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
 
       <div className="mb-8">
         <Panel title="Two quick steps">
-          {/* oxlint-disable-next-line jsx-a11y/no-redundant-roles -- role="list" keeps list semantics that Safari drops from a ul styled without bullets */}
           <ul className="cap-rows" role="list" data-gap="sm">
             <StaticRow
               status={<ChecklistStatus done={senderNameSet} />}

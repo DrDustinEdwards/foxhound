@@ -151,7 +151,6 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                 // headingId), so the scroll region is not nested in a second
                 // region of the same name.
                 aria-label="High-risk customers by MRR"
-                // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
                 tabIndex={0}
               >
                 <table className="cap-table">

@@ -211,7 +211,6 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
     return <p className="m-0 text-label text-text-subtle">All clear. The platform is running.</p>;
   }
   return (
-    // oxlint-disable-next-line jsx-a11y/no-redundant-roles -- role="list" keeps list semantics that Safari drops from a ul styled without bullets
     <ul className="cap-rows" role="list" aria-label="Needs attention">
       {rows.map((row) => (
         <li key={row.key} className="cap-row" data-tone={ROW_TONE[row.tone]}>

@@ -443,7 +443,6 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
             data-reflow=""
             role="region"
             aria-label="Churn predictions"
-            // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
             tabIndex={0}
           >
             <table className="cap-table">
