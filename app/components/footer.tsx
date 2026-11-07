@@ -188,7 +188,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 height={28}
                 loading="lazy"
                 decoding="async"
-                className="shrink-0"
+                className="size-7 shrink-0"
                 aria-hidden
               />
               <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
