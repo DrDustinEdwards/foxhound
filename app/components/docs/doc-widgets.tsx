@@ -151,7 +151,7 @@ function DeclineCategories() {
             <div className="cap-panel-body">
               <div className="flex items-start gap-3">
                 <CategoryPill category={category} />
-                <span className="text-label leading-relaxed text-text-secondary">
+                <span className="min-w-0 break-words text-label leading-relaxed text-text-secondary">
                   <span className="font-medium text-text">
                     {DECLINE_CATEGORY_LABELS[category]}.
                   </span>{" "}
@@ -160,7 +160,7 @@ function DeclineCategories() {
                   {codes.map((code, i) => (
                     <span key={code}>
                       {i > 0 ? ", " : null}
-                      <code className="font-mono">{code}</code>
+                      <code className="break-all font-mono">{code}</code>
                     </span>
                   ))}
                 </span>
@@ -204,7 +204,7 @@ function PaymentTimeline() {
           {steps.map((step, i) => (
             <li key={step.stepType} className="flex items-center gap-4 px-4 py-3">
               <span className="w-6 font-mono text-micro text-text-tertiary">{i + 1}</span>
-              <span className="flex-1 truncate text-label text-text-secondary">
+              <span className="min-w-0 flex-1 break-words text-label text-text-secondary">
                 {formatStepType(step.stepType)}
               </span>
               <span className="whitespace-nowrap font-mono text-micro text-text-tertiary">
