@@ -24,7 +24,10 @@ import { withSentry } from "@sentry/cloudflare";
 import { createRequestHandler, RouterContextProvider, type ServerBuild } from "react-router";
 
 import { cloudflareContext, cspNonceContext } from "@dustinedwards/site-runtime/context";
+import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
 import { setPageRenderer } from "~/lib/page-dates.server";
+import { SITE_ORIGIN } from "~/lib/seo/jsonld";
+import { codePagePaths } from "~/routes/files/sitemap";
 import { storedNonceContext } from "~/lib/stored-nonce";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
@@ -261,26 +264,40 @@ const site = withSentry<Env>(sentryOptions, {
   },
 } satisfies ExportedHandler<Env>);
 
-// An admin idle for an hour is signed out of Access (site-runtime ./access).
+// An admin idle for an hour is signed out of Access (site-runtime ./access). Every HTML page names the link prefetch rules
+// (Speculation-Rules), stored pages included.
+const answer = async (request: Request, env: Env, ctx: ExecutionContext) =>
+  withSpeculationRules(
+    await withAdminIdle(
+      request,
+      async () => site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx),
+      {
+        secret: env.ADMIN_IDLE_SECRET,
+      },
+    ),
+  );
+
+// Prelum's markdownCopies: each public page has a Markdown copy at its path plus .md and answers Accept: text/markdown.
+// Only the sitemap's pages get one (the pages written in code, and the blog's posts, archive and tags); the signed-in
+// app, the audit, the admin and the APIs do not. /llms-full.txt stays the site's own (llmsFull: false): it states the
+// product lineup and leaves pricing numbers to /pricing, which a copy built from whole pages would not.
+// siteMarkdown: false makes a copy without first asking the site for the .md path, which the 404 counter would count.
+const CODE_PAGES = new Set(codePagePaths());
+const withMarkdownCopies = markdownCopies(answer, {
+  origin: SITE_ORIGIN,
+  llmsFull: false,
+  siteMarkdown: false,
+  skip: (path) => !(CODE_PAGES.has(path) || path.startsWith("/blog/")),
+});
+
 export default {
   ...site,
-  // Every HTML page names the link prefetch rules (Speculation-Rules), stored pages included. Every request writes one
-  // `request` line (site-runtime ./log's withRequestLog: path, status, ms and the deployed commit; never a query).
-  fetch: withRequestLog(
-    // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
-    async (request: Request, env: Env, ctx: ExecutionContext) =>
-      withSpeculationRules(
-        await withAdminIdle(
-          request,
-          async () =>
-            site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx),
-          {
-            secret: env.ADMIN_IDLE_SECRET,
-          },
-        ),
-      ),
-    { sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA },
-  ),
+  // Every request writes one `request` line (site-runtime ./log's withRequestLog: path, status, ms and the deployed
+  // commit; never a query).
+  // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
+  fetch: withRequestLog(withMarkdownCopies, {
+    sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA,
+  }),
 } satisfies ExportedHandler<Env>;
 
 /**
