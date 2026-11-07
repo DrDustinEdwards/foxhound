@@ -127,7 +127,12 @@ export default function DemosPage() {
                         width: the one-column grid stretches it, so the button
                         carries no Foxhound class. */}
                     <div className="grid">
-                      <Link to={entry.href} className="cap-btn" data-variant="primary">
+                      <Link
+                        to={entry.href}
+                        rel="nofollow"
+                        className="cap-btn"
+                        data-variant="primary"
+                      >
                         <entry.Icon data-icon="start" strokeWidth={2} aria-hidden />
                         View {entry.name} demo
                       </Link>

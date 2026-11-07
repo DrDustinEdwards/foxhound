@@ -341,6 +341,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       {/* A 24px target (min-h-6) for a link that stands alone. */}
       <a
         href="/demos/recovery"
+        rel="nofollow"
         className="inline-flex min-h-6 items-center text-copy text-accent-text no-underline transition-opacity duration-500 hover:opacity-80"
       >
         View live demo &rarr;
