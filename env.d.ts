@@ -7,6 +7,9 @@ interface Env {
   // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
   // Unset or shorter than 32 characters, the mount refuses every request.
   CARREL_SITE_KEY?: string;
+  // The operator API's bearer (/api/operator, app/lib/operator.server.ts): Capsid Admin's backup check, back up now
+  // and run a job now. Set by Capsid Admin's site key control, never shown; unset or under 32 characters, 503.
+  OPERATOR_TOKEN?: string;
   // Keys site-runtime's admin idle cookie (withAdminIdle `secret`). Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown; unset, the admin paths fail (site-runtime 0.82 requires it).
   ADMIN_IDLE_SECRET: string;
   // Extra exact callbacks a merchant MCP client registration may name, space or

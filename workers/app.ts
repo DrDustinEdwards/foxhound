@@ -120,6 +120,16 @@ const site = withSentry<Env>(sentryOptions, {
       }
     }
 
+    // THE OPERATOR API, before the router (app/lib/operator.server.ts): Capsid Admin's backups and run a job now,
+    // behind its own bearer. Imported only on its path, so the cron registry stays off every page render.
+    if (pathname === "/api/operator") {
+      const { operatorAnswer } = await import("~/lib/operator.server");
+      return applyCachePolicy(
+        request,
+        applySecurityHeaders(await operatorAnswer(request, env), nonce, origin),
+      );
+    }
+
     // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
     // It is JSON-RPC over POST with its own header contract and its own bearer
     // auth; none of the router's loader/action machinery applies, and mounting

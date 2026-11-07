@@ -468,3 +468,32 @@ export const CRON_JOBS: CronJob[] = [
 export function jobsForSchedule(cron: string): CronJob[] {
   return CRON_JOBS.filter((j) => j.schedule === cron);
 }
+
+/**
+ * The jobs Capsid Admin may run now (the operator API's run_job, app/lib/operator.server.ts). An allowlist, so a job
+ * added later is not runnable now until someone decides it is safe: none of these moves money, submits a dispute,
+ * sends a merchant or customer email or spends AI budget (CLAUDE.md hard rule 4). The backups are marked backup, for
+ * run_job { backup: true }. Everything else (the recovery tick, billing, dunning, digests, reminders, Stripe retries,
+ * Intelligence, the demo reset) runs only on its schedule.
+ */
+const RUN_NOW: Record<string, { backup?: boolean }> = {
+  "d1-backup": { backup: true },
+  "media-backup": { backup: true },
+  "evidence-backup": { backup: true },
+  "tool-call-log-export": {},
+  "cron-health": {},
+  "blog-schedules": {},
+  "retention-engagement-events": {},
+  "retention-email-sends": {},
+  "retention-webhook-events": {},
+  "retention-health-score": {},
+  "retention-cron-history": {},
+  "retention-social-leads": {},
+  "retention-page-404": {},
+  "retention-ai-calls": {},
+  "retention-auth-events": {},
+};
+
+export const RUN_NOW_JOBS: (CronJob & { backup?: boolean })[] = CRON_JOBS.filter((j) =>
+  Object.hasOwn(RUN_NOW, j.name),
+).map((j) => ({ ...j, ...RUN_NOW[j.name] }));

@@ -29,7 +29,7 @@ import {
   listMerchants,
   setProcessingPaused,
 } from "~/lib/admin/merchants.server";
-import { backupFilesNow, backupStatus } from "~/lib/backup/d1-backup";
+import { backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import {
@@ -422,21 +422,6 @@ const ROUTES: ApiRoute[] = [
     method: "GET",
     pattern: "/backup",
     handler: async ({ env, now }) => ({ ...(await backupStatus(env, now)) }),
-  },
-  {
-    // Runs the files backup now, the same passes as the nightly cron (backupFilesNow). Copy only: it writes
-    // nothing but the backups bucket and moves no money, so it is a direct write and safe to repeat.
-    method: "POST",
-    pattern: "/backup/media",
-    handler: async ({ db, env, caller }) => {
-      const files = await backupFilesNow(env);
-      await logAdminAction(db, {
-        actorEmail: caller.actorEmail,
-        action: "backup.media",
-        metadata: { passes: files.map((f) => f.name), via: "admin-api", keyId: caller.keyId },
-      });
-      return { files };
-    },
   },
   {
     method: "POST",
