@@ -80,10 +80,13 @@ async function uploadEvidenceFilesToStripe(
   for (let i = 0; i < files.length && i < STRIPE_FILE_SLOTS.length; i++) {
     const file = files[i]!;
     try {
-      const created = await stripe.files.create({
-        purpose: "dispute_evidence",
-        file: { data: file.bytes, name: file.name, type: file.contentType },
-      });
+      const created = await stripe.files.create(
+        {
+          purpose: "dispute_evidence",
+          file: { data: file.bytes, name: file.name, type: file.contentType },
+        },
+        { timeout: 60_000 },
+      ); // evidence files are larger than the 30 s client default allows
       const slot = STRIPE_FILE_SLOTS[file.slot ?? i];
       if (slot) slots[slot] = created.id;
     } catch (error) {
