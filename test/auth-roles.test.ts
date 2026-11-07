@@ -20,9 +20,7 @@ describe("isAdminEmail", () => {
     const e = env(" Dustin@Example.com ", " ops@Example.com ,");
     expect(isAdminEmail(e, "DUSTIN@example.com")).toBe(true);
     expect(isAdminEmail(e, "ops@example.com")).toBe(true);
-  });
-
-  it("admits no co-owner while ADMIN_EMAIL is unset", () => {
+    // Unset ADMIN_EMAIL closes the site to co-owners too.
     expect(isAdminEmail(env(undefined, "ops@example.com"), "ops@example.com")).toBe(false);
   });
 
