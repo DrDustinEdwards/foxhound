@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { escapeHtml } from "capsomer/email";
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";

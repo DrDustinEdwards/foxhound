@@ -1,3 +1,4 @@
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import type { NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import {
   alert,
@@ -6,7 +7,6 @@ import {
   checkUrl,
   type Copy,
   emailChange,
-  escapeHtml,
   type FooterLine,
   magicLink,
   notice,
