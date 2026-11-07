@@ -1,6 +1,6 @@
 import { storedNonceContext } from "~/lib/stored-nonce";
 import { createElement } from "react";
-import type { EntryContext, RouterContextProvider } from "react-router";
+import { RouterContextProvider, type EntryContext } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { page404Daily } from "~/db/schema";
@@ -47,13 +47,14 @@ function d1() {
 
 function loadContext() {
   const ctx = { waitUntil: vi.fn((p: Promise<unknown>) => void scheduled.push(p)) };
-  const provider = {
-    get(key: unknown) {
-      if (key === cloudflareContext) return { env: { DB: d1() } as unknown as Env, ctx };
-      if (key === cspNonceContext || key === storedNonceContext) return undefined;
-      throw new Error("unexpected context key");
-    },
-  } as unknown as RouterContextProvider;
+  // A real provider set up as the Renderer sets it: RouterContextProvider.get throws for a context nobody set.
+  const provider = new RouterContextProvider();
+  provider.set(cloudflareContext, {
+    env: { DB: d1() } as unknown as Env,
+    ctx: ctx as unknown as ExecutionContext,
+  });
+  provider.set(cspNonceContext, undefined);
+  provider.set(storedNonceContext, "stored-nonce");
   return { ctx, provider };
 }
 
