@@ -1,7 +1,6 @@
 import { auditLogCheck } from "@dustinedwards/site-runtime/audit-log";
 import { cronCheck } from "@dustinedwards/site-runtime/cron";
 import {
-  aiCheck,
   authSpikeCheck,
   durableObjectCheck,
   emailCheck,
@@ -48,7 +47,6 @@ export async function loader({ context }: Route.LoaderArgs) {
       r2Check("evidence", env.EVIDENCE),
       r2Check("audit-bucket", env.AUDIT_BUCKET),
       imagesCheck("images", env.IMAGES),
-      aiCheck("ai", env.AI),
       emailCheck("email", env.EMAIL),
       queueCheck("audit-queue", env.AUDIT_QUEUE),
       durableObjectCheck("money-writer", env.MONEY_WRITER),

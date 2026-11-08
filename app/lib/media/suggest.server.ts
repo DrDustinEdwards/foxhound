@@ -1,5 +1,5 @@
-// Tags and alt text a model suggests for one library picture: site-api's mediaSuggester (Workers AI, through
-// Cloudflare AI Gateway when AI_GATEWAY_BASE_URL is set). Nothing here writes a file: a suggestion reaches one only
+// Tags and alt text a model suggests for one library picture: site-api's mediaSuggester (Claude Haiku 5.5, straight at
+// Anthropic with ANTHROPIC_API_KEY). Nothing here writes a file: a suggestion reaches one only
 // when an editor accepts it in Carrel, as an alt or a tags write. The only pictures sent are the blog pictures Carrel
 // uploaded; no merchant data is ever in them or in the prompt. Every call is metered in ai_calls (source
 // "media-suggest", no account), as the Anthropic calls are.
@@ -18,8 +18,8 @@ export const suggestFor = mediaSuggester<Env>({
         accountId: null,
         source: "media-suggest",
         model: usage.model,
-        promptTokens: usage.promptTokens,
-        completionTokens: usage.completionTokens,
+        promptTokens: Math.ceil(usage.input + usage.cacheRead * 0.1 + usage.cacheWrite * 1.25),
+        completionTokens: usage.output,
         relatedId: id ?? null,
         createdAt: new Date(),
       });
