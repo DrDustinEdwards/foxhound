@@ -161,13 +161,6 @@
   "images": {
     "binding": "IMAGES"
   },
-  // Workers AI, for the media library's suggested alt text and tags only
-  // (app/lib/media/suggest.server.ts): run when an editor opens a picture's
-  // suggestions in Carrel, on the blog pictures Carrel uploaded and nothing
-  // else. No merchant data is ever sent.
-  "ai": {
-    "binding": "AI"
-  },
   // NO KV BINDING, deliberately. The APP_KV binding was REMOVED 2026-08-15 by
   // ruling 310, after `env.APP_KV` measured ZERO consumers across app/ and
   // workers/: it was bound here and enumerated on the env-sanity surface while

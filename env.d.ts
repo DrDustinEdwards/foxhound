@@ -106,15 +106,6 @@ interface Env {
   // inert until this is present. Generated copy is sanitized before use.
   ANTHROPIC_API_KEY?: string;
 
-  // Cloudflare AI Gateway for the picture suggester's Workers AI calls (site-runtime
-  // ./ai-gateway): the gateway's endpoint,
-  // https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic, and
-  // the authenticated gateway's token. Claude calls never use it: they go straight to
-  // Anthropic. Both are Worker SECRETS, not vars: this config has no keep_vars, so a
-  // var set in the dashboard is wiped by the next `wrangler deploy`, and a secret is not.
-  AI_GATEWAY_BASE_URL?: string;
-  AI_GATEWAY_TOKEN?: string;
-
   // ---- Phase 4c: email pipeline (Dustin-provisioned; wrangler bindings added
   // once the queue exists + Email Service is enabled on the zone). Declared
   // ambient + optional so the code is guarded and deploy stays green until then.

@@ -22,9 +22,9 @@ interface ModelCost {
 const AI_MODEL_COSTS: Record<string, ModelCost> = {
   "claude-sonnet-5": { inputCentsPer1M: 300, outputCentsPer1M: 1500 },
   "claude-haiku-4-5": { inputCentsPer1M: 100, outputCentsPer1M: 500 },
-  // Workers AI, the media library's suggested alt text and tags (app/lib/media/suggest.server.ts). Cloudflare's
-  // listed price, developers.cloudflare.com/workers-ai/platform/pricing/, read 2026-10-30.
-  "@cf/meta/llama-4-scout-17b-16e-instruct": { inputCentsPer1M: 27, outputCentsPer1M: 85 },
+  // The media library's suggested alt text and tags (app/lib/media/suggest.server.ts). List price for prompts up
+  // to 100,000 tokens, platform.claude.com/docs/en/about-claude/pricing, read 2026-11-08.
+  "claude-haiku-5-5": { inputCentsPer1M: 10, outputCentsPer1M: 50 },
 };
 
 /** Strip a trailing -YYYYMMDD snapshot suffix to the canonical base model id. Pure. */

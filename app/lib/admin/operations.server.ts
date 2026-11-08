@@ -249,8 +249,6 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // Cloudflare Images: the blog pictures' sizes and Carrel's turns and
     // shrinks. Unset means /media serves originals only.
     ["IMAGES", "binding"],
-    // Workers AI: the media library's suggested alt text and tags only.
-    ["AI", "binding"],
     ["BETTER_AUTH_URL", "var"],
     ["TURNSTILE_SITE_KEY", "var"],
     ["BETTER_AUTH_SECRET", "secret"],
@@ -262,11 +260,6 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["STRIPE_WEBHOOK_SECRET", "secret"],
     ["STRIPE_PLATFORM_WEBHOOK_SECRET", "secret"],
     ["ANTHROPIC_API_KEY", "secret"],
-    // Optional: unset simply means the Anthropic calls go direct rather
-    // than through AI Gateway. Listed so the surface shows whether the
-    // gateway is actually in front of them.
-    ["AI_GATEWAY_BASE_URL", "secret"],
-    ["AI_GATEWAY_TOKEN", "secret"],
     ["GOOGLE_CLIENT_ID", "secret"],
     ["GOOGLE_CLIENT_SECRET", "secret"],
     ["TURNSTILE_SECRET_KEY", "secret"],
