@@ -26,9 +26,14 @@ describe("runD1Backup and backupStatus without a bucket", () => {
     });
     const bucket = {
       put: async () => undefined,
-      get: async () => ({ text: async () => marker }),
+      // The dump's marker, and for each files copy (files/<name>/_complete.json) the pass's marker.
+      get: async (key: string) => ({
+        text: async () =>
+          key.startsWith("files/") ? JSON.stringify({ finished_at: exported }) : marker,
+      }),
       list: async () => ({
         objects: [{ key: "backups/json/2026-10-08T03-00-00Z/_complete.json" }],
+        delimitedPrefixes: ["backups/json/2026-10-08T03-00-00Z/"],
         truncated: false,
       }),
     };
