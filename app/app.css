@@ -897,9 +897,7 @@ body {
   margin: 0.25rem 0 0;
   color: var(--text-secondary);
 }
-/* Blog figures. A hand-drawn diagram is a :::figure with a dark twin, since
-   an SVG in an <img> cannot read data-theme: the page shows the drawing for
-   its theme. Laid out as legacy's inline diagrams were, full width. */
+/* Pictures in the prose. A photograph is a :::figure and spans the column. */
 .blog-prose figure {
   margin: 2rem 0;
 }
@@ -910,12 +908,135 @@ body {
   margin: 0;
   border-radius: 0;
 }
-.blog-prose .figure-dark,
-:root[data-theme="dark"] .blog-prose .figure-light {
-  display: none;
-}
-:root[data-theme="dark"] .blog-prose .figure-dark {
+/* Hand-drawn diagrams, inlined. One SVG: node fills, strokes and labels
+   read the site's variables, so the drawing follows light and dark. The
+   width and height attributes are the drawing's own size. It shrinks to
+   the column and is never stretched. */
+.blog-prose .blog-diagram svg {
   display: block;
+  max-width: 100%;
+  height: auto;
+  font-family: var(--font-dm-sans), sans-serif;
+}
+.blog-prose .blog-diagram .node-neutral {
+  fill: var(--surface2);
+  stroke: var(--border-strong);
+}
+.blog-prose .blog-diagram :is(.node-accent, .bar-net, .event-retry) {
+  fill: var(--brand-bg);
+  stroke: var(--brand-border-interactive);
+}
+.blog-prose .blog-diagram :is(.node-success, .bar-positive) {
+  fill: var(--green-bg);
+  stroke: var(--success-border-interactive);
+}
+.blog-prose .blog-diagram :is(.node-warning, .bar-negative) {
+  fill: var(--red-bg);
+  stroke: var(--error-border-interactive);
+}
+.blog-prose .blog-diagram :is(.node-info, .event-email) {
+  fill: var(--blue-bg);
+  stroke: var(--info-border-interactive);
+}
+.blog-prose .blog-diagram :is(.label-primary, .header, .event-letter) {
+  fill: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.blog-prose .blog-diagram .header {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.blog-prose .blog-diagram .event-letter {
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.blog-prose .blog-diagram .label-secondary {
+  fill: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+.blog-prose .blog-diagram .label-warning {
+  fill: var(--error-text);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.blog-prose .blog-diagram .label-mono {
+  fill: var(--text);
+  font-family: var(--font-dm-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+.blog-prose .blog-diagram .label-accent {
+  fill: var(--brand-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.blog-prose .blog-diagram .rate-num {
+  fill: var(--brand-text);
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+.blog-prose .blog-diagram .connector-accent {
+  stroke: var(--brand-ui);
+  stroke-width: 1.5;
+  fill: none;
+}
+.blog-prose .blog-diagram .arrow-head-accent {
+  fill: var(--brand-ui);
+}
+.blog-prose .blog-diagram :is(.header-warning, .lane-label-hard) {
+  fill: var(--error-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.blog-prose .blog-diagram .header-warning {
+  letter-spacing: 0.06em;
+}
+.blog-prose .blog-diagram :is(.header-info, .lane-label-soft) {
+  fill: var(--blue);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.blog-prose .blog-diagram .header-info {
+  letter-spacing: 0.06em;
+}
+.blog-prose .blog-diagram .lane-label-card {
+  fill: var(--success-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.blog-prose .blog-diagram .connector {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  fill: none;
+}
+.blog-prose .blog-diagram .arrow-head {
+  fill: var(--border-strong);
+}
+.blog-prose .blog-diagram .lane {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.blog-prose .blog-diagram :is(.axis, .axis-tick, .axis-line) {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  fill: none;
+}
+.blog-prose .blog-diagram .divider {
+  stroke: var(--border);
+  stroke-width: 1;
+  fill: none;
+}
+.blog-prose .blog-diagram .baseline {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  fill: none;
 }
 /* Prelum's section link after each heading: there to copy, quiet until the
    heading is hovered or the link has focus. */

@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 
 import type { Db } from "~/db";
 import * as schema from "~/db/schema";
+import { BLOG_DIAGRAMS } from "~/lib/blog/diagrams";
 import { renderMarkdown } from "~/lib/blog/markdown.server";
 
 // An empty-D1 stand-in; renderMarkdown only
@@ -26,16 +27,33 @@ describe("renderMarkdown", () => {
     expect(html).toContain('id="a-subsection"');
   });
 
-  it("renders a diagram figure as its light and dark drawings, sized from the file name", async () => {
-    const { html } = await renderMarkdown(
-      emptyDb(),
-      ':::figure{src="/diagrams/mrr-waterfall-light-680x380.svg" dark="/diagrams/mrr-waterfall-dark-680x380.svg" alt="Two waterfalls"}\n:::',
-    );
-    expect(html).toContain(
-      '<img src="/diagrams/mrr-waterfall-light-680x380.svg" alt="Two waterfalls" class="figure-light" width="680" height="380"',
-    );
-    expect(html).toContain(
-      '<img src="/diagrams/mrr-waterfall-dark-680x380.svg" alt="Two waterfalls" class="figure-dark" width="680" height="380"',
+  function diagram(slug: string): string {
+    return `:::figure{src="/diagrams/${slug}-light-1x1.svg" dark="/diagrams/${slug}-dark-1x1.svg" alt="Diagram"}\n:::`;
+  }
+
+  it("inlines each diagram as one figure, with its title and description", async () => {
+    for (const slug of Object.keys(BLOG_DIAGRAMS)) {
+      const { html } = await renderMarkdown(emptyDb(), diagram(slug));
+      expect(html, slug).toContain(
+        `<figure class="blog-diagram" role="img" aria-labelledby="${slug}-title" aria-describedby="${slug}-desc">`,
+      );
+      expect(html, slug).toContain(`<title id="${slug}-title">`);
+      expect(html, slug).toContain(`<desc id="${slug}-desc">`);
+      expect(html, slug).toContain("<svg ");
+      expect(html, slug).not.toContain("<img");
+      expect(html, slug).not.toContain("<style");
+      expect(html, slug).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    }
+    const recovery = await renderMarkdown(emptyDb(), diagram("recovery-sequence"));
+    expect(recovery.html).toContain(">CANCELED<");
+    expect(recovery.html).not.toContain("CANCELLED");
+    expect(recovery.html).toContain('width="680"');
+    expect(recovery.html).toContain('height="820"');
+    const withdrawn = await renderMarkdown(emptyDb(), diagram("nrr-calculation"));
+    expect(withdrawn.html).not.toContain("blog-diagram");
+    expect(withdrawn.html).not.toContain("<img");
+    await expect(renderMarkdown(emptyDb(), diagram("not-a-diagram"))).rejects.toThrow(
+      /not a diagram this site draws/,
     );
     await expect(renderMarkdown(emptyDb(), "![x](https://example.com/a.png)")).rejects.toThrow(
       /not an image this site serves/,
