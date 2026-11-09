@@ -10,9 +10,10 @@
 //     made before the move still land.
 //   - Links off this site open in a new tab, as legacy's did.
 //
-// The hand-drawn diagrams are plain `:::figure`s with a dark twin
-// (public/diagrams/<slug>-light|dark-<w>x<h>.svg): an SVG in an <img> cannot
-// read the page's data-theme, so app.css shows the one that matches.
+// A hand-drawn diagram is a `:::figure` that names its light and dark files.
+// The renderer takes that pair out and inlines one SVG (./diagrams). An
+// <img> cannot read the page's colors; the inlined drawing's classes take
+// their fills from the site's variables, so the same art follows the theme.
 
 import { ContentError, RENDER_VERSION, render } from "@drdustinedwards/site-helpers/render/nomath";
 import type { RenderPack } from "@drdustinedwards/site-helpers/render/packs";
@@ -24,6 +25,7 @@ import type { Db } from "~/db";
 import { images, mediaKeyOf, mediaKeysIn, mediaUrl } from "~/lib/media/images";
 import { mediaRow, mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
 
+import { BLOG_DIAGRAMS } from "./diagrams";
 import { generateSlug } from "./format";
 import { resolvePostLink, type BlogPostSummary } from "./queries.server";
 
@@ -56,12 +58,13 @@ const foxhoundPack: RenderPack = {
   }),
 };
 
-// A post's images are the hand-drawn diagrams, which name their size
-// (<name>-<width>x<height>.svg), and the media library's pictures, which the
-// library's index sizes (/media/<key>, app/lib/carrel/media-adapter.server.ts).
-// Either way the page reserves their space. A library picture is written with
-// site-runtime ./image's srcset and AVIF and WebP sources, at the post column's
-// width, and links to its original.
+// A post's pictures are the media library's (/media/<key>, sized by the
+// library's index in app/lib/carrel/media-adapter.server.ts). A library
+// picture is written with site-runtime ./image's srcset and AVIF and WebP
+// sources, at the post column's width, and links to its original. A diagram
+// figure never reaches this: it is inlined first. A markdown image that still
+// names a sized drawing (/diagrams/<name>-<width>x<height>.svg) keeps that
+// size so the page can reserve it.
 const DIAGRAM = /^\/diagrams\/[a-z0-9-]+-(\d+)x(\d+)\.svg$/;
 
 type LibraryPicture = Pick<MediaRow, "key" | "width" | "height" | "focus" | "sha256">;
@@ -149,6 +152,57 @@ export async function coverPicture(
   };
 }
 
+// The pair the posts were given when the drawings moved to :::figure. Both
+// files named one drawing; the slug is the drawing.
+const DIAGRAM_FIGURE =
+  /^:::figure\{src="\/diagrams\/([a-z0-9-]+)-light-(\d+)x(\d+)\.svg" dark="\/diagrams\/\1-dark-\2x\3\.svg" alt="[^"]*"\}\r?\n:::$/gm;
+
+// The net-revenue-retention post answers 410, and its drawing is not shipped.
+// An old body that still names the pair renders with the figure gone.
+const RETIRED_DIAGRAMS = new Set(["nrr-calculation"]);
+
+function diagramToken(index: number): string {
+  return `XBLOGDIAGRAM${index}X`;
+}
+
+function inlineDiagram(slug: string): string {
+  if (RETIRED_DIAGRAMS.has(slug)) return "";
+  const svg = BLOG_DIAGRAMS[slug];
+  if (!svg) {
+    throw new ContentError("post", `${slug} is not a diagram this site draws`);
+  }
+  const titleId = `${slug}-title`;
+  const descId = `${slug}-desc`;
+  const drawing = svg
+    .trim()
+    .replace("<title>", `<title id="${titleId}">`)
+    .replace("<desc>", `<desc id="${descId}">`);
+  return `<figure class="blog-diagram" role="img" aria-labelledby="${titleId}" aria-describedby="${descId}">${drawing}</figure>`;
+}
+
+// Lift each diagram figure out before Prelum sees it. Prelum would draw the
+// pair as two <img>s, and the sanitizer would drop an SVG written in the
+// source. The tokens are stitched back as the inlined figure afterwards.
+function takeDiagramFigures(body: string): { body: string; slugs: string[] } {
+  const slugs: string[] = [];
+  const next = body.replace(DIAGRAM_FIGURE, (_match, slug: string) => {
+    const token = diagramToken(slugs.length);
+    slugs.push(slug);
+    return `\n\n${token}\n\n`;
+  });
+  return { body: next, slugs };
+}
+
+function stitchDiagramFigures(html: string, slugs: string[]): string {
+  return slugs.reduce((out, slug, index) => {
+    const token = diagramToken(index);
+    const figure = inlineDiagram(slug);
+    const wrapped = `<p>${token}</p>`;
+    if (out.includes(wrapped)) return out.split(wrapped).join(figure);
+    return out.split(token).join(figure);
+  }, html);
+}
+
 export async function renderMarkdown(
   db: Db,
   body: string,
@@ -158,7 +212,8 @@ export async function renderMarkdown(
   faq: Array<{ question: string; answer: string }>;
   version: string;
 }> {
-  const keys = mediaKeysIn(body);
+  const diagrams = takeDiagramFigures(body);
+  const keys = mediaKeysIn(diagrams.body);
   const pictures = new Map(
     (keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]),
   );
@@ -167,12 +222,14 @@ export async function renderMarkdown(
     const target = await resolvePostLink(db, slug);
     return target && { url: `/blog/${target.slug}`, title: target.title };
   };
-  const { html, toc, faq } = await render({
+  const rendered = await render({
     file: "post",
-    body,
+    body: diagrams.body,
     resolveImage,
     options: { packs: [foxhoundPack], media, postLink },
   });
+  const html = stitchDiagramFigures(rendered.html, diagrams.slugs);
+  const { toc, faq } = rendered;
   // version goes on the body's wrapper (data-render-version), so prelum-content can see a page rendered by an older
   // pipeline, such as one the edge cache still holds after a Prelum update.
   return {
