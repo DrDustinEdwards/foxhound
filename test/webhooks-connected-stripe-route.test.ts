@@ -190,6 +190,18 @@ describe("connected webhook: the signature rung, against a real HMAC", () => {
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
   });
 
+  it("reports nothing to Sentry when the limiter that caps the reports cannot answer", async () => {
+    // The harness env binds no RATE_LIMITER, so the limiter is unavailable. The cap fails closed: a flood
+    // of junk POSTs must not reach Sentry exactly when the cap cannot count them.
+    await seed();
+    const res = await call(
+      webhookRequest(connectedEvent("evt_junk"), "t=1,v1=bad"),
+      WEBHOOK_SECRET,
+    );
+    expect(res.status).toBe(400);
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
   it("rejects a correctly signed POST older than Stripe's default 300s replay window", async () => {
     // Ruling 308: the replay tolerance stays Stripe's default. A widened window
     // would accept this captured request again.
