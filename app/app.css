@@ -918,33 +918,40 @@ body {
   height: auto;
   font-family: var(--font-dm-sans), sans-serif;
 }
+/* Flat hairline drawing: outlines at one 1px stroke at any width, a faint
+   tint at most, square-ish corners. Colour carries the category. */
+.blog-prose .blog-diagram :is(.node-neutral, .node-accent, .node-success, .node-warning, .node-info, .bar-net, .bar-positive, .bar-negative, .event-retry, .event-email) {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  rx: 3px;
+}
 .blog-prose .blog-diagram .node-neutral {
-  fill: var(--surface2);
+  fill: transparent;
   stroke: var(--border-strong);
 }
 .blog-prose .blog-diagram :is(.node-accent, .bar-net, .event-retry) {
-  fill: var(--brand-bg);
-  stroke: var(--brand-border-interactive);
+  fill: color-mix(in srgb, var(--brand-ui) 10%, transparent);
+  stroke: var(--brand-ui);
 }
 .blog-prose .blog-diagram :is(.node-success, .bar-positive) {
-  fill: var(--green-bg);
-  stroke: var(--success-border-interactive);
+  fill: color-mix(in srgb, var(--green) 10%, transparent);
+  stroke: var(--green);
 }
 .blog-prose .blog-diagram :is(.node-warning, .bar-negative) {
-  fill: var(--red-bg);
-  stroke: var(--error-border-interactive);
+  fill: color-mix(in srgb, var(--red) 10%, transparent);
+  stroke: var(--red);
 }
 .blog-prose .blog-diagram :is(.node-info, .event-email) {
-  fill: var(--blue-bg);
-  stroke: var(--info-border-interactive);
+  fill: color-mix(in srgb, var(--blue) 10%, transparent);
+  stroke: var(--blue);
 }
 .blog-prose .blog-diagram :is(.label-primary, .header, .event-letter) {
   fill: var(--text);
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 .blog-prose .blog-diagram .header {
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.04em;
 }
 .blog-prose .blog-diagram .event-letter {
@@ -1009,12 +1016,13 @@ body {
   letter-spacing: 0.04em;
 }
 .blog-prose .blog-diagram .connector {
-  stroke: var(--border-strong);
+  stroke: var(--text-secondary);
   stroke-width: 1;
+  vector-effect: non-scaling-stroke;
   fill: none;
 }
 .blog-prose .blog-diagram .arrow-head {
-  fill: var(--border-strong);
+  fill: var(--text-secondary);
 }
 .blog-prose .blog-diagram .lane {
   fill: none;
