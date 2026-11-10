@@ -17,6 +17,10 @@ const SIGNATURE_REPORTS_PER_HOUR = 5;
  * SIGNATURE_REPORTS_PER_HOUR an hour per endpoint across the whole Worker (one shared key, so no caller
  * can spread around it): enough to show a rotation slip, not enough to spend the Sentry quota or bury
  * real alerts. The rest go to the Workers log only. The context carries no secret material.
+ *
+ * The cap fails CLOSED: when the limiter cannot answer, nothing is reported. Failing open would let every
+ * junk POST through to Sentry exactly when the cap cannot count, which is the flood the cap exists to stop.
+ * The limiter's own outage is logged by site-runtime, and the request is still logged here.
  */
 async function reportBadSignature(
   env: Env,
@@ -25,7 +29,20 @@ async function reportBadSignature(
   hasSignature: boolean,
 ): Promise<void> {
   const scope = `${endpoint}-signature`;
-  if (await isWithinRateLimit(env, "sentry", scope, SIGNATURE_REPORTS_PER_HOUR, 3_600_000)) {
+  let withinCap = false;
+  try {
+    withinCap = await isWithinRateLimit(
+      env,
+      "sentry",
+      scope,
+      SIGNATURE_REPORTS_PER_HOUR,
+      3_600_000,
+      { failClosed: true },
+    );
+  } catch {
+    // The limiter is unavailable: treat the cap as spent.
+  }
+  if (withinCap) {
     Sentry.captureException(err, { extra: { scope, hasSignature } });
   } else {
     logEvent("stripe_webhook_signature_invalid", { endpoint, reported: false }, { level: "warn" });
