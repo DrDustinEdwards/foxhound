@@ -919,7 +919,7 @@ body {
   font-family: var(--font-dm-sans), sans-serif;
 }
 /* Flat hairline drawing: outlines at one 1px stroke at any width, a faint
-   tint at most, square-ish corners. Colour carries the category. */
+   tint at most, square-ish corners. Color carries the category. */
 .blog-prose
   .blog-diagram
   :is(
