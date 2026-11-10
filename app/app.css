@@ -958,6 +958,47 @@ body {
   fill: color-mix(in srgb, var(--blue) 10%, transparent);
   stroke: var(--blue);
 }
+.blog-prose .blog-diagram :is(.ln, .ring, .dot) {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.blog-prose .blog-diagram .ln * {
+  vector-effect: non-scaling-stroke;
+}
+.blog-prose .blog-diagram .dot {
+  fill: var(--text-secondary);
+}
+.blog-prose .blog-diagram .rule {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.blog-prose .blog-diagram :is(.ln, .ring, .dot).brand {
+  stroke: var(--brand-ui);
+}
+.blog-prose .blog-diagram :is(.ln, .ring, .dot).blue {
+  stroke: var(--blue);
+}
+.blog-prose .blog-diagram :is(.ln, .ring, .dot).green {
+  stroke: var(--green);
+}
+.blog-prose .blog-diagram :is(.ln, .ring, .dot).red {
+  stroke: var(--red);
+}
+.blog-prose .blog-diagram .dot.blue {
+  fill: var(--blue);
+}
+.blog-prose .blog-diagram .dot.green {
+  fill: var(--green);
+}
+.blog-prose .blog-diagram .dot.red {
+  fill: var(--red);
+}
 .blog-prose .blog-diagram :is(.label-primary, .header, .event-letter) {
   fill: var(--text);
   font-size: 0.8125rem;
