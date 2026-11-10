@@ -920,7 +920,20 @@ body {
 }
 /* Flat hairline drawing: outlines at one 1px stroke at any width, a faint
    tint at most, square-ish corners. Colour carries the category. */
-.blog-prose .blog-diagram :is(.node-neutral, .node-accent, .node-success, .node-warning, .node-info, .bar-net, .bar-positive, .bar-negative, .event-retry, .event-email) {
+.blog-prose
+  .blog-diagram
+  :is(
+    .node-neutral,
+    .node-accent,
+    .node-success,
+    .node-warning,
+    .node-info,
+    .bar-net,
+    .bar-positive,
+    .bar-negative,
+    .event-retry,
+    .event-email
+  ) {
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   rx: 3px;
