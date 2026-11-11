@@ -544,8 +544,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     },
     [],
   );
-  function onSearch(value: string) {
+  // An IME (Japanese, Chinese and Korean input, many phone keyboards) fires change events while a word is still being
+  // composed; the search waits for compositionend, which commits it (UI Events, Composition Events), as Capsomer's
+  // catalog search does.
+  function onSearch(value: string, composing = false) {
     setSearch(value);
+    if (composing) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       sentSearch.current = value.trim();
@@ -710,7 +714,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   type="text"
                   name="q"
                   value={search}
-                  onChange={(e) => onSearch(e.target.value)}
+                  onChange={(e) =>
+                    onSearch(e.target.value, (e.nativeEvent as InputEvent).isComposing)
+                  }
+                  onCompositionEnd={(e) => onSearch(e.currentTarget.value)}
                   placeholder="Search by name, email, or plan..."
                   aria-label="Search payments"
                 />

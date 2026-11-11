@@ -8,8 +8,7 @@ import {
   applyCachePolicy,
   CACHE_DIRECTIVES,
   classifyPath,
-  edgeCacheable,
-  edgeRequest,
+  cacheable,
   hasSessionCookie,
   PRIVATE_DIRECTIVE,
   resolveCacheControl,
@@ -167,53 +166,21 @@ describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
   });
 });
 
-describe("PLANT 8: the gateway sends only an anonymous GET or HEAD of a public page to the cache", () => {
-  it.each(PUBLIC_ROUTES)("%s goes to the Renderer when anonymous", (path) => {
-    expect(edgeCacheable(request(path))).toBe(true);
-    expect(edgeCacheable(request(path, "fh_theme=light"))).toBe(true);
+describe("PLANT 8: only a public page or files route may go to the Renderer", () => {
+  // site-runtime's Worker sends there only a read whose every cookie is the theme (tested there); which paths may go
+  // is Foxhound's.
+  const at = (path: string) => cacheable(new URL(`https://foxhoundapp.com${path}`));
+
+  it.each(PUBLIC_ROUTES)("%s may", (path) => {
+    expect(at(path)).toBe(true);
   });
 
-  it.each(PUBLIC_ROUTES)(
-    "%s stays in the gateway with a session cookie, or any other cookie",
-    (path) => {
-      expect(edgeCacheable(request(path, PROD_COOKIE))).toBe(false);
-      expect(edgeCacheable(request(path, `fh_theme=dark; ${LOCAL_COOKIE}`))).toBe(false);
-      expect(edgeCacheable(request(path, "fh_demo=1"))).toBe(false);
-    },
-  );
-
-  it.each(PRIVATE_ROUTES)("%s stays in the gateway", (path) => {
-    expect(edgeCacheable(request(path))).toBe(false);
+  it.each(PRIVATE_ROUTES)("%s never does", (path) => {
+    expect(at(path)).toBe(false);
   });
 
-  it("writes and the media library stay in the gateway", () => {
-    expect(edgeCacheable(new Request("https://foxhoundapp.com/pricing", { method: "POST" }))).toBe(
-      false,
-    );
-    expect(edgeCacheable(request("/media/a.png"))).toBe(false);
-  });
-
-  it("a HEAD reaches the Renderer as a GET, so its empty answer is never what is stored", () => {
-    const head = new Request("https://foxhoundapp.com/pricing", { method: "HEAD" });
-    expect(edgeCacheable(head)).toBe(true);
-    expect(edgeRequest(head).request.method).toBe("GET");
-  });
-
-  it("the Renderer sees only the theme, the one the key holds", () => {
-    const dark = edgeRequest(request("/pricing"));
-    const light = edgeRequest(request("/pricing?x=1", "fh_theme=light"));
-    expect(dark.request.headers.get("cookie")).toBe("fh_theme=dark");
-    expect(dark.theme).toBe("dark");
-    expect(light.request.headers.get("cookie")).toBe("fh_theme=light");
-    expect(light.theme).toBe("light");
-  });
-
-  it("a GET's own headers are left alone: on Workers they are immutable, and setting one was a 500 (2026-10-31)", () => {
-    const get = request("/pricing");
-    get.headers.set = () => {
-      throw new TypeError("Can't modify immutable headers.");
-    };
-    expect(edgeRequest(get).request.headers.get("cookie")).toBe("fh_theme=dark");
+  it("nor the media library", () => {
+    expect(at("/media/a.png")).toBe(false);
   });
 });
 
@@ -259,17 +226,10 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
 });
 
 describe("PLANT 7: the policy is applied at the one choke point", () => {
-  it("the fetch entry applies it to the rate-limited, the handled and the Renderer's response", () => {
-    const source = readFileSync("workers/app.ts", "utf8");
+  it("the shared Worker's respond applies it to every page and step answer, stored or live", () => {
+    const source = readFileSync("workers/app.ts", "utf8").replace(/\s+/g, "");
     expect(source).toContain(
-      "applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin))",
-    );
-    expect(source).toContain(
-      "applyCachePolicy(request, applySecurityHeaders(response, nonce, origin))",
-    );
-    // Whitespace-free, so where the formatter breaks the call does not matter.
-    expect(source.replace(/\s+/g, "")).toContain(
-      "withPreloadHeader(applyCachePolicy(request,rendered,true),awaitpreloadHeader(),)",
+      "respond:(response,request,_env,{stored})=>applyCachePolicy(request,response,stored)",
     );
   });
 });

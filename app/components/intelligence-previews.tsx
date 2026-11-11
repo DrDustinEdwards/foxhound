@@ -85,18 +85,24 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
   const chart = dashboard.plans.length > 0 ? planFrame(draw) : "";
   return (
     <div className="flex flex-col gap-5 p-5">
-      <StatTiles layout="grid" label="MRR figures">
-        <StaticStatTile label="MRR" tone="accent" figure={dashboard.mrr} />
-        <StaticStatTile
-          label="Day-over-day"
-          tone={
-            dashboard.dayOverDaySign > 0 ? "ok" : dashboard.dayOverDaySign < 0 ? "crit" : undefined
-          }
-          figure={dashboard.dayOverDay}
-        />
-        <StaticStatTile label="Active customers" figure={dashboard.activeCustomers} />
-        <StaticStatTile label="New MRR (MTD)" tone="ok" figure={dashboard.newMrrMtd} />
-      </StatTiles>
+      <div className="fh-tiles-preview [--tiles-columns:repeat(2,minmax(0,1fr))] md:[--tiles-columns:repeat(4,minmax(0,1fr))]">
+        <StatTiles layout="grid" label="MRR figures">
+          <StaticStatTile label="MRR" tone="accent" figure={dashboard.mrr} />
+          <StaticStatTile
+            label="Day-over-day"
+            tone={
+              dashboard.dayOverDaySign > 0
+                ? "ok"
+                : dashboard.dayOverDaySign < 0
+                  ? "crit"
+                  : undefined
+            }
+            figure={dashboard.dayOverDay}
+          />
+          <StaticStatTile label="Active customers" figure={dashboard.activeCustomers} />
+          <StaticStatTile label="New MRR (MTD)" tone="ok" figure={dashboard.newMrrMtd} />
+        </StatTiles>
+      </div>
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">
           <div className="cap-panel-body">

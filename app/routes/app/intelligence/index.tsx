@@ -7,8 +7,6 @@ import { PageHead } from "capsomer/react/page-head";
 import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
 import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
-import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
-import "capsomer/stat-tile.css";
 import "capsomer/button.css";
 import "capsomer/meter.css";
 import "capsomer/page-head.css";
@@ -251,28 +249,35 @@ type Latest = Series[number];
  */
 function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; nowMs: number }) {
   const delta = dayOverDayCents(series);
+  const deltaClass = !delta
+    ? "text-text-tertiary"
+    : delta > 0
+      ? "text-success-text"
+      : "text-error-text";
+  const figure = "m-0 font-mono text-title font-bold tabular-nums";
   return (
-    <StatTiles layout="grid" label="MRR figures">
-      <StaticStatTile
-        label="MRR"
-        tone="accent"
-        figure={formatMoneyShort(latest.totalMrrCents, latest.currency)}
-      />
-      <StaticStatTile
-        label="Day-over-day"
-        tone={!delta ? undefined : delta > 0 ? "ok" : "crit"}
-        figure={delta ? signedMoney(delta, latest.currency) : "--"}
-      />
-      <StaticStatTile
-        label="Active customers"
-        figure={latest.activeCustomersCount.toLocaleString("en-US")}
-      />
-      <StaticStatTile
-        label="New MRR (MTD)"
-        tone="ok"
-        figure={formatMoneyShort(newMrrMonthToDateCents(series, nowMs), latest.currency)}
-      />
-    </StatTiles>
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Panel title="MRR" size="sm">
+        <p className={`${figure} text-brand-text`}>
+          {formatMoneyShort(latest.totalMrrCents, latest.currency)}
+        </p>
+      </Panel>
+      <Panel title="Day-over-day" size="sm">
+        <p className={`${figure} ${deltaClass}`}>
+          {delta ? signedMoney(delta, latest.currency) : "--"}
+        </p>
+      </Panel>
+      <Panel title="Active customers" size="sm">
+        <p className={`${figure} text-text`}>
+          {latest.activeCustomersCount.toLocaleString("en-US")}
+        </p>
+      </Panel>
+      <Panel title="New MRR (MTD)" size="sm">
+        <p className={`${figure} text-success-text`}>
+          {formatMoneyShort(newMrrMonthToDateCents(series, nowMs), latest.currency)}
+        </p>
+      </Panel>
+    </div>
   );
 }
 

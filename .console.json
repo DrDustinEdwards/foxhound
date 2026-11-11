@@ -1,9 +1,8 @@
 {
   "baseline": {
-    "measured_at": "9e81cc06",
-    "calls": 139,
+    "measured_at": "04603ea",
+    "calls": 137,
     "files": {
-      "app/entry.server.tsx": 1,
       "app/lib/admin-api/handler.server.ts": 2,
       "app/lib/admin/brake.server.ts": 1,
       "app/lib/ai/client.ts": 1,
@@ -72,7 +71,6 @@
       "app/routes/app/settings/stripe.tsx": 2,
       "app/routes/audit/callback.ts": 4,
       "app/routes/auth/connect-callback.ts": 4,
-      "app/routes/csp-report.ts": 1,
       "app/routes/home.tsx": 1,
       "app/routes/marketing/generate-email-sample.ts": 2,
       "app/routes/utility/engagement-click.ts": 1,

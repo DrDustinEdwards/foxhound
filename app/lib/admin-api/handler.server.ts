@@ -1,6 +1,7 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 import { eq } from "drizzle-orm";
+import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls } from "~/db/schema";
@@ -109,7 +110,7 @@ function json(status: number, body: Json): Response {
 const UNAUTHORIZED = () => json(401, { ok: false, error: "Unauthorized" });
 
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ip = clientIp(request);
   const refuse = async (response: Response, reason: string) => {
     logEvent(
       OWASP_EVENTS.authorizationFailure,

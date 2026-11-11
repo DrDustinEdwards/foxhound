@@ -4,9 +4,7 @@ import { Disclosure } from "capsomer/react/disclosure";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
-import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
 import { Pill } from "capsomer/react/status";
-import "capsomer/stat-tile.css";
 import "capsomer/disclosure.css";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
@@ -24,7 +22,6 @@ import {
   SEQUENCE_CATEGORY_NAMES,
   SEQUENCE_CATEGORY_ORDER,
   sequenceRateClassName,
-  sequenceRateTileTone,
 } from "~/lib/recovery/sequence-categories";
 import { drawStepPerformance, STEP_PERFORMANCE_NOTE } from "~/lib/recovery/sequence-chart";
 import {
@@ -76,34 +73,51 @@ export async function loader({ context }: Route.LoaderArgs) {
 // measured width in the browser (ChartFrame).
 const CHART_WIDTH = 1120;
 
+/** Recova's StatCard: a label, a figure, and an optional line under it. */
+function StatCard({
+  label,
+  value,
+  sub,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <Panel size="sm" title={label}>
+      <p
+        className={`m-0 font-mono text-title font-semibold tabular-nums ${valueClassName ?? "text-text"}`}
+      >
+        {value}
+      </p>
+      {sub ? <p className="m-0 text-micro text-text-subtle">{sub}</p> : null}
+    </Panel>
+  );
+}
+
 function StatRow({ performance }: { performance: StepPerformanceSummary }) {
   return (
-    <div className="mb-6">
-      <StatTiles layout="grid" label="Sequence figures">
-        <StaticStatTile
-          label="Emails sent"
-          figure={performance.totalSent.toLocaleString("en-US")}
-        />
-        <StaticStatTile
-          label="Avg open rate"
-          figure={`${performance.avgOpenRatePct}%`}
-          tone={sequenceRateTileTone(performance.avgOpenRatePct, "open")}
-        />
-        <StaticStatTile
-          label="Avg click rate"
-          figure={`${performance.avgClickRatePct}%`}
-          tone={sequenceRateTileTone(performance.avgClickRatePct, "click")}
-        />
-        <StaticStatTile
-          label="Best step"
-          figure={performance.bestStep ? performance.bestStep.label : "-"}
-          detail={
-            performance.bestStep
-              ? `${performance.bestStep.clickRatePct}% click rate`
-              : "min 3 sends"
-          }
-        />
-      </StatTiles>
+    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <StatCard label="Emails sent" value={performance.totalSent.toLocaleString("en-US")} />
+      <StatCard
+        label="Avg open rate"
+        value={`${performance.avgOpenRatePct}%`}
+        valueClassName={sequenceRateClassName(performance.avgOpenRatePct, "open")}
+      />
+      <StatCard
+        label="Avg click rate"
+        value={`${performance.avgClickRatePct}%`}
+        valueClassName={sequenceRateClassName(performance.avgClickRatePct, "click")}
+      />
+      <StatCard
+        label="Best step"
+        value={performance.bestStep ? performance.bestStep.label : "-"}
+        sub={
+          performance.bestStep ? `${performance.bestStep.clickRatePct}% click rate` : "min 3 sends"
+        }
+      />
     </div>
   );
 }

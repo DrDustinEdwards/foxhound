@@ -26,7 +26,7 @@ describe("the payments CSV export writes the amount in whole units of its curren
       detectedAt: new Date("2026-10-01T00:00:00.000Z"),
       resolvedAt: null,
     } as unknown as FailedPaymentRow;
-    const line = buildPaymentsCsv([row]).split("\n")[1];
+    const line = buildPaymentsCsv([row]).split("\r\n")[1];
     expect(line).toContain(",5000,JPY,");
   });
 });

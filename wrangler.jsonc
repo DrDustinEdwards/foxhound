@@ -387,6 +387,17 @@
     "ToolCallLog": { "type": "durable-object", "storage": "sqlite" }
   },
 
+  // The CSP report sink's limit (site-runtime ./worker): 60 reports a minute per caller address, the network's one
+  // setting; over it, or with no binding, a report is dropped (still 204). The namespace id is Foxhound's own
+  // (dei 7716, Foxing 7717, Carrel 7703).
+  "ratelimits": [
+    {
+      "name": "CSP_REPORT_RATE_LIMIT",
+      "namespace_id": "7718",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
+
   // All scheduled jobs are Cron Triggers (ARCHITECTURE.md; no HTTP cron surface,
   // no CRON_SECRET). scheduled() dispatches by controller.cron to the registered
   // jobs (app/lib/cron/registry.ts); each is gated by cron_config + a per-cron DO

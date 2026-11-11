@@ -107,7 +107,7 @@ export default function ProductsIndexPage() {
                     <div className="text-label text-accent-text">
                       Learn more{" "}
                       <ArrowRight
-                        className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                        className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                         size={13}
                         strokeWidth={1.5}
                         aria-hidden

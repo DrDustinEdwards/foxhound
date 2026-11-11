@@ -1,6 +1,5 @@
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
-import "capsomer/family-purple.css";
 import { formatDate } from "capsomer/behavior/time";
 import { BADGE_PILL, type BadgeTone } from "~/lib/recovery/labels";
 import { getDb } from "~/db";

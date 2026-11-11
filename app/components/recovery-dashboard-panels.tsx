@@ -3,7 +3,7 @@
 // deliverability and the payments table. Presentational.
 
 import { relative, toMs, until } from "capsomer/behavior/time";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import {
   Activity,
   AlertCircle,
@@ -18,9 +18,7 @@ import {
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
 import { Pill, Status, type Tone as StatusTone } from "capsomer/react/status";
-import "capsomer/stat-tile.css";
 import { TabLink, TabsNav } from "capsomer/react/tabs";
 import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
@@ -40,7 +38,7 @@ import {
   type PaymentStepSummary,
   type RoiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
-import { recoveryRateBand, recoveryRateTileTone } from "~/lib/dashboard/recovery-rate";
+import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import {
@@ -164,74 +162,104 @@ export function OnboardingChecklist({
 
 // ---- Stat cards ----
 
+/** Recova's PrimaryCard and SecondaryCard: an icon, the label, the figure and
+ *  an optional line under it, here as a small Capsomer panel (Capsomer's stat
+ *  tile is always a link or a button, and Recova's cards lead nowhere). */
+type Icon = ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
+
+function StatCard({
+  icon: IconComponent,
+  label,
+  value,
+  sub,
+  valueClassName,
+  primary,
+}: {
+  icon: Icon;
+  label: string;
+  value: string;
+  sub?: string;
+  valueClassName?: string;
+  primary?: boolean;
+}) {
+  return (
+    <Panel
+      size="sm"
+      title={
+        <span className="flex items-center gap-2">
+          <IconComponent className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+          {label}
+        </span>
+      }
+    >
+      <p
+        className={`m-0 font-mono font-medium tabular-nums ${primary ? "text-display" : "text-title"} ${valueClassName ?? "text-text"}`}
+      >
+        {value}
+      </p>
+      {sub ? <p className="m-0 text-micro text-text-subtle">{sub}</p> : null}
+    </Panel>
+  );
+}
+
 export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
   const atRiskPct = atRiskPctOfMrr(w.atRiskRevenue, w.connection?.mrrEstimateCents ?? null);
   return (
-    <StatTiles layout="grid" label="Recovery figures">
-      <StaticStatTile
-        size="lg"
-        icon={<TrendingUp strokeWidth={1.5} />}
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <StatCard
+        primary
+        icon={TrendingUp}
         label="Recovered (30d)"
-        figure={formatCurrencyTotals(w.recoveredRevenue)}
+        value={formatCurrencyTotals(w.recoveredRevenue)}
       />
-      <StaticStatTile
-        size="lg"
-        icon={<AlertCircle strokeWidth={1.5} />}
+      <StatCard
+        primary
+        icon={AlertCircle}
         label="Currently at risk"
-        figure={formatCurrencyTotals(w.atRiskRevenue)}
-        detail={atRiskPct !== null ? `${atRiskPct}% of MRR` : undefined}
+        value={formatCurrencyTotals(w.atRiskRevenue)}
+        sub={atRiskPct !== null ? `${atRiskPct}% of MRR` : undefined}
       />
       {/* A rate with nothing failed is no rate: Foxhound shows "-" and says
           why, where Recova printed 0%. */}
-      <StaticStatTile
-        size="lg"
-        icon={<Percent strokeWidth={1.5} />}
+      <StatCard
+        primary
+        icon={Percent}
         label="Recovery rate"
-        figure={w.recoveryRatePct === null ? "-" : `${w.recoveryRatePct}%`}
-        tone={recoveryRateTileTone(w.recoveryRatePct)}
-        detail={recoveryRateBand(w.recoveryRatePct)}
+        value={w.recoveryRatePct === null ? "-" : `${w.recoveryRatePct}%`}
+        valueClassName={
+          w.recoveryRatePct === null ? undefined : recoveryRateClassName(w.recoveryRatePct)
+        }
+        sub={recoveryRateBand(w.recoveryRatePct)}
       />
-    </StatTiles>
+    </div>
   );
 }
 
 export function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
   return (
-    <StatTiles layout="grid" label="Recovery activity">
-      <StaticStatTile
-        icon={<Activity strokeWidth={1.5} />}
-        label="Active sequences"
-        figure={String(w.activePaymentsCount)}
-      />
-      <StaticStatTile
-        icon={<RefreshCw strokeWidth={1.5} />}
-        label="Win-backs active"
-        figure={String(w.activeWinbacksCount)}
-      />
-      <StaticStatTile
-        icon={<CreditCard strokeWidth={1.5} />}
-        label="Cards expiring"
-        figure={String(w.expiringCardsCount)}
-      />
-      <StaticStatTile
-        icon={<Clock strokeWidth={1.5} />}
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+      <StatCard icon={Activity} label="Active sequences" value={String(w.activePaymentsCount)} />
+      <StatCard icon={RefreshCw} label="Win-backs active" value={String(w.activeWinbacksCount)} />
+      <StatCard icon={CreditCard} label="Cards expiring" value={String(w.expiringCardsCount)} />
+      <StatCard
+        icon={Clock}
         label="Avg days to recovery"
-        figure={w.avgDaysToRecovery === null ? "-" : `${w.avgDaysToRecovery}d`}
-        detail={w.avgDaysToRecovery === null ? "No data" : `across ${w.recoveryDaysCount}`}
+        value={w.avgDaysToRecovery === null ? "-" : `${w.avgDaysToRecovery}d`}
+        sub={w.avgDaysToRecovery === null ? "No data" : `across ${w.recoveryDaysCount}`}
       />
-      <StaticStatTile
-        icon={<Tag strokeWidth={1.5} />}
+      <StatCard
+        icon={Tag}
         label="Best category"
-        figure={w.bestCategory ? DECLINE_CATEGORY_LABELS[w.bestCategory.cat] : "-"}
-        detail={w.bestCategory ? `${w.bestCategory.rate}% recovery` : "Need more"}
+        value={w.bestCategory ? DECLINE_CATEGORY_LABELS[w.bestCategory.cat] : "-"}
+        sub={w.bestCategory ? `${w.bestCategory.rate}% recovery` : "Need more"}
       />
-      <StaticStatTile
-        icon={<Send strokeWidth={1.5} />}
+      <StatCard
+        icon={Send}
         label="Emails sent"
-        figure={String(w.emailsSentInRange.sent)}
-        detail={`${w.emailsSentInRange.openRatePct}% open · ${w.emailsSentInRange.clickRatePct}% click`}
+        value={String(w.emailsSentInRange.sent)}
+        sub={`${w.emailsSentInRange.openRatePct}% open · ${w.emailsSentInRange.clickRatePct}% click`}
       />
-    </StatTiles>
+    </div>
   );
 }
 
