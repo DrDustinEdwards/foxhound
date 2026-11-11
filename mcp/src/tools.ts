@@ -307,17 +307,6 @@ export const ADMIN_TOOLS: AdminTool[] = [
     },
   },
   {
-    name: "foxhound_admin_check_backup",
-    title: "Check the backups",
-    description:
-      "Read the backup state now, uncached: the newest complete D1 dump's age and each files pass (the blog media and the dispute evidence) with when it last completed, and a warning when any is past 26 hours. /health reports the same fields but caches the read for an hour; this does not. Backing up now is Capsid Admin's site_backup.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
-    outputSchema: output({ files: OBJECT }),
-    scope: "read",
-    annotations: READ,
-    run: (session) => get(session, "/backup"),
-  },
-  {
     name: "foxhound_admin_stage_change",
     title: "Stage a change",
     description:

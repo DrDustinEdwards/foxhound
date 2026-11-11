@@ -5,7 +5,8 @@ import {
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
 } from "~/lib/constants";
-import { readCookie, setHostCookie } from "~/lib/http/cookies";
+import { readCookie } from "@dustinedwards/site-runtime/headers";
+import { bare, setHostCookie } from "~/lib/http/cookies";
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 
 // CSRF state cookie for the Stripe Connect OAuth flow (legacy rule: a state
@@ -32,7 +33,7 @@ export function readStateCookie(
   request: Request,
   name: string = STRIPE_OAUTH_STATE_COOKIE,
 ): string | null {
-  const raw = readCookie(request, name);
+  const raw = readCookie(request, bare(name));
   if (raw === null) return null;
   try {
     return decodeURIComponent(raw);
@@ -127,7 +128,7 @@ export async function readAuditGrantCookie(
   request: Request,
   nowMs: number = Date.now(),
 ): Promise<AuditGrant | null> {
-  const raw = readCookie(request, AUDIT_TOKEN_COOKIE);
+  const raw = readCookie(request, bare(AUDIT_TOKEN_COOKIE));
   if (!raw) return null;
   let opened: unknown;
   try {
