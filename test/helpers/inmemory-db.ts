@@ -133,7 +133,9 @@ export function d1Over(sqlite: Database.Database): D1Like {
       },
       run: async () => {
         const { stmt, args } = run();
-        return stmt.run(...args);
+        // D1 reports the rows a write changed under meta.changes.
+        const info = stmt.run(...args);
+        return { ...info, meta: { changes: info.changes } };
       },
     };
   };

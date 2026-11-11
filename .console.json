@@ -1,7 +1,7 @@
 {
   "baseline": {
-    "measured_at": "04603ea",
-    "calls": 137,
+    "measured_at": "a1bbdc3",
+    "calls": 136,
     "files": {
       "app/lib/admin-api/handler.server.ts": 2,
       "app/lib/admin/brake.server.ts": 1,
@@ -15,7 +15,6 @@
       "app/lib/billing/credit-note.ts": 1,
       "app/lib/billing/platform-customer.ts": 3,
       "app/lib/billing/run.ts": 4,
-      "app/lib/cron/alerts.server.ts": 1,
       "app/lib/cron/digest.ts": 1,
       "app/lib/cron/dispute-auto-submit.ts": 3,
       "app/lib/cron/expiring-cards.ts": 2,
