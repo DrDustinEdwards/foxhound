@@ -8,7 +8,10 @@ import {
   loadKeyring,
   reencryptToken,
 } from "~/lib/stripe/encryption";
-import { reencryptConnectionTokens } from "~/lib/stripe/key-rotation.server";
+import {
+  reencryptConnectionTokens,
+  reencryptSlackWebhooks,
+} from "~/lib/stripe/key-rotation.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -157,5 +160,26 @@ describe("312: the re-encrypt writer, against a real database", () => {
     expect(report.failures[0].connectionId).toBe("conn_bad");
     expect(report.failures[0].reason).toMatch(/No encryption key for id 'kX'/);
     expect(JSON.stringify(report)).not.toContain(unreadable);
+  });
+
+  it("the sealed Slack webhook URLs move onto the active key too", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    const url = "https://hooks.slack.com/services/T/B/x";
+    runStatement(
+      sqlite,
+      db.insert(accounts).values({
+        id: "acct_slack",
+        name: "slack",
+        createdAt: new Date(),
+        slackWebhookUrl: await encryptToken(envA, url),
+      }),
+    );
+
+    const report = await reencryptSlackWebhooks(envRotated, db);
+
+    expect(report).toMatchObject({ scanned: 1, rewritten: 1, failures: [] });
+    const [row] = await db.select().from(accounts);
+    expect(keyIdOf(row.slackWebhookUrl!)).toBe("k2");
+    expect(await decryptToken(envRotated, row.slackWebhookUrl!)).toBe(url);
   });
 });
