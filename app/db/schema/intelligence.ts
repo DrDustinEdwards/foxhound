@@ -227,7 +227,9 @@ export const intelligenceReports = sqliteTable(
   "intelligence_reports",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     reportMonth: ts("report_month").notNull(),
     narrative: text("narrative").notNull(),
     generatedAt: ts("generated_at").notNull(),
