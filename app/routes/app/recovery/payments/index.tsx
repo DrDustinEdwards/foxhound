@@ -61,9 +61,9 @@ import type {
   FailedPaymentSort,
 } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
-import { sliderDollars } from "~/lib/recovery/payments-list";
+import { sliderAmount } from "~/lib/recovery/payments-list";
 import {
-  AMOUNT_SLIDER_STEP_CENTS,
+  amountSliderStep,
   DECLINE_CATEGORY_WORDS,
   PAYMENTS_DEFAULT_PAGE_SIZE,
   PAYMENTS_PAGE_SIZE_OPTIONS,
@@ -158,7 +158,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const page = parsePage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
-  const bounds = await getAmountBounds(db, accountId);
+  const bounds = await getAmountBounds(db, accountId, params.get("currency"));
   const amountMinParsed = parsePaymentsAmount(
     params.get("amountMin"),
     bounds.minCents,
@@ -176,7 +176,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
   const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);
 
-  const filterInput = { search, declineCategory, detectedAfterMs, amountMinCents, amountMaxCents };
+  const filterInput = {
+    search,
+    declineCategory,
+    detectedAfterMs,
+    amountMinCents,
+    amountMaxCents,
+    amountCurrency: bounds.currency,
+  };
 
   const [result, globalCounts, summaryRows] = await Promise.all([
     listFilteredFailedPayments(db, accountId, { ...filterInput, status, sort, page, pageSize }),
@@ -798,6 +805,29 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   ))}
                 </select>
               </div>
+              {bounds.currencies.length > 1 ? (
+                <div className="cap-select-wrap">
+                  <select
+                    className="cap-select"
+                    name="currency"
+                    aria-label="Currency of the amount range"
+                    value={bounds.currency}
+                    onChange={(e) =>
+                      go({
+                        currency: e.target.value === bounds.defaultCurrency ? "" : e.target.value,
+                        amountMin: "",
+                        amountMax: "",
+                      })
+                    }
+                  >
+                    {bounds.currencies.map((c) => (
+                      <option key={c} value={c}>
+                        {c.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
               <RangeSlider
                 className="md:min-w-[220px] md:flex-[0_0_240px]"
                 label="Amount"
@@ -805,10 +835,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                 max={bounds.maxCents}
                 low={filters.amountMinCents}
                 high={filters.amountMaxCents}
-                step={AMOUNT_SLIDER_STEP_CENTS}
+                step={amountSliderStep(bounds.currency)}
                 names={["amountMin", "amountMax"]}
                 handleLabels={["Minimum amount", "Maximum amount"]}
-                format={(cents, which) => sliderDollars(cents, which === "high", bounds.maxCents)}
+                format={(minor, which) =>
+                  sliderAmount(minor, bounds.currency, which === "high", bounds.maxCents)
+                }
                 onCommit={(nextMin, nextMax) =>
                   go({
                     amountMin: nextMin > bounds.minCents ? String(nextMin) : "",

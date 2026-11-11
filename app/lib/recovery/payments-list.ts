@@ -1,3 +1,5 @@
+import { currencyExponent, formatMoneyShort } from "@dustinedwards/site-runtime/money";
+
 import { formatCurrencyTotalsShort } from "~/lib/dashboard/console";
 import type { FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { isPaymentTimeRange, type PaymentTimeRange } from "~/lib/recovery/time-range";
@@ -45,8 +47,10 @@ export function parsePaymentsAmount(
   return Math.min(Math.max(n, floorCents), ceilingCents);
 }
 
-/** Recova's amount slider moves in $10 steps (AmountRangeSlider.tsx STEP). */
-export const AMOUNT_SLIDER_STEP_CENTS = 1000;
+/** Recova's amount slider moves in 10-unit steps (AmountRangeSlider.tsx STEP): 10 major units of the range's currency. */
+export function amountSliderStep(currency: string): number {
+  return 10 * 10 ** currencyExponent(currency);
+}
 
 /** Recova's decline words: its filter options and its row pill, which renders
  *  the category under CSS capitalize. Foxhound's two extra categories take
@@ -64,11 +68,16 @@ export function declineWord(category: string): string {
   return DECLINE_CATEGORY_WORDS[category] ?? category;
 }
 
-/** Recova's slider figures: whole dollars with no separator, and the top end
- *  as "$N+" (AmountRangeSlider.tsx formatDollars). */
-export function sliderDollars(cents: number, isMax = false, absoluteMax = 0): string {
-  if (isMax && cents >= absoluteMax) return `$${Math.round(absoluteMax / 100)}+`;
-  return `$${Math.round(cents / 100)}`;
+/** Recova's slider figures: whole units, and the top end as "$N+"
+ *  (AmountRangeSlider.tsx formatDollars), in the range's currency. */
+export function sliderAmount(
+  minor: number,
+  currency: string,
+  isMax = false,
+  absoluteMax = 0,
+): string {
+  if (isMax && minor >= absoluteMax) return `${formatMoneyShort(absoluteMax, currency)}+`;
+  return formatMoneyShort(minor, currency);
 }
 
 /** The head's figures, totaled per currency over the rows on screen, as

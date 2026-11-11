@@ -1,4 +1,5 @@
-import { and, eq, gte, isNull, like, ne, sql } from "drizzle-orm";
+import { likeStartsWith } from "@dustinedwards/site-runtime/d1";
+import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { failedPayments, getDb, outcomes, recoveredPayments, recoverySteps } from "~/db";
@@ -298,7 +299,7 @@ export async function upgradeMissedRetryAttributions(
         eq(recoveredPayments.attributionKind, "stripe_baseline"),
         isNull(recoveredPayments.deletedAt),
         gte(recoveredPayments.recoveredAt, new Date(now.getTime() - ATTRIBUTION_SWEEP_LOOKBACK_MS)),
-        like(recoverySteps.stepType, "retry_%"),
+        likeStartsWith(recoverySteps.stepType, "retry_"),
         eq(recoverySteps.result, "retry_succeeded"),
         isNull(recoverySteps.deletedAt),
       ),

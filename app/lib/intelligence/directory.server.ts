@@ -1,7 +1,8 @@
 // The Intelligence customer directory (views.server.ts split): the paged,
 // filtered customer list and the tier options its filter offers.
 
-import { and, asc, desc, eq, gte, like, lt, or, sql } from "drizzle-orm";
+import { likeContains } from "@dustinedwards/site-runtime/d1";
+import { and, asc, desc, eq, gte, lt, or, sql } from "drizzle-orm";
 import { customerContext, type Db } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING, type HealthScoreBand } from "./health-band";
@@ -73,10 +74,10 @@ export async function listCustomerDirectory(
 ): Promise<CustomerDirectoryResult> {
   const conditions = [eq(customerContext.accountId, accountId)];
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = filters.search;
     const searchCondition = or(
-      like(customerContext.customerName, term),
-      like(customerContext.customerEmail, term),
+      likeContains(customerContext.customerName, term),
+      likeContains(customerContext.customerEmail, term),
     );
     if (searchCondition) conditions.push(searchCondition);
   }

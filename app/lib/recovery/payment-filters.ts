@@ -49,6 +49,7 @@ export function buildPaymentParams(
   if (filters.time !== "all") params.set("time", filters.time);
   if (filters.sort !== "newest") params.set("sort", filters.sort);
   if (filters.pageSize !== defaultPageSize) params.set("perPage", String(filters.pageSize));
+  if (bounds.currency !== bounds.defaultCurrency) params.set("currency", bounds.currency);
   if (filters.amountMinCents > bounds.minCents)
     params.set("amountMin", String(filters.amountMinCents));
   if (filters.amountMaxCents < bounds.maxCents)

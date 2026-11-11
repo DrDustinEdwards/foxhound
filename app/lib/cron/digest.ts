@@ -1,7 +1,7 @@
 import { appOrigin } from "~/lib/app-origin";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import { and, count, desc, eq, gte, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
-import { inList } from "@dustinedwards/site-runtime/d1";
+import { and, count, desc, eq, gte, isNull, isNotNull, notInArray, sql } from "drizzle-orm";
+import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import {
@@ -250,7 +250,7 @@ export async function collectDigestNumbers(
             eq(recoverySteps.accountId, accountId),
             isNull(recoverySteps.deletedAt),
             isNotNull(recoverySteps.executedAt),
-            like(recoverySteps.stepType, "email_%"),
+            likeStartsWith(recoverySteps.stepType, "email_"),
             gte(recoverySteps.executedAt, windowStart),
           ),
         ),
