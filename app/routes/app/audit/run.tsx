@@ -1,11 +1,12 @@
 import { formatDate } from "capsomer/behavior/time";
 import type { ReactNode } from "react";
+import { CopyButton } from "capsomer/react/copy";
 import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import "capsomer/button.css";
+import "capsomer/copy.css";
 import "capsomer/page-head.css";
 
-import { CopyLinkButton } from "~/components/copy-link-button";
 import {
   AuditDisputesSection,
   AuditHealthSection,
@@ -83,20 +84,14 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { run: toStoredAuditRun(row), url: `${siteUrl(env)}/audit/results/${row.id}`, ...live };
 }
 
-/** Recova's AuditResultsReveal: each section fades in over 200ms, 80ms after
- *  the one before. Done in CSS rather than after hydration, so the page reads
- *  whole without scripts, and the `fade-in` keyframes exist only when the
- *  reader has not asked for reduced motion (app/app.css). */
+/** Recova's AuditResultsReveal: each section fades in as it scrolls into view, Capsomer's reveal
+ *  (capsomer/reveal.css, CSS only), so the page reads whole without scripts. */
 function Reveal({ children }: { children: ReactNode[] }) {
   return (
     <>
       {children.map((child, i) => (
-        <div
-          // The sections are fixed in number and order for one render.
-          key={i}
-          className="audit-reveal"
-          style={{ animation: "fade-in 200ms ease-out both", animationDelay: `${i * 80}ms` }}
-        >
+        // The sections are fixed in number and order for one render.
+        <div key={i} className="cap-reveal">
           {child}
         </div>
       ))}
@@ -139,7 +134,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
               <Link to="/audit/dashboard" className="cap-btn" data-variant="link">
                 Back to history
               </Link>
-              <CopyLinkButton url={url} resetMs={1500} className="cap-btn" data-variant="link" />
+              <CopyButton text={url}>Copy link</CopyButton>
               <Link to="/audit/connect" className="cap-btn" data-variant="primary">
                 Run new audit
               </Link>

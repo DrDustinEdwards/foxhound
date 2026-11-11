@@ -1,18 +1,20 @@
 import { formatDate } from "capsomer/behavior/time";
-import { ArrowLeft, ArrowRight, Check, Link2 } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import "~/blog-prose.css";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 import { goneResponse } from "@dustinedwards/site-runtime/url";
-import { CoverPicture } from "~/components/blog/cover-picture";
+import { Picture } from "capsomer/react/picture";
+import "capsomer/picture.css";
 import { SectionTrail } from "~/components/section-trail";
-import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
+import { CopyButton } from "capsomer/react/copy";
 import { ShareRow } from "capsomer/react/share-row";
 import { Toc } from "capsomer/react/toc";
+import "capsomer/button.css";
+import "capsomer/copy.css";
 import "capsomer/share-row.css";
 import "capsomer/toc.css";
-import { CopyLinkButton } from "~/components/copy-link-button";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
@@ -195,7 +197,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
-      <ReadingProgressBar targetId="blog-post-article" />
+      <div className="cap-reading-progress" aria-hidden="true" />
 
       <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
@@ -203,10 +205,15 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         {/* h-entry and e-content name the post's own text for site-api's
             webmention hook, which sends to the links inside it only (not the
             share row's). No style reads either class. */}
-        <article id="blog-post-article" className="h-entry">
+        <article id="blog-post-article" className="h-entry" data-cap-reading>
           {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
-              <CoverPicture cover={cover} className="h-full w-full object-cover" />
+              <Picture
+                attrs={cover.picture}
+                alt={cover.alt}
+                priority
+                className="h-full w-full object-cover"
+              />
             </div>
           ) : null}
 
@@ -259,18 +266,17 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           </p>
 
           <ShareRow url={canonical} title={post.title}>
-            <CopyLinkButton
-              url={canonical}
-              resetMs={2000}
-              aria-label="Copy link"
-              icon={(copied) =>
-                copied ? (
-                  <Check size={13} strokeWidth={1.5} aria-hidden />
-                ) : (
-                  <Link2 size={13} strokeWidth={1.5} aria-hidden />
-                )
-              }
-            />
+            <CopyButton
+              size="xs"
+              {...{ command: "--copy", commandfor: "share-url" }}
+              data-island="copy"
+              text={canonical}
+            >
+              Copy link
+            </CopyButton>
+            <data id="share-url" value={canonical} hidden>
+              {canonical}
+            </data>
           </ShareRow>
 
           <Toc items={toc} variant="inline" />
