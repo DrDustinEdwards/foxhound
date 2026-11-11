@@ -212,15 +212,11 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   const { run, notSaved, signedIn } = loaderData;
   const ctaState: CtaState = signedIn ? "active" : "unauthenticated";
 
-  // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The page sits
-  // under the marketing shell, which is not a Capsomer family, so it names the
-  // amber family itself, as the legal pages do.
+  // Capsomer's page class sets the width and gutters; the text stays Foxhound's 16px
+  // (--fs-page, app.css). The page sits under the marketing shell, which is not a
+  // Capsomer family, so it names the amber family itself, as the legal pages do.
   return (
-    <div
-      className="fh-cap mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-cap cap-page min-w-0 py-10" data-cap-site="foxhound" data-family="amber">
       <div className="mb-6">
         <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">
           Stripe Account Diagnostic
