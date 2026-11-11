@@ -74,7 +74,7 @@ export const auditRuns = sqliteTable(
 // IDEMPOTENCY IS THE DATABASE'S, never the application's. The unique index on
 // (account_id, period_month) refuses the second insert, so two concurrent
 // monthly runs cannot both send one merchant the same month's digest. Same
-// shape as cron_alerts_dedupe_uq for the same reason 314 item 3 gave: a
+// shape as alerts_sent's primary key for the same reason 314 item 3 gave: a
 // read-then-write in application code can interleave, an index cannot.
 //
 // THE COMPARISON reads the PRIOR month's row. `totals` is the CUMULATIVE
