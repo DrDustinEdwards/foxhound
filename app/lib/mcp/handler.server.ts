@@ -1,3 +1,4 @@
+import { jsonResponse } from "@dustinedwards/site-runtime/http";
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
@@ -96,26 +97,12 @@ interface McpAuthContext {
 
 /** The 429, with the limiter's Retry-After. */
 function tooMany(retryAfter: number): Response {
-  return jsonResponse(429, mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "Too many requests"), {
+  return jsonResponse(mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "Too many requests"), 429, {
     "Retry-After": String(retryAfter),
   });
 }
 
 const UNAUTHORIZED_MESSAGE = "Unauthorized";
-
-function jsonResponse(status: number, body: unknown, extra: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      // Belt and braces with the worker's own cache policy, which classifies
-      // /mcp private by default. An answer carrying a merchant's data must
-      // never be stored by an intermediary.
-      "Cache-Control": "private, no-store",
-      ...extra,
-    },
-  });
-}
 
 function errorResponse(
   status: number,
@@ -123,7 +110,7 @@ function errorResponse(
   code: number,
   message: string,
 ): Response {
-  return jsonResponse(status, mcpErrorBody(id, code, message));
+  return jsonResponse(mcpErrorBody(id, code, message), status);
 }
 
 /** The one 401. Identical for every authentication failure. */
@@ -132,7 +119,7 @@ function unauthorized(origin: string): Response {
     resource: mcpResource(origin),
     scope: [MERCHANT_SCOPES.read],
   });
-  return jsonResponse(401, mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, UNAUTHORIZED_MESSAGE), {
+  return jsonResponse(mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, UNAUTHORIZED_MESSAGE), 401, {
     "WWW-Authenticate": challenge.headers.get("www-authenticate") ?? "",
   });
 }
@@ -236,8 +223,8 @@ export async function handleMcpRequest(
   // supports exactly one method.
   if (request.method !== "POST") {
     return jsonResponse(
-      405,
       mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "The MCP endpoint accepts POST only"),
+      405,
       { Allow: "POST" },
     );
   }

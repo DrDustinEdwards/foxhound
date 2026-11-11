@@ -4,7 +4,9 @@ import { createMemoryRouter, RouterContextProvider, RouterProvider } from "react
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { safeNextPath } from "~/lib/auth/next-path";
+import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
+
+const landing = (raw: unknown) => safeNextPath(raw, { fallback: "/console" });
 
 // J79, ruling 8's inherited artifacts on the sign-in side. The authorize page
 // sends a signed-out visitor to /login?next=<the whole authorize URL>; Recova's
@@ -72,13 +74,13 @@ describe("safeNextPath: Recova's validateRedirect, every check anchored at posit
       "/\n/evil.example",
       "%2F%09%2Fevil.example",
     ]) {
-      expect(safeNextPath(bad), String(bad)).toBe("/console");
+      expect(landing(bad), String(bad)).toBe("/console");
     }
   });
 
   it("decodes a doubly encoded value once, as Recova's tryDecode did", () => {
-    expect(safeNextPath(encodeURIComponent("/oauth/authorize?a=1"))).toBe("/oauth/authorize?a=1");
-    expect(safeNextPath(encodeURIComponent("//evil.example"))).toBe("/console");
+    expect(landing(encodeURIComponent("/oauth/authorize?a=1"))).toBe("/oauth/authorize?a=1");
+    expect(landing(encodeURIComponent("//evil.example"))).toBe("/console");
   });
 });
 

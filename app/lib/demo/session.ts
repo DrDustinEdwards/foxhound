@@ -3,7 +3,8 @@ import { inArray } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts } from "~/db";
 import type { Membership } from "~/lib/auth/account";
-import { readCookie, setHostCookie } from "~/lib/http/cookies";
+import { readCookie } from "@dustinedwards/site-runtime/headers";
+import { bare, setHostCookie } from "~/lib/http/cookies";
 
 import {
   DEMO_ACTIVE_ACCOUNT_COOKIE,
@@ -51,7 +52,9 @@ export function findDemoBusiness(accountId: string | null | undefined): DemoBusi
 /** The demo business the visitor last switched to, else the first (Teamflow),
  *  as legacy's SiteNav.tsx read `active_demo_account || demoList[0].id`. */
 export function activeDemoBusiness(request: Request): DemoBusiness {
-  return findDemoBusiness(readCookie(request, DEMO_ACTIVE_ACCOUNT_COOKIE)) ?? DEMO_BUSINESSES[0];
+  return (
+    findDemoBusiness(readCookie(request, bare(DEMO_ACTIVE_ACCOUNT_COOKIE))) ?? DEMO_BUSINESSES[0]
+  );
 }
 
 export function setActiveDemoAccountCookieHeader(business: DemoBusiness): string {
