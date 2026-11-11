@@ -53,6 +53,7 @@ export default [
     ]),
     route("features", "./routes/features.tsx"),
     route("about", "./routes/about.tsx"),
+    route("contact", "./routes/contact.tsx"),
     route("privacy", "./routes/privacy.tsx"),
     route("terms", "./routes/terms.tsx"),
     route("security", "./routes/security.tsx"),
@@ -72,6 +73,10 @@ export default [
     // provider URL + CSRF state cookie. Google's callback is the resource route
     // auth/google/callback below; Apple's is Better Auth's own under api/auth.
     route("auth/:provider", "./routes/auth/social-start.ts"),
+
+    // Any address nothing else claims: a 404 inside this layout's header and
+    // footer, never a redirect (routes/not-found.tsx).
+    route("*", "./routes/not-found.tsx"),
   ]),
 
   // The sign-in pages: Recova's bare auth layout, no site navigation and the

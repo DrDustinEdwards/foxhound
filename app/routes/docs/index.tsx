@@ -4,7 +4,7 @@ import { Link } from "capsomer/react/link";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DOC_GUIDES, type DocGuide } from "~/lib/marketing/docs-content";
-import { docsItemListJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { docsItemListJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -91,6 +91,16 @@ export default function DocsIndexPage() {
             View pricing <Arrow />
           </Link>
         </div>
+
+        {/* The support address, so a reader who did not find the answer here
+            has the next step on the same page (parity audit, 2026-11-10). */}
+        <p className="mt-6 text-label text-text-secondary">
+          Not covered here? Email{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className={CROSS_LINK}>
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          with your account email and the Stripe invoice or payment ID.
+        </p>
       </div>
     </>
   );

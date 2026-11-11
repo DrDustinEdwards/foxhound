@@ -70,6 +70,7 @@ export const STATIC_PAGES: SitemapEntry[] = [
   // children. Ruling 56 permits a NET-NEW surface listing ITSELF; none of
   // them changes an entry for a ported page.
   { path: "/about", changefreq: "monthly", priority: 0.5 },
+  { path: "/contact", changefreq: "yearly", priority: 0.4 },
   { path: "/demos", changefreq: "monthly", priority: 0.7 },
   { path: "/docs", changefreq: "weekly", priority: 0.8 },
   { path: "/audit", changefreq: "monthly", priority: 0.9 },

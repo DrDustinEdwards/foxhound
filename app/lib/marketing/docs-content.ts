@@ -12,6 +12,7 @@
 // windows, the bands and the schedules.
 
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
+import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
   AUDIT_LOOKBACK_DAYS,
   BULK_ACTION_CONFIRM_THRESHOLD,
@@ -745,6 +746,19 @@ export const DOC_GUIDES: DocGuide[] = [
               "Check whether the address is suppressed.",
               "Ask them to look in spam.",
               "Use Resend last email on the payment page to send it again.",
+            ],
+          },
+          { kind: "h3", text: "Contact support" },
+          {
+            kind: "p",
+            body: [
+              "If none of this explains it, email ",
+              { link: SUPPORT_EMAIL, to: `mailto:${SUPPORT_EMAIL}` },
+              " from the address you sign in with, and include the Stripe invoice ID (",
+              { code: "in_" },
+              ") or payment ID (",
+              { code: "pi_" },
+              ") of the payment in question, so it can be found without a second round of email.",
             ],
           },
         ],
