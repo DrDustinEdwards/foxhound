@@ -6,6 +6,7 @@ import { Link } from "capsomer/react/link";
 import { ArrowLeft } from "lucide-react";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
 import { PageHead } from "capsomer/react/page-head";
@@ -13,6 +14,7 @@ import { Panel } from "capsomer/react/panel";
 import { Segmented } from "capsomer/react/segmented";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/copy.css";
 import "capsomer/empty.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -290,8 +292,6 @@ function ScopePicker() {
 }
 
 function RevealKey({ rawKey }: { rawKey: string }) {
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
   const heading = useId();
   const keyBlock = useRef<HTMLPreElement>(null);
 
@@ -302,22 +302,6 @@ function RevealKey({ rawKey }: { rawKey: string }) {
   useEffect(() => {
     keyBlock.current?.focus();
   }, []);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  async function copyKey() {
-    try {
-      await navigator.clipboard.writeText(rawKey);
-      setCopyFailed(false);
-      setCopied(true);
-    } catch {
-      setCopyFailed(true);
-    }
-  }
 
   return (
     <Panel title="Your new API key" headingId={heading}>
@@ -334,20 +318,14 @@ function RevealKey({ rawKey }: { rawKey: string }) {
       <p className="cap-field-help">
         This key will not be shown again. Copy it now and store it somewhere safe.
       </p>
-      {copyFailed ? (
-        <Alert tone="crit">
-          {"Couldn't copy the key to your clipboard. Select and copy it manually."}
-        </Alert>
-      ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => void copyKey()}>{copied ? "Copied" : "Copy key"}</Button>
+        <CopyButton text={rawKey} variant="default">
+          Copy key
+        </CopyButton>
         <Link to="?" className="cap-btn" data-variant="quiet">
           Done
         </Link>
       </div>
-      <p role="status" className="sr-only">
-        {copied ? "Copied" : ""}
-      </p>
     </Panel>
   );
 }
