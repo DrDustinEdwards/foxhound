@@ -2,7 +2,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
-import { goneResponse, renameRedirect } from "@dustinedwards/site-runtime/url";
+import { goneResponse } from "@dustinedwards/site-runtime/url";
 import { CoverPicture } from "~/components/blog/cover-picture";
 import { SectionTrail } from "~/components/section-trail";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
@@ -16,7 +16,6 @@ import {
   getPostBySlug,
   getPostLinks,
   getPreviousPost,
-  getSlugRedirect,
 } from "~/lib/blog/queries.server";
 import {
   articleJsonLd,
@@ -61,18 +60,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   if (gone) throw gone;
 
   const post = await getPostBySlug(db, params.slug);
-  if (!post) {
-    // A post Carrel renamed: its old address answers a permanent redirect to
-    // the new one (site-api's rename contract; site-runtime's renameRedirect follows a chain,
-    // keeps the query and sends a 308 to a method other than GET). Read only on a miss, so a
-    // live post's own page costs no extra query.
-    const moved = await renameRedirect(request, {
-      prefix: "/blog/",
-      renames: (slug) => getSlugRedirect(db, slug),
-    });
-    if (moved) throw moved;
-    throw new Response("Not found", { status: 404 });
-  }
+  if (!post) throw new Response("Not found", { status: 404 });
 
   const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
