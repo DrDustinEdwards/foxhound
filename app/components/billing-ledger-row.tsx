@@ -123,7 +123,7 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
     <ChainRow>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2">
-          <Pill {...BADGE_PILL.free}>Stripe baseline - FREE</Pill>
+          <Pill {...BADGE_PILL.neutral}>Stripe baseline - FREE</Pill>
           <span className="text-micro text-text-subtle">
             {formatDate(recoveredPayment.recoveredAt, { style: "medium" }) ?? ""}
           </span>

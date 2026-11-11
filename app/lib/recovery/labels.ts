@@ -58,22 +58,21 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
 
 export type Tone = "neutral" | "success" | "failure";
 
-/** A status word's tone, with the two that only a badge wears: "free" (the
- *  Stripe baseline, never billed) and "purple" (win-back attribution only,
- *  DESIGN.md). */
-export type BadgeTone = Tone | "free" | "purple";
+/** A status word's tone, with the one that only a badge wears: "purple"
+ *  (win-back attribution only, DESIGN.md). */
+export type BadgeTone = Tone | "purple";
 
-/** Each tone as Capsomer's Pill: success and failure are states (ok, crit),
- *  neutral and free the outline pill, purple the purple family's accent. */
+/** Each tone as Capsomer's tag badge, in Foxhound's badge look (app.css):
+ *  success and failure are states (ok, crit) whose words say the state, so
+ *  they draw no glyph; neutral is the quiet label; purple the purple family. */
 export const BADGE_PILL: Record<
   BadgeTone,
-  { tone?: "ok" | "crit"; variant?: "outline" | "accent"; family?: string }
+  { variant: "tag"; tone?: "ok" | "crit"; glyph?: false; family?: string }
 > = {
-  success: { tone: "ok" },
-  failure: { tone: "crit" },
-  neutral: { variant: "outline" },
-  free: { variant: "outline" },
-  purple: { variant: "accent", family: "purple" },
+  success: { variant: "tag", tone: "ok", glyph: false },
+  failure: { variant: "tag", tone: "crit", glyph: false },
+  neutral: { variant: "tag" },
+  purple: { variant: "tag", family: "purple" },
 };
 
 const STEP_RESULT_TONE: Record<string, Tone> = {

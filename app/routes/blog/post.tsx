@@ -287,7 +287,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                 >
                   {r.title}
                   <ArrowRight
-                    className="opacity-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
+                    className="opacity-0 motion-safe:transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
                     size={13}
                     strokeWidth={1.5}
                     aria-hidden
@@ -334,7 +334,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             >
               <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
                 <ArrowLeft
-                  className="transition-transform group-hover:-translate-x-0.5"
+                  className="motion-safe:transition-transform group-hover:-translate-x-0.5"
                   size={13}
                   strokeWidth={1.5}
                   aria-hidden
@@ -356,7 +356,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
                 Next post{" "}
                 <ArrowRight
-                  className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                  className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                   size={13}
                   strokeWidth={1.5}
                   aria-hidden
@@ -383,7 +383,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         >
           Start free audit{" "}
           <ArrowRight
-            className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+            className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
             size={13}
             strokeWidth={1.5}
             aria-hidden

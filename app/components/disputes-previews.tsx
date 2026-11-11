@@ -63,18 +63,23 @@ function TriagePill({ row }: { row: PreviewDisputeRow }) {
 }
 
 /** The dashboard's five cards. `columns` is Recova's grid: five across on the
- *  dashboard, three across in the numbers block; Capsomer's grid of static
- *  tiles fits as many as the room allows. */
-function DisputeStatCards({ preview }: { preview: DisputesPreview }) {
+ *  dashboard, three across in the numbers block. */
+function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
   const { stats } = preview;
+  const grid =
+    columns === 5
+      ? "md:[--tiles-columns:repeat(5,minmax(0,1fr))]"
+      : "sm:[--tiles-columns:repeat(3,minmax(0,1fr))]";
   return (
-    <StatTiles layout="grid" label="Dispute figures">
-      <StaticStatTile label="Open disputes" figure={stats.openCount} />
-      <StaticStatTile label="At stake" figure={stats.atStake} />
-      <StaticStatTile label="Submitted by Foxhound" figure={stats.submittedByFoxhound} />
-      <StaticStatTile label="Fees owed" figure={stats.feesOwed} />
-      <StaticStatTile label="Win rate" figure={stats.winRate} detail={stats.winRateSubtext} />
-    </StatTiles>
+    <div className={`fh-tiles-preview [--tiles-columns:repeat(2,minmax(0,1fr))] ${grid}`}>
+      <StatTiles layout="grid" label="Dispute figures">
+        <StaticStatTile label="Open disputes" figure={stats.openCount} />
+        <StaticStatTile label="At stake" figure={stats.atStake} />
+        <StaticStatTile label="Submitted by Foxhound" figure={stats.submittedByFoxhound} />
+        <StaticStatTile label="Fees owed" figure={stats.feesOwed} />
+        <StaticStatTile label="Win rate" figure={stats.winRate} detail={stats.winRateSubtext} />
+      </StatTiles>
+    </div>
   );
 }
 
@@ -82,7 +87,7 @@ function DisputeStatCards({ preview }: { preview: DisputesPreview }) {
 export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
-      <DisputeStatCards preview={preview} />
+      <DisputeStatCards preview={preview} columns={3} />
     </div>
   );
 }
@@ -105,7 +110,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
       <div className="mb-8">
-        <DisputeStatCards preview={preview} />
+        <DisputeStatCards preview={preview} columns={5} />
       </div>
       <div className="cap-panel">
         <div className="cap-panel-body" data-flush>

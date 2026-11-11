@@ -82,17 +82,6 @@ const RATE_CLASS_NAME: Record<SequenceRateTone, string> = {
   red: "text-error-text",
 };
 
-const TILE_TONE: Record<SequenceRateTone, "ok" | "warn" | "crit"> = {
-  green: "ok",
-  caution: "warn",
-  red: "crit",
-};
-
-/** The band as a Capsomer stat tile's tone. */
-export function sequenceRateTileTone(pct: number, kind: "open" | "click"): "ok" | "warn" | "crit" {
-  return TILE_TONE[sequenceRateTone(pct, kind)];
-}
-
 export function sequenceRateClassName(pct: number, kind: "open" | "click"): string {
   return RATE_CLASS_NAME[sequenceRateTone(pct, kind)];
 }

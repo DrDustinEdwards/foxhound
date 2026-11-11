@@ -254,7 +254,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
           >
             <ChevronRight
               aria-hidden="true"
-              className={`size-4 shrink-0 text-text-tertiary transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`}
+              className={`size-4 shrink-0 text-text-tertiary motion-safe:transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`}
             />
             <span className="break-all">{event.eventType}</span>
             <span className="cap-sr-only"> payload</span>

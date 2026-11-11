@@ -171,7 +171,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
               aria-hidden="true"
               size={13}
               strokeWidth={1.5}
-              className="transition-transform duration-150 group-hover:translate-x-0.5"
+              className="motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
             />
           </Link>
         ) : null}
