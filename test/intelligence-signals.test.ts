@@ -16,16 +16,33 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe("monthlyEquivalentCents", () => {
-  it("divides annual amounts by 12", () => {
-    expect(monthlyEquivalentCents(12000, 1, "year")).toBe(1000);
+  it("divides annual amounts by 12, counts a week as 52/12 and spreads interval_count", () => {
+    expect(monthlyEquivalentCents(12000, 1, "year", 1)).toBe(1000);
+    expect(monthlyEquivalentCents(1200, 1, "week", 1)).toBe(5200);
+    // Quarterly: 3000 every three months is 1000 a month.
+    expect(monthlyEquivalentCents(3000, 1, "month", 3)).toBe(1000);
   });
 });
 
 describe("summarizeActiveSubscriptions", () => {
   it("picks the plan with the largest MRR contribution as current", () => {
     const result = summarizeActiveSubscriptions([
-      { priceId: "p1", productName: "Small", quantity: 1, interval: "month", unitAmountCents: 500 },
-      { priceId: "p2", productName: "Big", quantity: 1, interval: "month", unitAmountCents: 5000 },
+      {
+        priceId: "p1",
+        productName: "Small",
+        quantity: 1,
+        interval: "month",
+        intervalCount: 1,
+        unitAmountCents: 500,
+      },
+      {
+        priceId: "p2",
+        productName: "Big",
+        quantity: 1,
+        interval: "month",
+        intervalCount: 1,
+        unitAmountCents: 5000,
+      },
     ]);
     expect(result.currentPlanName).toBe("Big");
   });
@@ -161,6 +178,7 @@ describe("buildCustomerContextFields (orchestrator)", () => {
           productName: "Pro",
           quantity: 2,
           interval: "month",
+          intervalCount: 1,
           unitAmountCents: 3000,
         },
       ],
@@ -206,6 +224,7 @@ describe("buildCustomerContextFields (orchestrator)", () => {
           productName: "Growth",
           quantity: 1,
           interval: "month",
+          intervalCount: 1,
           unitAmountCents: 9000,
         },
       ],

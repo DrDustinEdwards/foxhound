@@ -6,6 +6,7 @@ import {
   type DeclineCategory,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
+import { monthlyEquivalentCents, type BillingInterval } from "~/lib/intelligence/signals";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { byCurrencyCode } from "~/lib/money-format";
 import { classifyDecline } from "~/lib/recovery/decline";
@@ -191,9 +192,11 @@ export function extractDeclineCode(invoice: AuditInvoice): string | null {
 }
 
 /**
- * A subscription's recurring amount normalized to monthly cents. Legacy's
- * `monthlyPlanCents`, arithmetic for arithmetic: a day interval times 30, a week
- * times 4, a year divided by 12.
+ * A subscription's recurring amount normalized to monthly cents, through the
+ * same conversion Intelligence uses (signals.ts monthlyEquivalentCents), so the
+ * audit's MRR and the dashboard's agree. Recova's `monthlyPlanCents` counted a
+ * week as 4; a month holds 52/12 weeks, so that under-counted weekly plans by
+ * about 8%. Like Recova, it reads the first item's price at quantity one.
  */
 export function monthlyPlanCents(subscription: AuditSubscription): number {
   const item = subscription.items?.data?.[0];
@@ -205,13 +208,10 @@ export function monthlyPlanCents(subscription: AuditSubscription): number {
   if (!amount || !interval) return 0;
   switch (interval) {
     case "day":
-      return Math.round((amount / intervalCount) * 30);
     case "week":
-      return Math.round((amount / intervalCount) * 4);
     case "month":
-      return Math.round(amount / intervalCount);
     case "year":
-      return Math.round(amount / intervalCount / 12);
+      return monthlyEquivalentCents(amount, 1, interval as BillingInterval, intervalCount);
     default:
       return 0;
   }

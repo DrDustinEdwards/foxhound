@@ -99,7 +99,6 @@ function accountRow() {
 async function save(input: Record<string, unknown>): Promise<void> {
   await buildNotificationSettingsUpdate(db, ACCOUNT, {
     notificationEmail: "owner@acme.test",
-    slackWebhookUrl: null,
     slackNotificationsEnabled: false,
     digestEnabled: false,
     recoveryNotificationsEnabled: true,

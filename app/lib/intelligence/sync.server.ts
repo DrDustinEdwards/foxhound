@@ -306,17 +306,17 @@ async function fetchCustomerStripeSnapshot(
     const periodCents = discountedItemCents(itemTerms, subDiscounts, nowMs);
 
     sub.items.forEach((item, i) => {
-      // What one unit costs per interval after discounts, spread over the
-      // price's interval_count (a quarterly price bills three months at once),
-      // so monthlyEquivalentCents (signals.ts) gives the monthly amount paid.
-      const unitAmountCents =
-        item.quantity > 0 ? periodCents[i] / item.quantity / item.intervalCount : 0;
+      // What one unit costs per billing period after discounts;
+      // monthlyEquivalentCents (signals.ts) spreads it over the price's
+      // interval_count (a quarterly price bills three months at once).
+      const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity : 0;
       if (active) {
         activeSubscriptions.push({
           priceId: item.priceId,
           productName: item.productName,
           quantity: item.quantity,
           interval: item.interval,
+          intervalCount: item.intervalCount,
           unitAmountCents,
         });
       }
@@ -328,7 +328,12 @@ async function fetchCustomerStripeSnapshot(
         // Ranking signal only (collapseBillingObservations): the item with
         // the largest monthly-equivalent amount represents this instant, the
         // same rule summarizeActiveSubscriptions uses for "current plan".
-        valueCents: monthlyEquivalentCents(unitAmountCents, item.quantity, item.interval),
+        valueCents: monthlyEquivalentCents(
+          unitAmountCents,
+          item.quantity,
+          item.interval,
+          item.intervalCount,
+        ),
       });
     });
     if (sub.churnReason) churnReason = sub.churnReason;
