@@ -6,7 +6,13 @@ import { listExecutedEmailSteps } from "~/lib/recovery/dashboard-queries.server"
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-const BOUNDS = { minCents: 0, maxCents: 100_000 };
+const BOUNDS = {
+  minCents: 0,
+  maxCents: 100_000,
+  currency: "usd",
+  defaultCurrency: "usd",
+  currencies: ["usd"],
+};
 
 function filters(overrides: Partial<PaymentFilterState> = {}): PaymentFilterState {
   return {

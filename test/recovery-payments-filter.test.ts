@@ -101,6 +101,21 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
     }
   });
 
+  it("an amount range only matches payments in its own currency", async () => {
+    const db = await seededDb();
+    const range = { ...BASE_FILTERS, amountMinCents: 10_000, amountMaxCents: 20_000 };
+    const usd = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...range,
+      amountCurrency: "usd",
+    });
+    const eur = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
+      ...range,
+      amountCurrency: "eur",
+    });
+    expect(usd.totalCount).toBeGreaterThan(0);
+    expect(eur.totalCount).toBe(0);
+  });
+
   it("filters by a detected-after cutoff", async () => {
     const db = await seededDb();
     const cutoffMs = now.getTime() - 7 * 24 * 60 * 60 * 1000;

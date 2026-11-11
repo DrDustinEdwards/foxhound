@@ -66,7 +66,13 @@ function data(over: Partial<LoaderData> = {}): LoaderData {
     globalRecoveryRatePct: 25,
     pillCounts: { all: 4, active: 1, recovered: 1, failedUnrecovered: 1, cancelled: 1 },
     header: { atRisk: [{ currency: "usd", cents: 4999 }], recovered: [], ratePct: 0 },
-    bounds: { minCents: 0, maxCents: 100_000 },
+    bounds: {
+      minCents: 0,
+      maxCents: 100_000,
+      currency: "usd",
+      defaultCurrency: "usd",
+      currencies: ["usd"],
+    },
     nowMs: NOW,
     filters: {
       search: "",
