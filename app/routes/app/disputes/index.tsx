@@ -343,21 +343,22 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
               </table>
             </div>
           </div>
-          {pagination.pageCount > 1 ? (
-            <div className="cap-panel-foot">
-              <Pagination
-                page={pagination.page}
-                pageCount={pagination.pageCount}
-                total={pagination.total}
-                perPage={pagination.perPage}
-                noun="disputes"
-                hrefFor={(n) => (n > 1 ? `/disputes?page=${n}` : "/disputes")}
-                label="Dispute pages"
-              />
-            </div>
-          ) : null}
         </div>
       )}
+
+      {pagination.pageCount > 1 ? (
+        <div className="mt-4">
+          <Pagination
+            page={pagination.page}
+            pageCount={pagination.pageCount}
+            total={pagination.total}
+            perPage={pagination.perPage}
+            noun="disputes"
+            hrefFor={(n) => (n > 1 ? `/disputes/dashboard?page=${n}` : "/disputes/dashboard")}
+            label="Dispute pages"
+          />
+        </div>
+      ) : null}
 
       {/* Legacy renders SyncDisputeLink directly below DisputesDashboardView and
           OUTSIDE its empty-state branch, so it shows on both states. That is
