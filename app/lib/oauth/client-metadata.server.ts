@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // CLIENT ID METADATA DOCUMENTS (the MCP authorization spec's CIMD): a client
 // that has not registered uses the https URL of a JSON document it publishes as
 // its client_id, and the authorization server fetches that document to learn
@@ -64,11 +65,7 @@ export async function resolveMetadataDocumentClient(
   } catch (error) {
     // CimdFetchError and the library's own refusals: the reason goes to the
     // log, and the person sees "Unknown client".
-    console.warn(
-      "client metadata document refused:",
-      clientId,
-      error instanceof Error ? error.message : String(error),
-    );
+    console.warn("client metadata document refused:", clientId, errorMessage(error));
     return null;
   }
 }

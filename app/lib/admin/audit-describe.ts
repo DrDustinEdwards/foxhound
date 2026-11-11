@@ -5,7 +5,7 @@
 // looks up (merchant names, post titles).
 
 import { merchantHref } from "~/lib/admin/page";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 const ACTIONS: Record<string, string> = {

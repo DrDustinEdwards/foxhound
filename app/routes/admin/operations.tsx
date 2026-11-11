@@ -18,7 +18,7 @@ import {
   settingKindWord,
 } from "~/lib/admin/operations";
 import { loadMcpOverview } from "~/lib/admin/mcps.server";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,

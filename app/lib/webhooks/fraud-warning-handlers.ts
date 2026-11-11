@@ -13,6 +13,7 @@ import { buildClaimOnlyBatch, buildWebhookClaim } from "./batches";
 import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
 import { resolveDisputedRecovery } from "./lookups";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 /**
  * Record the warning, one row per Stripe warning per account, claimed in the
  * same atomic batch as every other webhook side effect.
@@ -108,7 +109,7 @@ export async function handleEarlyFraudWarning(
     } catch (err) {
       return {
         status: "error",
-        message: `early fraud warning lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+        message: `early fraud warning lookup failed: ${errorMessage(err)}`,
       };
     }
   }

@@ -27,6 +27,7 @@ import {
 } from "~/lib/constants";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { plural } from "@drdustinedwards/site-helpers/text";
 
 // The audit's render sections, shared by BOTH surfaces that show a run: the
 // live /audit/results and a saved run at /audit/results/:id. Recova shares its
@@ -166,8 +167,6 @@ function Headline({
     </div>
   );
 }
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Recova's AuditAISummary (5ba213df): a labeled card holding one paragraph.
  *  Renders nothing when there is no summary. Shared with /audit/dashboard. */

@@ -17,6 +17,7 @@ import { maskEmailsInText } from "./redact";
 import { ToolInputError, type McpToolContext, type McpToolRegistry } from "./registry";
 import { HOUR_MS } from "~/lib/constants";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE PROTOCOL, FROM THE OFFICIAL SDK (MCP ruling rule 8, 2026-10-10).
 //
 // The hand-written JSON-RPC that served /mcp until now is replaced by
@@ -101,7 +102,7 @@ function toolResult(data: unknown, isError = false) {
  */
 function errorForAgent(tool: string, err: unknown): string {
   if (err instanceof ToolInputError) return maskEmailsInText(err.message);
-  console.error("mcp tool failed:", tool, err instanceof Error ? err.message : String(err));
+  console.error("mcp tool failed:", tool, errorMessage(err));
   return `${tool} could not finish because of an error inside Foxhound. Try again; if it keeps failing, the merchant can report it from the Foxhound app.`;
 }
 

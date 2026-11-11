@@ -36,6 +36,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
 //
 // LEGACY IS THE SPEC, read whole at HEAD:
@@ -157,7 +158,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           console.error("stripe deauthorize threw after the disconnect committed:", err);
           return {
             ok: false,
-            error: err instanceof Error ? err.message : String(err),
+            error: errorMessage(err),
           };
         }
       },

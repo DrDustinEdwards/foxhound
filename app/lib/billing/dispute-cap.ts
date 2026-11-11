@@ -2,6 +2,7 @@ import { DISPUTE_FEE_CAP_CENTS, STRIPE_PREVIEW_API_VERSION } from "~/lib/constan
 import { currencyExponent } from "@dustinedwards/site-runtime/money";
 import { getStripe } from "~/lib/stripe/client";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE $500 CAP, CONVERTED AT RESOLUTION (ruling 377(7), PRICING.md rev 5 item 2,
 // reversing 376(6)'s "FX never").
 //
@@ -48,9 +49,7 @@ export class DisputeCapQuoteError extends Error {
     readonly currency: string,
     cause: unknown,
   ) {
-    super(
-      `fx quote for usd->${currency} failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-    );
+    super(`fx quote for usd->${currency} failed: ${errorMessage(cause)}`);
     this.name = "DisputeCapQuoteError";
   }
 }

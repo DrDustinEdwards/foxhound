@@ -14,7 +14,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
 import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/stat-tile.css";
@@ -199,11 +199,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   } catch (err) {
     // A transient Stripe or D1 failure throws (resolveDisputedRecovery's
     // contract) and writes nothing, the same answer the detail page gives.
-    logEvent(
-      "dispute_sync_failed",
-      { error: err instanceof Error ? err.message : String(err) },
-      { level: "error" },
-    );
+    logEvent("dispute_sync_failed", { error: errorMessage(err) }, { level: "error" });
     return data(
       { sync: { ok: false, message: "Could not import the dispute. Please try again." } },
       { status: 500 },

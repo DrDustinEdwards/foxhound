@@ -30,6 +30,7 @@ import {
   toEmailContext,
 } from "./due-steps";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 /** What the loop re-checks before EACH step. */
 export interface TickGuards {
   /** recovery-tick's cron_config flag. A missing row means enabled (gotcha #44). */
@@ -538,7 +539,7 @@ export async function runRecoveryTick(
         failedPaymentId: row.failedPaymentId,
         stepType: row.stepType,
         errorClass: err instanceof Error ? err.constructor.name : typeof err,
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       });
       console.error("recovery step failed:", JSON.stringify(failedSteps[failedSteps.length - 1]));
     }

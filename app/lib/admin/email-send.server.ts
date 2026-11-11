@@ -62,6 +62,7 @@ import { buildTestEmailJob } from "~/lib/settings/test-email.server";
 
 import type { Rendered } from "capsomer/email";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // SEND OR PREVIEW ANY EMAIL, for the owner only (admin API routes /emails,
 // /emails/preview and /emails/send). Dustin approved it on 2026-10-15, message
 // cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ, answering "ok" to:
@@ -911,6 +912,6 @@ export async function sendAdminEmail(
       ? done("sent", outcome.providerMessageId)
       : done("failed", null, outcome.error ?? outcome.reason);
   } catch (err) {
-    return done("failed", null, err instanceof Error ? err.message : String(err));
+    return done("failed", null, errorMessage(err));
   }
 }

@@ -25,7 +25,7 @@ import {
   setProcessingPausedIfChanged,
 } from "~/lib/admin/merchants.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type { AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { Route } from "./+types/index";

@@ -1,4 +1,9 @@
-import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
+import {
+  errorMessage,
+  logEvent,
+  OWASP_EVENTS,
+  requestFields,
+} from "@dustinedwards/site-runtime/log";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 import { eq } from "drizzle-orm";
 import { clientIp } from "@dustinedwards/site-runtime/http";
@@ -547,10 +552,7 @@ const ROUTES: ApiRoute[] = [
       } catch (err) {
         // The real send would refuse for the same reason (a CAN-SPAM guard, a
         // missing signing key), so the refusal is the answer.
-        throw new ApiError(
-          409,
-          `This email cannot be built: ${err instanceof Error ? err.message : String(err)}.`,
-        );
+        throw new ApiError(409, `This email cannot be built: ${errorMessage(err)}.`);
       }
       return { preview, merchant: merchantForPreview(merchant), note: EMAIL_NOTE };
     },
@@ -599,7 +601,7 @@ const ROUTES: ApiRoute[] = [
             type: type.type,
             status: "failed",
             provider_message_id: null,
-            error: err instanceof Error ? err.message : String(err),
+            error: errorMessage(err),
           });
           continue;
         }
@@ -660,12 +662,7 @@ async function logCall(
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error(
-      "admin api call log write failed:",
-      caller.keyId,
-      path,
-      err instanceof Error ? err.message : String(err),
-    );
+    console.error("admin api call log write failed:", caller.keyId, path, errorMessage(err));
   }
 }
 
@@ -719,7 +716,7 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
       } else {
         // An unexpected failure's text stays on the server, as on the merchant
         // MCP: it can carry the values of the query it failed on.
-        console.error("admin api failed:", path, err instanceof Error ? err.message : String(err));
+        console.error("admin api failed:", path, errorMessage(err));
         error = "Foxhound could not finish this call because of an internal error. Try again.";
         response = json(500, { ok: false, error });
       }
