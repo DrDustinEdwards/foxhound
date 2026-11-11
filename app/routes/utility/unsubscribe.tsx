@@ -1,3 +1,4 @@
+import { clientIp } from "@dustinedwards/site-runtime/http";
 import { Button } from "capsomer/react/button";
 import { ResultPage } from "capsomer/react/status-mark";
 import { Form, useActionData, useNavigation } from "react-router";
@@ -81,7 +82,7 @@ export const middleware: Route.MiddlewareFunction[] = [
   async ({ request, context }, next) => {
     if (request.method === "POST") return next();
     const { env } = context.get(cloudflareContext);
-    const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+    const ip = clientIp(request);
     const allowed = await isWithinRateLimit(
       env,
       "unsubscribe",
