@@ -1,5 +1,5 @@
 import type { FailedPaymentRow } from "./queries.server";
-import { toCsv, verbatim } from "capsomer/behavior/csv";
+import { toCsv } from "@dustinedwards/site-runtime/csv";
 import { plainMajorAmount } from "~/lib/money-format";
 
 // The /recovery/payments CSV export. Pure and unit-tested: given the rows
@@ -19,7 +19,7 @@ import { plainMajorAmount } from "~/lib/money-format";
 // APPROVED-DIFFERENCES 2026-08-14 covers, and the export is not a badge.
 // Every Recova value has a Foxhound value of the same name, so nothing is
 // mapped. Foxhound's stripe_retrying, revoked and unknown have no Recova
-// twin and are written as stored too. The file itself is Capsomer's CSV
+// twin and are written as stored too. The file itself is site-runtime's CSV
 // (RFC 4180, CRLF after every record, the formula guard on), as every
 // network export is, not Recova's LF with no final line break.
 
@@ -44,15 +44,6 @@ export interface PaymentStepCounts {
   total: number;
 }
 
-/** The cells this module produces itself stay numbers and dates in a
- *  spreadsheet while they match the strict shape it produces; anything else
- *  (and every free-text cell: name, email, plan, currency, decline category
- *  and code, status, notes, which a customer, a merchant or Stripe controls)
- *  goes through Capsomer's formula guard. */
-const AMOUNT_PATTERN = /-?\d+(\.\d{2,3})?/;
-const COUNT_PATTERN = /\d+/;
-const ISO_DATE_PATTERN = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-
 /** Build the full CSV text (header + one row per payment) for a set of
  *  already-filtered failed payments. A payment missing from `stepCounts` has
  *  no steps. */
@@ -68,15 +59,16 @@ export function buildPaymentsCsv(
         p.customerName ?? "",
         p.customerEmail,
         p.planName ?? "",
-        verbatim(plainMajorAmount(p.amountCents, p.currency), AMOUNT_PATTERN),
+        // A plain number, so the formula guard leaves it a number.
+        plainMajorAmount(p.amountCents, p.currency),
         p.currency.toUpperCase(),
         p.declineCategory,
         p.declineCode ?? "",
         p.status,
-        verbatim(String(steps.executed), COUNT_PATTERN),
-        verbatim(String(steps.total), COUNT_PATTERN),
-        verbatim(p.detectedAt.toISOString(), ISO_DATE_PATTERN),
-        p.resolvedAt ? verbatim(p.resolvedAt.toISOString(), ISO_DATE_PATTERN) : "",
+        steps.executed,
+        steps.total,
+        p.detectedAt,
+        p.resolvedAt ?? "",
         p.notes ?? "",
       ];
     }),
