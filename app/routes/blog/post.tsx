@@ -3,9 +3,9 @@ import { Link } from "capsomer/react/link";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 import { goneResponse } from "@dustinedwards/site-runtime/url";
-import { CoverPicture } from "~/components/blog/cover-picture";
+import { Picture } from "capsomer/react/picture";
+import "capsomer/picture.css";
 import { SectionTrail } from "~/components/section-trail";
-import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
 import { ShareRow } from "~/components/blog/share-row";
 import { TableOfContents } from "~/components/blog/table-of-contents";
 import { getDb } from "~/db";
@@ -190,7 +190,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
-      <ReadingProgressBar targetId="blog-post-article" />
+      <div className="cap-reading-progress" aria-hidden="true" />
 
       <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
@@ -198,10 +198,15 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         {/* h-entry and e-content name the post's own text for site-api's
             webmention hook, which sends to the links inside it only (not the
             share row's). No style reads either class. */}
-        <article id="blog-post-article" className="h-entry">
+        <article id="blog-post-article" className="h-entry" data-cap-reading>
           {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
-              <CoverPicture cover={cover} className="h-full w-full object-cover" />
+              <Picture
+                attrs={cover.picture}
+                alt={cover.alt}
+                priority
+                className="h-full w-full object-cover"
+              />
             </div>
           ) : null}
 

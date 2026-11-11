@@ -1,6 +1,6 @@
-import { Check, Link2 } from "lucide-react";
-
-import { CopyLinkButton } from "~/components/copy-link-button";
+import { CopyButton } from "capsomer/react/copy";
+import "capsomer/button.css";
+import "capsomer/copy.css";
 
 // Ported from legacy components/blog/ShareBar.tsx (resolved from its call site
 // at PostDetailBody.tsx:126): a "Share" label plus X, LinkedIn, and Copy link
@@ -9,8 +9,7 @@ import { CopyLinkButton } from "~/components/copy-link-button";
 // tracking scripts.
 //
 // The brand marks are legacy's own inline SVG path data (ShareBar.tsx:37-42,
-// 50-55), carried over verbatim. lucide-react is used only where legacy uses
-// it, for Link2 and the Check that replaces it for two seconds after a copy.
+// 50-55), carried over verbatim. The Copy link button is Capsomer's copy.
 // An earlier comment here justified a text-only row on the claim that
 // lucide ships no X/LinkedIn brand marks. That reason was beside the point:
 // legacy never used an icon set for them, so no icon-set dependency was ever
@@ -44,19 +43,19 @@ export function ShareRow({ url, title }: { url: string; title: string }) {
         </svg>
         LinkedIn
       </a>
-      <CopyLinkButton
-        url={url}
-        resetMs={2000}
-        aria-label="Copy link"
-        className="inline-flex cursor-pointer items-center gap-1.5 font-mono text-label text-text-tertiary transition-colors hover:text-text"
-        icon={(copied) =>
-          copied ? (
-            <Check size={13} strokeWidth={1.5} aria-hidden className="text-success-text" />
-          ) : (
-            <Link2 size={13} strokeWidth={1.5} aria-hidden />
-          )
-        }
-      />
+      {/* The address the button copies. On a page that does not hydrate, the copy island
+          (islands/copy.ts) wires the button by its command and commandfor. */}
+      <data id="share-url" value={url} hidden>
+        {url}
+      </data>
+      <CopyButton
+        size="xs"
+        {...{ command: "--copy", commandfor: "share-url" }}
+        data-island="copy"
+        text={url}
+      >
+        Copy link
+      </CopyButton>
     </div>
   );
 }

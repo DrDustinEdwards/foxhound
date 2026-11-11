@@ -1,7 +1,6 @@
 import { RefreshCw, Shield, TrendingUp, LayoutDashboard } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
-import { FadeUp } from "~/components/fade-up";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
@@ -106,8 +105,8 @@ export default function DemosPage() {
             density: 24px sides as Recova's p-6, 16px top and bottom where
             Recova has 24px, 10px corners where Recova has 12px. Those are
             Capsomer's panel as it ships; a Foxhound variant waits for
-            Capsomer's per-site layer. FadeUp,
-            Recova's reveal, is a one-cell grid so the panel fills the row.
+            Capsomer's per-site layer. The reveal
+            wrapper is a one-cell grid so the panel fills the row.
             The panel's body does not fill the panel, so a button sits under
             its own blurb rather than at the foot of a taller neighbor, as
             on the blog's cards; that is the layer's too. */}
@@ -115,8 +114,8 @@ export default function DemosPage() {
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           data-density="comfortable"
         >
-          {PRODUCT_ENTRIES.map((entry, index) => (
-            <FadeUp key={entry.href} delay={index * 100} className="grid">
+          {PRODUCT_ENTRIES.map((entry) => (
+            <div key={entry.href} className="cap-reveal grid">
               <div className="cap-panel">
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
@@ -140,7 +139,7 @@ export default function DemosPage() {
                   </div>
                 </div>
               </div>
-            </FadeUp>
+            </div>
           ))}
         </div>
 
