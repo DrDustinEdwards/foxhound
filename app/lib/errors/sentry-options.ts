@@ -4,6 +4,8 @@ import {
 } from "@dustinedwards/site-runtime/log";
 import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 
+import { TOKEN_PATH } from "./token-routes";
+
 // J05 (job_f1f5ebd7fe50): the Sentry posture, set before Dustin puts in
 // SENTRY_DSN. With no DSN this returns undefined and the SDK initializes
 // nothing, exactly as before. With a DSN:
@@ -23,8 +25,6 @@ import type { CloudflareOptions, Event } from "@sentry/cloudflare";
 //
 // Sentry never wraps the money Durable Object.
 
-// Routes whose last segment is one person's token (app/routes.ts).
-const TOKEN_PATH = /\/(u|p|e\/[och]|invite)\/[^/?#\s'"]+/g;
 // Data keys that hold a query string, request headers, cookies, or raw console
 // arguments (the Console integration keeps them unformatted beside the message).
 const DROP_KEY = /query|header|cookie|arguments/i;

@@ -291,10 +291,6 @@ export default [
   route("api/oauth/register", "./routes/api/oauth-register.ts"),
   route("api/oauth/revoke", "./routes/api/oauth-revoke.ts"),
 
-  // Content-Security-Policy report sink (J22, F16): the policy's report-uri and
-  // report-to name it. Action-only resource route at Recova's own path.
-  route("csp-report", "./routes/csp-report.ts"),
-
   // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),
 ] satisfies RouteConfig;

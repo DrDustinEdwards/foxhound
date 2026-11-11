@@ -20,7 +20,8 @@ import {
   HOME_LABEL,
   recovaWords,
 } from "./components/error-view";
-import { cloudflareContext, getNonce } from "@dustinedwards/site-runtime/context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { useNonce } from "@dustinedwards/site-runtime/nonce";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
 import { usePageHydrates } from "./lib/page-hydrates";
@@ -39,16 +40,9 @@ export const links: Route.LinksFunction = () => [...iconLinks(), ...PRELOADS.lin
 // HERE, because reading it only in a layout would leave them rendering the
 // default on a new device and then correcting, which is the exact flash this
 // loader exists to prevent. Anonymous requests still touch no DB.
-// nonce comes
-// from workers/app.ts's per-request generateNonce() (site-runtime; TASK-foxhound-csp-
-// nonce-hydration.md), threaded via cloudflareContext so <Scripts>/
-// <ScrollRestoration> below can carry the SAME value applySecurityHeaders
-// puts in the Content-Security-Policy header - a mismatch would make the
-// browser reject its own hydration scripts.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const nonce = getNonce(context);
-  return { theme: await resolveThemeForRequest(env, request), nonce };
+  return { theme: await resolveThemeForRequest(env, request) };
 }
 
 // Paths that act on a GET, so a hovered link never prefetches them (a prefetch runs the loader),
@@ -75,7 +69,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // throwing.
   const data = useRouteLoaderData<typeof loader>("root");
   const theme = data?.theme ?? DEFAULT_THEME;
-  const nonce = data?.nonce;
+  // The render's nonce (site-runtime ./nonce, from ./react-entry), the one the policy names: never loader data, where a
+  // stored page would hand every reader the value it was rendered with.
+  const nonce = useNonce();
 
   const hydrates = usePageHydrates();
 
