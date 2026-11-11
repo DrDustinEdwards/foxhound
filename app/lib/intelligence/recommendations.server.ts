@@ -1,5 +1,5 @@
-import { and, count, desc, eq, gte, inArray, isNull, like } from "drizzle-orm";
-import { inList } from "@dustinedwards/site-runtime/d1";
+import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 
 import {
   accounts,
@@ -70,7 +70,7 @@ async function loadEngagementTallies(
           eq(failedPayments.accountId, accountId),
           isNull(recoverySteps.deletedAt),
           isNull(failedPayments.deletedAt),
-          like(recoverySteps.result, "email_sent%"),
+          likeStartsWith(recoverySteps.result, "email_sent"),
           gte(recoverySteps.executedAt, cutoff),
           customer,
         ),

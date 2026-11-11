@@ -1,3 +1,4 @@
+import { likeStartsWith } from "@dustinedwards/site-runtime/d1";
 import {
   and,
   count,
@@ -6,7 +7,6 @@ import {
   gte,
   isNotNull,
   isNull,
-  like,
   lte,
   ne,
   notInArray,
@@ -99,8 +99,8 @@ async function computeAlertMetrics(
         and(
           eq(recoverySteps.accountId, accountId),
           isNull(recoverySteps.deletedAt),
-          like(recoverySteps.stepType, "email_%"),
-          like(recoverySteps.result, "email_sent%"),
+          likeStartsWith(recoverySteps.stepType, "email_"),
+          likeStartsWith(recoverySteps.result, "email_sent"),
           gte(recoverySteps.executedAt, sevenDaysAgo),
         ),
       ),

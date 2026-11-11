@@ -43,7 +43,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const page = parsePage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
-  const bounds = await getAmountBounds(db, accountId);
+  const bounds = await getAmountBounds(db, accountId, params.get("currency"));
   const amountMinParsed = parsePaymentsAmount(
     params.get("amountMin"),
     bounds.minCents,
@@ -67,6 +67,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     detectedAfterMs,
     amountMinCents,
     amountMaxCents,
+    amountCurrency: bounds.currency,
     sort,
     page,
     pageSize,

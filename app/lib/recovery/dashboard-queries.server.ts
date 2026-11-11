@@ -13,13 +13,12 @@ import {
   gte,
   inArray,
   isNull,
-  like,
   lte,
   or,
   sql,
   type SQL,
 } from "drizzle-orm";
-import { inList } from "@dustinedwards/site-runtime/d1";
+import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 import { byAccountActive } from "~/db/scope";
 import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { billableRecoveryRowConditions, exemptionForgaveRecovery } from "~/db/billable";
@@ -241,7 +240,7 @@ export async function listExecutedEmailSteps(
       and(
         eq(recoverySteps.accountId, accountId),
         eq(failedPayments.isRenewalNoise, false),
-        like(recoverySteps.stepType, "email_%"),
+        likeStartsWith(recoverySteps.stepType, "email_"),
         sql`${recoverySteps.executedAt} is not null`,
         notCancelledResult(),
       ),
