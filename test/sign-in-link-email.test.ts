@@ -53,7 +53,10 @@ vi.mock("~/db/client", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { requestSignInLink, signInWithCode } = await import("~/lib/auth/sign-in-link.server");
+const { requestSignInLink, signInWithCode } =
+  await import("@dustinedwards/site-runtime/sign-in-form");
+const { getAuth } = await import("~/lib/auth");
+const { passkeyOfferURL } = await import("~/lib/auth/sign-in-link.server");
 const { sendSignInLinkEmail } = await import("~/lib/auth/send-auth-email");
 
 const BASE = "https://foxhoundapp.com";
@@ -126,15 +129,16 @@ afterEach(() => {
 });
 
 /** What /login sends: the page's own path to Better Auth's handler. */
-function ask(env: Env, email = TO) {
+async function ask(env: Env, email = TO) {
   return requestSignInLink(
-    env,
+    await getAuth(env),
     new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }),
     {
       email,
       captchaToken: "XXXX.DUMMY.TOKEN.XXXX",
-      next: "/console",
-      newUserNext: "/console",
+      callbackURL: passkeyOfferURL(env, "/console"),
+      newUserCallbackURL: passkeyOfferURL(env, "/console"),
+      errorCallbackURL: new URL("/sign-in/confirm", env.BETTER_AUTH_URL).toString(),
     },
   );
 }
@@ -148,12 +152,16 @@ function codeIn(m: SentMessage): string {
 
 /** A typed code from `ip` (Better Auth limits a code to three tries a minute
  *  from one address, beside the code's own three). */
-function typeCode(env: Env, code: string, ip = "203.0.113.1") {
+async function typeCode(env: Env, code: string, ip = "203.0.113.1") {
   const headers = { origin: BASE, "cf-connecting-ip": ip };
-  return signInWithCode(env, new Request(`${BASE}/login?code`, { method: "POST", headers }), {
-    email: TO,
-    code,
-  });
+  return signInWithCode(
+    await getAuth(env),
+    new Request(`${BASE}/login?code`, { method: "POST", headers }),
+    {
+      email: TO,
+      code,
+    },
+  );
 }
 
 function linkTokens(): string[] {
@@ -325,12 +333,12 @@ describe("the code in the same mail signs in the tab that asked", () => {
     const code = codeIn(sent[0]);
 
     const result = await typeCode(env, code);
-    expect(result.status).toBe("signed_in");
-    if (result.status !== "signed_in") return;
+    expect(result.status).toBe("signed-in");
+    if (result.status !== "signed-in") return;
     expect(result.headers.get("Set-Cookie")).toContain("better-auth.session_token=");
     expect(sqlite.prepare("SELECT count(*) AS n FROM session").get()).toEqual({ n: 1 });
 
-    expect((await typeCode(env, code)).status).not.toBe("signed_in");
+    expect((await typeCode(env, code)).status).not.toBe("signed-in");
   });
 
   it("a wrong code counts; after three the address takes no more codes, and the link still works", async () => {
@@ -345,7 +353,7 @@ describe("the code in the same mail signs in the tab that asked", () => {
     for (const ip of ["203.0.113.2", "203.0.113.3", "203.0.113.4"]) {
       expect((await typeCode(env, wrong, ip)).status).toBe("wrong");
     }
-    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("email_limited");
+    expect((await typeCode(env, code, "203.0.113.5")).status).toBe("email-limited");
     expect(linkTokens()).toHaveLength(1);
   });
 
@@ -355,7 +363,7 @@ describe("the code in the same mail signs in the tab that asked", () => {
     await ask(env);
     const [first, second] = sent.map(codeIn);
     if (first !== second) expect((await typeCode(env, first)).status).toBe("wrong");
-    expect((await typeCode(env, second)).status).toBe("signed_in");
+    expect((await typeCode(env, second)).status).toBe("signed-in");
   });
 
   it("the code is never logged", async () => {

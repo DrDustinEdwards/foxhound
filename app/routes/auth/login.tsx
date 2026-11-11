@@ -13,7 +13,8 @@ import {
   SocialContinue,
 } from "~/components/auth-card";
 import { checkAuthLimit, limitedData, SIGN_IN_LIMITED } from "~/lib/auth/rate-limit.server";
-import { DEFAULT_NEXT_PATH, REAUTH_PARAM, safeNextPath } from "~/lib/auth/next-path";
+import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
+import { DEFAULT_NEXT_PATH, REAUTH_PARAM } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
 import { answerSignInForm, signInErrorMessage } from "~/lib/auth/sign-in-link.server";
@@ -45,7 +46,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // signed-out merchant back to the consent page with every parameter. The
   // checks are anchored (app/lib/auth/next-path.ts); anything else lands on
   // /console, as before.
-  const next = safeNextPath(params.get("next"));
+  const next = safeNextPath(params.get("next"), { fallback: DEFAULT_NEXT_PATH });
   // Same session read appShellMiddleware uses (guards.ts): a signed-in
   // visitor hitting /login otherwise saw the sign-in form while the header
   // already showed them authenticated.

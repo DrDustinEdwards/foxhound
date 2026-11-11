@@ -10,7 +10,8 @@ import { countNotFound } from "@dustinedwards/site-runtime/not-found";
 // React Router prints every route error, so each scanner 404 wrote a stack trace; a route 404 is counted, not logged.
 export { handleServerError as handleError } from "@dustinedwards/site-runtime/log";
 
-export const streamTimeout = 5_000;
+import { streamTimeout } from "@dustinedwards/site-runtime/react-entry";
+export { streamTimeout };
 
 // Override of @react-router/dev's default entry.server.web.tsx
 // (TASK-foxhound-csp-nonce-hydration.md, streaming check). The default

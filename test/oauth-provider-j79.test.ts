@@ -8,7 +8,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
 import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
-import { safeNextPath } from "~/lib/auth/next-path";
+import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import {
   applyCachePolicy,
   classifyPath,
@@ -23,6 +23,8 @@ import { defineToolRegistry, type McpTool } from "~/lib/mcp/registry";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, toolOutput, toolCallLogStub } from "./helpers/mcp-client";
+
+const landing = (raw: unknown) => safeNextPath(raw, { fallback: "/console" });
 
 // J79, rows A9, F18 and F19: the OAuth provider external
 // agents connect through, ruling 8's build. Recova is the spec for what the
@@ -1183,8 +1185,8 @@ describe("redirect schemes: an operating-system handler is never a client", () =
 describe("safeNextPath never hands a Location header a value it cannot carry", () => {
   it("refuses any character outside printable ASCII", () => {
     for (const raw of ["/\u3000/x", "/\u00a0/x", "/caf\u00e9", "/\u2028x", "%2F%E3%80%80%2Fx"]) {
-      expect(safeNextPath(JSON.parse(`"${raw}"`)), raw).toBe("/console");
+      expect(landing(JSON.parse(`"${raw}"`)), raw).toBe("/console");
     }
-    expect(safeNextPath("/oauth/authorize?a=%E3%80%80")).toBe("/oauth/authorize?a=%E3%80%80");
+    expect(landing("/oauth/authorize?a=%E3%80%80")).toBe("/oauth/authorize?a=%E3%80%80");
   });
 });

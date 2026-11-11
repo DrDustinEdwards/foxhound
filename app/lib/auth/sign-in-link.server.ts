@@ -1,10 +1,15 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
-import { CONFIRM_PATH, SIGN_IN_CODE_PATH } from "@dustinedwards/site-runtime/sign-in";
+import { CONFIRM_PATH } from "@dustinedwards/site-runtime/sign-in";
+import {
+  requestSignInLink,
+  safeNextPath,
+  signInWithCode,
+} from "@dustinedwards/site-runtime/sign-in-form";
 import { data, redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
 
-import { safeNextPath } from "./next-path";
+import { DEFAULT_NEXT_PATH } from "./next-path";
 import { RATE_LIMITED_ERROR, SIGN_IN_LIMITED, SIGN_UP_LIMITED } from "./rate-limit.server";
 
 // The emailed sign-in link that /login and /signup send (site-runtime
@@ -40,25 +45,6 @@ export function signInErrorMessage(code: string | null): string | null {
     : null;
 }
 
-export type SignInLinkResult =
-  | "sent"
-  | "limited"
-  | "email_limited"
-  | "check_failed"
-  | "unavailable"
-  | "failed";
-
-/** A 429 from Better Auth: its per-IP limit, or site-runtime's per-address one
- *  (EMAIL_RATE_LIMITED), whose window is an hour or a day, so its words say
- *  "later", not "a minute". */
-async function limitOf(res: Response): Promise<"limited" | "email_limited"> {
-  const { code } = (await res
-    .clone()
-    .json()
-    .catch(() => ({}))) as { code?: string };
-  return code === "EMAIL_RATE_LIMITED" ? "email_limited" : "limited";
-}
-
 /** Where a sign-in by link, code, Google or Apple lands: the passkey offer,
  *  which goes on to `next` (straight away when site-runtime's
  *  shouldOfferPasskey says no). Absolute on Foxhound's own
@@ -67,74 +53,14 @@ async function limitOf(res: Response): Promise<"limited" | "email_limited"> {
  *  OAuth authorize `next` always does. */
 export function passkeyOfferURL(env: Env, next: string): string {
   return new URL(
-    `/passkey?next=${encodeURIComponent(safeNextPath(next))}`,
+    `/passkey?next=${encodeURIComponent(safeNextPath(next, { fallback: DEFAULT_NEXT_PATH }))}`,
     env.BETTER_AUTH_URL,
   ).toString();
 }
 
-/** The headers Better Auth's handler is handed for a signed-out POST: the
- *  origin it checks, the address its limiter counts and the user agent. */
-function forwardedHeaders(request: Request): Headers {
-  const headers = new Headers({ "Content-Type": "application/json" });
-  for (const name of ["origin", "cf-connecting-ip", "user-agent"]) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-  return headers;
-}
-
-export async function requestSignInLink(
-  env: Env,
-  request: Request,
-  link: { email: string; captchaToken: string; next: string; newUserNext: string },
-): Promise<SignInLinkResult> {
-  const headers = forwardedHeaders(request);
-  if (link.captchaToken) headers.set("x-captcha-response", link.captchaToken);
-
-  try {
-    const res = await (
-      await getAuth(env)
-    ).handler(
-      new Request(new URL("/api/auth/sign-in/magic-link", env.BETTER_AUTH_URL), {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          email: link.email,
-          callbackURL: passkeyOfferURL(env, link.next),
-          newUserCallbackURL: passkeyOfferURL(env, link.newUserNext),
-          // A spent or expired link comes back to the confirm page, which says so.
-          errorCallbackURL: new URL(CONFIRM_PATH, env.BETTER_AUTH_URL).toString(),
-        }),
-      }),
-    );
-    if (res.status === 429) return limitOf(res);
-    // site-runtime refuses the link, failing closed, when Turnstile's keys are
-    // missing (TURNSTILE_NOT_SET).
-    if (res.status === 503) return "unavailable";
-    if (res.status === 400 || res.status === 403) {
-      const { code } = (await res
-        .clone()
-        .json()
-        .catch(() => ({}))) as { code?: string };
-      if (code === "MISSING_RESPONSE" || code === "VERIFICATION_FAILED") return "check_failed";
-    }
-    if (!res.ok) {
-      // The status only: the body can carry the address.
-      logEvent("sign_in_link_failed", { status: res.status }, { level: "error" });
-      return "failed";
-    }
-    return "sent";
-  } catch {
-    // sendMagicLink's throw names the send's reason, never the link; it is not
-    // repeated here because the address is in the request.
-    logEvent("sign_in_link_failed", { status: "threw" }, { level: "error" });
-    return "failed";
-  }
-}
-
 /** The page's answer to a link request, for /login and /signup: the address
  *  the link went to, or the words its alert shows. */
-function signInLinkAnswer(result: SignInLinkResult, email: string, limited: string) {
+function signInLinkAnswer(result: LinkResult, email: string, limited: string) {
   switch (result) {
     case "sent":
       return data({
@@ -143,12 +69,12 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
         codeError: null as string | null,
       });
     case "limited":
-    case "email_limited":
+    case "email-limited":
       return data(
         { sent: null, error: result === "limited" ? limited : SIGN_UP_LIMITED, codeError: null },
         { status: 429 },
       );
-    case "check_failed":
+    case "check-failed":
       return data(
         { sent: null, error: "Complete the check, then send the link again.", codeError: null },
         { status: 400 },
@@ -184,68 +110,14 @@ function signInLinkAnswer(result: SignInLinkResult, email: string, limited: stri
 // so the tab that asked signs in. A wrong code counts; after three it is spent,
 // and the link still works. Through the handler again, for Better Auth's limiter.
 
-export type SignInCodeResult =
-  | { status: "signed_in"; headers: Headers }
-  | {
-      status:
-        | "wrong"
-        | "spent"
-        | "disposable"
-        | "limited"
-        | "email_limited"
-        | "unavailable"
-        | "failed";
-    };
-
-export async function signInWithCode(
-  env: Env,
-  request: Request,
-  attempt: { email: string; code: string },
-): Promise<SignInCodeResult> {
-  try {
-    const res = await (
-      await getAuth(env)
-    ).handler(
-      new Request(new URL(`/api/auth${SIGN_IN_CODE_PATH}`, env.BETTER_AUTH_URL), {
-        method: "POST",
-        headers: forwardedHeaders(request),
-        body: JSON.stringify({ email: attempt.email, otp: attempt.code }),
-      }),
-    );
-    if (res.ok) {
-      // Only the session cookies go on to the page's redirect.
-      const headers = new Headers();
-      for (const cookie of res.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
-      logEvent(OWASP_EVENTS.signInSuccess, { ...requestFields(request), via: "code" });
-      return { status: "signed_in", headers };
-    }
-    if (res.status === 429) return { status: await limitOf(res) };
-    const { code } = (await res.json().catch(() => ({}))) as { code?: string };
-    if (code === "INVALID_OTP" || code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") {
-      logEvent(
-        OWASP_EVENTS.signInFailure,
-        { ...requestFields(request), via: "code", code },
-        { level: "warn" },
-      );
-    }
-    if (code === "INVALID_OTP") return { status: "wrong" };
-    if (code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS") return { status: "spent" };
-    if (code === "disposable_email") return { status: "disposable" };
-    // The wrong-code counter could not answer, so site-runtime refuses every
-    // code (RATE_LIMIT_UNAVAILABLE) rather than allow unlimited guesses.
-    if (res.status === 503 && code === "RATE_LIMIT_UNAVAILABLE") return { status: "unavailable" };
-    // The status only: the body can carry the address.
-    logEvent("sign_in_code_failed", { status: res.status }, { level: "error" });
-    return { status: "failed" };
-  } catch {
-    logEvent("sign_in_code_failed", { status: "threw" }, { level: "error" });
-    return { status: "failed" };
-  }
-}
+type LinkResult = Awaited<ReturnType<typeof requestSignInLink>>;
+type CodeResult = Awaited<ReturnType<typeof signInWithCode>>;
 
 const CODE_ANSWERS = {
   wrong: "That code is not right. Check the email and try again.",
   spent:
+    "That code has expired or was tried too many times. Use the link in the email, or send a new one.",
+  expired:
     "That code has expired or was tried too many times. Use the link in the email, or send a new one.",
   disposable: "Please use a real email address. Disposable email providers are not allowed.",
   unavailable: "Codes cannot be checked right now. Use the link in the email instead.",
@@ -257,17 +129,17 @@ const CODE_ANSWERS = {
  *  shows. `limited` is the page's own words for its limit. */
 function signInCodeAnswer(
   env: Env,
-  result: SignInCodeResult,
+  result: CodeResult,
   email: string,
   next: string,
   limited: string,
 ) {
-  if (result.status === "signed_in")
+  if (result.status === "signed-in")
     throw redirect(passkeyOfferURL(env, next), { headers: result.headers });
   const error =
     result.status === "limited"
       ? limited
-      : result.status === "email_limited"
+      : result.status === "email-limited"
         ? SIGN_UP_LIMITED
         : CODE_ANSWERS[result.status];
   const status = result.status.endsWith("limited")
@@ -298,26 +170,26 @@ export async function answerSignInForm(
       { sent: null, error: "Enter your email address.", codeError: null },
       { status: 400 },
     );
-  const next = safeNextPath(String(form.get("next") ?? ""));
+  const next = safeNextPath(String(form.get("next") ?? ""), { fallback: DEFAULT_NEXT_PATH });
+  const auth = await getAuth(env);
 
   // The code from the same mail, typed on the "link sent" screen.
   if (page.isCode) {
     const code = String(form.get("code") ?? "").trim();
-    return signInCodeAnswer(
-      env,
-      await signInWithCode(env, request, { email, code }),
-      email,
-      next,
-      SIGN_IN_LIMITED,
-    );
+    const result = await signInWithCode(auth, request, { email, code });
+    if (result.status === "signed-in")
+      logEvent(OWASP_EVENTS.signInSuccess, { ...requestFields(request), via: "code" });
+    return signInCodeAnswer(env, result, email, next, SIGN_IN_LIMITED);
   }
 
-  const result = await requestSignInLink(env, request, {
+  const result = await requestSignInLink(auth, request, {
     email,
     captchaToken: String(form.get("cf-turnstile-response") ?? ""),
-    next,
+    callbackURL: passkeyOfferURL(env, next),
     // Someone new lands where a Google signup does.
-    newUserNext: next,
+    newUserCallbackURL: passkeyOfferURL(env, next),
+    // A spent or expired link comes back to the confirm page, which says so.
+    errorCallbackURL: new URL(CONFIRM_PATH, env.BETTER_AUTH_URL).toString(),
   });
   return signInLinkAnswer(result, email, page.limited);
 }
