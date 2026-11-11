@@ -16,9 +16,11 @@ import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
-import { Pill, Status } from "capsomer/react/status";
+import { CopyButton } from "capsomer/react/copy";
+import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/copy.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
@@ -291,18 +293,6 @@ export const MANUAL_ACTIONS = [
 // `payment.status === 'active'`.
 export const ACTIONS_VISIBLE_STATUS = "active";
 
-/** Legacy's own 2000ms hold on the "Copied" confirmation (PaymentDetailClient.tsx
- *  221 at blob 7f54aa45). */
-export const COPIED_RESET_MS = 2000;
-
-/** The Copy email button's words: "Copy email", then Recova's copied state
- *  for COPIED_RESET_MS (PaymentDetailClient.tsx 248-253, green "Copied" with a
- *  tick), as Capsomer's ok status: its tick glyph and word in the ok color. */
-export function CopyEmailLabel({ copied }: { copied: boolean }) {
-  if (!copied) return <>Copy email</>;
-  return <Status tone="ok">Copied</Status>;
-}
-
 /** Legacy's back link, PaymentDetailClient.tsx 130-132. */
 export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
@@ -327,7 +317,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
-  const [copied, setCopied] = useState(false);
   const demoReasonId = useId();
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
@@ -361,12 +350,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
     return () => clearTimeout(timer);
   }, [noteResult]);
   const noteError = noteResult && "error" in noteResult;
-
-  function copyEmail() {
-    void navigator.clipboard?.writeText(failedPayment.customerEmail);
-    setCopied(true);
-    setTimeout(() => setCopied(false), COPIED_RESET_MS);
-  }
 
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
@@ -423,14 +406,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             <div className="flex flex-wrap items-center gap-3 text-label text-text-subtle">
               {/* The email shows here only when a name took the heading. */}
               {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
-              <span className="text-micro">
-                <button type="button" className="cap-link-btn" onClick={copyEmail}>
-                  <CopyEmailLabel copied={copied} />
-                </button>
-              </span>
-              <span className="sr-only" role="status">
-                {copied ? "Email copied" : ""}
-              </span>
+              <CopyButton text={failedPayment.customerEmail} size="xs">
+                Copy email
+              </CopyButton>
               {failedPayment.planName ? <span>&middot; {failedPayment.planName}</span> : null}
             </div>
           </div>

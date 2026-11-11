@@ -2,7 +2,8 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
-import { CoverPicture } from "~/components/blog/cover-picture";
+import { Picture } from "capsomer/react/picture";
+import "capsomer/picture.css";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -226,7 +227,12 @@ function BlogHero({
             to={`/blog/${post.slug}`}
             className="block aspect-video w-full overflow-hidden rounded-xl border border-border-sub bg-bg"
           >
-            <CoverPicture cover={cover} className="h-full w-full object-cover" />
+            <Picture
+              attrs={cover.picture}
+              alt={cover.alt}
+              priority
+              className="h-full w-full object-cover"
+            />
           </Link>
         ) : (
           <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">
