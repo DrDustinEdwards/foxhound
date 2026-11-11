@@ -1,4 +1,5 @@
 import type { FailedPaymentRow } from "./queries.server";
+import { toCsv, verbatim } from "capsomer/behavior/csv";
 import { plainMajorAmount } from "~/lib/money-format";
 
 // The /recovery/payments CSV export. Pure and unit-tested: given the rows
@@ -13,13 +14,14 @@ import { plainMajorAmount } from "~/lib/money-format";
 // buildPaymentCsvRows and paymentRowsToCsv: the same 13 columns in the same
 // order, Steps Executed counts the payment's steps with an executed time,
 // Total Steps counts all of them, dates are ISO 8601, the currency is upper
-// case, lines end in LF and there is no final line break. Status and Decline
-// Category are the stored column values (active, failed_unrecovered, soft),
+// case. Status and Decline Category are the stored column values (active, failed_unrecovered, soft),
 // as Recova writes them; the badges on the page keep their words, which
 // APPROVED-DIFFERENCES 2026-08-14 covers, and the export is not a badge.
 // Every Recova value has a Foxhound value of the same name, so nothing is
 // mapped. Foxhound's stripe_retrying, revoked and unknown have no Recova
-// twin and are written as stored too.
+// twin and are written as stored too. The file itself is Capsomer's CSV
+// (RFC 4180, CRLF after every record, the formula guard on), as every
+// network export is, not Recova's LF with no final line break.
 
 const CSV_HEADER = [
   "Customer Name",
@@ -42,44 +44,14 @@ export interface PaymentStepCounts {
   total: number;
 }
 
-/** A cell a spreadsheet would read as a formula (or as a formula after a
- *  leading tab or carriage return) gets a single quote in front, so it opens
- *  as text. Recova has no such guard; it is kept on every free-text cell
- *  (name, email, plan, currency, decline category and code, status, notes),
- *  since a customer, a merchant or Stripe controls those. */
-function neutraliseFormula(value: string): string {
-  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-}
-
-/** The only cells exempt from the guard: values this module produces itself,
- *  and only while they match the strict shape it produces. An amount such as
- *  -5.00 then stays a number in the spreadsheet instead of becoming text. */
-const AMOUNT_PATTERN = /^-?\d+(\.\d{2,3})?$/;
-const COUNT_PATTERN = /^\d+$/;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-
-type Cell = { text: string } | { produced: string; pattern: RegExp };
-
-/** Quote a field per RFC 4180 only when it needs it (contains a comma,
- *  quote, CR or LF); doubles any embedded quotes. */
-function csvField(cell: Cell): string {
-  const value =
-    "text" in cell
-      ? neutraliseFormula(cell.text)
-      : cell.pattern.test(cell.produced)
-        ? cell.produced
-        : neutraliseFormula(cell.produced);
-  if (/[",\r\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
-}
-
-function csvRow(cells: Cell[]): string {
-  return cells.map(csvField).join(",");
-}
-
-const text = (value: string): Cell => ({ text: value });
-const produced = (value: string, pattern: RegExp): Cell =>
-  value === "" ? { text: "" } : { produced: value, pattern };
+/** The cells this module produces itself stay numbers and dates in a
+ *  spreadsheet while they match the strict shape it produces; anything else
+ *  (and every free-text cell: name, email, plan, currency, decline category
+ *  and code, status, notes, which a customer, a merchant or Stripe controls)
+ *  goes through Capsomer's formula guard. */
+const AMOUNT_PATTERN = /-?\d+(\.\d{2,3})?/;
+const COUNT_PATTERN = /\d+/;
+const ISO_DATE_PATTERN = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
 /** Build the full CSV text (header + one row per payment) for a set of
  *  already-filtered failed payments. A payment missing from `stepCounts` has
@@ -88,26 +60,25 @@ export function buildPaymentsCsv(
   payments: FailedPaymentRow[],
   stepCounts: ReadonlyMap<string, PaymentStepCounts> = new Map(),
 ): string {
-  const lines = [csvRow(CSV_HEADER.map(text))];
-  for (const p of payments) {
-    const steps = stepCounts.get(p.id) ?? { executed: 0, total: 0 };
-    lines.push(
-      csvRow([
-        text(p.customerName ?? ""),
-        text(p.customerEmail),
-        text(p.planName ?? ""),
-        produced(plainMajorAmount(p.amountCents, p.currency), AMOUNT_PATTERN),
-        text(p.currency.toUpperCase()),
-        text(p.declineCategory),
-        text(p.declineCode ?? ""),
-        text(p.status),
-        produced(String(steps.executed), COUNT_PATTERN),
-        produced(String(steps.total), COUNT_PATTERN),
-        produced(p.detectedAt.toISOString(), ISO_DATE_PATTERN),
-        produced(p.resolvedAt ? p.resolvedAt.toISOString() : "", ISO_DATE_PATTERN),
-        text(p.notes ?? ""),
-      ]),
-    );
-  }
-  return lines.join("\n");
+  return toCsv(
+    CSV_HEADER,
+    payments.map((p) => {
+      const steps = stepCounts.get(p.id) ?? { executed: 0, total: 0 };
+      return [
+        p.customerName ?? "",
+        p.customerEmail,
+        p.planName ?? "",
+        verbatim(plainMajorAmount(p.amountCents, p.currency), AMOUNT_PATTERN),
+        p.currency.toUpperCase(),
+        p.declineCategory,
+        p.declineCode ?? "",
+        p.status,
+        verbatim(String(steps.executed), COUNT_PATTERN),
+        verbatim(String(steps.total), COUNT_PATTERN),
+        verbatim(p.detectedAt.toISOString(), ISO_DATE_PATTERN),
+        p.resolvedAt ? verbatim(p.resolvedAt.toISOString(), ISO_DATE_PATTERN) : "",
+        p.notes ?? "",
+      ];
+    }),
+  );
 }
