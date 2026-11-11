@@ -1,8 +1,8 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { redirect } from "react-router";
 import { Link } from "capsomer/react/link";
 
-import { isWithdrawnBlogSlug, WITHDRAWN_BLOG_MESSAGE } from "~/lib/blog/withdrawn";
+import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
+import { goneResponse, renameRedirect } from "@dustinedwards/site-runtime/url";
 import { CoverPicture } from "~/components/blog/cover-picture";
 import { SectionTrail } from "~/components/section-trail";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
@@ -45,7 +45,7 @@ import { formatDateShort } from "~/lib/date-format";
 // already uses for its `logo` field below, not a Person image - this repo
 // has no Person identity for blog authorship (every current post's author
 // column is "Foxhound", per the Phase 6 brand-token remediation).
-export async function loader({ params, context }: Route.LoaderArgs) {
+export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   // WITHDRAWN POSTS ANSWER 410, NOT 404. The row is unpublished, so the
@@ -53,20 +53,24 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   // nothing here" and is indistinguishable from a typo. 410 says the page existed
   // and is deliberately gone. Checked before the lookup so the answer does not depend on what the database
   // happens to hold.
-  if (isWithdrawnBlogSlug(params.slug)) {
-    throw new Response(WITHDRAWN_BLOG_MESSAGE, {
-      status: 410,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
+  const gone = goneResponse(
+    request,
+    WITHDRAWN_BLOG_SLUGS.map((slug) => `/blog/${slug}`),
+    { body: WITHDRAWN_BLOG_MESSAGE },
+  );
+  if (gone) throw gone;
 
   const post = await getPostBySlug(db, params.slug);
   if (!post) {
     // A post Carrel renamed: its old address answers a permanent redirect to
-    // the new one (site-api's rename contract). Read only on a miss, so a live
-    // post's own page costs no extra query.
-    const moved = await getSlugRedirect(db, params.slug);
-    if (moved) throw redirect(`/blog/${moved}`, 301);
+    // the new one (site-api's rename contract; site-runtime's renameRedirect follows a chain,
+    // keeps the query and sends a 308 to a method other than GET). Read only on a miss, so a
+    // live post's own page costs no extra query.
+    const moved = await renameRedirect(request, {
+      prefix: "/blog/",
+      renames: (slug) => getSlugRedirect(db, slug),
+    });
+    if (moved) throw moved;
     throw new Response("Not found", { status: 404 });
   }
 
