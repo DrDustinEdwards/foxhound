@@ -1,6 +1,8 @@
 import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
+import { RelatedLinks } from "capsomer/react/related-links";
+import "capsomer/related-links.css";
 import "~/blog-prose.css";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
@@ -293,34 +295,11 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         <Toc items={toc} variant="sidebar" />
       </div>
 
-      {related.length > 0 ? (
-        <section
-          aria-label="Further reading"
-          className="mt-12 max-w-[680px] border-t border-border pt-8"
-        >
-          <p className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-            Further reading
-          </p>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {related.map((r) => (
-              <li key={r.id}>
-                <Link
-                  to={`/blog/${r.slug}`}
-                  className="group inline-flex items-center gap-1.5 text-item-title text-text transition-colors hover:text-brand-text"
-                >
-                  {r.title}
-                  <ArrowRight
-                    className="opacity-0 motion-safe:transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <RelatedLinks
+        kind="internal"
+        title="Further reading"
+        items={related.map((r) => ({ href: `/blog/${r.slug}`, title: r.title }))}
+      />
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
         <img
