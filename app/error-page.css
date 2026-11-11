@@ -52,3 +52,17 @@
   --header-fg: var(--chrome-text);
   border-bottom-color: var(--chrome-border);
 }
+
+/* A missing page is an expected state, not a fault: the 410 withdrawal's calm look, not
+   Capsomer's failed Empty (a critical-colored title and a dashed critical edge, which read as
+   if the site had broken; parity audit, 2026-11-10). The title is the page's text color, the
+   edge goes, and the glyph keeps the family's accent. A server error keeps the failed look. */
+.fh-error-page .cap-error-page[data-status="404"] .cap-empty {
+  border-color: transparent;
+}
+.fh-error-page .cap-error-page[data-status="404"] .cap-empty-title {
+  color: var(--text);
+}
+.fh-error-page .cap-error-page[data-status="404"] .cap-status-glyph {
+  color: var(--accent-text);
+}

@@ -20,7 +20,6 @@ import {
   ErrorLinks,
   HOME_LABEL,
   recovaWords,
-  WithdrawnView,
 } from "./components/error-view";
 import { cloudflareContext, getNonce } from "@dustinedwards/site-runtime/context";
 import { PRELOADS } from "./lib/preloads";
@@ -139,10 +138,11 @@ export default function App() {
 }
 
 // Capsomer's error page under Foxhound's wordmark bar, in Recova's words (components/error-view.tsx),
-// with Recova's dashboard and demo links under its message. The 410 withdrawal keeps its own view.
+// with Recova's dashboard and demo links under its message. A missed address and the blog's 410
+// withdrawal never reach here: the marketing layout's catch-all and the blog post route answer them
+// inside the site's own header and footer (MarketingError). This is for what breaks elsewhere.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const routeError = isRouteErrorResponse(error) ? error : null;
-  if (routeError?.status === 410) return <WithdrawnView />;
   const { title, text } = recovaWords(error, import.meta.env.DEV);
   return (
     <div

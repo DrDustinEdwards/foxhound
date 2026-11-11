@@ -41,12 +41,15 @@ function toRouteObjects(entries: RouteConfigEntry[]): RouteObject[] {
 
 const ROUTE_OBJECTS = toRouteObjects(routes as unknown as RouteConfigEntry[]);
 
-/** The page module a URL reaches, or null when the router matches nothing. */
+/** The marketing layout's catch-all: matching it means the address answers 404. */
+const NOT_FOUND = "./routes/not-found.tsx";
+
+/** The page module a URL reaches, or null when only the 404 catch-all takes it. */
 function moduleFor(pathname: string): string | null {
   const matches = matchRoutes(ROUTE_OBJECTS, pathname);
   if (!matches || matches.length === 0) return null;
-  const leaf = matches[matches.length - 1]!;
-  return (leaf.route.handle as { file: string }).file;
+  const file = (matches[matches.length - 1]!.route.handle as { file: string }).file;
+  return file === NOT_FOUND ? null : file;
 }
 
 const NEW_PATHS: Array<[string, string]> = [

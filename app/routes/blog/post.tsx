@@ -31,6 +31,7 @@ import { DAY_MS } from "~/lib/constants";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { formatDateShort } from "~/lib/date-format";
+import { MarketingError } from "~/components/error-view";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -397,4 +398,10 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           place organizationJsonLd renders. */}
     </div>
   );
+}
+
+// A withdrawn post's 410, a missing post's 404 or a failed read, inside the marketing layout's
+// header and footer rather than the root boundary's bar (components/error-view.tsx).
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  return <MarketingError error={error} />;
 }
