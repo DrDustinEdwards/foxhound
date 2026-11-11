@@ -76,6 +76,7 @@
     "0075_page_dates.sql": "be89a9652c8ce57cc890a723af49f403de3378026378efedb59523de862cd535",
     "0076_mrr_snapshot_day_and_key_hash_unique.sql": "322ba246734505d093dd767c7d7b736cbfaf6b86d4feb5cef1613bd29383672e",
     "0077_alerts_sent.sql": "3ebd8f84b4221d0a41b9c0443b3327b2914d54d2278a6e64768c7194f542f52f",
-    "0078_drop_cron_alerts.sql": "764a7a3f2dfe82af90c2faab2ff28af980b33d40c088ca06f816d454db94f41e"
+    "0078_drop_cron_alerts.sql": "764a7a3f2dfe82af90c2faab2ff28af980b33d40c088ca06f816d454db94f41e",
+    "0079_account_id_not_null.sql": "9077e8134cb6711dee11253d1f78f57eded251a1262808c2c2615b9423245ce6"
   }
 }

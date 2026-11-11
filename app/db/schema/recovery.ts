@@ -200,7 +200,9 @@ export const expiringCardAlerts = sqliteTable(
     expiresYear: integer("expires_year").notNull(),
     alertSentAt: ts("alert_sent_at"),
     createdAt: ts("created_at").notNull(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
     // WHY THE ROW EXISTS (migration 0050). 'card_expiring' is every row the
@@ -254,7 +256,9 @@ export const winBackSequences = sqliteTable(
     resolvedAt: ts("resolved_at"),
     reactivatedAt: ts("reactivated_at"),
     reactivatedByStepId: text("reactivated_by_step_id"),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
   },
   (t) => [
@@ -278,7 +282,9 @@ export const winBackSteps = sqliteTable(
     aiBodyHtml: text("ai_body_html"),
     openedAt: ts("opened_at"),
     clickedAt: ts("clicked_at"),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
     deletedAt: ts("deleted_at"),
     attemptCount: integer("attempt_count").notNull().default(0),
     lastAttemptError: text("last_attempt_error"),
