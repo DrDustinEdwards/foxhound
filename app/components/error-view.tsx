@@ -1,4 +1,5 @@
 import { isRouteErrorResponse } from "react-router";
+import { ErrorPage } from "capsomer/react/error-page";
 
 import { WITHDRAWN_BLOG_HEADING, WITHDRAWN_BLOG_REASON } from "~/lib/blog/withdrawn";
 import { errorDetails } from "~/lib/errors/boundary-message";
@@ -37,12 +38,10 @@ const SECONDARY = BUTTON;
 // bar takes the J10 header's look by tokens instead: Foxhound's dark chrome band in both themes, 56px,
 // 24px sides, and the header's own wordmark (headerLogo) with the x in the band's amber. It reads no
 // loader data, so ErrorPage can take it as siteHeader.
-export function ErrorBar({ overlay = false }: { overlay?: boolean }) {
+export function ErrorBar() {
   const logo = headerLogo("/");
   return (
-    <header
-      className={`fh-error-bar flex h-14 items-center border-b bg-chrome px-6${overlay ? " absolute left-0 right-0 top-0" : ""}`}
-    >
+    <header className="fh-error-bar flex h-14 items-center border-b bg-chrome px-6">
       <a href={logo.href} aria-label={logo.label} className="no-underline">
         {logo.wordmark}
       </a>
@@ -50,11 +49,9 @@ export function ErrorBar({ overlay = false }: { overlay?: boolean }) {
   );
 }
 
-export function ErrorFooter({ overlay = false }: { overlay?: boolean }) {
+export function ErrorFooter() {
   return (
-    <footer
-      className={`w-full p-6 text-center text-label text-text-tertiary${overlay ? " absolute bottom-0" : ""}`}
-    >
+    <footer className="w-full p-6 text-center text-label text-text-tertiary">
       &copy; 2026 Foxhound
     </footer>
   );
@@ -100,39 +97,57 @@ export function ErrorLinks({ notFound }: { notFound: boolean }) {
 // centered block, the same footer. The withdrawal keeps that kit. Text sizes are Foxhound's five
 // (RULES 5.2): the numeral is display, smaller than Recova's 5rem, the approved difference "Text uses
 // five standard sizes everywhere". The numeral takes the expected tone (app/error-page.css).
-export function WithdrawnView() {
+/** The withdrawal's own words and its one way out, without a frame:
+ *  MarketingError puts it inside the marketing layout. */
+function WithdrawnContent() {
   return (
-    <div
-      className="fh-cap fh-error-page relative flex min-h-screen flex-col bg-bg"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
-      <ErrorBar overlay />
-      <main
-        id="main"
-        tabIndex={-1}
-        className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+    <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+      <meta name="robots" content="noindex" />
+      <p
+        className="fh-error-numeral m-0 mb-4 font-mono text-display font-bold leading-none"
+        data-tone="expected"
+        role="img"
+        aria-label="410"
       >
-        <meta name="robots" content="noindex" />
-        <p
-          className="fh-error-numeral m-0 mb-4 font-mono text-display font-bold leading-none"
-          data-tone="expected"
-          role="img"
-          aria-label="410"
+        410
+      </p>
+      <h1 className="m-0 mb-2 text-title font-semibold text-text">{WITHDRAWN_BLOG_HEADING}</h1>
+      <p className="m-0 mb-8 text-body text-text-tertiary">{WITHDRAWN_BLOG_REASON}</p>
+      <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
+        {/* ONE destination, and it is the blog. Not "try again", which offers a retry of a URL that
+            will never answer, and not "go to dashboard", an app link on an anonymous marketing page. */}
+        <a href="/blog" {...PRIMARY}>
+          Read the blog
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// A MISSED ADDRESS OR A BLOG POST'S ERROR, INSIDE THE MARKETING LAYOUT. The marketing layout's
+// catch-all route (routes/not-found.tsx) and the blog post route use this as their ErrorBoundary,
+// so the page keeps the site's own header, with the visitor's real signed-in state, and footer
+// (parity audit, 2026-11-10: the 404 had only a wordmark bar). The layout already renders the one
+// main, so ErrorPage is a div. Anything thrown outside the marketing layout still reaches the root
+// boundary's bar.
+export function MarketingError({ error }: { error: unknown }) {
+  const status = isRouteErrorResponse(error) ? error.status : null;
+  return (
+    <div className="fh-cap fh-error-page" data-cap-site="foxhound" data-family="amber">
+      {status === 410 ? (
+        <WithdrawnContent />
+      ) : (
+        <ErrorPage
+          as="div"
+          error={error}
+          home="/"
+          {...recovaWords(error, import.meta.env.DEV)}
+          homeLabel={HOME_LABEL}
+          dev={import.meta.env.DEV}
         >
-          410
-        </p>
-        <h1 className="m-0 mb-2 text-title font-semibold text-text">{WITHDRAWN_BLOG_HEADING}</h1>
-        <p className="m-0 mb-8 text-body text-text-tertiary">{WITHDRAWN_BLOG_REASON}</p>
-        <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
-          {/* ONE destination, and it is the blog. Not "try again", which offers a retry of a URL that
-              will never answer, and not "go to dashboard", an app link on an anonymous marketing page. */}
-          <a href="/blog" {...PRIMARY}>
-            Read the blog
-          </a>
-        </div>
-      </main>
-      <ErrorFooter overlay />
+          <ErrorLinks notFound={status === 404} />
+        </ErrorPage>
+      )}
     </div>
   );
 }

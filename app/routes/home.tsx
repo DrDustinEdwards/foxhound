@@ -20,6 +20,7 @@ import {
   citation,
   COMPARISON_ROWS,
   COMPAT_TAGS,
+  BILLING_FAQ_QUESTION,
   FAQS,
   HERO_LEAD,
   HOME_META_DESCRIPTION,
@@ -480,7 +481,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     <summary>{faq.question}</summary>
                     <div className="cap-disclosure-body">
                       <p className="m-0 text-copy leading-[1.6] text-text-secondary">
-                        {i === 2 ? BILLING_ANSWER : faq.answer}
+                        {faq.question === BILLING_FAQ_QUESTION ? BILLING_ANSWER : faq.answer}
                       </p>
                     </div>
                   </details>

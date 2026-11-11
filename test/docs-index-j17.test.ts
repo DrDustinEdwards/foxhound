@@ -66,6 +66,7 @@ describe("/docs index (J17, row M17)", () => {
     expect(paths.has("/docs"), "the matcher finds a known route").toBe(true);
     for (const a of links(html)) {
       const to = href(a) ?? "";
+      if (to.startsWith("mailto:")) continue; // the support address, not a route
       const known = paths.has(to) || (to.startsWith("/docs/") && paths.has("/docs/:slug"));
       expect(known, `${to} is a route`).toBe(true);
     }

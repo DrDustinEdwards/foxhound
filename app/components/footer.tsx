@@ -9,7 +9,9 @@ import { Wordmark } from "./wordmark";
 //
 // Legacy's column set is exact and is NOT a place to add pages: Product holds
 // the four marketing product pages, Explore holds Pricing/Demos/Features,
-// Resources holds Docs/Blog, Legal holds Privacy/Terms. /compare,
+// Resources holds Docs/Blog (plus Contact, so the support address is one
+// click from every marketing page: parity audit 2026-11-10), Legal holds
+// Privacy/Terms. /compare,
 // /decline-codes and /about were Foxhound additions that ruling 56 forbids
 // from landing on a ported surface without a ruling, so they are removed here
 // and tracked in the ledger's ruling 56 leak audit.
@@ -58,6 +60,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
     links: [
       { to: "/docs", label: "Docs" },
       { to: "/blog", label: "Blog" },
+      { to: "/contact", label: "Contact" },
     ],
   },
   {

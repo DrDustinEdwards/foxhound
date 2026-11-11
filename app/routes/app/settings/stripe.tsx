@@ -192,6 +192,9 @@ function connectedLabel(at: Date | null): string | null {
       month: "short",
       day: "numeric",
       year: "numeric",
+      // Pinned, as every formatter in ~/lib/date-format.ts: unpinned, the server
+      // renders UTC and the browser its own zone, and hydration disagrees.
+      timeZone: "UTC",
     })
   );
 }

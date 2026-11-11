@@ -9,6 +9,7 @@ import { WINBACK_STATUS } from "~/lib/recovery/winback";
 import type { Route } from "./+types/winback";
 import { NOINDEX } from "~/lib/seo/meta";
 import "capsomer/table.css";
+import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Win-back - Foxhound" }, NOINDEX];
@@ -81,7 +82,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                     ) : null}
                   </td>
                   <td data-label="Canceled" className="text-text-tertiary">
-                    {seq.createdAt.toLocaleDateString()}
+                    {formatDateShort(seq.createdAt)}
                   </td>
                   <td data-label="Status">
                     <div className="flex flex-col items-start gap-1">
@@ -90,7 +91,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                       </Badge>
                       {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
                         <span className="text-micro text-text-subtle">
-                          Won back {seq.reactivatedAt.toLocaleDateString()}
+                          Won back {formatDateShort(seq.reactivatedAt)}
                         </span>
                       ) : null}
                     </div>

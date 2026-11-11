@@ -28,7 +28,7 @@ import type { ProductKey } from "./products";
 // parity/M3-DIVERGENCES.md (1b, 4, 6, 7, 21, 25, 26, 27, 30, 50, and the
 // how-it-works links of 9b) move back to Recova's wording. The sanctioned
 // truthfulness divergences (read and write scope, review-and-sign disputes,
-// baseline free, 30-day maturity, no Multi-account, attribution language) stay.
+// baseline free, 30-day maturity, attribution language) stay.
 // Every product fact is read from the engine, never typed: the
 // fee, the cap, the price, the maturity window, the sequence length, the
 // decline categories and the Stripe statistic.
@@ -167,23 +167,36 @@ export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
   },
 };
 
+/** The billing question, which the route draws in its linked form. */
+export const BILLING_FAQ_QUESTION = "How does billing work exactly?";
+
 export interface HomeFaq {
   question: string;
   /** Plain text: the source for the FAQPage JSON-LD, as Recova's answer is. */
   answer: string;
 }
 
-/** Recova's five questions. FAQ 1 is the sanctioned read-and-write answer,
- * FAQ 2 the sanctioned billable-recovery definition, FAQ 3 the
+/** Recova's five questions and the billable-recovery one. FAQ 1 is the
+ * sanctioned read-and-write answer, FAQ 2 Recova's reply question, FAQ 3 the
+ * sanctioned billable-recovery definition, FAQ 4 the
  *  sanctioned maturity and cap timing in Recova's question and Recova's closing
- *  sentence, FAQ 4 the 376 item 19 fix and FAQ 5 Recova's with the maturity
- *  qualifier. FAQ 3's answer is drawn with Recova's four product links in the
- *  route; this plain text is the same sentence. */
+ *  sentence, FAQ 5 the 376 item 19 fix and FAQ 6 Recova's with the maturity
+ *  qualifier. The billing answer is drawn with Recova's four product links in
+ *  the route (BILLING_FAQ_QUESTION); this plain text is the same sentence. */
 export const FAQS: HomeFaq[] = [
   {
     question: "Does Foxhound touch my Stripe billing configuration?",
     answer:
       "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
+  },
+  // Recova's second question, restored (parity audit, 2026-11-10). Recova sent
+  // replies to the merchant's own address; Foxhound does the same through the
+  // reply-to setting (app/lib/email/send.ts), and until one is saved a reply goes
+  // to the From line, as /docs/platform says.
+  {
+    question: "What happens if a customer replies to a recovery email?",
+    answer:
+      "It goes to the reply-to address you set in Settings, under Email, so a customer who answers reaches your own inbox, not a no-reply address. Use an inbox somebody reads, because a customer who replies is often trying to fix their payment. Until you set one, replies go to the address in the From line.",
   },
   {
     question: "What counts as a recovery Foxhound can bill for?",
@@ -191,7 +204,7 @@ export const FAQS: HomeFaq[] = [
       "Only recoveries where a Foxhound action provably preceded payment: a scheduled retry succeeded, a dunning email was clicked or otherwise engaged (not just opened), or a card was updated through a Foxhound page. Anything Stripe recovers on its own is recorded and shown to you as free, never billed.",
   },
   {
-    question: "How does billing work exactly?",
+    question: BILLING_FAQ_QUESTION,
     answer: `Recovery is ${RECOVERY_FEE} of the prior month's matured recoveries, meaning recoveries you've held for ${MATURITY_DAYS} or more days, billed in each monthly run. Disputes are ${DISPUTE_FEE} of wins only, capped at ${DISPUTE_CAP} per dispute. Intelligence and Audit are always free. You owe nothing for sequences that do not recover.`,
   },
   {
@@ -206,8 +219,8 @@ export const FAQS: HomeFaq[] = [
   },
 ];
 
-/** The FAQ 3 answer in its linked form: text runs and the four product links,
- *  in Recova's places (the product names). Joined, it is FAQS[2].answer. */
+/** The billing answer in its linked form: text runs and the four product links,
+ *  in Recova's places (the product names). Joined, it is that FAQ's answer. */
 export const BILLING_FAQ_PARTS: (string | { to: string; label: string })[] = [
   { to: "/product/recovery", label: "Recovery" },
   ` is ${RECOVERY_FEE} of the prior month's matured recoveries, meaning recoveries you've held for ${MATURITY_DAYS} or more days, billed in each monthly run. `,
@@ -230,10 +243,13 @@ export const SECURITY_CHIPS = [
   "US company, US jurisdiction",
 ];
 
-/** Recova's compatibility line, without Multi-account (divergence 40). */
+/** Recova's compatibility line. Multi-account is back (parity audit,
+ *  2026-11-10): one login holds several accounts, each with its own Stripe
+ *  connection (/connect/additional and the header's account switcher). */
 export const COMPAT_TAGS = [
   "Stripe Billing",
   "Stripe Checkout",
   "Custom invoices",
   "Stripe Subscriptions",
+  "Multi-account",
 ];

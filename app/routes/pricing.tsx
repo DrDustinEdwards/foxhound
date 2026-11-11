@@ -170,12 +170,17 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Recova's annual note sits here ("Annual plans: 10 months billed, 2
+      {/* Recova's note under the cards ("Annual plans: 10 months billed, 2
           months free. Multiple Stripe accounts supported at the same
-          per-account rate."). It stays off the page: PRICING.md rev 3 item 3
-          keeps the annual term off /pricing until a checkout can sell it (377(8),
-          beside the Intelligence bullets in pricing-copy.ts), and its
-          multi-account clause is held by ruling 53. */}
+          per-account rate."). Its multi-account clause is back: one login can
+          hold several accounts, each with its own Stripe connection
+          (/connect/additional, the header's account switcher), and each is
+          billed on its own recoveries at the same rates. The annual term stays
+          off: PRICING.md rev 3 item 3 keeps it off /pricing until a checkout can
+          sell it (377(8), beside the Intelligence bullets in pricing-copy.ts). */}
+      <p className="-mt-4 mb-0 px-5 pb-12 text-center text-label text-text-secondary sm:px-8">
+        Multiple Stripe accounts supported at the same per-account rate.
+      </p>
 
       <section className="speakable-pricing-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">

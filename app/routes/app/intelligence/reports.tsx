@@ -5,6 +5,7 @@ import { getReportsArchive } from "~/lib/intelligence/views.server";
 
 import type { Route } from "./+types/reports";
 import { NOINDEX } from "~/lib/seo/meta";
+import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Intelligence reports - Foxhound" }, NOINDEX];
@@ -44,7 +45,7 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
               </p>
               <p className="mt-2 text-body text-text">{r.narrative}</p>
               <p className="mt-2 text-micro text-text-subtle">
-                Generated {r.generatedAt.toLocaleDateString()}
+                Generated {formatDateShort(r.generatedAt)}
               </p>
             </li>
           ))}
