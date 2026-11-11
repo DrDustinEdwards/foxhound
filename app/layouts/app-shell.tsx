@@ -476,7 +476,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             header, menu and footer stay put and only the page swaps. The
             footer stays below the page, as legacy's SiteFooter is a sibling of
             the page content. */}
-        <div className="fh-app-page">{splash ? <RouteSplash mark={{ src: "/icon-512.png", alt: "Foxhound" }} /> : <Outlet />}</div>
+        <div className="fh-app-page">
+          {splash ? <RouteSplash mark={{ src: "/icon-512.png", alt: "Foxhound" }} /> : <Outlet />}
+        </div>
         <Footer variant="app" />
       </AdminShell>
     </div>

@@ -1,10 +1,9 @@
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { ensureTickerArmed } from "@dustinedwards/site-runtime/cron-lock";
 
 import {
   CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_RECOVERY_TICK,
   CRON_TICKER_INSTANCE_NAME,
-  CRON_TICKER_INTERVAL_MS,
 } from "~/lib/constants";
 
 import type { CronJob } from "./registry";
@@ -36,29 +35,7 @@ import { runCronJob, runScheduledJobs } from "./run";
 // runSchedules applies only what is due and still matches, so a second run in
 // the same minute applies nothing.
 
-/** The two alarm calls the ticker needs, so a test can drive it without a
- *  Durable Object. DurableObjectStorage satisfies it. */
-export interface TickerAlarmStorage {
-  getAlarm(): Promise<number | null>;
-  setAlarm(scheduledTime: number): Promise<void>;
-}
-
-/** Set the alarm only if none is set. Returns true when it set one.
- *
- *  ONLY IF NONE IS SET, and that matters: every queue batch calls this, and an
- *  arm that always reset the alarm would keep pushing the next tick five minutes
- *  away, so a busy queue would stop the jobs it is meant to keep running. */
-export async function armTickerIfIdle(
-  storage: TickerAlarmStorage,
-  now: number = Date.now(),
-): Promise<boolean> {
-  if ((await storage.getAlarm()) !== null) return false;
-  await storage.setAlarm(now + CRON_TICKER_INTERVAL_MS);
-  return true;
-}
-
 export interface TickerDeps {
-  now: () => number;
   run: typeof runCronJob;
   /** The jobs to run. Dynamic by default for the reason scheduled() gives: the
    *  registry's billing, AI and recovery graph stays out of module init. */
@@ -66,7 +43,6 @@ export interface TickerDeps {
 }
 
 const defaultDeps: TickerDeps = {
-  now: () => Date.now(),
   run: runCronJob,
   jobs: async () => {
     const { jobsForSchedule } = await import("./registry");
@@ -77,33 +53,17 @@ const defaultDeps: TickerDeps = {
   },
 };
 
-/** The alarm: re-arm FIRST, then run every job on the five-minute schedule,
- *  and blog-schedules after them.
- *
- *  Re-arming before the jobs is what keeps the chain alive. A job that throws,
- *  runs until the platform kills the invocation, or fails to import would
- *  otherwise leave no alarm behind and the ticker would stop for good, which is
- *  the failure this exists to get away from. The jobs run through
- *  runScheduledJobs, as in scheduled(), so each lands in cron_runs. Its closing
- *  throw, after every job has run and each failure is logged and recorded, is
- *  caught here: an alarm that throws is retried, which would run the jobs again. */
-export async function runTickerAlarm(
-  env: Env,
-  storage: TickerAlarmStorage,
-  deps: TickerDeps = defaultDeps,
-): Promise<void> {
-  await storage.setAlarm(deps.now() + CRON_TICKER_INTERVAL_MS);
-  await runScheduledJobs(env, await deps.jobs(), deps.run).catch(() => undefined);
+/** One tick's jobs: every job on the five-minute schedule, and blog-schedules
+ *  after them, through runScheduledJobs so each lands in cron_runs. The shared
+ *  CronTicker (workers/cron-ticker.ts) re-arms the alarm BEFORE calling this and
+ *  swallows and logs this one's closing throw, which a retried alarm would
+ *  otherwise turn into a second run of the jobs. */
+export async function runTickerJobs(env: Env, deps: TickerDeps = defaultDeps): Promise<void> {
+  await runScheduledJobs(env, await deps.jobs(), deps.run);
 }
 
 /** Ask the ticker to make sure its alarm is set. Called from scheduled() and
- *  queue(), never from fetch(). It never throws: a failed arm must not stop the
- *  cron jobs or fail a queue batch, and the next caller tries again. */
-export async function ensureCronTickerArmed(env: Env): Promise<void> {
-  try {
-    const ns = env.CRON_TICKER;
-    await ns.get(ns.idFromName(CRON_TICKER_INSTANCE_NAME)).ensureArmed();
-  } catch (err) {
-    logEvent("cron_ticker_arm_failed", { error: err }, { level: "error" });
-  }
+ *  queue(), never from fetch(). Never throws (the shared ensureTickerArmed logs). */
+export function ensureCronTickerArmed(env: Env): Promise<void> {
+  return ensureTickerArmed(env.CRON_TICKER, CRON_TICKER_INSTANCE_NAME);
 }
