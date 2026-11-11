@@ -57,7 +57,7 @@ import {
 import { getDisputeDetail, readDisputeSettings } from "~/lib/disputes/queries.server";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
 import { formatDateShort, formatTimestamp } from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS } from "~/lib/recovery/labels";
 import { declineWord } from "~/lib/recovery/payments-list";
 import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";

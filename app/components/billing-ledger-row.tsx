@@ -4,7 +4,7 @@ import { Badge } from "~/components/badge";
 import type { AttributionKind } from "~/lib/constants";
 import { BILLING_LINE_ITEM_TYPE_LABELS } from "~/lib/billing/labels";
 import type { EnrichedLineItem, FreeLedgerEntry } from "~/lib/billing/queries.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { ATTRIBUTION_KIND_LABELS, formatStepType } from "~/lib/recovery/labels";
 import { formatDateShort } from "~/lib/date-format";
 

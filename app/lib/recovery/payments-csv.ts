@@ -1,5 +1,5 @@
 import type { FailedPaymentRow } from "./queries.server";
-import { plainMajorAmount } from "~/lib/money-format";
+import { moneyInputValue } from "@dustinedwards/site-runtime/money";
 
 // The /recovery/payments CSV export. Pure and unit-tested: given the rows
 // listFilteredFailedPayments returns for the list's own filters, sort, page
@@ -96,7 +96,7 @@ export function buildPaymentsCsv(
         text(p.customerName ?? ""),
         text(p.customerEmail),
         text(p.planName ?? ""),
-        produced(plainMajorAmount(p.amountCents, p.currency), AMOUNT_PATTERN),
+        produced(moneyInputValue(p.amountCents, p.currency), AMOUNT_PATTERN),
         text(p.currency.toUpperCase()),
         text(p.declineCategory),
         text(p.declineCode ?? ""),

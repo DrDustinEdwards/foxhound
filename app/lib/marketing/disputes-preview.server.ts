@@ -12,7 +12,8 @@ import {
 } from "~/lib/disputes/labels";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import { computeDisputeStats, winRateCard, type MoneyPart } from "~/lib/disputes/stats";
-import { formatAmounts, formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
+import { formatAmounts } from "~/lib/money/totals";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 import { HOUR_MS } from "~/lib/constants";
