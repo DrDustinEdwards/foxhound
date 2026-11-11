@@ -1,4 +1,9 @@
-import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
+import { EMAIL_CONFIRM_PATH, signInOptions } from "@dustinedwards/site-runtime/sign-in";
+import {
+  accountOptions,
+  DISPOSABLE_EMAIL,
+  isDisposableEmail,
+} from "@dustinedwards/site-runtime/sign-in-form";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -7,12 +12,9 @@ import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
 import { accountDeletionHooks } from "./delete-account.server";
-import { isDisposableEmail } from "./disposable-emails";
 import { withSignIn } from "./options";
 import {
-  EMAIL_CHANGE_EXPIRES_IN_SECONDS,
-  sendEmailChangeConfirmation,
-  sendNewEmailVerification,
+  sendEmailChangeEmail,
   sendSecurityNoticeEmail,
   sendSignInLinkEmail,
 } from "./send-auth-email";
@@ -68,51 +70,40 @@ async function buildAuth(env: Env) {
       sendSecurityNoticeEmail(env, user.email, detail),
   });
 
+  // The email change and deletion, the same on every site (site-runtime's
+  // accountOptions): two links for a change of address, the CURRENT address
+  // first, each opening /email/confirm, and deletion only from the
+  // /settings/account action (accountFormAction, after its fresh sign-in
+  // check), never Better Auth's /delete-user over HTTP.
+  const deletion = accountDeletionHooks(env);
+  const account = accountOptions({
+    confirmPath: EMAIL_CONFIRM_PATH,
+    sendEmailChange: async (mail) => {
+      // The disposable check accountFormAction makes, held here too for a
+      // change asked for straight at /api/auth/change-email.
+      if (mail.newEmail && isDisposableEmail(mail.newEmail)) {
+        throw new APIError("BAD_REQUEST", {
+          code: DISPOSABLE_EMAIL,
+          message: "Disposable email addresses are not allowed.",
+        });
+      }
+      await sendEmailChangeEmail(env, mail);
+    },
+    // Foxhound's deletion (delete-account.server.ts): the fee evidence kept,
+    // the rest scrubbed; then, after Better Auth deletes the person, the
+    // Stripe grants revoked.
+    beforeDelete: deletion.beforeDelete,
+  });
+
   const google = signIn.socialProviders.google;
   const options = withSignIn(signIn);
   return betterAuth({
     ...options,
-    // Better Auth's own path for mailing a verification on request is off: the
-    // only verification mail Foxhound sends is the email change's below.
-    // Deleting the account is only the Delete account action on
-    // /settings/account (auth.api.deleteUser, after its fresh sign-in check),
-    // never Better Auth's /delete-user over HTTP, as on Foxing.
-    disabledPaths: [
-      ...options.disabledPaths,
-      "/send-verification-email",
-      "/delete-user",
-      "/delete-user/callback",
-    ],
-    // E1: an email change is confirmed from the CURRENT address first, then
-    // from the new one (Better Auth's change-email-confirmation flow), and
-    // only from a sign-in in the last 10 minutes (site-runtime holds
-    // /change-email to that). Once the new address is confirmed, site-runtime
-    // tells both addresses and ends every other session (D7).
-    emailVerification: {
-      expiresIn: EMAIL_CHANGE_EXPIRES_IN_SECONDS,
-      sendVerificationEmail: async ({ user, url, token }) => {
-        await sendNewEmailVerification(env, { to: user.email, url, token });
-      },
-    },
+    disabledPaths: [...options.disabledPaths, ...account.disabledPaths],
+    emailVerification: account.emailVerification,
     user: {
-      changeEmail: {
-        enabled: true,
-        sendChangeEmailConfirmation: async ({ user, newEmail, url, token }) => {
-          // The same blocklist as sign-up (options.ts), so a change cannot do
-          // what a new account may not.
-          if (isDisposableEmail(newEmail)) {
-            throw new APIError("BAD_REQUEST", {
-              code: "disposable_email",
-              message: "Disposable email addresses are not allowed.",
-            });
-          }
-          await sendEmailChangeConfirmation(env, { to: user.email, newEmail, url, token });
-        },
-      },
-      // E2: Better Auth's own delete, called from the app's route only, so site-runtime's log line, notice and
-      // history clean-up run, with Foxhound's deletion (the fee evidence kept,
-      // the rest scrubbed, then the Stripe grants revoked) in its hooks.
-      deleteUser: { enabled: true, ...accountDeletionHooks(env) },
+      ...account.user,
+      deleteUser: { ...account.user.deleteUser, afterDelete: deletion.afterDelete },
     },
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,

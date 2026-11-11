@@ -1,10 +1,30 @@
+import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb, stripeConnections } from "~/db";
 
 import { resolveActiveMembership } from "./account";
-import { DEFAULT_NEXT_PATH } from "./next-path";
 import type { getSession } from "./session";
+import { DEFAULT_NEXT_PATH } from "./sign-in-paths";
+
+/** A sign-in's `next`, checked (site-runtime's safeNextPath): a path on this
+ *  site, else /console. The OAuth authorize page's round trip through /login
+ *  relies on it keeping every query parameter. */
+export function nextPath(raw: unknown): string {
+  return safeNextPath(raw, { fallback: DEFAULT_NEXT_PATH });
+}
+
+/** Where a sign-in by link, code, Google or Apple lands: the passkey offer,
+ *  which goes on to `next` (straight away when site-runtime's
+ *  shouldOfferPasskey says no). Absolute on Foxhound's own origin, because
+ *  Better Auth's relative-path check refuses a query that carries an encoded
+ *  URL, which an OAuth authorize `next` always does. */
+export function passkeyOfferURL(env: Env, next: string): string {
+  return new URL(
+    `/passkey?next=${encodeURIComponent(nextPath(next))}`,
+    env.BETTER_AUTH_URL,
+  ).toString();
+}
 
 type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 

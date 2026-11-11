@@ -1,4 +1,5 @@
 import { limitedResponse } from "@dustinedwards/site-runtime/rate-limit";
+import { authHandler } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { getAuth } from "~/lib/auth";
 import { checkAuthLimit } from "~/lib/auth/rate-limit.server";
@@ -9,10 +10,12 @@ import type { Route } from "./+types/auth";
 // Better Auth HTTP surface, mounted at /api/auth/* (its default basePath). The
 // single handler covers every method and sub-path (the passkey and email-link
 // sign-ins, sign-out, the link's verify, the OAuth callbacks, etc.); loader
-// serves GET, action serves the rest.
+// serves GET, action serves the rest. site-runtime's authHandler marks an
+// answer that says nothing about caching no-store (CLAUDE.md rule 9): they carry
+// sessions and passkey challenges.
 async function handle({ request, context }: Route.LoaderArgs | Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  return (await getAuth(env)).handler(request);
+  return authHandler(await getAuth(env), request);
 }
 
 export function loader(args: Route.LoaderArgs) {

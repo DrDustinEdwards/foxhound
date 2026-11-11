@@ -10,13 +10,10 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 // route branch that runs it, and the rule that it never becomes an agent tool.
 // The deletion itself is proven in account-deletion-s40.test.ts.
 //
-// J32 (/settings/account rebuilt on Capsomer) has not merged,
-// so the control sits on Foxhound's current page, in its Danger zone, which is
-// where Recova's AccountSection puts it (blob a154ac8f).
+// The control is Capsomer's DeleteAccount on /settings/account.
 
 const harness = vi.hoisted(() => ({
   deleteCalls: 0,
-  deleteThrows: false,
   signedInAt: new Date(),
 }));
 
@@ -36,7 +33,6 @@ vi.mock("~/lib/auth/auth.server", () => ({
       // id, so the session's user is the one deleted.
       deleteUser: async () => {
         harness.deleteCalls += 1;
-        if (harness.deleteThrows) throw new Error("D1 batch failed");
         return new Response(JSON.stringify({ success: true }), {
           headers: { "set-cookie": "better-auth.session_token=; Max-Age=0; Path=/" },
         });
@@ -87,43 +83,19 @@ async function post(fields: Record<string, string>): Promise<unknown> {
 
 beforeEach(() => {
   harness.deleteCalls = 0;
-  harness.deleteThrows = false;
   harness.signedInAt = new Date();
 });
 
-describe("S40: the delete-account action", () => {
+describe("S40: the delete-account post", () => {
+  // The post itself is site-runtime's accountFormAction, tested there (the
+  // ticked box, a stale sign-in, a refusal); this is Foxhound's landing.
   it("deletes the SIGNED-IN user, signs them out and sends them home, as Recova does", async () => {
-    const res = (await post({ _action: "delete-account" })) as Response;
+    const res = (await post({ intent: "delete-account", confirm: "on" })) as Response;
     expect(harness.deleteCalls).toBe(1);
     expect(res).toBeInstanceOf(Response);
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("/");
     expect(res.headers.get("Set-Cookie")).toContain("better-auth.session_token=;");
-  });
-
-  it("refuses a sign-in older than 10 minutes and deletes nothing", async () => {
-    harness.signedInAt = new Date(Date.now() - 11 * 60_000);
-    const res = (await post({ _action: "delete-account" })) as {
-      data: Record<string, unknown>;
-      init?: { status?: number };
-    };
-    expect(harness.deleteCalls).toBe(0);
-    expect(res.init?.status).toBe(403);
-    expect(res.data).toEqual({ action: "delete-account", ok: false, error: "stale" });
-  });
-
-  it("on failure keeps the person signed in and tells them, in Recova's words", async () => {
-    harness.deleteThrows = true;
-    const res = (await post({ _action: "delete-account" })) as {
-      data: Record<string, unknown>;
-      init?: { status?: number };
-    };
-    expect(res.init?.status).toBe(500);
-    expect(res.data).toEqual({
-      action: "delete-account",
-      ok: false,
-      error: "Failed to delete account. Please contact support.",
-    });
   });
 });
 

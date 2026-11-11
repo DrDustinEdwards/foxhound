@@ -1,8 +1,5 @@
 import type { signInOptions } from "@dustinedwards/site-runtime/sign-in";
 import type { BetterAuthOptions } from "better-auth";
-import { APIError } from "better-auth/api";
-
-import { isDisposableEmail } from "./disposable-emails";
 
 // Database-agnostic Better Auth options shared by the runtime factory
 // (auth.server.ts, which adds the family sign-in from site-runtime ./sign-in and
@@ -20,27 +17,9 @@ const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 
 export const authOptions = {
   appName: "Foxhound",
-  // Foxhound's own hooks only; withSignIn merges them with the shared ones.
-  databaseHooks: {
-    user: {
-      create: {
-        // Disposable-email blocklist at account creation (legacy rule). Applies
-        // to every path that mints a user (the email link, Google and Apple).
-        // The code is what Better Auth puts in ?error= on its way back to the
-        // errorCallbackURL (/login), as Recova's callback sent
-        // /login?error=disposable_email (app/auth/callback/route.ts, blob
-        // 7cb52c7b). Without one, Better Auth answers with a bare 400 instead.
-        before: async (user) => {
-          if (isDisposableEmail(user.email)) {
-            throw new APIError("BAD_REQUEST", {
-              code: "disposable_email",
-              message: "Disposable email addresses are not allowed.",
-            });
-          }
-        },
-      },
-    },
-  },
+  // No database hooks of Foxhound's own: site-runtime's sign-in refuses a new
+  // account at a disposable address (refuseDisposable, every way an account is
+  // made) and keeps no Google or Apple tokens (its databaseHooks.account).
   session: {
     // Sessions live in the D1 session table (strong consistency -> immediate
     // revocation). KV secondaryStorage was rejected: KV is eventually
@@ -97,16 +76,15 @@ export const authOptions = {
   },
 } satisfies BetterAuthOptions;
 
-/** Foxhound's options over the family sign-in's (site-runtime ./sign-in). The
- *  hooks are merged, not replaced: the shared databaseHooks.account store no
- *  Google or Apple tokens (FH-5), the shared session keeps freshAge (a sign-in
- *  from the last 10 minutes to add a passkey or unlink), and the shared
- *  advanced settings read the client IP from cf-connecting-ip. */
+/** Foxhound's options over the family sign-in's (site-runtime ./sign-in),
+ *  merged, not replaced: the shared databaseHooks.account store no Google or
+ *  Apple tokens (FH-5), the shared session keeps freshAge (a sign-in from the
+ *  last 10 minutes to add a passkey or unlink), and the shared advanced
+ *  settings read the client IP from cf-connecting-ip. */
 export function withSignIn(signIn: Awaited<ReturnType<typeof signInOptions>>) {
   return {
     ...signIn,
     ...authOptions,
-    databaseHooks: { ...signIn.databaseHooks, ...authOptions.databaseHooks },
     session: {
       ...signIn.session,
       ...authOptions.session,

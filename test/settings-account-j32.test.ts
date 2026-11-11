@@ -71,11 +71,18 @@ function render(opts: RenderOpts = {}): string {
     },
     cancelledAt: opts.cancelledAt ?? null,
     userEmail: "owner@acme.test",
-    ownedAccountNames: ["Acme Inc"],
+    deletionConsequence: "This will permanently delete your login.",
     theme: opts.theme ?? "dark",
     isOwner: opts.isOwner ?? true,
     isDemo: false,
-    signIn: { passkeys: [], providers: [] },
+    readOnly: null,
+    passkeys: [],
+    providers: [],
+    devices: [],
+    history: [],
+    fresh: true,
+    signalAs: null,
+    signInAgainHref: "/login?reauth&next=%2Fsettings%2Faccount",
   };
   const Stub = createRoutesStub([
     {
@@ -166,20 +173,20 @@ describe("J32 account: one save writes the name and the three context fields", (
 
   it("writes all four from one post, MRR in cents, and touches no other account", async () => {
     const res = await post({
-      _action: "profile",
+      intent: "profile",
       name: "Acme Inc",
       merchantIndustry: "SaaS",
       primaryCustomerType: "B2B",
       merchantMrrSelfReported: "5000",
     });
-    expect(res.data).toEqual({ action: "profile", ok: true });
+    expect(res.data).toEqual({ intent: "profile", ok: true });
     expect(row()).toEqual({ name: "Acme Inc", industry: "SaaS", type: "B2B", mrr: 500_000 });
     expect(row("acct_other").name).toBe("Other Co");
   });
 
   it("refuses a bad MRR beside the field and writes nothing at all", async () => {
     const res = await post({
-      _action: "profile",
+      intent: "profile",
       name: "New Name",
       merchantIndustry: "SaaS",
       primaryCustomerType: "B2B",
@@ -187,7 +194,7 @@ describe("J32 account: one save writes the name and the three context fields", (
     });
     expect(res.init?.status).toBe(400);
     expect(res.data).toEqual({
-      action: "profile",
+      intent: "profile",
       ok: false,
       error: MRR_ERROR,
       field: "merchantMrrSelfReported",
@@ -197,13 +204,13 @@ describe("J32 account: one save writes the name and the three context fields", (
 
   it("refuses an empty name beside the field and writes nothing at all", async () => {
     const res = await post({
-      _action: "profile",
+      intent: "profile",
       name: "  ",
       merchantIndustry: "SaaS",
       merchantMrrSelfReported: "1",
     });
     expect(res.init?.status).toBe(400);
-    expect(res.data).toMatchObject({ action: "profile", ok: false, field: "name" });
+    expect(res.data).toMatchObject({ intent: "profile", ok: false, field: "name" });
     expect(row()).toEqual({ name: "Old Name", industry: "Finance", type: "B2C", mrr: 100 });
   });
 });
@@ -225,12 +232,12 @@ describe("J32 account: a failed save", () => {
     );
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await post({
-      _action: "profile",
+      intent: "profile",
       name: "Acme Inc",
       merchantIndustry: "SaaS",
       merchantMrrSelfReported: "10",
     });
-    expect(res.data).toEqual({ action: "profile", ok: false });
+    expect(res.data).toEqual({ intent: "profile", ok: false });
     expect(res.init?.status).toBe(500);
     // The error object itself, so its stack reaches the log, not only its message.
     expect(logged).toHaveBeenCalledWith("account settings write failed:", thrown);
@@ -268,10 +275,10 @@ describe("J32 review: only the owner can cancel the account", () => {
   });
 
   it("refuses a member with a 403 and writes nothing", async () => {
-    const res = await post({ _action: "cancel-account" }, "member");
+    const res = await post({ intent: "cancel-account" }, "member");
     expect(res.init?.status).toBe(403);
     expect(res.data).toEqual({
-      action: "cancel-account",
+      intent: "cancel-account",
       ok: false,
       error: "Only the account owner can cancel the account.",
     });
@@ -279,8 +286,8 @@ describe("J32 review: only the owner can cancel the account", () => {
   });
 
   it("still lets the owner cancel", async () => {
-    const res = await post({ _action: "cancel-account" }, "owner");
-    expect(res.data).toMatchObject({ action: "cancel-account", ok: true });
+    const res = await post({ intent: "cancel-account" }, "owner");
+    expect(res.data).toMatchObject({ intent: "cancel-account", ok: true });
     const after = state();
     expect(after.cancelledAt).not.toBeNull();
     expect(after.disconnectedAt).not.toBeNull();

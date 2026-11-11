@@ -356,7 +356,12 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                       className="cap-input"
                       type="email"
                       name="email"
-                      autoComplete="email"
+                      // Another person's address: the browser must not offer
+                      // the merchant's own (Capsomer EmailInput's someoneElse,
+                      // which cannot share its row with the button).
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoCapitalize="none"
                       placeholder="colleague@company.com"
                       required
                       aria-invalid={inviteResult?.error ? true : undefined}

@@ -35,18 +35,18 @@ deleted the old password rows.
   The passkey belongs to `BETTER_AUTH_URL`'s host.
 - **Emailed link and code** for a first sign-in or a lost device: one mail
   with a link and a six-digit code, each signing in an existing merchant or
-  creating a new one, valid 15 minutes, sent by `sendSignInLinkEmail` on
+  creating a new one, valid 10 minutes, sent by `sendSignInLinkEmail` on
   Capsomer's magic-link template. The link signs in whichever browser opens it
   (often the mail app's); the code is typed on the "link sent" screen, so the
-  tab that asked signs in (`signInWithCode`, posted with `?code`). A wrong code
-  counts, and after three the code is spent while the link still works. `/login` and
-  `/signup` send it through Better Auth's handler
-  (`app/lib/auth/sign-in-link.server.ts`) so Better Auth's limiter and the
-  Turnstile check run. Turnstile is on once `TURNSTILE_SITE_KEY` and
+  tab that asked signs in (posted with `intent=code`). A wrong code counts, and
+  after three the code is spent while the link still works. The pages are
+  Capsomer's sign-in screen (`capsomer/react/sign-in`), and `/login` and `/signup`
+  answer it with site-runtime's `signInFormAction`, which goes through Better
+  Auth's handler so Better Auth's limiter and the Turnstile check run. Turnstile is on once `TURNSTILE_SITE_KEY` and
   `TURNSTILE_SECRET_KEY` are both set. The link lands on `/passkey`, which offers
   a passkey and goes on.
 - **Google and Apple**, each when its settings are present. Accounts are joined
-  only by a signed-in person under My account's Sign-in panel, never by a
+  only by a signed-in person on My account (Capsomer's account settings), never by a
   matching email at sign-in (`disableImplicitLinking`); a refused sign-in comes
   back to `/login?error=account_not_linked`, which explains.
 - The page actions spend the auth bucket (10 a minute per IP) and `/signup` the

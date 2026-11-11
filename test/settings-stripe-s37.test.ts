@@ -170,7 +170,7 @@ async function post(
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
-  const owner = fields._action === "cancel-account" ? accountAction : stripeAction;
+  const owner = fields.intent === "cancel-account" ? accountAction : stripeAction;
   const res = (await owner({
     context: ctx,
     request: new Request("https://foxhoundapp.test/settings", { method: "POST", body: form }),
@@ -247,7 +247,7 @@ describe("PLANT 5: cancel stops processing, disconnects all, and leaves billing 
     seedConnection({ id: "c_a", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
     seedConnection({ id: "c_b", accountId: ACTIVE, stripeUserId: "acct_b", connectedAt: 2_000 });
 
-    const res = await post({ _action: "cancel-account" });
+    const res = await post({ intent: "cancel-account" });
 
     expect(res.status).toBe(200);
     const acct = sqlite
@@ -265,7 +265,7 @@ describe("PLANT 5: cancel stops processing, disconnects all, and leaves billing 
     sqlite.prepare("DELETE FROM account_members WHERE account_id = ?").run(EARLIEST);
     seedConnection({ id: "c_a", accountId: ACTIVE, stripeUserId: "acct_a", isPrimary: true });
 
-    await post({ _action: "cancel-account" });
+    await post({ intent: "cancel-account" });
 
     expect(markerOf("sess_1")).toBe(ACTIVE);
     const remaining = await listMemberships(db, USER);

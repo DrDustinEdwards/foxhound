@@ -1,7 +1,9 @@
 import { Button } from "capsomer/react/button";
+import { AuthCard } from "capsomer/react/sign-in";
 import { data, Form, redirect, useNavigation } from "react-router";
 
-import { AuthCard, AuthHeading } from "~/components/auth-card";
+import "capsomer/button.css";
+import "capsomer/sign-in.css";
 import { getDb } from "~/db";
 import { acceptInvite, getInviteByToken, getSession, setSessionActiveAccount } from "~/lib/auth";
 import type { Db } from "~/db";
@@ -122,37 +124,30 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
   const busy = useNavigation().state !== "idle";
   const error = actionData?.error ?? loaderData.error;
 
+  // Capsomer's sign-in card (the frame every sign-in page sits in), in the
+  // amber family under the site header, as Recova's centered 400px card.
   return (
-    <AuthCard>
-      <div className="text-center">
-        {error ? (
-          <div role="alert">
-            <h1 className="mb-2 text-subsection font-semibold text-text">Invite invalid</h1>
-            <p className="text-copy text-text-subtle">{error}</p>
-          </div>
-        ) : (
-          <>
-            <AuthHeading
-              title="You've been invited"
-              subtitle={
-                <>
-                  Join <strong className="text-text">{loaderData.accountName ?? "a team"}</strong>{" "}
-                  on Foxhound
-                </>
-              }
-            />
-            {/* Recova's button: full width, text-sm, py-3. */}
-            <Form
-              method="post"
-              className="grid [&_.cap-btn]:[--cap-btn-fs:var(--text-copy)] [&_.cap-btn]:[--cap-btn-h:2.75rem]"
-            >
-              <Button type="submit" variant="primary" size="lg" pending={busy}>
-                {busy ? "Accepting…" : "Accept invite"}
-              </Button>
-            </Form>
-          </>
-        )}
-      </div>
-    </AuthCard>
+    <div className="fh-cap py-16" data-cap-site="foxhound" data-family="amber">
+      {error ? (
+        <div role="alert">
+          <AuthCard title="Invite invalid" lede={error} />
+        </div>
+      ) : (
+        <AuthCard
+          title="You've been invited"
+          lede={
+            <>
+              Join <strong>{loaderData.accountName ?? "a team"}</strong> on Foxhound
+            </>
+          }
+        >
+          <Form method="post" className="cap-auth-form">
+            <Button type="submit" variant="primary" size="lg" pending={busy}>
+              {busy ? "Accepting…" : "Accept invite"}
+            </Button>
+          </Form>
+        </AuthCard>
+      )}
+    </div>
   );
 }

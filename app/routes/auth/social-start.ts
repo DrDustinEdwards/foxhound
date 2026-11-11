@@ -1,23 +1,21 @@
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
+import { startSocialSignIn } from "@dustinedwards/site-runtime/sign-in-form";
 import { redirect } from "react-router";
 
 import { getAuth } from "~/lib/auth";
-import { forwardSetCookie } from "~/lib/auth/http";
-import { safeNextPath } from "~/lib/auth/next-path";
-import { passkeyOfferURL } from "~/lib/auth/sign-in-link.server";
+import { nextPath, passkeyOfferURL } from "~/lib/auth/landing.server";
 import { checkAuthLimit, RATE_LIMITED_ERROR } from "~/lib/auth/rate-limit.server";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-
-import type { Route } from "./+types/social-start";
-import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// Starts a Google or Apple sign-in (POST /auth/google, /auth/apple). Calls
-// Better Auth server-side to build the provider's authorization URL and set the
-// CSRF state cookie, then redirects the browser there carrying that cookie.
-// Cleanly inert for a provider Foxhound has no settings for (its button is not
-// drawn then, but guard anyway).
+import type { Route } from "./+types/social-start";
+
+// Starts a Google or Apple sign-in (POST /auth/google, /auth/apple), the sign-in
+// screen's provider buttons: site-runtime's startSocialSignIn builds the
+// provider's URL and Better Auth's state cookie on the server. Inert for a
+// provider Foxhound has no settings for (its button is not drawn then).
 export async function action({ request, context, params }: Route.ActionArgs) {
   const refused = refuseCrossSite(request);
   if (refused) return refused;
@@ -33,35 +31,20 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     return redirect("/login");
   }
 
-  // Where to land afterwards. Recova's login set a
-  // pending_redirect cookie and its callback validated it and burned it even
-  // when refused. Better Auth carries callbackURL inside its own one-time OAuth
-  // state, which is spent on the callback, so the validated path goes there
-  // and there is no cookie to burn. It is made absolute on Foxhound's own
-  // origin because Better Auth's relative-path pattern refuses a query that
-  // carries an encoded URL, which an OAuth authorize URL always does.
+  // Where to land afterwards. Better Auth carries callbackURL inside its own
+  // one-time OAuth state, spent on the callback, so there is no cookie to burn
+  // (Recova's pending_redirect). By way of the passkey offer (A3), which goes
+  // straight on to `next` for someone it does not ask.
   const form = await readForm(request, BODY_MAX_BYTES).catch(() => null);
-  const next = safeNextPath(form ? String(form.get("next") ?? "") : null);
-  // By way of the passkey offer (A3), which goes straight on to `next` for
-  // someone it does not ask.
-  const callbackURL = passkeyOfferURL(env, next);
-  // A refused sign-in (account_not_linked and the like) comes back to /login,
-  // which says what happened, instead of Better Auth's own error page.
-  const errorCallbackURL = new URL("/login", env.BETTER_AUTH_URL).toString();
-
-  const res = await (
-    await getAuth(env)
-  ).api.signInSocial({
-    body: { provider, callbackURL, errorCallbackURL },
-    headers: request.headers,
-    asResponse: true,
+  const start = await startSocialSignIn(await getAuth(env), request, {
+    provider,
+    callbackURL: passkeyOfferURL(env, nextPath(form?.get("next"))),
+    // A refused sign-in (account_not_linked and the like) comes back to /login,
+    // which says what happened, instead of Better Auth's own error page.
+    errorCallbackURL: new URL("/login", env.BETTER_AUTH_URL).toString(),
   });
-
-  const { url } = (await res.json()) as { url?: string };
-  if (!url) {
-    return redirect("/login");
-  }
-  return redirect(url, { headers: forwardSetCookie(res) });
+  if (!start) return redirect("/login");
+  return redirect(start.location, { headers: start.headers });
 }
 
 export function loader() {

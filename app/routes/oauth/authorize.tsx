@@ -10,7 +10,7 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // buttons, the alert and the focus ring read. The site header loads the same
-// file; this page has no header, so it imports it itself, as auth-card.tsx does.
+// file; this page has no header, so it imports it itself, as the auth layout does.
 import "~/site-header.css";
 
 import { Wordmark } from "~/components/wordmark";

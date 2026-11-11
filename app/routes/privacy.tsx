@@ -38,7 +38,7 @@ import type { Route } from "./+types/privacy";
 //   dispute responses only on approval or the merchant's opt-in auto-submit);
 // - the personal information list, the other sources and the service
 //   providers are Foxhound's own (Cloudflare in place of Vercel, Supabase and
-//   Resend; Google and Apple sign-in; Amazon for off-site file backups);
+//   Resend; Google sign-in; Amazon for off-site file backups);
 // - the retention windows are the engine's constants and the account deletion
 //   that keeps fee evidence (Q14 and Q16), not Recova's one month;
 // - the EU, UK, Swiss and Canadian paragraphs are left out, because the
@@ -174,8 +174,8 @@ export default function PrivacyPage() {
                     Do we collect any information from third parties?
                   </strong>{" "}
                   We collect information from Stripe when a merchant connects a Stripe account, and
-                  from Google or Apple when you sign in with them. We do not buy information from
-                  data brokers or marketing partners.{" "}
+                  from Google when you sign in with it. We do not buy information from data brokers
+                  or marketing partners.{" "}
                   <More to="other-sources">
                     Learn more about information collected from other sources.
                   </More>
@@ -268,8 +268,8 @@ export default function PrivacyPage() {
             .
           </P>
           <P>
-            Social Media Login Data. If you choose to sign in with Google or Apple, we receive your
-            name and email address from that provider.
+            Social Media Login Data. If you choose to sign in with Google, we receive your name and
+            email address from Google.
           </P>
           <P>
             All personal information that you provide to us must be true, complete, and accurate,
@@ -323,7 +323,7 @@ export default function PrivacyPage() {
           <H3 id="other-sources">Information collected from other sources</H3>
           <P>
             <em>In Short:</em> We collect data from Stripe when a merchant connects a Stripe
-            account, and from Google or Apple when you sign in with them.
+            account, and from Google when you sign in with it.
           </P>
           <P>
             When a merchant connects a Stripe account, we receive the Stripe data the Services need
@@ -473,7 +473,7 @@ export default function PrivacyPage() {
               Analytics: Cloudflare
             </li>
             <li>Off-Site Backup Storage: Amazon Web Services</li>
-            <li>Sign-In, if you choose it: Google and Apple</li>
+            <li>Sign-In, if you choose it: Google</li>
           </LegalList>
           <P>We also may need to share your personal information in the following situations:</P>
           <P>

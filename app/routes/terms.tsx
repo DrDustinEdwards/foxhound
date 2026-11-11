@@ -32,7 +32,8 @@ import type { Route } from "./+types/terms";
 // - the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12);
 // - the product description is the one /privacy carries (LegalServiceDescription);
 // - the API terms and the MCP exception to "no automated access" (agent keys);
-// - sign-in is passwordless, and Foxhound has no usernames;
+// - sign-in is a passkey, an emailed link or code, or Google, with no passwords
+//   and no usernames (Apple is not offered: it waits for the Foxing iPhone app);
 // - billing follows PRICING.md: attribution, the maturity window, the dispute
 //   cap and free Intelligence, with every number from the engine's constants;
 // - "Erath, Texas" names the county, Erath County.
@@ -274,8 +275,8 @@ export default function TermsPage() {
         <Section id="registration" number={4} title="USER REGISTRATION">
           <P>
             You may be required to register to use the Services. You agree to keep the ways you sign
-            in (your email inbox, your passkeys, and any Google or Apple account you sign in with)
-            secure, and will be responsible for all use of your account.
+            in (your email inbox, your passkeys, and any Google account you sign in with) secure,
+            and will be responsible for all use of your account.
           </P>
         </Section>
         <Section id="purchases" number={5} title="PURCHASES AND PAYMENT">
@@ -345,7 +346,7 @@ export default function TermsPage() {
             </li>
             <li>
               Trick, defraud, or mislead us and other users, especially in any attempt to learn
-              sensitive account information such as user passwords.
+              sensitive account information such as sign-in links, codes or passkeys.
             </li>
             <li>
               Circumvent, disable, or otherwise interfere with security-related features of the

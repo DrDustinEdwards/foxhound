@@ -1,5 +1,11 @@
 import { Outlet } from "react-router";
 
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/sign-in.css";
+import "~/site-header.css";
+
 import { Footer } from "~/components/footer";
 import { noindexHeader } from "~/lib/seo/meta";
 
@@ -22,6 +28,10 @@ export const handle = { hydrate: true };
 // image, not a link. Ruling 403 binding 2 says the seat asks Dustin rather than
 // adding one, so none is added here.
 //
+// Each page is Capsomer's sign-in card (capsomer/react/sign-in) centered in
+// the window (layout="screen"), in Capsomer's amber family with Foxhound's
+// neutrals (.fh-cap, the pairing the site header and the app shell use).
+//
 // No loader: an anonymous visitor costs no database read. The theme is the
 // root loader's (<html data-theme>), and with no header there is no toggle,
 // as in Recova.
@@ -31,7 +41,7 @@ export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
 export default function AuthLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-bg text-text">
-      <main className="flex-1">
+      <main className="fh-cap flex-1" data-cap-site="foxhound" data-family="amber">
         <Outlet />
       </main>
       <Footer variant="auth" />

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { isDisposableEmail } from "~/lib/auth/disposable-emails";
 import { isAdminEmail } from "~/lib/auth/roles";
 
 // Pure auth logic (no DB): the admin allowlist parsing and the disposable-email
@@ -29,18 +28,5 @@ describe("isAdminEmail", () => {
     expect(isAdminEmail(e, "merchant@example.com")).toBe(false);
     expect(isAdminEmail(e, null)).toBe(false);
     expect(isAdminEmail(e, undefined)).toBe(false);
-  });
-});
-
-describe("isDisposableEmail", () => {
-  it("flags known disposable domains (case-insensitive)", () => {
-    expect(isDisposableEmail("x@mailinator.com")).toBe(true);
-    expect(isDisposableEmail("x@Guerrillamail.com")).toBe(true);
-    expect(isDisposableEmail("x@YOPMAIL.com")).toBe(true);
-  });
-
-  it("handles malformed input without throwing", () => {
-    expect(isDisposableEmail("not-an-email")).toBe(false);
-    expect(isDisposableEmail("")).toBe(false);
   });
 });

@@ -1223,6 +1223,21 @@ body {
   border-radius: revert-layer;
 }
 
+/* The sign-in card's closing line (Capsomer's sign-in, which leaves links to
+   the site): amber, underlined so a link is not told apart by color alone,
+   and 24px tall as a target, as Recova's auth pages draw them. */
+.fh-cap .cap-auth-foot a {
+  display: inline-flex;
+  min-height: 1.5rem;
+  align-items: center;
+  color: var(--brand-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.fh-cap .cap-auth-foot a:hover {
+  opacity: 0.8;
+}
+
 /* The wordmark in the header: DM Mono, the x in amber. */
 .fh-wordmark {
   font-family: "DM Mono", monospace;

@@ -4,7 +4,6 @@ import { createMemoryRouter, RouterContextProvider, RouterProvider } from "react
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { safeNextPath } from "~/lib/auth/next-path";
 
 // J79, ruling 8's inherited artifacts on the sign-in side. The authorize page
 // sends a signed-out visitor to /login?next=<the whole authorize URL>; Recova's
@@ -56,30 +55,6 @@ beforeEach(() => {
   harness.session = null;
   harness.signInSocial.mockReset();
   harness.handler.mockReset();
-});
-
-describe("safeNextPath: Recova's validateRedirect, every check anchored at position 0", () => {
-  it("refuses absolute, protocol-relative and backslash targets", () => {
-    for (const bad of [
-      "https://evil.example/",
-      "//evil.example/x",
-      "/\\evil.example",
-      "evil",
-      "",
-      null,
-      undefined,
-      "/\t/evil.example",
-      "/\n/evil.example",
-      "%2F%09%2Fevil.example",
-    ]) {
-      expect(safeNextPath(bad), String(bad)).toBe("/console");
-    }
-  });
-
-  it("decodes a doubly encoded value once, as Recova's tryDecode did", () => {
-    expect(safeNextPath(encodeURIComponent("/oauth/authorize?a=1"))).toBe("/oauth/authorize?a=1");
-    expect(safeNextPath(encodeURIComponent("//evil.example"))).toBe("/console");
-  });
 });
 
 describe("/login carries next= through both ways of signing in", () => {

@@ -16,8 +16,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // Recova's words.
 // A8: /welcome needs the new connection's id, as Recova's does
 // (app/welcome/page.tsx blob f0181a74), and goes to /console without it.
-// A10: a disposable address refused at sign-up comes back to /login with
-// Recova's own sentence, never Better Auth's bare error page.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, session: null as unknown }));
 
@@ -29,8 +27,6 @@ vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }
 
 const invite = await import("~/routes/auth/invite");
 const welcome = await import("~/routes/app/welcome");
-const login = await import("~/routes/auth/login");
-const { authOptions } = await import("~/lib/auth/options");
 
 const TOKEN = "tok_invite_1";
 let sqlite: Database.Database;
@@ -179,22 +175,5 @@ describe("A8: /welcome is the landing for one new connection", () => {
       senderNameSet: true,
       notificationEmailSet: false,
     });
-  });
-});
-
-describe("A10: a disposable address at sign-up", () => {
-  it("is refused with a code that brings the visitor back to /login with Recova's sentence", async () => {
-    const before = authOptions.databaseHooks.user.create.before;
-    await expect(before({ email: "x@mailinator.com" } as never)).rejects.toMatchObject({
-      body: { code: "disposable_email" },
-    });
-    const page = await login.loader({
-      request: request("/login?error=disposable_email"),
-      params: {},
-      context: context(),
-    } as never);
-    expect((page as { error: string }).error).toBe(
-      "Please use a real email address. Disposable email providers are not allowed.",
-    );
   });
 });

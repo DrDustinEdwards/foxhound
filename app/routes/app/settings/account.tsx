@@ -1,13 +1,22 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { data, Form, redirect, useNavigation } from "react-router";
+import { data, Form, redirect, useNavigation, useRevalidator } from "react-router";
 import { eq } from "drizzle-orm";
 import { applyTheme } from "capsomer/behavior/theme-switch";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { InputGroup, InputGroupAddon } from "capsomer/react/field";
 import { PageHead } from "capsomer/react/page-head";
+import { Panel } from "capsomer/react/panel";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
+import {
+  DeleteAccount,
+  DeviceSettings,
+  EmailSettings,
+  PasskeySettings,
+  ProviderSettings,
+  SecurityHistory,
+} from "capsomer/react/sign-in-settings";
 import { Status } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -16,6 +25,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
+import "capsomer/sign-in-settings.css";
 import "capsomer/status.css";
 // Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
@@ -26,21 +36,13 @@ import {
   accountSessions,
   passkeyLastUsed,
   passkeyRows,
-  requireFreshSession,
-  revokeSessionById,
   securityHistory,
-  SessionNotFresh,
+  sessionIsFresh,
   signInMethods,
 } from "@dustinedwards/site-runtime/sign-in";
-import { isAPIError } from "better-auth/api";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { ACCOUNT_INTENTS, accountFormAction } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import {
-  SignInMethodsPanel,
-  type SignedInDevices,
-  type SignInSettings,
-} from "~/components/sign-in-settings";
 import { SettingsBackLink } from "~/components/settings-back-link";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
@@ -50,12 +52,12 @@ import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
 import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
+import { IMPERSONATION_READ_ONLY_MESSAGE } from "~/lib/admin/impersonation.server";
+import { authClient } from "~/lib/auth/client";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
-import type { AuthContext } from "~/lib/auth/context";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
-import { isDisposableEmail } from "~/lib/auth/disposable-emails";
-import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
+import { signInAgainHref } from "~/lib/auth/sign-in-paths";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { chooseTheme } from "~/lib/settings/theme-choice";
 import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
@@ -81,60 +83,68 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // RECOVA'S ORDER, top to bottom: the phone-only back link; "My account" and its
 // line; ONE form holding the account name card and the profile card (industry,
 // customer type, MRR) with one SaveBar under them; the Appearance card; then
-// the account card, the signed-in address with Sign out, and the Danger zone
-// below a rule in the same card.
+// the account card, the signed-in address with Sign out, and the Danger zone.
 //
-// J32 rebuilt it from Capsomer 0.9.0's parts under Dustin's Q10 and Q11 answers
-// of 2026-10-14: PageHead, panels, field, Select, Segmented, Button, Status and
-// Alert, amber throughout.
+// THE ENGINE IS FOXHOUND'S for the profile. The three context fields feed the
+// recovery email prompt ("Merchant context: ..." in
+// recovery/email-generation.ts, the S27 reader of parity/SETTINGS-READERS.md),
+// so Recova's "Used to personalize recovery emails." is true here. They are
+// written through applyIntelligenceContext, the one writer the merchant's agent
+// tool shares, and the name through buildAccountProfileUpdate.
 //
-// THE ENGINE IS FOXHOUND'S. The three context fields feed the recovery email
-// prompt ("Merchant context: ..." in recovery/email-generation.ts, the S27
-// reader of parity/SETTINGS-READERS.md), so Recova's "Used to personalize
-// recovery emails." is true here. They are written through
-// applyIntelligenceContext, the one writer the merchant's agent tool shares,
-// and the name through buildAccountProfileUpdate.
-//
-// THE APPROVED DIFFERENCES ON THIS PAGE. "Cancel account" keeps billing
-// records where Recova's "Delete account" erased them (APPROVED-DIFFERENCES,
-// "yes", 2026-09-19); Delete account is Recova's control, and it keeps the
+// THE ACCOUNT PARTS ARE THE NETWORK'S: Capsomer's account settings
+// (capsomer/react/sign-in-settings) on site-runtime's accountFormAction, the
+// same on every site, in its order (email, passkeys, Google and Apple, devices,
+// history, delete). Foxhound's own beside them: the profile, Appearance, Sign
+// out (a button that posts, "yes", 2026-09-19) and "Cancel account", which
+// keeps billing records where Recova's delete erased them (APPROVED-DIFFERENCES,
+// "yes", 2026-09-19), owner only, placed before Delete. Deletion keeps the
 // record of recovered payments the fees are billed on (Q14, row S40, "yes",
-// 2026-10-14); Sign out is a button that posts ("yes", 2026-09-19); the
-// Sign-in panel after Appearance lists passkeys and joins Google or Apple, the
-// one place an account is joined (the family sign-in, APPROVED-DIFFERENCES
-// "Sign-in and invites", 2026-10-24), and lists the signed-in devices (the
-// family's account security, site-runtime ./sign-in).
+// 2026-10-14): delete-account.server.ts, run as Better Auth's beforeDelete.
 
 export function meta() {
   return [{ title: "My account - Foxhound" }, NOINDEX];
 }
+
+/** This page, where Google and Apple return and "Sign in again" comes back to. */
+const ACCOUNT_PATH = "/settings/account";
+
+/** How many of a person's latest security events the page lists. */
+const SECURITY_HISTORY_SHOWN = 10;
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const account = await getAccount(getDb(env), auth.membership.accountId);
   if (!account) throw new Response("Not Found", { status: 404 });
+  // The demo and an admin's read-only view: the request's session is not this
+  // person's, so nothing is read from it and every change says why not.
+  const readOnly = auth.isDemo
+    ? DEMO_READ_ONLY_MESSAGE
+    : auth.viewingAs
+      ? IMPERSONATION_READ_ONLY_MESSAGE
+      : null;
+  const own = readOnly === null;
+  const session = own ? await getSession(env, request) : null;
   return {
-    signIn: {
-      ...(await signInSettings(env, auth.userId, auth.isDemo)),
-      devices: await signedInDevices(env, request, auth),
-      history:
-        auth.isDemo || auth.viewingAs
-          ? null
-          : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
-      // The address the passkey providers are told (the Signal API), only on
-      // this person's own page: an admin's view names someone else's passkeys.
-      signalAs: auth.isDemo || auth.viewingAs ? null : auth.email,
-    },
+    ...(await signInRows(env, auth.userId, auth.isDemo)),
+    // Where this person is signed in: Better Auth's own list wants a sign-in
+    // from the last 10 minutes, and null asks for one.
+    devices: own ? await accountSessions(await getAuth(env), request) : [],
+    history: own ? await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN) : [],
+    fresh: session ? sessionIsFresh(session.session) : false,
+    // The address the passkey providers are told (the Signal API), only on
+    // this person's own page: an admin's view names someone else's passkeys.
+    signalAs: own ? { name: auth.email } : null,
+    readOnly,
+    signInAgainHref: signInAgainHref(ACCOUNT_PATH),
     account,
     cancelledAt: account.cancelledAt,
-    // The signed-in address, which legacy's AccountSection displays beside its
-    // sign-out control.
     userEmail: auth.email,
-    // Every account this person owns, which a deletion clears, so the
-    // confirmation can say which (S40 review fix F2). From the session's
-    // memberships, so this loader reads no other account's rows.
-    ownedAccountNames: ownedAccountNames(auth.memberships),
+    // Every account this person owns, which a deletion clears, so its words
+    // can say which (S40 review fix F2). From the session's memberships, so
+    // this loader reads no other account's rows.
+    deletionConsequence: deletionConsequence(ownedAccountNames(auth.memberships)),
     // The theme this account stores, which is the one the root drew the page
     // in: accounts.theme is NOT NULL, so for a signed-in merchant
     // resolveThemePreference always takes it (lib/theme.ts).
@@ -148,26 +158,18 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 /**
- * The Sign-in panel's lists: this person's passkeys, as site-runtime's
- * accountPasskeys gives them (passkeyRows: name, provider, added, and last
- * used from auth_events), each with its credential id for the Signal API on
- * removal; and which of Google and Apple are joined. Read from Better Auth's
- * tables by the session's user, as the app's other reads of them are
- * (delete-account.server.ts), rather than through accountPasskeys's own
- * session read, which an admin's read-only view does not have. The demo
- * changes nothing, so it lists none.
+ * This person's passkeys, as site-runtime's passkeyRows gives them (name,
+ * provider, added, and last used from auth_events), each with its credential
+ * id for the Signal API; and which of Google and Apple are joined. Read from
+ * Better Auth's tables by the session's user, as the app's other reads of
+ * them are (delete-account.server.ts), rather than through accountPasskeys's
+ * own session read, which an admin's read-only view does not have. The demo
+ * lists none.
  */
-async function signInSettings(
-  env: Env,
-  userId: string,
-  isDemo: boolean,
-): Promise<Omit<SignInSettings, "devices" | "history" | "signalAs">> {
+async function signInRows(env: Env, userId: string, isDemo: boolean) {
   const methods = signInMethods(env, { social: true });
-  const offered = [
-    methods.google ? { id: "google" as const, label: "Google" } : null,
-    methods.apple ? { id: "apple" as const, label: "Apple" } : null,
-  ].filter((p) => p !== null);
-  if (isDemo) return { passkeys: [], providers: offered.map((p) => ({ ...p, accountId: null })) };
+  const offered = (["google", "apple"] as const).filter((p) => methods[p]);
+  if (isDemo) return { passkeys: [], providers: offered.map((id) => ({ id, accountId: null })) };
   const db = getDb(env);
   const [stored, lastUsed, joined] = await Promise.all([
     db
@@ -192,54 +194,22 @@ async function signInSettings(
   return {
     passkeys: passkeyRows(stored, lastUsed).map((p) => ({
       ...p,
-      credentialId: credentialOf.get(p.id) ?? "",
+      credentialId: credentialOf.get(p.id) ?? null,
     })),
-    providers: offered.map((p) => ({ ...p, accountId: byProvider.get(p.id) ?? null })),
+    providers: offered.map((id) => ({ id, accountId: byProvider.get(id) ?? null })),
   };
 }
 
-/**
- * Where this person is signed in, from Better Auth's own list, which wants a
- * sign-in from the last 10 minutes: "stale" until then, and the panel asks for
- * one, as adding a passkey does. The demo and an admin's read-only view list
- * none: the request's session is not this person's.
- */
-async function signedInDevices(
-  env: Env,
-  request: Request,
-  auth: AuthContext,
-): Promise<SignedInDevices> {
-  if (auth.isDemo || auth.viewingAs) return null;
-  return (await accountSessions(await getAuth(env), request)) ?? "stale";
-}
-
-/** How many of a person's latest security events the Sign-in panel lists. */
-const SECURITY_HISTORY_SHOWN = 10;
-
 type ProfileField = "name" | "merchantMrrSelfReported";
 
+/** The answer to Foxhound's own posts (the profile, Cancel account). */
 interface ActionResult {
-  action: string;
+  intent: string;
   ok: boolean;
   /** A refusal's words, shown beside `field` when there is one. */
   error?: string;
   field?: ProfileField;
   warning?: string;
-  /** change-email: the current address the first link went to. */
-  sentTo?: string;
-}
-
-/** Enough of an address's shape to refuse a typo before Better Auth's own check. */
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** The session when it was made in the last 10 minutes (site-runtime
- *  requireFreshSession), else null, which the page answers by asking for a
- *  new sign-in. */
-async function freshSession(env: Env, request: Request) {
-  return requireFreshSession(await getAuth(env), request).catch((error: unknown) => {
-    if (error instanceof SessionNotFresh) return null;
-    throw error;
-  });
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -247,7 +217,22 @@ export async function action({ request, context }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
   const form = await readForm(request, BODY_MAX_BYTES);
-  const intent = String(form.get("_action") ?? "");
+
+  const intent = String(form.get("intent") ?? "");
+
+  // The email change, a device's sign-out and deletion, the same on every site
+  // (site-runtime's accountFormAction): each needs a sign-in from the last 10
+  // minutes. Deletion is Better Auth's own delete of the SIGNED-IN user, with
+  // Foxhound's deletion in its hooks (auth.server.ts), then "/" as in Recova.
+  if ((ACCOUNT_INTENTS as readonly string[]).includes(intent)) {
+    const shared = await accountFormAction(await getAuth(env), request, form, {
+      deletedLanding: "/",
+    });
+    if (shared && "location" in shared) {
+      throw redirect(shared.location, { headers: shared.headers });
+    }
+    if (shared) return data(shared.state, { status: shared.status });
+  }
 
   switch (intent) {
     case "profile": {
@@ -262,12 +247,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         // The name is the business's name in the header and in every recovery
         // email's prompt, so an empty one is refused before anything is written.
         return data<ActionResult>(
-          {
-            action: intent,
-            ok: false,
-            error: "Account name is required.",
-            field: "name",
-          },
+          { intent, ok: false, error: "Account name is required.", field: "name" },
           { status: 400 },
         );
       }
@@ -291,13 +271,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!result.ok) {
           return data<ActionResult>(
             result.error === MRR_ERROR
-              ? {
-                  action: intent,
-                  ok: false,
-                  error: result.error,
-                  field: "merchantMrrSelfReported",
-                }
-              : { action: intent, ok: false, error: result.error },
+              ? { intent, ok: false, error: result.error, field: "merchantMrrSelfReported" }
+              : { intent, ok: false, error: result.error },
             { status: 400 },
           );
         }
@@ -306,9 +281,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         // page. The whole error is logged, stack included; it carries no form
         // values.
         console.error("account settings write failed:", err);
-        return data<ActionResult>({ action: intent, ok: false }, { status: 500 });
+        return data<ActionResult>({ intent, ok: false }, { status: 500 });
       }
-      return data<ActionResult>({ action: intent, ok: true });
+      return data<ActionResult>({ intent, ok: true });
     }
     case "cancel-account": {
       // OWNER ONLY, refused before any read or write. Canceling disconnects
@@ -318,7 +293,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       // delete-account/route.ts, blob 2136362a). Same shape as team.tsx's gate.
       if (auth.membership.role !== MEMBER_ROLE.OWNER) {
         return data<ActionResult>(
-          { action: intent, ok: false, error: "Only the account owner can cancel the account." },
+          { intent, ok: false, error: "Only the account owner can cancel the account." },
           { status: 403 },
         );
       }
@@ -339,7 +314,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         }
       }
       return data<ActionResult>({
-        action: intent,
+        intent,
         ok: true,
         warning:
           outcome.deauthorizeErrors.length > 0
@@ -347,110 +322,9 @@ export async function action({ request, context }: Route.ActionArgs) {
             : undefined,
       });
     }
-    case "delete-account": {
-      // A sign-in from the last 10 minutes first (site-runtime
-      // requireFreshSession, the rule Better Auth holds its own risky changes
-      // to): a borrowed or forgotten session cannot delete the account. Stale
-      // answers as signing a device out does, and the page asks for a new
-      // sign-in.
-      const fresh = await freshSession(env, request);
-      if (!fresh)
-        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      // Better Auth's own delete (/delete-user), for the SIGNED-IN user only:
-      // it takes no id, so a person deletes themselves and nobody else, as
-      // Recova's route does with supabase.auth.getUser(). Foxhound's deletion
-      // runs in its hooks (delete-account.server.ts), and site-runtime's log
-      // line and notice follow it. Its answer clears the session cookie, and
-      // Recova then sends the person to "/".
-      let deleted: Response | null = null;
-      try {
-        deleted = await (
-          await getAuth(env)
-        ).api.deleteUser({ body: {}, headers: request.headers, asResponse: true });
-      } catch (err) {
-        console.error("account deletion failed:", err);
-      }
-      if (!deleted?.ok) {
-        if (deleted)
-          logEvent("account_deletion_failed", { status: deleted.status }, { level: "error" });
-        // Recova's own words for this failure (AccountSection.tsx, blob a154ac8f).
-        return data<ActionResult>(
-          {
-            action: intent,
-            ok: false,
-            error: "Failed to delete account. Please contact support.",
-          },
-          { status: 500 },
-        );
-      }
-      const headers = new Headers();
-      for (const cookie of deleted.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
-      return redirect("/", { headers });
-    }
-    case "change-email": {
-      // E1, through Better Auth's /change-email: the link goes to the CURRENT
-      // address first (auth.server.ts). A sign-in from the last 10 minutes
-      // first, as for delete; site-runtime refuses the endpoint without one
-      // too.
-      const fresh = await freshSession(env, request);
-      if (!fresh)
-        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      const newEmail = String(form.get("newEmail") ?? "")
-        .trim()
-        .toLowerCase();
-      const refuse = (error: string) =>
-        data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
-      if (!EMAIL_SHAPE.test(newEmail)) return refuse("Enter an email address.");
-      if (newEmail === fresh.user.email.toLowerCase())
-        return refuse("That is already your address.");
-      if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
-      // An address nobody has confirmed would get the link at the new address
-      // alone (Better Auth's other branch), so it is refused: every way into
-      // Foxhound confirms the address, so this is only ever an old account.
-      if (!fresh.user.emailVerified)
-        return refuse("Sign in with an email link first, then change your address.");
-      try {
-        await (
-          await getAuth(env)
-        ).api.changeEmail({
-          body: { newEmail },
-          headers: request.headers,
-        });
-      } catch (error) {
-        if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
-          return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-        }
-        logEvent(
-          "email_change_failed",
-          { error: error instanceof Error ? error.message : String(error) },
-          { level: "error" },
-        );
-        return data<ActionResult>(
-          { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
-          { status: 500 },
-        );
-      }
-      // Better Auth answers the same whether or not the new address is taken,
-      // so this says nothing about it either.
-      return data<ActionResult>({ action: intent, ok: true, sentTo: fresh.user.email });
-    }
-    case "sign-out-device": {
-      // By the session's id, so no session token reaches the page (site-runtime ./sign-in).
-      try {
-        const ok = await revokeSessionById(
-          await getAuth(env),
-          request,
-          String(form.get("session") ?? ""),
-        );
-        return data<ActionResult>({ action: intent, ok }, { status: ok ? 200 : 404 });
-      } catch (error) {
-        if (!isAPIError(error) || error.body?.code !== "SESSION_NOT_FRESH") throw error;
-        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      }
-    }
     default:
       return data<ActionResult>(
-        { action: intent, ok: false, error: "Unknown settings action." },
+        { intent, ok: false, error: "Unknown settings action." },
         { status: 400 },
       );
   }
@@ -551,13 +425,13 @@ function ProfileForm({
 }) {
   const navigation = useNavigation();
   const saving =
-    navigation.state === "submitting" && navigation.formData?.get("_action") === "profile";
+    navigation.state === "submitting" && navigation.formData?.get("intent") === "profile";
   const fieldError = (field: ProfileField) => (result?.field === field ? result.error : undefined);
   const barFailed = result && !result.ok && !result.field;
 
   return (
     <DemoGuardedForm method="post">
-      <input type="hidden" name="_action" value="profile" />
+      <input type="hidden" name="intent" value="profile" />
 
       {/* AccountNameSection */}
       <section className="cap-panel">
@@ -734,246 +608,120 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   );
 }
 
-/** AccountSection's top row: the signed-in address, and Sign out beside it. */
-function SignedIn({ userEmail }: { userEmail: string }) {
-  return (
-    <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="text-label text-text">{userEmail}</div>
-      <Form method="post" action="/logout">
-        <Button type="submit">Sign out</Button>
-      </Form>
-    </div>
-  );
-}
-
-/**
- * E1: change the sign-in address. The form asks Better Auth for the change
- * (the action's change-email), which mails the CURRENT address first; its link
- * then mails the new one, and that link makes the change. It needs a sign-in
- * from the last 10 minutes, as Delete account does.
- */
-function ChangeEmail({ result }: { result?: ActionResult }) {
-  const navigation = useNavigation();
-  const sending =
-    navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
-  const [open, setOpen] = useState(false);
-  const fieldId = useId();
-  const mine = result?.action === "change-email" ? result : undefined;
-  const stale = mine?.error === "stale";
-  const refused = mine && !mine.ok && !stale ? mine.error : undefined;
-  const showForm = (open || Boolean(refused)) && !mine?.ok;
-
-  return (
-    <div className="mt-4 flex flex-col gap-3">
-      {mine?.ok ? (
-        <Alert tone="ok">
-          We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the
-          new address.
-        </Alert>
-      ) : null}
-      {stale ? (
-        <Alert
-          tone="warn"
-          action={
-            <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
-              Sign in again
-            </a>
-          }
-        >
-          Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change
-          it.
-        </Alert>
-      ) : null}
-      {showForm ? (
-        <DemoGuardedForm method="post" className="flex flex-wrap items-end gap-2.5">
-          <input type="hidden" name="_action" value="change-email" />
-          <div className="cap-field grow" data-invalid={refused ? "true" : undefined}>
-            <label className="cap-field-label" htmlFor={fieldId}>
-              New email address
-            </label>
-            <input
-              id={fieldId}
-              name="newEmail"
-              type="email"
-              required
-              autoComplete="email"
-              className="cap-input"
-              aria-invalid={refused ? true : undefined}
-              aria-describedby={refused ? `${fieldId}-error` : undefined}
-            />
-            <p
-              className="cap-field-error"
-              id={`${fieldId}-error`}
-              role={refused ? "alert" : undefined}
-              hidden={!refused}
-            >
-              {refused ?? null}
-            </p>
-          </div>
-          <Button type="submit" variant="primary" pending={sending}>
-            {sending ? "Sending..." : "Send confirmation"}
-          </Button>
-        </DemoGuardedForm>
-      ) : mine?.ok ? null : (
-        <div>
-          <Button size="sm" onClick={() => setOpen(true)}>
-            Change email
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const CANCEL_CONSEQUENCE =
   "This stops all recovery processing and disconnects every Stripe account here. Fees on recoveries Foxhound has already attributed remain owed and are still invoiced.";
 
-type Confirming = "cancel-account" | "delete-account" | null;
-
-/** Log in again and come back here (lib/auth/client.ts's signInAgain, as a link). */
-const SIGN_IN_AGAIN_HREF = `/login?${REAUTH_PARAM}&next=${encodeURIComponent("/settings/account")}`;
-
 /**
- * AccountSection's Danger zone (blob a154ac8f), below a rule in the account
- * card: the label, the controls at the right, and on a press Recova's
- * "Are you sure?" callout with the confirm and "Keep my account" under it;
- * while it runs, the confirm says so and Keep is withdrawn.
- *
- * TWO CONTROLS. "Cancel account" (S37) stops processing and keeps the
- * account and its billing records; "Delete account" (S40) is Recova's, and
- * deletes the person while keeping the fee evidence. Both take Recova's
- * two-step confirmation. Focus moves to "Keep my account" when a confirmation
- * opens and back to the control that opened it when it closes.
+ * Foxhound's own account card (AccountSection, blob a154ac8f): the signed-in
+ * address with Sign out beside it, and, for the owner, "Cancel account" (S37),
+ * which stops processing and keeps the account and its billing records, with
+ * Recova's "Are you sure?" callout and "Keep my account" under it. Focus moves
+ * to "Keep my account" when the confirmation opens and back to the control
+ * that opened it when it closes. Deleting the person is the network's part
+ * below it.
  */
-function DangerZone({
+function AccountCard({
+  userEmail,
   cancelledAt,
   isOwner,
-  ownedAccountNames,
   result,
 }: {
+  userEmail: string;
   cancelledAt: Date | null;
   isOwner: boolean;
-  ownedAccountNames: Array<string | null>;
   result?: ActionResult;
 }) {
   const navigation = useNavigation();
-  const running =
-    navigation.state !== "idle" ? String(navigation.formData?.get("_action") ?? "") : "";
-  const [confirming, setConfirming] = useState<Confirming>(null);
-  const opener = useRef<Confirming>(null);
+  const canceling =
+    navigation.state !== "idle" && navigation.formData?.get("intent") === "cancel-account";
+  const [confirming, setConfirming] = useState(false);
   const moved = useRef(false);
   const ids = useId();
   const keepId = `${ids}-keep`;
-  const openerId = (which: Exclude<Confirming, null>) => `${ids}-${which}`;
+  const openerId = `${ids}-cancel`;
 
   useEffect(() => {
     if (!moved.current) return;
-    const target = confirming ? `${ids}-keep` : opener.current ? `${ids}-${opener.current}` : null;
-    if (target) document.getElementById(target)?.focus();
-  }, [confirming, ids]);
+    document.getElementById(confirming ? keepId : openerId)?.focus();
+  }, [confirming, keepId, openerId]);
 
-  const open = (which: Confirming) => {
+  const open = (next: boolean) => {
     moved.current = true;
-    if (which) opener.current = which;
-    setConfirming(which);
+    setConfirming(next);
   };
-
-  const keep = (
-    <Button id={keepId} onClick={() => open(null)}>
-      Keep my account
-    </Button>
-  );
-  const deleteStale = result?.action === "delete-account" && result.error === "stale";
-  const deleteFailed =
-    result?.action === "delete-account" && !result.ok && !deleteStale ? result.error : undefined;
-  const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
-  const cancelRefused =
-    result?.action === "cancel-account" && !result.ok ? result.error : undefined;
+  const mine = result?.intent === "cancel-account" ? result : undefined;
 
   return (
-    <div className="mt-5 border-t border-border pt-5">
-      <h2 className="mb-3 text-label font-normal text-text-subtle">Danger zone</h2>
+    <Panel title="Account" description={`Signed in as ${userEmail}.`}>
+      <div className="flex flex-col gap-4">
+        <Form method="post" action="/logout">
+          <Button type="submit">Sign out</Button>
+        </Form>
 
-      <div className="flex flex-col gap-3">
         {cancelledAt ? (
           <p className="text-label text-text-tertiary">
             This account is canceled. Recovery processing is stopped. Fees already earned on
             recoveries Foxhound attributed remain owed.
           </p>
         ) : null}
-        {cancelWarning ? <Alert tone="warn">{cancelWarning}</Alert> : null}
-        {deleteFailed ? <Alert tone="crit">{deleteFailed}</Alert> : null}
-        {deleteStale ? (
-          <Alert
-            tone="warn"
-            action={
-              <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
-                Sign in again
-              </a>
-            }
-          >
-            Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then
-            delete it.
-          </Alert>
-        ) : null}
-        {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
+        {mine?.warning ? <Alert tone="warn">{mine.warning}</Alert> : null}
+        {mine && !mine.ok ? <Alert tone="crit">{mine.error}</Alert> : null}
 
-        {confirming === "cancel-account" ? (
+        {/* The owner's control only: a member cannot cancel (the action
+            refuses with a 403), so a member is not offered it. */}
+        {cancelledAt || !isOwner ? null : confirming ? (
           <DemoGuardedForm method="post" className="flex flex-col gap-3">
-            <input type="hidden" name="_action" value="cancel-account" />
+            <input type="hidden" name="intent" value="cancel-account" />
             <Alert tone="crit" title="Are you sure?">
               {CANCEL_CONSEQUENCE}
             </Alert>
             <div className="flex flex-wrap gap-2.5">
-              <Button type="submit" variant="danger" pending={running === "cancel-account"}>
-                {running === "cancel-account" ? "Canceling..." : "Cancel my account"}
+              <Button type="submit" variant="danger" pending={canceling}>
+                {canceling ? "Canceling..." : "Cancel my account"}
               </Button>
-              {running === "cancel-account" ? null : keep}
-            </div>
-          </DemoGuardedForm>
-        ) : confirming === "delete-account" ? (
-          <DemoGuardedForm method="post" className="flex flex-col gap-3">
-            <input type="hidden" name="_action" value="delete-account" />
-            <Alert tone="crit" title="Are you sure?">
-              {deletionConsequence(ownedAccountNames)}
-            </Alert>
-            <div className="flex flex-wrap gap-2.5">
-              <Button type="submit" variant="danger" pending={running === "delete-account"}>
-                {running === "delete-account" ? "Deleting..." : "Delete my account"}
-              </Button>
-              {running === "delete-account" ? null : keep}
+              {canceling ? null : (
+                <Button id={keepId} onClick={() => open(false)}>
+                  Keep my account
+                </Button>
+              )}
             </div>
           </DemoGuardedForm>
         ) : (
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            {/* The owner's control only: a member cannot cancel (the action
-                refuses with a 403), so a member is not offered it. */}
-            {cancelledAt || !isOwner ? null : (
-              <Button
-                id={openerId("cancel-account")}
-                variant="danger"
-                onClick={() => open("cancel-account")}
-              >
-                Cancel account
-              </Button>
-            )}
-            <Button
-              id={openerId("delete-account")}
-              variant="danger"
-              onClick={() => open("delete-account")}
-            >
-              Delete account
+          <div>
+            <Button id={openerId} variant="danger" onClick={() => open(true)}>
+              Cancel account
             </Button>
           </div>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }
 
-export default function AccountSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { account, cancelledAt, userEmail, ownedAccountNames, theme, isOwner, isDemo } = loaderData;
-  const result = actionData as ActionResult | undefined;
+/** Whether `actionData` is site-runtime's accountFormAction state. */
+function isAccountState(value: unknown): value is {
+  intent: string;
+  ok: boolean;
+  error: string | null;
+  stale: boolean;
+  sentTo: string | null;
+} {
+  return typeof value === "object" && value !== null && "stale" in value;
+}
+
+export default function AccountSettingsPage({ loaderData, actionData }: Route.ComponentProps) {
+  const { account, cancelledAt, userEmail, theme, isOwner, isDemo, readOnly } = loaderData;
+  const state = isAccountState(actionData) ? actionData : null;
+  const result = isAccountState(actionData) ? undefined : (actionData as ActionResult | undefined);
+  const navigation = useNavigation();
+  const revalidator = useRevalidator();
+  const posting = navigation.state !== "idle" ? navigation.formData : undefined;
+  const pendingIntent = posting ? String(posting.get("intent") ?? "") : null;
+  const shared = {
+    readOnly,
+    signInAgainHref: loaderData.signInAgainHref,
+    revalidate: () => revalidator.revalidate(),
+  };
 
   return (
     <>
@@ -986,29 +734,60 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
 
       {/* Recova's mb-10 under the form. */}
       <div className="mb-10">
-        <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
+        <ProfileForm account={account} result={result?.intent === "profile" ? result : undefined} />
       </div>
 
       <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
 
-      <div className="mt-10">
-        <SignInMethodsPanel initial={loaderData.signIn} isDemo={Boolean(isDemo)} />
-      </div>
-
-      {/* Recova's mt-6 over the account card, after the appearance card's mb-4. */}
-      <div className="mt-10">
-        <section className="cap-panel">
-          <div className="cap-panel-body">
-            <SignedIn userEmail={userEmail} />
-            {isDemo ? null : <ChangeEmail result={result} />}
-            <DangerZone
-              cancelledAt={cancelledAt}
-              isOwner={Boolean(isOwner)}
-              ownedAccountNames={ownedAccountNames}
-              result={result}
-            />
-          </div>
-        </section>
+      {/* The network's account parts, in its order, with Foxhound's own
+          account card (Sign out, Cancel account) before Delete. */}
+      <div className="cap-account mt-10">
+        <EmailSettings
+          email={userEmail}
+          state={state}
+          pending={pendingIntent === "change-email"}
+          readOnly={readOnly}
+          signInAgainHref={loaderData.signInAgainHref}
+          Form={Form}
+        />
+        <PasskeySettings
+          {...shared}
+          client={authClient}
+          passkeys={loaderData.passkeys}
+          signalAs={loaderData.signalAs}
+        />
+        <ProviderSettings
+          {...shared}
+          client={authClient}
+          providers={loaderData.providers}
+          callbackURL={ACCOUNT_PATH}
+        />
+        <DeviceSettings
+          {...shared}
+          client={authClient}
+          devices={loaderData.devices}
+          state={state}
+          pendingSession={
+            pendingIntent === "sign-out-device" ? String(posting?.get("session") ?? "") : null
+          }
+          Form={Form}
+        />
+        <SecurityHistory history={loaderData.history} />
+        <AccountCard
+          userEmail={userEmail}
+          cancelledAt={cancelledAt}
+          isOwner={Boolean(isOwner)}
+          result={result}
+        />
+        <DeleteAccount
+          fresh={loaderData.fresh}
+          consequence={loaderData.deletionConsequence}
+          state={state}
+          pending={pendingIntent === "delete-account"}
+          readOnly={readOnly}
+          signInAgainHref={loaderData.signInAgainHref}
+          Form={Form}
+        />
       </div>
     </>
   );
