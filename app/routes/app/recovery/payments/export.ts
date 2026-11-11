@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { csvResponse } from "@dustinedwards/site-runtime/csv";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
 import {
   parsePaymentsAmount,
@@ -77,10 +78,5 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   );
   const csv = buildPaymentsCsv(result.payments, stepCounts);
   const filename = `foxhound-payments-${new Date(nowMs).toISOString().slice(0, 10)}.csv`;
-  return new Response(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
+  return csvResponse(csv, filename);
 }

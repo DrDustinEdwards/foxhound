@@ -1,6 +1,8 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
 import { Link } from "capsomer/react/link";
 
-import { Badge } from "~/components/badge";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { FaqAccordion } from "~/components/faq-accordion";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -68,9 +70,9 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           <span className="rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-micro text-text-tertiary">
             {view.code}
           </span>
-          <Badge tone={categoryBadgeTone(view.category)}>
+          <Pill {...BADGE_PILL[categoryBadgeTone(view.category)]}>
             {CATEGORY_STATUS_LABEL[view.category]}
-          </Badge>
+          </Pill>
         </div>
 
         <section className="mb-10">

@@ -2,10 +2,12 @@ import { frameHtml } from "capsomer/behavior/chart-frame";
 import { Pill, type Tone } from "capsomer/react/status";
 
 import "~/components/charts.css";
-import { PreviewStatCard } from "~/components/stat-card";
+import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
+import "capsomer/stat-tile.css";
 import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // The previews on /product/intelligence, Recova's three feature-block
 // UIs: the Intelligence dashboard (IntelligenceDashboardPreview.tsx, blob
@@ -83,43 +85,28 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
   const chart = dashboard.plans.length > 0 ? planFrame(draw) : "";
   return (
     <div className="flex flex-col gap-5 p-5">
-      <ul
-        className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4"
-        aria-label="MRR figures"
-      >
-        <PreviewStatCard label="MRR">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-accent-text">
-            {dashboard.mrr}
-          </p>
-        </PreviewStatCard>
-        <PreviewStatCard label="Day-over-day">
-          <p
-            className={`m-0 font-mono text-title font-bold tabular-nums ${
+      <div className="fh-tiles-preview [--tiles-columns:repeat(2,minmax(0,1fr))] md:[--tiles-columns:repeat(4,minmax(0,1fr))]">
+        <StatTiles layout="grid" label="MRR figures">
+          <StaticStatTile label="MRR" tone="accent" figure={dashboard.mrr} />
+          <StaticStatTile
+            label="Day-over-day"
+            tone={
               dashboard.dayOverDaySign > 0
-                ? "text-success-text"
+                ? "ok"
                 : dashboard.dayOverDaySign < 0
-                  ? "text-error-text"
-                  : "text-text-tertiary"
-            }`}
-          >
-            {dashboard.dayOverDay}
-          </p>
-        </PreviewStatCard>
-        <PreviewStatCard label="Active customers">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
-            {dashboard.activeCustomers}
-          </p>
-        </PreviewStatCard>
-        <PreviewStatCard label="New MRR (MTD)">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-success-text">
-            {dashboard.newMrrMtd}
-          </p>
-        </PreviewStatCard>
-      </ul>
+                  ? "crit"
+                  : undefined
+            }
+            figure={dashboard.dayOverDay}
+          />
+          <StaticStatTile label="Active customers" figure={dashboard.activeCustomers} />
+          <StaticStatTile label="New MRR (MTD)" tone="ok" figure={dashboard.newMrrMtd} />
+        </StatTiles>
+      </div>
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">
           <div className="cap-panel-body">
-            <div data-island="charts" dangerouslySetInnerHTML={{ __html: chart }} />
+            <div data-island="charts" dangerouslySetInnerHTML={markup(chart)} />
           </div>
         </div>
       ) : null}

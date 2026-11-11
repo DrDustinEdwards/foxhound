@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq, isNull } from "drizzle-orm";
 import { type Db, getDb, recoverySteps } from "~/db";
 import {
@@ -537,7 +538,7 @@ export async function executeEmailStep(
   const generate = deps.generate ?? defaultGenerate;
 
   const now = new Date();
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
 
   let attempt: { ok: boolean; permanent?: boolean; error?: string };
   let resolvedCopy: EmailCopy | undefined;

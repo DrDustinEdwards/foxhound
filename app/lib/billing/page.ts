@@ -1,5 +1,5 @@
+import { formatDate } from "capsomer/behavior/time";
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
-import { formatDateShort } from "~/lib/date-format";
 
 // What /billing shows, in the shapes its sections render. Pure and
 // client-safe: the rows themselves are built on the server (page.server.ts) and
@@ -133,7 +133,7 @@ export function subscriptionDetail(
   s: Pick<SubscriptionView, "status" | "canceledAt" | "currentPeriodEndsAt">,
 ): { text: string; warn: boolean } | null {
   if (!s.currentPeriodEndsAt) return null;
-  const end = formatDateShort(s.currentPeriodEndsAt);
+  const end = formatDate(s.currentPeriodEndsAt, { style: "medium" }) ?? "";
   if (s.status === "active" && !s.canceledAt) return { text: `Renews ${end}`, warn: false };
   if (s.status === "active" && s.canceledAt) return { text: `Cancels on ${end}`, warn: true };
   if (s.status === "canceled") return { text: `Expired ${end}`, warn: false };

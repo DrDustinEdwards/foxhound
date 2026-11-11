@@ -1,9 +1,8 @@
 {
   "baseline": {
-    "measured_at": "794225e",
-    "calls": 140,
+    "measured_at": "04603ea",
+    "calls": 137,
     "files": {
-      "app/entry.server.tsx": 1,
       "app/lib/admin-api/handler.server.ts": 2,
       "app/lib/admin/brake.server.ts": 1,
       "app/lib/ai/client.ts": 1,
@@ -56,7 +55,6 @@
       "app/lib/webhooks/intelligence-handlers.ts": 1,
       "app/lib/webhooks/lookups.ts": 5,
       "app/lib/webhooks/renewal-check.ts": 1,
-      "app/routes/csp-report.ts": 1,
       "app/routes/app/audit/dashboard.tsx": 1,
       "app/routes/app/audit/run.tsx": 1,
       "app/routes/app/billing/index.tsx": 2,

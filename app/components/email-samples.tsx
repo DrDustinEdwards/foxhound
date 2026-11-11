@@ -111,7 +111,10 @@ function EmailGeneratorView({
               Live email generator
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green" aria-hidden />
+              <span
+                className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-green"
+                aria-hidden
+              />
               <span className="font-mono text-source text-green">Calls real AI</span>
             </span>
           </div>

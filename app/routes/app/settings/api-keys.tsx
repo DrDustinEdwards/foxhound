@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
@@ -41,7 +42,6 @@ import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
 
 import type { Route } from "./+types/api-keys";
 import { NOINDEX } from "~/lib/seo/meta";
-import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 import { MCP_CALLS_SHOWN, outcomeWords } from "~/lib/admin/mcps";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
@@ -224,8 +224,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-function formatDate(at: Date | null): string {
-  return at ? formatDateShort(new Date(at)) : "Never";
+function dateOrNever(at: Date | null): string {
+  return at ? (formatDate(new Date(at), { style: "medium" }) ?? "") : "Never";
 }
 
 /** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):
@@ -468,8 +468,8 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                   {keys.map((k) => (
                     <tr key={k.id}>
                       <th scope="row">{k.label}</th>
-                      <td data-label="Created">{formatDate(k.createdAt)}</td>
-                      <td data-label="Last used">{formatDate(k.lastUsedAt)}</td>
+                      <td data-label="Created">{dateOrNever(k.createdAt)}</td>
+                      <td data-label="Last used">{dateOrNever(k.lastUsedAt)}</td>
                       <td data-label="Actions" data-num>
                         {owner ? (
                           <DemoGuardedForm method="post">
@@ -548,7 +548,9 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
               <tbody>
                 {log.calls.map((call) => (
                   <tr key={call.id}>
-                    <th scope="row">{formatTimestamp(new Date(call.createdAt))}</th>
+                    <th scope="row">
+                      {formatDate(new Date(call.createdAt), { style: "medium", time: true }) ?? ""}
+                    </th>
                     <td data-label="Tool" className="font-mono">
                       {call.tool}
                     </td>

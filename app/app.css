@@ -587,19 +587,6 @@
   --gradient-subtle: linear-gradient(180deg, var(--surface), var(--bg));
 }
 
-/* Icon-swap animation for ThemeToggle (theme-toggle.tsx), matched against the
-   legacy site's own inline-styled keyframe. */
-@keyframes theme-icon-in {
-  0% {
-    opacity: 0;
-    transform: rotate(-90deg) scale(0.7);
-  }
-  100% {
-    opacity: 1;
-    transform: rotate(0deg) scale(1);
-  }
-}
-
 /* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
    is load-bearing, not just the declarations: legacy guards every animated
    utility behind prefers-reduced-motion: no-preference, so under reduced motion
@@ -645,17 +632,22 @@
    component's, and it belongs to a site-wide ledger row rather than to M6. */
 .btn-primary {
   background: var(--brand);
-  transition:
-    background 150ms ease,
-    transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 150ms ease;
 }
 
 .btn-primary:hover {
   background: var(--brand-dark);
 }
 
-.btn-primary:active {
-  transform: scale(0.97);
+@media (prefers-reduced-motion: no-preference) {
+  .btn-primary {
+    transition:
+      background 150ms ease,
+      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -715,17 +707,10 @@
   }
 }
 
-/* Accessibility: reduced motion kills animation globally. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
+/* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference (Tailwind's
+   motion-safe: in markup), so a color fade can stay while a slide goes. No global 0.01ms override:
+   it ends some animations in a jump and breaks scroll-driven effects (Capsomer base.css, which
+   also turns smooth scrolling off). */
 
 /* Accessibility: bump tertiary/subtle/disabled text to AAA-level contrast. */
 @media (prefers-contrast: more) {
@@ -1125,48 +1110,6 @@ body {
   --reading-progress-color: var(--brand);
   --reading-progress-top: var(--header-h);
 }
-
-/* Dual-handle amount range (components/dual-range-slider.tsx,
-   /recovery/payments Phase 3): two native <input type="range"> stacked on
-   the same track. The track itself is transparent and click-through
-   (pointer-events: none) so only the thumbs are interactive, letting either
-   handle be dragged independently without one input's track stealing the
-   other's clicks - the standard technique for a dual-handle range with zero
-   JS and full native keyboard support. */
-.dual-range-input {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  pointer-events: none;
-}
-.dual-range-input::-webkit-slider-runnable-track {
-  -webkit-appearance: none;
-  background: transparent;
-}
-.dual-range-input::-moz-range-track {
-  background: transparent;
-}
-.dual-range-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  pointer-events: auto;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 9999px;
-  background: var(--brand-ui);
-  border: 2px solid var(--surface);
-  cursor: pointer;
-  margin-top: -0.375rem;
-}
-.dual-range-input::-moz-range-thumb {
-  pointer-events: auto;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 9999px;
-  background: var(--brand-ui);
-  border: 2px solid var(--surface);
-  cursor: pointer;
-}
-
 /* Capsomer's site header and dashboard shell, in Foxhound's colors: every
    .fh-cap wrapper carries data-cap-site="foxhound", so the neutrals and faces
    Capsomer reads are Foxhound's own (capsomer/site-foxhound.css, in the cap
@@ -1335,4 +1278,63 @@ body {
   outline: revert-layer;
   outline-offset: revert-layer;
   border-radius: revert-layer;
+}
+
+/* Foxhound's own look on Capsomer's shared parts, set by token (Capsomer 0.94.0). The network
+   rule: shared code is behavior, never look, so the static stat tile, the tag badge and the blog's
+   lists wear Foxhound's look as it was before they moved onto Capsomer: mono figures at the
+   display size, small upper-case mono labels with the icon above, Foxhound's greens and reds,
+   mono upper-case badges with no glyph (their words say the state), and bare lists. */
+:root {
+  --tile-figure-face: var(--font-mono);
+  --tile-figure-size: var(--text-display);
+  --tile-figure-weight: 500;
+  --tile-label-face: var(--font-mono);
+  --tile-label-size: var(--text-micro);
+  --tile-label-case: uppercase;
+  --tile-label-tracking: 0.025em;
+  --tile-icon-flow: column;
+  --tile-icon-align: flex-start;
+  --tile-icon-size: 1rem;
+  --tile-gap: 0.5rem;
+  --tile-detail-space: 0.25rem;
+  --tile-pad: 1rem;
+  --tile-radius: 0.5rem;
+  --tiles-gap: 0.75rem;
+  --tag-face: var(--font-mono);
+  --tag-size: var(--text-micro);
+  --tag-weight: 400;
+  --tag-case: uppercase;
+  --tag-tracking: 0.025em;
+  --tag-edge: 100%;
+}
+.cap-tile[data-variant="static"] {
+  --muted: var(--text-tertiary);
+  --ok: var(--success-text);
+  --warn: var(--color-caution);
+  --crit: var(--error-text);
+}
+/* The marketing previews' cards (Recova's preview cards): a panel's padding and corners, a sans
+   label and a bold title-size figure. */
+.fh-tiles-preview {
+  --tile-label-face: inherit;
+  --tile-label-weight: 500;
+  --tile-label-tracking: 0.06em;
+  --tile-figure-size: var(--text-title);
+  --tile-figure-weight: 700;
+  --tile-gap: 0.25rem;
+  --tile-pad: var(--gap) var(--pad-card);
+  --tile-radius: var(--radius-l);
+  --tile-shadow: var(--card-shadow);
+}
+.cap-pill[data-variant="tag"] {
+  --muted: var(--text-tertiary);
+  --ok: var(--success-text);
+  --ok-soft: var(--green-bg);
+  --crit: var(--error-text);
+  --crit-soft: var(--red-bg);
+}
+.cap-pill[data-variant="tag"][data-family="purple"] {
+  --accent-soft: var(--purple-bg);
+  --accent-text: var(--purple);
 }

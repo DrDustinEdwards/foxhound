@@ -184,7 +184,8 @@ describe("SCOPE 2: expiring cards", () => {
       10_000,
     );
     expect(monthlyPlanCents(subscription(price(100, "day")) as Stripe.Subscription)).toBe(3_000);
-    expect(monthlyPlanCents(subscription(price(100, "week")) as Stripe.Subscription)).toBe(400);
+    // A month holds 52/12 weeks, the conversion Intelligence uses too.
+    expect(monthlyPlanCents(subscription(price(100, "week")) as Stripe.Subscription)).toBe(433);
     expect(monthlyPlanCents(subscription(price(500, "month", 2)) as Stripe.Subscription)).toBe(250);
   });
 });

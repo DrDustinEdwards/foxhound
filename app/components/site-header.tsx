@@ -1,18 +1,15 @@
-import { useEffect, useRef, useState } from "react";
 import { Link } from "capsomer/react/link";
-import type { HeaderAccount, LinkProps } from "capsomer/react/site-header";
+import { initialsOf, type HeaderAccount, type LinkProps } from "capsomer/react/site-header";
 
 import "~/site-header.css";
-import { switchAccount, switchTargetFromHref } from "~/components/nav/account-switcher";
 import { PLATFORM_LINKS } from "~/lib/nav/manifest";
-import type { Theme } from "~/lib/theme";
-import { rememberServerTheme, type ThemeSave, watchThemeChoice } from "~/lib/theme-memory";
+import { THEME_COOKIE, type Theme } from "~/lib/theme";
 
 // What the public site, the merchant app and the admin share in Capsomer's site
 // header (capsomer/react/site-header; docs/design/design-site-header.md in
 // capsomer, Dustin's answers of 2026-10-13, recorded in
 // parity/APPROVED-DIFFERENCES.md): the wordmark, the link renderer, the avatar
-// menu that replaced the gear, and the theme button's memory.
+// menu that replaced the gear, and where the theme button saves a choice.
 
 /** Where Capsomer's theme button remembers the choice in this browser. */
 export const THEME_PREF_KEY = "fh-theme";
@@ -26,25 +23,8 @@ export { headerLogo } from "./header-logo";
 const DOCUMENT_HREF = /^(\/(api|connect|cdn-cgi|demo)(\/|$)|https?:)/;
 
 /** Capsomer's links as React Router's. An account row in the business
- *  switcher is a POST, not a page: it is drawn as a button that switches. */
+ *  switcher is no link: Capsomer draws it as a button (its onClick switches). */
 export function renderHeaderLink({ href, children, onClick, ...rest }: LinkProps) {
-  const switchTo = switchTargetFromHref(href);
-  if (switchTo !== null) {
-    const isCurrent = Boolean(rest["aria-current"]);
-    return (
-      <button
-        type="button"
-        data-panel-close=""
-        {...rest}
-        onClick={() => {
-          onClick?.();
-          if (!isCurrent) void switchAccount(switchTo.accountId, switchTo.switchAccountUrl);
-        }}
-      >
-        {children}
-      </button>
-    );
-  }
   if (DOCUMENT_HREF.test(href)) {
     return (
       <a href={href} onClick={onClick} {...rest}>
@@ -57,15 +37,6 @@ export function renderHeaderLink({ href, children, onClick, ...rest }: LinkProps
       {children}
     </Link>
   );
-}
-
-/** The two letters on the avatar: the person's initials, else their email's
- *  first letter. */
-export function personInitials(name: string | null | undefined, email: string): string {
-  const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return `${words[0]![0]}${words[words.length - 1]![0]}`.toUpperCase();
-  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
-  return (email[0] ?? "?").toUpperCase();
 }
 
 function isOn(pathname: string, to: string, end = false): boolean {
@@ -122,7 +93,7 @@ export function merchantAccountMenu({
   const current = currentRow(pathname, rows);
   return {
     name: name || email,
-    initials: personInitials(name, email),
+    initials: initialsOf(name, email),
     detail: name ? email : undefined,
     groups: [
       {
@@ -142,25 +113,23 @@ export function merchantAccountMenu({
 
 /** The theme as Foxhound keeps it. The server resolves it (an account's stored
  *  choice, else this device's cookie; ruling 59) and <html data-theme> carries
- *  it from the first byte. Capsomer's theme button also remembers a choice in
- *  this browser, so that memory is set to the server's answer before the button
- *  reads it, and every switch is saved where Foxhound keeps it: an
- *  authenticated merchant's to accounts.theme, so it follows them across
- *  devices, anyone else's to the cookie. Exclusive, as in legacy's
- *  NavThemeToggle. Fire-and-forget: the page has already switched, so a failed
- *  write must not switch it back; the next request reconciles. The same
- *  functions run on a page that does not hydrate, from the header island
- *  (app/islands/header.ts). */
-export function useThemeMemory(
-  serverTheme: Theme,
-  save: ThemeSave,
-  onChange?: (theme: Theme) => void,
-): void {
-  useState(() => {
-    if (typeof window === "undefined") return null;
-    rememberServerTheme(serverTheme, THEME_PREF_KEY);
-    return null;
+ *  it from the first byte. Capsomer's theme button copies that answer into this
+ *  browser's memory before it reads it, and saves every switch where Foxhound
+ *  keeps it: an authenticated merchant's to accounts.theme through /api/theme,
+ *  so it follows them across devices, anyone else's to the fh_theme cookie.
+ *  Exclusive, as in legacy's NavThemeToggle. Fire and forget: the page has
+ *  already switched, so a failed write must not switch it back; the next
+ *  request reconciles. Spread onto SiteHeader or AdminShell. */
+export function themeMemory(save: "account" | "cookie", initial: Theme) {
+  return save === "account"
+    ? { themeInitial: initial, onThemeSave: saveAccountTheme }
+    : { themeInitial: initial, themeCookie: THEME_COOKIE };
+}
+
+function saveAccountTheme(theme: Theme): Promise<Response> {
+  return fetch("/api/theme", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ theme }),
   });
-  const showing = useRef<Theme>(serverTheme);
-  useEffect(() => watchThemeChoice(showing, save, onChange), [save, onChange]);
 }

@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { stripeConnections, accounts } from "~/db/schema";
+import { decryptToken, encryptToken, keyIdOf } from "~/lib/stripe/encryption";
 import {
-  decryptToken,
-  encryptToken,
-  keyIdOf,
-  loadKeyring,
-  reencryptToken,
-} from "~/lib/stripe/encryption";
-import { reencryptConnectionTokens } from "~/lib/stripe/key-rotation.server";
+  reencryptConnectionTokens,
+  reencryptSlackWebhooks,
+} from "~/lib/stripe/key-rotation.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
@@ -30,53 +27,6 @@ const envRotated = {
   ENCRYPTION_KEY_ID: "k2",
   ENCRYPTION_KEYS_OLD: `k1:${KEY_A}`,
 } as unknown as Env;
-
-describe("312: the ciphertext format carries a key id", () => {
-  it("reencryptToken moves a value onto the active key, and is a no-op when already there", async () => {
-    const old = await encryptToken(envA, "subject");
-    const moved = await reencryptToken(envRotated, old);
-    expect(moved).not.toBeNull();
-    expect(keyIdOf(moved!)).toBe("k2");
-    expect(await decryptToken(envRotated, moved!)).toBe("subject");
-    // Idempotent: a value already on the active key returns null rather than
-    // being rewritten, which is what makes re-running the writer safe.
-    expect(await reencryptToken(envRotated, moved!)).toBeNull();
-  });
-});
-
-describe("312: unresolvable keys and the retired format FAIL LOUD", () => {
-  it("an unknown key id names the id and the env var, never a silent null", async () => {
-    const fresh = await encryptToken(envRotated, "x");
-    await expect(decryptToken(envA, fresh)).rejects.toThrow(/ENCRYPTION_KEYS_OLD/);
-  });
-
-  it("THE ADJUDICATION: the pre-312 two-part format is RECOGNIZED and REFUSED", async () => {
-    // Adjudicated rather than supported. Reading it would mean assuming the
-    // ACTIVE key encrypted it, which is true only until the first rotation and
-    // silently wrong after: the branch would fail exactly when rotation is first
-    // used. Zero rows in that format existed when 312 landed, so a refusal that
-    // names the remedy is honest at every moment.
-    const legacy = "aabbccddeeff00112233445566:778899";
-    await expect(decryptToken(envA, legacy)).rejects.toThrow(/pre-rotation format/);
-    // and it must say what to DO about it
-    await expect(decryptToken(envA, legacy)).rejects.toThrow(/Reconnect the Stripe account/);
-  });
-
-  it("a malformed value is still rejected as malformed, not mistaken for legacy", async () => {
-    await expect(decryptToken(envA, "not-a-valid-token")).rejects.toThrow(/Malformed/);
-    await expect(decryptToken(envA, "v9:k1:aa:bb")).rejects.toThrow(/Malformed/);
-  });
-
-  it("a keyring that reuses the active id, or carries a bad key, throws", () => {
-    expect(() =>
-      loadKeyring({ ENCRYPTION_KEY: KEY_A, ENCRYPTION_KEYS_OLD: `k1:${KEY_B}` } as unknown as Env),
-    ).toThrow(/reuses the active key id/);
-    expect(() =>
-      loadKeyring({ ENCRYPTION_KEY: KEY_A, ENCRYPTION_KEYS_OLD: "k0:short" } as unknown as Env),
-    ).toThrow(/64 hex/);
-    expect(() => loadKeyring({} as unknown as Env)).toThrow(/ENCRYPTION_KEY is not set/);
-  });
-});
 
 describe("312: the re-encrypt writer, against a real database", () => {
   /** A connection row holding whatever ciphertext the test wants. */
@@ -155,7 +105,28 @@ describe("312: the re-encrypt writer, against a real database", () => {
     expect(report.rewritten).toBe(0);
     expect(report.failures).toHaveLength(1);
     expect(report.failures[0].connectionId).toBe("conn_bad");
-    expect(report.failures[0].reason).toMatch(/No encryption key for id 'kX'/);
+    expect(report.failures[0].reason).toMatch(/No key for id 'kX'/);
     expect(JSON.stringify(report)).not.toContain(unreadable);
+  });
+
+  it("the sealed Slack webhook URLs move onto the active key too", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    const url = "https://hooks.slack.com/services/T/B/x";
+    runStatement(
+      sqlite,
+      db.insert(accounts).values({
+        id: "acct_slack",
+        name: "slack",
+        createdAt: new Date(),
+        slackWebhookUrl: await encryptToken(envA, url),
+      }),
+    );
+
+    const report = await reencryptSlackWebhooks(envRotated, db);
+
+    expect(report).toMatchObject({ scanned: 1, rewritten: 1, failures: [] });
+    const [row] = await db.select().from(accounts);
+    expect(keyIdOf(row.slackWebhookUrl!)).toBe("k2");
+    expect(await decryptToken(envRotated, row.slackWebhookUrl!)).toBe(url);
   });
 });

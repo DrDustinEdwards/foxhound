@@ -9,7 +9,7 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/confirm-dialog.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { logAdminAction } from "~/lib/admin/audit.server";
@@ -251,7 +251,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
           <>
             <Status tone={status.tone}>{status.word}</Status>
             <span className="block">
-              <AdminTime at={c.lastRun.finishedAt} />
+              <Time at={c.lastRun.finishedAt} empty="never" tip />
             </span>
           </>
         ) : (
@@ -263,7 +263,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
             <ul className="grid gap-1">
               {c.recentFailures.map((run) => (
                 <li key={run.id} id={cronRunAnchor(run.id)} className="rounded-sm text-text">
-                  Failed <AdminTime at={run.finishedAt} />
+                  Failed <Time at={run.finishedAt} empty="never" tip />
                   {run.message ? (
                     <span className="text-text-secondary">: {run.message}</span>
                   ) : null}
@@ -274,7 +274,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
         ) : null}
       </td>
       <td data-label="Last succeeded">
-        <AdminTime at={c.lastSucceededAt} empty="Never" />
+        <Time at={c.lastSucceededAt} empty="Never" tip />
       </td>
       <td
         data-label="Last message"

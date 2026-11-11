@@ -1,5 +1,6 @@
 import { auditLogCheck } from "@dustinedwards/site-runtime/audit-log";
 import { cronCheck } from "@dustinedwards/site-runtime/cron";
+import { deployedAt, deployedSha } from "@dustinedwards/site-runtime/deploy";
 import {
   authSpikeCheck,
   durableObjectCheck,
@@ -41,7 +42,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     backup: () => backupStatus(env),
     // The deployed commit, which CI's deploy passes as DEPLOY_SHA (devkit's worker-deploy.yml waits for it); a manual
     // deploy has none.
-    sha: (env as { DEPLOY_SHA?: string }).DEPLOY_SHA,
+    sha: deployedSha(env),
     checks: [
       r2Check("media", env.MEDIA),
       r2Check("evidence", env.EVIDENCE),
@@ -68,9 +69,6 @@ export async function loader({ context }: Route.LoaderArgs) {
  *  is judged by it. The deploy's own time holds a new job back until its first window has passed. The registry is
  *  imported here, not at the top, to keep its billing and recovery graph out of every other request. */
 function cronJobsCheck(env: Env) {
-  const deployedAt = env.CF_VERSION_METADATA?.timestamp
-    ? new Date(env.CF_VERSION_METADATA.timestamp)
-    : undefined;
   return {
     ...cronCheck(env.DB),
     run: async () => {
@@ -88,7 +86,7 @@ function cronJobsCheck(env: Env) {
           ),
         }),
       );
-      return cronCheck(env.DB, { jobs, deployedAt }).run();
+      return cronCheck(env.DB, { jobs, deployedAt: deployedAt(env) }).run();
     },
   };
 }

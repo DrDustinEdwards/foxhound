@@ -1,13 +1,20 @@
+import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
+import "~/blog-prose.css";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 import { goneResponse } from "@dustinedwards/site-runtime/url";
 import { Picture } from "capsomer/react/picture";
 import "capsomer/picture.css";
 import { SectionTrail } from "~/components/section-trail";
-import { ShareRow } from "~/components/blog/share-row";
-import { TableOfContents } from "~/components/blog/table-of-contents";
+import { CopyButton } from "capsomer/react/copy";
+import { ShareRow } from "capsomer/react/share-row";
+import { Toc } from "capsomer/react/toc";
+import "capsomer/button.css";
+import "capsomer/copy.css";
+import "capsomer/share-row.css";
+import "capsomer/toc.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
@@ -30,8 +37,8 @@ import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { formatDateShort } from "~/lib/date-format";
 import { MarketingError } from "~/components/error-view";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -227,7 +234,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
             {showPublished ? (
               <time dateTime={post.publishedAt!.toISOString()}>
-                {formatDateShort(post.publishedAt)}
+                {formatDate(post.publishedAt, { style: "medium" }) ?? ""}
               </time>
             ) : null}
             {showPublished && showUpdated ? <span aria-hidden="true"> &middot; </span> : null}
@@ -235,7 +242,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               <>
                 Updated{" "}
                 <time dateTime={post.updatedAt!.toISOString()}>
-                  {formatDateShort(post.updatedAt)}
+                  {formatDate(post.updatedAt, { style: "medium" }) ?? ""}
                 </time>
               </>
             ) : null}
@@ -258,19 +265,32 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             {post.excerpt}
           </p>
 
-          <ShareRow url={canonical} title={post.title} />
+          <ShareRow url={canonical} title={post.title}>
+            <CopyButton
+              size="xs"
+              {...{ command: "--copy", commandfor: "share-url" }}
+              data-island="copy"
+              text={canonical}
+            >
+              Copy link
+            </CopyButton>
+            <data id="share-url" value={canonical} hidden>
+              {canonical}
+            </data>
+          </ShareRow>
 
-          <TableOfContents items={toc} variant="inline" />
+          <Toc items={toc} variant="inline" />
 
           <div
             className="blog-prose e-content"
+            data-context="prose"
             data-render-version={version}
             data-island={html.includes("embed-link") ? "embeds" : undefined}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={markup(html)}
           />
         </article>
 
-        <TableOfContents items={toc} variant="sidebar" />
+        <Toc items={toc} variant="sidebar" />
       </div>
 
       {related.length > 0 ? (
@@ -290,7 +310,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                 >
                   {r.title}
                   <ArrowRight
-                    className="opacity-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
+                    className="opacity-0 motion-safe:transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
                     size={13}
                     strokeWidth={1.5}
                     aria-hidden
@@ -337,7 +357,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             >
               <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
                 <ArrowLeft
-                  className="transition-transform group-hover:-translate-x-0.5"
+                  className="motion-safe:transition-transform group-hover:-translate-x-0.5"
                   size={13}
                   strokeWidth={1.5}
                   aria-hidden
@@ -359,7 +379,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
                 Next post{" "}
                 <ArrowRight
-                  className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                  className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                   size={13}
                   strokeWidth={1.5}
                   aria-hidden
@@ -386,7 +406,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         >
           Start free audit{" "}
           <ArrowRight
-            className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+            className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
             size={13}
             strokeWidth={1.5}
             aria-hidden

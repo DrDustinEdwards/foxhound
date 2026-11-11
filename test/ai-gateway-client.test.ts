@@ -52,8 +52,8 @@ describe("every call is metered", () => {
       model: "claude-sonnet-5",
       promptTokens: 2_000,
       completionTokens: 500,
-      // 2,000 x $3/M + 500 x $15/M = 1.35 cents, rounded up.
-      costCents: 2,
+      // 2,000 x $2/M + 500 x $10/M = 0.9 cents, rounded up (list price, site-runtime ./ai-engine).
+      costCents: 1,
     });
   });
 });

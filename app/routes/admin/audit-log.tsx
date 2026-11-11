@@ -5,7 +5,7 @@ import { Panel } from "capsomer/react/panel";
 import { Spinner } from "capsomer/react/skeleton";
 import "capsomer/table.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import {
   auditActor,
@@ -102,7 +102,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
                 {entries.map((e) => (
                   <tr key={e.id}>
                     <td>
-                      <AdminTime at={e.createdAt} />
+                      <Time at={e.createdAt} empty="never" tip />
                     </td>
                     <td data-label="Actor" className="break-all">
                       {e.actor}

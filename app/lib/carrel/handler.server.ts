@@ -62,7 +62,7 @@ function carrelSiteApi(env: Env, stylesheets: string[] = []): SiteApi {
   const store = d1SiteApiStore(env.DB);
   return createSiteApi({
     // The blog's media library rides beside the posts (media-adapter.server.ts),
-    // and the 404s entry.server.tsx counts beside both, for Carrel's report.
+    // and the 404s the shared Worker counts beside both, for Carrel's report.
     adapter: {
       ...carrelAdapter(db, d1ScheduledUpdates(env.DB), stylesheets),
       media: carrelMediaAdapter(env, db),

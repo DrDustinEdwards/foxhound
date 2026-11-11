@@ -123,7 +123,7 @@
   scroll-margin-block-start: 30vh;
 }
 
-/* A time in a row is AdminTime, a focusable tooltip trigger, because Dustin's
+/* A time in a row is Capsomer's Time with its tip, a focusable trigger, because Dustin's
    review (2026-10-11) asks for the exact time on hover. Row-list raises the
    links and buttons in a row's time above the row's stretched link; the
    trigger is neither, so it is raised the same way or a pointer could never

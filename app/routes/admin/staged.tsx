@@ -1,7 +1,9 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
 import { data, Form, useNavigation } from "react-router";
 
-import { AdminTime } from "~/components/admin-time";
-import { Badge } from "~/components/badge";
+import { Time } from "capsomer/react/time";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import {
   confirmStagedChange,
@@ -126,7 +128,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
               <p className="text-body text-text">{row.summary}</p>
               <p className="mt-1 text-label text-text-tertiary">
                 Asked for by {row.requestedBy} via {row.requestedVia},{" "}
-                <AdminTime at={row.requestedAt} />
+                <Time at={row.requestedAt} empty="never" tip />
                 {row.note ? `: ${row.note}` : ""}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -187,15 +189,17 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
                   <tr key={row.id} className="border-b border-border-sub last:border-0">
                     <td className="px-4 py-3 text-text">{row.summary}</td>
                     <td className="px-4 py-3">
-                      <Badge
-                        tone={STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"}
+                      <Pill
+                        {...BADGE_PILL[
+                          STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"
+                        ]}
                       >
                         {row.status}
-                      </Badge>
+                      </Pill>
                     </td>
                     <td className="px-4 py-3 text-text-tertiary">{row.decidedBy ?? "-"}</td>
                     <td className="px-4 py-3 text-text-tertiary">
-                      <AdminTime at={row.decidedAt} empty="-" />
+                      <Time at={row.decidedAt} empty="-" tip />
                     </td>
                   </tr>
                 ))}

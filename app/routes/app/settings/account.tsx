@@ -669,8 +669,6 @@ const THEME_LABEL: Record<Theme, string> = { dark: "Dark", light: "Light" };
  *
  * Once the save lands, Capsomer's applyTheme remembers the choice in this
  * browser and tells the header's theme button, so the two never disagree.
- * The header's listener (useThemeMemory) then saves the same value once more;
- * the write is idempotent, and leaving it in place keeps the header unchanged.
  */
 function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   const [theme, setTheme] = useState<Theme>(initial);

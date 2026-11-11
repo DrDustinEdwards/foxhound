@@ -28,60 +28,12 @@ const route: Record<string, unknown> = await import("~/routes/admin/operations")
 const lib: Record<string, unknown> = await import("~/lib/admin/operations.server").catch(
   () => ({}),
 );
-const lockState: Record<string, unknown> = await import("~/lib/cron/lock-state").catch(() => ({}));
 
 const NOW = Date.UTC(2026, 9, 15, 18, 0, 0);
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
 
 type Sqlite = ReturnType<typeof createInMemoryDb>["sqlite"];
-
-// ------------------------------------------------------------ the lock's view
-
-describe("the cron lock's read-only view", () => {
-  it("leaves the holder's token out, since the token is the fence", () => {
-    const view = lockState.cronLockView as (s: unknown) => Record<string, unknown>;
-    expect(typeof view).toBe("function");
-    const v = view({
-      lock: { heldUntil: NOW + MIN, token: "secret-token" },
-      legacyHeldUntil: null,
-    });
-    expect(v).toEqual({ heldUntil: NOW + MIN, legacyHeldUntil: null });
-    expect(JSON.stringify(v)).not.toContain("secret-token");
-  });
-
-  it("says idle with no record, running while the lease holds, and not released after it ran out", () => {
-    const health = lockState.cronLockHealth as (v: unknown, now: number) => Record<string, unknown>;
-    expect(typeof health).toBe("function");
-    expect(health({ heldUntil: null, legacyHeldUntil: null }, NOW)).toEqual({
-      state: "idle",
-      heldUntil: null,
-    });
-    expect(health({ heldUntil: NOW + 5 * MIN, legacyHeldUntil: null }, NOW)).toEqual({
-      state: "running",
-      heldUntil: NOW + 5 * MIN,
-    });
-    // A lease that ran out and was never released: the run stopped without its
-    // release, or is still going past its lease. The next run takes it anyway.
-    expect(health({ heldUntil: NOW - 5 * MIN, legacyHeldUntil: null }, NOW)).toEqual({
-      state: "not-released",
-      heldUntil: NOW - 5 * MIN,
-    });
-    // Exactly now is expired, the boundary decideAcquire uses.
-    expect(health({ heldUntil: NOW, legacyHeldUntil: null }, NOW).state).toBe("not-released");
-  });
-
-  it("reads the pre-fence key too, the later of the two winning", () => {
-    const health = lockState.cronLockHealth as (v: unknown, now: number) => Record<string, unknown>;
-    expect(health({ heldUntil: null, legacyHeldUntil: NOW + MIN }, NOW)).toEqual({
-      state: "running",
-      heldUntil: NOW + MIN,
-    });
-    expect(health({ heldUntil: NOW - MIN, legacyHeldUntil: NOW + 2 * MIN }, NOW).state).toBe(
-      "running",
-    );
-  });
-});
 
 // --------------------------------------------------------- reading the locks
 
@@ -95,7 +47,7 @@ function lockNamespace(views: Record<string, unknown>, failing: string[] = []) {
         peek: async () => {
           asked.push(id.name);
           if (failing.includes(id.name)) throw new Error("Durable Object unavailable");
-          return views[id.name] ?? { heldUntil: null, legacyHeldUntil: null };
+          return views[id.name] ?? null;
         },
       }),
     },
@@ -110,8 +62,8 @@ describe("readCronLocks", () => {
     ) => Promise<Array<Record<string, unknown>>>;
     expect(typeof read).toBe("function");
     const { ns, asked } = lockNamespace({
-      "recovery-tick": { heldUntil: NOW + 3 * MIN, legacyHeldUntil: null },
-      "weekly-digest": { heldUntil: NOW - HOUR, legacyHeldUntil: null },
+      "recovery-tick": NOW + 3 * MIN,
+      "weekly-digest": NOW - HOUR,
     });
     const locks = await read({ CRON_LOCK: ns }, NOW);
     expect(locks.map((l) => l.name)).toEqual(CRON_JOBS.map((j) => j.name));
@@ -154,11 +106,7 @@ describe("readCronLocks with a lock that never answers", () => {
         peek: () =>
           id.name === "d1-backup"
             ? new Promise(() => {})
-            : Promise.resolve(
-                id.name === "recovery-tick"
-                  ? { heldUntil: NOW + MIN, legacyHeldUntil: null }
-                  : { heldUntil: null, legacyHeldUntil: null },
-              ),
+            : Promise.resolve(id.name === "recovery-tick" ? NOW + MIN : null),
       }),
     };
     let settled = false;
@@ -281,7 +229,7 @@ describe("the loader", () => {
   it("reads the queue and the locks with Foxhound's own engine", async () => {
     expect(typeof route.loader).toBe("function");
     const { ns } = lockNamespace({
-      "recovery-tick": { heldUntil: Date.now() + 5 * MIN, legacyHeldUntil: null },
+      "recovery-tick": Date.now() + 5 * MIN,
     });
     const env = {
       CRON_LOCK: ns,

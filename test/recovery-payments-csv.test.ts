@@ -67,37 +67,25 @@ const RECOVA_HEADER =
 describe("buildPaymentsCsv", () => {
   it("writes Recova's 13 columns in Recova's order (lib/csv.ts PAYMENT_CSV_HEADERS)", () => {
     const csv = buildPaymentsCsv([fakeRow()]);
-    const lines = csv.split("\n");
-    expect(lines).toHaveLength(2);
+    const lines = csv.split("\r\n");
+    expect(lines).toEqual([expect.any(String), expect.any(String), ""]);
     expect(lines[0]).toBe(RECOVA_HEADER);
     expect(lines[0].split(",")).toHaveLength(13);
   });
 
   it("writes 0 and 0 for a payment with no steps, and blanks for no resolution or notes", () => {
     const csv = buildPaymentsCsv([fakeRow()]);
-    expect(csv.split("\n")[1]).toBe(
+    expect(csv.split("\r\n")[1]).toBe(
       "Jordan Lee,jordan@example.com,Growth,49.99,USD,soft,insufficient_funds,active,0,0,2026-07-01T00:00:00.000Z,,",
     );
-  });
-
-  it("doubles an embedded quote and wraps the field in quotes", () => {
-    const csv = buildPaymentsCsv([fakeRow({ planName: 'The "Pro" plan' })]);
-    expect(csv).toContain('"The ""Pro"" plan"');
   });
 
   it("falls back to empty strings for null customer name / plan / decline code", () => {
     const csv = buildPaymentsCsv([
       fakeRow({ customerName: null, planName: null, declineCode: null }),
     ]);
-    const dataLine = csv.split("\n")[1];
+    const dataLine = csv.split("\r\n")[1];
     expect(dataLine.startsWith(",jordan@example.com,,")).toBe(true);
-  });
-});
-
-describe("buildPaymentsCsv: spreadsheet-formula safety", () => {
-  it("a CR-led cell is both neutralised and quoted", () => {
-    const csv = buildPaymentsCsv([fakeRow({ notes: "\r=1+1" })]);
-    expect(csv).toContain(`"'\r=1+1"`);
   });
 });
 

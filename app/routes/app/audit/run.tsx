@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import type { ReactNode } from "react";
 import { CopyButton } from "capsomer/react/copy";
 import { Link } from "capsomer/react/link";
@@ -23,7 +24,6 @@ import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/run";
 import { NOINDEX } from "~/lib/seo/meta";
-import { formatDateShort } from "~/lib/date-format";
 
 // J63, row U4: Recova's saved run, app/audit/results/[id]/
 // page.tsx (blob a0dbf6ef, 11,127 bytes), at Recova's own path,
@@ -127,7 +127,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
       <div className="mb-5">
         <PageHead
-          title={`This audit was run on ${formatDateShort(run.runAt)}.`}
+          title={`This audit was run on ${formatDate(run.runAt, { style: "medium" }) ?? ""}.`}
           lead="Data reflects your Stripe account at that point in time."
           actions={
             <>

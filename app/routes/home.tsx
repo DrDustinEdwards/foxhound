@@ -179,7 +179,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   See it live
                   <ArrowRight
                     data-icon="end"
-                    className="transition-transform duration-150 group-hover:translate-x-0.5"
+                    className="motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                     size={13}
                     strokeWidth={1.5}
                     aria-hidden

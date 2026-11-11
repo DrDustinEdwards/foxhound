@@ -189,9 +189,10 @@ export default function SecurityPage() {
 
         <Section id="sessions" number={4} title="ACCOUNTS AND SESSIONS">
           <P>
-            Sign-in is email and password or Google, and sessions are stored in Cloudflare D1, the
-            same database as the rest of the application data. Sessions are not held in a key-value
-            store or in a third-party session service.
+            Sign-in has no passwords: a link or code sent to your email, a passkey, or your Google
+            or Apple account. Sessions are stored in Cloudflare D1, the same database as the rest of
+            the application data. Sessions are not held in a key-value store or in a third-party
+            session service.
           </P>
           <P>
             API keys for the Foxhound MCP endpoint are shown once, at the moment you generate them,

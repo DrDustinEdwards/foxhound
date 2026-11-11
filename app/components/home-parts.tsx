@@ -24,7 +24,7 @@ const INLINE_LINK =
 export function Arrow() {
   return (
     <ArrowRight
-      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
       size={13}
       strokeWidth={1.5}
       aria-hidden
@@ -35,7 +35,7 @@ export function Arrow() {
 export function SourceArrow() {
   return (
     <ArrowUpRight
-      className="inline-block transition-transform duration-150 group-hover:-translate-y-px group-hover:translate-x-px"
+      className="inline-block motion-safe:transition-transform duration-150 group-hover:-translate-y-px group-hover:translate-x-px"
       size={12}
       strokeWidth={1.5}
       aria-hidden

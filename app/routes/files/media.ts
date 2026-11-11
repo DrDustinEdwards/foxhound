@@ -1,4 +1,3 @@
-import { originalKey } from "@dustinedwards/site-runtime/image";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { images, UPLOAD_KEY, VERSION_LENGTH } from "~/lib/media/images";
@@ -7,7 +6,7 @@ import { mediaRow } from "~/lib/media/store.server";
 import type { Route } from "./+types/media";
 
 // The blog's media library files (app/lib/carrel/media-adapter.server.ts): the
-// original, or one size for `?w=`, through site-runtime ./image's one route,
+// original, or one size for `?w=`, through site-runtime ./image's serve,
 // with its closed width set, ETag and 304, the edge cache keyed by the
 // object's etag, and the original when a transform fails. Only an upload's own
 // key is served, so the earlier bytes kept under revisions/ never are. No SVG
@@ -22,23 +21,21 @@ import type { Route } from "./+types/media";
 // Cache API by etag, so a refresh is not another billed transform.
 const UNVERSIONED_CACHE_CONTROL = "public, max-age=300";
 
-export async function loader({ params, request, context }: Route.LoaderArgs) {
-  // A size URL is suffixed (photo.jpg.webp?w=640); the stored key is the original's.
-  const key = originalKey(params["*"] ?? "", request);
-  if (!UPLOAD_KEY.test(key)) return new Response("Not found", { status: 404 });
+export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const version = new URL(request.url).searchParams.get("v");
-  const current = version
-    ? (await mediaRow(getDb(env), key))?.sha256.slice(0, VERSION_LENGTH) === version
-    : false;
-  const read = () => env.MEDIA.get(key);
   // `caches.default` is the Workers runtime's; the DOM lib does not declare it.
   const cache = (caches as typeof caches & { default: Cache }).default;
-  return images.respond(request, {
-    object: await read(),
+  return images.serve(request, {
+    // Only an upload's own key is read; anything else is a miss, so revisions/ never is served.
+    read: (key) => (UPLOAD_KEY.test(key) ? env.MEDIA.get(key) : Promise.resolve(null)),
     images: env.IMAGES,
     cache,
-    cacheControl: current ? undefined : UNVERSIONED_CACHE_CONTROL,
-    reread: read,
+    cacheControl: async ({ url, key }) => {
+      const version = url.searchParams.get("v");
+      const current = version
+        ? (await mediaRow(getDb(env), key))?.sha256.slice(0, VERSION_LENGTH) === version
+        : false;
+      return current ? undefined : UNVERSIONED_CACHE_CONTROL;
+    },
   });
 }

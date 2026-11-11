@@ -1,3 +1,4 @@
+import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
+import { RangeSlider } from "capsomer/react/range-slider";
 import { Glyph, Pill, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/bulk-bar.css";
@@ -27,6 +29,7 @@ import "capsomer/field.css";
 import "capsomer/page-head.css";
 import "capsomer/pagination.css";
 import "capsomer/panel.css";
+import "capsomer/range-slider.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
@@ -35,12 +38,10 @@ import "capsomer/table.css";
 // /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
-import { DualRangeSlider } from "~/components/dual-range-slider";
 import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { formatTimeAgo } from "~/lib/date-format";
 import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
@@ -59,6 +60,7 @@ import type {
   FailedPaymentSort,
 } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { sliderDollars } from "~/lib/recovery/payments-list";
 import {
   AMOUNT_SLIDER_STEP_CENTS,
   DECLINE_CATEGORY_WORDS,
@@ -542,8 +544,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     },
     [],
   );
-  function onSearch(value: string) {
+  // An IME (Japanese, Chinese and Korean input, many phone keyboards) fires change events while a word is still being
+  // composed; the search waits for compositionend, which commits it (UI Events, Composition Events), as Capsomer's
+  // catalog search does.
+  function onSearch(value: string, composing = false) {
     setSearch(value);
+    if (composing) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       sentSearch.current = value.trim();
@@ -708,7 +714,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   type="text"
                   name="q"
                   value={search}
-                  onChange={(e) => onSearch(e.target.value)}
+                  onChange={(e) =>
+                    onSearch(e.target.value, (e.nativeEvent as InputEvent).isComposing)
+                  }
+                  onCompositionEnd={(e) => onSearch(e.currentTarget.value)}
                   placeholder="Search by name, email, or plan..."
                   aria-label="Search payments"
                 />
@@ -786,14 +795,17 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   ))}
                 </select>
               </div>
-              <DualRangeSlider
+              <RangeSlider
+                className="md:min-w-[220px] md:flex-[0_0_240px]"
+                label="Amount"
                 min={bounds.minCents}
                 max={bounds.maxCents}
-                valueMin={filters.amountMinCents}
-                valueMax={filters.amountMaxCents}
+                low={filters.amountMinCents}
+                high={filters.amountMaxCents}
                 step={AMOUNT_SLIDER_STEP_CENTS}
-                minName="amountMin"
-                maxName="amountMax"
+                names={["amountMin", "amountMax"]}
+                handleLabels={["Minimum amount", "Maximum amount"]}
+                format={(cents, which) => sliderDollars(cents, which === "high", bounds.maxCents)}
                 onCommit={(nextMin, nextMax) =>
                   go({
                     amountMin: nextMin > bounds.minCents ? String(nextMin) : "",
@@ -974,7 +986,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-micro text-text-subtle">
                               <span className="block whitespace-nowrap">
-                                {formatTimeAgo(p.detectedAt, nowMs)}
+                                {relative(toMs(p.detectedAt), nowMs, "UTC")}
                               </span>
                               <span className="mt-0.5 block whitespace-nowrap">
                                 {formatLongDate(p.detectedAt)}
