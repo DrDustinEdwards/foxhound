@@ -1127,6 +1127,13 @@ body {
 .fh-cap {
   --fs-page: 1rem;
 }
+/* Recova's column had a 32px side margin from 768px up (px-4 md:px-8), the width of the header's
+   own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */
+@media (min-width: 768px) {
+  .fh-cap.cap-page {
+    --page-gutter: 32px;
+  }
+}
 /* The public site's header is the only thing in its wrapper: no box of its
    own, so the header sticks to the window rather than to a wrapper as tall as
    itself. */
