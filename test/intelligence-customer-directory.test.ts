@@ -122,6 +122,18 @@ describe("listCustomerDirectory against the seeded demo account", () => {
     expect(result.customers[0].healthScore).toBe(90);
   });
 
+  it("a search typed with LIKE wildcards matches them literally", async () => {
+    const db = await seededDb();
+    const result = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, {
+      search: "%",
+      tier: null,
+      healthBand: null,
+      sort: "health_asc",
+      page: 1,
+    });
+    expect(result.customers).toHaveLength(0);
+  });
+
   it("Northpoint also surfaces under the healthy band filter (it is not at-risk)", async () => {
     const db = await seededDb();
     const result = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, {

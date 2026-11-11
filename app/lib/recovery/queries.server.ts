@@ -6,14 +6,13 @@ import {
   eq,
   gte,
   isNull,
-  like,
   lte,
   ne,
   notInArray,
   or,
   sql,
 } from "drizzle-orm";
-import { inList } from "@dustinedwards/site-runtime/d1";
+import { inList, likeContains } from "@dustinedwards/site-runtime/d1";
 import { byAccount, byAccountActive } from "~/db/scope";
 import {
   type Db,
@@ -101,11 +100,11 @@ function baseFailedPaymentConditions(accountId: string) {
  *  (the paginated list itself adds status separately, see below). */
 function applyFailedPaymentFilters(conditions: unknown[], filters: FailedPaymentFilterInput): void {
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = filters.search;
     const searchCondition = or(
-      like(failedPayments.customerName, term),
-      like(failedPayments.customerEmail, term),
-      like(failedPayments.planName, term),
+      likeContains(failedPayments.customerName, term),
+      likeContains(failedPayments.customerEmail, term),
+      likeContains(failedPayments.planName, term),
     );
     if (searchCondition) conditions.push(searchCondition);
   }
