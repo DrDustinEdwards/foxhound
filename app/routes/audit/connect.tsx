@@ -1,6 +1,6 @@
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { Check, X } from "lucide-react";
+import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { Form, redirect, useFormAction, useNavigation } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -8,6 +8,7 @@ import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/consent.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button, the alert and the focus ring read, as on /connect.
@@ -135,47 +136,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 }
 
-/** Recova's two labeled lists inside the inner box. Each is a real list
- *  named by its heading. Recova's labels are `text-xs font-medium` with no
- *  letter spacing, so none is added. Capsomer has no can and cannot list, so
- *  this is composed from Foxhound's tokens, as on /connect (a Capsomer gap,
- *  named in the PR). */
-function AccessList({
-  id,
-  heading,
-  items,
-  allowed,
-}: {
-  id: string;
-  heading: string;
-  items: string[];
-  allowed: boolean;
-}) {
-  const Icon = allowed ? Check : X;
-  return (
-    <>
-      <p
-        id={id}
-        className={`mb-3 text-micro font-medium uppercase text-text-subtle ${allowed ? "" : "mt-4"}`}
-      >
-        {heading}
-      </p>
-      <ul aria-labelledby={id} className="m-0 list-none p-0">
-        {items.map((item) => (
-          <li key={item} className="mb-2 flex items-center gap-2 text-label text-text">
-            <Icon
-              className={`size-4 shrink-0 ${allowed ? "text-success-text" : "text-error-text"}`}
-              strokeWidth={1.5}
-              aria-hidden
-            />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
 /**
  * Recova's frame: `flex items-center justify-center px-4 py-[60px]` around one
  * `w-full max-w-[480px]` card with `p-12`. The card is Capsomer's panel
@@ -241,9 +201,11 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
         </div>
       ) : null}
 
-      <div className="mb-6 rounded-lg border border-border bg-bg p-4">
-        <AccessList id="audit-connect-can" heading="What we can do" items={CAN_DO} allowed />
-        <AccessList
+      {/* Recova's two labeled lists inside the inner box: Capsomer's
+          permission lists, each a real list named by its heading. */}
+      <div className="mb-6 grid gap-4 rounded-lg border border-border bg-bg p-4">
+        <PermissionList id="audit-connect-can" heading="What we can do" items={CAN_DO} allowed />
+        <PermissionList
           id="audit-connect-cannot"
           heading="What we never do"
           items={CAN_NEVER_DO}

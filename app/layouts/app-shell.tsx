@@ -5,7 +5,6 @@ import {
   useNavigate,
   useNavigation,
   useRouteLoaderData,
-  useSubmit,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
 import {
@@ -29,11 +28,12 @@ import {
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
-import { Banner } from "capsomer/react/banner";
+import { ModeBanner } from "capsomer/react/mode-banner";
 import { shouldShowRouteSplash } from "capsomer/behavior/route-splash";
 import { RouteSplash } from "capsomer/react/route-splash";
 import "capsomer/admin-shell.css";
 import "capsomer/banner.css";
+import "capsomer/mode-banner.css";
 import "capsomer/button.css";
 import "capsomer/route-splash.css";
 import "capsomer/time.css";
@@ -235,7 +235,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   } = loaderData;
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const submit = useSubmit();
   const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
   // Legacy's loading.tsx on RR8's substrate: Capsomer decides when (never during
@@ -418,54 +417,43 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             })),
             ...(isAdmin ? [{ label: "Admin", href: "/admin" }] : []),
           ],
-          onSignOut: () => void submit(null, { method: "post", action: "/logout" }),
+          // A plain form post, so sign-out works before the page hydrates.
+          signOutAction: "/logout",
         }}
       >
-        {/* The demo banner, at the top of the page under the page bar: the
-            header is the first element on the page in every state, so the
-            wordmark never moves between demo and signed-in. Always exactly two
-            lines regardless of demoSignedIn, via the explicit <br />, so the
-            banner's own height cannot vary between the two demo states. */}
+        {/* The demo band and the admin's read-only "View as merchant" band
+            (Recova's "Impersonating: {email}" with "Stop impersonating"), at
+            the top of the page under the page bar, in Capsomer's mode banner
+            and its words: the header stays the first element on the page in
+            every state, so the wordmark never moves. Recova's demo header
+            carried Connect Stripe (to /signup) on every demo page; a visitor
+            without an account gets it, with Exit demo second. A signed-in
+            merchant already has an account, so they get Exit only. Stop is a
+            plain link: it leaves the app for /admin, behind Access. */}
         {isDemo ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-b border-border bg-chrome px-4 py-2 text-center">
-            <span className="text-label text-chrome-text-secondary">
-              You're viewing a live demo with sample data.
-              <br />
-              {demoSignedIn
-                ? "Nothing you do here is saved. This is not your real account."
-                : "This is your dashboard after you connect Stripe. Nothing you do here is saved."}
-            </span>
-            {/* Recova's demo header carried a primary Connect Stripe button (to
-                /signup) on every demo page; a visitor without an account gets it
-                here, with Exit demo as the second action. A signed-in merchant
-                viewing the demo already has an account, so they get Exit only. */}
-            <span className="flex shrink-0 items-center gap-2">
-              {demoSignedIn ? null : (
-                <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
-                  Connect Stripe
-                </a>
-              )}
-              <a href="/demo/exit" className="cap-btn" data-size="sm">
-                {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
-              </a>
-            </span>
-          </div>
-        ) : null}
-        {/* An admin viewing this merchant read-only (Recova's "Impersonating:
-            {email}" banner with "Stop impersonating"). On every app page while
-            the view is open; Stop is a plain link because it leaves the app
-            for /admin, behind Access. */}
-        {viewingAs ? (
-          <Banner
-            tone="warn"
+          <ModeBanner
+            mode="demo"
+            signedIn={demoSignedIn}
             actions={
-              <a href={viewingAs.stopHref} className="cap-btn" data-size="sm">
-                Stop
-              </a>
+              <>
+                {demoSignedIn ? null : (
+                  <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
+                    Connect Stripe
+                  </a>
+                )}
+                <a href="/demo/exit" className="cap-btn" data-size="sm">
+                  {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
+                </a>
+              </>
             }
-          >
-            Viewing as {accountName ?? "this merchant"} (read-only).
-          </Banner>
+          />
+        ) : null}
+        {viewingAs ? (
+          <ModeBanner
+            mode="view-as"
+            who={accountName ?? "this merchant"}
+            stopHref={viewingAs.stopHref}
+          />
         ) : null}
         {/* Ruling 146: exactly one <main> on every app page. It is the shell's
             own (AdminShell's main region, #cap-main, the skip link's target),

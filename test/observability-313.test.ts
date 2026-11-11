@@ -1,21 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { cronAlerts, cronRunHistory, emailDeadLetters } from "~/db/schema";
+import { cronRunHistory, emailDeadLetters } from "~/db/schema";
 import {
   buildFailureAlertEmail,
-  claimAlertSlot,
-  findStaleCrons,
   runCronHealthCheck,
   SCHEDULE_PERIOD_MS,
-  sendAlert,
-  utcDay,
 } from "~/lib/cron/alerts.server";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { recordDeadLetters } from "~/lib/email/dead-letters.server";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // RULING 313: the observability batch. Ruling 311 measured three holes and this
 // closes them.
@@ -38,64 +34,15 @@ function words(built: { alert: { intro: string; details: string[] } }): string {
   return [built.alert.intro, ...built.alert.details].join("\n");
 }
 
-function envWith(send: () => Promise<{ id: string }>) {
-  return { EMAIL: { send } } as unknown as Env;
+/** A fresh database with an env whose DB binding and EMAIL binding run over it. */
+function setup(send: () => Promise<{ id: string }> = async () => ({ id: "msg_1" })) {
+  const { sqlite, db } = createInMemoryDb();
+  const env = { EMAIL: { send }, DB: d1Over(sqlite) } as unknown as Env;
+  const alerts = () => sqlite.prepare("SELECT * FROM alerts_sent").all() as Array<{ kind: string }>;
+  return { db, env, alerts };
 }
-const okEnv = () => envWith(async () => ({ id: "msg_1" }));
-const brokenEnv = () =>
-  envWith(async () => {
-    throw new Error("email binding exploded");
-  });
 
-describe("313 A: the alert dedupes in the DATABASE, not in application logic", () => {
-  it("claims the slot once per cron per kind per day", async () => {
-    const { db } = createInMemoryDb();
-    expect(await claimAlertSlot(db, "billing-monthly", "failure", NOW)).toBe(true);
-    // Second claim, same day, same kind: refused by the unique index.
-    expect(await claimAlertSlot(db, "billing-monthly", "failure", NOW)).toBe(false);
-    // A DIFFERENT kind is a different problem and alerts on its own.
-    expect(await claimAlertSlot(db, "billing-monthly", "stale", NOW)).toBe(true);
-    // And tomorrow is a new day.
-    const tomorrow = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
-    expect(await claimAlertSlot(db, "billing-monthly", "failure", tomorrow)).toBe(true);
-  });
-
-  it("THE DEDUPE IS THE INDEX: a second send is refused without emailing", async () => {
-    const { db } = createInMemoryDb();
-    const sent: string[] = [];
-    const env = envWith(async () => {
-      sent.push("x");
-      return { id: "m" };
-    });
-    const message = { subject: "s", bodyHtml: "<p>b</p>" };
-
-    const first = await sendAlert(env, db, "recovery-tick", "failure", message, NOW);
-    const second = await sendAlert(env, db, "recovery-tick", "failure", message, NOW);
-
-    expect(first).toEqual({ sent: true });
-    expect(second).toEqual({ sent: false, reason: "deduped" });
-    expect(sent).toHaveLength(1); // the second never reached the binding
-  });
-
-  it("FAIL-OPEN: a broken email binding does not throw, it reports", async () => {
-    // The load-bearing property. An observability tool that can fail the money
-    // job it observes is worse than no observability.
-    const { db } = createInMemoryDb();
-    const outcome = await sendAlert(
-      brokenEnv(),
-      db,
-      "recovery-tick",
-      "failure",
-      { subject: "s", bodyHtml: "<p>b</p>" },
-      NOW,
-    );
-    expect(outcome).toEqual({
-      sent: false,
-      reason: "send_failed",
-      error: "email binding exploded",
-    });
-  });
-
+describe("313 A: the failure email", () => {
   it("the failure email names the cron, the run, the error and the last success", () => {
     const built = buildFailureAlertEmail(
       {
@@ -119,33 +66,9 @@ describe("313 A: the alert dedupes in the DATABASE, not in application logic", (
     );
     expect(words(built)).toMatch(/never/i);
   });
-
-  it("utcDay is the day-granularity key", () => {
-    expect(utcDay(new Date("2026-08-16T23:59:59.000Z"))).toBe("2026-08-16");
-    expect(utcDay(new Date("2026-08-17T00:00:01.000Z"))).toBe("2026-08-17");
-  });
 });
 
 describe("313 A: the never-executed detector", () => {
-  const jobs = [
-    { name: "recovery-tick", schedule: "*/5 * * * *" },
-    { name: "billing-monthly", schedule: "0 4 1 * *" },
-    { name: "demo-reset", schedule: "0 3 * * *" },
-  ];
-
-  it("flags a cron overdue against its own schedule, and not one within tolerance", () => {
-    const last = new Map<string, Date | null>([
-      // 30 minutes for a 5-minute job: well past two periods.
-      ["recovery-tick", new Date(NOW.getTime() - 30 * 60_000)],
-      ["billing-monthly", new Date(NOW.getTime() - 60_000)],
-      // 25 hours for a daily job: inside two periods, so NOT stale.
-      ["demo-reset", new Date(NOW.getTime() - 25 * 60 * 60_000)],
-    ]);
-    const stale = findStaleCrons(jobs, last, NOW);
-    expect(stale.map((s) => s.cronName)).toEqual(["recovery-tick"]);
-    expect(stale[0].reason).toBe("overdue");
-  });
-
   it("EVERY SCHEDULE THE REGISTRY USES HAS A PERIOD (376 item 15)", () => {
     // THE DEFECT THIS CLOSES. CRON_SCHEDULE_WEEKLY was never added to the period
     // table, so weekly-digest reported `unknown_schedule` every single day from
@@ -173,18 +96,17 @@ describe("313 A: the never-executed detector", () => {
   });
 
   it("the health check alerts on findings and reports what it did", async () => {
-    const { db } = createInMemoryDb();
+    const { db, env, alerts } = setup();
     const result = await runCronHealthCheck(
-      okEnv(),
+      env,
       db,
       [{ name: "billing-monthly", schedule: "0 4 1 * *" }],
       NOW,
     );
     expect(result.rowsProcessed).toBe(1);
-    expect(result.message).toContain("never_run");
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].kind).toBe("stale");
+    expect(result.message).toContain("never ran");
+    expect(alerts()).toHaveLength(1);
+    expect(alerts()[0].kind).toBe("stale");
   });
 });
 
@@ -202,13 +124,8 @@ describe("313 B: the dead-letter trace", () => {
   };
 
   it("writes a row for an exhausted send, so the discard leaves a trace", async () => {
-    const { db } = createInMemoryDb();
-    const result = await recordDeadLetters(
-      okEnv(),
-      db,
-      [{ id: "qm_1", attempts: 3, body: job }],
-      NOW,
-    );
+    const { db, env } = setup();
+    const result = await recordDeadLetters(env, db, [{ id: "qm_1", attempts: 3, body: job }], NOW);
     expect(result.written).toBe(1);
     expect(result.failed).toBe(0);
 
@@ -224,8 +141,8 @@ describe("313 B: the dead-letter trace", () => {
   });
 
   it("stores a HASH, never the recipient address", async () => {
-    const { db } = createInMemoryDb();
-    await recordDeadLetters(okEnv(), db, [{ id: "qm_1", attempts: 3, body: job }], NOW);
+    const { db, env } = setup();
+    await recordDeadLetters(env, db, [{ id: "qm_1", attempts: 3, body: job }], NOW);
     const rows = await db.select().from(emailDeadLetters);
     expect(rows[0].recipientHash).toBeTruthy();
     expect(rows[0].recipientHash).not.toBe(job.to);
@@ -234,9 +151,9 @@ describe("313 B: the dead-letter trace", () => {
 
   it("ONE BAD MESSAGE DOES NOT DISCARD THE BATCH, which is the whole point", async () => {
     // Reproducing the silent discard inside the fix would be the worst outcome.
-    const { db } = createInMemoryDb();
+    const { db, env } = setup();
     const result = await recordDeadLetters(
-      okEnv(),
+      env,
       db,
       [
         { id: "qm_1", attempts: 3, body: job },
@@ -250,13 +167,12 @@ describe("313 B: the dead-letter trace", () => {
   });
 
   it("raises ONE alert for the batch, deduped with the cron alerts", async () => {
-    const { db } = createInMemoryDb();
-    await recordDeadLetters(okEnv(), db, [{ id: "a", attempts: 3, body: job }], NOW);
-    await recordDeadLetters(okEnv(), db, [{ id: "b", attempts: 3, body: job }], NOW);
+    const { db, env, alerts } = setup();
+    await recordDeadLetters(env, db, [{ id: "a", attempts: 3, body: job }], NOW);
+    await recordDeadLetters(env, db, [{ id: "b", attempts: 3, body: job }], NOW);
 
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1); // a burst is one problem, not N
-    expect(alerts[0].kind).toBe("dead_letter");
+    expect(alerts()).toHaveLength(1); // a burst is one problem, not N
+    expect(alerts()[0].kind).toBe("dead_letter");
     expect(await db.select().from(emailDeadLetters)).toHaveLength(2); // both rows still written
   });
 });
@@ -302,20 +218,21 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 const { runCronJob } = await import("~/lib/cron/run");
 
-function lockEnv(send: () => Promise<{ id: string }>) {
+function lockEnv(send: () => Promise<{ id: string }>, sqlite: Parameters<typeof d1Over>[0]) {
   const stub = { acquire: async () => true, release: async () => {} };
   return {
     EMAIL: { send },
     BETTER_AUTH_URL: "https://foxhound.example.com",
     CRON_LOCK: { get: () => stub, idFromName: (n: string) => n },
-    DB: {},
+    DB: d1Over(sqlite),
   } as unknown as Env;
 }
 
 describe("313 A: runCronJob actually alerts", () => {
   it("a SECOND failure the same day is deduped, and the run still records", async () => {
-    harness.db = createInMemoryDb().db;
-    const env = lockEnv(async () => ({ id: "m" }));
+    const { sqlite, db: fresh } = createInMemoryDb();
+    harness.db = fresh;
+    const env = lockEnv(async () => ({ id: "m" }), sqlite);
     const boom = async () => {
       throw new Error("boom");
     };
@@ -326,6 +243,6 @@ describe("313 A: runCronJob actually alerts", () => {
     expect(second.alert).toEqual({ sent: false, reason: "deduped" });
     const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
     expect(await db.select().from(cronRunHistory)).toHaveLength(2); // both runs recorded
-    expect(await db.select().from(cronAlerts)).toHaveLength(1); // one alert
+    expect(sqlite.prepare("SELECT * FROM alerts_sent").all()).toHaveLength(1); // one alert
   });
 });

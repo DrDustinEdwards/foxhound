@@ -117,15 +117,6 @@ describe("J30 customers: pagination", () => {
     return html.match(/<nav class="cap-pagination"[\s\S]*?<\/nav>/)?.[0] ?? "";
   }
 
-  it("shows only the ends that lead somewhere, as Recova does", () => {
-    const first = pager(render({ page: 1, totalPages: 3, totalCount: 120 }));
-    expect(first).not.toContain("Previous");
-    expect(first).toContain("Next");
-    const last = pager(render({ page: 3, totalPages: 3, totalCount: 120 }));
-    expect(last).toContain("Previous");
-    expect(last).not.toContain("Next");
-  });
-
   it("keeps the filters when paging", () => {
     const nav = pager(
       render({

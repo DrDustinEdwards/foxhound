@@ -71,15 +71,17 @@ export function loader({ context }: Route.LoaderArgs) {
 const icon = (Icon: typeof LayoutDashboard) => <Icon className="cap-admin-icon" aria-hidden />;
 
 // The admin's pages, grouped as the menu shows them. The shell marks the
-// entry the address is in from `pathname` (Capsomer 0.100.0: the entry's href
-// or a folder below it, the longest winning). The phone's tab bar takes the first five (Capsomer 0.9.0:
-// no More tab, because the header's menu button opens the full list).
+// current one from the address (its `pathname`, the longest href winning).
+// The phone's tab bar takes the first five (Capsomer 0.9.0: no More tab,
+// because the header's menu button opens the full list).
 const ENTRIES: AdminEntry[] = [
   {
     id: "overview",
     label: "Overview",
     href: "/admin",
     icon: icon(LayoutDashboard),
+    // Only /admin itself: an address below it marks its own entry or none.
+    match: [/^\/admin$/],
   },
   {
     id: "merchants",
@@ -229,9 +231,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
           role: "Admin",
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
-          onSignOut: () => {
-            window.location.assign("/cdn-cgi/access/logout");
-          },
+          accessLogout: true,
         }}
       >
         {/* The one page frame (Capsomer's .cap-admin-page): every admin page

@@ -3,7 +3,6 @@ import { Link } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -178,52 +177,49 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}
       </p>
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Scheduled jobs"
-          headingId={HEADING_ID}
-          src={pending ? <Spinner size="sm" label="Reading again" /> : undefined}
-          description={crons.length > 0 ? cronsSummaryWords(crons.length, switchedOff) : undefined}
-          flush
-        >
-          {crons.length === 0 ? (
-            <Empty kind="nothing-yet" title="No scheduled jobs are registered.">
-              Every job in Foxhound&apos;s cron registry appears here.
-            </Empty>
-          ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <caption className="cap-sr-only">
-                  Scheduled jobs, in the order the registry runs them, with each one&apos;s last
-                  run.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Cron</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Last run</th>
-                    <th scope="col">Last succeeded</th>
-                    <th scope="col">Last message</th>
-                    <th scope="col">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {crons.map((c) => (
-                    <CronTableRow key={c.name} cron={c} busy={busy} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Panel>
-      </div>
+      <Panel
+        title="Scheduled jobs"
+        headingId={HEADING_ID}
+        reading={pending}
+        description={crons.length > 0 ? cronsSummaryWords(crons.length, switchedOff) : undefined}
+        flush
+      >
+        {crons.length === 0 ? (
+          <Empty kind="nothing-yet" title="No scheduled jobs are registered.">
+            Every job in Foxhound&apos;s cron registry appears here.
+          </Empty>
+        ) : (
+          <div
+            className="cap-table-wrap"
+            data-reflow="medium"
+            data-cap="table"
+            role="region"
+            aria-labelledby={HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">
+                Scheduled jobs, in the order the registry runs them, with each one&apos;s last run.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Cron</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Last run</th>
+                  <th scope="col">Last succeeded</th>
+                  <th scope="col">Last message</th>
+                  <th scope="col">Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crons.map((c) => (
+                  <CronTableRow key={c.name} cron={c} busy={busy} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }

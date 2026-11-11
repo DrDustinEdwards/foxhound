@@ -1,9 +1,10 @@
 import { Button } from "capsomer/react/button";
-import { Check, X } from "lucide-react";
+import { ResultPage } from "capsomer/react/status-mark";
 import { Form, useActionData, useNavigation } from "react-router";
 
 import "capsomer/button.css";
 import "capsomer/panel.css";
+import "capsomer/status-mark.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // status tones and the focus ring read. The site header loads the same file;
 // importing it here keeps the page whole under any layout (as legal-page.tsx).
@@ -190,20 +191,6 @@ const HEADING: Record<LoaderState["state"], string> = {
 // status mark (status.css draws a glyph or a pill), so it is composed here from
 // the family's ok and crit tone tokens. Decorative: the sentence beside it says
 // the same thing.
-const MARK = {
-  ok: "border-[var(--ok)] bg-[var(--ok-soft)] text-[var(--ok)]",
-  crit: "border-[var(--crit)] bg-[var(--crit-soft)] text-[var(--crit)]",
-} as const;
-
-// Layout is Recova's: the page centered both ways under the site header, a 480px
-// column with 40px by 24px padding and centered text, the wordmark 32px above the
-// card, the card at 40px by 32px, the 48px mark 20px above the sentence, the
-// sentence 24px above the link. Look is Capsomer's: the column sits in the
-// amber family with Foxhound's neutrals (.fh-cap, as the legal pages), the card is
-// Capsomer's panel (its body-only state), and the focus ring is the family's
-// amber. Text is on the five sizes: Recova's 20px wordmark is
-// title (1.25rem, exact), its 15px sentence body (1rem, the nearest), its 13px
-// link label (0.8125rem, exact).
 export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
   const posted = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
@@ -211,39 +198,28 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
   const state: LoaderState = posted && !(posted instanceof Response) ? posted : loaderData;
   const confirming = state.state === "confirm";
   const tone = state.state === "done" || state.state === "already" ? "ok" : "crit";
-  const Icon = tone === "ok" ? Check : X;
   return (
     <div className="flex min-h-screen flex-col">
       <Header isAuthenticated={false} />
-      <main className="flex flex-1 items-center justify-center bg-bg">
-        <div
-          className="fh-cap w-full max-w-[480px] px-6 py-10 text-center [--border-focus:var(--ring)]"
-          data-cap-site="foxhound"
-          data-family="amber"
-        >
-          {/* The page's heading, for screen readers only: Recova's page has none
-              visible, and the wordmark is not one. It names the outcome, so the
-              result is in the heading as well as the status paragraph. */}
-          <h1 className="sr-only">{HEADING[state.state]}</h1>
-          <div className="mb-8">
-            <Wordmark size="title" />
-          </div>
-          <div className="cap-panel">
-            <div className="px-8 py-10">
-              {confirming ? null : (
-                <div
-                  data-status-mark={tone}
-                  aria-hidden="true"
-                  className={`mx-auto mb-5 flex size-12 items-center justify-center rounded-full border ${MARK[tone]}`}
-                >
-                  <Icon className="size-5" strokeWidth={2.5} />
-                </div>
-              )}
-              <p role="status" className="m-0 mb-6 text-body leading-relaxed text-text">
-                {message(state)}
-              </p>
+      {/* Capsomer's result page: the wordmark over one card, the mark (none
+          while it still asks), the sentence as a polite status and the way on.
+          Its h1 is for screen readers only: Recova's page has none visible,
+          and the wordmark is not one. It names the outcome, so the result is
+          in the heading as well as the status paragraph. */}
+      <div
+        className="fh-cap flex flex-1 items-center bg-bg [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
+        <ResultPage
+          title={HEADING[state.state]}
+          titleHidden
+          tone={confirming ? undefined : tone}
+          brand={<Wordmark size="title" />}
+          actions={
+            <>
               {confirming ? (
-                <Form method="post" className="mb-6">
+                <Form method="post">
                   <input type="hidden" name={CONFIRM_FIELD} value="1" />
                   <Button type="submit" variant="primary" pending={busy}>
                     Unsubscribe
@@ -259,10 +235,12 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
               >
                 Return to Foxhound
               </a>
-            </div>
-          </div>
-        </div>
-      </main>
+            </>
+          }
+        >
+          {message(state)}
+        </ResultPage>
+      </div>
     </div>
   );
 }

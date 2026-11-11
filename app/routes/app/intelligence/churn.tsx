@@ -86,7 +86,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
   // the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8">
+    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead title="Churn Risk" lead="MRR at risk by customer health band." />
       </div>

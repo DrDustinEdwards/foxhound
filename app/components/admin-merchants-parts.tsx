@@ -1,14 +1,13 @@
 // Parts of the admin merchants page (routes/admin/merchants/index.tsx split):
 // the merchant list and rows, platform figures, undo posts and the posted result.
 
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Form, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
 import { ExternalLink } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
 import { useMessage } from "capsomer/react/message";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { Glyph, Status } from "capsomer/react/status";
 import { TabLink, TabsNav } from "capsomer/react/tabs";
 import { Time } from "capsomer/react/time";
@@ -101,14 +100,13 @@ export function MerchantsList({
   const pending = pagePending(navigation, revalidating, merchantViewPath(view)) || rowsReading;
   const action = merchantsActionFor(view);
   const undoPost = useUndoPost(action);
-  const reading = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
   const words = VIEW_WORDS[view];
 
   return (
     <div className="grid grid-cols-1 gap-6">
       {actionData ? <PostedResult result={actionData} action={action} /> : null}
 
-      {figures ? <PlatformFigures figures={figures} pending={pending} reading={reading} /> : null}
+      {figures ? <PlatformFigures figures={figures} reading={pending} /> : null}
 
       <TabsNav
         aria-label="Filter merchants"
@@ -122,139 +120,127 @@ export function MerchantsList({
         ))}
       </TabsNav>
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Merchants"
-          headingId={HEADING_ID}
-          src={reading}
-          description={
-            merchants.length === 0 ? undefined : (
-              <>
-                {words.describe(merchants.length)}
-                {view === "paused" && brakePaused > 0 ? (
-                  <>
-                    {" "}
-                    {brakePaused} of them {brakePaused === 1 ? "is" : "are"} held by the{" "}
-                    <Link to="/admin/brake">emergency brake</Link>, whose Release resumes{" "}
-                    {brakePaused === 1 ? "it" : "them"}.
-                  </>
-                ) : null}
-              </>
-            )
-          }
-          flush
-        >
-          {merchants.length === 0 ? (
-            view === "all" ? (
-              <Empty kind="nothing-yet" title={words.empty}>
-                {words.emptyBody}
-              </Empty>
-            ) : (
-              <Empty
-                kind="no-match"
-                title={words.empty}
-                action={
-                  <Link to={MERCHANTS_PATH} className="cap-btn">
-                    Show all merchants
-                  </Link>
-                }
-              >
-                {words.emptyBody}
-              </Empty>
-            )
+      <Panel
+        title="Merchants"
+        headingId={HEADING_ID}
+        reading={pending}
+        description={
+          merchants.length === 0 ? undefined : (
+            <>
+              {words.describe(merchants.length)}
+              {view === "paused" && brakePaused > 0 ? (
+                <>
+                  {" "}
+                  {brakePaused} of them {brakePaused === 1 ? "is" : "are"} held by the{" "}
+                  <Link to="/admin/brake">emergency brake</Link>, whose Release resumes{" "}
+                  {brakePaused === 1 ? "it" : "them"}.
+                </>
+              ) : null}
+            </>
+          )
+        }
+        flush
+      >
+        {merchants.length === 0 ? (
+          view === "all" ? (
+            <Empty kind="nothing-yet" title={words.empty}>
+              {words.emptyBody}
+            </Empty>
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-cap="table"
-              data-reflow="wide"
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
+            <Empty
+              kind="no-match"
+              title={words.empty}
+              action={
+                <Link to={MERCHANTS_PATH} className="cap-btn">
+                  Show all merchants
+                </Link>
+              }
             >
-              <table className="cap-table">
-                <caption className="cap-sr-only">{words.caption}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Merchant</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Stripe</th>
-                    <th scope="col">Recovery rate</th>
-                    <th scope="col" data-num="">
-                      Recovered
-                    </th>
-                    <th scope="col" data-num="" data-drop="1">
-                      Active recoveries
-                    </th>
-                    <th scope="col">Last webhook</th>
-                    <th scope="col" data-drop="1">
-                      Joined
-                    </th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {merchants.map((m) => (
-                    <MerchantRow key={m.id} merchant={m} view={view} undoPost={undoPost} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Panel>
-      </div>
+              {words.emptyBody}
+            </Empty>
+          )
+        ) : (
+          <div
+            className="cap-table-wrap"
+            data-cap="table"
+            data-reflow="wide"
+            role="region"
+            aria-labelledby={HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">{words.caption}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Merchant</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Stripe</th>
+                  <th scope="col">Recovery rate</th>
+                  <th scope="col" data-num="">
+                    Recovered
+                  </th>
+                  <th scope="col" data-num="" data-drop="1">
+                    Active recoveries
+                  </th>
+                  <th scope="col">Last webhook</th>
+                  <th scope="col" data-drop="1">
+                    Joined
+                  </th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {merchants.map((m) => (
+                  <MerchantRow key={m.id} merchant={m} view={view} undoPost={undoPost} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
 
-function PlatformFigures({
-  figures,
-  pending,
-  reading,
-}: {
-  figures: Figures;
-  pending: boolean;
-  reading: ReactNode;
-}) {
+function PlatformFigures({ figures, reading }: { figures: Figures; reading: boolean }) {
   const mrrAccounts = figures.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
   return (
-    <div aria-busy={pending || undefined}>
-      <Panel title="Platform" src={reading} description="Demo accounts are not counted.">
-        <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <Figure
-            label="Estimated MRR"
-            figure={moneyWords(
-              figures.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })),
-              "No data",
-            )}
-            detail={
-              mrrAccounts === 0
-                ? "No MRR snapshots yet"
-                : `Across ${plural(mrrAccounts, "merchant", "merchants")}`
-            }
-          />
-          <Figure
-            label="Connected to Stripe"
-            figure={String(figures.connectedCount)}
-            detail={`${figures.connectedCount} of ${plural(figures.merchantCount, "merchant", "merchants")}`}
-          />
-          <Figure
-            label="Total recovered"
-            figure={moneyWords(figures.totalRecovered, "$0.00")}
-            detail="All time"
-          />
-          <Figure
-            label="Recovery fees this month"
-            figure={moneyWords(figures.recoveryFeesThisMonth, "$0.00")}
-            detail="Invoiced since the 1st (UTC)"
-          />
-          <Figure
-            label="Payments in queue"
-            figure={String(figures.paymentsInQueue)}
-            detail="Failed payments in a recovery sequence"
-          />
-        </dl>
-      </Panel>
-    </div>
+    <Panel title="Platform" reading={reading} description="Demo accounts are not counted.">
+      <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Figure
+          label="Estimated MRR"
+          figure={moneyWords(
+            figures.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })),
+            "No data",
+          )}
+          detail={
+            mrrAccounts === 0
+              ? "No MRR snapshots yet"
+              : `Across ${plural(mrrAccounts, "merchant", "merchants")}`
+          }
+        />
+        <Figure
+          label="Connected to Stripe"
+          figure={String(figures.connectedCount)}
+          detail={`${figures.connectedCount} of ${plural(figures.merchantCount, "merchant", "merchants")}`}
+        />
+        <Figure
+          label="Total recovered"
+          figure={moneyWords(figures.totalRecovered, "$0.00")}
+          detail="All time"
+        />
+        <Figure
+          label="Recovery fees this month"
+          figure={moneyWords(figures.recoveryFeesThisMonth, "$0.00")}
+          detail="Invoiced since the 1st (UTC)"
+        />
+        <Figure
+          label="Payments in queue"
+          figure={String(figures.paymentsInQueue)}
+          detail="Failed payments in a recovery sequence"
+        />
+      </dl>
+    </Panel>
   );
 }
 

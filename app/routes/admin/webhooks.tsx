@@ -1,14 +1,14 @@
-import { useId, useState } from "react";
+import { useId } from "react";
 import { Form, useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
-import { ChevronRight } from "lucide-react";
+import { ExpandRows } from "capsomer/react/disclosure";
 import { Empty } from "capsomer/react/empty";
-import { Pagination } from "capsomer/react/pagination";
+import { Pagination, pageHref } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
 import { Status } from "capsomer/react/status";
 import "capsomer/button.css";
+import "capsomer/disclosure.css";
 import "capsomer/field.css";
 import "capsomer/pagination.css";
 import "capsomer/table.css";
@@ -22,7 +22,6 @@ import {
   WEBHOOK_PAGE_SIZE,
   WEBHOOKS_PATH,
   webhookCountWords,
-  webhookListHref,
 } from "~/lib/admin/webhooks";
 import {
   getWebhookHealthSummary,
@@ -109,204 +108,187 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         />
       </StatTiles>
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Webhook events"
-          headingId={HEADING_ID}
-          src={pending ? <Spinner size="sm" label="Reading again" /> : undefined}
-          description={
-            filtered
-              ? `${webhookCountWords(list.total)} match this filter, newest first.`
-              : `${webhookCountWords(list.total)} in the log, newest first.`
-          }
-          flush
+      <Panel
+        title="Webhook events"
+        headingId={HEADING_ID}
+        reading={pending}
+        description={
+          filtered
+            ? `${webhookCountWords(list.total)} match this filter, newest first.`
+            : `${webhookCountWords(list.total)} in the log, newest first.`
+        }
+        flush
+      >
+        {/* Keyed by the filters so the fields show the address after Back. */}
+        <Form
+          key={JSON.stringify(filters)}
+          method="get"
+          action={WEBHOOKS_PATH}
+          className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border px-4 py-3"
         >
-          {/* Keyed by the filters so the fields show the address after Back. */}
-          <Form
-            key={JSON.stringify(filters)}
-            method="get"
-            action={WEBHOOKS_PATH}
-            className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border px-4 py-3"
-          >
-            <div className="cap-field min-w-56 grow sm:w-80 sm:grow-0">
-              <label className="cap-field-label" htmlFor={typeId}>
-                Event type
-              </label>
-              <input
-                className="cap-input"
-                id={typeId}
-                name="type"
-                type="search"
-                defaultValue={filters.type}
-                placeholder="For example: invoice.payment_failed"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <label className="cap-check min-h-6">
-              <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
-              Errors only
+          <div className="cap-field min-w-56 grow sm:w-80 sm:grow-0">
+            <label className="cap-field-label" htmlFor={typeId}>
+              Event type
             </label>
-            <label className="cap-check min-h-6">
-              <input
-                type="checkbox"
-                name="pending"
-                value="1"
-                defaultChecked={filters.pendingOnly}
-              />{" "}
-              Pending only
-            </label>
-            <div className="flex items-center gap-3">
-              <button type="submit" className="cap-btn">
-                Filter
-              </button>
-              {filtered ? (
+            <input
+              className="cap-input"
+              id={typeId}
+              name="type"
+              type="search"
+              defaultValue={filters.type}
+              placeholder="For example: invoice.payment_failed"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
+          <label className="cap-check min-h-6">
+            <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
+            Errors only
+          </label>
+          <label className="cap-check min-h-6">
+            <input type="checkbox" name="pending" value="1" defaultChecked={filters.pendingOnly} />{" "}
+            Pending only
+          </label>
+          <div className="flex items-center gap-3">
+            <button type="submit" className="cap-btn">
+              Filter
+            </button>
+            {filtered ? (
+              <Link to={WEBHOOKS_PATH} className={LINK}>
+                Clear filter
+              </Link>
+            ) : null}
+          </div>
+        </Form>
+
+        {list.events.length === 0 ? (
+          filtered ? (
+            <Empty
+              kind="no-match"
+              title="No events match this filter."
+              action={
                 <Link to={WEBHOOKS_PATH} className={LINK}>
                   Clear filter
                 </Link>
-              ) : null}
-            </div>
-          </Form>
-
-          {list.events.length === 0 ? (
-            filtered ? (
-              <Empty
-                kind="no-match"
-                title="No events match this filter."
-                action={
-                  <Link to={WEBHOOKS_PATH} className={LINK}>
-                    Clear filter
-                  </Link>
-                }
-              />
-            ) : (
-              <Empty kind="nothing-yet" title="No webhook events recorded yet.">
-                Every event Stripe sends to Foxhound appears here as it arrives.
-              </Empty>
-            )
+              }
+            />
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <caption className="cap-sr-only">
-                  Webhook events, newest first. Open an event type to see its payload.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Event type</th>
-                    <th scope="col">Account</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Received</th>
-                    <th scope="col">Error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.events.map((e) => (
-                    <EventRows key={e.id} event={e} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            <Empty kind="nothing-yet" title="No webhook events recorded yet.">
+              Every event Stripe sends to Foxhound appears here as it arrives.
+            </Empty>
+          )
+        ) : (
+          <div
+            className="cap-table-wrap"
+            data-reflow=""
+            data-cap="table"
+            role="region"
+            aria-labelledby={HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">
+                Webhook events, newest first. Open an event type to see its payload.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Event type</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Received</th>
+                  <th scope="col">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.events.map((e) => (
+                  <EventRows key={e.id} event={e} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {list.pageCount > 1 ? (
-            <div className="border-t border-border px-4 py-3">
-              <Pagination
-                page={list.page}
-                pageCount={list.pageCount}
-                total={list.total}
-                perPage={WEBHOOK_PAGE_SIZE}
-                noun="events"
-                hrefFor={(n) => webhookListHref(filters, n)}
-                label="Webhook event pages"
-              />
-            </div>
-          ) : null}
-        </Panel>
-      </div>
+        {list.pageCount > 1 ? (
+          <div className="border-t border-border px-4 py-3">
+            <Pagination
+              page={list.page}
+              pageCount={list.pageCount}
+              total={list.total}
+              perPage={WEBHOOK_PAGE_SIZE}
+              noun="events"
+              hrefFor={(n) =>
+                pageHref(
+                  WEBHOOKS_PATH,
+                  { type: filters.type, errors: filters.errorsOnly, pending: filters.pendingOnly },
+                  n,
+                )
+              }
+              label="Webhook event pages"
+            />
+          </div>
+        ) : null}
+      </Panel>
     </div>
   );
 }
 
-/** One event and, under it, its payload across the whole table, opened by the
- *  event type's button (aria-expanded, aria-controls), so Enter or Space
- *  opens it and a screen reader hears the state. */
+/** One event and, under it, its payload across the whole table (Capsomer's
+ *  ExpandRows), opened by the event type's button, so Enter or Space opens it
+ *  and a screen reader hears the state. */
 function EventRows({ event }: { event: WebhookEventRow }) {
-  const [open, setOpen] = useState(false);
-  const payloadId = useId();
-
   return (
-    <>
-      <tr>
-        <th scope="row" className="font-normal">
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={payloadId}
-            onClick={() => setOpen((o) => !o)}
-            className="inline-flex min-h-6 cursor-pointer items-center gap-1 rounded-sm text-left font-mono text-micro text-text hover:underline"
-          >
-            <ChevronRight
-              aria-hidden="true"
-              className={`size-4 shrink-0 text-text-tertiary motion-safe:transition-transform motion-reduce:transition-none ${open ? "rotate-90" : ""}`}
-            />
-            <span className="break-all">{event.eventType}</span>
-            <span className="cap-sr-only"> payload</span>
-          </button>
-        </th>
-        <td data-label="Account">
-          {event.accountId ? (
-            <Link
-              to={merchantHref(event.accountId)}
-              className={`${LINK} font-mono text-micro break-all`}
-            >
-              {event.accountId}
-            </Link>
-          ) : (
-            <span className="text-text-tertiary">No account</span>
-          )}
-        </td>
-        <td data-label="Status">
-          {event.errorMessage ? (
-            <Status tone="crit">Error</Status>
-          ) : event.processed ? (
-            <Status tone="ok">Processed</Status>
-          ) : (
-            <Status tone="info">Pending</Status>
-          )}
-        </td>
-        <td data-label="Received">
-          <Time at={event.receivedAt} empty="never" tip />
-        </td>
-        <td
-          data-label="Error"
-          data-wrap=""
-          className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}
-        >
-          {event.errorMessage ?? "None"}
-        </td>
-      </tr>
-      {/* Rendered only when open: a reflowed row is display: grid, which beats hidden. */}
-      {open ? (
-        <tr id={payloadId}>
-          <td colSpan={COLUMNS}>
-            <pre
-              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
-              tabIndex={0}
-              aria-label={`${event.eventType} payload`}
-              className="m-0 max-h-96 overflow-auto rounded-md border border-border bg-sunken p-3 font-mono text-micro text-text"
-            >
-              {JSON.stringify(event.payload, null, 2)}
-            </pre>
+    <ExpandRows
+      name={<span className="break-all font-mono text-micro">{event.eventType}</span>}
+      toggleSuffix="payload"
+      columns={COLUMNS}
+      row={(toggle) => (
+        <>
+          <th scope="row" className="font-normal">
+            {toggle}
+          </th>
+          <td data-label="Account">
+            {event.accountId ? (
+              <Link
+                to={merchantHref(event.accountId)}
+                className={`${LINK} font-mono text-micro break-all`}
+              >
+                {event.accountId}
+              </Link>
+            ) : (
+              <span className="text-text-tertiary">No account</span>
+            )}
           </td>
-        </tr>
-      ) : null}
-    </>
+          <td data-label="Status">
+            {event.errorMessage ? (
+              <Status tone="crit">Error</Status>
+            ) : event.processed ? (
+              <Status tone="ok">Processed</Status>
+            ) : (
+              <Status tone="info">Pending</Status>
+            )}
+          </td>
+          <td data-label="Received">
+            <Time at={event.receivedAt} empty="never" tip />
+          </td>
+          <td
+            data-label="Error"
+            data-wrap=""
+            className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}
+          >
+            {event.errorMessage ?? "None"}
+          </td>
+        </>
+      )}
+      detail={
+        <pre
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
+          tabIndex={0}
+          aria-label={`${event.eventType} payload`}
+          className="m-0 max-h-96 overflow-auto rounded-md border border-border bg-sunken p-3 font-mono text-micro text-text"
+        >
+          {JSON.stringify(event.payload, null, 2)}
+        </pre>
+      }
+    />
   );
 }

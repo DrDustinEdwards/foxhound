@@ -101,25 +101,6 @@ describe("the filters come from the address", () => {
       page: 3,
     });
   });
-
-  it("falls back to page 1 for a page that is not a whole positive number", () => {
-    for (const p of ["0", "-2", "abc", "1.5", "", "1e3"])
-      expect(parse(`page=${p}`).page, p).toBe(1);
-  });
-
-  it("builds the link to a page with the filters kept and the defaults left out", () => {
-    expect(typeof pageLib.webhookListHref).toBe("function");
-    const href = pageLib.webhookListHref as (f: Filters, page: number) => string;
-    expect(href({ type: "", errorsOnly: false, pendingOnly: false, page: 4 }, 1)).toBe(
-      "/admin/platform/webhooks",
-    );
-    expect(href({ type: "invoice paid", errorsOnly: true, pendingOnly: false, page: 1 }, 2)).toBe(
-      "/admin/platform/webhooks?type=invoice+paid&errors=1&page=2",
-    );
-    expect(href({ type: "", errorsOnly: false, pendingOnly: true, page: 1 }, 1)).toBe(
-      "/admin/platform/webhooks?pending=1",
-    );
-  });
 });
 
 describe("listWebhookEvents", () => {

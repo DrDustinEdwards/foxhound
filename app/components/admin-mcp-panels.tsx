@@ -3,7 +3,6 @@ import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import { Status } from "capsomer/react/status";
-import type { ReactNode } from "react";
 import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
@@ -34,10 +33,10 @@ const LINK =
 // material is read (app/lib/admin/mcps.server.ts).
 export function AdminMcpPanels({
   data: { summary, keys, calls, tools },
-  spinner,
+  reading,
 }: {
   data: Awaited<ReturnType<typeof loadMcpOverview>>;
-  spinner?: ReactNode;
+  reading?: boolean;
 }) {
   const writes = tools.filter((t) => t.writes).length;
 
@@ -67,7 +66,7 @@ export function AdminMcpPanels({
         <Panel
           title="API keys"
           headingId={KEYS_HEADING_ID}
-          src={spinner}
+          reading={reading}
           description={`${plural(keys.length, "key", "keys")}, ${summary.keysActive} active, newest first.`}
           flush
         >
@@ -109,7 +108,7 @@ export function AdminMcpPanels({
         <Panel
           title="Merchant tools"
           headingId={TOOLS_HEADING_ID}
-          src={spinner}
+          reading={reading}
           description={`${plural(tools.length, "tool", "tools")} in the merchant MCP's registry: ${tools.length - writes} read, ${writes} write.`}
           flush
         >
@@ -162,7 +161,7 @@ export function AdminMcpPanels({
         <Panel
           title="Recent calls"
           headingId={CALLS_HEADING_ID}
-          src={spinner}
+          reading={reading}
           description={`Up to the newest ${MCP_CALLS_SHOWN} merchant MCP calls, every account. Arguments are not shown.`}
           flush
         >
