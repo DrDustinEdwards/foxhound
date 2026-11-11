@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import type { BatchItem } from "drizzle-orm/batch";
-import { and, eq, isNull, notLike } from "drizzle-orm";
+import { and, eq, isNull, notLike, sql } from "drizzle-orm";
 
 import {
   accounts,
@@ -15,6 +15,7 @@ import {
   type Db,
 } from "~/db";
 import {
+  DAY_MS,
   DEMO_ACCOUNT_ID_PREFIX,
   INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER,
   INTELLIGENCE_MAX_CUSTOMERS_SCANNED,
@@ -645,7 +646,18 @@ export async function runIntelligenceSyncForAccount(
   }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
-  await db.insert(mrrSnapshots).values({
+  // One row per account per UTC day (mrr_snapshots_account_day_uq): a second
+  // sync the same day replaces the day's row, in one batch, so the day is never
+  // missing or counted twice.
+  const replaceDay = db
+    .delete(mrrSnapshots)
+    .where(
+      and(
+        eq(mrrSnapshots.accountId, accountId),
+        sql`${mrrSnapshots.snapshotDate} / ${sql.raw(String(DAY_MS))} = ${Math.floor(now.getTime() / DAY_MS)}`,
+      ),
+    );
+  const insertDay = db.insert(mrrSnapshots).values({
     accountId,
     snapshotDate: now,
     currency,
@@ -667,6 +679,7 @@ export async function runIntelligenceSyncForAccount(
     grossRevenueRetentionBps: snapshotFields.grossRevenueRetentionBps,
     createdAt: now,
   });
+  await db.batch([replaceDay, insertDay]);
 
   // Recova's compute-daily-metrics wrote accounts.mrr_estimate nightly from the
   // active subscriptions, normalized to a month; this total is the same

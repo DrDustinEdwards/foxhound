@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq } from "drizzle-orm";
 
 import { accounts, failedPayments, getDb } from "~/db";
@@ -182,7 +183,7 @@ export async function sendSequenceCompleteNotification(
     const data = await loadSequenceCompleteData(db, ctx);
     if ("skipped" in data) return { kind: "skipped", reason: data.skipped };
 
-    const baseUrl = env.BETTER_AUTH_URL ?? "";
+    const baseUrl = appOrigin(env);
     const result = await processEmailJob(
       env,
       {

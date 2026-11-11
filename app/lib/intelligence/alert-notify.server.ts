@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { eq } from "drizzle-orm";
 
 import { accounts, type Db } from "~/db";
@@ -267,7 +268,7 @@ export async function notifyThresholdAlert(
       const result = await sendAlertMail(env, {
         accountId: firing.accountId,
         to: target.notificationEmail,
-        content: thresholdAlertContent(firing, env.BETTER_AUTH_URL ?? "", firedAt),
+        content: thresholdAlertContent(firing, appOrigin(env), firedAt),
         template: THRESHOLD_ALERT_TEMPLATE,
         // One logical send per firing: a firing is one alert at one instant.
         idempotencyKey: `alert:${firing.alertId}:${firedAt.getTime()}`,
@@ -322,7 +323,7 @@ export async function notifyCriticalCustomers(
   now: Date,
 ): Promise<CriticalNotifyOutcome> {
   const target = await loadAlertTarget(env, db, accountId);
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
   if (target.notificationEmail && env.EMAIL) {
     const result = await sendAlertMail(env, {
       accountId,

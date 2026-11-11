@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   and,
@@ -374,7 +375,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
   // run started, falls OUTSIDE it and this week's digest is not skipped by its
   // own predecessor.
   const claimWindowStart = new Date(now.getTime() - DIGEST_CLAIM_WINDOW_MS);
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
 
   for (const account of await queryDigestAccounts(db)) {
     try {
