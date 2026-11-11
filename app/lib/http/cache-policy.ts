@@ -291,7 +291,6 @@ export const NO_TRANSFORM_PREFIXES = [
   "/intelligence/",
   "/settings",
   "/audit/dashboard",
-  "/audit/runs/",
   "/audit/results/",
   "/help",
   "/welcome",

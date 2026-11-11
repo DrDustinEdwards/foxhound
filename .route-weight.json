@@ -89,8 +89,7 @@
       "routes/decline-codes/code": 35131,
       "routes/decline-codes/index": 35131,
       "routes/security": 35131,
-      "layouts/marketing": 33931,
-      "routes/products/spoke-redirect": 33931
+      "layouts/marketing": 33931
     }
   }
 }

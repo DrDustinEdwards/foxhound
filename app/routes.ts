@@ -8,8 +8,7 @@ export default [
     route("pricing", "./routes/pricing.tsx"),
     // Recova's paths: the hub is /products and each
     // product's page is /product/<name>, singular, as in Recova's
-    // app/(marketing)/product/*. The old /products/<name> spokes were in the
-    // sitemap, so each answers one 301 to its new path; any other name is a 404.
+    // app/(marketing)/product/*.
     route("products", "./routes/products/index.tsx"),
     ...prefix("product", [
       route("audit", "./routes/products/audit.tsx"),
@@ -17,7 +16,6 @@ export default [
       route("disputes", "./routes/products/disputes.tsx"),
       route("intelligence", "./routes/products/intelligence.tsx"),
     ]),
-    route("products/:spoke", "./routes/products/spoke-redirect.ts"),
     ...prefix("decline-codes", [
       index("./routes/decline-codes/index.tsx"),
       route(":code", "./routes/decline-codes/code.tsx"),
@@ -38,13 +36,6 @@ export default [
     route("audit/connect", "./routes/audit/connect.tsx"),
     route("audit/callback", "./routes/audit/callback.ts"),
     route("audit/results", "./routes/audit/results.tsx"),
-    // J43: the signed-in history moved to Recova's /audit/dashboard (below, in
-    // the app shell). The old path answers one 301 to it.
-    route("audit/history", "./routes/audit/history-redirect.ts"),
-    // J63: a saved run moved to Recova's /audit/results/:id (below, in the app
-    // shell). The old path, linked from monthly emails already sent, answers
-    // one 301 to it.
-    route("audit/runs/:id", "./routes/audit/runs-redirect.ts"),
     route("marketing/generate-email-sample", "./routes/marketing/generate-email-sample.ts"),
     ...prefix("blog", [
       index("./routes/blog/index.tsx"),
@@ -268,37 +259,6 @@ export default [
   route("og", "./routes/files/og.ts", { id: "og-recova" }),
   // The blog's media library (Carrel uploads): an original, or one size for ?w=.
   route("media/*", "./routes/files/media.ts"),
-
-  // Recova's config-level redirects (J23, ledger row F17), at Recova's own
-  // paths. One resource module answers all of them from Recova's table in
-  // app/lib/redirects/recova-config-redirects.ts; each path needs its own id
-  // because the module is shared.
-  route("recovery/audit", "./routes/redirects/recova-config.ts", { id: "recova-redirect-audit" }),
-  route("recovery/audit/connect", "./routes/redirects/recova-config.ts", {
-    id: "recova-redirect-audit-connect",
-  }),
-  route("recovery/audit/results", "./routes/redirects/recova-config.ts", {
-    id: "recova-redirect-audit-results",
-  }),
-  route("user-guides", "./routes/redirects/recova-config.ts", {
-    id: "recova-redirect-user-guides",
-  }),
-  route("user-guides/*", "./routes/redirects/recova-config.ts", {
-    id: "recova-redirect-user-guides-splat",
-  }),
-  route("sitemap_index.xml", "./routes/redirects/recova-config.ts", {
-    id: "recova-redirect-sitemap-index",
-  }),
-  // Pages combined into others (Dustin, 2026-10-29): the old addresses redirect.
-  route("settings/alerts", "./routes/redirects/moved-page.ts", { id: "moved-settings-alerts" }),
-  route("settings/intelligence", "./routes/redirects/moved-page.ts", {
-    id: "moved-settings-intelligence",
-  }),
-  route("settings/features", "./routes/redirects/moved-page.ts", { id: "moved-settings-features" }),
-  route("intelligence/alerts", "./routes/redirects/moved-page.ts", {
-    id: "moved-intelligence-alerts",
-  }),
-  route("admin/mcps", "./routes/redirects/moved-page.ts", { id: "moved-admin-mcps" }),
 
   // Auth callback (resource route, no shell)
   route("auth/google/callback", "./routes/auth/google-callback.ts"),

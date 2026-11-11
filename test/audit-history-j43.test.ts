@@ -56,19 +56,6 @@ function contextFor(accountId: string): unknown {
   };
 }
 
-describe("J43: the path is Recova's /audit/dashboard", () => {
-  it("answers the old /audit/history with one 301 to /audit/dashboard, keeping the query", async () => {
-    const mod = await import("~/routes/audit/history-redirect");
-    const res = mod.loader({
-      request: new Request("https://foxhoundapp.test/audit/history?x=1"),
-      params: {},
-      context: {},
-    } as never) as Response;
-    expect(res.status).toBe(301);
-    expect(res.headers.get("Location")).toBe("/audit/dashboard?x=1");
-  });
-});
-
 describe("J43: Since last run, Recova's compare()", async () => {
   const { compareRuns } = await import("~/lib/audit/trend");
 

@@ -32,7 +32,6 @@ export const DISALLOW_PATHS = [
   // `/audit/callback` join it: one is a step inside a flow, the other is an
   // OAuth return, and neither is a destination.
   "/audit/dashboard",
-  "/audit/runs/",
   "/audit/connect",
   "/audit/callback",
   "/audit/results",

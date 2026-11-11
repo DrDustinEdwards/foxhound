@@ -29,7 +29,6 @@ import {
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
 import { renderMarkdown } from "~/lib/blog/markdown.server";
-import { redirectedBlogSlug } from "~/lib/blog/slug-redirects";
 import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
@@ -472,8 +471,8 @@ export function carrelAdapter(
             "A post's id is its address, /blog/<id>: lower case letters and digits, joined by single hyphens.",
           );
         }
-        // The four renamed comparison posts and the withdrawn ones answer before any post does.
-        if (redirectedBlogSlug(newId) || isWithdrawnBlogSlug(newId)) {
+        // A withdrawn post's address answers 410 before any post does.
+        if (isWithdrawnBlogSlug(newId)) {
           throw new RefusedError(
             `/blog/${newId} is kept for an older post, so no post can take it.`,
           );

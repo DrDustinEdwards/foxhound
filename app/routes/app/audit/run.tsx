@@ -26,8 +26,7 @@ import { formatDateShort } from "~/lib/date-format";
 
 // J63, row U4: Recova's saved run, app/audit/results/[id]/
 // page.tsx (blob a0dbf6ef, 11,127 bytes), at Recova's own path,
-// /audit/results/:id. The old /audit/runs/:id answers one 301 here
-// (app/routes/audit/runs-redirect.ts). Read whole at HEAD with
+// /audit/results/:id. Read whole at HEAD with
 // components/audit/AuditResultsReveal.tsx (7ebadf8c).
 //
 // RECOVA IS THE SPEC for what is on the page and in what order: the banner

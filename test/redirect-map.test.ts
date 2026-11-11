@@ -53,9 +53,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
   it("sends every Recova path to a path Foxhound serves", () => {
     const shapes = new Set([...SERVED].map((p) => p.replace(/:[^/]+/g, ":")));
     for (const entry of RECOVA_REDIRECT_MAP) {
-      expect(shapes.has(entry.to.replace(/:[^/]+/g, ":")), `${entry.from} -> ${entry.to}`).toBe(
-        true,
-      );
+      const shape = entry.to.replace(/:[^/]+/g, ":");
+      // A concrete post address (/blog/foxhound-vs-churnkey) is served by /blog/:slug.
+      const served = shapes.has(shape) || shapes.has(shape.replace(/\/[^/:]+$/, "/:"));
+      expect(served, `${entry.from} -> ${entry.to}`).toBe(true);
     }
   });
 
@@ -63,6 +64,11 @@ describe("RECOVA_REDIRECT_MAP", () => {
     const named = RECOVA_REDIRECT_MAP.filter((e) => e.to !== e.from).map((e) => e.from);
     expect(named.sort()).toEqual(
       [
+        // Recova's four comparison posts, at their foxhound-vs-* slugs.
+        "/blog/recova-vs-churn-buster",
+        "/blog/recova-vs-churnkey",
+        "/blog/recova-vs-paddle-retain",
+        "/blog/recova-vs-stripe-smart-retries",
         "/blog/rss.xml",
         "/blog/sitemap.xml",
         "/disputes/demo",
@@ -93,6 +99,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
     const fixtureUrls = new Set([
       ...LEGACY_MARKETING_ROUTES.map((r) => r.url),
       ...RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source),
+      // The four renamed comparison posts, each a concrete /blog/:slug address.
+      ...RECOVA_REDIRECT_MAP.filter((e) => e.from.startsWith("/blog/recova-vs-")).map(
+        (e) => e.from,
+      ),
     ]);
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(
