@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { isRouteErrorResponse } from "react-router";
 import { ErrorPage } from "capsomer/react/error-page";
 
@@ -50,9 +51,10 @@ export function ErrorBar() {
 }
 
 export function ErrorFooter() {
+  const [year] = useState(() => new Date().getFullYear());
   return (
     <footer className="w-full p-6 text-center text-label text-text-tertiary">
-      &copy; 2026 Foxhound
+      &copy; {year} Foxhound
     </footer>
   );
 }
