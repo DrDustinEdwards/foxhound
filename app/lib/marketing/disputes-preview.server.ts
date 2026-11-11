@@ -1,6 +1,6 @@
+import { formatDate } from "capsomer/behavior/time";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import type { DisputeState } from "~/lib/constants";
-import { formatDateMonthDay } from "~/lib/date-format";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
 import {
@@ -102,7 +102,7 @@ function buildDisputesPreview(now: Date): DisputesPreview {
       resolved,
       deadlineDays: days,
       deadlineUrgency: deadlineUrgency(days),
-      deadlineDate: formatDateMonthDay(d.evidenceDeadline),
+      deadlineDate: formatDate(d.evidenceDeadline, { style: "monthDay" }) ?? "",
       triage:
         d.triageRecommendation === "fight" || d.triageRecommendation === "accept"
           ? { recommendation: d.triageRecommendation, confidence: d.triageConfidence }

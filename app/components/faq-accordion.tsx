@@ -29,7 +29,7 @@ export function FaqAccordion({ faqs }: { faqs: FaqItem[] }) {
           >
             <span className="text-body font-medium text-text">{faq.question}</span>
             <span
-              className="flex-shrink-0 text-lg text-text-tertiary transition-transform duration-200"
+              className="flex-shrink-0 text-lg text-text-tertiary motion-safe:transition-transform duration-200"
               style={{ transform: open === i ? "rotate(45deg)" : "rotate(0deg)" }}
               aria-hidden="true"
             >
@@ -39,10 +39,10 @@ export function FaqAccordion({ faqs }: { faqs: FaqItem[] }) {
           <div
             // A closed answer is clipped to zero height, so it leaves the accessibility tree too.
             aria-hidden={open !== i}
+            className="motion-safe:transition-[max-height] motion-safe:duration-300 motion-safe:ease-[ease]"
             style={{
               maxHeight: open === i ? "480px" : "0px",
               overflow: "hidden",
-              transition: "max-height 0.3s ease",
             }}
           >
             <p className="m-0 px-5 pb-5 text-label leading-relaxed text-text-secondary">

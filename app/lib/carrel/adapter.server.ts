@@ -623,7 +623,7 @@ export function carrelAdapter(
         const { html } = await renderMarkdown(db, post.body);
         return previewDocument({
           title: post.title,
-          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${escapeHtml(post.title)}</h1><div class="blog-prose e-content">${html}</div></article></main>`,
+          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${escapeHtml(post.title)}</h1><div class="blog-prose e-content" data-context="prose">${html}</div></article></main>`,
           origin: SITE_ORIGIN,
           stylesheets,
           attributes: { "data-theme": "light" },

@@ -4,7 +4,7 @@ import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Spinner } from "capsomer/react/skeleton";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
 import { membershipWord, usersCountSentence } from "~/lib/admin/users";
@@ -108,10 +108,10 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                       {u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}
                     </td>
                     <td data-label="Last sign-in">
-                      <AdminTime at={u.lastSignInAt} empty="No sign-in on record" />
+                      <Time at={u.lastSignInAt} empty="No sign-in on record" tip />
                     </td>
                     <td data-label="Joined">
-                      <AdminTime at={u.createdAt} />
+                      <Time at={u.createdAt} empty="never" tip />
                     </td>
                     <td
                       data-label="User ID"

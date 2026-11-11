@@ -5,7 +5,6 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useMatches,
   useRouteLoaderData,
 } from "react-router";
 
@@ -25,7 +24,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { useNonce } from "@dustinedwards/site-runtime/nonce";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
-import type { loader as marketingLoader } from "./layouts/marketing";
+import { usePageHydrates } from "./lib/page-hydrates";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
 export function meta({ error }: Route.MetaArgs) {
@@ -74,18 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // stored page would hand every reader the value it was rendered with.
   const nonce = useNonce();
 
-  // HYDRATION IS OPT-IN BY ROUTE (`handle = { hydrate: true }`), as on dustinedwards.info. The public
-  // marketing pages send no React: their few widgets (the theme button and menus, the reveals, the FAQ,
-  // the calculator, the email generator) run from /site.js and its islands (app/site.ts, app/islands/).
-  // The signed-in app, the admin, the sign-in pages, /connect, the audit flow and the token pages
-  // opt in. A signed-in visitor on a marketing page also hydrates: their header carries the business
-  // switcher and Sign out, which are React's, and their pages are private and never edge-cached.
-  const matches = useMatches();
-  const signedIn =
-    useRouteLoaderData<typeof marketingLoader>("layouts/marketing")?.isAuthenticated === true;
-  const hydrates =
-    signedIn ||
-    matches.some((match) => (match.handle as { hydrate?: boolean } | undefined)?.hydrate === true);
+  const hydrates = usePageHydrates();
 
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">

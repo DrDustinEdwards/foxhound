@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { useEffect, useId, useState } from "react";
@@ -13,7 +14,6 @@ import {
 } from "@dustinedwards/site-runtime/sign-in-client";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
-import { formatDateShort } from "~/lib/date-format";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 /** Where this person is signed in (site-runtime's sessionRows, current first);
@@ -282,9 +282,9 @@ export function SignInMethodsPanel({
                     {d.device ?? "Unknown device"}
                     {d.current ? " (this device)" : null}
                     <span className="block text-text-tertiary">
-                      Signed in {formatDateShort(d.signedInAt)}
+                      Signed in {formatDate(d.signedInAt, { style: "medium" }) ?? ""}
                       {d.location ? ` near ${d.location}` : null}, last active{" "}
-                      {formatDateShort(d.lastActiveAt)}
+                      {formatDate(d.lastActiveAt, { style: "medium" }) ?? ""}
                     </span>
                   </span>
                   {d.current ? null : (
@@ -331,7 +331,9 @@ export function SignInMethodsPanel({
                   <li key={`${h.at.toISOString()}-${i}`} className="text-label text-text">
                     {historyLabel(h)}
                     <span className="block text-text-tertiary">
-                      {[formatDateShort(h.at), h.device, h.location].filter(Boolean).join(", ")}
+                      {[formatDate(h.at, { style: "medium" }) ?? "", h.device, h.location]
+                        .filter(Boolean)
+                        .join(", ")}
                     </span>
                   </li>
                 ))}
@@ -372,9 +374,9 @@ function PasskeyItem({
   const fieldId = useId();
   const facts = [
     passkey.provider !== passkey.name ? passkey.provider : null,
-    passkey.createdAt ? `added ${formatDateShort(passkey.createdAt)}` : null,
+    passkey.createdAt ? `added ${formatDate(passkey.createdAt, { style: "medium" }) ?? ""}` : null,
     passkey.lastUsedAt
-      ? `last used ${formatDateShort(passkey.lastUsedAt)}`
+      ? `last used ${formatDate(passkey.lastUsedAt, { style: "medium" }) ?? ""}`
       : "not used to sign in yet",
   ].filter(Boolean);
 

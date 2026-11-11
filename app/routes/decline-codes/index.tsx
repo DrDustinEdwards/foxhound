@@ -1,7 +1,9 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
-import { Badge } from "~/components/badge";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
@@ -56,9 +58,9 @@ export default function DeclineCodesIndex() {
           <section key={group.category} className="border-b border-border-sub py-8 last:border-0">
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-title font-medium text-text">{CATEGORY_LABEL[group.category]}</h2>
-              <Badge tone={categoryBadgeTone(group.category)}>
+              <Pill {...BADGE_PILL[categoryBadgeTone(group.category)]}>
                 {CATEGORY_STATUS_LABEL[group.category]}
-              </Badge>
+              </Pill>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.codes.map((code) => (
@@ -74,7 +76,7 @@ export default function DeclineCodesIndex() {
                   <div className="text-label text-brand-text">
                     Read more{" "}
                     <ArrowRight
-                      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                       size={13}
                       strokeWidth={1.5}
                       aria-hidden

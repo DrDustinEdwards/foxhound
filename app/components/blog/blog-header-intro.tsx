@@ -41,7 +41,7 @@ export function BlogHeaderIntro() {
     return () => observer.disconnect();
   }, []);
 
-  const base = "transition-all duration-500";
+  const base = "motion-safe:transition-all duration-500";
   const reveal = inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4";
 
   return (

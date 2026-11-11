@@ -7,7 +7,7 @@ import { Status } from "capsomer/react/status";
 import "capsomer/meter.css";
 
 import { AdminMcpPanels } from "~/components/admin-mcp-panels";
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
@@ -118,8 +118,8 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             <dd className="m-0 text-label text-text-secondary">
               {queue.oldestDueAt ? (
                 <>
-                  Oldest due <AdminTime at={queue.oldestDueAt} />. Steps on paused or canceled
-                  accounts are not counted.
+                  Oldest due <Time at={queue.oldestDueAt} empty="never" tip />. Steps on paused or
+                  canceled accounts are not counted.
                 </>
               ) : (
                 "No step is waiting for the recovery tick."
@@ -288,7 +288,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                       </Status>
                     </td>
                     <td data-label="Applied">
-                      <AdminTime at={m.appliedAt} empty="Not yet" />
+                      <Time at={m.appliedAt} empty="Not yet" tip />
                     </td>
                   </tr>
                 ))}
@@ -369,11 +369,11 @@ function LockRow({ lock }: { lock: CronLockRow }) {
       <td data-label="Lease">
         {lock.state === "running" && lock.heldUntil ? (
           <>
-            Ends <AdminTime at={lock.heldUntil} />
+            Ends <Time at={lock.heldUntil} empty="never" tip />
           </>
         ) : lock.state === "not-released" && lock.heldUntil ? (
           <>
-            Ran out <AdminTime at={lock.heldUntil} />
+            Ran out <Time at={lock.heldUntil} empty="never" tip />
           </>
         ) : (
           <span className="text-text-tertiary">

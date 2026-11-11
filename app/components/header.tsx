@@ -7,9 +7,10 @@ import {
   merchantAccountMenu,
   renderHeaderLink,
   THEME_PREF_KEY,
-  useThemeMemory,
+  themeMemory,
 } from "./site-header";
 import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
+import { usePageHydrates } from "~/lib/page-hydrates";
 import { DEFAULT_THEME, type Theme } from "~/lib/theme";
 import type { loader as rootLoader } from "~/root";
 
@@ -80,8 +81,7 @@ export function Header({
   const submit = useSubmit();
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme;
   const serverTheme = theme ?? rootTheme ?? DEFAULT_THEME;
-  const save = isAuthenticated ? "account" : "cookie";
-  useThemeMemory(serverTheme, save);
+  const hydrates = usePageHydrates();
 
   const sections: HeaderSection[] = NAV_LINKS.map((item) => ({
     id: item.to,
@@ -117,16 +117,17 @@ export function Header({
   const switchers = isAuthenticated ? [...(business ? [business] : []), products] : [];
 
   return (
-    // On a page that does not hydrate, the header island (app/islands/header.ts) wires this same markup
-    // with Capsomer's behavior modules and keeps the theme where useThemeMemory keeps it.
+    // On a page that does not hydrate, Capsomer writes the header for its behavior modules
+    // (hydrate={false}) and the header island (app/islands/header.ts) wires it. Only a signed-out
+    // visitor sees such a page, so its theme is kept in the cookie.
     <div
       className="fh-cap fh-site-header"
       data-cap-site="foxhound"
       data-family="amber"
-      data-island="header"
-      data-props={JSON.stringify({ theme: serverTheme, save, prefKey: THEME_PREF_KEY })}
+      data-island={hydrates ? undefined : "header"}
     >
       <SiteHeader
+        hydrate={hydrates}
         logo={headerLogo("/")}
         links="right"
         sections={sections}
@@ -137,6 +138,7 @@ export function Header({
             : [{ id: "audit", label: "Free audit", kind: "button", href: "/audit" }]
         }
         themePrefKey={THEME_PREF_KEY}
+        {...themeMemory(isAuthenticated ? "account" : "cookie", serverTheme)}
         account={
           isAuthenticated
             ? merchantAccountMenu({
