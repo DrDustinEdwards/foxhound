@@ -1,4 +1,5 @@
 import { receiveCspReport } from "@dustinedwards/site-runtime/csp-report";
+import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_CSP_REPORT } from "~/lib/constants";
@@ -34,7 +35,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       isWithinRateLimit(
         env,
         "csp-report",
-        r.headers.get("cf-connecting-ip") ?? "unknown",
+        clientIp(r),
         RATE_LIMIT_CSP_REPORT.max,
         RATE_LIMIT_CSP_REPORT.windowMs,
       ),
