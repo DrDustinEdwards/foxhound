@@ -1,7 +1,8 @@
+import { FilterForm } from "~/components/filter-form";
+import { FilterBar, withParams } from "capsomer/react/filter-bar";
+import { Table } from "capsomer/react/table";
 import { Scale } from "lucide-react";
-import { Form } from "react-router";
 import { Link } from "capsomer/react/link";
-import { Button } from "capsomer/react/button";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -14,6 +15,7 @@ import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
+import "capsomer/filter-bar.css";
 // Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /disputes does.
@@ -143,14 +145,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 /** Preserve every current filter param, only overriding `page`, so paging
  *  never drops a filter. */
 function pageHref(filters: Filters, page: number): string {
-  const params = new URLSearchParams();
-  if (filters.search) params.set("q", filters.search);
-  if (filters.tier) params.set("tier", filters.tier);
-  if (filters.healthBand) params.set("band", filters.healthBand);
-  if (filters.sort !== "health_asc") params.set("sort", filters.sort);
-  if (page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/intelligence/customers?${qs}` : "/intelligence/customers";
+  return withParams(
+    "/intelligence/customers",
+    { q: filters.search, tier: filters.tier, band: filters.healthBand, sort: filters.sort, page },
+    { sort: "health_asc", page: 1 },
+  );
 }
 
 type Filters = { search: string; tier: string; healthBand: string; sort: CustomerDirectorySort };
@@ -215,7 +214,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       ) : (
         <>
           <div className="mb-6">
-            <FilterBar filters={filters} tiers={tiers} />
+            <CustomerFilters filters={filters} tiers={tiers} />
           </div>
 
           {result.customers.length === 0 ? (
@@ -225,132 +224,119 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           ) : (
             <div className="cap-panel">
               <div className="cap-panel-body" data-flush="">
-                <div
-                  className="cap-table-wrap"
-                  data-reflow="medium"
-                  data-cap="table"
-                  role="region"
-                  aria-label="Customers"
-                  tabIndex={0}
-                >
-                  <table className="cap-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Customer</th>
-                        <th scope="col">Plan</th>
-                        <th scope="col" data-num="">
-                          MRR
-                        </th>
-                        <th scope="col" data-num="">
-                          Health
-                        </th>
-                        <th scope="col">Last seen</th>
-                        <th scope="col">Signals</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.customers.map((c) => {
-                        const pill = planTierPill(c.currentPlanTier);
-                        return (
-                          <tr key={c.stripeCustomerId}>
-                            <th scope="row">
-                              {/* A plain link on the name, as Recova's is: not
+                <Table caption="Customers" captionHidden reflow="medium">
+                  <thead>
+                    <tr>
+                      <th scope="col">Customer</th>
+                      <th scope="col">Plan</th>
+                      <th scope="col" data-num="">
+                        MRR
+                      </th>
+                      <th scope="col" data-num="">
+                        Health
+                      </th>
+                      <th scope="col">Last seen</th>
+                      <th scope="col">Signals</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.customers.map((c) => {
+                      const pill = planTierPill(c.currentPlanTier);
+                      return (
+                        <tr key={c.stripeCustomerId}>
+                          <th scope="row">
+                            {/* A plain link on the name, as Recova's is: not
                                   Capsomer's stretched row link, which would lie
                                   over the Signals tooltips and the Stripe id.
                                   min-h-6 keeps a 24px target. */}
-                              <Link
-                                className="inline-flex min-h-6 items-center font-semibold text-text no-underline hover:text-accent-hover"
-                                to={`/intelligence/customers/${c.stripeCustomerId}`}
-                              >
-                                {c.customerName ?? "(unnamed)"}
-                              </Link>
-                              {/* Recova's recommended-action chip after the name. */}
-                              {c.chip ? (
-                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">
-                                  {c.chip}
-                                </span>
-                              ) : null}
-                              {/* Recova's second line under the name: the Stripe
-                                  id, micro and mono. */}
-                              <span className="block font-mono text-micro text-text-subtle">
-                                {c.stripeCustomerId}
+                            <Link
+                              className="inline-flex min-h-6 items-center font-semibold text-text no-underline hover:text-accent-hover"
+                              to={`/intelligence/customers/${c.stripeCustomerId}`}
+                            >
+                              {c.customerName ?? "(unnamed)"}
+                            </Link>
+                            {/* Recova's recommended-action chip after the name. */}
+                            {c.chip ? (
+                              <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">
+                                {c.chip}
                               </span>
-                              {/* A planned change or cancellation from the
+                            ) : null}
+                            {/* Recova's second line under the name: the Stripe
+                                  id, micro and mono. */}
+                            <span className="block font-mono text-micro text-text-subtle">
+                              {c.stripeCustomerId}
+                            </span>
+                            {/* A planned change or cancellation from the
                                   customer's Stripe subscription schedule or
                                   cancel_at, under the id. */}
-                              {c.scheduled ? (
-                                <span className="block text-micro font-normal text-text-secondary">
-                                  {c.scheduled}
-                                </span>
-                              ) : null}
-                            </th>
-                            <td data-label="Plan">
-                              {/* Capsomer's pill markup rather than its Pill
+                            {c.scheduled ? (
+                              <span className="block text-micro font-normal text-text-secondary">
+                                {c.scheduled}
+                              </span>
+                            ) : null}
+                          </th>
+                          <td data-label="Plan">
+                            {/* Capsomer's pill markup rather than its Pill
                                   component, which adds a status glyph to any
                                   toned pill; a plan is not a status. */}
+                            <span className="cap-pill" data-tone={pill.tone} data-variant="outline">
+                              {pill.label}
+                            </span>
+                          </td>
+                          <td data-label="MRR" data-num="">
+                            <span className="font-mono">
+                              {c.mrrContributionCents > 0
+                                ? formatMoney(c.mrrContributionCents, c.currency)
+                                : "-"}
+                            </span>
+                          </td>
+                          <td data-label="Health" data-num="">
+                            {c.healthScore == null ? (
+                              <span className="font-mono text-text-tertiary">-</span>
+                            ) : (
                               <span
-                                className="cap-pill"
-                                data-tone={pill.tone}
-                                data-variant="outline"
+                                className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
                               >
-                                {pill.label}
+                                {c.healthScore}
                               </span>
-                            </td>
-                            <td data-label="MRR" data-num="">
-                              <span className="font-mono">
-                                {c.mrrContributionCents > 0
-                                  ? formatMoney(c.mrrContributionCents, c.currency)
-                                  : "-"}
-                              </span>
-                            </td>
-                            <td data-label="Health" data-num="">
-                              {c.healthScore == null ? (
-                                <span className="font-mono text-text-tertiary">-</span>
-                              ) : (
-                                <span
-                                  className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
-                                >
-                                  {c.healthScore}
-                                </span>
-                              )}
-                            </td>
-                            <td data-label="Last seen">
-                              <span className="font-mono text-text-tertiary">
-                                {formatRelativeLastSeen(c.lastSeenAt, now)}
-                              </span>
-                            </td>
-                            <td data-label="Signals">
-                              {/* Recova's two signals under Recova's names. An
+                            )}
+                          </td>
+                          <td data-label="Last seen">
+                            <span className="font-mono text-text-tertiary">
+                              {formatRelativeLastSeen(c.lastSeenAt, now)}
+                            </span>
+                          </td>
+                          <td data-label="Signals">
+                            {/* Recova's two signals under Recova's names. An
                                   empty cell is blank, as Recova's is. */}
-                              <div className="flex items-center gap-2">
-                                {c.hasActiveRecovery ? (
-                                  <span
-                                    role="img"
-                                    className="h-2 w-2 shrink-0 rounded-full bg-red"
-                                    title="Active recovery"
-                                    aria-label="Active recovery"
-                                  />
-                                ) : null}
-                                {c.hasDisputeHistory ? (
-                                  <Scale
-                                    width={14}
-                                    height={14}
-                                    strokeWidth={1.75}
-                                    className="shrink-0 text-text-tertiary"
-                                    role="img"
-                                    aria-label="Dispute history"
-                                  >
-                                    <title>Dispute history</title>
-                                  </Scale>
-                                ) : null}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            <div className="flex items-center gap-2">
+                              {c.hasActiveRecovery ? (
+                                <span
+                                  role="img"
+                                  className="h-2 w-2 shrink-0 rounded-full bg-red"
+                                  title="Active recovery"
+                                  aria-label="Active recovery"
+                                />
+                              ) : null}
+                              {c.hasDisputeHistory ? (
+                                <Scale
+                                  width={14}
+                                  height={14}
+                                  strokeWidth={1.75}
+                                  className="shrink-0 text-text-tertiary"
+                                  role="img"
+                                  aria-label="Dispute history"
+                                >
+                                  <title>Dispute history</title>
+                                </Scale>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
               </div>
             </div>
           )}
@@ -370,92 +356,96 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   );
 }
 
-/** The approved filter bar (APPROVED-DIFFERENCES, 2026-08-28) on Capsomer's
- *  field labels, input, native selects and primary button, in a body-only
- *  panel. A plain GET form, so it works with no script. */
-function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
+/** The approved filter bar (APPROVED-DIFFERENCES, 2026-08-28): Capsomer's
+ *  filter bar on its field labels, input and native selects, in a body-only
+ *  panel. A GET form, so it works with no script. */
+function CustomerFilters({ filters, tiers }: { filters: Filters; tiers: string[] }) {
   return (
-    <Form method="get" className="cap-panel">
+    <div className="cap-panel">
       <div className="cap-panel-body">
         {/* The bar's layout and its text at the label size (RULES 5.2) on a
             wrapper of the page's own: Capsomer's field label has no size of its
             own, and its base.css is not loaded in the app. */}
-        <div className="flex flex-wrap items-end gap-3 text-label">
-          <div className="cap-field">
-            <label className="cap-field-label" htmlFor="customers-q">
-              Name or email
-            </label>
-            <input
-              className="cap-input"
-              id="customers-q"
-              type="text"
-              name="q"
-              defaultValue={filters.search}
-              placeholder="Search"
-            />
-          </div>
-          <div className="cap-field">
-            <label className="cap-field-label" htmlFor="customers-tier">
-              Plan
-            </label>
-            <div className="cap-select-wrap">
-              <select
-                className="cap-select"
-                id="customers-tier"
-                name="tier"
-                defaultValue={filters.tier}
-              >
-                <option value="">All plans</option>
-                {tiers.map((t) => (
-                  <option key={t} value={t}>
-                    {capitalizeTier(t)}
-                  </option>
-                ))}
-              </select>
+        <div className="text-label">
+          <FilterBar
+            label="Filter customers"
+            Form={FilterForm}
+            className="fh-filter-panel fh-filter-primary"
+            applyLabel="Filter"
+          >
+            <div className="cap-field">
+              <label className="cap-field-label" htmlFor="customers-q">
+                Name or email
+              </label>
+              <input
+                className="cap-input"
+                id="customers-q"
+                type="text"
+                name="q"
+                defaultValue={filters.search}
+                placeholder="Search"
+              />
             </div>
-          </div>
-          <div className="cap-field">
-            <label className="cap-field-label" htmlFor="customers-band">
-              Health
-            </label>
-            <div className="cap-select-wrap">
-              <select
-                className="cap-select"
-                id="customers-band"
-                name="band"
-                defaultValue={filters.healthBand}
-              >
-                <option value="">All health bands</option>
-                {HEALTH_BANDS.map((b) => (
-                  <option key={b} value={b}>
-                    {HEALTH_BAND_LABEL[b]}
-                  </option>
-                ))}
-              </select>
+            <div className="cap-field">
+              <label className="cap-field-label" htmlFor="customers-tier">
+                Plan
+              </label>
+              <div className="cap-select-wrap">
+                <select
+                  className="cap-select"
+                  id="customers-tier"
+                  name="tier"
+                  defaultValue={filters.tier}
+                >
+                  <option value="">All plans</option>
+                  {tiers.map((t) => (
+                    <option key={t} value={t}>
+                      {capitalizeTier(t)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-          <div className="cap-field">
-            <label className="cap-field-label" htmlFor="customers-sort">
-              Sort
-            </label>
-            <div className="cap-select-wrap">
-              <select
-                className="cap-select"
-                id="customers-sort"
-                name="sort"
-                defaultValue={filters.sort}
-              >
-                <option value="health_asc">Health, lowest first</option>
-                <option value="mrr_desc">MRR, highest first</option>
-              </select>
+            <div className="cap-field">
+              <label className="cap-field-label" htmlFor="customers-band">
+                Health
+              </label>
+              <div className="cap-select-wrap">
+                <select
+                  className="cap-select"
+                  id="customers-band"
+                  name="band"
+                  defaultValue={filters.healthBand}
+                >
+                  <option value="">All health bands</option>
+                  {HEALTH_BANDS.map((b) => (
+                    <option key={b} value={b}>
+                      {HEALTH_BAND_LABEL[b]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-          <Button type="submit" variant="primary">
-            Filter
-          </Button>
+            <div className="cap-field">
+              <label className="cap-field-label" htmlFor="customers-sort">
+                Sort
+              </label>
+              <div className="cap-select-wrap">
+                <select
+                  className="cap-select"
+                  id="customers-sort"
+                  name="sort"
+                  defaultValue={filters.sort}
+                >
+                  <option value="health_asc">Health, lowest first</option>
+                  <option value="mrr_desc">MRR, highest first</option>
+                </select>
+              </div>
+            </div>
+          </FilterBar>
         </div>
       </div>
-    </Form>
+    </div>
   );
 }
 

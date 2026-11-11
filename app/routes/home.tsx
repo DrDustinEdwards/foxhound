@@ -6,7 +6,7 @@ import "capsomer/disclosure.css";
 // keeps the page whole under any layout.
 import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
@@ -162,20 +162,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 className="animate-fade-up delay-240 flex flex-wrap items-center gap-4"
                 data-density="comfortable"
               >
-                <Link
-                  to="/audit"
-                  className="cap-btn font-semibold"
-                  data-variant="primary"
-                  data-size="lg"
-                >
+                <ButtonLink to="/audit" className="font-semibold" variant="primary" size="lg">
                   Run your free audit
-                </Link>
+                </ButtonLink>
                 {/* Recova's outlined button: no fill at rest, amber sweeping in under the pointer. */}
-                <Link
+                <ButtonLink
                   to="/demos/recovery"
                   rel="nofollow"
-                  className="cap-btn group [--cap-btn-bg:transparent]"
-                  data-size="lg"
+                  className="group [--cap-btn-bg:transparent]"
+                  size="lg"
                 >
                   See it live
                   <ArrowRight
@@ -185,7 +180,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     strokeWidth={1.5}
                     aria-hidden
                   />
-                </Link>
+                </ButtonLink>
               </div>
             </div>
 
@@ -585,9 +580,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span>{" "}
             seconds. No setup, no card.
           </p>
-          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
+          <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
             Connect Stripe, it is free
-          </Link>
+          </ButtonLink>
           <div className="mt-5 font-mono text-caption text-text-subtle">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
           </div>

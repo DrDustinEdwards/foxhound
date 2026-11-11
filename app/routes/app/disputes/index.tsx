@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { data } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
@@ -246,86 +247,77 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-label="Disputes"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Customer</th>
-                    <th scope="col" data-num="">
-                      Amount
-                    </th>
-                    <th scope="col">Reason</th>
-                    <th scope="col">Foxhound status</th>
-                    <th scope="col">Deadline</th>
-                    <th scope="col">
-                      <span className="sr-only">View</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {disputes.map((d) => {
-                    const resolved = isDisputeResolved(d.state);
-                    const days = daysUntilDeadline(d.evidenceDeadline, nowMs);
-                    const status = disputeListStatus({
-                      state: d.state,
-                      submittedBy: d.submittedBy,
-                      hasEvidence: hasEvidence.has(d.id),
-                      stripeStatus: d.status,
-                    });
-                    const name = d.customerName || "Unknown";
-                    const score = d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
-                    return (
-                      <tr key={d.id} data-dispute={d.id}>
-                        <td>
-                          <div className="text-label text-text">
-                            {name}
-                            {score === undefined ? null : (
-                              <span
-                                className={`ml-1.5 font-mono text-micro ${healthScoreClassName(score)}`}
-                              >
-                                <span className="sr-only">Intelligence health score </span>
-                                {score}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-micro text-text-subtle">{d.customerEmail || ""}</div>
-                        </td>
-                        <td data-label="Amount" data-num="">
-                          {formatMoney(d.amountCents, d.currency)}
-                        </td>
-                        <td data-label="Reason" className="text-label text-text-secondary">
-                          {humanizeDisputeReason(d.reason)}
-                        </td>
-                        <td data-label="Foxhound status">
-                          <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
-                        </td>
-                        <td
-                          data-label="Deadline"
-                          className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
+            <Table caption="Disputes" captionHidden reflow="medium">
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col" data-num="">
+                    Amount
+                  </th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Foxhound status</th>
+                  <th scope="col">Deadline</th>
+                  <th scope="col">
+                    <span className="sr-only">View</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {disputes.map((d) => {
+                  const resolved = isDisputeResolved(d.state);
+                  const days = daysUntilDeadline(d.evidenceDeadline, nowMs);
+                  const status = disputeListStatus({
+                    state: d.state,
+                    submittedBy: d.submittedBy,
+                    hasEvidence: hasEvidence.has(d.id),
+                    stripeStatus: d.status,
+                  });
+                  const name = d.customerName || "Unknown";
+                  const score = d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
+                  return (
+                    <tr key={d.id} data-dispute={d.id}>
+                      <td>
+                        <div className="text-label text-text">
+                          {name}
+                          {score === undefined ? null : (
+                            <span
+                              className={`ml-1.5 font-mono text-micro ${healthScoreClassName(score)}`}
+                            >
+                              <span className="sr-only">Intelligence health score </span>
+                              {score}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-micro text-text-subtle">{d.customerEmail || ""}</div>
+                      </td>
+                      <td data-label="Amount" data-num="">
+                        {formatMoney(d.amountCents, d.currency)}
+                      </td>
+                      <td data-label="Reason" className="text-label text-text-secondary">
+                        {humanizeDisputeReason(d.reason)}
+                      </td>
+                      <td data-label="Foxhound status">
+                        <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
+                      </td>
+                      <td
+                        data-label="Deadline"
+                        className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
+                      >
+                        {deadlineShort(days, resolved)}
+                      </td>
+                      <td data-label="View">
+                        <Link
+                          to={`/disputes/${d.id}`}
+                          className="inline-flex min-h-6 items-center text-label text-brand-text no-underline hover:text-brand-text-hover"
                         >
-                          {deadlineShort(days, resolved)}
-                        </td>
-                        <td data-label="View">
-                          <Link
-                            to={`/disputes/${d.id}`}
-                            className="inline-flex min-h-6 items-center text-label text-brand-text no-underline hover:text-brand-text-hover"
-                          >
-                            View<span className="sr-only"> the dispute from {name}</span>
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          View<span className="sr-only"> the dispute from {name}</span>
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           </div>
         </div>
       )}

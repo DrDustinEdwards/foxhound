@@ -1,3 +1,4 @@
+import { AwayLink } from "capsomer/react/link";
 import { LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { Badge } from "~/components/badge";
 import { getDb } from "~/db";
@@ -10,6 +11,7 @@ import { formatMoney } from "~/lib/money-format";
 import type { Route } from "./+types/invoice";
 import { NOINDEX } from "~/lib/seo/meta";
 import { formatDateShort } from "~/lib/date-format";
+import "capsomer/link.css";
 
 export function meta() {
   return [{ title: "Invoice - Foxhound" }, NOINDEX];
@@ -46,15 +48,13 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
             {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
           </Badge>
           {invoice.stripeInvoiceUrl ? (
-            <a
+            <AwayLink
               href={invoice.stripeInvoiceUrl}
-              target="_blank"
-              rel="noreferrer"
+              newTab
               className="text-label text-brand-text hover:underline"
             >
               View Stripe invoice
-              <span className="cap-sr-only"> (opens in a new tab)</span>
-            </a>
+            </AwayLink>
           ) : null}
         </div>
       </div>

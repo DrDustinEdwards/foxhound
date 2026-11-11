@@ -1,5 +1,5 @@
 import { RefreshCw, Shield, TrendingUp, LayoutDashboard } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 
 import { FadeUp } from "~/components/fade-up";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -123,20 +123,11 @@ export default function DemosPage() {
                   <div>
                     <p className="text-body font-medium text-text">{entry.name}</p>
                     <p className="mb-6 mt-2 text-label text-text-secondary">{entry.blurb}</p>
-                    {/* Capsomer's primary button as the link Recova draws full
-                        width: the one-column grid stretches it, so the button
-                        carries no Foxhound class. */}
-                    <div className="grid">
-                      <Link
-                        to={entry.href}
-                        rel="nofollow"
-                        className="cap-btn"
-                        data-variant="primary"
-                      >
-                        <entry.Icon data-icon="start" strokeWidth={2} aria-hidden />
-                        View {entry.name} demo
-                      </Link>
-                    </div>
+                    {/* Capsomer's primary button as the link Recova draws full width. */}
+                    <ButtonLink to={entry.href} rel="nofollow" variant="primary" block>
+                      <entry.Icon data-icon="start" strokeWidth={2} aria-hidden />
+                      View {entry.name} demo
+                    </ButtonLink>
                   </div>
                 </div>
               </div>

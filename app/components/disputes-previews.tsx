@@ -1,8 +1,10 @@
+import { Table } from "capsomer/react/table";
 import { Pill } from "capsomer/react/status";
 
 import { PreviewStatCard } from "~/components/stat-card";
 import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
+import "capsomer/table.css";
 
 // The previews on /product/disputes, Recova's three feature-block UIs:
 // the disputes dashboard (DisputesDashboardPreview.tsx, blob dcde195e, which
@@ -123,54 +125,43 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
       </div>
       <div className="cap-panel">
         <div className="cap-panel-body" data-flush>
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            role="region"
-            aria-labelledby={DASHBOARD_CAPTION}
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <caption id={DASHBOARD_CAPTION} className="sr-only">
-                Disputes
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Customer</th>
-                  <th scope="col" className="text-right">
-                    Amount
+          <Table caption="Disputes" captionHidden labelledBy={DASHBOARD_CAPTION} reflow>
+            <thead>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col" className="text-right">
+                  Amount
+                </th>
+                <th scope="col">Reason</th>
+                <th scope="col">Foxhound status</th>
+                <th scope="col">Deadline</th>
+              </tr>
+            </thead>
+            <tbody>
+              {preview.dashboard.map((row) => (
+                <tr key={row.id}>
+                  <th scope="row">
+                    <div className="text-label font-normal text-text">{row.customer}</div>
+                    {row.email ? (
+                      <div className="text-micro font-normal text-text-subtle">{row.email}</div>
+                    ) : null}
                   </th>
-                  <th scope="col">Reason</th>
-                  <th scope="col">Foxhound status</th>
-                  <th scope="col">Deadline</th>
+                  <td data-label="Amount" className="whitespace-nowrap text-right">
+                    <span className="font-mono text-label text-text">{row.amount}</span>
+                  </td>
+                  <td data-label="Reason">
+                    <span className="text-label text-text-secondary">{row.reason}</span>
+                  </td>
+                  <td data-label="Foxhound status">
+                    <StatePill row={row} />
+                  </td>
+                  <td data-label="Deadline">
+                    <DeadlineDays row={row} />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {preview.dashboard.map((row) => (
-                  <tr key={row.id}>
-                    <th scope="row">
-                      <div className="text-label font-normal text-text">{row.customer}</div>
-                      {row.email ? (
-                        <div className="text-micro font-normal text-text-subtle">{row.email}</div>
-                      ) : null}
-                    </th>
-                    <td data-label="Amount" className="whitespace-nowrap text-right">
-                      <span className="font-mono text-label text-text">{row.amount}</span>
-                    </td>
-                    <td data-label="Reason">
-                      <span className="text-label text-text-secondary">{row.reason}</span>
-                    </td>
-                    <td data-label="Foxhound status">
-                      <StatePill row={row} />
-                    </td>
-                    <td data-label="Deadline">
-                      <DeadlineDays row={row} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </div>
       </div>
     </div>
@@ -183,60 +174,54 @@ const TABLE_CAPTION = "preview-disputes-table";
 export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
-      <div
-        className="cap-table-wrap"
-        data-reflow=""
-        role="region"
-        aria-labelledby={TABLE_CAPTION}
-        tabIndex={0}
+      <Table
+        caption="Disputes and their evidence deadlines"
+        captionHidden
+        labelledBy={TABLE_CAPTION}
+        reflow
       >
-        <table className="cap-table">
-          <caption id={TABLE_CAPTION} className="sr-only">
-            Disputes and their evidence deadlines
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Customer</th>
-              <th scope="col">Amount</th>
-              <th scope="col">Reason</th>
-              <th scope="col">Triage</th>
-              <th scope="col">Status</th>
-              <th scope="col">Deadline</th>
+        <thead>
+          <tr>
+            <th scope="col">Customer</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Triage</th>
+            <th scope="col">Status</th>
+            <th scope="col">Deadline</th>
+          </tr>
+        </thead>
+        <tbody>
+          {preview.table.map((row) => (
+            <tr key={row.id}>
+              <th scope="row">
+                <span className="text-label font-normal text-text">{row.customer}</span>
+              </th>
+              <td data-label="Amount" className="whitespace-nowrap">
+                <span className="font-mono text-label text-text">{row.amount}</span>
+              </td>
+              <td data-label="Reason">
+                <span className="text-label text-text-secondary">{row.reason}</span>
+              </td>
+              <td data-label="Triage">
+                <TriagePill row={row} />
+              </td>
+              <td data-label="Status">
+                <StatePill row={row} />
+              </td>
+              <td data-label="Deadline" className="whitespace-nowrap">
+                {/* A closed dispute's deadline is history: no band color. */}
+                <span
+                  className={`font-mono text-label ${
+                    row.resolved ? "text-text-tertiary" : deadlineClassName(row.deadlineUrgency)
+                  }`}
+                >
+                  {row.deadlineDate || "-"}
+                </span>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {preview.table.map((row) => (
-              <tr key={row.id}>
-                <th scope="row">
-                  <span className="text-label font-normal text-text">{row.customer}</span>
-                </th>
-                <td data-label="Amount" className="whitespace-nowrap">
-                  <span className="font-mono text-label text-text">{row.amount}</span>
-                </td>
-                <td data-label="Reason">
-                  <span className="text-label text-text-secondary">{row.reason}</span>
-                </td>
-                <td data-label="Triage">
-                  <TriagePill row={row} />
-                </td>
-                <td data-label="Status">
-                  <StatePill row={row} />
-                </td>
-                <td data-label="Deadline" className="whitespace-nowrap">
-                  {/* A closed dispute's deadline is history: no band color. */}
-                  <span
-                    className={`font-mono text-label ${
-                      row.resolved ? "text-text-tertiary" : deadlineClassName(row.deadlineUrgency)
-                    }`}
-                  >
-                    {row.deadlineDate || "-"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </Table>
     </div>
   );
 }

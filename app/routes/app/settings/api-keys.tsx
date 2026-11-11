@@ -1,7 +1,8 @@
+import { Table } from "capsomer/react/table";
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { ArrowLeft } from "lucide-react";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -341,9 +342,9 @@ function RevealKey({ rawKey }: { rawKey: string }) {
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => void copyKey()}>{copied ? "Copied" : "Copy key"}</Button>
-        <Link to="?" className="cap-btn" data-variant="quiet">
+        <ButtonLink to="?" variant="quiet">
           Done
-        </Link>
+        </ButtonLink>
       </div>
       <p role="status" className="sr-only">
         {copied ? "Copied" : ""}
@@ -385,9 +386,9 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
           <Button type="submit" variant="primary" pending={generating}>
             {generating ? "Generating..." : "Generate key"}
           </Button>
-          <Link to="?" className="cap-btn" data-variant="quiet">
+          <ButtonLink to="?" variant="quiet">
             Cancel
-          </Link>
+          </ButtonLink>
         </div>
       </DemoGuardedForm>
     </Panel>
@@ -446,9 +447,9 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
             ) : panelOpen ? (
               <GenerateDisabled />
             ) : (
-              <Link to="?new=1" className="cap-btn" data-variant="primary">
+              <ButtonLink to="?new=1" variant="primary">
                 Generate new key
-              </Link>
+              </ButtonLink>
             )}
           </div>
 
@@ -467,48 +468,39 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
           ) : null}
 
           {keys && keys.length > 0 ? (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-label="API keys"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Label</th>
-                    <th scope="col">Created</th>
-                    <th scope="col">Last used</th>
-                    <th scope="col" data-num>
-                      Actions
-                    </th>
+            <Table caption="API keys" captionHidden reflow>
+              <thead>
+                <tr>
+                  <th scope="col">Label</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Last used</th>
+                  <th scope="col" data-num>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((k) => (
+                  <tr key={k.id}>
+                    <th scope="row">{k.label}</th>
+                    <td data-label="Created">{formatDate(k.createdAt)}</td>
+                    <td data-label="Last used">{formatDate(k.lastUsedAt)}</td>
+                    <td data-label="Actions" data-num>
+                      {owner ? (
+                        <DemoGuardedForm method="post">
+                          <input type="hidden" name="_action" value="revoke" />
+                          <input type="hidden" name="keyId" value={k.id} />
+                          <Button type="submit" size="xs" pending={revoking === k.id}>
+                            Revoke key
+                            <span className="sr-only"> {k.label}</span>
+                          </Button>
+                        </DemoGuardedForm>
+                      ) : null}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {keys.map((k) => (
-                    <tr key={k.id}>
-                      <th scope="row">{k.label}</th>
-                      <td data-label="Created">{formatDate(k.createdAt)}</td>
-                      <td data-label="Last used">{formatDate(k.lastUsedAt)}</td>
-                      <td data-label="Actions" data-num>
-                        {owner ? (
-                          <DemoGuardedForm method="post">
-                            <input type="hidden" name="_action" value="revoke" />
-                            <input type="hidden" name="keyId" value={k.id} />
-                            <Button type="submit" size="xs" pending={revoking === k.id}>
-                              Revoke key
-                              <span className="sr-only"> {k.label}</span>
-                            </Button>
-                          </DemoGuardedForm>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </Table>
           ) : null}
 
           {rawKey !== undefined ? <RevealKey rawKey={rawKey} /> : null}
@@ -550,42 +542,33 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
             }
           />
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-label="Agent activity"
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <thead>
-                <tr>
-                  <th scope="col">Time</th>
-                  <th scope="col">Tool</th>
-                  <th scope="col">Key</th>
-                  <th scope="col">Result</th>
+          <Table caption="Agent activity" captionHidden reflow>
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Tool</th>
+                <th scope="col">Key</th>
+                <th scope="col">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {log.calls.map((call) => (
+                <tr key={call.id}>
+                  <th scope="row">{formatTimestamp(new Date(call.createdAt))}</th>
+                  <td data-label="Tool" className="font-mono">
+                    {call.tool}
+                  </td>
+                  <td data-label="Key">{call.keyLabel ?? "A deleted key"}</td>
+                  <td data-label="Result">
+                    {outcomeWords(call.outcome)}
+                    {call.error ? (
+                      <span className="block text-text-secondary">{call.error}</span>
+                    ) : null}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {log.calls.map((call) => (
-                  <tr key={call.id}>
-                    <th scope="row">{formatTimestamp(new Date(call.createdAt))}</th>
-                    <td data-label="Tool" className="font-mono">
-                      {call.tool}
-                    </td>
-                    <td data-label="Key">{call.keyLabel ?? "A deleted key"}</td>
-                    <td data-label="Result">
-                      {outcomeWords(call.outcome)}
-                      {call.error ? (
-                        <span className="block text-text-secondary">{call.error}</span>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
         {log.state === "ok" && (log.more || log.newer) ? (
           <div className="flex flex-wrap gap-3">

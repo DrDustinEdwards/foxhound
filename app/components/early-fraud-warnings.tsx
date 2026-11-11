@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { useState } from "react";
 import { Form, useNavigation, useSubmit } from "react-router";
 import { Banner } from "capsomer/react/banner";
@@ -6,6 +7,7 @@ import { Panel } from "capsomer/react/panel";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/confirm-dialog.css";
+import "capsomer/table.css";
 
 import { toDate } from "@drdustinedwards/site-helpers/xml";
 
@@ -115,133 +117,124 @@ export function EarlyFraudWarnings({
             No open early fraud warnings.
           </p>
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-cap="table"
-            data-reflow="medium"
-            role="region"
-            aria-label="Early fraud warnings"
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <thead>
-                <tr>
-                  <th scope="col">Customer</th>
-                  <th scope="col" data-num="">
-                    Amount
-                  </th>
-                  <th scope="col">Fraud type</th>
-                  <th scope="col">Date</th>
-                  <th scope="col">Charge</th>
-                  <th scope="col">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {warnings.map((w) => {
-                  const label = warningCustomerLabel(w);
-                  return (
-                    <tr key={w.id} data-warning={w.id}>
-                      <td>
-                        <div className="text-label text-text">{label}</div>
-                        {w.customerName && w.customerEmail ? (
-                          <div className="text-micro text-text-subtle">{w.customerEmail}</div>
-                        ) : null}
-                      </td>
-                      <td data-label="Amount" data-num="">
-                        {formatMoney(w.amountCents, w.currency)}
-                      </td>
-                      <td data-label="Fraud type" className="text-label text-text-secondary">
-                        {fraudTypeWords(w.fraudType)}
-                      </td>
-                      <td data-label="Date" className="font-mono text-label">
-                        {formatDateShort(toDate(w.createdAt))}
-                      </td>
-                      <td
-                        data-label="Charge"
-                        className="font-mono text-micro break-all text-text-secondary"
-                      >
-                        {w.stripeChargeId}
-                      </td>
-                      <td data-label="Actions" className="[grid-column:1/-1]">
-                        {readOnly ? (
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <button
-                              type="button"
-                              className="cap-btn"
-                              data-variant="danger"
-                              data-size="sm"
-                              aria-disabled="true"
-                              aria-describedby={DEMO_REASON_ID}
-                            >
-                              Refund this charge
-                              <span className="sr-only"> from {label}</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="cap-btn"
-                              data-variant="quiet"
-                              data-size="sm"
-                              aria-disabled="true"
-                              aria-describedby={DEMO_REASON_ID}
-                            >
-                              Dismiss
-                              <span className="sr-only"> the warning for {label}</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap justify-end gap-2">
-                            {canRefund ? (
-                              <Form method="post">
-                                <input type="hidden" name="intent" value="refund_warning_confirm" />
-                                <input type="hidden" name="warning_id" value={w.id} />
-                                <button
-                                  type="submit"
-                                  className="cap-btn"
-                                  data-variant="danger"
-                                  data-size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    setConfirming(w);
-                                    setLastConfirm(w);
-                                  }}
-                                >
-                                  Refund this charge
-                                  <span className="sr-only"> from {label}</span>
-                                </button>
-                              </Form>
-                            ) : (
-                              <span className="self-center text-micro text-text-subtle">
-                                Only the account owner can refund.
-                              </span>
-                            )}
+          <Table caption="Early fraud warnings" captionHidden reflow="medium">
+            <thead>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col" data-num="">
+                  Amount
+                </th>
+                <th scope="col">Fraud type</th>
+                <th scope="col">Date</th>
+                <th scope="col">Charge</th>
+                <th scope="col">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {warnings.map((w) => {
+                const label = warningCustomerLabel(w);
+                return (
+                  <tr key={w.id} data-warning={w.id}>
+                    <td>
+                      <div className="text-label text-text">{label}</div>
+                      {w.customerName && w.customerEmail ? (
+                        <div className="text-micro text-text-subtle">{w.customerEmail}</div>
+                      ) : null}
+                    </td>
+                    <td data-label="Amount" data-num="">
+                      {formatMoney(w.amountCents, w.currency)}
+                    </td>
+                    <td data-label="Fraud type" className="text-label text-text-secondary">
+                      {fraudTypeWords(w.fraudType)}
+                    </td>
+                    <td data-label="Date" className="font-mono text-label">
+                      {formatDateShort(toDate(w.createdAt))}
+                    </td>
+                    <td
+                      data-label="Charge"
+                      className="font-mono text-micro break-all text-text-secondary"
+                    >
+                      {w.stripeChargeId}
+                    </td>
+                    <td data-label="Actions" className="[grid-column:1/-1]">
+                      {readOnly ? (
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            className="cap-btn"
+                            data-variant="danger"
+                            data-size="sm"
+                            aria-disabled="true"
+                            aria-describedby={DEMO_REASON_ID}
+                          >
+                            Refund this charge
+                            <span className="sr-only"> from {label}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="cap-btn"
+                            data-variant="quiet"
+                            data-size="sm"
+                            aria-disabled="true"
+                            aria-describedby={DEMO_REASON_ID}
+                          >
+                            Dismiss
+                            <span className="sr-only"> the warning for {label}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {canRefund ? (
                             <Form method="post">
-                              <input type="hidden" name="intent" value="dismiss_warning" />
+                              <input type="hidden" name="intent" value="refund_warning_confirm" />
                               <input type="hidden" name="warning_id" value={w.id} />
                               <button
                                 type="submit"
                                 className="cap-btn"
-                                data-variant="quiet"
+                                data-variant="danger"
                                 data-size="sm"
-                                aria-disabled={busy ? true : undefined}
                                 onClick={(e) => {
-                                  if (busy) e.preventDefault();
+                                  e.preventDefault();
+                                  setConfirming(w);
+                                  setLastConfirm(w);
                                 }}
                               >
-                                Dismiss
-                                <span className="sr-only"> the warning for {label}</span>
+                                Refund this charge
+                                <span className="sr-only"> from {label}</span>
                               </button>
                             </Form>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          ) : (
+                            <span className="self-center text-micro text-text-subtle">
+                              Only the account owner can refund.
+                            </span>
+                          )}
+                          <Form method="post">
+                            <input type="hidden" name="intent" value="dismiss_warning" />
+                            <input type="hidden" name="warning_id" value={w.id} />
+                            <button
+                              type="submit"
+                              className="cap-btn"
+                              data-variant="quiet"
+                              data-size="sm"
+                              aria-disabled={busy ? true : undefined}
+                              onClick={(e) => {
+                                if (busy) e.preventDefault();
+                              }}
+                            >
+                              Dismiss
+                              <span className="sr-only"> the warning for {label}</span>
+                            </button>
+                          </Form>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
         )}
         {readOnly && warnings.length > 0 ? (
           <p className="m-0 px-4 pb-4">

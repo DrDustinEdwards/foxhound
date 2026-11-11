@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -76,33 +77,28 @@ export function AdminMcpPanels({
               A key appears here when a merchant creates one in their settings.
             </Empty>
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-labelledby={KEYS_HEADING_ID}
-              tabIndex={0}
+            <Table
+              caption="API keys, newest first."
+              captionHidden
+              labelledBy={KEYS_HEADING_ID}
+              reflow
             >
-              <table className="cap-table">
-                <caption className="cap-sr-only">API keys, newest first.</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Label</th>
-                    <th scope="col">Scope</th>
-                    <th scope="col">Account</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Created</th>
-                    <th scope="col">Last used</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {keys.map((k) => (
-                    <KeyRow key={k.id} apiKey={k} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <thead>
+                <tr>
+                  <th scope="col">Label</th>
+                  <th scope="col">Scope</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Last used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((k) => (
+                  <KeyRow key={k.id} apiKey={k} />
+                ))}
+              </tbody>
+            </Table>
           )}
         </Panel>
 
@@ -116,46 +112,39 @@ export function AdminMcpPanels({
           {tools.length === 0 ? (
             <Empty kind="nothing-yet" title="No merchant tools registered." />
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-labelledby={TOOLS_HEADING_ID}
-              tabIndex={0}
+            <Table
+              caption="Merchant MCP tools, as the registry lists them."
+              captionHidden
+              labelledBy={TOOLS_HEADING_ID}
+              reflow
             >
-              <table className="cap-table">
-                <caption className="cap-sr-only">
-                  Merchant MCP tools, as the registry lists them.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Tool</th>
-                    <th scope="col">What it does</th>
-                    <th scope="col">Access</th>
+              <thead>
+                <tr>
+                  <th scope="col">Tool</th>
+                  <th scope="col">What it does</th>
+                  <th scope="col">Access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tools.map((t) => (
+                  <tr key={t.name}>
+                    <th scope="row" className="font-mono text-micro font-normal break-all">
+                      {t.name}
+                    </th>
+                    <td data-label="What it does" data-wrap="">
+                      {t.title}
+                    </td>
+                    <td data-label="Access">
+                      {t.writes ? (
+                        <Status tone="info">Writes</Status>
+                      ) : (
+                        <Status tone="ok">Reads</Status>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {tools.map((t) => (
-                    <tr key={t.name}>
-                      <th scope="row" className="font-mono text-micro font-normal break-all">
-                        {t.name}
-                      </th>
-                      <td data-label="What it does" data-wrap="">
-                        {t.title}
-                      </td>
-                      <td data-label="Access">
-                        {t.writes ? (
-                          <Status tone="info">Writes</Status>
-                        ) : (
-                          <Status tone="ok">Reads</Status>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </Table>
           )}
         </Panel>
 
@@ -171,33 +160,28 @@ export function AdminMcpPanels({
               Every tool call a merchant key makes is logged here.
             </Empty>
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-labelledby={CALLS_HEADING_ID}
-              tabIndex={0}
+            <Table
+              caption="Merchant MCP calls, newest first."
+              captionHidden
+              labelledBy={CALLS_HEADING_ID}
+              reflow
             >
-              <table className="cap-table">
-                <caption className="cap-sr-only">Merchant MCP calls, newest first.</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Tool</th>
-                    <th scope="col">Account</th>
-                    <th scope="col">Key</th>
-                    <th scope="col">Outcome</th>
-                    <th scope="col">When</th>
-                    <th scope="col">Error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {calls.map((c) => (
-                    <CallRow key={c.id} call={c} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <thead>
+                <tr>
+                  <th scope="col">Tool</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Key</th>
+                  <th scope="col">Outcome</th>
+                  <th scope="col">When</th>
+                  <th scope="col">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calls.map((c) => (
+                  <CallRow key={c.id} call={c} />
+                ))}
+              </tbody>
+            </Table>
           )}
         </Panel>
       </div>

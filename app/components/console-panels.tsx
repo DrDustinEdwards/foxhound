@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
 import { StatTile, type StatTileLinkProps } from "capsomer/react/stat-tile";
@@ -241,16 +241,9 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
           </span>
           {row.href ? (
             <div className="cap-row-actions">
-              <Link
-                to={row.href}
-                aria-label={row.ariaLabel}
-                className="cap-btn"
-                data-variant="quiet"
-                data-size="xs"
-                data-icon-only=""
-              >
+              <ButtonLink to={row.href} label={row.ariaLabel} variant="quiet" size="xs" iconOnly>
                 <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-              </Link>
+              </ButtonLink>
             </div>
           ) : null}
         </li>

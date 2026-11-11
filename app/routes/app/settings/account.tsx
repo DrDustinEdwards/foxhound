@@ -1,3 +1,5 @@
+import { SaveBar } from "capsomer/react/save-bar";
+import { ButtonLink } from "capsomer/react/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
@@ -17,6 +19,7 @@ import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
+import "capsomer/save-bar.css";
 // Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/features does.
@@ -644,16 +647,9 @@ function ProfileForm({
         </section>
       </div>
 
-      {/* Recova's SaveBar: right-aligned, the result beside the button. */}
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-        <p role="status" className="text-label">
-          {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
-          {barFailed ? <Status tone="crit">Failed to save. Please try again.</Status> : null}
-        </p>
-        <Button type="submit" variant="primary" pending={saving}>
-          Save changes
-        </Button>
-      </div>
+      <SaveBar
+        state={saving ? "saving" : result?.ok === true ? "saved" : barFailed ? "failed" : "idle"}
+      />
     </DemoGuardedForm>
   );
 }
@@ -775,9 +771,9 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
         <Alert
           tone="warn"
           action={
-            <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
+            <ButtonLink href={SIGN_IN_AGAIN_HREF} size="sm">
               Sign in again
-            </a>
+            </ButtonLink>
           }
         >
           Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change
@@ -907,9 +903,9 @@ function DangerZone({
           <Alert
             tone="warn"
             action={
-              <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
+              <ButtonLink href={SIGN_IN_AGAIN_HREF} size="sm">
                 Sign in again
-              </a>
+              </ButtonLink>
             }
           >
             Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then

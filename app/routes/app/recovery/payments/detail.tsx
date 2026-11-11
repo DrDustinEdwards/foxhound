@@ -1,18 +1,9 @@
 import { useEffect, useId, useState } from "react";
 
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Circle,
-  Mail,
-  RotateCcw,
-  Shield,
-} from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
 import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status } from "capsomer/react/status";
@@ -21,6 +12,7 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
+import "capsomer/link.css";
 // Capsomer's tokens and the amber family, which the components above read, as
 // the payments list and /disputes load them.
 import "~/site-header.css";
@@ -525,28 +517,22 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           </>
         ) : (
           <>
-            <a
-              className="cap-btn"
-              data-size="sm"
+            <ButtonLink
+              size="sm"
               href={`https://dashboard.stripe.com/invoices/${failedPayment.stripeInvoiceId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              away
+              newTab
             >
               View invoice in Stripe
-              <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
-              <span className="cap-sr-only"> (opens in a new tab)</span>
-            </a>
-            <a
-              className="cap-btn"
-              data-size="sm"
+            </ButtonLink>
+            <ButtonLink
+              size="sm"
               href={`https://dashboard.stripe.com/customers/${failedPayment.stripeCustomerId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              away
+              newTab
             >
               View customer in Stripe
-              <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
-              <span className="cap-sr-only"> (opens in a new tab)</span>
-            </a>
+            </ButtonLink>
           </>
         )}
       </div>

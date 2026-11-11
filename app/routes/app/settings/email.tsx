@@ -1,3 +1,4 @@
+import { SaveBar } from "capsomer/react/save-bar";
 import { useEffect, useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
@@ -9,6 +10,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/switch.css";
+import "capsomer/save-bar.css";
 // Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/notifications does.
@@ -398,17 +400,18 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
           </div>
         </section>
 
-        {/* Legacy's SaveBar: right-aligned under the card, the result beside
-            the button. The live region is on the page from the start. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <span role="status">
-            {saveResult?.ok ? <Status tone="ok">Saved</Status> : null}
-            {barError ? <Status tone="crit">{barError}</Status> : null}
-          </span>
-          <Button type="submit" variant="primary" pending={pendingAction === "sender"}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          state={
+            pendingAction === "sender"
+              ? "saving"
+              : saveResult?.ok
+                ? "saved"
+                : barError
+                  ? "failed"
+                  : "idle"
+          }
+          failed={barError}
+        />
       </DemoGuardedForm>
 
       {/* The recovery emails card, once /settings/features. */}

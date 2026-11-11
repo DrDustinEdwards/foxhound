@@ -1,3 +1,4 @@
+import { copyright } from "capsomer/behavior/family-footer";
 import { useLocation } from "react-router";
 import { Link } from "capsomer/react/link";
 
@@ -195,7 +196,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 aria-hidden
               />
               <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
-                © 2026 Foxhound.
+                {copyright("Foxhound")}.
               </span>
             </div>
             {variant === "auth"

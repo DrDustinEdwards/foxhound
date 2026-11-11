@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import type { ReactNode } from "react";
 import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
@@ -317,27 +318,18 @@ function StatusTable({
 }) {
   return (
     <Panel title={title} level={3} headingId={headingId} flush>
-      <div
-        className="cap-table-wrap"
-        data-cap="table"
-        data-reflow=""
-        role="region"
-        aria-labelledby={headingId}
-        tabIndex={0}
-      >
-        <table className="cap-table">
-          <thead className="sr-only">
-            <tr>
-              {columns.map((name) => (
-                <th key={name} scope="col">
-                  {name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>{children}</tbody>
-        </table>
-      </div>
+      <Table caption={title} captionHidden labelledBy={headingId} reflow>
+        <thead className="sr-only">
+          <tr>
+            {columns.map((name) => (
+              <th key={name} scope="col">
+                {name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </Table>
     </Panel>
   );
 }

@@ -1,16 +1,16 @@
+import { SaveBar } from "capsomer/react/save-bar";
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
-import { Status } from "capsomer/react/status";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
+import "capsomer/save-bar.css";
 // Capsomer's tokens and the amber family, which the components above read. The
 // shell loads the same file through its header; importing it here keeps the
 // page whole under any layout, as /settings/features does.
@@ -276,18 +276,18 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
           </Panel>
         </div>
 
-        {/* Recova's SaveBar: right-aligned, the result beside the button. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <p role="status" className="text-label">
-            {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
-            {result?.ok === false ? (
-              <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
-            ) : null}
-          </p>
-          <Button type="submit" variant="primary" pending={saving}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          state={
+            saving
+              ? "saving"
+              : result?.ok === true
+                ? "saved"
+                : result?.ok === false
+                  ? "failed"
+                  : "idle"
+          }
+          failed={result?.ok === false ? result.error : undefined}
+        />
       </DemoGuardedForm>
     </>
   );

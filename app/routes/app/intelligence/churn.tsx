@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { Link } from "capsomer/react/link";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { PageHead } from "capsomer/react/page-head";
@@ -142,72 +143,60 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
               description={`Top ${view.topHighRisk.length} customers in the high-risk band, sorted by monthly contribution.`}
               flush
             >
-              <div
-                className="cap-table-wrap"
-                data-reflow=""
-                data-cap="table"
-                role="region"
-                // The one landmark here: the panel is a plain section (no
-                // headingId), so the scroll region is not nested in a second
-                // region of the same name.
-                aria-label="High-risk customers by MRR"
-                tabIndex={0}
-              >
-                <table className="cap-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Customer</th>
-                      <th scope="col">Plan</th>
-                      <th scope="col" data-num="">
-                        Health
-                      </th>
-                      <th scope="col" data-num="">
-                        MRR
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.topHighRisk.map((row) => (
-                      <tr key={row.stripeCustomerId}>
-                        <th scope="row">
-                          <Link
-                            className="cap-table-open"
-                            to={`/intelligence/customers/${row.stripeCustomerId}`}
-                          >
-                            {row.customerName ?? "(unnamed)"}
-                          </Link>
-                          {/* Recova's second line under the name: the Stripe id,
+              <Table caption="High-risk customers by MRR" captionHidden reflow>
+                <thead>
+                  <tr>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Plan</th>
+                    <th scope="col" data-num="">
+                      Health
+                    </th>
+                    <th scope="col" data-num="">
+                      MRR
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {view.topHighRisk.map((row) => (
+                    <tr key={row.stripeCustomerId}>
+                      <th scope="row">
+                        <Link
+                          className="cap-table-open"
+                          to={`/intelligence/customers/${row.stripeCustomerId}`}
+                        >
+                          {row.customerName ?? "(unnamed)"}
+                        </Link>
+                        {/* Recova's second line under the name: the Stripe id,
                               micro and mono. */}
-                          <span className="block font-mono text-micro text-text-subtle">
-                            {row.stripeCustomerId}
-                          </span>
-                        </th>
-                        <td data-label="Plan">
-                          {/* Recova's rounded border pill. Recova labels it from
+                        <span className="block font-mono text-micro text-text-subtle">
+                          {row.stripeCustomerId}
+                        </span>
+                      </th>
+                      <td data-label="Plan">
+                        {/* Recova's rounded border pill. Recova labels it from
                               current_plan_tier, which nothing in Foxhound writes
                               (signals.ts), so the plan's own name is shown. */}
-                          <Pill variant="outline">{row.currentPlanName ?? "-"}</Pill>
-                        </td>
-                        <td data-label="Health" data-num="">
-                          {/* Toned from the score rather than hardcoded red: the
+                        <Pill variant="outline">{row.currentPlanName ?? "-"}</Pill>
+                      </td>
+                      <td data-label="Health" data-num="">
+                        {/* Toned from the score rather than hardcoded red: the
                               query pre-filters to the high-risk band today, but a
                               widened predicate should not leave the color lying. */}
-                          <span
-                            className={`font-mono font-semibold ${healthScoreClassName(row.healthScore)}`}
-                          >
-                            {row.healthScore}
-                          </span>
-                        </td>
-                        <td data-label="MRR" data-num="" className="font-mono">
-                          {row.mrrContributionCents > 0
-                            ? formatMoney(row.mrrContributionCents, currency)
-                            : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        <span
+                          className={`font-mono font-semibold ${healthScoreClassName(row.healthScore)}`}
+                        >
+                          {row.healthScore}
+                        </span>
+                      </td>
+                      <td data-label="MRR" data-num="" className="font-mono">
+                        {row.mrrContributionCents > 0
+                          ? formatMoney(row.mrrContributionCents, currency)
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
             </Panel>
           ) : null}
         </>

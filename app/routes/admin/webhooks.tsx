@@ -1,5 +1,7 @@
+import { FilterBar } from "capsomer/react/filter-bar";
+import { Table } from "capsomer/react/table";
 import { useId, useState } from "react";
-import { Form, useNavigation, useRevalidator } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
 import { ChevronRight } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
@@ -12,7 +14,9 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/pagination.css";
 import "capsomer/table.css";
+import "capsomer/filter-bar.css";
 
+import { FilterForm } from "~/components/filter-form";
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
@@ -122,51 +126,57 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
           flush
         >
           {/* Keyed by the filters so the fields show the address after Back. */}
-          <Form
-            key={JSON.stringify(filters)}
-            method="get"
-            action={WEBHOOKS_PATH}
-            className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border px-4 py-3"
-          >
-            <div className="cap-field min-w-56 grow sm:w-80 sm:grow-0">
-              <label className="cap-field-label" htmlFor={typeId}>
-                Event type
-              </label>
-              <input
-                className="cap-input"
-                id={typeId}
-                name="type"
-                type="search"
-                defaultValue={filters.type}
-                placeholder="For example: invoice.payment_failed"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <label className="cap-check min-h-6">
-              <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
-              Errors only
-            </label>
-            <label className="cap-check min-h-6">
-              <input
-                type="checkbox"
-                name="pending"
-                value="1"
-                defaultChecked={filters.pendingOnly}
-              />{" "}
-              Pending only
-            </label>
-            <div className="flex items-center gap-3">
-              <button type="submit" className="cap-btn">
-                Filter
-              </button>
-              {filtered ? (
-                <Link to={WEBHOOKS_PATH} className={LINK}>
-                  Clear filter
+          <div className="border-b border-border px-4 py-3">
+            <FilterBar
+              key={JSON.stringify(filters)}
+              label="Filter webhook events"
+              Form={FilterForm}
+              action={WEBHOOKS_PATH}
+              className="fh-filter-panel"
+              applyLabel="Filter"
+              clearHref={filtered ? WEBHOOKS_PATH : null}
+              clearLabel="Clear filter"
+              renderLink={({ href, children }) => (
+                <Link to={href} className={LINK}>
+                  {children}
                 </Link>
-              ) : null}
-            </div>
-          </Form>
+              )}
+            >
+              <div className="cap-field min-w-56 grow sm:w-80 sm:grow-0">
+                <label className="cap-field-label" htmlFor={typeId}>
+                  Event type
+                </label>
+                <input
+                  className="cap-input"
+                  id={typeId}
+                  name="type"
+                  type="search"
+                  defaultValue={filters.type}
+                  placeholder="For example: invoice.payment_failed"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              <label className="cap-check min-h-6">
+                <input
+                  type="checkbox"
+                  name="errors"
+                  value="1"
+                  defaultChecked={filters.errorsOnly}
+                />{" "}
+                Errors only
+              </label>
+              <label className="cap-check min-h-6">
+                <input
+                  type="checkbox"
+                  name="pending"
+                  value="1"
+                  defaultChecked={filters.pendingOnly}
+                />{" "}
+                Pending only
+              </label>
+            </FilterBar>
+          </div>
 
           {list.events.length === 0 ? (
             filtered ? (
@@ -185,34 +195,27 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               </Empty>
             )
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
+            <Table
+              caption="Webhook events, newest first. Open an event type to see its payload."
+              captionHidden
+              labelledBy={HEADING_ID}
+              reflow
             >
-              <table className="cap-table">
-                <caption className="cap-sr-only">
-                  Webhook events, newest first. Open an event type to see its payload.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Event type</th>
-                    <th scope="col">Account</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Received</th>
-                    <th scope="col">Error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.events.map((e) => (
-                    <EventRows key={e.id} event={e} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <thead>
+                <tr>
+                  <th scope="col">Event type</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Received</th>
+                  <th scope="col">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.events.map((e) => (
+                  <EventRows key={e.id} event={e} />
+                ))}
+              </tbody>
+            </Table>
           )}
 
           {list.pageCount > 1 ? (

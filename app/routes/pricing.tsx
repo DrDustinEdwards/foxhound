@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -219,9 +219,9 @@ export default function PricingPage() {
             Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes,
             and business health. Results in <span className="font-mono">30</span> seconds.
           </p>
-          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
+          <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
             Connect Stripe, it is free
-          </Link>
+          </ButtonLink>
           {/* 376 item 20: this line used to read "No account required . No Stripe
               connection needed . Results in 30 seconds" directly under a button
               that says Connect Stripe. Both halves were true of DIFFERENT

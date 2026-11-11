@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { AlertCircle, Percent, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill, Status, type Tone } from "capsomer/react/status";
@@ -14,6 +15,7 @@ import type {
 } from "~/lib/marketing/recovery-preview";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import "capsomer/table.css";
 
 // The three previews on /product/recovery, Recova's three feature-block
 // UIs: the category sequences (page.tsx's CategorySequencePreview with
@@ -276,78 +278,70 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
             ))}
           </ul>
           <div className="hidden sm:block">
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Customer</th>
-                    <th scope="col">Amount</th>
-                    <th scope="col">Decline</th>
-                    <th scope="col">Steps</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Detected</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id}>
-                      <th scope="row">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-label font-medium text-text">{row.customer}</span>
-                          <FailureCount row={row} />
+            <Table caption="Failed payments" captionHidden labelledBy={HEADING_ID} reflow>
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Decline</th>
+                  <th scope="col">Steps</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Detected</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <th scope="row">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-label font-medium text-text">{row.customer}</span>
+                        <FailureCount row={row} />
+                      </div>
+                      {row.email ? (
+                        <div className="mt-0.5 text-micro font-normal text-text-subtle">
+                          {row.email}
                         </div>
-                        {row.email ? (
-                          <div className="mt-0.5 text-micro font-normal text-text-subtle">
-                            {row.email}
-                          </div>
-                        ) : null}
-                        {row.plan ? (
-                          <div className="mt-0.5 text-micro font-normal text-text-subtle">
-                            {row.plan}
-                          </div>
-                        ) : null}
-                      </th>
-                      <td data-label="Amount" className="whitespace-nowrap">
-                        <span className="font-mono text-label text-accent-text">{row.amount}</span>
-                      </td>
-                      <td data-label="Decline">
-                        <CategoryPill category={row.category} />
-                        {row.declineCode ? (
-                          <div className="mt-1 font-mono text-micro text-text-subtle">
-                            {row.declineCode}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td data-label="Steps">
-                        <span
-                          className={`font-mono text-micro ${row.stepsDone > 0 ? "text-text" : "text-text-subtle"}`}
-                        >
-                          {row.stepsDone}/{row.stepsTotal}
-                        </span>
-                        {row.nextStep ? (
-                          <div className="mt-0.5 text-micro text-accent-text">
-                            Next: {row.nextStep}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td data-label="Status">
-                        <StatusPill row={row} />
-                      </td>
-                      <td data-label="Detected" className="whitespace-nowrap">
-                        <div className="text-micro text-text-subtle">{row.detectedAgo}</div>
-                        <div className="mt-0.5 text-micro text-text-subtle">{row.detectedDate}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      ) : null}
+                      {row.plan ? (
+                        <div className="mt-0.5 text-micro font-normal text-text-subtle">
+                          {row.plan}
+                        </div>
+                      ) : null}
+                    </th>
+                    <td data-label="Amount" className="whitespace-nowrap">
+                      <span className="font-mono text-label text-accent-text">{row.amount}</span>
+                    </td>
+                    <td data-label="Decline">
+                      <CategoryPill category={row.category} />
+                      {row.declineCode ? (
+                        <div className="mt-1 font-mono text-micro text-text-subtle">
+                          {row.declineCode}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td data-label="Steps">
+                      <span
+                        className={`font-mono text-micro ${row.stepsDone > 0 ? "text-text" : "text-text-subtle"}`}
+                      >
+                        {row.stepsDone}/{row.stepsTotal}
+                      </span>
+                      {row.nextStep ? (
+                        <div className="mt-0.5 text-micro text-accent-text">
+                          Next: {row.nextStep}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td data-label="Status">
+                      <StatusPill row={row} />
+                    </td>
+                    <td data-label="Detected" className="whitespace-nowrap">
+                      <div className="text-micro text-text-subtle">{row.detectedAgo}</div>
+                      <div className="mt-0.5 text-micro text-text-subtle">{row.detectedDate}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
           </div>
         </div>
       </section>

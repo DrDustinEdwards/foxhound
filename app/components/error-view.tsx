@@ -1,5 +1,7 @@
 import { isRouteErrorResponse } from "react-router";
 import { ErrorPage } from "capsomer/react/error-page";
+import { ButtonLink } from "capsomer/react/link";
+import { copyright } from "capsomer/behavior/family-footer";
 
 import { WITHDRAWN_BLOG_HEADING, WITHDRAWN_BLOG_REASON } from "~/lib/blog/withdrawn";
 import { errorDetails } from "~/lib/errors/boundary-message";
@@ -28,10 +30,6 @@ import { headerLogo } from "./header-logo";
 // Primary is Capsomer's primary; the secondaries are its default (outlined),
 // shadcn's outline variant, which is what Recova's bordered transparent links
 // were. No Foxhound class goes on a button: the component draws it whole.
-const BUTTON = { className: "cap-btn", "data-size": "lg" } as const;
-const PRIMARY = { ...BUTTON, "data-variant": "primary" } as const;
-const SECONDARY = BUTTON;
-
 // THE BAR carries only the wordmark linking home, as Recova's did. It is drawn here rather than by
 // Capsomer's SiteHeader: with no sections, switchers or account, SiteHeader still renders its
 // phone Menu button, which would open a sheet with nothing in it, a control that does nothing. So the
@@ -52,7 +50,7 @@ export function ErrorBar() {
 export function ErrorFooter() {
   return (
     <footer className="w-full p-6 text-center text-label text-text-tertiary">
-      &copy; 2026 Foxhound
+      {copyright("Foxhound")}
     </footer>
   );
 }
@@ -77,13 +75,13 @@ export function recovaWords(error: unknown, isDev: boolean): { title: string; te
 export function ErrorLinks({ notFound }: { notFound: boolean }) {
   return (
     <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
-      <a href="/recovery/dashboard" {...SECONDARY}>
+      <ButtonLink href="/recovery/dashboard" size="lg">
         Go to dashboard
-      </a>
+      </ButtonLink>
       {notFound ? (
-        <a href="/demos/recovery" {...SECONDARY}>
+        <ButtonLink href="/demos/recovery" size="lg">
           View demo
-        </a>
+        </ButtonLink>
       ) : null}
     </div>
   );
@@ -116,9 +114,9 @@ function WithdrawnContent() {
       <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
         {/* ONE destination, and it is the blog. Not "try again", which offers a retry of a URL that
             will never answer, and not "go to dashboard", an app link on an anonymous marketing page. */}
-        <a href="/blog" {...PRIMARY}>
+        <ButtonLink href="/blog" variant="primary" size="lg">
           Read the blog
-        </a>
+        </ButtonLink>
       </div>
     </div>
   );

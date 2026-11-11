@@ -1342,3 +1342,88 @@ body {
   outline-offset: revert-layer;
   border-radius: revert-layer;
 }
+
+/* The audit dashboard's autosave line (Capsomer's save-bar, autosave): left, close under the
+   controls, in the small type Recova's status line used, where the bar's default ends the row on
+   the right and sits further below. */
+.fh-audit-autosave {
+  justify-content: flex-start;
+  margin-block-start: var(--space-3);
+  min-block-size: 1rem;
+}
+.fh-audit-autosave .cap-save-bar-result {
+  font-size: var(--text-micro);
+}
+
+/* A filter bar inside a Capsomer panel (the payments page): the panel is the frame, so the bar's own
+   bottom margin goes, and its count sits at the end of the row beside Clear, as Recova's did. */
+.fh-filter-panel {
+  margin: 0;
+}
+.fh-filter-panel .cap-filter-bar-count {
+  flex-basis: auto;
+}
+
+/* A filter bar whose Apply is the view's primary action (customers): amber, as Capsomer's primary
+   button, which the bar's own Apply does not offer. */
+.fh-filter-primary .cap-filter-bar-actions > button[type="submit"].cap-btn {
+  --cap-btn-fg: var(--primary-fg);
+  --cap-btn-bg: var(--primary);
+  --cap-btn-line: var(--primary-line);
+  --cap-btn-hover: var(--primary-hover);
+  --cap-btn-press: var(--primary-hover);
+  font-weight: 600;
+}
+
+/* The legal pages (privacy, terms, security, accessibility): Capsomer's legal page at Recova's sizes
+   and colors. The 0.9375rem body, the 1.25rem section heads, the mono micro contents heading, and
+   the accent links underlined, as Recova writes them. */
+.fh-legal .cap-legal {
+  --measure: 100%;
+}
+.fh-legal .cap-legal-title {
+  font-size: var(--text-page-title);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+.fh-legal .cap-legal-updated {
+  font-size: var(--text-subhead);
+  color: var(--text-secondary);
+}
+.fh-legal .cap-legal-body,
+.fh-legal .cap-legal-intro,
+.fh-legal .cap-legal-outro {
+  font-size: var(--text-subhead);
+  line-height: 1.625;
+  color: var(--text-secondary);
+}
+.fh-legal .cap-legal-section-title,
+.fh-legal .cap-legal-intro h2 {
+  font-size: var(--text-title);
+  font-weight: 500;
+  color: var(--text);
+}
+.fh-legal .cap-legal-body h3 {
+  font-size: var(--text-item-title);
+  font-weight: 500;
+  color: var(--text);
+}
+.fh-legal .cap-legal-contents-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+.fh-legal .cap-legal-contents a {
+  font-size: var(--text-label);
+}
+.fh-legal :is(.cap-legal-body, .cap-legal-intro, .cap-legal-contents) a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 400;
+}
+.fh-legal :is(.cap-legal-body, .cap-legal-intro, .cap-legal-contents) a:hover {
+  color: var(--accent-hover);
+}

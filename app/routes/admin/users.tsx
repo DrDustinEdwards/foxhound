@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
@@ -13,6 +14,7 @@ import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/users";
 import { NOINDEX } from "~/lib/seo/meta";
+import "capsomer/table.css";
 
 export const handle: AdminHandle = { page: "Users" };
 
@@ -59,71 +61,64 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
             A person appears here once they sign up for Foxhound.
           </Empty>
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-cap="table"
-            data-reflow=""
-            role="region"
-            aria-labelledby={HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Everyone who can sign in to Foxhound, one person per row"
+            captionHidden
+            labelledBy={HEADING_ID}
+            reflow
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Everyone who can sign in to Foxhound, one person per row
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Person</th>
-                  <th scope="col">Accounts</th>
-                  <th scope="col">Platform role</th>
-                  <th scope="col">Last sign-in</th>
-                  <th scope="col">Joined</th>
-                  <th scope="col">User ID</th>
+            <thead>
+              <tr>
+                <th scope="col">Person</th>
+                <th scope="col">Accounts</th>
+                <th scope="col">Platform role</th>
+                <th scope="col">Last sign-in</th>
+                <th scope="col">Joined</th>
+                <th scope="col">User ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <th scope="row" className="font-normal">
+                    <span className="block text-text">{u.name}</span>
+                    <span className="block text-text-tertiary">{u.email}</span>
+                  </th>
+                  <td data-label="Accounts">
+                    {u.memberships.length === 0 ? (
+                      <span className="text-text-tertiary">No account</span>
+                    ) : (
+                      <ul className="m-0 grid list-none gap-1 p-0">
+                        {u.memberships.map((m) => (
+                          <li key={m.accountId}>
+                            <Link to={merchantHref(m.accountId)} className={LINK}>
+                              {m.accountName ?? m.accountId}
+                            </Link>{" "}
+                            <span className="text-text-tertiary">{membershipWord(m)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                  <td data-label="Platform role">
+                    {u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}
+                  </td>
+                  <td data-label="Last sign-in">
+                    <AdminTime at={u.lastSignInAt} empty="No sign-in on record" />
+                  </td>
+                  <td data-label="Joined">
+                    <AdminTime at={u.createdAt} />
+                  </td>
+                  <td
+                    data-label="User ID"
+                    className="font-mono text-micro break-all text-text-tertiary"
+                  >
+                    {u.id}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <th scope="row" className="font-normal">
-                      <span className="block text-text">{u.name}</span>
-                      <span className="block text-text-tertiary">{u.email}</span>
-                    </th>
-                    <td data-label="Accounts">
-                      {u.memberships.length === 0 ? (
-                        <span className="text-text-tertiary">No account</span>
-                      ) : (
-                        <ul className="m-0 grid list-none gap-1 p-0">
-                          {u.memberships.map((m) => (
-                            <li key={m.accountId}>
-                              <Link to={merchantHref(m.accountId)} className={LINK}>
-                                {m.accountName ?? m.accountId}
-                              </Link>{" "}
-                              <span className="text-text-tertiary">{membershipWord(m)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </td>
-                    <td data-label="Platform role">
-                      {u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}
-                    </td>
-                    <td data-label="Last sign-in">
-                      <AdminTime at={u.lastSignInAt} empty="No sign-in on record" />
-                    </td>
-                    <td data-label="Joined">
-                      <AdminTime at={u.createdAt} />
-                    </td>
-                    <td
-                      data-label="User ID"
-                      className="font-mono text-micro break-all text-text-tertiary"
-                    >
-                      {u.id}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
     </div>

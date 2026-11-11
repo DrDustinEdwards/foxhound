@@ -1,3 +1,4 @@
+import { ButtonLink } from "capsomer/react/link";
 import {
   Outlet,
   useLocation,
@@ -443,13 +444,13 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
                 viewing the demo already has an account, so they get Exit only. */}
             <span className="flex shrink-0 items-center gap-2">
               {demoSignedIn ? null : (
-                <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
+                <ButtonLink href="/signup" variant="primary" size="sm">
                   Connect Stripe
-                </a>
+                </ButtonLink>
               )}
-              <a href="/demo/exit" className="cap-btn" data-size="sm">
+              <ButtonLink href="/demo/exit" size="sm">
                 {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
-              </a>
+              </ButtonLink>
             </span>
           </div>
         ) : null}
@@ -461,9 +462,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           <Banner
             tone="warn"
             actions={
-              <a href={viewingAs.stopHref} className="cap-btn" data-size="sm">
+              <ButtonLink href={viewingAs.stopHref} size="sm">
                 Stop
-              </a>
+              </ButtonLink>
             }
           >
             Viewing as {accountName ?? "this merchant"} (read-only).

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import "capsomer/button.css";
 import "capsomer/page-head.css";
@@ -136,13 +136,13 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
           lead="Data reflects your Stripe account at that point in time."
           actions={
             <>
-              <Link to="/audit/dashboard" className="cap-btn" data-variant="link">
+              <ButtonLink to="/audit/dashboard" variant="link">
                 Back to history
-              </Link>
+              </ButtonLink>
               <CopyLinkButton url={url} resetMs={1500} className="cap-btn" data-variant="link" />
-              <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+              <ButtonLink to="/audit/connect" variant="primary">
                 Run new audit
-              </Link>
+              </ButtonLink>
             </>
           }
         />

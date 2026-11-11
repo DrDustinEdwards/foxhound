@@ -1,6 +1,8 @@
+import { SaveBar } from "capsomer/react/save-bar";
+import { Table } from "capsomer/react/table";
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useRouteLoaderData } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { eq } from "drizzle-orm";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -13,6 +15,7 @@ import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
+import "capsomer/save-bar.css";
 // Capsomer's tokens and the amber family, which the components above read, as
 // /settings/audit and /settings/alerts load them.
 import "~/site-header.css";
@@ -246,16 +249,6 @@ export function AuditSettingsForm({
   const lookbackHelp = useId();
   const digestHelp = useId();
 
-  // Recova clears "Saved." after three seconds and keeps a failure until the
-  // next try.
-  const [dismissed, setDismissed] = useState<SaveResult>(undefined);
-  const shown = result !== dismissed ? result : undefined;
-  useEffect(() => {
-    if (!result?.ok) return;
-    const timer = setTimeout(() => setDismissed(result), 3000);
-    return () => clearTimeout(timer);
-  }, [result]);
-
   // The control has already changed in the page when its handler runs, so the
   // form posts the new value.
   // The controls are never disabled during a save, because disabling the
@@ -332,11 +325,23 @@ export function AuditSettingsForm({
         </div>
       </div>
 
-      <div role="status" className="mt-3 min-h-4 text-micro">
-        {saving ? <span className="text-text-subtle">Saving…</span> : null}
-        {!saving && shown?.ok === true ? <span className="text-green">Saved.</span> : null}
-        {!saving && shown?.ok === false ? <span className="text-red">Save failed.</span> : null}
-      </div>
+      {/* Saves as each control changes: the bar has no button, "Saved." fades after
+          three seconds and a failure stays until the next try. */}
+      <SaveBar
+        autosave
+        className="fh-audit-autosave"
+        state={
+          saving
+            ? "saving"
+            : result?.ok === true
+              ? "saved"
+              : result?.ok === false
+                ? "failed"
+                : "idle"
+        }
+        saved="Saved."
+        failed="Save failed."
+      />
     </DemoGuardedForm>
   );
 }
@@ -367,9 +372,9 @@ function SettingsPanel({
 
 function RunNewAudit({ children }: { children: string }) {
   return (
-    <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+    <ButtonLink to="/audit/connect" variant="primary">
       {children}
-    </Link>
+    </ButtonLink>
   );
 }
 
@@ -448,56 +453,47 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
       <div className="mb-5">
         <Panel title="History" flush>
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-label="Audit runs"
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col" data-num="">
-                    Failed
-                  </th>
-                  <th scope="col" data-num="">
-                    Disputes
-                  </th>
-                  <th scope="col" data-num="">
-                    MRR
-                  </th>
-                  <th scope="col" data-num="">
-                    <span className="sr-only">View</span>
-                  </th>
+          <Table caption="Audit runs" captionHidden reflow>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col" data-num="">
+                  Failed
+                </th>
+                <th scope="col" data-num="">
+                  Disputes
+                </th>
+                <th scope="col" data-num="">
+                  MRR
+                </th>
+                <th scope="col" data-num="">
+                  <span className="sr-only">View</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((run) => (
+                <tr key={run.id}>
+                  <th scope="row">{formatDateShort(run.runAt)}</th>
+                  <td data-label="Failed" data-num="" className="font-mono">
+                    <Amount totals={run.failedInvoices} currency={run.currency} />
+                  </td>
+                  <td data-label="Disputes" data-num="" className="font-mono">
+                    <Amount totals={run.openDisputes} currency={run.currency} />
+                  </td>
+                  <td data-label="MRR" data-num="" className="font-mono">
+                    <Amount totals={run.mrr} currency={run.currency} />
+                  </td>
+                  <td data-label="View" data-num="">
+                    <ButtonLink to={`/audit/results/${run.id}`} variant="link">
+                      View
+                      <span className="sr-only"> the run of {formatDateShort(run.runAt)}</span>
+                    </ButtonLink>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {runs.map((run) => (
-                  <tr key={run.id}>
-                    <th scope="row">{formatDateShort(run.runAt)}</th>
-                    <td data-label="Failed" data-num="" className="font-mono">
-                      <Amount totals={run.failedInvoices} currency={run.currency} />
-                    </td>
-                    <td data-label="Disputes" data-num="" className="font-mono">
-                      <Amount totals={run.openDisputes} currency={run.currency} />
-                    </td>
-                    <td data-label="MRR" data-num="" className="font-mono">
-                      <Amount totals={run.mrr} currency={run.currency} />
-                    </td>
-                    <td data-label="View" data-num="">
-                      <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
-                        View
-                        <span className="sr-only"> the run of {formatDateShort(run.runAt)}</span>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </Panel>
       </div>
 

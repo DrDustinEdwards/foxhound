@@ -1,3 +1,4 @@
+import { ButtonLink } from "capsomer/react/link";
 import { useEffect, useRef } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { Alert, Banner } from "capsomer/react/banner";
@@ -304,9 +305,9 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                         >
                           {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
                         </Button>
-                        <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
+                        <ButtonLink href="?" variant="quiet" size="sm">
                           Cancel
-                        </a>
+                        </ButtonLink>
                       </span>
                     </DemoGuardedForm>
                   ) : null}
@@ -314,15 +315,15 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                     className={`ml-auto flex items-center gap-2${confirming ? " @xl:ml-0" : ""}`}
                   >
                     {m.removable && !confirming ? (
-                      <a
+                      <ButtonLink
                         href={"?confirm=" + m.id}
-                        className="cap-btn"
-                        data-variant="quiet"
-                        data-size="sm"
+
+                        variant="quiet"
+                        size="sm"
                       >
                         Remove member
                         <span className="sr-only">{" " + name}</span>
-                      </a>
+                      </ButtonLink>
                     ) : null}
                     <Pill variant={m.isOwnerRole ? "default" : "secondary"}>
                       {m.isOwnerRole ? "Owner" : "Member"}

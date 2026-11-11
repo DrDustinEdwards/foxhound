@@ -2,6 +2,7 @@
 // selector, onboarding checklist, stat cards, ROI, win-back, queue,
 // deliverability and the payments table. Presentational.
 
+import { Table } from "capsomer/react/table";
 import type { ComponentType, ReactNode } from "react";
 import {
   Activity,
@@ -14,7 +15,7 @@ import {
   Tag,
   TrendingUp,
 } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Pill, Status, type Tone as StatusTone } from "capsomer/react/status";
@@ -48,6 +49,7 @@ import {
   failedPaymentStatusTone,
   formatStepType,
 } from "~/lib/recovery/labels";
+import "capsomer/table.css";
 
 // ---- Head ----
 
@@ -121,9 +123,9 @@ export function OnboardingChecklist({
           detail="Link your Stripe account so Foxhound can detect failed payments"
           actions={
             connected ? null : (
-              <Link to="/connect" className="cap-btn" data-variant="primary" data-size="sm">
+              <ButtonLink to="/connect" variant="primary" size="sm">
                 Connect
-              </Link>
+              </ButtonLink>
             )
           }
         />
@@ -133,9 +135,9 @@ export function OnboardingChecklist({
           detail="Customers will see this name in recovery emails"
           actions={
             senderNameSet ? null : (
-              <Link to="/settings" className="cap-btn" data-size="sm">
+              <ButtonLink to="/settings" size="sm">
                 Go to settings
-              </Link>
+              </ButtonLink>
             )
           }
         />
@@ -145,9 +147,9 @@ export function OnboardingChecklist({
           detail="We'll send you an alert when a payment is recovered."
           actions={
             alertAddressSet ? null : (
-              <Link to="/settings" className="cap-btn" data-size="sm">
+              <ButtonLink to="/settings" size="sm">
                 Go to settings
-              </Link>
+              </ButtonLink>
             )
           }
         />
@@ -540,100 +542,91 @@ export function PaymentsTable({
           </ul>
 
           <div className="hidden sm:block">
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-label="Failed payments"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Customer</th>
-                    <th scope="col">Amount</th>
-                    <th scope="col">Decline</th>
-                    <th scope="col">Steps</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Detected</th>
-                    <th scope="col">
-                      <span className="cap-sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p) => {
-                    const prior = priorFailureCount(w.previousFailureCounts[p.stripeCustomerId]);
-                    const s = steps[p.id] ?? { completed: 0, total: 0, next: null };
-                    return (
-                      <tr key={p.id}>
-                        <th scope="row">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-text">
-                              {p.customerName ?? p.customerEmail}
-                            </span>
-                            {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
+            <Table caption="Failed payments" captionHidden reflow="medium">
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Decline</th>
+                  <th scope="col">Steps</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Detected</th>
+                  <th scope="col">
+                    <span className="cap-sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => {
+                  const prior = priorFailureCount(w.previousFailureCounts[p.stripeCustomerId]);
+                  const s = steps[p.id] ?? { completed: 0, total: 0, next: null };
+                  return (
+                    <tr key={p.id}>
+                      <th scope="row">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-text">
+                            {p.customerName ?? p.customerEmail}
                           </span>
-                          {p.customerName ? (
-                            <span className="block text-micro font-normal text-text-subtle">
-                              {p.customerEmail}
-                            </span>
-                          ) : null}
-                          {p.planName ? (
-                            <span className="block text-micro font-normal text-text-subtle">
-                              {p.planName}
-                            </span>
-                          ) : null}
-                        </th>
-                        <td data-label="Amount" className="whitespace-nowrap font-mono">
-                          {formatMoney(p.amountCents, p.currency)}
-                        </td>
-                        <td data-label="Decline">
-                          <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
-                          {p.declineCode ? (
-                            <span className="block font-mono text-micro text-text-subtle">
-                              {p.declineCode}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td data-label="Steps">
-                          <span
-                            className={`font-mono text-micro ${s.completed > 0 ? "text-text" : "text-text-subtle"}`}
-                          >
-                            {s.completed}/{s.total}
+                          {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
+                        </span>
+                        {p.customerName ? (
+                          <span className="block text-micro font-normal text-text-subtle">
+                            {p.customerEmail}
                           </span>
-                          {s.next ? (
-                            <span className="block text-micro text-brand-text">Next: {s.next}</span>
-                          ) : null}
-                        </td>
-                        <td data-label="Status">
-                          <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
-                            {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
-                          </Pill>
-                        </td>
-                        <td
-                          data-label="Detected"
-                          className="whitespace-nowrap text-micro text-text-subtle"
+                        ) : null}
+                        {p.planName ? (
+                          <span className="block text-micro font-normal text-text-subtle">
+                            {p.planName}
+                          </span>
+                        ) : null}
+                      </th>
+                      <td data-label="Amount" className="whitespace-nowrap font-mono">
+                        {formatMoney(p.amountCents, p.currency)}
+                      </td>
+                      <td data-label="Decline">
+                        <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
+                        {p.declineCode ? (
+                          <span className="block font-mono text-micro text-text-subtle">
+                            {p.declineCode}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td data-label="Steps">
+                        <span
+                          className={`font-mono text-micro ${s.completed > 0 ? "text-text" : "text-text-subtle"}`}
                         >
-                          <span className="block">{formatRelativeTime(p.detectedAt, nowMs)}</span>
-                          <span className="block">{formatLongDate(p.detectedAt)}</span>
-                        </td>
-                        <td data-label="Actions">
-                          <Link
-                            to={`/recovery/payments/${p.id}`}
-                            aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}
-                            className="whitespace-nowrap text-micro text-brand-text"
-                          >
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {s.completed}/{s.total}
+                        </span>
+                        {s.next ? (
+                          <span className="block text-micro text-brand-text">Next: {s.next}</span>
+                        ) : null}
+                      </td>
+                      <td data-label="Status">
+                        <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
+                          {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                        </Pill>
+                      </td>
+                      <td
+                        data-label="Detected"
+                        className="whitespace-nowrap text-micro text-text-subtle"
+                      >
+                        <span className="block">{formatRelativeTime(p.detectedAt, nowMs)}</span>
+                        <span className="block">{formatLongDate(p.detectedAt)}</span>
+                      </td>
+                      <td data-label="Actions">
+                        <Link
+                          to={`/recovery/payments/${p.id}`}
+                          aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}
+                          className="whitespace-nowrap text-micro text-brand-text"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           </div>
         </>
       )}

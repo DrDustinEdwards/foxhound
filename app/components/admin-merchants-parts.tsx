@@ -1,10 +1,10 @@
 // Parts of the admin merchants page (routes/admin/merchants/index.tsx split):
 // the merchant list and rows, platform figures, undo posts and the posted result.
 
+import { Table } from "capsomer/react/table";
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Form, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
-import { Link } from "capsomer/react/link";
-import { ExternalLink } from "lucide-react";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { useMessage } from "capsomer/react/message";
 import { Panel } from "capsomer/react/panel";
@@ -32,6 +32,8 @@ import { merchantHref, pagePending } from "~/lib/admin/page";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import type { Route } from "../routes/admin/merchants/+types/index";
 import type { ActionData } from "../routes/admin/merchants/index";
+import "capsomer/link.css";
+import "capsomer/table.css";
 
 const HEADING_ID = "admin-merchants-heading";
 // Capsomer's cap-table-open stretches the merchant link over the row and lifts
@@ -153,52 +155,43 @@ export function MerchantsList({
               <Empty
                 kind="no-match"
                 title={words.empty}
-                action={
-                  <Link to={MERCHANTS_PATH} className="cap-btn">
-                    Show all merchants
-                  </Link>
-                }
+                action={<ButtonLink to={MERCHANTS_PATH}>Show all merchants</ButtonLink>}
               >
                 {words.emptyBody}
               </Empty>
             )
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-cap="table"
-              data-reflow="wide"
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
+            <Table
+              caption={<>{words.caption}</>}
+              captionHidden
+              labelledBy={HEADING_ID}
+              reflow="wide"
             >
-              <table className="cap-table">
-                <caption className="cap-sr-only">{words.caption}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Merchant</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Stripe</th>
-                    <th scope="col">Recovery rate</th>
-                    <th scope="col" data-num="">
-                      Recovered
-                    </th>
-                    <th scope="col" data-num="" data-drop="1">
-                      Active recoveries
-                    </th>
-                    <th scope="col">Last webhook</th>
-                    <th scope="col" data-drop="1">
-                      Joined
-                    </th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {merchants.map((m) => (
-                    <MerchantRow key={m.id} merchant={m} view={view} undoPost={undoPost} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <thead>
+                <tr>
+                  <th scope="col">Merchant</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Stripe</th>
+                  <th scope="col">Recovery rate</th>
+                  <th scope="col" data-num="">
+                    Recovered
+                  </th>
+                  <th scope="col" data-num="" data-drop="1">
+                    Active recoveries
+                  </th>
+                  <th scope="col">Last webhook</th>
+                  <th scope="col" data-drop="1">
+                    Joined
+                  </th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {merchants.map((m) => (
+                  <MerchantRow key={m.id} merchant={m} view={view} undoPost={undoPost} />
+                ))}
+              </tbody>
+            </Table>
           )}
         </Panel>
       </div>
@@ -391,18 +384,16 @@ function MerchantRow({
       <td data-label="Actions" className="[grid-column:1/-1]">
         <div className="flex flex-wrap items-center gap-2">
           {m.stripeUserId ? (
-            <a
+            <ButtonLink
               href={`https://dashboard.stripe.com/${encodeURIComponent(m.stripeUserId)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cap-btn"
-              data-size="sm"
-              data-variant="quiet"
+              away
+              newTab
+              size="sm"
+              variant="quiet"
             >
               Stripe
-              <ExternalLink data-icon="end" aria-hidden="true" />
-              <span className="cap-sr-only"> dashboard for {who} (opens in a new tab)</span>
-            </a>
+              <span className="cap-sr-only"> dashboard for {who}</span>
+            </ButtonLink>
           ) : null}
           <fetcher.Form method="post" action={action}>
             <input type="hidden" name="intent" value="billing-exempt" />
@@ -424,14 +415,14 @@ function MerchantRow({
           </fetcher.Form>
           <ViewAsForm accountId={m.id} who={who} />
           {m.cancelledAt ? null : (
-            <Link
+            <ButtonLink
               to={merchantCancelHref(m.id, view)}
-              className="cap-btn"
-              data-size="sm"
-              data-variant="danger"
+
+              size="sm"
+              variant="danger"
             >
               Cancel merchant<span className="cap-sr-only"> {who}</span>
-            </Link>
+            </ButtonLink>
           )}
         </div>
       </td>

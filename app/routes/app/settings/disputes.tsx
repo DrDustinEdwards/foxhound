@@ -1,8 +1,8 @@
+import { SaveBar } from "capsomer/react/save-bar";
 import { useId, useRef } from "react";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
-import { Pill, Status } from "capsomer/react/status";
+import { Pill } from "capsomer/react/status";
 import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -10,6 +10,7 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/switch.css";
+import "capsomer/save-bar.css";
 // Capsomer's tokens and the amber family, which the components above read, as
 // /settings/features loads them.
 import "~/site-header.css";
@@ -280,22 +281,22 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
 
-        {/* Recova's SaveBar: right-aligned, the result beside the button. Only
-            while Disputes is on: with the settings hidden there is nothing to
-            save, and a save would post them empty. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <p role="status" className="text-label">
-            {result?.ok === true && !result.toggled ? <Status tone="ok">Saved</Status> : null}
-            {result?.ok === false ? (
-              <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
-            ) : null}
-          </p>
-          {enabled ? (
-            <Button type="submit" variant="primary" pending={saving}>
-              Save changes
-            </Button>
-          ) : null}
-        </div>
+        {/* The save bar has its button only while Disputes is on: with the
+            settings hidden there is nothing to save, and a save would post them
+            empty, so the bar then only says what happened (autosave). */}
+        <SaveBar
+          autosave={!enabled}
+          state={
+            saving
+              ? "saving"
+              : result?.ok === true && !result.toggled
+                ? "saved"
+                : result?.ok === false
+                  ? "failed"
+                  : "idle"
+          }
+          failed={result?.ok === false ? result.error : undefined}
+        />
       </DemoGuardedForm>
     </>
   );
