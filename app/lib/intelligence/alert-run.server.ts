@@ -192,7 +192,7 @@ export async function evaluateAndRecordAlerts(
   const firings = evaluateAlerts(configs, metrics, now.getTime());
   if (firings.length === 0) return 0;
 
-  const target = await loadAlertTarget(db, accountId);
+  const target = await loadAlertTarget(env, db, accountId);
   for (const f of firings) {
     const outcome = await notifyThresholdAlert(env, target, f, now);
     await db.batch([

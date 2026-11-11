@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq } from "drizzle-orm";
 
 import { accounts, disputeApprovals, disputes, getDb, stripeConnections } from "~/db";
@@ -127,7 +128,7 @@ async function loadNoticeRow(
 }
 
 export function appUrl(env: Env, path: string): string {
-  return `${env.BETTER_AUTH_URL ?? ""}${path}`;
+  return `${appOrigin(env)}${path}`;
 }
 
 /** Hand one merchant notice to the send path. Also used by the early fraud
