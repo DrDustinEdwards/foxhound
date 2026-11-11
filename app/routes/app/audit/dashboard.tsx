@@ -40,8 +40,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // Read whole at HEAD: app/audit/dashboard/page.tsx (blob 988c190a, 9,206 bytes)
 // and app/audit/dashboard/AuditSettingsForm.tsx (blob 9016a436, 3,634 bytes),
 // with components/audit/AuditAISummary.tsx (5ba213df) and components/Toggle.tsx
-// (0ebdd395). The old /audit/history answers one 301 here
-// (app/routes/audit/history-redirect.ts).
+// (0ebdd395).
 //
 // RECOVA IS THE SPEC for what is on the page and in what order. Populated: the
 // header (Audit history, the last run's date, Run new audit), the AI summary,

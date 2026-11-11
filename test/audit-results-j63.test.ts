@@ -65,21 +65,6 @@ describe("U3/U4: Disputes unmanaged (AuditDisputesSection, 6db9c3bc)", () => {
 // --- the two pages -----------------------------------------------------------
 
 const runPage = await import("~/routes/app/audit/run");
-// Loaded leniently so a missing module fails an assertion, not the file.
-const runsRedirect = await import("~/routes/audit/runs-redirect").catch(() => null);
-
-describe("U4: a saved run at Recova's path, /audit/results/:id", () => {
-  it("the old /audit/runs/:id answers one 301 to the new path", () => {
-    expect(runsRedirect, "app/routes/audit/runs-redirect.ts exists").not.toBeNull();
-    const response = runsRedirect!.loader({
-      request: new Request("https://foxhoundapp.test/audit/runs/run_9?x=1"),
-      params: { id: "run_9" },
-    } as never) as Response;
-    expect(response.status).toBe(301);
-    expect(response.headers.get("Location")).toBe("/audit/results/run_9?x=1");
-  });
-});
-
 // U4's loader, against two accounts.
 let sqlite: Database.Database;
 const ACCOUNT_A = "acct_alpha";

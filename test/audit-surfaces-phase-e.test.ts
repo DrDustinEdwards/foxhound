@@ -113,7 +113,7 @@ const loadHistory = (accountId: string) =>
 const loadRun = (accountId: string, id: string) =>
   runPage.loader({
     context: contextFor(accountId),
-    request: new Request("https://foxhoundapp.test/audit/runs/x"),
+    request: new Request("https://foxhoundapp.test/audit/results/x"),
     params: { id },
   } as never);
 

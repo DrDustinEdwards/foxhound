@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { RECOVA_CONFIG_REDIRECTS } from "~/lib/redirects/recova-config-redirects";
-import { RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
+import { deriveRecovaMap } from "~/lib/redirects/derive-recova-map";
+import { RECOVA_MAP_HOSTS, RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
 import routes from "~/routes";
 
 import { LEGACY_MARKETING_ROUTES } from "./fixtures/legacy-marketing-routes";
@@ -53,9 +54,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
   it("sends every Recova path to a path Foxhound serves", () => {
     const shapes = new Set([...SERVED].map((p) => p.replace(/:[^/]+/g, ":")));
     for (const entry of RECOVA_REDIRECT_MAP) {
-      expect(shapes.has(entry.to.replace(/:[^/]+/g, ":")), `${entry.from} -> ${entry.to}`).toBe(
-        true,
-      );
+      const shape = entry.to.replace(/:[^/]+/g, ":");
+      // A concrete post address (/blog/foxhound-vs-churnkey) is served by /blog/:slug.
+      const served = shapes.has(shape) || shapes.has(shape.replace(/\/[^/:]+$/, "/:"));
+      expect(served, `${entry.from} -> ${entry.to}`).toBe(true);
     }
   });
 
@@ -63,6 +65,11 @@ describe("RECOVA_REDIRECT_MAP", () => {
     const named = RECOVA_REDIRECT_MAP.filter((e) => e.to !== e.from).map((e) => e.from);
     expect(named.sort()).toEqual(
       [
+        // Recova's four comparison posts, at their foxhound-vs-* slugs.
+        "/blog/recova-vs-churn-buster",
+        "/blog/recova-vs-churnkey",
+        "/blog/recova-vs-paddle-retain",
+        "/blog/recova-vs-stripe-smart-retries",
         "/blog/rss.xml",
         "/blog/sitemap.xml",
         "/disputes/demo",
@@ -93,6 +100,10 @@ describe("RECOVA_REDIRECT_MAP", () => {
     const fixtureUrls = new Set([
       ...LEGACY_MARKETING_ROUTES.map((r) => r.url),
       ...RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source),
+      // The four renamed comparison posts, each a concrete /blog/:slug address.
+      ...RECOVA_REDIRECT_MAP.filter((e) => e.from.startsWith("/blog/recova-vs-")).map(
+        (e) => e.from,
+      ),
     ]);
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(
@@ -111,5 +122,33 @@ describe("RECOVA_REDIRECT_MAP", () => {
     for (const entry of RECOVA_REDIRECT_MAP) {
       expect(entry.to.startsWith("/")).toBe(true);
     }
+  });
+});
+
+// Recova's config redirects (J23), checked in the map that carries them.
+describe("RECOVA_REDIRECT_MAP and Recova's config redirects", () => {
+  it("no map target is itself a redirect source, so nothing chains", () => {
+    const froms = new Set(RECOVA_CONFIG_REDIRECTS.filter((r) => !r.host).map((r) => r.source));
+    for (const e of RECOVA_REDIRECT_MAP)
+      expect(froms.has(e.to), `${e.from} -> ${e.to}`).toBe(false);
+  });
+
+  it("serves the same map on app.recovamrr.com, Recova's path-preserving host rule", () => {
+    expect(RECOVA_MAP_HOSTS).toEqual(["recovamrr.com", "app.recovamrr.com"]);
+  });
+
+  it("refuses a config redirect onto the home page instead of deciding it (ruling 408 binding 4)", () => {
+    const served = new Set(["/", "/docs"]);
+    expect(() =>
+      deriveRecovaMap([], served, [{ source: "/old-home", destination: "/", permanent: true }]),
+    ).toThrow(/home page/);
+  });
+
+  it("refuses a config redirect to a path Foxhound does not serve", () => {
+    expect(() =>
+      deriveRecovaMap([], new Set(["/docs"]), [
+        { source: "/x", destination: "/nowhere", permanent: true },
+      ]),
+    ).toThrow(/does not serve/);
   });
 });

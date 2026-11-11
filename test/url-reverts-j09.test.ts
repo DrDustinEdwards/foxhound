@@ -1,5 +1,3 @@
-import { join } from "node:path";
-
 import { matchRoutes, type RouteObject } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -112,44 +110,13 @@ describe("J09: Foxhound's old paths behave as ruled", () => {
     });
   }
 
+  // Foxhound serves no internal redirects (Dustin, 2026-11-11), so the old
+  // /products/<name> spokes are gone like every other retired path.
   for (const spoke of SITEMAP_PUBLISHED_SPOKES) {
-    it(`/products/${spoke}, published in the sitemap, answers one 301 to /product/${spoke}`, async () => {
-      const file = moduleFor(`/products/${spoke}`);
-      expect(file, `/products/${spoke} should reach the redirect module`).not.toBeNull();
-      const mod = (await import(/* @vite-ignore */ join("../app", file!))) as {
-        loader: (args: { request: Request; params: Record<string, string> }) => Response;
-      };
-      let res: Response | undefined;
-      try {
-        res = mod.loader({
-          request: new Request(`https://foxhoundapp.com/products/${spoke}?ref=x`),
-          params: { spoke },
-        });
-      } catch (thrown) {
-        res = thrown as Response;
-      }
-      expect(res?.status).toBe(301);
-      expect(res?.headers.get("Location")).toBe(`/product/${spoke}?ref=x`);
+    it(`/products/${spoke} reaches no page`, () => {
+      expect(moduleFor(`/products/${spoke}`)).toBeNull();
     });
   }
-
-  it("/products/<anything else> is a 404, not a redirect to a page that does not exist", async () => {
-    const file = moduleFor("/products/nope");
-    expect(file).not.toBeNull();
-    const mod = (await import(/* @vite-ignore */ join("../app", file!))) as {
-      loader: (args: { request: Request; params: Record<string, string> }) => Response;
-    };
-    let res: Response | undefined;
-    try {
-      res = mod.loader({
-        request: new Request("https://foxhoundapp.com/products/nope"),
-        params: { spoke: "nope" },
-      });
-    } catch (thrown) {
-      res = thrown as Response;
-    }
-    expect(res?.status).toBe(404);
-  });
 });
 
 describe("J09: the nav, the caches and the machine files name the new paths", () => {

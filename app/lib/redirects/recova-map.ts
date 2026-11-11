@@ -27,6 +27,30 @@ export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [
   { from: "/docs/platform", to: "/docs/platform" },
   { from: "/docs/recovery", to: "/docs/recovery" },
   { from: "/blog", to: "/blog" },
+  // Recova's four comparison posts live on Foxhound at foxhound-vs-* slugs, and
+  // Foxhound serves no redirect of its own (Dustin, 2026-11-11: "NO internal
+  // redirects"), so each old address goes straight to its post. Listed before
+  // /blog/:slug, which would carry the old slug to a page that is not there.
+  {
+    from: "/blog/recova-vs-churn-buster",
+    to: "/blog/foxhound-vs-churn-buster",
+    note: "Recova's comparison post, published on Foxhound under a foxhound-vs-* slug.",
+  },
+  {
+    from: "/blog/recova-vs-churnkey",
+    to: "/blog/foxhound-vs-churnkey",
+    note: "Recova's comparison post, published on Foxhound under a foxhound-vs-* slug.",
+  },
+  {
+    from: "/blog/recova-vs-paddle-retain",
+    to: "/blog/foxhound-vs-paddle-retain",
+    note: "Recova's comparison post, published on Foxhound under a foxhound-vs-* slug.",
+  },
+  {
+    from: "/blog/recova-vs-stripe-smart-retries",
+    to: "/blog/foxhound-vs-stripe-smart-retries",
+    note: "Recova's comparison post, published on Foxhound under a foxhound-vs-* slug.",
+  },
   { from: "/blog/:slug", to: "/blog/:slug" },
   { from: "/blog/archive", to: "/blog/archive" },
   { from: "/blog/tag/:tag", to: "/blog/tag/:tag" },

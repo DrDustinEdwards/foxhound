@@ -31,7 +31,6 @@ describe("no-transform on signed-in and token HTML", () => {
     "/billing/invoices/in_1",
     "/settings/team",
     "/audit/dashboard",
-    "/audit/runs/run_1",
     "/audit/results/run_1",
     "/help",
     "/welcome",
