@@ -429,20 +429,28 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             lines regardless of demoSignedIn, via the explicit <br />, so the
             banner's own height cannot vary between the two demo states. */}
         {isDemo ? (
-          <div className="flex items-center justify-center gap-3 border-b border-border bg-chrome px-4 py-2 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-b border-border bg-chrome px-4 py-2 text-center">
             <span className="text-label text-chrome-text-secondary">
               You're viewing a live demo with sample data.
               <br />
               {demoSignedIn
                 ? "Nothing you do here is saved. This is not your real account."
-                : "Nothing you do here is saved."}
+                : "This is your dashboard after you connect Stripe. Nothing you do here is saved."}
             </span>
-            <a
-              href="/demo/exit"
-              className="shrink-0 rounded-md border border-border px-2.5 py-1 text-label font-medium text-chrome-text hover:border-chrome-brand"
-            >
-              {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
-            </a>
+            {/* Recova's demo header carried a primary Connect Stripe button (to
+                /signup) on every demo page; a visitor without an account gets it
+                here, with Exit demo as the second action. A signed-in merchant
+                viewing the demo already has an account, so they get Exit only. */}
+            <span className="flex shrink-0 items-center gap-2">
+              {demoSignedIn ? null : (
+                <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
+                  Connect Stripe
+                </a>
+              )}
+              <a href="/demo/exit" className="cap-btn" data-size="sm">
+                {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
+              </a>
+            </span>
           </div>
         ) : null}
         {/* An admin viewing this merchant read-only (Recova's "Impersonating:

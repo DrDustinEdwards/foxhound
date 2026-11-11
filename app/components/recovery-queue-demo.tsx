@@ -177,7 +177,7 @@ export function RecoveryQueueDemo() {
           <div className="h-2.5 w-2.5 rounded-full bg-border" />
           <div className="mx-3 flex-1">
             <div className="rounded border border-border-sub bg-surface px-2 py-0.5 text-center font-mono text-micro text-text-subtle">
-              app.foxhoundapp.com/recovery
+              foxhoundapp.com/recovery/dashboard
             </div>
           </div>
         </div>
