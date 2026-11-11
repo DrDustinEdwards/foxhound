@@ -12,6 +12,7 @@ import {
   type RecoveryNotificationOutcome,
 } from "./merchant-notification.server";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE SEQUENCE-COMPLETE NOTIFICATION. Ported from legacy's
 // app/api/cron/process-recovery/route.ts (blob `7015998c`, 19,935 bytes), the
 // "Notify merchant - sequence complete, unrecovered" block.
@@ -205,7 +206,7 @@ export async function sendSequenceCompleteNotification(
     );
     return { kind: "sent", result };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(
       `sequence-complete notification failed for account ${ctx.accountId} payment ${ctx.failedPaymentId}:`,
       message,

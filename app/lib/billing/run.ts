@@ -30,6 +30,7 @@ import {
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // The monthly billing run (PRICING.md billing mechanics + SCHEMA.md billing).
 // One invoice per account per currency, its line items FK-linked to their
 // evidence (recovered payment / dispute), committed as ONE atomic money-write
@@ -606,7 +607,7 @@ export async function runMonthlyBilling(
       results.push({
         accountId: id,
         invoices: [],
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage(err),
       });
       // Surface the failure without aborting the run; the cron logs the aggregate.
       console.error(

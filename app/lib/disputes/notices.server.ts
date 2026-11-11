@@ -23,6 +23,7 @@ import {
   type ReminderBucket,
 } from "./notices";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE SENDERS for the merchant's dispute notices. The words and rules are
 // in ./notices.ts; this reads the rows and hands each notice to processEmailJob,
 // the one send path, so suppression, the per-account live-send gate and the
@@ -171,7 +172,7 @@ function failed(
   ctx: { accountId: string; disputeId: string },
   err: unknown,
 ): DisputeNoticeOutcome {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = errorMessage(err);
   console.error(
     `dispute ${scope} notice failed for account ${ctx.accountId} dispute ${ctx.disputeId}:`,
     message,

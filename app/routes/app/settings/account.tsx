@@ -33,7 +33,7 @@ import {
   signInMethods,
 } from "@dustinedwards/site-runtime/sign-in";
 import { isAPIError } from "better-auth/api";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import {
@@ -420,11 +420,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
           return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
         }
-        logEvent(
-          "email_change_failed",
-          { error: error instanceof Error ? error.message : String(error) },
-          { level: "error" },
-        );
+        logEvent("email_change_failed", { error: errorMessage(error) }, { level: "error" });
         return data<ActionResult>(
           { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
           { status: 500 },

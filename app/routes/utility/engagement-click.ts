@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/cloudflare";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
@@ -70,7 +70,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     // swallowed. The step id is enough to trace it; the token and URL stay out.
     logEvent(
       "engagement_click_failed",
-      { stepId: payload.stepId, error: err instanceof Error ? err.message : String(err) },
+      { stepId: payload.stepId, error: errorMessage(err) },
       { level: "error" },
     );
     Sentry.captureException(err, { extra: { scope: "engagement-click", stepId: payload.stepId } });

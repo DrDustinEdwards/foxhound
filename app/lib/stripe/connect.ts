@@ -8,6 +8,7 @@ import {
 
 import { getStripe } from "./client";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // Stripe Connect OAuth (ported from legacy app/api/auth/stripe/{connect,callback}).
 // Phase 3 stubbed /connect/callback; this is the real token exchange. In the
 // Foxhound model the account already exists (Phase 3 account setup), so the
@@ -153,7 +154,7 @@ async function deauthorizeConnectedAccountWithClient(
     await stripe.oauth.deauthorize({ client_id: clientId, stripe_user_id: stripeUserId });
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { ok: false, error: errorMessage(err) };
   }
 }
 

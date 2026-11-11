@@ -48,6 +48,7 @@ import {
 } from "./alerts";
 import { accountProcessingEligible } from "./sync.server";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // Recova's evaluateAlerts (lib/alert-evaluation.ts, blob 0e28ecbf), which ran
 // at the tail of its recovery, disputes and scheduled-audit crons: each
 // account's enabled alerts against Recova's eleven metrics, then the always-on
@@ -302,7 +303,7 @@ export async function runCriticalCustomersCheck(
     });
     return { kind: "fired", count, ...sent };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(`critical customers alert failed for account ${accountId}:`, message);
     return { kind: "error", message };
   }

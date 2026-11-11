@@ -12,6 +12,7 @@ import { mcpCalls } from "~/db/schema";
 
 import { maskEmailsInText } from "./redact";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE CALL LOG (MCP ruling 2026-10-10, rule 12.4): one append-only row per tool
 // call, with the caller, the arguments and the result.
 //
@@ -245,7 +246,7 @@ export async function recordToolCalls(
       "mcp call log write failed:",
       caller.apiKeyId,
       rows.map((r) => r.tool).join(","),
-      err instanceof Error ? err.message : String(err),
+      errorMessage(err),
     );
   }
 }

@@ -29,6 +29,7 @@ import {
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
+import { plural } from "@drdustinedwards/site-helpers/text";
 
 // /features content. Recova's spec is
 // app/(marketing)/features/features-data.ts (blob a0a5dd20), read whole.
@@ -133,10 +134,6 @@ function cronWeekday(expr: string): string {
   const day = m ? cronWeekdayIndex(m[1]) : null;
   if (day === null) throw new Error(`not a weekly schedule: ${expr}`);
   return WEEKDAYS[day];
-}
-
-function plural(n: number, unit: string): string {
-  return `${n} ${unit}${n === 1 ? "" : "s"}`;
 }
 
 /** 15 -> "15 minutes", 60 -> "1 hour", 720 -> "12 hours". */

@@ -6,6 +6,7 @@ import { redact } from "@dustinedwards/site-runtime/email";
 import { recoveryFooterNote } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // E2, the team invite email, ported from Recova's app/api/invite/route.ts
 // (blob 960aefc6, 3735 bytes, read whole with lib/email.ts 3f882729,
 // lib/email-colors.ts 8c23bd6f, lib/constants.ts a21b32b8 and
@@ -121,7 +122,7 @@ export async function sendTeamInviteEmail(
     return {
       status: "failed",
       providerMessageId: null,
-      error: redact(err instanceof Error ? err.message : String(err), job.redact),
+      error: redact(errorMessage(err), job.redact),
       retryable: false,
     };
   }

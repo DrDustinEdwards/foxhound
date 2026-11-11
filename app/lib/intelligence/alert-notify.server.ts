@@ -12,6 +12,7 @@ import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE ALERT EMAILS. Ported from Recova's
 // lib/alert-evaluation.ts (blob 0e28ecbf, 18,968 bytes): fireEmail and
 // fireSlack for a threshold alert, and the cross-product critical customers
@@ -286,7 +287,7 @@ export async function notifyThresholdAlert(
     }
     return { channel: "none", sent: false, reason: "channel_unknown" };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(
       `alert notification failed for account ${firing.accountId} alert ${firing.alertId}:`,
       message,

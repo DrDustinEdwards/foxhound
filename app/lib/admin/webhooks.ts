@@ -9,7 +9,7 @@
 
 import { parsePage } from "capsomer/behavior/pagination";
 
-import { plural } from "~/lib/admin/overview";
+import { plural } from "@drdustinedwards/site-helpers/text";
 
 export const WEBHOOK_PAGE_SIZE = 50;
 export const WEBHOOKS_PATH = "/admin/platform/webhooks";

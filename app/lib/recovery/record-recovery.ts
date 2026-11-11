@@ -7,6 +7,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // Records a recovered payment WITH its attribution, through the per-account
 // money-write Durable Object, as ONE atomic batch: the recovered_payments row
 // (the billing denominator) + the outcomes moat row. Both attributed and
@@ -328,7 +329,7 @@ export async function upgradeMissedRetryAttributions(
     } catch (err) {
       result.failed.push({
         failedPaymentId: row.failedPaymentId,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage(err),
       });
     }
   }

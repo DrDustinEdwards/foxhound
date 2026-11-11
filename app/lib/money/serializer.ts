@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // The money-write serialization core (CLAUDE.md hard rule 2: money writes are
 // DO-serialized atomic batches). This module is pure and
 // dependency-injected so it is unit-testable without the Workers runtime; the
@@ -46,7 +47,7 @@ export interface CommitterDeps {
 
 /** True for a SQLite/D1 UNIQUE (or PRIMARY KEY) constraint violation. */
 export function isUniqueConstraintError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = errorMessage(err);
   return /UNIQUE constraint failed|PRIMARY KEY constraint failed/i.test(message);
 }
 
@@ -54,7 +55,7 @@ export function isUniqueConstraintError(err: unknown): boolean {
  *  "outcomes.idempotency_key" or "t.a, t.b". "unknown" when the message carries
  *  none (a PRIMARY KEY failure on a rowid table, or a driver that drops it). */
 function constraintName(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = errorMessage(err);
   return (
     /constraint failed:\s*([\w.,\s]+)/i.exec(message)?.[1]?.trim().replace(/\s+/g, " ") ?? "unknown"
   );

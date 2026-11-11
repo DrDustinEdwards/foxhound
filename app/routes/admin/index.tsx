@@ -10,12 +10,8 @@ import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import {
-  overviewAttention,
-  overviewAttentionGroups,
-  overviewPending,
-  plural,
-} from "~/lib/admin/overview";
+import { overviewAttention, overviewAttentionGroups, overviewPending } from "~/lib/admin/overview";
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";

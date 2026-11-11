@@ -1,5 +1,10 @@
 import { clientIp, jsonResponse } from "@dustinedwards/site-runtime/http";
-import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
+import {
+  errorMessage,
+  logEvent,
+  OWASP_EVENTS,
+  requestFields,
+} from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
 import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
@@ -329,7 +334,7 @@ export async function handleMcpRequest(
         ...requestFields(request),
         door: "mcp",
         reason: "tool-call log unavailable",
-        detail: err instanceof Error ? err.message : String(err),
+        detail: errorMessage(err),
       },
       { level: "error" },
     );
