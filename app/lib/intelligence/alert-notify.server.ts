@@ -8,7 +8,7 @@ import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 
 import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 // THE ALERT EMAILS. Ported from Recova's
 // lib/alert-evaluation.ts (blob 0e28ecbf, 18,968 bytes): fireEmail and

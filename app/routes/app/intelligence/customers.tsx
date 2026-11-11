@@ -38,7 +38,7 @@ import {
   type CustomerDirectorySort,
 } from "~/lib/intelligence/directory.server";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";

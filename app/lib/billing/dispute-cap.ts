@@ -1,5 +1,5 @@
 import { DISPUTE_FEE_CAP_CENTS, STRIPE_PREVIEW_API_VERSION } from "~/lib/constants";
-import { currencyExponent } from "~/lib/money-format";
+import { currencyExponent } from "@dustinedwards/site-runtime/money";
 import { getStripe } from "~/lib/stripe/client";
 
 // THE $500 CAP, CONVERTED AT RESOLUTION (ruling 377(7), PRICING.md rev 5 item 2,
@@ -28,7 +28,7 @@ import { getStripe } from "~/lib/stripe/client";
 /** Minor units per major unit for a currency, as Stripe reports amounts (100
  *  for USD, 1 for JPY, 1,000 for KWD, and 100 for UGX, which Stripe still
  *  sends as a two-decimal value). The exponent comes from the one table in
- *  money-format.ts, so the cap and every displayed amount agree on what a
+ *  site-runtime ./money, so the cap and every displayed amount agree on what a
  *  Stripe amount means. Getting this wrong scales a cap by 100. */
 export function minorUnitsPerMajor(currency: string): number {
   return 10 ** currencyExponent(currency);

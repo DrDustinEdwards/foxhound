@@ -1,5 +1,6 @@
 import type { FailedPaymentRow } from "./queries.server";
-import { plainMajorAmount } from "~/lib/money-format";
+import { csvRow } from "@dustinedwards/site-runtime/csv";
+import { moneyInputValue } from "@dustinedwards/site-runtime/money";
 
 // The /recovery/payments CSV export. Pure and unit-tested: given the rows
 // listFilteredFailedPayments returns for the list's own filters, sort, page
@@ -42,44 +43,12 @@ export interface PaymentStepCounts {
   total: number;
 }
 
-/** A cell a spreadsheet would read as a formula (or as a formula after a
- *  leading tab or carriage return) gets a single quote in front, so it opens
- *  as text. Recova has no such guard; it is kept on every free-text cell
- *  (name, email, plan, currency, decline category and code, status, notes),
- *  since a customer, a merchant or Stripe controls those. */
-function neutraliseFormula(value: string): string {
-  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-}
-
-/** The only cells exempt from the guard: values this module produces itself,
- *  and only while they match the strict shape it produces. An amount such as
- *  -5.00 then stays a number in the spreadsheet instead of becoming text. */
-const AMOUNT_PATTERN = /^-?\d+(\.\d{2,3})?$/;
-const COUNT_PATTERN = /^\d+$/;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-
-type Cell = { text: string } | { produced: string; pattern: RegExp };
-
-/** Quote a field per RFC 4180 only when it needs it (contains a comma,
- *  quote, CR or LF); doubles any embedded quotes. */
-function csvField(cell: Cell): string {
-  const value =
-    "text" in cell
-      ? neutraliseFormula(cell.text)
-      : cell.pattern.test(cell.produced)
-        ? cell.produced
-        : neutraliseFormula(cell.produced);
-  if (/[",\r\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
-}
-
-function csvRow(cells: Cell[]): string {
-  return cells.map(csvField).join(",");
-}
-
-const text = (value: string): Cell => ({ text: value });
-const produced = (value: string, pattern: RegExp): Cell =>
-  value === "" ? { text: "" } : { produced: value, pattern };
+// Each record is site-runtime ./csv csvRow: RFC 4180 quoting and the OWASP
+// formula guard on every text cell (name, email, plan, currency, decline
+// category and code, status, notes), since a customer, a merchant or Stripe
+// controls those. A cell that is only a number (an amount such as -5.00, a
+// step count) is left as itself, so it stays a number in the spreadsheet.
+// Recova had no guard.
 
 /** Build the full CSV text (header + one row per payment) for a set of
  *  already-filtered failed payments. A payment missing from `stepCounts` has
@@ -88,24 +57,24 @@ export function buildPaymentsCsv(
   payments: FailedPaymentRow[],
   stepCounts: ReadonlyMap<string, PaymentStepCounts> = new Map(),
 ): string {
-  const lines = [csvRow(CSV_HEADER.map(text))];
+  const lines = [csvRow(CSV_HEADER)];
   for (const p of payments) {
     const steps = stepCounts.get(p.id) ?? { executed: 0, total: 0 };
     lines.push(
       csvRow([
-        text(p.customerName ?? ""),
-        text(p.customerEmail),
-        text(p.planName ?? ""),
-        produced(plainMajorAmount(p.amountCents, p.currency), AMOUNT_PATTERN),
-        text(p.currency.toUpperCase()),
-        text(p.declineCategory),
-        text(p.declineCode ?? ""),
-        text(p.status),
-        produced(String(steps.executed), COUNT_PATTERN),
-        produced(String(steps.total), COUNT_PATTERN),
-        produced(p.detectedAt.toISOString(), ISO_DATE_PATTERN),
-        produced(p.resolvedAt ? p.resolvedAt.toISOString() : "", ISO_DATE_PATTERN),
-        text(p.notes ?? ""),
+        p.customerName ?? "",
+        p.customerEmail,
+        p.planName ?? "",
+        moneyInputValue(p.amountCents, p.currency),
+        p.currency.toUpperCase(),
+        p.declineCategory,
+        p.declineCode ?? "",
+        p.status,
+        steps.executed,
+        steps.total,
+        p.detectedAt.toISOString(),
+        p.resolvedAt ? p.resolvedAt.toISOString() : "",
+        p.notes ?? "",
       ]),
     );
   }

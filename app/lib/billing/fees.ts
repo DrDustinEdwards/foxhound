@@ -1,5 +1,5 @@
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
-import { currencyExponent } from "~/lib/money-format";
+import { currencyExponent } from "@dustinedwards/site-runtime/money";
 
 // The ONE place fee amounts are computed (PRICING.md: 20% of attributed
 // recoveries; 20% of won disputes capped at $500-equivalent). Pure functions,

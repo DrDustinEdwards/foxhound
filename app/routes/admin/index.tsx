@@ -21,7 +21,7 @@ import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.s
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { AdminHandle } from "~/lib/admin/page";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";

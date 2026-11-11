@@ -42,7 +42,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { formatTimeAgo } from "~/lib/date-format";
 import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
   getAmountBounds,

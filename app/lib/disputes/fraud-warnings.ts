@@ -1,4 +1,4 @@
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { NoticeMail } from "./notices";
 
