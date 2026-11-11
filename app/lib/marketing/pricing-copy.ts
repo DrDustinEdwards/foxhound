@@ -90,7 +90,7 @@ export const PRICING_CARDS: PricingCard[] = [
     price: pct(DISPUTE_FEE_BPS),
     priceLabel: `of won disputes, capped at ${usd(DISPUTE_FEE_CAP_CENTS)}`,
     description:
-      "Evidence drafted from your Stripe data and recovery history. You review and sign every submission.",
+      "Evidence drafted from your Stripe data and recovery history. You approve every submission, or turn on auto-submit.",
     features: [
       "Evidence drafted from transaction history",
       "Recovery email history included",
