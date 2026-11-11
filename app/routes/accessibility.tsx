@@ -10,6 +10,7 @@ import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/accessibility";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // /accessibility: the statement every site in the network carries, from
 // Prelum's accessibilityStatement, so the standard and the wording are the same
@@ -56,7 +57,7 @@ export default function AccessibilityPage() {
         subtext="Last reviewed November 1, 2026"
       />
       <LegalBody>
-        <div className={BODY} dangerouslySetInnerHTML={{ __html: statement.html }} />
+        <div className={BODY} dangerouslySetInnerHTML={markup(statement.html)} />
       </LegalBody>
     </>
   );

@@ -18,6 +18,8 @@ export interface ActiveSubscriptionSnapshot {
   productName: string | null;
   quantity: number;
   interval: BillingInterval;
+  /** Stripe's recurring.interval_count: 3 with interval month is quarterly. */
+  intervalCount: number;
   unitAmountCents: number;
 }
 
@@ -88,13 +90,18 @@ const INTERVAL_MONTHLY_FACTOR: Record<BillingInterval, number> = {
   year: 1 / 12,
 };
 
-/** Normalizes one subscription item's price to a monthly-equivalent amount. */
+/** Normalizes one subscription item's price to a monthly-equivalent amount:
+ *  the amount billed every `intervalCount` intervals, so a quarterly price
+ *  (month, 3) counts a third a month. The ONE conversion: the audit, the daily
+ *  sync and the downgrade check all read MRR through it, so they agree. */
 export function monthlyEquivalentCents(
   unitAmountCents: number,
   quantity: number,
   interval: BillingInterval,
+  intervalCount: number,
 ): number {
-  return Math.round(unitAmountCents * quantity * INTERVAL_MONTHLY_FACTOR[interval]);
+  const every = intervalCount > 0 ? intervalCount : 1;
+  return Math.round((unitAmountCents * quantity * INTERVAL_MONTHLY_FACTOR[interval]) / every);
 }
 
 export interface ActiveSubscriptionSummary {
@@ -116,7 +123,12 @@ export function summarizeActiveSubscriptions(
   let total = 0;
   let top: { name: string | null; cents: number } | null = null;
   for (const s of subs) {
-    const cents = monthlyEquivalentCents(s.unitAmountCents, s.quantity, s.interval);
+    const cents = monthlyEquivalentCents(
+      s.unitAmountCents,
+      s.quantity,
+      s.interval,
+      s.intervalCount,
+    );
     total += cents;
     if (!top || cents > top.cents) top = { name: s.productName, cents };
   }

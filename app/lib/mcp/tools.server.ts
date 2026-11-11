@@ -10,7 +10,7 @@ import {
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import {
   getDisputeDetail,
-  listDisputes,
+  listDisputesPage,
   readDisputeAutoSubmit,
   readDisputeSettings,
   type DisputeRow,
@@ -761,10 +761,18 @@ const READ_TOOLS: McpTool[] = [
         };
       }
       const page = decodeOffsetCursor(tool, args);
-      const rows = await listDisputes(ctx.db, ctx.accountId);
-      const { items, ...rest } = slicePage(tool, rows, page, DISPUTE_PAGE_SIZE);
+      const { rows, total } = await listDisputesPage(
+        ctx.db,
+        ctx.accountId,
+        page,
+        DISPUTE_PAGE_SIZE,
+      );
+      const rest = {
+        total,
+        ...pageInfo(tool, page, Math.max(1, Math.ceil(total / DISPUTE_PAGE_SIZE))),
+      };
       return {
-        disputes: items.map(disputeForAgent),
+        disputes: rows.map(disputeForAgent),
         settings,
         auto_submit: autoSubmitState,
         ...rest,
@@ -1056,6 +1064,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
   notifications: async (ctx, s) =>
     withoutWebhookUrl(
       await applyNotificationSettings(
+        ctx.env,
         ctx.db,
         ctx.accountId,
         {

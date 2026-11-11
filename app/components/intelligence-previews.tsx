@@ -7,6 +7,7 @@ import "capsomer/stat-tile.css";
 import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import type { HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // The previews on /product/intelligence, Recova's three feature-block
 // UIs: the Intelligence dashboard (IntelligenceDashboardPreview.tsx, blob
@@ -105,7 +106,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
       {dashboard.plans.length > 0 ? (
         <div className="cap-panel">
           <div className="cap-panel-body">
-            <div data-island="charts" dangerouslySetInnerHTML={{ __html: chart }} />
+            <div data-island="charts" dangerouslySetInnerHTML={markup(chart)} />
           </div>
         </div>
       ) : null}

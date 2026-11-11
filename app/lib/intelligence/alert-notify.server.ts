@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { eq } from "drizzle-orm";
 
 import { accounts, type Db } from "~/db";
@@ -6,6 +7,7 @@ import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
+import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 
 import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
@@ -158,7 +160,7 @@ export interface AlertTarget {
   slackWebhookUrl: string | null;
 }
 
-export async function loadAlertTarget(db: Db, accountId: string): Promise<AlertTarget> {
+export async function loadAlertTarget(env: Env, db: Db, accountId: string): Promise<AlertTarget> {
   const [row] = await db
     .select({
       notificationEmail: accounts.notificationEmail,
@@ -169,7 +171,7 @@ export async function loadAlertTarget(db: Db, accountId: string): Promise<AlertT
     .limit(1);
   return {
     notificationEmail: row?.notificationEmail ?? null,
-    slackWebhookUrl: row?.slackWebhookUrl ?? null,
+    slackWebhookUrl: await openSlackWebhook(env, row?.slackWebhookUrl ?? null),
   };
 }
 
@@ -266,7 +268,7 @@ export async function notifyThresholdAlert(
       const result = await sendAlertMail(env, {
         accountId: firing.accountId,
         to: target.notificationEmail,
-        content: thresholdAlertContent(firing, env.BETTER_AUTH_URL ?? "", firedAt),
+        content: thresholdAlertContent(firing, appOrigin(env), firedAt),
         template: THRESHOLD_ALERT_TEMPLATE,
         // One logical send per firing: a firing is one alert at one instant.
         idempotencyKey: `alert:${firing.alertId}:${firedAt.getTime()}`,
@@ -320,8 +322,8 @@ export async function notifyCriticalCustomers(
   count: number,
   now: Date,
 ): Promise<CriticalNotifyOutcome> {
-  const target = await loadAlertTarget(db, accountId);
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const target = await loadAlertTarget(env, db, accountId);
+  const baseUrl = appOrigin(env);
   if (target.notificationEmail && env.EMAIL) {
     const result = await sendAlertMail(env, {
       accountId,

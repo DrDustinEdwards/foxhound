@@ -1,7 +1,8 @@
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { limit } from "@dustinedwards/site-runtime/rate-limit";
+import { clientIp } from "@dustinedwards/site-runtime/http";
 
-// Rate-limit enforcement, keyed on cf-connecting-ip, on site-runtime's
+// Rate-limit enforcement, keyed on the caller's address (site-runtime clientIp), on site-runtime's
 // RateLimiter Durable Object (bound as RATE_LIMITER).
 //
 // THE AUTH BUCKET LEFT THIS FILE IN J52. Sign-in, signup,
@@ -156,7 +157,7 @@ export async function isWithinRateLimit(
 export async function enforceRateLimit(request: Request, env: Env): Promise<Response | null> {
   const rule = resolveRateLimitBinding(request);
   if (!rule) return null;
-  const key = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const key = clientIp(request);
   const verdict = await check(env, rule.bucket, key, rule.limit, rule.periodMs, false);
   if (verdict.status !== "limited") return null;
   logEvent(

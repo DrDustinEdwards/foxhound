@@ -81,7 +81,10 @@ async function loadReactivatableSequence(
  * Returns whether this call took the claim.
  */
 async function claimWinbackReactivation(db: Db, sequenceId: string, now: Date): Promise<boolean> {
-  await db
+  // The UPDATE says itself whether it matched (RETURNING), so the claim never
+  // rests on a re-read of reactivated_at: two deliveries in the same
+  // millisecond would both read their own `now` back and both send.
+  const claimed = await db
     .update(winBackSequences)
     .set({ status: WINBACK_STATUS.REACTIVATED, reactivatedAt: now, resolvedAt: now })
     .where(
@@ -90,13 +93,9 @@ async function claimWinbackReactivation(db: Db, sequenceId: string, now: Date): 
         inArray(winBackSequences.status, WINBACK_REACTIVATABLE_STATUSES),
         isNull(winBackSequences.reactivatedAt),
       ),
-    );
-  const rows = await db
-    .select({ reactivatedAt: winBackSequences.reactivatedAt })
-    .from(winBackSequences)
-    .where(eq(winBackSequences.id, sequenceId))
-    .limit(1);
-  return rows[0]?.reactivatedAt?.getTime() === now.getTime();
+    )
+    .returning({ id: winBackSequences.id });
+  return claimed.length === 1;
 }
 
 /** Legacy's `days_since_cancel`: whole days between the sequence's creation and

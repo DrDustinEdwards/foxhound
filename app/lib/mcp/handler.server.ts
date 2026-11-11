@@ -1,4 +1,4 @@
-import { jsonResponse } from "@dustinedwards/site-runtime/http";
+import { clientIp, jsonResponse } from "@dustinedwards/site-runtime/http";
 import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
@@ -144,7 +144,7 @@ async function authenticate(
   request: Request,
   env: Env,
 ): Promise<{ ok: true; auth: McpAuthContext } | { ok: false; response: Response }> {
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ip = clientIp(request);
   const refuse = async (reason: string) => {
     // site-runtime's checkRateLimit, which fails closed: a limiter that cannot
     // answer is a 429, never a free guess.

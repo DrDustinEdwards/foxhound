@@ -18,10 +18,10 @@ export const ALERT_INTENTS = ["create", "toggle", "delete"] as const;
 /** Recova's page reads the twenty most recent firings. */
 const RECENT_TRIGGERS = 20;
 
-export async function loadAlertsSection(db: Db, accountId: string) {
+export async function loadAlertsSection(env: Env, db: Db, accountId: string) {
   const [view, target] = await Promise.all([
     getAlertsView(db, accountId),
-    loadAlertTarget(db, accountId),
+    loadAlertTarget(env, db, accountId),
   ]);
   return {
     alerts: view.alerts,

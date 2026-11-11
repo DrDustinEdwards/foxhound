@@ -26,6 +26,7 @@ import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
 import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
+import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-samples";
 
 // THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN (372's item-4 ruling).
@@ -290,6 +291,7 @@ export interface NotificationSettingsState {
  * pasting an attacker's URL gets the same sentence a person would.
  */
 export async function applyNotificationSettings(
+  env: Env,
   db: Db,
   accountId: string,
   input: Record<string, unknown>,
@@ -318,7 +320,16 @@ export async function applyNotificationSettings(
     "recovery_notifications_enabled",
     "sequence_complete_notifications_enabled",
   ];
-  await commit(db, accountId, fields, buildNotificationSettingsUpdate(db, accountId, state), trace);
+  // The column holds the URL sealed (slack-webhook-secret.server.ts); the
+  // returned state keeps what the caller sent.
+  const stored = { ...state, slackWebhookUrl: await sealSlackWebhook(env, state.slackWebhookUrl) };
+  await commit(
+    db,
+    accountId,
+    fields,
+    buildNotificationSettingsUpdate(db, accountId, stored),
+    trace,
+  );
   return { ok: true, fields, state };
 }
 

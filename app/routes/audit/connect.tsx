@@ -4,6 +4,7 @@ import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Form, redirect, useFormAction, useNavigation } from "react-router";
 import { Link } from "capsomer/react/link";
+import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -111,7 +112,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // is 10 per hour on `audit-connect:{ip}`). Fail-open like every other caller,
   // which is legacy's posture too: its Redis limiter returns true on any error
   // for the same reason.
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ip = clientIp(request);
   const allowed = await isWithinRateLimit(
     env,
     "audit-connect",

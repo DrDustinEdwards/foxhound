@@ -69,6 +69,7 @@ import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { markup } from "capsomer/behavior/trusted-html";
 
 export function meta() {
   return [{ title: "Payment detail - Foxhound" }, NOINDEX];
@@ -850,7 +851,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                           className="mt-3 rounded-lg border border-border bg-bg p-4 text-label text-text"
                           // Sanitized in the loader by sanitizeEmailPreviewHtml;
                           // the raw body is never sent to the browser.
-                          dangerouslySetInnerHTML={{ __html: step.previewHtml }}
+                          dangerouslySetInnerHTML={markup(step.previewHtml)}
                         />
                       ) : null}
                     </div>

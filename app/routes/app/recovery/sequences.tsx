@@ -34,6 +34,7 @@ import {
 
 import type { Route } from "./+types/sequences";
 import { NOINDEX } from "~/lib/seo/meta";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // /recovery/sequence. Recova is the spec: its page,
 // app/(app)/recovery/sequence/page.tsx at blob 953c3f57, with
@@ -235,7 +236,7 @@ function StepCardView({ card }: { card: StepCard }) {
               ever reaches this component (email-preview.server.ts). */}
           <div
             className="overflow-x-auto text-label leading-relaxed text-text-subtle"
-            dangerouslySetInnerHTML={{ __html: preview }}
+            dangerouslySetInnerHTML={markup(preview)}
           />
         </Disclosure>
       ) : null}

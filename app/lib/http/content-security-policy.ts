@@ -48,6 +48,7 @@ import {
   CSP_REPORT_PATH,
   reportingEndpoints,
 } from "@dustinedwards/site-runtime/csp";
+import { TRUSTED_TYPES_NAMES } from "@dustinedwards/site-runtime/trusted-types";
 import { TURNSTILE_ORIGIN } from "@dustinedwards/site-runtime/turnstile";
 
 import { SECURITY_HEADERS } from "./header-set";
@@ -86,7 +87,7 @@ const POLICY_PARTS = POLICY.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 // reports are quiet; renewNonce renews its nonce with the other's.
 const STAGED = buildStagedPolicy(
   { ...SITE, nonce: NONCE_PLACEHOLDER },
-  { trustedTypes: true, denyUnlisted: true },
+  { trustedTypes: TRUSTED_TYPES_NAMES, denyUnlisted: true },
 );
 const STAGED_PARTS = STAGED.value.split(`'nonce-${NONCE_PLACEHOLDER}'`);
 

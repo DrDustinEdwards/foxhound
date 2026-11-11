@@ -40,7 +40,7 @@
     "better-auth": "1.7.18",
     "capsomer": "github:DrDustinEdwards/capsomer#v0.96.0",
     "drizzle-orm": "0.45.4",
-    "enarratio": "0.12.2",
+    "enarratio": "^0.12.2",
     "hast-util-from-html": "2.0.3",
     "hast-util-to-mdast": "10.1.2",
     "hast-util-to-string": "3.0.1",

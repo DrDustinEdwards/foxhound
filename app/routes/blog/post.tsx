@@ -33,6 +33,7 @@ import { DAY_MS } from "~/lib/constants";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { MarketingError } from "~/components/error-view";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -263,7 +264,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             data-context="prose"
             data-render-version={version}
             data-island={html.includes("embed-link") ? "embeds" : undefined}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={markup(html)}
           />
         </article>
 
