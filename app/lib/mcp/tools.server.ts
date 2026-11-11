@@ -1056,6 +1056,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
   notifications: async (ctx, s) =>
     withoutWebhookUrl(
       await applyNotificationSettings(
+        ctx.env,
         ctx.db,
         ctx.accountId,
         {

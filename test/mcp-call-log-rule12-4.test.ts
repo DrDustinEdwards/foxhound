@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { decryptToken } from "~/lib/stripe/encryption";
 
 import { accounts, apiKeys, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
@@ -44,6 +45,7 @@ const auditRows: Record<string, unknown>[] = [];
 function env(): Env {
   return {
     DB: {},
+    ENCRYPTION_KEY: "ab".repeat(32),
     EMAIL_TOKEN_KEY: TEST_LINK_KEY,
     TOOL_CALL_LOG: {
       idFromName: () => "tool-calls",
@@ -183,7 +185,9 @@ describe("PLANT 2: what the log never keeps", () => {
       .get(MINE) as {
       slack_webhook_url: string;
     };
-    expect(stored.slack_webhook_url).toBe(url);
+    // Stored sealed, never as the URL; it opens to what was sent.
+    expect(stored.slack_webhook_url).not.toContain("logPangolinSecret");
+    expect(await decryptToken(env(), stored.slack_webhook_url)).toBe(url);
   });
 
   it("an email address inside a stored error is masked", async () => {

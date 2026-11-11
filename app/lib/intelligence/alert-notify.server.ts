@@ -6,6 +6,7 @@ import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
+import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 
 import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
 import { formatMoney } from "~/lib/money-format";
@@ -158,7 +159,7 @@ export interface AlertTarget {
   slackWebhookUrl: string | null;
 }
 
-export async function loadAlertTarget(db: Db, accountId: string): Promise<AlertTarget> {
+export async function loadAlertTarget(env: Env, db: Db, accountId: string): Promise<AlertTarget> {
   const [row] = await db
     .select({
       notificationEmail: accounts.notificationEmail,
@@ -169,7 +170,7 @@ export async function loadAlertTarget(db: Db, accountId: string): Promise<AlertT
     .limit(1);
   return {
     notificationEmail: row?.notificationEmail ?? null,
-    slackWebhookUrl: row?.slackWebhookUrl ?? null,
+    slackWebhookUrl: await openSlackWebhook(env, row?.slackWebhookUrl ?? null),
   };
 }
 
@@ -320,7 +321,7 @@ export async function notifyCriticalCustomers(
   count: number,
   now: Date,
 ): Promise<CriticalNotifyOutcome> {
-  const target = await loadAlertTarget(db, accountId);
+  const target = await loadAlertTarget(env, db, accountId);
   const baseUrl = env.BETTER_AUTH_URL ?? "";
   if (target.notificationEmail && env.EMAIL) {
     const result = await sendAlertMail(env, {
