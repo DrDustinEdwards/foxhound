@@ -28,7 +28,7 @@ import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
-import { pruneAuthEvents } from "@dustinedwards/site-runtime/sign-in";
+import { pruneAuthEvents, pruneExpiredAuth } from "@dustinedwards/site-runtime/sign-in";
 
 import { runD1Backup, runEvidenceBackup, runMediaBackup } from "~/lib/backup/d1-backup";
 import {
@@ -365,10 +365,16 @@ const stripeMissedEvents: CronHandler = async (env) => {
 
 /** site-runtime's auth_events (migration 0068): rows with no user go after 30
  *  days, the rest after a year. The package owns the table and its rule, so
- *  this is its pruneAuthEvents, not a sweep in retention.ts. */
+ *  this is its pruneAuthEvents, not a sweep in retention.ts. Then
+ *  pruneExpiredAuth: Better Auth never deletes an expired session, and a
+ *  verification row only when it is used. */
 const retentionAuthEvents: CronHandler = async (env) => {
   await pruneAuthEvents(env.DB);
-  return { rowsProcessed: 0, message: "auth_events pruned" };
+  await pruneExpiredAuth(env.DB);
+  return {
+    rowsProcessed: 0,
+    message: "auth_events, expired sessions and verification rows pruned",
+  };
 };
 
 /** The merchant MCP's tool-call log (TOOL_CALL_LOG): new rows copied to AUDIT_BUCKET, copied rows older than 90 days
