@@ -12,7 +12,7 @@ import {
   buildAlertInsert,
 } from "./alerts.server";
 import { normalizeLookback } from "./audit-settings";
-import { parseDollarsToCents } from "./dollars";
+import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
 import {
   buildBrandVoiceUpdate,
   buildVoiceSamplesUpdate,
@@ -561,7 +561,7 @@ export const MRR_ERROR = "Enter a monthly recurring revenue of zero or more, or 
  * not blank the other two.
  *
  * A NON-BLANK AMOUNT THAT IS NOT A NUMBER IS NOW REFUSED, and this is a fix
- * rather than a new bound. `parseDollarsToCents` returns null for "abc" and for
+ * rather than a new bound. `parseMoneyInput` returns null for "abc" and for
  * a negative, and the action stored that null and answered "Saved": the field
  * is a plain text input, so a person could always type into it and be told
  * their entry was kept when it had been discarded. That is 374 binding 3's
@@ -617,7 +617,7 @@ export async function applyIntelligenceContext(
         : typeof input.merchantMrrSelfReported === "string"
           ? input.merchantMrrSelfReported
           : "";
-    const cents = parseDollarsToCents(raw);
+    const cents = parseMoneyInput(raw, "usd");
     // Blank clears. Non-blank that would not parse is the refusal, which is why
     // the two cases are separated rather than both reading as null.
     if (cents === null && raw.trim().length > 0) return { ok: false, error: MRR_ERROR };

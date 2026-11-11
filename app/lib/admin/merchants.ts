@@ -4,7 +4,7 @@
 // (~/lib/admin/merchants.server).
 
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 export const MERCHANTS_PATH = "/admin/merchants";
 /** Where the page's forms post: the index route's own action. */

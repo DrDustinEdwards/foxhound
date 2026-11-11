@@ -8,7 +8,7 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
-import { formatMoney, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
+import { formatMoney, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
 

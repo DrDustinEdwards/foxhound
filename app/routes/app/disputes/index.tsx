@@ -46,7 +46,8 @@ import {
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import type { Tone } from "~/lib/recovery/labels";
-import { formatAmounts, formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
+import { formatAmounts } from "~/lib/money/totals";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";

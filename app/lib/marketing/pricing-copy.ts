@@ -12,7 +12,7 @@ import {
   DISTINCT_SEQUENCE_COUNT,
   RECOVERY_SEQUENCE_DAYS,
 } from "~/lib/marketing/decline-categories";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 

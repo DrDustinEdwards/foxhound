@@ -5,7 +5,7 @@ import {
   DECLINE_CATEGORY_COUNT_WORD_LOWER,
   RECOVERY_SEQUENCE_DAYS,
 } from "~/lib/marketing/decline-categories";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 //
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
 // stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side

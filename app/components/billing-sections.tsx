@@ -34,7 +34,7 @@ import {
   DISPUTE_FEE_CAP_CENTS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // /billing's five sections, in Recova's order and with Recova's
 // content (app/(app)/billing/page.tsx at blob 34e56833, components/
