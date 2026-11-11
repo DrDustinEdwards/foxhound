@@ -1,25 +1,23 @@
-import { forRenderer, publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { readThemeCookie } from "capsomer/theme-server";
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 
 import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
-import { resolveThemePreference, THEME_COOKIE } from "~/lib/theme";
 
 // THE RESPONSE CACHE POLICY (345 binding 4; the edge page cache since
 // site-runtime 0.33.0's ./edge-cache).
 //
 // This decides `Cache-Control` from the route class, whether the request
 // carries a session cookie, and which entrypoint rendered it. It is applied in
-// ONE place, workers/app.ts, beside applySecurityHeaders, which is already the
-// single choke point every response passes through. React Router 8's `headers`
+// ONE place, the shared Worker's `respond` (workers/app.ts), after the security
+// set, on every page and step answer. React Router 8's `headers`
 // export is PER ROUTE, so expressing this there would mean the same directive
 // copied into ~60 route modules and a new route defaulting to nothing; the
 // fetch entry needs no framework feature and cannot be forgotten by a new route.
 //
-// HOW A PAGE IS STORED. The Worker's default export is a gateway with the
-// Workers cache disabled, so it runs on EVERY request, hits included. It sends
-// a request to the cacheable Renderer entrypoint only when edgeCacheable()
-// below says so: a GET of a public page whose only cookie, if any, is
-// the theme. Everything else, and above all every request carrying a session
+// HOW A PAGE IS STORED. The Worker's default export is site-runtime's gateway
+// with the Workers cache disabled, so it runs on EVERY request, hits included.
+// It sends a request to the cacheable Renderer entrypoint only when it is a GET
+// or HEAD whose only cookie, if any, is the theme, of a path cacheable() below
+// allows: a public page. Everything else, and above all every request carrying a session
 // cookie, is rendered by the gateway itself and stored nowhere. That is what
 // the first enable (session 53) lacked: the Worker did not run on a hit, so
 // nothing it computed could stop a signed-in request being served a stored
@@ -179,52 +177,14 @@ export function resolveCacheControl(request: Request, edge = false): string {
 }
 
 /**
- * Should the gateway send this request through the cacheable Renderer?
- *
- * Only a GET or HEAD of a public page or files route (a HEAD reaches the
- * Renderer as a GET, site-runtime forRenderer, so what is stored is a whole
- * page and forReader gives the HEAD reader no body), never /media (its own
- * route keeps each size in caches.default), and only when every cookie the
- * request carries is the theme cookie. A session cookie, the demo cookie, the
- * audit cookie, an OAuth state cookie or anything else sends it to the gateway's
- * own render, which nothing stores. Fails closed: an unknown cookie is a miss,
- * never a leak.
+ * The shared Worker's `cacheable` (site-runtime ./worker): may a read go to the cacheable Renderer? Only a public page
+ * or files route, never /media (its own route keeps each size in caches.default). The Worker first sends there only a
+ * GET or HEAD whose every cookie is the theme (a HEAD as a GET, site-runtime forRenderer); a session cookie, the demo
+ * cookie, the audit cookie, an OAuth state cookie or anything else is rendered live, stored nowhere. Its cache key
+ * holds the theme cookie's value, so a stored dark page never answers a light reader.
  */
-export function edgeCacheable(request: Request): boolean {
-  if (request.method !== "GET" && request.method !== "HEAD") return false;
-  const pathname = new URL(request.url).pathname;
-  const cacheClass = classifyPath(pathname);
-  if (cacheClass === "private" || pathname.startsWith("/media/")) return false;
-  return cookieNames(request).every((name) => name === THEME_COOKIE);
-}
-
-function cookieNames(request: Request): string[] {
-  const header = request.headers.get("cookie");
-  if (!header) return [];
-  return header
-    .split(";")
-    .map((pair) => pair.trim().split("=")[0]?.trim() ?? "")
-    .filter(Boolean);
-}
-
-/**
- * The request the Renderer sees, and the theme its cache key holds. The theme
- * is the one cookie a public page reads (<html data-theme> and the toggle), so
- * it is resolved here and handed on as the only cookie; the gateway adds it to
- * site-runtime's cacheKey as a dimension: one stored copy per theme, and a
- * stored dark page can never answer a light reader.
- */
-export function edgeRequest(request: Request): { request: Request; theme: string } {
-  const theme = resolveThemePreference({
-    accountTheme: null,
-    cookieTheme: readThemeCookie(request, THEME_COOKIE),
-  });
-  // A HEAD goes on as a GET (site-runtime forRenderer): app/entry.server.tsx answers a HEAD with an empty body, which
-  // must never be stored. forRenderer hands a GET back as it came, and an incoming request's headers are immutable on
-  // Workers, so the copy is what takes the theme cookie (a set on the original was a 500 on every page, 2026-10-31).
-  const forwarded = new Request(forRenderer(request));
-  forwarded.headers.set("Cookie", `${THEME_COOKIE}=${theme}`);
-  return { request: forwarded, theme };
+export function cacheable(url: URL): boolean {
+  return classifyPath(url.pathname) !== "private" && !url.pathname.startsWith("/media/");
 }
 
 /**
