@@ -3,6 +3,7 @@ import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 import { sequenceStepLabel } from "~/lib/recovery/sequence-performance";
 
 import type { PaymentsHeaderStats } from "./payments-list";
+import { percent } from "capsomer/behavior/format";
 
 // /recovery/payments: the loader's own arithmetic.
 
@@ -22,7 +23,7 @@ export function paymentHeaderStats(
     recovered: groupSumByCurrency(
       recovered.map((r) => ({ currency: r.currency, cents: r.amountCents })),
     ),
-    ratePct: rows.length > 0 ? Math.round((recovered.length / rows.length) * 100) : 0,
+    ratePct: percent(recovered.length, rows.length) ?? 0,
   };
 }
 

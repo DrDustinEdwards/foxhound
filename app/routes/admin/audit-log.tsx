@@ -14,7 +14,7 @@ import {
   describeAuditAction,
 } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 

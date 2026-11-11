@@ -1,25 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBytes } from "~/lib/admin/format";
 import { diffMigrations, getEnvSanity } from "~/lib/admin/operations.server";
-
-describe("formatBytes", () => {
-  it("renders sub-1KB sizes as whole bytes", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(512)).toBe("512 B");
-  });
-
-  it("renders KB/MB/GB rounded to 2 decimals under 10, 1 at or above 10, with no trailing zeros", () => {
-    expect(formatBytes(1024)).toBe("1 KB");
-    expect(formatBytes(1024 * 1024)).toBe("1 MB");
-    expect(formatBytes(15 * 1024 * 1024)).toBe("15 MB");
-    expect(formatBytes(1024 * 1024 * 1024)).toBe("1 GB");
-    expect(formatBytes(876 * 1024)).toBe("876 KB");
-    expect(formatBytes(1.5 * 1024 * 1024)).toBe("1.5 MB");
-    expect(formatBytes(2.25 * 1024 * 1024 * 1024)).toBe("2.25 GB");
-    expect(formatBytes(15.44 * 1024 * 1024)).toBe("15.4 MB");
-  });
-});
 
 describe("diffMigrations", () => {
   const known = ["0000_a.sql", "0001_b.sql", "0002_c.sql"] as const;

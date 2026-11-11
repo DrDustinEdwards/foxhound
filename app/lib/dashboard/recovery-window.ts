@@ -1,5 +1,6 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
+import { percent } from "capsomer/behavior/format";
 
 // Pure aggregation math for the Recovery dashboard's windowed read model
 // (TASK-foxhound-recovery-surface-parity.md Phase 1, legacy's
@@ -180,7 +181,7 @@ export function recoveryTimingBuckets(recoveryDays: number[]): RecoveryTimingBuc
   return (Object.entries(buckets) as [string, number][]).map(([dayBucket, count]) => ({
     dayBucket,
     count,
-    percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+    percentage: percent(count, total) ?? 0,
   }));
 }
 

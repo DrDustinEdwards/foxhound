@@ -7,7 +7,7 @@
 // a case-insensitive event-type filter, an errors-only toggle and 50 events a
 // page. Pending only is Foxhound's own, the list behind its Unprocessed figure.
 
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 
 export const WEBHOOK_PAGE_SIZE = 50;
 export const WEBHOOKS_PATH = "/admin/platform/webhooks";

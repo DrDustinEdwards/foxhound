@@ -105,6 +105,7 @@ import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { percent } from "capsomer/behavior/format";
 
 // /recovery/payments. Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
@@ -223,8 +224,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // Recova's status counts respect every filter but status itself.
   const pillCounts = tallyStatusCounts(summaryRows.map((r) => r.status));
   // Legacy's exact computation: an account with no failed payments reads 0.
-  const globalRecoveryRatePct =
-    globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0;
+  const globalRecoveryRatePct = percent(globalCounts.recovered, globalCounts.all) ?? 0;
 
   return {
     result: {

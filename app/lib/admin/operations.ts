@@ -3,7 +3,7 @@
 
 import type { Tone as StatusTone } from "capsomer/react/status";
 
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 
 /** The Operations page. */
 export const OPERATIONS_PATH = "/admin/operations";

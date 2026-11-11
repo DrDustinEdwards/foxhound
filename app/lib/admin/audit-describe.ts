@@ -5,7 +5,7 @@
 // looks up (merchant names, post titles).
 
 import { merchantHref } from "~/lib/admin/page";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 import { formatMoney } from "~/lib/money-format";
 
 const ACTIONS: Record<string, string> = {

@@ -21,6 +21,7 @@
 // groupSumByCurrency, which the loader applies.
 
 import { SUBMITTED_EXTERNALLY, isDisputeResolved } from "./labels";
+import { percent } from "capsomer/behavior/format";
 
 export interface DisputeStatsInput {
   state: string;
@@ -80,7 +81,7 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
     submittedByFoxhoundCount,
     wonCount,
     lostCount,
-    winRatePct: resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : null,
+    winRatePct: percent(wonCount, resolvedCount),
   };
 }
 

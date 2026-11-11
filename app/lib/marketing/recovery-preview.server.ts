@@ -19,6 +19,7 @@ import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
+import { percent } from "capsomer/behavior/format";
 
 // The data behind the /product/recovery previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hardcoded Teamflow
@@ -100,10 +101,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   );
   const active = failures.filter((f) => f.status === "active");
   const cohort = failures.filter((f) => f.detectedAt.getTime() >= cutoff30);
-  const ratePct =
-    cohort.length > 0
-      ? Math.round((cohort.filter((f) => recoveredIds.has(f.id)).length / cohort.length) * 100)
-      : null;
+  const ratePct = percent(cohort.filter((f) => recoveredIds.has(f.id)).length, cohort.length);
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
   const firstOfMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);

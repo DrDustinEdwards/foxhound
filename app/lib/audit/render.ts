@@ -271,8 +271,3 @@ export function formatTotals(
 export function anyAbove(totals: readonly { cents: number }[]): boolean {
   return totals.some((t) => t.cents > 0);
 }
-
-/** Basis points to a percentage, at legacy's one decimal. */
-export function formatBps(bps: number): string {
-  return `${(bps / 100).toFixed(1)}%`;
-}

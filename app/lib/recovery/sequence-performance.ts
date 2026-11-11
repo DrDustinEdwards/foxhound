@@ -1,6 +1,7 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { formatStepType } from "./labels";
 import { isEmailStep, isRetryStep, RECOVERY_SCHEDULES } from "./schedule";
+import { percent } from "capsomer/behavior/format";
 
 // Pure account-wide step-performance aggregation for /recovery/sequence
 // (Foxhound's equivalent of legacy's sequence-utils.ts + SequenceView.tsx),
@@ -97,8 +98,8 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
   const totalSent = emailSteps.length;
   const totalOpened = emailSteps.filter((s) => s.openedAt).length;
   const totalClicked = emailSteps.filter((s) => s.clickedAt).length;
-  const avgOpenRatePct = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
-  const avgClickRatePct = totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0;
+  const avgOpenRatePct = percent(totalOpened, totalSent) ?? 0;
+  const avgClickRatePct = percent(totalClicked, totalSent) ?? 0;
 
   const byType = new Map<
     string,
@@ -205,7 +206,7 @@ export function buildStepCard(
       timingLabel,
       attempted,
       recovered,
-      successRatePct: attempted > 0 ? Math.round((recovered / attempted) * 100) : null,
+      successRatePct: percent(recovered, attempted),
     };
   }
 
@@ -222,8 +223,8 @@ export function buildStepCard(
     label,
     timingLabel,
     sent,
-    openRatePct: sent > 0 ? Math.round((opened / sent) * 100) : null,
-    clickRatePct: sent > 0 ? Math.round((clicked / sent) * 100) : null,
+    openRatePct: percent(opened, sent),
+    clickRatePct: percent(clicked, sent),
     latestSubject: latest?.aiSubject ?? null,
     latestBodyHtml: latest?.aiBodyHtml ?? null,
   };

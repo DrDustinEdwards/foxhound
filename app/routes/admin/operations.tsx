@@ -10,7 +10,8 @@ import { AdminMcpPanels } from "~/components/admin-mcp-panels";
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
+import { formatBytes } from "capsomer/behavior/format";
+import { D1_ALERT_THRESHOLD, D1_CAP_BYTES } from "~/lib/admin/format";
 import {
   LOCK_STATUS,
   lockSummaryWords,
@@ -19,7 +20,7 @@ import {
   settingKindWord,
 } from "~/lib/admin/operations";
 import { loadMcpOverview } from "~/lib/admin/mcps.server";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,

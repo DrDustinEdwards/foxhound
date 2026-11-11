@@ -38,6 +38,7 @@ import {
   SPARKLINE_TRAILING_DAYS,
   type WebhookHealth,
 } from "./recovery-window";
+import { percent } from "capsomer/behavior/format";
 
 // The Recovery dashboard windowed read model (TASK-foxhound-recovery-surface-
 // parity.md Phase 1): Foxhound's equivalent of legacy's fetchDashboardData.
@@ -240,8 +241,8 @@ export async function getRecoveryDashboardWindow(
   const totalEmailsSent = emailSteps.length;
   const totalOpened = emailSteps.filter((s) => s.openedAt).length;
   const totalClicked = emailSteps.filter((s) => s.clickedAt).length;
-  const openRatePct = totalEmailsSent > 0 ? Math.round((totalOpened / totalEmailsSent) * 100) : 0;
-  const clickRatePct = totalEmailsSent > 0 ? Math.round((totalClicked / totalEmailsSent) * 100) : 0;
+  const openRatePct = percent(totalOpened, totalEmailsSent) ?? 0;
+  const clickRatePct = percent(totalClicked, totalEmailsSent) ?? 0;
   const stepsInRange =
     cutoffMs === null
       ? emailSteps
@@ -249,14 +250,8 @@ export async function getRecoveryDashboardWindow(
   const sentInRange = stepsInRange.length;
   const emailsSentInRange = {
     sent: sentInRange,
-    openRatePct:
-      sentInRange > 0
-        ? Math.round((stepsInRange.filter((s) => s.openedAt).length / sentInRange) * 100)
-        : 0,
-    clickRatePct:
-      sentInRange > 0
-        ? Math.round((stepsInRange.filter((s) => s.clickedAt).length / sentInRange) * 100)
-        : 0,
+    openRatePct: percent(stepsInRange.filter((s) => s.openedAt).length, sentInRange) ?? 0,
+    clickRatePct: percent(stepsInRange.filter((s) => s.clickedAt).length, sentInRange) ?? 0,
   };
 
   // ---- Current-state facts (range-invariant) ----
@@ -275,10 +270,7 @@ export async function getRecoveryDashboardWindow(
     rangeDays,
     totalFailedCount: failuresWithOutcome.length,
     recoveredCount: recoveredInCohortCount,
-    recoveryRatePct:
-      failuresWithOutcome.length > 0
-        ? Math.round((recoveredInCohortCount / failuresWithOutcome.length) * 100)
-        : null,
+    recoveryRatePct: percent(recoveredInCohortCount, failuresWithOutcome.length),
     recoveredRevenue: groupSumByCurrency(
       recovered.map((r) => ({ currency: r.currency, cents: r.amountCents })),
     ),

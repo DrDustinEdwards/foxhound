@@ -5,16 +5,11 @@ import { ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import { formatBps, plural } from "capsomer/behavior/format";
 import "capsomer/panel.css";
 
 import "~/components/charts.css";
-import {
-  anyAbove,
-  formatBps,
-  formatTotals,
-  SCOPE_UNREAD,
-  type AuditRunView,
-} from "~/lib/audit/render";
+import { anyAbove, formatTotals, SCOPE_UNREAD, type AuditRunView } from "~/lib/audit/render";
 import type { MoneyTotals } from "~/lib/audit/engine";
 import { drawExpiringCardsTimeline, expiringCardsMonths } from "~/lib/audit/timeline";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
@@ -26,6 +21,7 @@ import {
 } from "~/lib/constants";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoneyShort } from "~/lib/money-format";
+import { percent } from "capsomer/behavior/format";
 
 // The audit's render sections, shared by BOTH surfaces that show a run: the
 // live /audit/results and a saved run at /audit/results/:id. Recova shares its
@@ -165,8 +161,6 @@ function Headline({
     </div>
   );
 }
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Recova's AuditAISummary (5ba213df): a labeled card holding one paragraph.
  *  Renders nothing when there is no summary. Shared with /audit/dashboard. */
@@ -483,8 +477,7 @@ function DisputeFigures({
 }) {
   const { open, acceptedWithoutFighting: accepted, historical } = data;
   const totalHistorical = historical.won + historical.lost;
-  const winRatePct =
-    totalHistorical > 0 ? Math.round((historical.won / totalHistorical) * 100) : null;
+  const winRatePct = percent(historical.won, totalHistorical);
 
   return (
     <>
@@ -621,11 +614,11 @@ export function AuditHealthSection({
             />
             <StatRow
               label="Involuntary churn rate"
-              primary={formatBps(health.involuntaryChurnRateBps)}
+              primary={formatBps(health.involuntaryChurnRateBps, { digits: 1 })}
             />
             <StatRow
               label="Voluntary churn rate"
-              primary={formatBps(health.voluntaryChurnRateBps)}
+              primary={formatBps(health.voluntaryChurnRateBps, { digits: 1 })}
             />
             {recoveryRatePct !== null ? (
               <StatRow

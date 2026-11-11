@@ -46,6 +46,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
+import { percent } from "capsomer/behavior/format";
 
 export interface MerchantListRow {
   id: string;
@@ -178,8 +179,7 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
       ownerEmail: ownerByAccount.get(row.id) ?? null,
       stripeUserId: shown?.stripeUserId ?? null,
       lastWebhookAt: shown?.lastWebhookAt ?? null,
-      recoveryRatePct:
-        failedCount > 0 ? Math.round(((recovered?.n ?? 0) / failedCount) * 100) : null,
+      recoveryRatePct: percent(recovered?.n ?? 0, failedCount),
       recovered: groupSumByCurrency(recovered?.amounts ?? []),
     };
   });

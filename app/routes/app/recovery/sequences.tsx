@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { ChartFrame } from "capsomer/react/chart-frame";
+import { ChartPanel } from "capsomer/react/chart-frame";
 import { Disclosure } from "capsomer/react/disclosure";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
@@ -124,21 +124,17 @@ function StatRow({ performance }: { performance: StepPerformanceSummary }) {
 function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"] }) {
   if (chart.length === 0) {
     return (
-      <Panel title="Step performance">
-        <ChartFrame
-          noData={{ title: "Step performance", reason: "No step performance to show yet." }}
-        />
-      </Panel>
+      <ChartPanel title="Step performance" empty={{ reason: "No step performance to show yet." }} />
     );
   }
   return (
-    <Panel title="Step performance" description={STEP_PERFORMANCE_NOTE}>
-      <ChartFrame
-        gridlines="none"
-        width={CHART_WIDTH}
-        draw={(width, fit) => drawStepPerformance(chart, width, fit)}
-      />
-    </Panel>
+    <ChartPanel
+      title="Step performance"
+      description={STEP_PERFORMANCE_NOTE}
+      gridlines="none"
+      width={CHART_WIDTH}
+      draw={(width, fit) => drawStepPerformance(chart, width, fit)}
+    />
   );
 }
 

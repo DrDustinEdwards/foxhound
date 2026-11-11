@@ -1,5 +1,6 @@
 import { AlertCircle, Percent, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import "capsomer/step-indicator.css";
 import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 
@@ -42,22 +43,18 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
           {/* Recova's row scrolls sideways on a narrow screen; this one wraps instead, since no
               page may need a sideways scrollbar (Dustin, 2026-10-30). */}
           <div className="pb-2">
-            <ol
-              aria-label={`${label} sequence, ${count}`}
-              className="m-0 flex list-none flex-wrap items-center gap-x-1 gap-y-2 p-0"
-            >
-              {steps.map((step, i) => {
-                const retry = isRetryStep(step.stepType);
-                return (
-                  <li key={step.stepType} className="flex items-center gap-1">
-                    <StepChip retry={retry} timing={timingLabel(step.offsetHours)} />
-                    {i < steps.length - 1 ? (
-                      <span className="h-px w-4 shrink-0 bg-border" aria-hidden="true" />
-                    ) : null}
+            <div className="cap-steps" data-variant="inline">
+              <ol className="cap-steps-list" aria-label={`${label} sequence, ${count}`}>
+                {steps.map((step) => (
+                  <li key={step.stepType} className="cap-step">
+                    <StepChip
+                      retry={isRetryStep(step.stepType)}
+                      timing={timingLabel(step.offsetHours)}
+                    />
                   </li>
-                );
-              })}
-            </ol>
+                ))}
+              </ol>
+            </div>
           </div>
         </div>
       </div>

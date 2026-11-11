@@ -9,7 +9,7 @@ import "capsomer/table.css";
 import { AdminTime } from "~/components/admin-time";
 import { MCP_CALLS_SHOWN, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
 import type { AdminApiKeyRow, AdminMcpCallRow, loadMcpOverview } from "~/lib/admin/mcps.server";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 import { merchantHref } from "~/lib/admin/page";
 import { MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 

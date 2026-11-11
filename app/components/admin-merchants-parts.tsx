@@ -27,7 +27,7 @@ import {
   type ToggleIntent,
 } from "~/lib/admin/merchants";
 import type { AdminMerchantRow } from "~/lib/admin/merchants.server";
-import { plural } from "~/lib/admin/overview";
+import { plural } from "capsomer/behavior/format";
 import { merchantHref, pagePending } from "~/lib/admin/page";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import type { Route } from "../routes/admin/merchants/+types/index";

@@ -10,13 +10,9 @@ import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
-import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import {
-  overviewAttention,
-  overviewAttentionGroups,
-  overviewPending,
-  plural,
-} from "~/lib/admin/overview";
+import { formatBytes, plural } from "capsomer/behavior/format";
+import { D1_ALERT_THRESHOLD, D1_CAP_BYTES } from "~/lib/admin/format";
+import { overviewAttention, overviewAttentionGroups, overviewPending } from "~/lib/admin/overview";
 import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";

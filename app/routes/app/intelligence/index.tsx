@@ -4,7 +4,7 @@ import { data, useFetcher } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
-import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
+import { type ChartFit, ChartPanel } from "capsomer/react/chart-frame";
 import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
@@ -287,11 +287,7 @@ function MrrTrend({ series, currency }: { series: Series; currency: string }) {
     (w: number, fit: ChartFit) => drawMrrTrend(series, currency, w, fit),
     [series, currency],
   );
-  return (
-    <Panel title="MRR trend (90 days)">
-      <ChartFrame draw={draw} />
-    </Panel>
-  );
+  return <ChartPanel title="MRR trend (90 days)" draw={draw} />;
 }
 
 /** Recova's NRRChart: every 7th daily snapshot, withheld (as Recova withholds
@@ -302,12 +298,11 @@ function NrrCard({ series }: { series: Series }) {
   const draw = useCallback((w: number, fit: ChartFit) => drawNrr(sampled, w, fit), [sampled]);
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
   return (
-    <Panel
+    <ChartPanel
       title="Net Revenue Retention"
       description="Above 100% means expansion exceeds churn (90 days)"
-    >
-      <ChartFrame draw={draw} />
-    </Panel>
+      draw={draw}
+    />
   );
 }
 
@@ -329,9 +324,11 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
   );
   if (!moved) return null;
   return (
-    <Panel title="MRR movement" description="New, expansion, contraction, and churn by week">
-      <ChartFrame draw={draw} />
-    </Panel>
+    <ChartPanel
+      title="MRR movement"
+      description="New, expansion, contraction, and churn by week"
+      draw={draw}
+    />
   );
 }
 
@@ -348,11 +345,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
     [rows, currency],
   );
   if (rows.length === 0) return null;
-  return (
-    <Panel title="MRR by plan">
-      <ChartFrame gridlines="x" draw={draw} />
-    </Panel>
-  );
+  return <ChartPanel title="MRR by plan" gridlines="x" draw={draw} />;
 }
 
 /** Recova's HealthDistributionChart: customers per band per sampled day over
@@ -362,12 +355,11 @@ function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["health
   const draw = useCallback((w: number, fit: ChartFit) => drawHealth(days, w, fit), [days]);
   if (days.length === 0) return null;
   return (
-    <Panel
+    <ChartPanel
       title="Customer health distribution"
       description="Customer count per health band over 90 days"
-    >
-      <ChartFrame draw={draw} />
-    </Panel>
+      draw={draw}
+    />
   );
 }
 
