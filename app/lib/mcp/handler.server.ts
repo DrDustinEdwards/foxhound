@@ -104,7 +104,7 @@ function tooMany(retryAfter: number): Response {
 
 const UNAUTHORIZED_MESSAGE = "Unauthorized";
 
-function errorResponse(
+function rpcErrorResponse(
   status: number,
   id: string | number | null,
   code: number,
@@ -308,7 +308,7 @@ export async function handleMcpRequest(
   // A body that is not JSON holds no call; the SDK answers it with a parse error.
   const text = await readCapped(request, BODY_MAX_BYTES);
   if (text === null)
-    return errorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
+    return rpcErrorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
   let body: unknown = null;
   try {
     body = JSON.parse(text);
@@ -333,7 +333,7 @@ export async function handleMcpRequest(
       },
       { level: "error" },
     );
-    return errorResponse(
+    return rpcErrorResponse(
       503,
       null,
       INTERNAL_ERROR,

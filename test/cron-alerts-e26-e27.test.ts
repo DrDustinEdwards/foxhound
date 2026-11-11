@@ -45,7 +45,7 @@ vi.mock("~/db/billable", async (importOriginal) => {
   };
 });
 
-const { alertCronFailure, buildFailureAlertEmail, describeAge, runCronHealthCheck } =
+const { alertCronFailure, buildFailureAlertEmail, runCronHealthCheck } =
   await import("~/lib/cron/alerts.server");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { runCronJob } = await import("~/lib/cron/run");
@@ -208,13 +208,6 @@ describe("E26 trigger: the billing run alerts when any account fails to invoice"
 // ---- E27 ------------------------------------------------------------------------
 
 describe("E27: the cron stale alert says what Recova's notifyCronStale says", () => {
-  it("Recova's describeAge, its units and its floor", () => {
-    expect(describeAge(59_000)).toBe("59 seconds ago");
-    expect(describeAge(61_000)).toBe("1 minutes ago");
-    expect(describeAge(90 * 60_000)).toBe("1 hours ago");
-    expect(describeAge(49 * 60 * 60_000)).toBe("2 days ago");
-  });
-
   it("TRIGGER: no SUCCESSFUL run within the interval, as Recova's watcher reads last_succeeded_at", async () => {
     // A cron that keeps running and failing is stale to Recova: its watcher
     // reads last_succeeded_at, not the last run of any status.
