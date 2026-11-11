@@ -1,20 +1,13 @@
-import { priceOf } from "@dustinedwards/site-runtime/ai-engine";
+import { costMicros } from "@dustinedwards/site-runtime/ai-engine";
 
 import type { Db } from "~/db";
 import { aiCalls } from "~/db";
 
 // The ai_calls cost (closes legacy R-49: model-id drift and an incomplete cost map). The prices are
-// site-runtime's PRICES, the network's one table, read from Anthropic's pricing page; never a copy here
-// (Foxhound's own table once had Sonnet 5 at $3/$15 when the list price is $2/$10). priceOf matches a dated
+// site-runtime's PRICES and costMicros, the network's one table, read from Anthropic's pricing page; never a copy here
+// (Foxhound's own table once had Sonnet 5 at $3/$15 when the list price is $2/$10). costMicros matches a dated
 // id (`claude-haiku-4-5-20251001`) and its base form alike, and an unpriced model throws, so a newly wired
 // model can never silently log $0.
-
-/** The listed price of a model, in US dollars per million tokens. Throws on an unpriced model (R-49 guard). */
-export function aiModelCost(model: string) {
-  const price = priceOf(model);
-  if (!price) throw new Error(`no ai_calls price for model '${model}' in site-runtime PRICES`);
-  return price;
-}
 
 /**
  * Cost of one AI call in whole USD cents, rounded UP. Pure.
@@ -37,9 +30,16 @@ export function computeAiCallCostCents(
   promptTokens: number,
   completionTokens: number,
 ): number {
-  const price = aiModelCost(model);
-  // Dollars per million tokens times tokens is millionths of a dollar; 10,000 of those are a cent.
-  return Math.ceil((promptTokens * price.input + completionTokens * price.output) / 10_000);
+  const micros = costMicros(model, {
+    input: promptTokens,
+    output: completionTokens,
+    cacheRead: 0,
+    cacheWrite: 0,
+  });
+  if (micros === null)
+    throw new Error(`no ai_calls price for model '${model}' in site-runtime PRICES`);
+  // 10,000 millionths of a dollar are a cent.
+  return Math.ceil(micros / 10_000);
 }
 
 /** Insert one ai_calls row with its computed cost. Operational (not a money write). */
