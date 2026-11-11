@@ -16,7 +16,7 @@ import {
   protectedSubtext,
 } from "~/lib/dashboard/console";
 import { recoveryRateBand, recoveryRateClassNameOrNull } from "~/lib/dashboard/recovery-rate";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import type { AttentionRow, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/console.server";
 
 // The console's three parts in Recova's order (app/(app)/console/page.tsx at

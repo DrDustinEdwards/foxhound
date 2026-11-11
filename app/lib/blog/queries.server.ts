@@ -6,7 +6,8 @@
 // to published = true and ordered by published_at desc, matching legacy's
 // anon-SSR-client (RLS-gated) read behavior.
 
-import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, or, sql } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import { blogPostLinks, blogPosts, blogSlugRedirects } from "~/db";
@@ -183,7 +184,7 @@ export async function getPostsBySlug(db: Db, slugs: string[]): Promise<BlogPostS
   const rows = await db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)
-    .where(and(eq(blogPosts.published, true), inArray(blogPosts.slug, slugs)));
+    .where(and(eq(blogPosts.published, true), inList(blogPosts.slug, slugs)));
   const bySlug = new Map(rows.map((r) => [r.slug, toSummary(r)]));
   return slugs.flatMap((s) => {
     const p = bySlug.get(s);

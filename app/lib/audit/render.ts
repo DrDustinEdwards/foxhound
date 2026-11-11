@@ -1,7 +1,7 @@
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 
 import type { AuditRunRow } from "./persist.server";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 /**
  * What a surface renders, from EITHER source.

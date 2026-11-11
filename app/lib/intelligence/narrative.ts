@@ -1,5 +1,5 @@
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 // The Intelligence narrative and per-customer assessments, written from a
 // template (Dustin 2026-10-29: "so AI use isnt free for me. so why is this

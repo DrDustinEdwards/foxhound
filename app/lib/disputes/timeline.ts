@@ -8,7 +8,7 @@
 // accepted dispute. This sorts, and it separates the ruling from the
 // notification by using resolved_at for the ruling.
 
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   humanizeDisputeReason,
   isInquiryStatus,

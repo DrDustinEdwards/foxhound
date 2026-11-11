@@ -27,7 +27,7 @@ import {
   recordEstimatorRun,
   type EstimatorResult,
 } from "~/lib/estimator/estimate.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 

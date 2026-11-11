@@ -1,5 +1,5 @@
 import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS, RECOVERY_FEE_BPS } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 

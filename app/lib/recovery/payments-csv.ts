@@ -1,6 +1,6 @@
 import type { FailedPaymentRow } from "./queries.server";
 import { toCsv } from "@dustinedwards/site-runtime/csv";
-import { plainMajorAmount } from "~/lib/money-format";
+import { moneyInputValue } from "@dustinedwards/site-runtime/money";
 
 // The /recovery/payments CSV export. Pure and unit-tested: given the rows
 // listFilteredFailedPayments returns for the list's own filters, sort, page
@@ -60,7 +60,7 @@ export function buildPaymentsCsv(
         p.customerEmail,
         p.planName ?? "",
         // A plain number, so the formula guard leaves it a number.
-        plainMajorAmount(p.amountCents, p.currency),
+        moneyInputValue(p.amountCents, p.currency),
         p.currency.toUpperCase(),
         p.declineCategory,
         p.declineCode ?? "",

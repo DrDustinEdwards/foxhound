@@ -24,7 +24,7 @@ import {
   type ChurnRatePointLike,
 } from "~/lib/intelligence/churn";
 import { getChurnView } from "~/lib/intelligence/trends.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/churn";
 import { NOINDEX } from "~/lib/seo/meta";

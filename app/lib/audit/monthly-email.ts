@@ -4,7 +4,7 @@
 import type { Block } from "capsomer/email";
 import type { CurrencyCents } from "~/lib/audit/full-audit.server";
 import { formatBps, formatTotals, SCOPE_UNREAD } from "~/lib/audit/render";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 
 export interface CurrencyComparison {

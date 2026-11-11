@@ -5,7 +5,6 @@ import {
   desc,
   eq,
   gte,
-  inArray,
   isNull,
   like,
   lte,
@@ -14,6 +13,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import { byAccount, byAccountActive } from "~/db/scope";
 import {
   type Db,
@@ -443,14 +443,10 @@ export async function listStepsForFailedPayments(
     .where(
       and(
         eq(recoverySteps.accountId, accountId),
-        inArray(recoverySteps.failedPaymentId, failedPaymentIds),
+        inList(recoverySteps.failedPaymentId, failedPaymentIds),
       ),
     );
 }
-
-/** Ids per step-count read: D1 binds at most 100 parameters a statement, and
- *  the account id takes one. */
-const STEP_COUNT_IDS_PER_READ = 90;
 
 /** Executed and total recovery_steps per failed payment, for the CSV export's
  *  Steps Executed and Total Steps (Recova's lib/csv.ts: steps with an executed
@@ -462,25 +458,23 @@ export async function countStepsForFailedPayments(
   failedPaymentIds: string[],
 ): Promise<Map<string, { executed: number; total: number }>> {
   const counts = new Map<string, { executed: number; total: number }>();
-  for (let i = 0; i < failedPaymentIds.length; i += STEP_COUNT_IDS_PER_READ) {
-    const ids = failedPaymentIds.slice(i, i + STEP_COUNT_IDS_PER_READ);
-    const rows = await db
-      .select({
-        failedPaymentId: recoverySteps.failedPaymentId,
-        executed: count(recoverySteps.executedAt),
-        total: count(),
-      })
-      .from(recoverySteps)
-      .where(
-        and(
-          byAccountActive(recoverySteps.accountId, recoverySteps.deletedAt, accountId),
-          inArray(recoverySteps.failedPaymentId, ids),
-        ),
-      )
-      .groupBy(recoverySteps.failedPaymentId);
-    for (const row of rows)
-      counts.set(row.failedPaymentId, { executed: row.executed, total: row.total });
-  }
+  if (failedPaymentIds.length === 0) return counts;
+  const rows = await db
+    .select({
+      failedPaymentId: recoverySteps.failedPaymentId,
+      executed: count(recoverySteps.executedAt),
+      total: count(),
+    })
+    .from(recoverySteps)
+    .where(
+      and(
+        byAccountActive(recoverySteps.accountId, recoverySteps.deletedAt, accountId),
+        inList(recoverySteps.failedPaymentId, failedPaymentIds),
+      ),
+    )
+    .groupBy(recoverySteps.failedPaymentId);
+  for (const row of rows)
+    counts.set(row.failedPaymentId, { executed: row.executed, total: row.total });
   return counts;
 }
 
