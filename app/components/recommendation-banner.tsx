@@ -46,17 +46,24 @@ export function RecommendationBanner({
             {atRisk ? <span className="whitespace-nowrap">{atRisk}</span> : null}
           </span>
         }
-      >
-        <p className="m-0 mb-2 text-label text-text">{p.recommendation.rationale}</p>
-        <p className="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-micro text-text-secondary">
-          <span>{engagementEvidence(p.engagement, nowMs)}</span>
-          <span>{historyEvidence(p.history)}</span>
-          <span>{valueEvidence(p.value, prediction.currency)}</span>
-        </p>
-        <p className="m-0 mt-2 text-micro text-text-tertiary">
-          Confidence: {p.recommendation.confidence}
-        </p>
-      </Banner>
+        // body, not children: children sit inside Capsomer's p.cap-banner-text,
+        // and these three paragraphs inside a p are invalid HTML the browser
+        // splits apart, so hydration found a different tree (React error 418 on the
+        // demo's payment and customer pages, parity audit 2026-11-10).
+        body={
+          <>
+            <p className="m-0 mb-2 text-label text-text">{p.recommendation.rationale}</p>
+            <p className="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-micro text-text-secondary">
+              <span>{engagementEvidence(p.engagement, nowMs)}</span>
+              <span>{historyEvidence(p.history)}</span>
+              <span>{valueEvidence(p.value, prediction.currency)}</span>
+            </p>
+            <p className="m-0 mt-2 text-micro text-text-tertiary">
+              Confidence: {p.recommendation.confidence}
+            </p>
+          </>
+        }
+      />
     </div>
   );
 }

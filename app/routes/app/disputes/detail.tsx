@@ -336,16 +336,21 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                 ? "Foxhound recommends fighting this dispute"
                 : "Foxhound recommends accepting this dispute"
             }
-          >
-            {dispute.triageReasoning ? (
-              <p className="m-0 mb-1 text-label text-text">{dispute.triageReasoning}</p>
-            ) : null}
-            {typeof dispute.triageConfidence === "number" ? (
-              <p className="m-0 text-micro text-text-tertiary">
-                Confidence: {dispute.triageConfidence}%
-              </p>
-            ) : null}
-          </Banner>
+            // body, not children: children sit inside Capsomer's p.cap-banner-text,
+            // and a p inside a p is invalid HTML (React error 418 on every dispute page).
+            body={
+              <>
+                {dispute.triageReasoning ? (
+                  <p className="m-0 mb-1 text-label text-text">{dispute.triageReasoning}</p>
+                ) : null}
+                {typeof dispute.triageConfidence === "number" ? (
+                  <p className="m-0 text-micro text-text-tertiary">
+                    Confidence: {dispute.triageConfidence}%
+                  </p>
+                ) : null}
+              </>
+            }
+          />
         </div>
       ) : null}
 

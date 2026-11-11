@@ -457,7 +457,7 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
               <tbody>
                 {customer.predictions.map((p, i) => (
                   <tr key={i}>
-                    <td className="text-text-tertiary">{p.predictedAt.toLocaleDateString()}</td>
+                    <td className="text-text-tertiary">{formatDateShort(p.predictedAt)}</td>
                     <td data-label="Score" className="font-mono text-text">
                       {p.score}
                     </td>

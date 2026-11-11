@@ -206,14 +206,14 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
               href="/recovery/dashboard"
               renderLink={tileLink}
               label="Active sequences"
-              figure={activeSequences.toLocaleString()}
+              figure={activeSequences.toLocaleString("en-US")}
               detail="Payments being recovered"
             />
             <StatTile
               href="/disputes/dashboard"
               renderLink={tileLink}
               label="Open disputes"
-              figure={openDisputes.toLocaleString()}
+              figure={openDisputes.toLocaleString("en-US")}
               detail={openDisputes > 0 ? `${openDisputes} need response` : "None open"}
             />
           </StatTiles>

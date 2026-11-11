@@ -8,6 +8,7 @@ import { listExpiringCardAlerts } from "~/lib/recovery/queries.server";
 import type { Route } from "./+types/expiring-cards";
 import { NOINDEX } from "~/lib/seo/meta";
 import "capsomer/table.css";
+import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Expiring cards - Foxhound" }, NOINDEX];
@@ -93,7 +94,7 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                     </td>
                     <td data-label="Alert" className="text-text-tertiary">
                       {alert.alertSentAt
-                        ? `Sent ${alert.alertSentAt.toLocaleDateString()}`
+                        ? `Sent ${formatDateShort(alert.alertSentAt)}`
                         : "Not sent yet"}
                     </td>
                   </tr>

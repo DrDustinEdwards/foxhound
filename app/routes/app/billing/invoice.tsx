@@ -9,6 +9,7 @@ import { formatMoney } from "~/lib/money-format";
 
 import type { Route } from "./+types/invoice";
 import { NOINDEX } from "~/lib/seo/meta";
+import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Invoice - Foxhound" }, NOINDEX];
@@ -32,7 +33,7 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-title font-medium text-text">
-              {invoice.periodStart.toLocaleDateString()} - {invoice.periodEnd.toLocaleDateString()}
+              {formatDateShort(invoice.periodStart)} - {formatDateShort(invoice.periodEnd)}
             </h1>
             <p className="mt-1 text-label text-text-tertiary">{invoice.currency.toUpperCase()}</p>
           </div>

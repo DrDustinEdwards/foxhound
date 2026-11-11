@@ -6,6 +6,7 @@ import { BILLING_LINE_ITEM_TYPE_LABELS } from "~/lib/billing/labels";
 import type { EnrichedLineItem, FreeLedgerEntry } from "~/lib/billing/queries.server";
 import { formatMoney } from "~/lib/money-format";
 import { ATTRIBUTION_KIND_LABELS, formatStepType } from "~/lib/recovery/labels";
+import { formatDateShort } from "~/lib/date-format";
 
 // The shared "action -> recovery -> fee" chain rendering (DESIGN.md flagship
 // surface 1), reused by /billing (the whole-account ledger) and
@@ -35,7 +36,7 @@ function Header({
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-center gap-2">
         <Badge tone="neutral">{typeLabel}</Badge>
-        <span className="text-micro text-text-subtle">{date.toLocaleDateString()}</span>
+        <span className="text-micro text-text-subtle">{formatDateShort(date)}</span>
       </div>
       <p className="font-mono text-body font-medium text-text">
         {formatMoney(amountCents, currency)}
@@ -65,15 +66,14 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
           {ATTRIBUTION_KIND_LABELS[recoveredPayment.attributionKind as AttributionKind] ??
             recoveredPayment.attributionKind}
           {creditedStepType ? ` (${formatStepType(creditedStepType)})` : ""} on{" "}
-          {(recoveredPayment.attributedAt ?? recoveredPayment.recoveredAt).toLocaleDateString()}{" "}
-          recovered{" "}
+          {formatDateShort(recoveredPayment.attributedAt ?? recoveredPayment.recoveredAt)} recovered{" "}
           <Link
             to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}
             className="text-brand-text hover:underline"
           >
             {formatMoney(recoveredPayment.amountCents, recoveredPayment.currency)}
           </Link>{" "}
-          on {recoveredPayment.recoveredAt.toLocaleDateString()}
+          on {formatDateShort(recoveredPayment.recoveredAt)}
         </p>
       ) : null}
 
@@ -81,7 +81,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
         <p className="text-label text-text-tertiary">
           {dispute.customerName ?? dispute.customerEmail ?? dispute.stripeChargeId} won a{" "}
           {dispute.reason} dispute for {formatMoney(dispute.amountCents, dispute.currency)}
-          {dispute.resolvedAt ? ` on ${dispute.resolvedAt.toLocaleDateString()}` : ""}.{" "}
+          {dispute.resolvedAt ? ` on ${formatDateShort(dispute.resolvedAt)}` : ""}.{" "}
           <Link to={`/disputes/${dispute.id}`} className="text-brand-text hover:underline">
             View dispute
           </Link>
@@ -115,7 +115,7 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
         <div className="flex items-center gap-2">
           <Badge tone="free">Stripe baseline - FREE</Badge>
           <span className="text-micro text-text-subtle">
-            {recoveredPayment.recoveredAt.toLocaleDateString()}
+            {formatDateShort(recoveredPayment.recoveredAt)}
           </span>
         </div>
         <p className="font-mono text-body font-medium text-text-tertiary">
