@@ -1,6 +1,6 @@
 import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // Pure pieces of /disputes/:id, client-safe: no database, no
 // Stripe. Recova is the spec: app/(app)/disputes/[id]/DisputeDetailClient.tsx

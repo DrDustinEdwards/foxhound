@@ -7,7 +7,7 @@ import type Stripe from "stripe";
 import { changedRows, type Db, getDb, recoverySteps } from "~/db";
 import type { DeclineCategory } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { isRetryable } from "~/lib/recovery/decline";
 import { buildStopRecoveryBatch } from "~/lib/recovery/manual-action-batches.server";
 import {

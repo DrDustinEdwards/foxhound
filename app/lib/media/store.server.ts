@@ -6,6 +6,7 @@ import type {
   MediaRecordWrite,
 } from "@dustinedwards/site-api";
 import { and, asc, desc, eq, gt, inArray, lte, max, notExists, sql } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import { media, mediaChanges, mediaRevisions, type Db } from "~/db";
 
@@ -20,25 +21,14 @@ export type MediaRow = typeof media.$inferSelect;
 type MediaRevisionRow = typeof mediaRevisions.$inferSelect;
 type MediaFields = Partial<Omit<MediaRow, "key" | "rev">>;
 
-/** D1 binds at most 100 parameters to a statement. */
-const IN_CHUNK = 90;
-
 export async function mediaRow(db: Db, key: string): Promise<MediaRow | null> {
   const rows = await db.select().from(media).where(eq(media.key, key)).limit(1);
   return rows[0] ?? null;
 }
 
 export async function mediaRowsByKey(db: Db, keys: readonly string[]): Promise<MediaRow[]> {
-  const rows: MediaRow[] = [];
-  for (let i = 0; i < keys.length; i += IN_CHUNK) {
-    rows.push(
-      ...(await db
-        .select()
-        .from(media)
-        .where(inArray(media.key, keys.slice(i, i + IN_CHUNK)))),
-    );
-  }
-  return rows;
+  if (keys.length === 0) return [];
+  return db.select().from(media).where(inList(media.key, keys));
 }
 
 const iso = (at: Date) => at.toISOString();

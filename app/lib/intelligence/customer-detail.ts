@@ -3,7 +3,7 @@ import type { ChartFit } from "capsomer/react/chart-frame";
 
 import { formatDateMonthDay, formatDateShort } from "~/lib/date-format";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
-import { formatAmounts } from "~/lib/money-format";
+import { formatAmounts } from "~/lib/money/totals";
 
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { DAY_MS } from "~/lib/constants";
