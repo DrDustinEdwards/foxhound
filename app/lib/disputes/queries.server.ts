@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -55,10 +55,32 @@ export type DisputeRow = typeof disputes.$inferSelect;
 export type DisputeEvidenceRow = typeof disputeEvidence.$inferSelect;
 type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
 
-/** Every dispute for the account, newest first. */
+/** Every dispute for the account, newest first. The disputes page needs them
+ *  all for its stats; an agent reads one page at a time (listDisputesPage). */
 export async function listDisputes(db: Db, accountId: string): Promise<DisputeRow[]> {
   const rows = await db.select().from(disputes).where(eq(disputes.accountId, accountId));
   return sortDisputesNewestFirst(rows);
+}
+
+/** One page of the account's disputes, newest first (id breaks a tie), read
+ *  bounded in SQL, with the total for the page count. */
+export async function listDisputesPage(
+  db: Db,
+  accountId: string,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: DisputeRow[]; total: number }> {
+  const [rows, [counted]] = await Promise.all([
+    db
+      .select()
+      .from(disputes)
+      .where(eq(disputes.accountId, accountId))
+      .orderBy(desc(disputes.createdAt), desc(disputes.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db.select({ n: count() }).from(disputes).where(eq(disputes.accountId, accountId)),
+  ]);
+  return { rows, total: counted?.n ?? 0 };
 }
 
 export interface DisputeDetail {
