@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isDisposableEmail } from "~/lib/auth/disposable-emails";
+import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { isAdminEmail } from "~/lib/auth/roles";
 
 // Pure auth logic (no DB): the admin allowlist parsing and the disposable-email

@@ -2,7 +2,7 @@ import type { signInOptions } from "@dustinedwards/site-runtime/sign-in";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 
-import { isDisposableEmail } from "./disposable-emails";
+import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 
 // Database-agnostic Better Auth options shared by the runtime factory
 // (auth.server.ts, which adds the family sign-in from site-runtime ./sign-in and
