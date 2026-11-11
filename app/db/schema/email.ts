@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 import { id, ts } from "./columns";
 import { recoverySteps, winBackSteps } from "./recovery";
@@ -86,13 +94,9 @@ export const emailDeadLetters = sqliteTable(
   (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
 );
 
-/** One row per alert actually sent, which is ALSO the dedupe key: the
- *  unique index on (cron_name, kind, alerted_on) means a second alert for the
- *  same cron, same kind, same UTC day is refused by the DATABASE rather than by
- *  application logic that two concurrent cron invocations could race.
- *
- *  A D1 row rather than a new binding, per 313: the cheapest primitive already
- *  present wins. */
+/** RETIRED: nothing reads or writes it since the alerts moved onto `alerts_sent`
+ *  (below). It stays declared so drizzle-kit does not generate its drop: a drop
+ *  is a contract migration the deploy refuses, run by hand when Dustin says. */
 export const cronAlerts = sqliteTable(
   "cron_alerts",
   {
@@ -106,6 +110,22 @@ export const cronAlerts = sqliteTable(
     createdAt: ts("created_at").notNull(),
   },
   (t) => [uniqueIndex("cron_alerts_dedupe_uq").on(t.cronName, t.kind, t.alertedOn)],
+);
+
+/** site-runtime ./cron-alert's ALERTS_SQL (migration 0077): one row per alert
+ *  sent, which is also the dedupe, claimed before the mail so two invocations
+ *  cannot both send. Written and read only by alertOnce and cronAlert. Epoch ms. */
+export const alertsSent = sqliteTable(
+  "alerts_sent",
+  {
+    key: text("key").notNull(),
+    kind: text("kind").notNull(),
+    /** UTC date, YYYY-MM-DD. */
+    day: text("day").notNull(),
+    detail: text("detail"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.kind, t.day] })],
 );
 
 export const engagementEvents = sqliteTable(
