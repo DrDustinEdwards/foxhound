@@ -1,41 +1,28 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { d1SiteApiStore, tombstoned } from "@dustinedwards/site-api/store";
-import { withAdminIdle } from "@dustinedwards/site-runtime/access";
-import { generateNonce, renewNonce } from "@dustinedwards/site-runtime/csp";
+import { generateNonce } from "@dustinedwards/site-runtime/csp";
 import {
-  cacheKey,
-  forReader,
-  purgeAfterWrite,
-  settleCacheHeaders,
-  withPurgePages,
-} from "@dustinedwards/site-runtime/edge-cache";
-import { routeNamer, withRequestLog } from "@dustinedwards/site-runtime/log";
-import { maintenanceOn, maintenanceResponse } from "@dustinedwards/site-runtime/maintenance";
-import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
-import {
-  SPECULATION_RULES_PATH,
-  speculationRulesResponse,
-} from "@dustinedwards/site-runtime/prefetch";
-import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
-import { timedRender } from "@dustinedwards/site-runtime/server-timing";
-import { canonicalRedirect } from "@dustinedwards/site-runtime/url";
+  defineSite,
+  siteRenderer,
+  siteWorker,
+  type GatewayStep,
+} from "@dustinedwards/site-runtime/worker";
 import { withSentry } from "@sentry/cloudflare";
-import { createRequestHandler, RouterContextProvider, type ServerBuild } from "react-router";
+import type { ServerBuild } from "react-router";
 
-import { cloudflareContext, cspNonceContext } from "@dustinedwards/site-runtime/context";
 import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
 import { setPageRenderer } from "~/lib/page-dates.server";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { codePagePaths } from "~/routes/files/sitemap";
-import { storedNonceContext } from "~/lib/stored-nonce";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
-import { applyCachePolicy, edgeCacheable, edgeRequest } from "~/lib/http/cache-policy";
-import { applySecurityHeaders } from "~/lib/http/content-security-policy";
-import { SPECULATION_OPTIONS, withSpeculationRules } from "~/lib/http/speculation-rules";
+import { TOKEN_ROUTES } from "~/lib/errors/token-routes";
+import { applyCachePolicy, cacheable } from "~/lib/http/cache-policy";
+import { withSecurityHeaders } from "~/lib/http/content-security-policy";
+import { SPECULATION_OPTIONS } from "~/lib/http/speculation-rules";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
@@ -50,7 +37,8 @@ export { CronLockDurableObject } from "./cron-lock";
 export { CronTickerDurableObject } from "./cron-ticker";
 // site-runtime's limiter class, bound as AUTH_RATE_LIMITER: the sign-in and
 // signup limiter (app/lib/auth/rate-limit.server.ts).
-export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
+import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
+export { RateLimiter };
 // RATE_LIMITER (app/lib/http/rate-limit.ts) counts with the same class under
 // its old name, which keeps its namespace: retiring the name would delete a
 // Durable Object namespace, which waits for Dustin.
@@ -63,171 +51,124 @@ export { ToolCallLog } from "@dustinedwards/site-runtime/audit-log";
 export { AdminApi } from "./admin-api";
 
 const serverBuild = () => import("virtual:react-router/server-build") as Promise<ServerBuild>;
-const requestHandler = createRequestHandler(serverBuild, import.meta.env.MODE);
 
-// The route pattern each `request` log line names (`/blog/:slug`), from the React Router build's route table, made once
-// per isolate (site-runtime ./log's routeNamer). Requests the Worker answers itself (/api, /health, /mcp, /media) carry
-// the path alone. The build loads beside the request, so the first few lines in an isolate may go without a route.
-let nameRoute: ((request: Request) => string | undefined) | undefined;
-function routeName(request: Request): string | undefined {
-  if (!nameRoute)
-    void serverBuild().then(
-      (build) => (nameRoute ??= routeNamer(build.routes)),
-      () => undefined,
-    );
-  return /^\/(api|health|mcp|media)(\/|$)/.test(new URL(request.url).pathname)
-    ? undefined
-    : nameRoute?.(request);
-}
+/**
+ * The public request bucket, before anything else of Foxhound's runs. Sign-in, signup, reset and Better Auth's own
+ * endpoints are limited inside their actions by site-runtime's limiter, where a ".data" spelling of the path cannot
+ * slip past it.
+ */
+const rateLimit: GatewayStep<Env> = (request, env) => enforceRateLimit(request, env);
+
+/**
+ * CARREL'S SITE API with its preview links (/preview/<token>, site-api's PREVIEW_LINK_PATH). Inside /api/carrel/v1 the
+ * package enforces rate limit, key and route in that order. The path is checked before the import so the adapter graph
+ * stays off every page render. A preview link is noindex, private, no-store and no-referrer from the package (the set
+ * does not overwrite them, so the token, which is the address, is never sent on) and writes nothing; any write Carrel
+ * makes (a post, its schedule, a media library picture a post shows) can change a stored page, so the pages are purged.
+ */
+const carrel: GatewayStep<Env> = async (request, env, ctx, kit) => {
+  const { pathname } = kit.url;
+  if (!pathname.startsWith("/api/carrel/v1") && !pathname.startsWith("/preview/")) return undefined;
+  const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
+  const answer = await handleCarrelRequest(request, env, ctx, await kit.stylesheets());
+  if (answer && !pathname.startsWith("/preview/"))
+    kit.purgeAfterWrite(request, answer, `carrel ${request.method} ${pathname}`);
+  return answer;
+};
+
+/**
+ * THE OPERATOR API (app/lib/operator.server.ts): Capsid Admin's backups and run a job now, behind its own bearer. A
+ * step rather than the shared `operator` option, so the cron registry is imported only on its path, never on a page
+ * render.
+ */
+const operator: GatewayStep<Env> = async (request, env, _ctx, kit) => {
+  if (kit.url.pathname !== "/api/operator") return undefined;
+  const { operatorAnswer } = await import("~/lib/operator.server");
+  return operatorAnswer(request, env);
+};
+
+/**
+ * THE MERCHANT MCP ENDPOINT (370, roadmap item 3): JSON-RPC over POST with its own header contract and bearer auth.
+ * The path is checked before the import, which keeps the tool modules' graph (the ORM, the billing and intelligence
+ * views) off every marketing request. The cache policy (respond) classes /mcp private, which is what pins it no-store.
+ */
+const mcp: GatewayStep<Env> = async (request, env, _ctx, kit) => {
+  if (kit.url.pathname !== "/mcp") return undefined;
+  const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
+  return handleMcpRequest(request, env, MERCHANT_TOOLS);
+};
+
+// Prelum's markdownCopies: each public page has a Markdown copy at its path plus .md and answers Accept: text/markdown.
+// Only the sitemap's pages get one (the pages written in code, and the blog's posts, archive and tags); the signed-in
+// app, the audit, the admin and the APIs do not. /llms-full.txt stays the site's own (llmsFull: false): it states the
+// product lineup and leaves pricing numbers to /pricing, which a copy built from whole pages would not.
+// siteMarkdown: false makes a copy without first asking the site for the .md path, which the 404 counter would count.
+const CODE_PAGES = new Set(codePagePaths());
+
+/**
+ * The site's Worker (site-runtime ./worker). What is Foxhound's own: its rate limit, Carrel's site API, the operator
+ * API and the merchant MCP as steps; its route-class cache rule (respond: Vary: Cookie on public classes, private
+ * no-store on the rest, CLAUDE.md rule 9); the theme in the cache key; Carrel's tombstones on a 404; the Markdown copies;
+ * the admin idle sign-out; and the token routes cut from the logs.
+ */
+const site = defineSite<Env>({
+  name: "Foxhound",
+  serverBuild,
+  mode: import.meta.env.MODE,
+  withSecurityHeaders,
+  // One hop to the canonical address: https, the bare host, no trailing slash.
+  canonical: { host: "foxhoundapp.com" },
+  speculationExclude: SPECULATION_OPTIONS.exclude,
+  steps: [rateLimit, carrel, operator, mcp],
+  publicCookies: [THEME_COOKIE],
+  cacheable: (_request, url) => cacheable(url),
+  preloads: [...FONT_PRELOADS],
+  respond: (response, request, _env, { stored }) => applyCachePolicy(request, response, stored),
+  onNotFound: (response, request, env) =>
+    tombstoned(response, new URL(request.url).pathname, d1SiteApiStore(env.DB)),
+  wrap: (handler) =>
+    markdownCopies(handler, {
+      origin: SITE_ORIGIN,
+      llmsFull: false,
+      siteMarkdown: false,
+      skip: (path) => !(CODE_PAGES.has(path) || path.startsWith("/blog/")),
+    }),
+  // An admin idle for an hour is signed out of Access (site-runtime ./access).
+  adminIdle: [{ secret: (env) => env.ADMIN_IDLE_SECRET }],
+  // The unsubscribe, card update, engagement and invite links each carry one person's token.
+  tokenRoutes: TOKEN_ROUTES,
+});
 
 // The daily page-dates job reads each code-written sitemap page as the Renderer would render it (app/lib/page-dates.server.ts).
 setPageRenderer(async (path, env) => {
-  const context = new RouterContextProvider();
   const noContext = {
     waitUntil() {},
     passThroughOnException() {},
     props: {},
   } as unknown as ExecutionContext;
-  context.set(cloudflareContext, { env, ctx: noContext });
-  context.set(storedNonceContext, generateNonce());
-  const response = await requestHandler(new Request(`https://foxhoundapp.com${path}`), context);
+  const response = await site.render(
+    new Request(`https://foxhoundapp.com${path}`),
+    env,
+    noContext,
+    {
+      nonce: generateNonce(),
+    },
+  );
   const html = (response.headers.get("content-type") ?? "").includes("text/html");
   return response.ok && html ? response.text() : null;
 });
 
-// The root stylesheets and the fonts root.tsx links, on every HTML page as the
-// `Link` header Cloudflare Early Hints reads (site-runtime withPreloadHeader
-// appends it, so a route's own Link stays).
-async function preloadHeader(): Promise<string> {
-  return preloads([...rootStylesheets(await serverBuild()), ...FONT_PRELOADS]).header;
-}
+/**
+ * THE CACHEABLE ENTRYPOINT (site-runtime ./worker; wrangler.jsonc `exports`). The gateway sends it only an anonymous
+ * read of a cacheable path; what it answers is stored by the Workers cache under the key the gateway names, with the
+ * nonce it was rendered with, which the gateway renews for every reader.
+ */
+export class Renderer extends siteRenderer(WorkerEntrypoint<Env>, site) {}
 
-const site = withSentry<Env>(sentryOptions, {
-  async fetch(request, env, ctx) {
-    // site-runtime's generateNonce (the 16-byte base64 algorithm Foxhound had,
-    // moved there in J22). Generated before the route handler runs, so both
-    // the HTML (root.tsx's <Scripts>/<ScrollRestoration>, via cloudflareContext) and
-    // the response header (applySecurityHeaders) below carry the exact
-    // same value (TASK-foxhound-csp-nonce-hydration.md).
-    const nonce = generateNonce();
-    const { origin } = new URL(request.url);
-    // One hop to the canonical address: https, the bare host, no trailing slash.
-    const redirect = canonicalRedirect(request, { host: "foxhoundapp.com" });
-    if (redirect) return applySecurityHeaders(redirect, nonce, origin);
+const worker = siteWorker(site);
 
-    // The maintenance page (site-runtime ./maintenance): every path but /health answers 503 while the MAINTENANCE var is on.
-    if (maintenanceOn(env) && new URL(request.url).pathname !== "/health")
-      return applySecurityHeaders(maintenanceResponse({ siteName: "Foxhound" }), nonce, origin);
-
-    // The link prefetch rules every HTML page names (lib/http/speculation-rules.ts).
-    if (new URL(request.url).pathname === SPECULATION_RULES_PATH) {
-      return applySecurityHeaders(
-        speculationRulesResponse(SPECULATION_OPTIONS, request),
-        nonce,
-        origin,
-      );
-    }
-
-    // Checked before the route handler runs (not after). The public bucket
-    // only: sign-in, signup, reset and Better Auth's own endpoints are
-    // limited inside their actions by site-runtime's limiter, where a
-    // ".data" spelling of the path cannot slip past it.
-    const limited = await enforceRateLimit(request, env);
-    if (limited) return applyCachePolicy(request, applySecurityHeaders(limited, nonce, origin));
-
-    // CARREL'S SITE API, before the router, with its preview links
-    // (/preview/<token>, site-api's PREVIEW_LINK_PATH). Null for any other
-    // path; inside /api/carrel/v1 the package enforces rate limit, key and
-    // route in that order. The path is checked before the import so the adapter
-    // graph stays off every page render, as the MCP mount below does.
-    const { pathname } = new URL(request.url);
-    if (pathname.startsWith("/api/carrel/v1") || pathname.startsWith("/preview/")) {
-      const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
-      const stylesheets = rootStylesheets(await serverBuild()).map((s) => s.href);
-      const carrel = await handleCarrelRequest(request, env, ctx, stylesheets);
-      // A preview link: noindex, private, no-store and no-referrer from the
-      // package (the header set does not overwrite them, so the token, which
-      // is the address, is never sent on). It writes nothing to purge.
-      if (carrel && pathname.startsWith("/preview/")) {
-        return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
-      }
-      if (carrel) {
-        // Any write Carrel makes (a post, its schedule, a media library
-        // picture a post shows) can change a stored page, so they are all
-        // dropped. Never awaited, never throws.
-        purgeAfterWrite(request, carrel, ctx, `carrel ${request.method} ${pathname}`);
-        return applyCachePolicy(request, applySecurityHeaders(carrel, nonce, origin));
-      }
-    }
-
-    // THE OPERATOR API, before the router (app/lib/operator.server.ts): Capsid Admin's backups and run a job now,
-    // behind its own bearer. Imported only on its path, so the cron registry stays off every page render.
-    if (pathname === "/api/operator") {
-      const { operatorAnswer } = await import("~/lib/operator.server");
-      return applyCachePolicy(
-        request,
-        applySecurityHeaders(await operatorAnswer(request, env), nonce, origin),
-      );
-    }
-
-    // THE MERCHANT MCP ENDPOINT, before the router (370, roadmap item 3).
-    // It is JSON-RPC over POST with its own header contract and its own bearer
-    // auth; none of the router's loader/action machinery applies, and mounting
-    // it here keeps the MCP import graph off every page render. Returns null
-    // for any other path, so this costs one pathname comparison.
-    //
-    // It still passes through applySecurityHeaders and applyCachePolicy below,
-    // which is what pins it PRIVATE: the policy classifies anything unmatched
-    // as private, and /mcp is unmatched deliberately.
-    // THE PATH IS CHECKED HERE, BEFORE THE IMPORT, and that ordering is the
-    // whole reason the endpoint is mounted at this level. A dynamic import
-    // outside this branch would be evaluated on every page render, which is
-    // exactly the cost the mount was meant to avoid; the branch keeps the tool
-    // module's graph (thirteen helpers, the ORM, the billing and intelligence
-    // views) off every marketing request.
-    if (new URL(request.url).pathname === "/mcp") {
-      const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
-      const mcp = await handleMcpRequest(request, env, MERCHANT_TOOLS);
-      if (mcp) return applyCachePolicy(request, applySecurityHeaders(mcp, nonce, origin));
-    }
-
-    // THE EDGE PAGE CACHE (site-runtime ./edge-cache). This default export
-    // has the Workers cache disabled, so it runs on every request, hits
-    // included, and decides here, before the cache is consulted, what may be
-    // served from it: only an anonymous GET or HEAD of a public page (cache-policy.ts,
-    // edgeCacheable). A request carrying a session cookie, or any cookie but
-    // the theme, never reaches the Renderer and is rendered below with its own
-    // nonce, stored nowhere. The key leaves out tracking parameters and holds
-    // the theme. forReader tells the browser no-store when the request
-    // carried any cookie but the theme, and answers a returning reader 304.
-    if (edgeCacheable(request)) {
-      const edge = edgeRequest(request);
-      const key = cacheKey(request.url, { dimensions: { theme: edge.theme } });
-      const page = await ctx.exports.Renderer.fetch(edge.request, { cf: { cacheKey: key } });
-      return tombstoned(
-        forReader(renewNonce(page), request, { publicCookies: [THEME_COOKIE] }),
-        new URL(request.url).pathname,
-        d1SiteApiStore(env.DB),
-      );
-    }
-
-    const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env, ctx });
-    context.set(cspNonceContext, nonce);
-    const response = await requestHandler(request, context);
-    // THE CACHE POLICY, applied in the one place every response already
-    // passes through. A route's own `headers` export would be
-    // per route and a new route would default to nothing, which under RFC
-    // 9111 heuristic freshness is not the same as "not cached".
-    return tombstoned(
-      withPreloadHeader(
-        applyCachePolicy(request, applySecurityHeaders(response, nonce, origin)),
-        await preloadHeader(),
-      ),
-      new URL(request.url).pathname,
-      d1SiteApiStore(env.DB),
-    );
-  },
+export default withSentry<Env>(sentryOptions, {
+  fetch: (request, env, ctx) => worker.fetch(request, env, ctx),
   // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
   // foxhound-email (no producer; live sends are synchronous in the recovery
   // cron), its dead-letter queue, and foxhound-email-events (bounces and
@@ -257,10 +198,10 @@ const site = withSentry<Env>(sentryOptions, {
     }
     await handleQueueBatch(batch, env);
   },
-  // Cron Triggers. Dispatch every registered job on the fired
-  // schedule; each runs through runCronJob (config + interval + DO-lock gates,
-  // cron_run_history logging). Jobs are independent, run sequentially to keep
-  // D1 load bounded.
+  // Cron Triggers: Foxhound's own, not the shared `cron`, because each job runs
+  // through runCronJob (config + interval + DO-lock gates, cron_run_history
+  // logging) and the five-minute ticker must be re-armed on every trigger. Jobs
+  // are independent, run sequentially to keep D1 load bounded.
   async scheduled(controller, env) {
     // Every trigger, on every schedule, makes sure the five-minute ticker's
     // alarm is set, so the daily 03:00 UTC run re-arms it even while the
@@ -278,72 +219,3 @@ const site = withSentry<Env>(sentryOptions, {
     await runScheduledJobs(env, jobsForSchedule(controller.cron));
   },
 } satisfies ExportedHandler<Env>);
-
-// An admin idle for an hour is signed out of Access (site-runtime ./access). Every HTML page names the link prefetch rules
-// (Speculation-Rules), stored pages included.
-const answer = async (request: Request, env: Env, ctx: ExecutionContext) =>
-  withSpeculationRules(
-    await withAdminIdle(
-      request,
-      async () => site.fetch!(request as Request<unknown, IncomingRequestCfProperties>, env, ctx),
-      {
-        secret: env.ADMIN_IDLE_SECRET,
-      },
-    ),
-  );
-
-// Prelum's markdownCopies: each public page has a Markdown copy at its path plus .md and answers Accept: text/markdown.
-// Only the sitemap's pages get one (the pages written in code, and the blog's posts, archive and tags); the signed-in
-// app, the audit, the admin and the APIs do not. /llms-full.txt stays the site's own (llmsFull: false): it states the
-// product lineup and leaves pricing numbers to /pricing, which a copy built from whole pages would not.
-// siteMarkdown: false makes a copy without first asking the site for the .md path, which the 404 counter would count.
-const CODE_PAGES = new Set(codePagePaths());
-const withMarkdownCopies = markdownCopies(answer, {
-  origin: SITE_ORIGIN,
-  llmsFull: false,
-  siteMarkdown: false,
-  skip: (path) => !(CODE_PAGES.has(path) || path.startsWith("/blog/")),
-});
-
-export default {
-  ...site,
-  // Every request writes one `request` line (site-runtime ./log's withRequestLog: path, status, ms and the deployed
-  // commit; never a query).
-  // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
-  fetch: withRequestLog(withMarkdownCopies, {
-    sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA,
-    route: routeName,
-  }),
-} satisfies ExportedHandler<Env>;
-
-/**
- * THE CACHEABLE ENTRYPOINT (site-runtime ./edge-cache; wrangler.jsonc
- * `exports`). The gateway below sends it only what edgeCacheable() allows: a
- * GET of a public page or files route whose one cookie, if any, is the theme.
- * Its responses are stored by the Workers cache under the key the gateway
- * names, so every header a stored page leaves with is set here, or it is
- * missing from every hit. The page is stored with the nonce it was rendered
- * with, and the gateway renews it for every reader (renewNonce).
- * settleCacheHeaders runs last: anything but a shared 200, a response setting a
- * cookie, or one rendered for a HEAD or for a cookie other than the theme (which
- * the key holds) leaves `private, no-store` and is stored nowhere. purgePages
- * (withPurgePages) runs here because a purge only reaches the cache of the
- * entrypoint that calls it.
- */
-export class Renderer extends withPurgePages(WorkerEntrypoint<Env>) {
-  override async fetch(request: Request): Promise<Response> {
-    const storedNonce = generateNonce();
-    const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: this.env, ctx: this.ctx });
-    context.set(storedNonceContext, storedNonce);
-    const origin = new URL(request.url).origin;
-    const rendered = await timedRender(async () =>
-      applySecurityHeaders(await requestHandler(request, context), storedNonce, origin),
-    );
-    const page = withPreloadHeader(
-      applyCachePolicy(request, rendered, true),
-      await preloadHeader(),
-    );
-    return settleCacheHeaders(page, request, { publicCookies: [THEME_COOKIE] });
-  }
-}
