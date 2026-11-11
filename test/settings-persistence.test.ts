@@ -2,7 +2,6 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { formatCentsAsDollars, parseDollarsToCents } from "~/lib/settings/dollars";
 import {
   buildAccountProfileUpdate,
   buildBrandVoiceUpdate,
@@ -113,27 +112,5 @@ describe("settings persistence builders (compile against schema)", () => {
   it("brand voice update can clear the field back to null", () => {
     const { params } = sqlOf(buildBrandVoiceUpdate(db, "acc_1", "conn_1", null));
     expect(params).toContain(null);
-  });
-});
-
-describe("parseDollarsToCents / formatCentsAsDollars (round trip)", () => {
-  it("strips thousands separators", () => {
-    expect(parseDollarsToCents("5,000")).toBe(500_000);
-  });
-
-  it("blank or invalid input clears the field (null)", () => {
-    expect(parseDollarsToCents("")).toBeNull();
-    expect(parseDollarsToCents("   ")).toBeNull();
-    expect(parseDollarsToCents("not a number")).toBeNull();
-    expect(parseDollarsToCents("-100")).toBeNull();
-  });
-
-  it("round-trips through formatCentsAsDollars", () => {
-    const cents = parseDollarsToCents("1234.50");
-    expect(formatCentsAsDollars(cents)).toBe("1234.50");
-  });
-
-  it("formats null as an empty string", () => {
-    expect(formatCentsAsDollars(null)).toBe("");
   });
 });

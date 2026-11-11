@@ -6,7 +6,7 @@
 
 import { merchantHref } from "~/lib/admin/page";
 import { plural } from "~/lib/admin/overview";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 const ACTIONS: Record<string, string> = {
   "cron.enable": "Turned on a cron",

@@ -5,7 +5,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { getBillingInvoiceDetail } from "~/lib/billing/queries.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/invoice";
 import { NOINDEX } from "~/lib/seo/meta";

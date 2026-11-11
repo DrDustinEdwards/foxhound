@@ -34,7 +34,7 @@
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.41.3",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.16.0",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.36.0",
-    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.119.0",
+    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.123.1",
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.78.0",
     "better-auth": "1.7.18",

@@ -21,7 +21,7 @@ import {
   recoveryRateAlt,
   recoveryTimingAlt,
 } from "~/lib/dashboard/recovery-dashboard";
-import { formatMoney, fromMajorUnits } from "~/lib/money-format";
+import { formatMoney, fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { markup } from "capsomer/behavior/trusted-html";
 
 // ---- Charts ----

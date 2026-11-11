@@ -13,7 +13,7 @@ import {
   socialLeads,
   webhookEvents,
 } from "~/db/schema";
-import { D1_MAX_BOUND_PARAMS, DELETE_ID_BATCH_SIZE } from "~/lib/constants";
+import { D1_MAX_BOUND_PARAMS } from "@dustinedwards/site-runtime/d1";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -309,10 +309,10 @@ describe("317: the predicate sites carry NO id list at all", () => {
   });
 });
 
-describe("317: sweepAiCalls keeps its id list, and batches it", () => {
+describe("317: sweepAiCalls keeps its id list as one bound parameter", () => {
   it("still aggregates into monthly buckets and removes every aged row", async () => {
-    // The atomicity contract survives the chunking: aggregate and delete are one
-    // batch, so a partial chunk set can never leave rows counted but undeleted.
+    // The atomicity contract holds: aggregate and delete are one batch, so a
+    // partial delete can never leave rows counted but undeleted.
     const { db } = createInMemoryDb();
     harness.db = db;
     await SWEEPERS.sweepAiCalls.seed(db, N, AGED);
@@ -349,7 +349,6 @@ describe("317: the subquery predicate deletes the aged rows and spares fresh one
 describe("317: the ceiling, and the harness gap that hid it", () => {
   it("the documented D1 ceiling is pinned at 100 with a margin below it", () => {
     expect(D1_MAX_BOUND_PARAMS).toBe(100);
-    expect(DELETE_ID_BATCH_SIZE).toBeLessThan(D1_MAX_BOUND_PARAMS);
   });
 
   it("HARNESS GAP: better-sqlite3 accepts far more parameters than D1, so behavior alone proves nothing", () => {
@@ -362,15 +361,5 @@ describe("317: the ceiling, and the harness gap that hid it", () => {
     const sql = `select 1 where 'x' in (${ids.map(() => "?").join(",")})`;
     expect(() => sqlite.prepare(sql).all(...ids)).not.toThrow();
     expect(ids.length).toBeGreaterThan(D1_MAX_BOUND_PARAMS);
-  });
-
-  it("chunkIds handles the boundaries: empty, exactly one chunk, one over", () => {
-    expect(retention.chunkIds([])).toEqual([]);
-    expect(
-      retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE }, (_, i) => i)),
-    ).toHaveLength(1);
-    expect(
-      retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE + 1 }, (_, i) => i)),
-    ).toHaveLength(2);
   });
 });

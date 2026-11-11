@@ -16,7 +16,7 @@ import {
   STRIPE_RECOVERY_RATE_PERCENT,
   STRIPE_UNRECOVERED_RATE_PERCENT,
 } from "~/lib/marketing/statistics";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 

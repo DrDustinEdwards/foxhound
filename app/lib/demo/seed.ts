@@ -35,7 +35,7 @@ import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billa
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import {
   BOLT_DEMO,
