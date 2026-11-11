@@ -37,7 +37,10 @@ export interface SubscriptionChange {
 interface ItemLike {
   quantity?: number | null;
   current_period_end?: number | null;
-  price?: { unit_amount?: number | null; recurring?: { interval?: string | null } | null } | null;
+  price?: {
+    unit_amount?: number | null;
+    recurring?: { interval?: string | null; interval_count?: number | null } | null;
+  } | null;
 }
 
 /** The parts of a Stripe subscription this reads. */
@@ -60,7 +63,12 @@ function itemsMrrCents(items: ItemLike[]): number {
   return items.reduce(
     (sum, item) =>
       sum +
-      monthlyEquivalentCents(item.price?.unit_amount ?? 0, item.quantity ?? 1, interval(item)),
+      monthlyEquivalentCents(
+        item.price?.unit_amount ?? 0,
+        item.quantity ?? 1,
+        interval(item),
+        item.price?.recurring?.interval_count ?? 1,
+      ),
     0,
   );
 }

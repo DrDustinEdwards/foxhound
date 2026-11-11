@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
@@ -367,7 +368,7 @@ export async function sendAlert(
 
   try {
     if ("alert" in message) {
-      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, env.BETTER_AUTH_URL ?? "", now);
+      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, appOrigin(env), now);
       const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
       if (outcome.status === "sent") return { sent: true };
       return { sent: false, reason: "send_failed", error: outcome.error ?? outcome.reason };

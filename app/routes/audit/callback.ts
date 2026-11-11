@@ -1,4 +1,5 @@
 import { redirect } from "react-router";
+import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import { revokeAuditGrant, scheduleAuditGrantRevoke } from "~/lib/audit/grant-revoke.server";
 import { RATE_LIMIT_AUDIT, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
@@ -57,7 +58,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     });
 
   // 311's limiter, used unchanged, at legacy's numbers on legacy's second key.
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ip = clientIp(request);
   const allowed = await isWithinRateLimit(
     env,
     "audit-callback",

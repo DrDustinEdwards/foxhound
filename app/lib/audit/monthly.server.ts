@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { type Db, accounts, auditDigestRuns, getDb, stripeConnections } from "~/db";
 import { computeFoxhoundAddsCents, type CurrencyCents } from "~/lib/audit/full-audit.server";
@@ -423,7 +424,7 @@ export async function auditAccountForMonth(
       result: audit,
       summary: summary.summary,
       runId,
-      baseUrl: env.BETTER_AUTH_URL ?? "",
+      baseUrl: appOrigin(env),
       comparisons,
     });
     const sent = await processEmailJob(

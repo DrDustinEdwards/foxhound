@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { Db, ExpiringCardAlertReason } from "~/db";
@@ -363,7 +364,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
             expiresMonth: alert.expiresMonth,
             expiresYear: alert.expiresYear,
             senderName: alert.senderName,
-            updateUrl: `${env.BETTER_AUTH_URL ?? ""}/p/${token}`,
+            updateUrl: `${appOrigin(env)}/p/${token}`,
           }),
           // Recova's footer sentence (lib/email.ts wrapEmailHtml), with the
           // sender name as its From has it, before the unsubscribe link and

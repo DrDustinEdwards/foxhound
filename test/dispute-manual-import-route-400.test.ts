@@ -129,6 +129,17 @@ describe("importDisputeFromStripe", () => {
     expect(executeMoneyWrite).not.toHaveBeenCalled();
   });
 
+  it("a Stripe failure that is not a 404 is thrown, never reported as not found", async () => {
+    const env = await envWithConnection(true);
+    disputesRetrieve.mockRejectedValue(
+      Object.assign(new Error("Rate limited"), { statusCode: 429, code: "rate_limit" }),
+    );
+    await expect(importDisputeFromStripe(env, ACCOUNT, "dp_mine", NOW)).rejects.toThrow(
+      "Rate limited",
+    );
+    expect(executeMoneyWrite).not.toHaveBeenCalled();
+  });
+
   it("refuses a malformed id before it ever reaches Stripe", async () => {
     const env = await envWithConnection(true);
     expect(await importDisputeFromStripe(env, ACCOUNT, "ch_not_a_dispute", NOW)).toEqual({
