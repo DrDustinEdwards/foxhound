@@ -1,3 +1,4 @@
+import { clientIp } from "@dustinedwards/site-runtime/http";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_OAUTH_REVOKE } from "~/lib/constants";
@@ -16,7 +17,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return oauthResponse({ status: 405, body: { error: "invalid_request" } }, { Allow: "POST" });
   }
   const { env } = context.get(cloudflareContext);
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ip = clientIp(request);
   if (
     !(await isWithinRateLimit(
       env,

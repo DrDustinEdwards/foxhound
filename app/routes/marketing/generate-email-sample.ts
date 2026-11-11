@@ -1,3 +1,4 @@
+import { clientIp } from "@dustinedwards/site-runtime/http";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { data, redirect } from "react-router";
 
@@ -50,7 +51,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const categoryInput = String(form.get("category") ?? "");
   const category: MarketingEmailCategory = isValidCategory(categoryInput) ? categoryInput : "soft";
 
-  const key = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const key = clientIp(request);
   const allowed = await isWithinRateLimit(env, "marketing_email_sample", key, 10, 60_000);
   if (!allowed) {
     return data(UNAVAILABLE, { status: 429 });
