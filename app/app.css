@@ -1122,6 +1122,11 @@ body {
     --dim: var(--text-tertiary);
   }
 }
+/* Capsomer's page class (.cap-page) reads --fs-page for its text; Foxhound's body text is 16px,
+   so a page on that class keeps the size it always had. */
+.fh-cap {
+  --fs-page: 1rem;
+}
 /* The public site's header is the only thing in its wrapper: no box of its
    own, so the header sticks to the window rather than to a wrapper as tall as
    itself. */
