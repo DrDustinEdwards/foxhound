@@ -193,14 +193,16 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
                       // chart frame, "When not to"): Enarratio's inline SVG is
                       // named by its own sentence (count, first, last, lowest,
                       // highest), so the trend is text as well.
-                      dangerouslySetInnerHTML={markup(sparkline({
+                      dangerouslySetInnerHTML={markup(
+                        sparkline({
                           values: row.spark,
                           label: `${row.label} failures per day, last 30 days`,
                           width: 60,
                           height: 24,
                           endDot: false,
                           inline: true,
-                        }))}
+                        }),
+                      )}
                     />
                   ) : null}
                   <span className="font-mono text-micro text-text-subtle">
