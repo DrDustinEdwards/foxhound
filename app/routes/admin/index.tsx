@@ -4,7 +4,6 @@ import { AttentionList } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
-import { Spinner } from "capsomer/react/skeleton";
 import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
 
 import { Time } from "capsomer/react/time";
@@ -97,8 +96,8 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
       ? "No cron runs failed in the last 24 hours."
       : `${plural(failed, "cron run", "cron runs")} failed in the last 24 hours.`;
   // While the page's data is read again the last good data stays on screen,
-  // each list marked busy with a spinner saying so (patterns.md "Loading").
-  const reading = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
+  // each list marked busy with a spinner saying so (patterns.md "Loading"):
+  // the attention list's and each panel's `reading`.
 
   return (
     <div className="grid gap-6">
@@ -173,14 +172,12 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         />
       </StatTiles>
 
-      <div aria-busy={pending || undefined}>
-        <AttentionList
-          items={overviewAttention(overview, now)}
-          groups={overviewAttentionGroups(overview)}
-          read={reading}
-          renderLink={rowLink}
-        />
-      </div>
+      <AttentionList
+        items={overviewAttention(overview, now)}
+        groups={overviewAttentionGroups(overview)}
+        reading={pending}
+        renderLink={rowLink}
+      />
 
       <Panel
         title="Recent admin actions"
