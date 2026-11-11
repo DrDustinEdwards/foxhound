@@ -1,6 +1,6 @@
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import { formatDateMonthDay } from "~/lib/date-format";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // Pure helpers for the Intelligence dashboard, shared by the
 // page and its tests. No database, no AI, no server import: the page bundles

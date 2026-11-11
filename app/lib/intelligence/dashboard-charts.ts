@@ -4,7 +4,7 @@ import { barChart } from "enarratio/lite/bar";
 import { lineChart } from "enarratio/lite/line";
 
 import { formatDateMonthDay } from "~/lib/date-format";
-import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import {
   formatPct,

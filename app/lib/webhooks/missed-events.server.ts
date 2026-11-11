@@ -1,4 +1,5 @@
-import { and, inArray, isNotNull, isNull, notLike } from "drizzle-orm";
+import { and, isNotNull, isNull, notLike } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import type Stripe from "stripe";
 
 import { getDb, stripeConnections, webhookEvents } from "~/db";
@@ -70,7 +71,7 @@ async function claimedEventIds(env: Env, ids: string[]): Promise<Set<string>> {
   const rows = await getDb(env)
     .select({ id: webhookEvents.stripeEventId })
     .from(webhookEvents)
-    .where(inArray(webhookEvents.stripeEventId, ids));
+    .where(inList(webhookEvents.stripeEventId, ids));
   return new Set(rows.map((r) => r.id));
 }
 

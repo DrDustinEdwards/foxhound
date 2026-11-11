@@ -11,14 +11,8 @@ export function setHostCookie(name: string, value: string, maxAge: number): stri
   return hostCookie(name.slice(HOST_PREFIX.length), value, { maxAge });
 }
 
-/** The value of the cookie `name` on the request, trimmed, or null when it is
- *  not sent. */
-export function readCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("Cookie") ?? "";
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
-  }
-  return null;
+/** A cookie's name without its `__Host-` or `__Secure-` prefix: site-runtime's
+ *  readCookie takes the bare name and reads the prefixed one. */
+export function bare(name: string): string {
+  return name.replace(/^__(?:Host|Secure)-/, "");
 }

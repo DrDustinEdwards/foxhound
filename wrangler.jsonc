@@ -92,7 +92,7 @@
   // no agent deleted anything without a quoted ruling naming the id.
   //
   // The KV is id 8ff187... and is now titled "foxhound" too (renamed 303), so
-  // no "-staging" label survives anywhere. scripts/db-migrate.mjs still guards
+  // no "-staging" label survives anywhere. devkit-db-migrate still guards
   // the migration path, and every --remote command naming "foxhound" is a
   // production write.
 

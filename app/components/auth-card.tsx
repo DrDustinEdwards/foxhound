@@ -169,7 +169,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function passkeySignIn(autoFill: boolean) {
+  async function continueWithPasskey(autoFill: boolean) {
     // site-runtime's wrapper: on a passkey the site no longer has, it tells the
     // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
     const res = await signInWithPasskey(authClient, { autoFill });
@@ -194,7 +194,7 @@ export function PasskeyContinue({ next }: { next: string }) {
 
   // An effect event reads the latest `next` without making the effect rerun.
   const offerAutofill = useEffectEvent(() => {
-    void passkeySignIn(true);
+    void continueWithPasskey(true);
   });
 
   // Once per page: the browser holds one pending autofill request.
@@ -216,7 +216,7 @@ export function PasskeyContinue({ next }: { next: string }) {
           void (async () => {
             setBusy(true);
             setError(null);
-            await passkeySignIn(false);
+            await continueWithPasskey(false);
             setBusy(false);
           })()
         }

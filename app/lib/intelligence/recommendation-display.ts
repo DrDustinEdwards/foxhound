@@ -8,7 +8,7 @@
 // CLIENT-SAFE BY CONSTRUCTION: the routes render these, so this module imports
 // nothing from a `.server` file.
 
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { CustomerRecommendation, RecommendedAction } from "./recommend";
 

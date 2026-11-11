@@ -43,7 +43,7 @@ import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
 import { generateMonthlyReport } from "~/lib/intelligence/report-generate.server";
 import { getIntelligenceOverview, getReportsArchive } from "~/lib/intelligence/views.server";
 import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/trends.server";
-import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";

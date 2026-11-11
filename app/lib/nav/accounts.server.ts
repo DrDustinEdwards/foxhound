@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import { stripeConnections } from "~/db";
@@ -60,7 +61,7 @@ export async function listSwitcherAccounts(
     .from(stripeConnections)
     .where(
       and(
-        inArray(stripeConnections.accountId, accountIds),
+        inList(stripeConnections.accountId, accountIds),
         eq(stripeConnections.isPrimary, true),
         isNull(stripeConnections.disconnectedAt),
       ),

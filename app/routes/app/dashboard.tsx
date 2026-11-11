@@ -20,7 +20,7 @@ import { getMrrAnalytics, getRecoveryStats } from "~/lib/dashboard/stats.server"
 import { drawMrrTrend } from "~/lib/intelligence/dashboard-charts";
 import { firstSnapshotSentence } from "~/lib/intelligence/dashboard";
 import { isCohortRows } from "~/lib/intelligence/mrr";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/dashboard";
 import { NOINDEX } from "~/lib/seo/meta";

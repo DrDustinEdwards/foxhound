@@ -13,7 +13,8 @@ import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
 import { authClient, signInAgainIfStale } from "~/lib/auth/client";
 import { signedInLanding } from "~/lib/auth/landing.server";
-import { safeNextPath } from "~/lib/auth/next-path";
+import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
+import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/passkey-offer";
@@ -42,7 +43,7 @@ async function signedIn(request: Request, env: Env) {
   const next = await signedInLanding(
     env,
     session,
-    safeNextPath(new URL(request.url).searchParams.get("next")),
+    safeNextPath(new URL(request.url).searchParams.get("next"), { fallback: DEFAULT_NEXT_PATH }),
   );
   return { auth, session, next };
 }

@@ -132,12 +132,10 @@ jobs:
         if: steps.tested.outputs.same != 'true'
         run: npm run check:page-weight
 
-      # Warn only: tests with no assertion. continue-on-error keeps a crash
-      # from failing the run.
-      - name: Assertion report (warn only)
+      # A test with no assertion cannot fail (devkit-test-assertions).
+      - name: Test assertions
         if: steps.tested.outputs.same != 'true'
-        continue-on-error: true
-        run: npm run report:assertions
+        run: npm run check:test-assertions
 
       - name: Test
         if: steps.tested.outputs.same != 'true'
@@ -157,7 +155,7 @@ jobs:
   # add and refuses a drop, rename or row delete (a table recreate included)
   # with the command to run it by hand, so those wait for Dustin. Then it
   # builds, and deploys with DEPLOY_SHA set to this commit. Its live gate waits
-  # for /health to report that commit, then runs scripts/verify-live.mjs (the
+  # for /health to report that commit, then runs devkit-verify-deploy (the
   # home page and every hashed asset it names answer 200), and rolls the deploy
   # back on a refusal. A rollback never undoes a migration.
   deploy:
@@ -166,13 +164,13 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@250d737c13b6f4c74987652818d262cb1d1c9cf7 # v0.27.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@be764c572506cf64f434eb7ad026c9389440e7cd # v0.33.0
     with:
       worker-name: foxhound
       # site-runtime withAdminIdle's key and audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
       generated-secrets: ADMIN_IDLE_SECRET AUDIT_SIGNING_KEY
       health-url: https://foxhoundapp.com/health
-      verify-command: node scripts/verify-live.mjs
+      verify-command: node "$DEVKIT_DIR/bin/verify-deploy.mjs" https://foxhoundapp.com --assets
       pre-deploy: npx devkit-migrations drizzle/migrations --apply foxhound && npm run build
       # The Time Travel bookmark from before the migrations above, with its restore command, in the run's summary.
       d1-database: foxhound
@@ -191,7 +189,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@250d737c13b6f4c74987652818d262cb1d1c9cf7 # v0.27.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@be764c572506cf64f434eb7ad026c9389440e7cd # v0.33.0
     with:
       worker-name: foxhound-admin-mcp
       # site-runtime audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").

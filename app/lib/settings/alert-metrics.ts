@@ -1,6 +1,6 @@
 import { ALERT_METRICS, ALERT_DIRECTIONS } from "~/lib/constants";
 import type { AlertDirection, AlertMetric } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // S28's metric vocabulary, in a CLIENT-SAFE module because the create form
 // renders it. Nothing here touches the database.

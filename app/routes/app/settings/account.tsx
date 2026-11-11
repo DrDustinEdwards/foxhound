@@ -53,7 +53,7 @@ import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
-import { isDisposableEmail } from "~/lib/auth/disposable-emails";
+import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";

@@ -25,7 +25,7 @@ import {
   type DeclineCategory,
 } from "~/lib/constants";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // The audit's render sections, shared by BOTH surfaces that show a run: the
 // live /audit/results and a saved run at /audit/results/:id. Recova shares its

@@ -36,7 +36,7 @@ import {
   formatRelativeFuture,
   formatTimeAgo,
 } from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   ATTRIBUTION_KIND_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,
