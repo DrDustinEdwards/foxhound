@@ -60,16 +60,18 @@ const SITE = {
   embeds: true,
   // Stripe Checkout, and Connect OAuth, which /connect's POST redirects to.
   formTargets: ["https://checkout.stripe.com", "https://connect.stripe.com"],
+  // Enforced since site-runtime 0.132.0: a string never reaches an injection sink, and only the shared policy names exist.
+  trustedTypes: TRUSTED_TYPES_NAMES,
 } as const;
 
 /**
  * The security set on any response, the route's own headers kept (overwrite: false), with the policy carrying the
- * nonce the page was rendered with, and beside it, Report-Only, what the registry entry stages (Trusted Types,
- * default-src 'none') until the reports are quiet. A stored page gets a fresh nonce per reader (renew).
+ * nonce the page was rendered with, and beside it, Report-Only, what the registry entry stages (default-src 'none')
+ * until the reports are quiet. A stored page gets a fresh nonce per reader (renew).
  */
 export const { withSecurityHeaders } = pageSecurity({
   set: SECURITY_HEADERS,
   policy: ({ nonce }) => ({ ...SITE, ...(nonce ? { nonce } : {}) }),
-  staged: { trustedTypes: TRUSTED_TYPES_NAMES, denyUnlisted: true },
+  staged: { denyUnlisted: true },
   renew: true,
 });
