@@ -4,7 +4,6 @@ import { ExternalLink } from "lucide-react";
 import { Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/table.css";
@@ -92,17 +91,16 @@ const figure = (n: number) => n.toLocaleString("en-US");
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
   const { sentry, failed } = loaderData;
   const pending = pagePending(useNavigation(), useRevalidator().state, ERRORS_PATH);
-  const spinner = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
 
   return (
-    <div className="grid grid-cols-1 gap-6" aria-busy={pending || undefined}>
+    <div className="grid grid-cols-1 gap-6">
       <SentryNotice sentry={sentry} />
 
       {sentry.state === "ready" || sentry.state === "failed" ? (
         <Panel
           title="Unresolved errors"
           headingId={ISSUES_HEADING_ID}
-          src={spinner}
+          reading={pending}
           description={
             sentry.state === "ready" && sentry.issues.length > 0
               ? `${plural(sentry.issues.length, "unresolved error", "unresolved errors")} seen in the last 14 days, most recent first.`
@@ -125,7 +123,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
       <Panel
         title="Failed actions"
         headingId={FAILED_HEADING_ID}
-        src={spinner}
+        reading={pending}
         description={
           failed.length === 0
             ? "From the audit log."

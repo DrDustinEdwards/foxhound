@@ -107,7 +107,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
   }));
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
+    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
       <div className="mb-6">
         <PageHead title="Console" />
       </div>

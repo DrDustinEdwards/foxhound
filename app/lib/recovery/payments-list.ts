@@ -45,12 +45,6 @@ export function parsePaymentsAmount(
   return Math.min(Math.max(n, floorCents), ceilingCents);
 }
 
-/** The page number in the URL ("page"), 1 when absent or not a whole page. */
-export function parsePaymentsPage(value: string | null): number {
-  const n = Number(value ?? "1");
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
-}
-
 /** Recova's amount slider moves in $10 steps (AmountRangeSlider.tsx STEP). */
 export const AMOUNT_SLIDER_STEP_CENTS = 1000;
 
@@ -90,15 +84,6 @@ export interface PaymentsHeaderStats {
 export function paymentsHeaderLine(stats: PaymentsHeaderStats): string {
   const rate = stats.ratePct > 0 ? ` · ${stats.ratePct}% recovery rate` : "";
   return `${formatCurrencyTotalsShort(stats.atRisk)} at risk · ${formatCurrencyTotalsShort(stats.recovered)} recovered${rate}`;
-}
-
-/** Recova's pager line, PaymentsTable.tsx: "Showing 1–25 of 60 payments".
- *  With All chosen Recova's page size is the total, so it reads 1 to total. */
-export function paymentsShowingText(page: number, pageSize: number | "all", total: number): string {
-  const size = pageSize === "all" ? total : pageSize;
-  const from = (page - 1) * size + 1;
-  const to = Math.min(page * size, total);
-  return `Showing ${from}–${to} of ${total} payments`;
 }
 
 /** Recova clears the bulk result 3 seconds after it lands (PaymentsClient.tsx

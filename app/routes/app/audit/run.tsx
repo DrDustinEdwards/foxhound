@@ -129,7 +129,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
   // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
   // the page's one <main>.
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
       <div className="mb-5">
         <PageHead
           title={`This audit was run on ${formatDate(run.runAt, { style: "medium" }) ?? ""}.`}

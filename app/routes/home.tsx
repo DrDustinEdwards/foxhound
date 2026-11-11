@@ -1,12 +1,14 @@
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
+import "capsomer/source-line.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here
 // keeps the page whole under any layout.
 import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
+import { SourceLine } from "capsomer/react/source-line";
 import { EmailSamples } from "~/components/email-samples";
 import { FadeUp } from "~/components/fade-up";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
@@ -46,13 +48,7 @@ import {
 } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/home";
-import {
-  PRODUCT_ICONS,
-  Arrow,
-  SourceArrow,
-  HOW_IT_WORKS,
-  BILLING_ANSWER,
-} from "../components/home-parts";
+import { PRODUCT_ICONS, Arrow, HOW_IT_WORKS, BILLING_ANSWER } from "../components/home-parts";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // The marketing home page. Recova's spec, read whole at HEAD:
@@ -248,12 +244,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         {item.body}
                       </p>
                       {/* RULES.md 2.3: the exact page and the day it was read. */}
-                      <a
-                        href={item.href}
-                        className="group font-mono text-source leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
-                      >
-                        Source: {citation(item.href)}, read {STAT_AS_OF} <SourceArrow />
-                      </a>
+                      <SourceLine href={item.href} name={citation(item.href)} read={STAT_AS_OF} />
                     </div>
                   </div>
                 </div>
@@ -332,12 +323,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {STATEMENT_BODY}
             </p>
             <div className="mt-8 flex justify-center">
-              <a
+              <SourceLine
                 href={STAT_SOURCES.stripeBilling}
-                className="group font-mono text-source leading-6 text-text-subtle no-underline transition-colors duration-150 hover:text-text-tertiary"
-              >
-                Source: {citation(STAT_SOURCES.stripeBilling)}, read {STAT_AS_OF} <SourceArrow />
-              </a>
+                name={citation(STAT_SOURCES.stripeBilling)}
+                read={STAT_AS_OF}
+              />
             </div>
           </FadeUp>
         </div>

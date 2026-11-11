@@ -28,7 +28,6 @@ import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
 import { DEFAULT_THEME, type Theme } from "~/lib/theme";
 import { noindexHeader } from "~/lib/seo/meta";
@@ -71,16 +70,18 @@ export function loader({ context }: Route.LoaderArgs) {
 
 const icon = (Icon: typeof LayoutDashboard) => <Icon className="cap-admin-icon" aria-hidden />;
 
-// The admin's pages, grouped as the menu shows them. `match` decides which
-// entry is current. The phone's tab bar takes the first five (Capsomer 0.9.0:
-// no More tab, because the header's menu button opens the full list).
-const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
+// The admin's pages, grouped as the menu shows them. The shell marks the
+// current one from the address (its `pathname`, the longest href winning).
+// The phone's tab bar takes the first five (Capsomer 0.9.0: no More tab,
+// because the header's menu button opens the full list).
+const ENTRIES: AdminEntry[] = [
   {
     id: "overview",
     label: "Overview",
     href: "/admin",
     icon: icon(LayoutDashboard),
-    match: (p) => p === "/admin",
+    // Only /admin itself: an address below it marks its own entry or none.
+    match: [/^\/admin$/],
   },
   {
     id: "merchants",
@@ -88,7 +89,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/merchants",
     group: "Customers",
     icon: icon(Store),
-    match: (p) => p.startsWith("/admin/merchants"),
   },
   {
     id: "users",
@@ -96,7 +96,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/users",
     group: "Customers",
     icon: icon(Users),
-    match: (p) => p.startsWith("/admin/users"),
   },
   {
     id: "operations",
@@ -104,7 +103,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/operations",
     group: "Platform",
     icon: icon(Activity),
-    match: (p) => p.startsWith("/admin/operations"),
   },
   {
     id: "crons",
@@ -112,7 +110,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/crons",
     group: "Platform",
     icon: icon(Clock),
-    match: (p) => p.startsWith("/admin/platform/crons"),
   },
   {
     id: "errors",
@@ -120,7 +117,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/errors",
     group: "Platform",
     icon: icon(Bug),
-    match: (p) => p.startsWith("/admin/platform/errors"),
   },
   {
     id: "webhooks",
@@ -128,7 +124,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/webhooks",
     group: "Platform",
     icon: icon(Webhook),
-    match: (p) => p.startsWith("/admin/platform/webhooks"),
   },
   {
     id: "brake",
@@ -136,7 +131,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/brake",
     group: "Controls",
     icon: icon(OctagonPause),
-    match: (p) => p.startsWith("/admin/brake"),
   },
   {
     id: "staged",
@@ -144,7 +138,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/staged",
     group: "Controls",
     icon: icon(ListChecks),
-    match: (p) => p.startsWith("/admin/staged"),
   },
   {
     id: "audit-log",
@@ -152,7 +145,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/audit-log",
     group: "Records",
     icon: icon(ScrollText),
-    match: (p) => p.startsWith("/admin/platform/audit-log"),
   },
 ];
 
@@ -195,8 +187,6 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const { served, showing: theme } = useAdminTheme();
   const readAt = useReadAt(loaderData.readAt);
-  useCollapseKey();
-  const nav = ENTRIES.map(({ match, ...entry }) => ({ ...entry, current: match(pathname) }));
   const page = adminPageName(matches) ?? "Foxhound admin";
   const { email } = loaderData;
 
@@ -220,7 +210,8 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         // Each admin route's meta title stays the browser title.
         documentTitle={false}
         page={page}
-        nav={nav}
+        nav={ENTRIES}
+        pathname={pathname}
         apps={STRIP_APPS}
         prefKey="foxhound-admin"
         themePrefKey={THEME_PREF_KEY}
@@ -240,9 +231,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
           role: "Admin",
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
-          onSignOut: () => {
-            window.location.assign("/cdn-cgi/access/logout");
-          },
+          accessLogout: true,
         }}
       >
         {/* The one page frame (Capsomer's .cap-admin-page): every admin page

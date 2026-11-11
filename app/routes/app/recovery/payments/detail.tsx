@@ -1,24 +1,17 @@
 import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
 import { useEffect, useId, useState } from "react";
 
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Circle,
-  Mail,
-  RotateCcw,
-  Shield,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
 import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
+import { ExpandToggle } from "capsomer/react/disclosure";
 import { Pill, Status } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/disclosure.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
@@ -829,25 +822,20 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                           ) : null}
                           {showExpander ? (
                             <span className="text-micro">
-                              <button
-                                type="button"
-                                className="cap-link-btn"
-                                aria-expanded={expanded}
-                                onClick={() => setExpandedStepId(expanded ? null : step.id)}
-                              >
-                                {expanded ? "Hide email" : "View email"}
-                                <ChevronDown
-                                  className={`ml-1 h-3 w-3 ${expanded ? "rotate-180" : ""}`}
-                                  strokeWidth={1.5}
-                                  aria-hidden="true"
-                                />
-                              </button>
+                              <ExpandToggle
+                                label="View email"
+                                openLabel="Hide email"
+                                open={expanded}
+                                onToggle={() => setExpandedStepId(expanded ? null : step.id)}
+                                controls={`step-email-${step.id}`}
+                              />
                             </span>
                           ) : null}
                         </div>
                       ) : null}
                       {step.previewHtml && expanded ? (
                         <div
+                          id={`step-email-${step.id}`}
                           className="mt-3 rounded-lg border border-border bg-bg p-4 text-label text-text"
                           // Sanitized in the loader by sanitizeEmailPreviewHtml;
                           // the raw body is never sent to the browser.

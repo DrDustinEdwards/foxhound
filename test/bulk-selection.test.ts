@@ -1,89 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  actionableSelection,
-  allVisibleSelected,
-  selectedCount,
-  toggleAllVisible,
-  toggleOne,
-  visibleSelection,
-  type SelectableRow,
-} from "~/lib/recovery/bulk-selection";
+import { actionableSelection } from "~/lib/recovery/bulk-results";
 
-// S6 bulk selection, Session 1. The selection layer only: no POST target,
-// no mutation, no dispatcher change.
-//
-// The property under test is 274 decision three, that the selection prunes to
-// the visible set on every filter change, and the reason it is testable as a
-// PURE unit is that the model derives the effective selection on read instead of
-// mutating state on change. Legacy's defect (scope 1.3 and 1.4, GATE-VERSUS-
-// SUBMIT) is that its count and its request set are different sets; here they
-// are the same set by construction, which is what these assertions pin.
+// S6 bulk selection. The selection model itself (pruned to what is on screen,
+// page-scoped select-all, one-row toggles) is Capsomer's bulk-bar helpers and
+// tested there. What stays here is Foxhound's gate: legacy's defect (scope 1.3
+// and 1.4, GATE-VERSUS-SUBMIT) is that its count and its request set are
+// different sets; here they are the same set by construction.
 
-const rows = (...spec: [string, string][]): SelectableRow[] =>
-  spec.map(([id, status]) => ({ id, status }));
-
-const PAGE: SelectableRow[] = rows(
-  ["p1", "active"],
-  ["p2", "recovered"],
-  ["p3", "active"],
-  ["p4", "cancelled"],
-);
-
-describe("bulk selection: the effective selection is pruned to what is on screen", () => {
-  it("returns ids in ROW order, not insertion order, so output is deterministic", () => {
-    const selected = new Set(["p3", "p1"]);
-    expect(visibleSelection(selected, PAGE)).toEqual(["p1", "p3"]);
-  });
-});
+const PAGE = [
+  { id: "p1", status: "active" },
+  { id: "p2", status: "recovered" },
+  { id: "p3", status: "active" },
+  { id: "p4", status: "cancelled" },
+];
 
 describe("bulk selection: the actionable subset is the ONLY set an action may use", () => {
   it("COUNT AND REQUEST ARE ONE SET, which is the gate-versus-submit repair", () => {
     // Legacy's bar would label this "Trigger next step (2)" and then submit 4.
     // Here the label reads actionableSelection and so must the request, so the
     // number a merchant sees is the number of payments that can be touched.
-    const selected = new Set(["p1", "p2", "p3", "p4"]);
-    const actionable = actionableSelection(selected, PAGE);
-    expect(actionable).toEqual(["p1", "p3"]);
-    expect(actionable.length).toBe(2);
-    // And the whole selection is strictly larger, which is the trap being closed.
-    expect(selectedCount(selected, PAGE)).toBe(4);
-  });
-});
-
-describe("bulk selection: select-all is page-scoped (274 decision four)", () => {
-  it("selects exactly the visible page, replacing any off-page state", () => {
-    const selected = new Set(["off_page_1", "off_page_2"]);
-    const next = toggleAllVisible(selected, PAGE);
-    expect([...next].sort()).toEqual(["p1", "p2", "p3", "p4"]);
-    expect(next.has("off_page_1")).toBe(false);
-  });
-
-  it("toggling off clears everything", () => {
-    const all = new Set(["p1", "p2", "p3", "p4"]);
-    expect(allVisibleSelected(all, PAGE)).toBe(true);
-    expect([...toggleAllVisible(all, PAGE)]).toEqual([]);
-  });
-
-  it("an EMPTY page is not 'all selected', so the header box is unchecked", () => {
-    // Otherwise a page with nothing on it would render a checked select-all.
-    expect(allVisibleSelected(new Set(), [])).toBe(false);
-    expect(allVisibleSelected(new Set(["x"]), [])).toBe(false);
-  });
-
-  it("partial selection is not 'all selected'", () => {
-    expect(allVisibleSelected(new Set(["p1"]), PAGE)).toBe(false);
-  });
-});
-
-describe("bulk selection: toggling one row", () => {
-  it("adds and removes without disturbing the rest, and never mutates its input", () => {
-    const selected: ReadonlySet<string> = new Set(["p1"]);
-    const added = toggleOne(selected, "p3");
-    expect([...added].sort()).toEqual(["p1", "p3"]);
-    const removed = toggleOne(added, "p1");
-    expect([...removed]).toEqual(["p3"]);
-    // The original set is untouched: React state must not be mutated in place.
-    expect([...selected]).toEqual(["p1"]);
+    const selected = new Set(["p1", "p2", "p3", "p4", "off_page"]);
+    expect(actionableSelection(selected, PAGE)).toEqual(["p1", "p3"]);
   });
 });

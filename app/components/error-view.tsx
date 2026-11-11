@@ -10,28 +10,11 @@ import { headerLogo } from "./header-logo";
 
 // The pieces of the root ErrorBoundary that Capsomer's ErrorPage (capsomer/react/error-page) does
 // not draw: Foxhound's wordmark bar and footer, which it takes as its header and footer slots,
-// Recova's extra ways out under its message, and the 410 withdrawal, which keeps this view (the
-// exception error-page.md names: its own heading, reason and link to the blog).
+// Recova's words and its extra ways out (ErrorPage's `actions`), and the 410 withdrawal's own
+// heading and reason (ErrorPage's `gone`).
 //
 // WHY IT LIVES HERE: root.tsx cannot be imported in the test environment. It pulls app.css, two
 // `?url` font assets and lib/theme.server, which reaches D1, so an import of it hangs.
-
-// THE LOOK: Capsomer's button, amber, Foxhound's five text sizes. Amber
-// throughout has since landed site-wide, so this page and the rest of
-// the site share the one accent.
-//
-// Recova's buttons are 44px tall (px-6 py-3, text-sm). Capsomer's nearest is
-// data-size="lg" in its comfortable density: 40px with a pointer, 44px on a
-// touch screen (every size is), and a 1rem label, which is Foxhound's body
-// size. Compact lg would be 36px with a 15px label, a size outside the five.
-// The density sits on the button row, so nothing else on the page moves.
-//
-// Primary is Capsomer's primary; the secondaries are its default (outlined),
-// shadcn's outline variant, which is what Recova's bordered transparent links
-// were. No Foxhound class goes on a button: the component draws it whole.
-const BUTTON = { className: "cap-btn", "data-size": "lg" } as const;
-const PRIMARY = { ...BUTTON, "data-variant": "primary" } as const;
-const SECONDARY = BUTTON;
 
 // THE BAR carries only the wordmark linking home, as Recova's did. It is drawn here rather than by
 // Capsomer's SiteHeader: with no sections, switchers or account, SiteHeader still renders its
@@ -75,56 +58,29 @@ export function recovaWords(error: unknown, isDev: boolean): { title: string; te
 }
 
 // Recova's ways out beyond home (its not-found.tsx and error.tsx): the dashboard, and on a 404 the
-// demo. ErrorPage draws Go home (and Try again on a server error) itself.
-export function ErrorLinks({ notFound }: { notFound: boolean }) {
+// demo, in ErrorPage's own row after Go home (its `actions`). ErrorPage draws Go home (and Try again
+// on a server error) itself.
+export function errorActions(notFound: boolean) {
   return (
-    <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
-      <a href="/recovery/dashboard" {...SECONDARY}>
+    <>
+      <a href="/recovery/dashboard" className="cap-btn">
         Go to dashboard
       </a>
       {notFound ? (
-        <a href="/demos/recovery" {...SECONDARY}>
+        <a href="/demos/recovery" className="cap-btn">
           View demo
         </a>
       ) : null}
-    </div>
+    </>
   );
 }
 
-// 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog post route. It is
-// a deliberate editorial act, so it gets neither the error heading nor the error affordances: nothing
-// went wrong, there is nothing to retry, and the page is not coming back at this URL.
-//
-// Recova runs ONE chrome kit across not-found.tsx and error.tsx: the same absolute nav, the same
-// centered block, the same footer. The withdrawal keeps that kit. Text sizes are Foxhound's five
-// (RULES 5.2): the numeral is display, smaller than Recova's 5rem, the approved difference "Text uses
-// five standard sizes everywhere". The numeral takes the expected tone (app/error-page.css).
-/** The withdrawal's own words and its one way out, without a frame:
- *  MarketingError puts it inside the marketing layout. */
-function WithdrawnContent() {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
-      <meta name="robots" content="noindex" />
-      <p
-        className="fh-error-numeral m-0 mb-4 font-mono text-display font-bold leading-none"
-        data-tone="expected"
-        role="img"
-        aria-label="410"
-      >
-        410
-      </p>
-      <h1 className="m-0 mb-2 text-title font-semibold text-text">{WITHDRAWN_BLOG_HEADING}</h1>
-      <p className="m-0 mb-8 text-body text-text-tertiary">{WITHDRAWN_BLOG_REASON}</p>
-      <div className="flex flex-wrap justify-center gap-3" data-density="comfortable">
-        {/* ONE destination, and it is the blog. Not "try again", which offers a retry of a URL that
-            will never answer, and not "go to dashboard", an app link on an anonymous marketing page. */}
-        <a href="/blog" {...PRIMARY}>
-          Read the blog
-        </a>
-      </div>
-    </div>
-  );
-}
+// 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog post route. It is a
+// deliberate editorial act, so ErrorPage draws it as its gone page: no alert and no retry, the
+// withdrawal's own heading and reason, and ONE destination, the blog. Not "try again", which offers
+// a retry of a URL that will never answer, and not "go to dashboard", an app link on an anonymous
+// marketing page.
+const GONE = { href: "/blog", label: "Read the blog" };
 
 // A MISSED ADDRESS OR A BLOG POST'S ERROR, INSIDE THE MARKETING LAYOUT. The marketing layout's
 // catch-all route (routes/not-found.tsx) and the blog post route use this as their ErrorBoundary,
@@ -134,22 +90,22 @@ function WithdrawnContent() {
 // boundary's bar.
 export function MarketingError({ error }: { error: unknown }) {
   const status = isRouteErrorResponse(error) ? error.status : null;
+  const words =
+    status === 410
+      ? { title: WITHDRAWN_BLOG_HEADING, text: WITHDRAWN_BLOG_REASON }
+      : recovaWords(error, import.meta.env.DEV);
   return (
     <div className="fh-cap fh-error-page" data-cap-site="foxhound" data-family="amber">
-      {status === 410 ? (
-        <WithdrawnContent />
-      ) : (
-        <ErrorPage
-          as="div"
-          error={error}
-          home="/"
-          {...recovaWords(error, import.meta.env.DEV)}
-          homeLabel={HOME_LABEL}
-          dev={import.meta.env.DEV}
-        >
-          <ErrorLinks notFound={status === 404} />
-        </ErrorPage>
-      )}
+      <ErrorPage
+        as="div"
+        error={error}
+        home="/"
+        {...words}
+        homeLabel={HOME_LABEL}
+        gone={GONE}
+        actions={status === 410 ? undefined : errorActions(status === 404)}
+        dev={import.meta.env.DEV}
+      />
     </div>
   );
 }

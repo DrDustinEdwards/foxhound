@@ -1,3 +1,6 @@
+import { visibleSelection } from "capsomer/behavior/bulk-bar";
+
+import { FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import type { ManualActionOutcome } from "./manual-actions.server";
 
 // The CLIENT-SAFE half of S6 bulk actions (274 decisions one, four and five).
@@ -154,4 +157,25 @@ export function orderForDisplay(results: readonly BulkItemResult[]): BulkItemRes
  *  nothing else. Successes drop out of the selection. */
 export function failedIds(results: readonly BulkItemResult[]): string[] {
   return results.filter((r) => !r.ok).map((r) => r.id);
+}
+
+/**
+ * The ACTIONABLE subset of the payments list's selection: selected, on screen
+ * (Capsomer's visibleSelection, so a filter can never leave a hidden row
+ * counted or sent), and active.
+ *
+ * Legacy computes the same intersection for its label (`activeSelected` in
+ * PaymentsClient.tsx) and then submits something else (parity/S6-BULK-SCOPE.md
+ * 1.4, GATE-VERSUS-SUBMIT). Under 274 decision two this is the ONLY set a bulk
+ * action may act on, so the label is true by definition rather than by
+ * coincidence.
+ */
+export function actionableSelection(
+  selected: ReadonlySet<string>,
+  rows: readonly { id: string; status: string }[],
+): string[] {
+  const active = new Set(
+    rows.filter((r) => r.status === FAILED_PAYMENT_STATUS_ACTIVE).map((r) => r.id),
+  );
+  return visibleSelection(selected, rows).filter((id) => active.has(id));
 }

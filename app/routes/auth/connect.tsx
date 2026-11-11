@@ -1,12 +1,13 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { Check, X } from "lucide-react";
+import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { Link } from "capsomer/react/link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/consent.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
@@ -195,50 +196,18 @@ const CONNECTION_CANNOT = [
   "Store raw card data",
 ];
 
-function AccessList({
-  id,
-  heading,
-  items,
-  allowed,
-}: {
-  id: string;
-  heading: string;
-  items: string[];
-  allowed: boolean;
-}) {
-  const Icon = allowed ? Check : X;
-  return (
-    <>
-      <p
-        id={id}
-        className={`mb-3 text-micro font-medium uppercase tracking-wide text-text-subtle ${allowed ? "" : "mt-4"}`}
-      >
-        {heading}
-      </p>
-      <ul aria-labelledby={id} className="m-0 flex list-none flex-col gap-2 p-0">
-        {items.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-label text-text">
-            <Icon
-              className={`mt-0.5 size-4 shrink-0 ${allowed ? "text-success-text" : "text-error-text"}`}
-              strokeWidth={1.5}
-              aria-hidden
-            />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
-/** Recova's inner box: the two lists on the page ground, inside the card.
- *  Capsomer has no can and cannot list, so this is composed from Foxhound's
- *  own tokens and named in the PR as a Capsomer gap. */
+/** Recova's inner box: the two lists on the page ground, inside the card,
+ *  as Capsomer's permission lists. */
 function AccessDisclosure() {
   return (
-    <div className="mb-6 rounded-lg border border-border bg-bg p-4">
-      <AccessList id="connect-can" heading="What Foxhound can do" items={CONNECTION_CAN} allowed />
-      <AccessList
+    <div className="mb-6 grid gap-4 rounded-lg border border-border bg-bg p-4">
+      <PermissionList
+        id="connect-can"
+        heading="What Foxhound can do"
+        items={CONNECTION_CAN}
+        allowed
+      />
+      <PermissionList
         id="connect-cannot"
         heading="What Foxhound can never do"
         items={CONNECTION_CANNOT}

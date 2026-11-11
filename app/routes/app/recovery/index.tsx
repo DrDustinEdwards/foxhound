@@ -13,6 +13,7 @@ import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
+import { SetupChecklist } from "capsomer/react/setup-checklist";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -53,7 +54,8 @@ import {
 import {
   WEBHOOK_TONE,
   RangeSelector,
-  OnboardingChecklist,
+  onboardingSteps,
+  ONBOARDING_READY,
   StatCardsPrimary,
   StatCardsSecondary,
   RoiWidget,
@@ -209,10 +211,15 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
   // its banners above it in the same column. The shell owns the page's one
   // <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 pb-8 md:px-8 md:pb-10">
+    <div
+      className="cap-admin-page gap-0 w-full min-w-0 px-4 pb-8 md:px-8 md:pb-10"
+      data-width="page"
+    >
       {hasBanners ? (
         <div className="mt-6">
-          {onboarding.needed ? <OnboardingChecklist {...onboarding} /> : null}
+          {onboarding.needed ? (
+            <SetupChecklist steps={onboardingSteps(onboarding)} ready={ONBOARDING_READY} />
+          ) : null}
           {watchingForFailures ? (
             <Banner tone="neutral" title="We're watching for failed payments.">
               Stripe is connected. The first failed renewal or one-time charge will appear here
