@@ -281,11 +281,10 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
 
-        {/* The save bar has its button only while Disputes is on: with the
-            settings hidden there is nothing to save, and a save would post them
-            empty, so the bar then only says what happened (autosave). */}
+        {/* While Disputes is off the settings are hidden and a save would post
+            them empty, so Save stays, disabled, and says why. */}
         <SaveBar
-          autosave={!enabled}
+          disabledReason={enabled ? undefined : "Enable Disputes above to save these settings."}
           state={
             saving
               ? "saving"

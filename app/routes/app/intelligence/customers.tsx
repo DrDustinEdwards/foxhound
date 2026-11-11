@@ -1,4 +1,4 @@
-import { FilterForm } from "~/components/filter-form";
+import { Form } from "react-router";
 import { FilterBar, withParams } from "capsomer/react/filter-bar";
 import { Table } from "capsomer/react/table";
 import { Scale } from "lucide-react";
@@ -369,7 +369,7 @@ function CustomerFilters({ filters, tiers }: { filters: Filters; tiers: string[]
         <div className="text-label">
           <FilterBar
             label="Filter customers"
-            Form={FilterForm}
+            Form={Form}
             className="fh-filter-panel fh-filter-primary"
             applyLabel="Filter"
           >

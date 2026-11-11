@@ -1,7 +1,7 @@
 import { FilterBar } from "capsomer/react/filter-bar";
 import { Table } from "capsomer/react/table";
 import { useId, useState } from "react";
-import { useNavigation, useRevalidator } from "react-router";
+import { useNavigation, useRevalidator, Form } from "react-router";
 import { Link } from "capsomer/react/link";
 import { ChevronRight } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
@@ -16,7 +16,6 @@ import "capsomer/pagination.css";
 import "capsomer/table.css";
 import "capsomer/filter-bar.css";
 
-import { FilterForm } from "~/components/filter-form";
 import { AdminTime } from "~/components/admin-time";
 import { getDb } from "~/db";
 import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
@@ -130,7 +129,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
             <FilterBar
               key={JSON.stringify(filters)}
               label="Filter webhook events"
-              Form={FilterForm}
+              Form={Form}
               action={WEBHOOKS_PATH}
               className="fh-filter-panel"
               applyLabel="Filter"

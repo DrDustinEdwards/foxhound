@@ -37,7 +37,6 @@ import "capsomer/table.css";
 // /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
-import { FilterForm } from "~/components/filter-form";
 import { DualRangeSlider } from "~/components/dual-range-slider";
 import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
@@ -678,7 +677,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         <div className="cap-panel-body">
           <FilterBar
             label="Filter payments"
-            Form={FilterForm}
+            Form={Form}
             live
             className="fh-filter-panel"
             count={countWords(resultCount, resultCount, "result")}

@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Form, useFetcher } from "react-router";
 import { Panel } from "capsomer/react/panel";
 import { Status } from "capsomer/react/status";
+import "capsomer/link.css";
 import { ACCEPT_CONFIRM_LINE, UNSAVED_APPROVE_LINE } from "~/lib/disputes/detail";
 import {
   EVIDENCE_DELETE_FORM_ID,
@@ -290,7 +291,6 @@ export function EvidenceFiles({
                       className="text-label text-brand-text hover:opacity-80"
                     >
                       {name}
-                      <span className="cap-sr-only"> (opens in a new tab)</span>
                     </a>
                   ) : (
                     <span className="text-label text-text">{name}</span>
