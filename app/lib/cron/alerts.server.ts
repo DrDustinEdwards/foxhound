@@ -1,3 +1,4 @@
+import { describeAge } from "@dustinedwards/site-runtime/cron-alert";
 import { appOrigin } from "~/lib/app-origin";
 import { and, desc, eq } from "drizzle-orm";
 
@@ -118,16 +119,6 @@ const CADENCE_LABEL: Record<string, string> = {
   [CRON_SCHEDULE_EXPIRING_CARDS]: "daily 09:00 UTC",
   [CRON_SCHEDULE_BLOG]: "every minute",
 };
-
-/** Recova's describeAge (check-cron-health/route.ts), its units and its floor
- *  as written, "1 hours ago" included. Pure. */
-export function describeAge(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds} seconds ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  return `${Math.floor(seconds / 86400)} days ago`;
-}
 
 export interface JobSchedule {
   name: string;

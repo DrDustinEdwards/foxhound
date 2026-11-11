@@ -119,7 +119,7 @@ function defaultCardHtml(): string {
 function blogCardHtml(title: string, description: string, host: string): string {
   const safeTitle = cardText(title);
   const safeDescription = cardText(description);
-  const titleFontSize = title.length > 50 ? 48 : 56;
+  const titleSize = title.length > 50 ? 48 : 56;
   const descriptionHtml = safeDescription
     ? `\n      <div style="display:flex;font-size:22px;color:${COLOR_TEXT_SECONDARY};line-height:1.5;max-width:800px;">${safeDescription}</div>`
     : "";
@@ -129,7 +129,7 @@ function blogCardHtml(title: string, description: string, host: string): string 
       <div style="display:flex;font-size:18px;font-weight:500;color:${COLOR_BRAND};letter-spacing:-0.02em;">Foxhound Blog</div>
     </div>
     <div style="display:flex;flex-direction:column;">
-      <div style="display:flex;font-size:${titleFontSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_TEXT};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
+      <div style="display:flex;font-size:${titleSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_TEXT};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
       <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${cardText(host)}</div>
