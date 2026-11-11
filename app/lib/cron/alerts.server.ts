@@ -57,7 +57,7 @@ import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
  *  here is Foxhound's own: the mails (Recova's words on Capsomer's alert
  *  template), the dead-letter alert, the schedule table. */
 
-export type AlertKind = "failure" | "stale" | "dead_letter";
+type AlertKind = "failure" | "stale" | "dead_letter";
 export type { AlertOutcome };
 
 /** How long each schedule may go without a run before it is STALE.
@@ -266,7 +266,7 @@ export function deadLetterAlertMessage(
 /** Send one alert, deduped, never throwing. A cron alert (E26, E27) goes on
  *  Capsomer's alert template with Recova's footer; the dead-letter alert,
  *  Foxhound's own, keeps its HTML body. */
-export async function sendAlert(
+async function sendAlert(
   env: Env,
   cronName: string,
   kind: AlertKind,
