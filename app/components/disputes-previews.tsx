@@ -1,6 +1,7 @@
 import { Pill } from "capsomer/react/status";
 
-import { PreviewStatCard } from "~/components/stat-card";
+import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
+import "capsomer/stat-tile.css";
 import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
@@ -61,34 +62,19 @@ function TriagePill({ row }: { row: PreviewDisputeRow }) {
   );
 }
 
-function Figure({ value }: { value: string | number }) {
-  return <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{value}</p>;
-}
-
 /** The dashboard's five cards. `columns` is Recova's grid: five across on the
- *  dashboard, three across in the numbers block. */
-function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
+ *  dashboard, three across in the numbers block; Capsomer's grid of static
+ *  tiles fits as many as the room allows. */
+function DisputeStatCards({ preview }: { preview: DisputesPreview }) {
   const { stats } = preview;
-  const grid = columns === 5 ? "md:grid-cols-5" : "sm:grid-cols-3";
   return (
-    <ul className={`m-0 grid list-none grid-cols-2 gap-3 p-0 ${grid}`} aria-label="Dispute figures">
-      <PreviewStatCard label="Open disputes">
-        <Figure value={stats.openCount} />
-      </PreviewStatCard>
-      <PreviewStatCard label="At stake">
-        <Figure value={stats.atStake} />
-      </PreviewStatCard>
-      <PreviewStatCard label="Submitted by Foxhound">
-        <Figure value={stats.submittedByFoxhound} />
-      </PreviewStatCard>
-      <PreviewStatCard label="Fees owed">
-        <Figure value={stats.feesOwed} />
-      </PreviewStatCard>
-      <PreviewStatCard label="Win rate">
-        <Figure value={stats.winRate} />
-        <p className="m-0 mt-1 text-label text-text-tertiary">{stats.winRateSubtext}</p>
-      </PreviewStatCard>
-    </ul>
+    <StatTiles layout="grid" label="Dispute figures">
+      <StaticStatTile label="Open disputes" figure={stats.openCount} />
+      <StaticStatTile label="At stake" figure={stats.atStake} />
+      <StaticStatTile label="Submitted by Foxhound" figure={stats.submittedByFoxhound} />
+      <StaticStatTile label="Fees owed" figure={stats.feesOwed} />
+      <StaticStatTile label="Win rate" figure={stats.winRate} detail={stats.winRateSubtext} />
+    </StatTiles>
   );
 }
 
@@ -96,7 +82,7 @@ function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; colu
 export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
-      <DisputeStatCards preview={preview} columns={3} />
+      <DisputeStatCards preview={preview} />
     </div>
   );
 }
@@ -119,7 +105,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="p-5">
       <div className="mb-8">
-        <DisputeStatCards preview={preview} columns={5} />
+        <DisputeStatCards preview={preview} />
       </div>
       <div className="cap-panel">
         <div className="cap-panel-body" data-flush>

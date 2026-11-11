@@ -16,7 +16,8 @@ import "~/site-header.css";
 import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
-import { StatCard } from "~/components/stat-card";
+import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
+import "capsomer/stat-tile.css";
 import { getDb } from "~/db";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -219,6 +220,11 @@ const PILL_TONE: Record<Tone, PillTone | undefined> = {
   neutral: undefined,
 };
 
+function WinRateTile({ stats }: { stats: Parameters<typeof winRateCard>[0] }) {
+  const { value, subtext } = winRateCard(stats);
+  return <StaticStatTile size="lg" label="Win rate" figure={value} detail={subtext} />;
+}
+
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
   const { disputes, stats, health, withEvidence, nowMs, isDemo, isOwner, warnings } = loaderData;
   const hasEvidence = new Set(withEvidence);
@@ -232,12 +238,18 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       {/* Recova's grid, five across from md, in Recova's order. Win rate takes
           the place of Recova's "Saved vs Smart Disputes", which is not built
           (Dustin, PR #75 questions 2 and 4; see stats.ts). */}
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatCard label="Open disputes" value={String(stats.openCount)} />
-        <StatCard label="At stake" value={formatAmounts(stats.atStake)} />
-        <StatCard label="Submitted by Foxhound" value={String(stats.submittedByFoxhoundCount)} />
-        <StatCard label="Fees owed" value={formatAmounts(stats.feesOwed)} />
-        <StatCard label="Win rate" {...winRateCard(stats)} />
+      <div className="mb-8">
+        <StatTiles layout="grid" label="Dispute figures">
+          <StaticStatTile size="lg" label="Open disputes" figure={String(stats.openCount)} />
+          <StaticStatTile size="lg" label="At stake" figure={formatAmounts(stats.atStake)} />
+          <StaticStatTile
+            size="lg"
+            label="Submitted by Foxhound"
+            figure={String(stats.submittedByFoxhoundCount)}
+          />
+          <StaticStatTile size="lg" label="Fees owed" figure={formatAmounts(stats.feesOwed)} />
+          <WinRateTile stats={stats} />
+        </StatTiles>
       </div>
 
       {disputes.length === 0 ? (

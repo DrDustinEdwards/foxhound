@@ -1,3 +1,4 @@
+import { relative } from "capsomer/behavior/time";
 import type { ReactNode } from "react";
 import { Link } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
@@ -14,7 +15,6 @@ import "~/site-header.css";
 
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatTimeAgo } from "~/lib/date-format";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
@@ -231,7 +231,11 @@ export default function Help({ loaderData }: Route.ComponentProps) {
             {crons.map((cron) => (
               <tr key={cron.cronName}>
                 <th scope="row">{cron.label}</th>
-                <td data-label="Last succeeded">{formatTimeAgo(cron.lastSucceededAt, nowMs)}</td>
+                <td data-label="Last succeeded">
+                  {cron.lastSucceededAt
+                    ? relative(cron.lastSucceededAt.getTime(), nowMs, "UTC")
+                    : "never"}
+                </td>
                 <td data-label="Status">
                   <Status tone={CRON_TONE[cron.status].tone}>{CRON_TONE[cron.status].word}</Status>
                 </td>

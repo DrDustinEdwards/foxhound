@@ -126,7 +126,7 @@ describe("DEFECT 2: the theme WRITE stamped the earliest account, not the active
       params: {},
     } as unknown as Parameters<typeof themeAction>[0])) as Response;
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(204);
     expect(themeOf(MARKED)).toBe("dark");
     // BOTH DIRECTIONS. Asserting only the target passes if the write hit every
     // row; asserting only the bystander passes if the write hit nothing.

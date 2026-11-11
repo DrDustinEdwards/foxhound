@@ -8,7 +8,6 @@ import {
   countByDayAndCategory,
   cumulativeRecoveryRateDaily,
   dayKey,
-  formatRelativeTime,
   recoveryTimingBuckets,
   resolveRangeCutoff,
   sumCentsByDayWindow,
@@ -179,16 +178,5 @@ describe("sumCentsByDayWindow", () => {
     expect(points[2].cents).toBe(750); // today
     expect(points[0].cents).toBe(0);
     expect(points[1].cents).toBe(0);
-  });
-});
-
-describe("formatRelativeTime", () => {
-  it("1 day back -> Yesterday", () => {
-    expect(formatRelativeTime(new Date(NOW - DAY_MS - 60_000), NOW)).toBe("Yesterday");
-  });
-
-  it("30+ days -> Nmo ago", () => {
-    expect(formatRelativeTime(new Date(NOW - 31 * DAY_MS), NOW)).toBe("1mo ago");
-    expect(formatRelativeTime(new Date(NOW - 65 * DAY_MS), NOW)).toBe("2mo ago");
   });
 });

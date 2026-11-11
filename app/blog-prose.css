@@ -1,0 +1,63 @@
+/* The blog post body (routes/blog/post.tsx, and Carrel's preview of a post: workers/app.ts adds this
+   route's stylesheet to the preview's). Capsomer's prose blocks land in cap.components, inside the cap
+   layer app.css declares; the rules below are unlayered, so Foxhound's tokens win. */
+@import "capsomer/prose-blocks.css";
+
+/* Blog post body: Capsomer's prose blocks (capsomer/prose-blocks.css, imported at the top) on
+   <div class="blog-prose" data-context="prose">, in legacy's look (globals.css) by Capsomer's tokens.
+   The sizes are legacy's own raw CSS declarations, not the marketing --text-* roles, which rulings
+   65 and 68 keep apart from post prose. The theme's colors are Foxhound's own variables, so the
+   prose follows light and dark as the rest of the page does. */
+.blog-prose {
+  --prose: var(--font-dm-sans), sans-serif;
+  --fs-prose: 0.9375rem;
+  --leading: 1.75;
+  --prose-ink: var(--text-secondary);
+  --prose-strong-ink: var(--text);
+  --prose-heading-ink: var(--text);
+  --prose-heading-face: var(--font-dm-sans), sans-serif;
+  --prose-heading-weight: 600;
+  --prose-heading-space: 2rem;
+  --prose-h2-size: 1.375rem;
+  --prose-h3-size: 1.125rem;
+  --prose-flow: 1.25rem;
+  --prose-quote-line: var(--brand);
+  --prose-quote-ink: var(--text-secondary);
+  --prose-quote-style: italic;
+  --prose-code-bg: var(--surface);
+  --prose-code-ink: var(--brand-text);
+  --prose-code-radius: 4px;
+  --prose-pre-bg: var(--surface);
+  --prose-pre-pad: 1.25rem 1.5rem;
+  --prose-block-radius: 10px;
+  --prose-image-radius: 10px;
+  --prose-table-rule: var(--border);
+  --accent-text: var(--brand-text);
+  --link-decoration: underline;
+  font-size: var(--fs-prose);
+  line-height: var(--leading);
+}
+/* The hand-drawn diagrams, inlined: Capsomer's diagram parts (.node-*, .ln, .label-* and the tone
+   classes) in Foxhound's flat hairline drawing, outlines at one 1px stroke, a faint tint at most.
+   Set on the figure itself, where Capsomer sets its defaults. */
+.blog-prose .blog-diagram {
+  --diagram-face: var(--font-dm-sans), sans-serif;
+  --diagram-label-weight: 400;
+  --diagram-ink: var(--text);
+  --diagram-ink-muted: var(--text-secondary);
+  --diagram-arrow: var(--text-secondary);
+  --diagram-rule: var(--border);
+  --diagram-neutral: transparent;
+  --diagram-neutral-line: var(--border-strong);
+  --diagram-accent: color-mix(in srgb, var(--brand-ui) 10%, transparent);
+  --diagram-accent-line: var(--brand-ui);
+  --diagram-success: color-mix(in srgb, var(--green) 10%, transparent);
+  --diagram-success-line: var(--green);
+  --diagram-success-ink: var(--success-text);
+  --diagram-warning: color-mix(in srgb, var(--red) 10%, transparent);
+  --diagram-warning-line: var(--red);
+  --diagram-warning-ink: var(--error-text);
+  --diagram-info: color-mix(in srgb, var(--blue) 10%, transparent);
+  --diagram-info-line: var(--blue);
+  --diagram-info-ink: var(--blue);
+}

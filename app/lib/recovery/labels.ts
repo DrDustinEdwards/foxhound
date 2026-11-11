@@ -56,9 +56,25 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   stripe_retrying: "Stripe retrying",
 };
 
-// Values match Badge's BadgeTone (app/components/badge.tsx) so callers pass
-// these straight through as the `tone` prop with no translation layer.
 export type Tone = "neutral" | "success" | "failure";
+
+/** A status word's tone, with the two that only a badge wears: "free" (the
+ *  Stripe baseline, never billed) and "purple" (win-back attribution only,
+ *  DESIGN.md). */
+export type BadgeTone = Tone | "free" | "purple";
+
+/** Each tone as Capsomer's Pill: success and failure are states (ok, crit),
+ *  neutral and free the outline pill, purple the purple family's accent. */
+export const BADGE_PILL: Record<
+  BadgeTone,
+  { tone?: "ok" | "crit"; variant?: "outline" | "accent"; family?: string }
+> = {
+  success: { tone: "ok" },
+  failure: { tone: "crit" },
+  neutral: { variant: "outline" },
+  free: { variant: "outline" },
+  purple: { variant: "accent", family: "purple" },
+};
 
 const STEP_RESULT_TONE: Record<string, Tone> = {
   retry_succeeded: "success",

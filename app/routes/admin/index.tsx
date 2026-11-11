@@ -7,7 +7,7 @@ import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
 import { Spinner } from "capsomer/react/skeleton";
 import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
@@ -204,7 +204,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
                   href={a.target?.href ?? "/admin/platform/audit-log"}
                   renderLink={rowLink}
                   detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
-                  meta={<AdminTime at={a.createdAt} />}
+                  meta={<Time at={a.createdAt} empty="never" tip />}
                 />
               ))}
             </RowList>
@@ -242,7 +242,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
                       {run.cronName}
                     </Link>{" "}
                     <span className="text-text-tertiary">
-                      failed <AdminTime at={run.finishedAt} />
+                      failed <Time at={run.finishedAt} empty="never" tip />
                       {run.message ? `: ${run.message}` : null}
                     </span>
                   </li>
@@ -250,7 +250,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
               </ul>
             ) : null}
             <p className="m-0 text-label text-text-tertiary">
-              Last run <AdminTime at={lastRunAt} />
+              Last run <Time at={lastRunAt} empty="never" tip />
               {disabledCount > 0
                 ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`
                 : null}

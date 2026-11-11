@@ -13,7 +13,7 @@ import "capsomer/field.css";
 import "capsomer/pagination.css";
 import "capsomer/table.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
 import {
@@ -282,7 +282,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
           )}
         </td>
         <td data-label="Received">
-          <AdminTime at={event.receivedAt} />
+          <Time at={event.receivedAt} empty="never" tip />
         </td>
         <td
           data-label="Error"

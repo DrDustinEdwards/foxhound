@@ -1,3 +1,4 @@
+import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -40,7 +41,6 @@ import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { formatTimeAgo } from "~/lib/date-format";
 import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
@@ -974,7 +974,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-micro text-text-subtle">
                               <span className="block whitespace-nowrap">
-                                {formatTimeAgo(p.detectedAt, nowMs)}
+                                {relative(toMs(p.detectedAt), nowMs, "UTC")}
                               </span>
                               <span className="mt-0.5 block whitespace-nowrap">
                                 {formatLongDate(p.detectedAt)}

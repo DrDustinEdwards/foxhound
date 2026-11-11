@@ -16,6 +16,17 @@ const TONE_CLASS_NAME: Record<RecoveryRateTone, string> = {
   green: "text-success-text",
 };
 
+const TILE_TONE: Record<RecoveryRateTone, "ok" | "warn" | "crit"> = {
+  red: "crit",
+  caution: "warn",
+  green: "ok",
+};
+
+/** The band as a Capsomer stat tile's tone, for a recovery-rate figure. */
+export function recoveryRateTileTone(pct: number | null): "ok" | "warn" | "crit" | undefined {
+  return pct === null ? undefined : TILE_TONE[recoveryRateTone(pct)];
+}
+
 export function recoveryRateClassName(pct: number): string {
   return TONE_CLASS_NAME[recoveryRateTone(pct)];
 }

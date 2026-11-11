@@ -1,5 +1,7 @@
+import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
+import "~/blog-prose.css";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 import { goneResponse } from "@dustinedwards/site-runtime/url";
@@ -30,7 +32,6 @@ import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { formatDateShort } from "~/lib/date-format";
 import { MarketingError } from "~/components/error-view";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
@@ -222,7 +223,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
             {showPublished ? (
               <time dateTime={post.publishedAt!.toISOString()}>
-                {formatDateShort(post.publishedAt)}
+                {formatDate(post.publishedAt, { style: "medium" }) ?? ""}
               </time>
             ) : null}
             {showPublished && showUpdated ? <span aria-hidden="true"> &middot; </span> : null}
@@ -230,7 +231,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               <>
                 Updated{" "}
                 <time dateTime={post.updatedAt!.toISOString()}>
-                  {formatDateShort(post.updatedAt)}
+                  {formatDate(post.updatedAt, { style: "medium" }) ?? ""}
                 </time>
               </>
             ) : null}
@@ -259,6 +260,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
           <div
             className="blog-prose e-content"
+            data-context="prose"
             data-render-version={version}
             data-island={html.includes("embed-link") ? "embeds" : undefined}
             dangerouslySetInnerHTML={{ __html: html }}

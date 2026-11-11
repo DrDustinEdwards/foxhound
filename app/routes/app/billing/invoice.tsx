@@ -1,5 +1,8 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
+import { formatDate } from "capsomer/behavior/time";
 import { LedgerLineItemRow } from "~/components/billing-ledger-row";
-import { Badge } from "~/components/badge";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
@@ -9,7 +12,6 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/invoice";
 import { NOINDEX } from "~/lib/seo/meta";
-import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Invoice - Foxhound" }, NOINDEX];
@@ -33,7 +35,8 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-title font-medium text-text">
-              {formatDateShort(invoice.periodStart)} - {formatDateShort(invoice.periodEnd)}
+              {formatDate(invoice.periodStart, { style: "medium" }) ?? ""} -{" "}
+              {formatDate(invoice.periodEnd, { style: "medium" }) ?? ""}
             </h1>
             <p className="mt-1 text-label text-text-tertiary">{invoice.currency.toUpperCase()}</p>
           </div>
@@ -42,9 +45,9 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
           </p>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Badge tone={billingInvoiceStatusTone(invoice.status)}>
+          <Pill {...BADGE_PILL[billingInvoiceStatusTone(invoice.status)]}>
             {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
-          </Badge>
+          </Pill>
           {invoice.stripeInvoiceUrl ? (
             <a
               href={invoice.stripeInvoiceUrl}

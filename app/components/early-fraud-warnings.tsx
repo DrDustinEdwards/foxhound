@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { useState } from "react";
 import { Form, useNavigation, useSubmit } from "react-router";
 import { Banner } from "capsomer/react/banner";
@@ -9,7 +10,6 @@ import "capsomer/confirm-dialog.css";
 
 import { toDate } from "@drdustinedwards/site-helpers/xml";
 
-import { formatDateShort } from "~/lib/date-format";
 import {
   EARLY_FRAUD_WARNINGS_ANCHOR,
   fraudTypeWords,
@@ -156,7 +156,7 @@ export function EarlyFraudWarnings({
                         {fraudTypeWords(w.fraudType)}
                       </td>
                       <td data-label="Date" className="font-mono text-label">
-                        {formatDateShort(toDate(w.createdAt))}
+                        {formatDate(toDate(w.createdAt), { style: "medium" }) ?? ""}
                       </td>
                       <td
                         data-label="Charge"

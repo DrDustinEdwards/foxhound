@@ -1,3 +1,4 @@
+import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
 import { useEffect, useId, useState } from "react";
 
 import {
@@ -28,12 +29,6 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import {
-  formatDateMonthDay,
-  formatDateShort,
-  formatRelativeFuture,
-  formatTimeAgo,
-} from "~/lib/date-format";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   ATTRIBUTION_KIND_LABELS,
@@ -578,10 +573,10 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </Panel>
         <Panel size="sm" title="Detected">
           <p className="m-0 text-title font-bold text-text">
-            {formatTimeAgo(failedPayment.detectedAt, nowMs)}
+            {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
           </p>
           <p className="m-0 mt-1 text-micro text-text-subtle">
-            {formatDateMonthDay(failedPayment.detectedAt)}
+            {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
           </p>
         </Panel>
         <Panel size="sm" title="Customer age">
@@ -624,7 +619,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             {failedPayment.resolvedAt ? (
               <DetailRow
                 label={failedPayment.status === "recovered" ? "Recovered" : "Resolved"}
-                value={formatDateShort(failedPayment.resolvedAt)}
+                value={formatDate(failedPayment.resolvedAt, { style: "medium" }) ?? ""}
               />
             ) : null}
           </dl>
@@ -669,7 +664,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
                     >
                       <span className="text-micro text-text-subtle">
-                        {formatTimeAgo(p.detectedAt, nowMs)}
+                        {relative(toMs(p.detectedAt), nowMs, "UTC")}
                       </span>
                       <span className="flex items-center gap-2">
                         <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
@@ -766,9 +761,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                         </div>
                         <span className="whitespace-nowrap font-mono text-micro text-text-subtle">
                           {executed
-                            ? formatTimeAgo(step.executedAt, nowMs)
+                            ? relative(toMs(step.executedAt), nowMs, "UTC")
                             : pending
-                              ? formatRelativeFuture(step.scheduledAt, nowMs)
+                              ? until(toMs(step.scheduledAt), nowMs)
                               : ""}
                         </span>
                       </div>
@@ -779,8 +774,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       ) : null}
                       <p className="m-0 text-micro text-text-subtle">
                         {executed
-                          ? `Executed ${formatDateShort(step.executedAt)}`
-                          : `Scheduled ${formatDateShort(step.scheduledAt)}`}
+                          ? `Executed ${formatDate(step.executedAt, { style: "medium" }) ?? ""}`
+                          : `Scheduled ${formatDate(step.scheduledAt, { style: "medium" }) ?? ""}`}
                       </p>
 
                       {showEngagement || showExpander ? (
@@ -802,7 +797,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                   />
                                 )}
                                 {step.openedAt
-                                  ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}`
+                                  ? `Opened ${relative(toMs(step.openedAt), nowMs, "UTC")}`
                                   : "Not opened"}
                               </span>
                               {/* A suspect click is shown as what it is:
@@ -825,8 +820,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                 )}
                                 {step.clickedAt
                                   ? step.clickSuspectReason
-                                    ? `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
-                                    : `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}`
+                                    ? `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
+                                    : `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}`
                                   : "Not clicked"}
                               </span>
                             </>
@@ -923,7 +918,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         >
           {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
           {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")}{" "}
-          &middot; {formatTimeAgo(recovery.recoveredAt, nowMs)}
+          &middot; {relative(toMs(recovery.recoveredAt), nowMs, "UTC")}
           {/* Only once Stripe's balance transaction has been read. Billing stays
               on the gross amount above. */}
           {recovery.netAmountCents != null && recovery.netCurrency ? (

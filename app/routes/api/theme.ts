@@ -6,11 +6,9 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { hasDemoCookie } from "~/lib/demo/session";
 import { setAccountTheme } from "~/lib/theme.server";
-import { isTheme } from "~/lib/theme";
+import { themeAction } from "capsomer/theme-server";
 
 import type { Route } from "./+types/theme";
-import { readJson } from "@dustinedwards/site-runtime/body";
-import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // Persist an authenticated merchant's theme to accounts.theme so it follows
 // them across devices. Legacy's equivalent is
@@ -25,7 +23,10 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // method check below therefore never sees a GET, and exists for the other
 // non-POST verbs (PUT, PATCH, DELETE) that DO route to the action.
 //
-// The toggle calls this fire-and-forget: the DOM already flipped optimistically,
+// Capsomer's themeAction reads the choice (JSON from the header's button, a
+// form field otherwise, at most 1 KB), answers 204 to a fetch and 303 to a
+// form, and writes no cookie: a signed-in merchant's choice lives on the
+// account. The toggle calls this fire-and-forget: the DOM already flipped optimistically,
 // so a failed write must not roll back what the merchant is looking at. The
 // next request reconciles from the DB.
 export async function action({ request, context }: Route.ActionArgs) {
@@ -47,19 +48,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let payload: unknown;
-  try {
-    payload = await readJson(request, BODY_MAX_BYTES);
-  } catch (error) {
-    if (error instanceof Response) throw error;
-    return Response.json({ error: "invalid_json" }, { status: 400 });
-  }
-
-  const theme = (payload as { theme?: unknown } | null)?.theme;
-  if (!isTheme(theme)) {
-    return Response.json({ error: "invalid_theme" }, { status: 400 });
-  }
-
   const db = getDb(env);
   // THE ACTIVE ACCOUNT, not the earliest, and it has to move with the read in
   // lib/theme.server.ts or the pair disagrees: a merchant who had switched
@@ -75,7 +63,8 @@ export async function action({ request, context }: Route.ActionArgs) {
     return Response.json({ error: "no_account" }, { status: 404 });
   }
 
-  await setAccountTheme(db, membership.accountId, theme);
-
-  return Response.json({ theme });
+  return themeAction(request, {
+    cookie: false,
+    save: (theme) => setAccountTheme(db, membership.accountId, theme),
+  });
 }

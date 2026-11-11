@@ -1,4 +1,8 @@
-import { Badge, type BadgeTone } from "~/components/badge";
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
+import "capsomer/family-purple.css";
+import { formatDate } from "capsomer/behavior/time";
+import { BADGE_PILL, type BadgeTone } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
@@ -9,7 +13,6 @@ import { WINBACK_STATUS } from "~/lib/recovery/winback";
 import type { Route } from "./+types/winback";
 import { NOINDEX } from "~/lib/seo/meta";
 import "capsomer/table.css";
-import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Win-back - Foxhound" }, NOINDEX];
@@ -82,16 +85,16 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                     ) : null}
                   </td>
                   <td data-label="Canceled" className="text-text-tertiary">
-                    {formatDateShort(seq.createdAt)}
+                    {formatDate(seq.createdAt, { style: "medium" }) ?? ""}
                   </td>
                   <td data-label="Status">
                     <div className="flex flex-col items-start gap-1">
-                      <Badge tone={statusTone(seq.status)}>
+                      <Pill {...BADGE_PILL[statusTone(seq.status)]}>
                         {STATUS_LABEL[seq.status] ?? seq.status}
-                      </Badge>
+                      </Pill>
                       {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
                         <span className="text-micro text-text-subtle">
-                          Won back {formatDateShort(seq.reactivatedAt)}
+                          Won back {formatDate(seq.reactivatedAt, { style: "medium" }) ?? ""}
                         </span>
                       ) : null}
                     </div>

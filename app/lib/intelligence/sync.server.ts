@@ -20,7 +20,7 @@ import {
   INTELLIGENCE_MAX_CUSTOMERS_SCANNED,
   INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER,
 } from "~/lib/constants";
-import { monthKeyUTC } from "~/lib/date-format";
+import { monthKeyUTC } from "~/lib/dashboard/recovery-window";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { findActiveConnection } from "~/lib/stripe/connections.server";

@@ -143,7 +143,13 @@ const site = withSentry<Env>(sentryOptions, {
     const { pathname } = new URL(request.url);
     if (pathname.startsWith("/api/carrel/v1") || pathname.startsWith("/preview/")) {
       const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
-      const stylesheets = rootStylesheets(await serverBuild()).map((s) => s.href);
+      // The root's stylesheets, then the blog post route's (its prose blocks), so a preview is drawn
+      // as /blog/<slug> draws the post.
+      const build = await serverBuild();
+      const stylesheets = [
+        ...rootStylesheets(build).map((s) => s.href),
+        ...(build.assets.routes["routes/blog/post"]?.css ?? []),
+      ];
       const carrel = await handleCarrelRequest(request, env, ctx, stylesheets);
       // A preview link: noindex, private, no-store and no-referrer from the
       // package (the header set does not overwrite them, so the token, which

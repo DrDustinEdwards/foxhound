@@ -27,7 +27,7 @@ import {
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
 import { computeAiCallCostCents } from "~/lib/ai/cost";
-import { monthKeyUTC } from "~/lib/date-format";
+import { monthKeyUTC } from "~/lib/dashboard/recovery-window";
 
 import type { CronJobResult } from "./run";
 

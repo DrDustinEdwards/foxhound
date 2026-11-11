@@ -32,31 +32,12 @@ export function accountInitial(a: SwitcherAccount): string {
   return accountLabel(a).charAt(0).toUpperCase();
 }
 
-/** A switch is a POST, not a page, so an account's row carries this marker in
- *  place of an href and the header's link renderer draws a button for it
- *  (app/components/site-header.tsx). The marker names which endpoint the
- *  switch posts to, legacy's `switchAccountUrl` (SiteNav.tsx): the session's
- *  own accounts, or the demo's businesses. */
+/** Where a switch posts, legacy's `switchAccountUrl` (SiteNav.tsx): the
+ *  session's own accounts, or the demo's businesses. A switch is a POST, not a
+ *  page, so an account's row has no href: Capsomer draws it as a button whose
+ *  onClick switches. */
 export const ACCOUNT_SWITCH_URL = "/api/account/switch";
 export const DEMO_ACCOUNT_SWITCH_URL = "/api/demo/switch-account";
-
-const SWITCH_PREFIXES: Record<string, string> = {
-  [ACCOUNT_SWITCH_URL]: "#switch-account:",
-  [DEMO_ACCOUNT_SWITCH_URL]: "#switch-demo-account:",
-};
-
-function switchAccountHref(accountId: string, switchAccountUrl: string): string {
-  return `${SWITCH_PREFIXES[switchAccountUrl] ?? SWITCH_PREFIXES[ACCOUNT_SWITCH_URL]}${accountId}`;
-}
-
-export function switchTargetFromHref(
-  href: string,
-): { accountId: string; switchAccountUrl: string } | null {
-  for (const [switchAccountUrl, prefix] of Object.entries(SWITCH_PREFIXES)) {
-    if (href.startsWith(prefix)) return { accountId: href.slice(prefix.length), switchAccountUrl };
-  }
-  return null;
-}
 
 let switching = false;
 
@@ -66,7 +47,7 @@ let switching = false;
  *  Pathname plus search, so a switch does not carry a fragment across accounts.
  *  `assign()` rather than legacy's `location.href = ...`: identical behavior,
  *  and the react-hooks/immutability rule rejects the assignment form. */
-export async function switchAccount(
+async function switchAccount(
   accountId: string,
   switchAccountUrl = ACCOUNT_SWITCH_URL,
 ): Promise<void> {
@@ -125,9 +106,10 @@ export function businessSwitcher(
             id: a.id,
             label: accountLabel(a),
             // The account you are on is marked current; its row switches
-            // nothing (the renderer skips a current row), as legacy's did.
-            href: switchAccountHref(a.id, switchAccountUrl),
+            // nothing, as legacy's did.
             current: a.id === active.id,
+            onClick:
+              a.id === active.id ? undefined : () => void switchAccount(a.id, switchAccountUrl),
             icon: <Tile initial={accountInitial(a)} />,
           })),
           // Legacy's own + Add account row points at /connect

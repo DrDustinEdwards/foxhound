@@ -1,7 +1,9 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
 import { data, Form, useNavigation } from "react-router";
 
-import { AdminTime } from "~/components/admin-time";
-import { Badge } from "~/components/badge";
+import { Time } from "capsomer/react/time";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import {
@@ -192,7 +194,7 @@ function EventLine({
   if (!event) return <p className="text-label text-text-tertiary">{label}: never</p>;
   return (
     <p className="text-label text-text-tertiary">
-      {label}: <AdminTime at={event.at} /> by{" "}
+      {label}: <Time at={event.at} empty="never" tip /> by{" "}
       <span className="font-mono text-text-secondary">{event.actorEmail}</span>
       {/* "intended", because the umbrella row is written before the account
           writes so that a partial failure still leaves a record of the attempt.
@@ -230,12 +232,12 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-label font-semibold text-text">Current state</h2>
           <div className="flex items-center gap-2">
-            <Badge tone={engaged ? "failure" : "neutral"}>
+            <Pill {...BADGE_PILL[engaged ? "failure" : "neutral"]}>
               {engaged ? "Brake ENGAGED" : "Brake not engaged"}
-            </Badge>
-            <Badge tone={status.tickEnabled ? "success" : "failure"}>
+            </Pill>
+            <Pill {...BADGE_PILL[status.tickEnabled ? "success" : "failure"]}>
               {status.tickEnabled ? "Tick enabled" : "Tick DISABLED"}
-            </Badge>
+            </Pill>
           </div>
         </div>
         <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">

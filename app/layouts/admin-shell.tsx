@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
 import {
   Activity,
@@ -18,16 +18,12 @@ import {
   type AdminApp,
   type AdminEntry,
 } from "capsomer/react/admin-shell";
+import { initialsOf } from "capsomer/react/site-header";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
-import {
-  personInitials,
-  renderHeaderLink,
-  THEME_PREF_KEY,
-  useThemeMemory,
-} from "~/components/site-header";
+import { renderHeaderLink, THEME_PREF_KEY, themeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
 import { getAdminSession } from "~/lib/auth/access.server";
@@ -175,22 +171,29 @@ const STRIP_APPS: AdminApp[] = FAMILY_APPS.map(({ id, label, href, logo }) => ({
 // Capsomer's tokens are keyed on data-cap-theme. It follows the site's own
 // theme, which the root loader already resolved for <html data-theme>, so the
 // server render has the right palette and nothing flashes. The header's theme
-// button sets <html data-theme> and announces a "cap-theme" event; this keeps
-// the admin's palette and Foxhound's fh_theme cookie in step with it. The
-// button's own memory is set to the same answer before it reads it.
-function useAdminTheme(): Theme {
+// button sets <html data-theme>, saves the choice to Foxhound's fh_theme cookie
+// (themeMemory) and announces a "cap-theme" event; this keeps the admin's
+// palette in step with it.
+function useAdminTheme(): { served: Theme; showing: Theme } {
   const rootData = useRouteLoaderData<typeof rootLoader>("root");
   const initial = rootData?.theme ?? DEFAULT_THEME;
   const [theme, setTheme] = useState<Theme>(initial);
-  useThemeMemory(initial, "cookie", setTheme);
-  return theme;
+  useEffect(() => {
+    const onTheme = (e: Event) => {
+      const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
+      if (choice === "light" || choice === "dark") setTheme(choice);
+    };
+    document.addEventListener("cap-theme", onTheme);
+    return () => document.removeEventListener("cap-theme", onTheme);
+  }, []);
+  return { served: initial, showing: theme };
 }
 
 export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const matches = useMatches();
   const navigate = useNavigate();
-  const theme = useAdminTheme();
+  const { served, showing: theme } = useAdminTheme();
   const readAt = useReadAt(loaderData.readAt);
   useCollapseKey();
   const nav = ENTRIES.map(({ match, ...entry }) => ({ ...entry, current: match(pathname) }));
@@ -221,6 +224,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         apps={STRIP_APPS}
         prefKey="foxhound-admin"
         themePrefKey={THEME_PREF_KEY}
+        {...themeMemory("cookie", served)}
         renderLink={renderHeaderLink}
         updated={{ at: readAt }}
         status={<h1 className="fh-admin-page-name">{page}</h1>}
@@ -232,7 +236,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
           // The Access login, not the family owner's name: Foxhound stands
           // apart from the Dustin Edwards network.
           name: email,
-          initials: personInitials(null, email),
+          initials: initialsOf(null, email),
           role: "Admin",
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
