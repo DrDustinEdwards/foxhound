@@ -809,7 +809,6 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       {
         cronName: "retention-sweep",
         lastRunAt: new Date(now.getTime() - 3 * 86_400_000),
-        reason: "overdue",
         schedule: CRON_SCHEDULE_DAILY,
       },
       now,

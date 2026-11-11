@@ -5,12 +5,11 @@ import {
   accounts,
   auditDigestRuns,
   auditRuns,
-  cronAlerts,
   cronRunHistory,
   stripeConnections,
 } from "~/db/schema";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // job_97878f0d1fde: THE MONTHLY AUDIT IS ONE ACCOUNT PER QUEUE MESSAGE.
 //
@@ -121,7 +120,7 @@ function fakeQueue(fail?: Error) {
 }
 
 function setup() {
-  const { db } = createInMemoryDb();
+  const { sqlite, db } = createInMemoryDb();
   harness.db = db;
   const { stripe, calls } = countingStripe();
   harness.stripe = stripe;
@@ -130,7 +129,7 @@ function setup() {
   const messages: { to: string; text?: string }[] = [];
   const failFor = new Set<string>();
   const e = {
-    DB: {},
+    DB: d1Over(sqlite),
     EMAIL: {
       send: async (m: { to: string; text?: string }) => {
         messages.push(m);
@@ -146,7 +145,9 @@ function setup() {
     },
     AUDIT_QUEUE: queue.binding,
   } as unknown as Env;
-  return { db, env: e, queue, stripeCalls: calls, delivered, messages, failFor };
+  const alerts = () =>
+    sqlite.prepare("SELECT * FROM alerts_sent").all() as Array<{ key: string; kind: string }>;
+  return { db, env: e, queue, stripeCalls: calls, delivered, messages, failFor, alerts };
 }
 
 async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> = {}) {
@@ -296,7 +297,7 @@ describe("the consumer audits the one account its message names", () => {
 
 describe("a failure logs the whole err and lets the queue retry", () => {
   it("the LAST attempt raises the monthly-audit failure alert", async () => {
-    const { db, env, queue, failFor } = setup();
+    const { db, env, queue, failFor, alerts } = setup();
     await seedAccount(db, "a_on");
     await runCron(env);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -305,14 +306,14 @@ describe("a failure logs the whole err and lets the queue retry", () => {
 
     // Attempts before the last one alert nobody: the queue may yet succeed.
     await deliver(env, [{ body, attempts: 1 }]);
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
+    expect(alerts()).toHaveLength(0);
 
     // max_retries is 3, so the fourth delivery is the last one.
     expect(await deliver(env, [{ body, attempts: 4 }])).toEqual(["retry"]);
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].cronName).toBe(CRON_NAME);
-    expect(alerts[0].kind).toBe("failure");
+    const sent = alerts();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].key).toBe(CRON_NAME);
+    expect(sent[0].kind).toBe("failure");
   });
 });
 
@@ -394,7 +395,7 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
   });
 
   it("a claim STUCK PENDING is retried, never re-sent, and the last attempt alerts", async () => {
-    const { db, env, queue, delivered, messages } = setup();
+    const { db, env, queue, delivered, messages, alerts } = setup();
     await seedAccount(db, "a_on");
     await runCron(env);
     await plant(db, "pending");
@@ -404,13 +405,13 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
     // A redelivery after a killed run: look again later, do not send.
     expect(await deliver(env, [{ body, attempts: 2 }])).toEqual(["retry"]);
     expect(loggedText(logged).join("\n")).toContain("pending");
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
+    expect(alerts()).toHaveLength(0);
 
     // The last attempt: still pending, so it alerts and lets the message go.
     expect(await deliver(env, [{ body, attempts: 4 }])).toEqual(["ack"]);
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].cronName).toBe(CRON_NAME);
+    const sent = alerts();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].key).toBe(CRON_NAME);
 
     // Nothing was ever mailed to the merchant, and the row was never retaken.
     expect(delivered.filter((to) => to === "a_on@merchant.test")).toEqual([]);

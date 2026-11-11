@@ -512,6 +512,13 @@
       "when": 1794390604135,
       "tag": "0076_mrr_snapshot_day_and_key_hash_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1794417366638,
+      "tag": "0077_alerts_sent",
+      "breakpoints": true
     }
   ]
 }
