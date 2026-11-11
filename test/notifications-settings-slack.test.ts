@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { encryptToken } from "~/lib/stripe/encryption";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -98,12 +99,16 @@ function accountRow() {
 async function save(input: Record<string, unknown>): Promise<void> {
   await buildNotificationSettingsUpdate(db, ACCOUNT, {
     notificationEmail: "owner@acme.test",
-    slackWebhookUrl: null,
     slackNotificationsEnabled: false,
     digestEnabled: false,
     recoveryNotificationsEnabled: true,
     sequenceCompleteNotificationsEnabled: true,
     ...input,
+    // The column holds the URL sealed, as applyNotificationSettings writes it.
+    slackWebhookUrl:
+      typeof input.slackWebhookUrl === "string"
+        ? await encryptToken(env, input.slackWebhookUrl)
+        : null,
   } as never);
 }
 

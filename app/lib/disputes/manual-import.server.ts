@@ -117,11 +117,14 @@ export async function importDisputeFromStripe(
   try {
     const dispute = await stripe.disputes.retrieve(stripeDisputeId);
     fields = disputeIntakeFields(dispute, now);
-  } catch {
-    // A dispute on another account, a typo, or a deleted object all land here.
-    // They are the same answer to the merchant and the same non-event to the
-    // ledger: nothing is written.
-    return { status: "not_found" };
+  } catch (err) {
+    // Stripe's 404 (resource_missing): a dispute on another account, a typo, or
+    // a deleted object. The same answer to the merchant and the same non-event
+    // to the ledger: nothing is written. Anything else (a revoked grant, a rate
+    // limit, Stripe down) is not "not found": it is thrown, so the route logs
+    // it and says to try again.
+    if (isStripeNotFound(err)) return { status: "not_found" };
+    throw err;
   }
   // A dispute carrying no charge is the webhook parser's own `no_charge`
   // ignore. There is nothing to attach evidence or a recovery link to.
@@ -196,4 +199,11 @@ export async function importDisputeFromStripe(
   // already ran (the claim key collided) or the dispute is already on the books
   // from the webhook (the unique index collided and rolled the batch back).
   return applied ? { status: "imported", disputeId } : { status: "already_imported" };
+}
+
+/** Stripe's answer for an object that does not exist on this account. */
+function isStripeNotFound(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { statusCode?: unknown; code?: unknown };
+  return e.statusCode === 404 || e.code === "resource_missing";
 }

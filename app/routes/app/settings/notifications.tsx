@@ -30,6 +30,7 @@ import {
   type AlertActionResult,
 } from "~/lib/settings/alerts-section.server";
 import { applyNotificationSettings } from "~/lib/settings/apply.server";
+import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { SLACK_WEBHOOK_ERROR, SLACK_WEBHOOK_PLACEHOLDER } from "~/lib/settings/slack-webhook";
 
 import type { Route } from "./+types/notifications";
@@ -108,7 +109,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const alertsSection = loadAlertsSection(db, auth.membership.accountId);
+  const alertsSection = loadAlertsSection(env, db, auth.membership.accountId);
   const [row] = await db
     .select({
       notificationEmail: accounts.notificationEmail,
@@ -127,7 +128,8 @@ export async function loader({ context }: Route.LoaderArgs) {
     // signed-in email IN the box, so the first Save stores it. The box is
     // truthful because Save writes what it shows.
     notificationEmail: row?.notificationEmail ?? auth.email,
-    slackWebhookUrl: row?.slackWebhookUrl ?? "",
+    // Opened for the merchant's own form only; the column holds it sealed.
+    slackWebhookUrl: (await openSlackWebhook(env, row?.slackWebhookUrl ?? null)) ?? "",
     slackNotificationsEnabled: row?.slackNotificationsEnabled ?? NULL_IS_OFF,
     digestEnabled: row?.digestEnabled ?? NULL_IS_OFF,
     recoveryNotificationsEnabled: row?.recoveryNotificationsEnabled ?? NULL_IS_ON,
@@ -182,7 +184,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       .from(accounts)
       .where(eq(accounts.id, auth.membership.accountId))
       .limit(1);
-    result = await applyNotificationSettings(db, auth.membership.accountId, {
+    result = await applyNotificationSettings(env, db, auth.membership.accountId, {
       notificationEmail: form.get("notificationEmail"),
       slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
       slackNotificationsEnabled: checked(form, "slackNotificationsEnabled"),

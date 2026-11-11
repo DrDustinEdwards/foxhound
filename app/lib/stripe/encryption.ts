@@ -30,7 +30,8 @@
 //   1. Move the current key into ENCRYPTION_KEYS_OLD under its existing id.
 //   2. Set ENCRYPTION_KEY to the new key and ENCRYPTION_KEY_ID to its new id.
 //   3. Deploy. New writes use the new key; old rows still decrypt via the old.
-//   4. Run the re-encrypt writer (app/lib/stripe/key-rotation.server.ts) to move
+//   4. Run the re-encrypt writers (app/lib/stripe/key-rotation.server.ts: the
+//      connection tokens and the sealed Slack webhook URLs) to move
 //      every stored value onto the active key.
 //   5. Once it reports zero remaining on old keys, drop ENCRYPTION_KEYS_OLD.
 // Step 4 is what makes step 5 safe, and the writer reports the counts that prove

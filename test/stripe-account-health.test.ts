@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { encryptToken } from "~/lib/stripe/encryption";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -39,7 +40,8 @@ vi.mock("~/lib/email/dispatch", () => ({
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const { runRecoveryTick } = await import("~/lib/cron/recovery-tick");
 
-const env = {} as Env;
+const env = { ENCRYPTION_KEY: "ab".repeat(32) } as Env;
+const SEALED_WEBHOOK = await encryptToken(env, "https://hooks.slack.com/services/x");
 let sqlite: Database.Database;
 
 beforeEach(() => {
@@ -54,9 +56,9 @@ beforeEach(() => {
   });
   sqlite
     .prepare(
-      "INSERT INTO accounts (id, name, notification_email, slack_notifications_enabled, slack_webhook_url, created_at) VALUES ('a1', 'Acme', 'ops@acme.test', 1, 'https://hooks.slack.com/services/x', 1000)",
+      "INSERT INTO accounts (id, name, notification_email, slack_notifications_enabled, slack_webhook_url, created_at) VALUES ('a1', 'Acme', 'ops@acme.test', 1, ?, 1000)",
     )
-    .run();
+    .run(SEALED_WEBHOOK);
   sqlite
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, name, is_primary, connected_at, created_at) VALUES ('c1', 'a1', 'acct_s', 'Acme Inc', 1, 1000, 1000)",
