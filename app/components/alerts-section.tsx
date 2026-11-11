@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { useRef, useState } from "react";
 import { Form, useNavigation, useSearchParams } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -29,7 +30,6 @@ import {
   type AlertDirection,
 } from "~/lib/settings/alert-metrics";
 import type { AlertActionResult, loadAlertsSection } from "~/lib/settings/alerts-section.server";
-import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 
 // The alerts part of /settings/notifications (S28, once its own page at
 // /settings/alerts; combined on Dustin's word of 2026-10-29). Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
@@ -59,12 +59,12 @@ import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 // and silent reverts on failure. This is the route's own action, class (a),
 // S30's divergence 1, and a failure is shown rather than reverted invisibly.
 
-function formatDate(at: Date | null): string {
-  return at ? formatDateShort(new Date(at)) : "Never";
+function dateOrNever(at: Date | null): string {
+  return at ? (formatDate(new Date(at), { style: "medium" }) ?? "") : "Never";
 }
 
 function formatDateTime(at: Date): string {
-  return `${formatTimestamp(new Date(at))} UTC`;
+  return formatDate(at, { style: "medium", time: true, zoneName: true }) ?? "";
 }
 
 export function AlertsSection({
@@ -183,7 +183,7 @@ export function AlertsSection({
                             </td>
                             <td data-label="Last triggered">
                               <span className="font-mono text-text-subtle">
-                                {formatDate(a.lastTriggeredAt)}
+                                {dateOrNever(a.lastTriggeredAt)}
                               </span>
                             </td>
                             <td data-label="Status">

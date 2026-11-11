@@ -1,3 +1,4 @@
+import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
 import { useEffect, useId, useState } from "react";
 
 import {
@@ -15,9 +16,11 @@ import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
-import { Pill, Status } from "capsomer/react/status";
+import { CopyButton } from "capsomer/react/copy";
+import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/copy.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
@@ -28,13 +31,7 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import {
-  formatDateMonthDay,
-  formatDateShort,
-  formatRelativeFuture,
-  formatTimeAgo,
-} from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   ATTRIBUTION_KIND_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,
@@ -74,6 +71,7 @@ import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { markup } from "capsomer/behavior/trusted-html";
 
 export function meta() {
   return [{ title: "Payment detail - Foxhound" }, NOINDEX];
@@ -295,18 +293,6 @@ export const MANUAL_ACTIONS = [
 // `payment.status === 'active'`.
 export const ACTIONS_VISIBLE_STATUS = "active";
 
-/** Legacy's own 2000ms hold on the "Copied" confirmation (PaymentDetailClient.tsx
- *  221 at blob 7f54aa45). */
-export const COPIED_RESET_MS = 2000;
-
-/** The Copy email button's words: "Copy email", then Recova's copied state
- *  for COPIED_RESET_MS (PaymentDetailClient.tsx 248-253, green "Copied" with a
- *  tick), as Capsomer's ok status: its tick glyph and word in the ok color. */
-export function CopyEmailLabel({ copied }: { copied: boolean }) {
-  if (!copied) return <>Copy email</>;
-  return <Status tone="ok">Copied</Status>;
-}
-
 /** Legacy's back link, PaymentDetailClient.tsx 130-132. */
 export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
@@ -331,7 +317,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
-  const [copied, setCopied] = useState(false);
   const demoReasonId = useId();
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
@@ -365,12 +350,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
     return () => clearTimeout(timer);
   }, [noteResult]);
   const noteError = noteResult && "error" in noteResult;
-
-  function copyEmail() {
-    void navigator.clipboard?.writeText(failedPayment.customerEmail);
-    setCopied(true);
-    setTimeout(() => setCopied(false), COPIED_RESET_MS);
-  }
 
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
@@ -427,14 +406,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             <div className="flex flex-wrap items-center gap-3 text-label text-text-subtle">
               {/* The email shows here only when a name took the heading. */}
               {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
-              <span className="text-micro">
-                <button type="button" className="cap-link-btn" onClick={copyEmail}>
-                  <CopyEmailLabel copied={copied} />
-                </button>
-              </span>
-              <span className="sr-only" role="status">
-                {copied ? "Email copied" : ""}
-              </span>
+              <CopyButton text={failedPayment.customerEmail} size="xs">
+                Copy email
+              </CopyButton>
               {failedPayment.planName ? <span>&middot; {failedPayment.planName}</span> : null}
             </div>
           </div>
@@ -578,10 +552,10 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </Panel>
         <Panel size="sm" title="Detected">
           <p className="m-0 text-title font-bold text-text">
-            {formatTimeAgo(failedPayment.detectedAt, nowMs)}
+            {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
           </p>
           <p className="m-0 mt-1 text-micro text-text-subtle">
-            {formatDateMonthDay(failedPayment.detectedAt)}
+            {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
           </p>
         </Panel>
         <Panel size="sm" title="Customer age">
@@ -624,7 +598,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             {failedPayment.resolvedAt ? (
               <DetailRow
                 label={failedPayment.status === "recovered" ? "Recovered" : "Resolved"}
-                value={formatDateShort(failedPayment.resolvedAt)}
+                value={formatDate(failedPayment.resolvedAt, { style: "medium" }) ?? ""}
               />
             ) : null}
           </dl>
@@ -669,7 +643,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
                     >
                       <span className="text-micro text-text-subtle">
-                        {formatTimeAgo(p.detectedAt, nowMs)}
+                        {relative(toMs(p.detectedAt), nowMs, "UTC")}
                       </span>
                       <span className="flex items-center gap-2">
                         <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
@@ -766,9 +740,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                         </div>
                         <span className="whitespace-nowrap font-mono text-micro text-text-subtle">
                           {executed
-                            ? formatTimeAgo(step.executedAt, nowMs)
+                            ? relative(toMs(step.executedAt), nowMs, "UTC")
                             : pending
-                              ? formatRelativeFuture(step.scheduledAt, nowMs)
+                              ? until(toMs(step.scheduledAt), nowMs)
                               : ""}
                         </span>
                       </div>
@@ -779,8 +753,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       ) : null}
                       <p className="m-0 text-micro text-text-subtle">
                         {executed
-                          ? `Executed ${formatDateShort(step.executedAt)}`
-                          : `Scheduled ${formatDateShort(step.scheduledAt)}`}
+                          ? `Executed ${formatDate(step.executedAt, { style: "medium" }) ?? ""}`
+                          : `Scheduled ${formatDate(step.scheduledAt, { style: "medium" }) ?? ""}`}
                       </p>
 
                       {showEngagement || showExpander ? (
@@ -802,7 +776,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                   />
                                 )}
                                 {step.openedAt
-                                  ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}`
+                                  ? `Opened ${relative(toMs(step.openedAt), nowMs, "UTC")}`
                                   : "Not opened"}
                               </span>
                               {/* A suspect click is shown as what it is:
@@ -825,8 +799,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                 )}
                                 {step.clickedAt
                                   ? step.clickSuspectReason
-                                    ? `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
-                                    : `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}`
+                                    ? `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
+                                    : `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}`
                                   : "Not clicked"}
                               </span>
                             </>
@@ -855,7 +829,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                           className="mt-3 rounded-lg border border-border bg-bg p-4 text-label text-text"
                           // Sanitized in the loader by sanitizeEmailPreviewHtml;
                           // the raw body is never sent to the browser.
-                          dangerouslySetInnerHTML={{ __html: step.previewHtml }}
+                          dangerouslySetInnerHTML={markup(step.previewHtml)}
                         />
                       ) : null}
                     </div>
@@ -923,7 +897,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         >
           {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
           {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")}{" "}
-          &middot; {formatTimeAgo(recovery.recoveredAt, nowMs)}
+          &middot; {relative(toMs(recovery.recoveredAt), nowMs, "UTC")}
           {/* Only once Stripe's balance transaction has been read. Billing stays
               on the gross amount above. */}
           {recovery.netAmountCents != null && recovery.netCurrency ? (

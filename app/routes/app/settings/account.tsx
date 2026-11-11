@@ -53,7 +53,7 @@ import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
-import { isDisposableEmail } from "~/lib/auth/disposable-emails";
+import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
@@ -669,8 +669,6 @@ const THEME_LABEL: Record<Theme, string> = { dark: "Dark", light: "Light" };
  *
  * Once the save lands, Capsomer's applyTheme remembers the choice in this
  * browser and tells the header's theme button, so the two never disagree.
- * The header's listener (useThemeMemory) then saves the same value once more;
- * the write is idempotent, and leaving it in place keeps the header unchanged.
  */
 function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   const [theme, setTheme] = useState<Theme>(initial);

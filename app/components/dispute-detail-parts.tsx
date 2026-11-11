@@ -1,6 +1,7 @@
 // Parts of the dispute detail page (routes/app/disputes/detail.tsx split): the
 // approve button, the accept control, field rows and the evidence file forms.
 
+import { formatDate } from "capsomer/behavior/time";
 import { DISPUTE_EVIDENCE_ALLOWED_TYPES, DISPUTE_EVIDENCE_MAX_FILES } from "~/lib/constants";
 import { useEffect, useId, useRef, useState } from "react";
 import { Form, useFetcher } from "react-router";
@@ -20,7 +21,6 @@ import {
   type EvidenceFileOutcome,
 } from "~/lib/disputes/evidence-files";
 import { confirmSubmit } from "capsomer/behavior/confirm-dialog";
-import { formatDateShort } from "~/lib/date-format";
 import type { action } from "~/routes/app/disputes/detail";
 
 /**
@@ -297,7 +297,7 @@ export function EvidenceFiles({
                   )}
                   <span className="flex items-center gap-3">
                     <span className="text-micro text-text-subtle">
-                      {formatDateShort(f.createdAt)}
+                      {formatDate(f.createdAt, { style: "medium" }) ?? ""}
                     </span>
                     {canChange ? (
                       <button

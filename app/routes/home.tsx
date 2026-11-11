@@ -8,7 +8,6 @@ import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { EmailSamples } from "~/components/email-samples";
-import { FadeUp } from "~/components/fade-up";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
@@ -180,7 +179,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   See it live
                   <ArrowRight
                     data-icon="end"
-                    className="transition-transform duration-150 group-hover:translate-x-0.5"
+                    className="motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                     size={13}
                     strokeWidth={1.5}
                     aria-hidden
@@ -227,17 +226,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Stats: the problem */}
       <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-12 text-center">
               <h2 className={H2}>The revenue you&apos;re losing isn&apos;t showing up as churn.</h2>
               <p className="m-0 text-subhead text-text-secondary">
                 Stripe&apos;s own data on failed payments and what happens next.
               </p>
             </div>
-          </FadeUp>
+          </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {STATS.map((item, i) => (
-              <FadeUp key={item.stat} delay={i * 100} className="grid">
+            {STATS.map((item) => (
+              <div key={item.stat} className="cap-reveal grid">
                 <div className={CARD}>
                   <div className="cap-panel-body">
                     <div className="flex h-full flex-col">
@@ -257,7 +256,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     </div>
                   </div>
                 </div>
-              </FadeUp>
+              </div>
             ))}
           </div>
         </div>
@@ -266,20 +265,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Stripe plus Foxhound */}
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-12 text-center">
               <h2 className={H2}>Stripe plus Foxhound</h2>
               <p className="m-0 text-subhead text-text-secondary">
                 What Stripe does, and what Foxhound adds on top.
               </p>
             </div>
-          </FadeUp>
+          </div>
           <div className="space-y-4">
-            {COMPARISON_ROWS.map((row, i) => (
-              <FadeUp
+            {COMPARISON_ROWS.map((row) => (
+              <div
                 key={row.stripeTitle}
-                delay={i * 100}
-                className="grid grid-cols-1 gap-4 md:grid-cols-2"
+                className="cap-reveal grid grid-cols-1 gap-4 md:grid-cols-2"
               >
                 <div className={CARD}>
                   <div className="cap-panel-body">
@@ -310,7 +308,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     </div>
                   </div>
                 </Link>
-              </FadeUp>
+              </div>
             ))}
           </div>
         </div>
@@ -319,7 +317,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Full-bleed statement */}
       <section className="overflow-hidden border-t border-border-sub px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
               The gap Stripe leaves open
             </p>
@@ -339,34 +337,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 Source: {citation(STAT_SOURCES.stripeBilling)}, read {STAT_AS_OF} <SourceArrow />
               </a>
             </div>
-          </FadeUp>
+          </div>
         </div>
       </section>
 
       {/* How it works */}
       <section className="speakable-how-it-works border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-12 text-center">
               <h2 className={H2}>How it works</h2>
               <p className="m-0 text-subhead text-text-secondary">
                 Live in an afternoon. No code, no setup fees.
               </p>
             </div>
-          </FadeUp>
+          </div>
           {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
           <div className="cap-panel">
             <div className="cap-panel-body" data-flush>
               <div className="grid grid-cols-1 md:grid-cols-3">
                 {HOW_IT_WORKS.map((s, i) => (
-                  <FadeUp
+                  <div
                     key={s.title}
-                    delay={i * 100}
-                    className={`p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
+                    className={`cap-reveal p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
                   >
                     <div className="mb-2 text-body font-medium text-text">{s.title}</div>
                     <p className="m-0 text-copy leading-[1.55] text-text-secondary">{s.body}</p>
-                  </FadeUp>
+                  </div>
                 ))}
               </div>
             </div>
@@ -377,7 +374,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Calculator */}
       <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-10 text-center">
               <h2 className={H2}>How much are you leaving on the table?</h2>
               <p className="m-0 mx-auto max-w-[480px] text-subhead text-text-secondary">
@@ -386,7 +383,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 recovers nothing.
               </p>
             </div>
-          </FadeUp>
+          </div>
           <div className="mx-auto max-w-[600px]">
             <RecoveryCalculator />
           </div>
@@ -399,18 +396,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         className="scroll-mt-[60px] border-t border-border-sub px-5 py-20 sm:px-8"
       >
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-12 text-center">
               <h2 className={H2}>Start with recovery.</h2>
               <p className="m-0 text-subhead text-text-secondary">Add the rest when you need it.</p>
             </div>
-          </FadeUp>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {PRODUCT_ORDER.map((key, i) => {
+            {PRODUCT_ORDER.map((key) => {
               const Icon = PRODUCT_ICONS[key];
               const card = PRODUCT_CARDS[key];
               return (
-                <FadeUp key={key} delay={i * 80} className="grid">
+                <div key={key} className="cap-reveal grid">
                   <Link to={PRODUCTS[key].href} className={CARD}>
                     <div className="cap-panel-body">
                       <div>
@@ -431,7 +428,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       </div>
                     </div>
                   </Link>
-                </FadeUp>
+                </div>
               );
             })}
           </div>
@@ -441,7 +438,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Email generator */}
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-10 text-center">
               {/* Recova: "The actual email Recova would send" and "Same AI, same
                   prompts, same output as the product." The sample runs its own
@@ -453,7 +450,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 own brand voice.
               </p>
             </div>
-          </FadeUp>
+          </div>
           <div className="mx-auto max-w-[600px]">
             <EmailSamples />
           </div>
@@ -464,15 +461,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           is, each revealed in Recova's 60ms stagger (M3 divergence 15). */}
       <section className="speakable-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <div className="mb-12 text-center">
               <h2 className={H2}>Common questions</h2>
             </div>
-          </FadeUp>
+          </div>
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
-            {FAQS.map((faq, i) => (
+            {FAQS.map((faq) => (
               <li key={faq.question}>
-                <FadeUp delay={i * 60}>
+                <div className="cap-reveal">
                   <details
                     className="cap-disclosure [--pad-card:1.5rem]"
                     data-variant="card"
@@ -485,7 +482,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       </p>
                     </div>
                   </details>
-                </FadeUp>
+                </div>
               </li>
             ))}
           </ul>
@@ -495,7 +492,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {/* Security trust bar */}
       <section className="border-t border-border-sub px-5 py-10 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
-          <FadeUp>
+          <div className="cap-reveal">
             <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-3 p-0">
               {SECURITY_CHIPS.map((label) => (
                 <li
@@ -522,7 +519,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </li>
               ))}
             </ul>
-          </FadeUp>
+          </div>
         </div>
       </section>
 
@@ -533,7 +530,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {blogPosts.length > 0 ? (
         <section className="border-t border-border-sub bg-surface px-5 py-16 sm:px-8">
           <div className="mx-auto max-w-[1100px]">
-            <FadeUp>
+            <div className="cap-reveal">
               <div className="mb-8 flex items-center justify-between">
                 <h2 className="m-0 text-copy font-normal text-text-secondary">From the blog</h2>
                 <Link
@@ -543,10 +540,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   All articles <Arrow />
                 </Link>
               </div>
-            </FadeUp>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {blogPosts.map((post, i) => (
-                <FadeUp key={post.slug} delay={i * 80} className="grid">
+              {blogPosts.map((post) => (
+                <div key={post.slug} className="cap-reveal grid">
                   {/* Recova's blog card: the page ground on the surface band, p-5, 10px corners. */}
                   <Link
                     to={`/blog/${post.slug}`}
@@ -568,7 +565,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       </div>
                     </div>
                   </Link>
-                </FadeUp>
+                </div>
               ))}
             </div>
           </div>

@@ -16,7 +16,7 @@ import { countActiveRecoveries } from "~/lib/admin/overview.server";
 import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/due-steps";
 import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
-import { cronLockHealth, type CronLockView } from "~/lib/cron/lock-state";
+import { lockHealth } from "@dustinedwards/site-runtime/cron-lock";
 import {
   accounts,
   aiCalls,
@@ -230,6 +230,8 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["CRON_TICKER", "binding"],
     ["RATE_LIMITER", "binding"],
     ["AUTH_RATE_LIMITER", "binding"],
+    // The CSP report sink's limit (site-runtime ./worker). Unset means every report is dropped, still 204.
+    ["CSP_REPORT_RATE_LIMIT", "binding"],
     ["TOOL_CALL_LOG", "binding"],
     // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup
     // cron throws on every run and /health reports no backup.
@@ -346,7 +348,7 @@ export async function getRecoveryQueueDepth(
 
 export interface CronLockRow {
   name: string;
-  /** idle, running and not-released are cronLockHealth's; unreadable means the
+  /** idle, running and not-released are lockHealth's; unreadable means the
    *  lock's Durable Object did not answer, which the page says rather than fail. */
   state: "idle" | "running" | "not-released" | "unreadable";
   heldUntil: Date | null;
@@ -361,16 +363,13 @@ export async function readCronLocks(env: Env, now: number = Date.now()): Promise
   const ns = env.CRON_LOCK;
   const reads = await Promise.allSettled(
     CRON_JOBS.map((job) =>
-      withTimeout(
-        ns.get(ns.idFromName(job.name)).peek() as Promise<CronLockView>,
-        CRON_LOCK_PEEK_TIMEOUT_MS,
-      ),
+      withTimeout(ns.get(ns.idFromName(job.name)).peek(), CRON_LOCK_PEEK_TIMEOUT_MS),
     ),
   );
   return CRON_JOBS.map((job, i) => {
     const read = reads[i];
     if (read.status === "rejected") return { name: job.name, state: "unreadable", heldUntil: null };
-    const health = cronLockHealth(read.value, now);
+    const health = lockHealth(read.value, now);
     return {
       name: job.name,
       state: health.state,

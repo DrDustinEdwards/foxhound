@@ -27,17 +27,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
-import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
 import { Banner } from "capsomer/react/banner";
+import { shouldShowRouteSplash } from "capsomer/behavior/route-splash";
+import { RouteSplash } from "capsomer/react/route-splash";
 import "capsomer/admin-shell.css";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/route-splash.css";
 import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
 import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
-import { RouteSplash } from "~/components/route-splash";
 import {
   ACCOUNT_SWITCH_URL,
   businessSwitcher,
@@ -47,12 +49,11 @@ import {
   businessRows,
   currentRow,
   headerLogo,
-  personInitials,
   renderHeaderLink,
   THEME_PREF_KEY,
-  useThemeMemory,
+  themeMemory,
 } from "~/components/site-header";
-import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
+import { isSplashPath } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { IMPERSONATION_STOP_PATH } from "~/lib/admin/impersonation.server";
@@ -72,7 +73,6 @@ import {
 } from "~/lib/nav/manifest";
 import { DEFAULT_THEME } from "~/lib/theme";
 import { resolveThemeForRequest } from "~/lib/theme.server";
-import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
 
 import { noindexHeader } from "~/lib/seo/meta";
@@ -236,14 +236,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const submit = useSubmit();
-  useThemeMemory(theme, "account");
-  useCollapseKey();
   const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
-  // Legacy's loading.tsx, ported to RR8's substrate (305). The decision lives in
-  // a pure predicate so it can be tested without a DOM; see its header for why a
-  // bare state check would blank this page during every money action.
-  const splash = shouldShowRouteSplash(useNavigation());
+  // Legacy's loading.tsx on RR8's substrate: Capsomer decides when (never during
+  // the revalidation after a post), and the app names the paths.
+  const splash = shouldShowRouteSplash(useNavigation(), isSplashPath);
 
   // The menu: the product you are in and its pages. On a settings page it is
   // the settings list instead, under a row back to the product, so a settings
@@ -394,6 +391,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         band="dark"
         switchers={business ? [business, products] : [products]}
         themePrefKey={THEME_PREF_KEY}
+        {...themeMemory("account", theme)}
         renderLink={renderHeaderLink}
         updated={{ at: readAt }}
         status={
@@ -409,7 +407,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         onHelp={() => void navigate("/help")}
         account={{
           name: userName || email,
-          initials: personInitials(userName, email),
+          initials: initialsOf(userName, email),
           email: userName ? email : undefined,
           appLabel: accountName ?? email,
           appLinks: [
@@ -476,7 +474,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             header, menu and footer stay put and only the page swaps. The
             footer stays below the page, as legacy's SiteFooter is a sibling of
             the page content. */}
-        <div className="fh-app-page">{splash ? <RouteSplash /> : <Outlet />}</div>
+        <div className="fh-app-page">
+          {splash ? <RouteSplash mark={{ src: "/icon-512.png", alt: "Foxhound" }} /> : <Outlet />}
+        </div>
         <Footer variant="app" />
       </AdminShell>
     </div>
@@ -501,7 +501,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   // The header's theme button still saves where the layout's did.
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
-  useThemeMemory(rootTheme, "account");
 
   // Capsomer's error page (its failed Empty), as the root boundary draws it (app/root.tsx), under the shell's header.
   return (
@@ -516,6 +515,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             <SiteHeader
               logo={headerLogo("/")}
               themePrefKey={THEME_PREF_KEY}
+              {...themeMemory("account", rootTheme)}
               sheetTitle="Foxhound menu"
               renderLink={renderHeaderLink}
             />

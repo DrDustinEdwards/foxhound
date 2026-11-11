@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { getDb } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
@@ -141,7 +142,7 @@ export async function sendTestEmail(
     to: recipientEmail,
     senderName: connection?.senderName ?? null,
     replyTo: connection?.replyToEmail ?? null,
-    baseUrl: env.BETTER_AUTH_URL ?? "",
+    baseUrl: appOrigin(env),
     template: TEST_EMAIL_TEMPLATE,
     idempotencyKey: `settings-test:${accountId}:${crypto.randomUUID()}`,
   });

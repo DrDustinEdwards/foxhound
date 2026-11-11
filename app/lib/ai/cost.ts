@@ -1,46 +1,13 @@
+import { costMicros } from "@dustinedwards/site-runtime/ai-engine";
+
 import type { Db } from "~/db";
 import { aiCalls } from "~/db";
 
-// The ai_calls cost map (closes legacy R-49: model-id drift + an incomplete cost
-// map). ONE table, keyed by CANONICAL base model id, in USD cents per 1,000,000
-// tokens. Every id in AI_MODEL_IDS must resolve here; an unknown model throws so a
-// newly-wired model can never silently log $0 cost.
-//
-// Lookup normalizes a trailing -YYYYMMDD date suffix to the base id, so a dated
-// alias (`claude-haiku-4-5-20251001`) and the canonical form (`claude-haiku-4-5`)
-// map to the same entry. This is the structural defense against the exact drift
-// R-49 named.
-
-interface ModelCost {
-  /** USD cents per 1,000,000 input tokens. */
-  inputCentsPer1M: number;
-  /** USD cents per 1,000,000 output tokens. */
-  outputCentsPer1M: number;
-}
-
-// Standard list prices (not intro promos, which expire and would themselves drift).
-const AI_MODEL_COSTS: Record<string, ModelCost> = {
-  "claude-sonnet-5": { inputCentsPer1M: 300, outputCentsPer1M: 1500 },
-  "claude-haiku-4-5": { inputCentsPer1M: 100, outputCentsPer1M: 500 },
-  // The media library's suggested alt text and tags (app/lib/media/suggest.server.ts). List price for prompts up
-  // to 100,000 tokens, platform.claude.com/docs/en/about-claude/pricing, read 2026-11-08.
-  "claude-haiku-5-5": { inputCentsPer1M: 10, outputCentsPer1M: 50 },
-};
-
-/** Strip a trailing -YYYYMMDD snapshot suffix to the canonical base model id. Pure. */
-function normalizeModelId(model: string): string {
-  return model.replace(/-\d{8}$/, "");
-}
-
-/** The cost entry for a model id (normalized). Throws on an uncovered model (R-49 guard). */
-export function aiModelCost(model: string): ModelCost {
-  const base = normalizeModelId(model);
-  const cost = AI_MODEL_COSTS[base];
-  if (!cost) {
-    throw new Error(`no ai_calls cost entry for model '${model}' (normalized '${base}')`);
-  }
-  return cost;
-}
+// The ai_calls cost (closes legacy R-49: model-id drift and an incomplete cost map). The prices are
+// site-runtime's PRICES and costMicros, the network's one table, read from Anthropic's pricing page; never a copy here
+// (Foxhound's own table once had Sonnet 5 at $3/$15 when the list price is $2/$10). costMicros matches a dated
+// id (`claude-haiku-4-5-20251001`) and its base form alike, and an unpriced model throws, so a newly wired
+// model can never silently log $0.
 
 /**
  * Cost of one AI call in whole USD cents, rounded UP. Pure.
@@ -63,11 +30,16 @@ export function computeAiCallCostCents(
   promptTokens: number,
   completionTokens: number,
 ): number {
-  const cost = aiModelCost(model);
-  const cents =
-    (promptTokens / 1_000_000) * cost.inputCentsPer1M +
-    (completionTokens / 1_000_000) * cost.outputCentsPer1M;
-  return Math.ceil(cents);
+  const micros = costMicros(model, {
+    input: promptTokens,
+    output: completionTokens,
+    cacheRead: 0,
+    cacheWrite: 0,
+  });
+  if (micros === null)
+    throw new Error(`no ai_calls price for model '${model}' in site-runtime PRICES`);
+  // 10,000 millionths of a dollar are a cent.
+  return Math.ceil(micros / 10_000);
 }
 
 /** Insert one ai_calls row with its computed cost. Operational (not a money write). */

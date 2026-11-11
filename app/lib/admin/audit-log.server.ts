@@ -1,7 +1,8 @@
 // /admin/platform/audit-log data layer: the operator audit trail (admin_audit_log,
 // global, permanent retention). READ only.
 
-import { desc, inArray } from "drizzle-orm";
+import { desc } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import { accounts, adminAuditLog, blogPosts } from "~/db";
@@ -24,13 +25,13 @@ export async function loadAuditLookups(
       ? db
           .select({ id: accounts.id, name: accounts.name })
           .from(accounts)
-          .where(inArray(accounts.id, accountIds))
+          .where(inList(accounts.id, accountIds))
       : Promise.resolve([]),
     postIds.length > 0
       ? db
           .select({ id: blogPosts.id, title: blogPosts.title })
           .from(blogPosts)
-          .where(inArray(blogPosts.id, postIds))
+          .where(inList(blogPosts.id, postIds))
       : Promise.resolve([]),
   ]);
   return {

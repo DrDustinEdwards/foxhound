@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq } from "drizzle-orm";
 
 import { accounts, failedPayments, getDb } from "~/db";
@@ -5,7 +6,7 @@ import type { Db } from "~/db";
 import { processEmailJob } from "~/lib/email/dispatch";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 // THE MERCHANT RECOVERY NOTIFICATION. Ported from legacy's
 // app/api/webhooks/stripe/route.ts (blob `deb585e4`, 47,093 bytes), the
@@ -73,7 +74,7 @@ interface NotificationData {
  * Legacy's money formatting for this email, verbatim:
  * `Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'usd' })`
  * over `amount_cents / 100`. Note the falsy-currency coercion, which is legacy's.
- * The division is now the currency's own (money-format.ts), so a yen amount is
+ * The division is now the currency's own (site-runtime ./money), so a yen amount is
  * not shown a hundred times too small.
  */
 export function formatNotifyAmount(amountCents: number, currency: string): string {
@@ -225,7 +226,7 @@ export async function sendRecoveryNotification(
     const data = await loadNotificationData(db, ctx);
     if ("skipped" in data) return { kind: "skipped", reason: data.skipped };
 
-    const baseUrl = env.BETTER_AUTH_URL ?? "";
+    const baseUrl = appOrigin(env);
     const content = recoveryNotifyContent(
       data,
       `${baseUrl}/recovery/payments/${ctx.failedPaymentId}`,

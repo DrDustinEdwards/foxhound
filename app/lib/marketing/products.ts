@@ -6,7 +6,7 @@
 
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import {
   DECLINE_CATEGORY_COUNT_WORD,

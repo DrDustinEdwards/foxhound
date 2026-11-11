@@ -1,6 +1,6 @@
+import { formatDate } from "capsomer/behavior/time";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
-import { formatDateMonthDay } from "~/lib/date-format";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // Pure helpers for the Intelligence dashboard, shared by the
 // page and its tests. No database, no AI, no server import: the page bundles
@@ -200,11 +200,11 @@ export function mrrTrendAlt(points: readonly MrrPointLike[], currency: string): 
   const last = points[points.length - 1];
   if (!first || !last) return "MRR: no snapshots yet.";
   if (points.length === 1) {
-    return `MRR on ${formatDateMonthDay(last.at)}: ${formatMoneyShort(last.totalMrrCents, currency)}.`;
+    return `MRR on ${formatDate(last.at, { style: "monthDay" }) ?? ""}: ${formatMoneyShort(last.totalMrrCents, currency)}.`;
   }
   return (
     `MRR across ${points.length} daily snapshots, from ${formatMoneyShort(first.totalMrrCents, currency)} ` +
-    `on ${formatDateMonthDay(first.at)} to ${formatMoneyShort(last.totalMrrCents, currency)} on ${formatDateMonthDay(last.at)}.`
+    `on ${formatDate(first.at, { style: "monthDay" }) ?? ""} to ${formatMoneyShort(last.totalMrrCents, currency)} on ${formatDate(last.at, { style: "monthDay" }) ?? ""}.`
   );
 }
 
@@ -219,7 +219,7 @@ export function nrrAlt(points: readonly { at: Date; nrrPct: number | null }[]): 
   if (!last) return "Net revenue retention: no figure yet.";
   const values = present.map((p) => p.nrrPct);
   return (
-    `Net revenue retention by week, latest ${formatPct(last.nrrPct)} on ${formatDateMonthDay(last.at)}, ` +
+    `Net revenue retention by week, latest ${formatPct(last.nrrPct)} on ${formatDate(last.at, { style: "monthDay" }) ?? ""}, ` +
     `ranging from ${formatPct(Math.min(...values))} to ${formatPct(Math.max(...values))}. 100% is the line.`
   );
 }
@@ -239,7 +239,7 @@ export function movementAlt(
   if (!last) return "MRR movement: no snapshots yet.";
   const m = (c: number) => formatMoneyShort(c, currency);
   return (
-    `MRR movement by week. Week of ${formatDateMonthDay(last.at)}: new ${m(last.newMrrCents)}, ` +
+    `MRR movement by week. Week of ${formatDate(last.at, { style: "monthDay" }) ?? ""}: new ${m(last.newMrrCents)}, ` +
     `expansion ${m(last.expansionMrrCents)}, reactivation ${m(last.reactivationMrrCents)}, ` +
     `contraction ${m(last.contractionMrrCents)}, churn ${m(last.churnMrrCents)}.`
   );
@@ -256,7 +256,7 @@ export function healthAlt(
   const last = days[days.length - 1];
   if (!last) return "Customer health distribution: no scores yet.";
   return (
-    `Customers per health band over 90 days. Latest, ${formatDateMonthDay(new Date(`${last.date}T00:00:00Z`))}: ` +
+    `Customers per health band over 90 days. Latest, ${formatDate(new Date(`${last.date}T00:00:00Z`), { style: "monthDay" }) ?? ""}: ` +
     `${last.atRisk} high risk, ${last.watch} medium risk, ${last.healthy} healthy.`
   );
 }

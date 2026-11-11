@@ -1,17 +1,7 @@
+import { appOrigin } from "~/lib/app-origin";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import {
-  and,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  isNotNull,
-  like,
-  notInArray,
-  sql,
-} from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import {
@@ -151,7 +141,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
     .from(stripeConnections)
     .where(
       and(
-        inArray(
+        inList(
           stripeConnections.accountId,
           withEmail.map((a) => a.accountId),
         ),
@@ -374,7 +364,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
   // run started, falls OUTSIDE it and this week's digest is not skipped by its
   // own predecessor.
   const claimWindowStart = new Date(now.getTime() - DIGEST_CLAIM_WINDOW_MS);
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
 
   for (const account of await queryDigestAccounts(db)) {
     try {

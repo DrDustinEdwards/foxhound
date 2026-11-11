@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import type { BatchItem } from "drizzle-orm/batch";
-import { and, eq, isNull, notLike } from "drizzle-orm";
+import { and, eq, isNull, notLike, sql } from "drizzle-orm";
 
 import {
   accounts,
@@ -15,12 +15,13 @@ import {
   type Db,
 } from "~/db";
 import {
+  DAY_MS,
   DEMO_ACCOUNT_ID_PREFIX,
   INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER,
   INTELLIGENCE_MAX_CUSTOMERS_SCANNED,
   INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER,
 } from "~/lib/constants";
-import { monthKeyUTC } from "~/lib/date-format";
+import { monthKeyUTC } from "~/lib/dashboard/recovery-window";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { findActiveConnection } from "~/lib/stripe/connections.server";
@@ -306,17 +307,17 @@ async function fetchCustomerStripeSnapshot(
     const periodCents = discountedItemCents(itemTerms, subDiscounts, nowMs);
 
     sub.items.forEach((item, i) => {
-      // What one unit costs per interval after discounts, spread over the
-      // price's interval_count (a quarterly price bills three months at once),
-      // so monthlyEquivalentCents (signals.ts) gives the monthly amount paid.
-      const unitAmountCents =
-        item.quantity > 0 ? periodCents[i] / item.quantity / item.intervalCount : 0;
+      // What one unit costs per billing period after discounts;
+      // monthlyEquivalentCents (signals.ts) spreads it over the price's
+      // interval_count (a quarterly price bills three months at once).
+      const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity : 0;
       if (active) {
         activeSubscriptions.push({
           priceId: item.priceId,
           productName: item.productName,
           quantity: item.quantity,
           interval: item.interval,
+          intervalCount: item.intervalCount,
           unitAmountCents,
         });
       }
@@ -328,7 +329,12 @@ async function fetchCustomerStripeSnapshot(
         // Ranking signal only (collapseBillingObservations): the item with
         // the largest monthly-equivalent amount represents this instant, the
         // same rule summarizeActiveSubscriptions uses for "current plan".
-        valueCents: monthlyEquivalentCents(unitAmountCents, item.quantity, item.interval),
+        valueCents: monthlyEquivalentCents(
+          unitAmountCents,
+          item.quantity,
+          item.interval,
+          item.intervalCount,
+        ),
       });
     });
     if (sub.churnReason) churnReason = sub.churnReason;
@@ -640,7 +646,18 @@ export async function runIntelligenceSyncForAccount(
   }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
-  await db.insert(mrrSnapshots).values({
+  // One row per account per UTC day (mrr_snapshots_account_day_uq): a second
+  // sync the same day replaces the day's row, in one batch, so the day is never
+  // missing or counted twice.
+  const replaceDay = db
+    .delete(mrrSnapshots)
+    .where(
+      and(
+        eq(mrrSnapshots.accountId, accountId),
+        sql`${mrrSnapshots.snapshotDate} / ${sql.raw(String(DAY_MS))} = ${Math.floor(now.getTime() / DAY_MS)}`,
+      ),
+    );
+  const insertDay = db.insert(mrrSnapshots).values({
     accountId,
     snapshotDate: now,
     currency,
@@ -662,6 +679,7 @@ export async function runIntelligenceSyncForAccount(
     grossRevenueRetentionBps: snapshotFields.grossRevenueRetentionBps,
     createdAt: now,
   });
+  await db.batch([replaceDay, insertDay]);
 
   // Recova's compute-daily-metrics wrote accounts.mrr_estimate nightly from the
   // active subscriptions, normalized to a month; this total is the same

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { encryptToken } from "~/lib/stripe/encryption";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -98,6 +99,16 @@ function db() {
   return harness.db as Parameters<typeof evaluateAndRecordAlerts>[1];
 }
 
+// The column holds the URL sealed (slack-webhook-secret.server.ts), so the
+// seeds are sealed once, up front, under the test key.
+const SEALED = new Map(
+  await Promise.all(
+    [WEBHOOK, "https://internal.example.com/hook"].map(
+      async (url) => [url, await encryptToken(env, url)] as const,
+    ),
+  ),
+);
+
 function seedAccount(
   opts: { email?: string | null; slack?: string | null; live?: number } = {},
 ): void {
@@ -108,7 +119,7 @@ function seedAccount(
     .run(
       ACCOUNT,
       opts.email === undefined ? "ops@acme.example.com" : opts.email,
-      opts.slack === undefined ? null : opts.slack,
+      opts.slack ? (SEALED.get(opts.slack) ?? opts.slack) : null,
       opts.live ?? 1,
     );
 }

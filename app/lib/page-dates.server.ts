@@ -1,6 +1,7 @@
 import { trackPageDates, type PageRecord } from "@drdustinedwards/site-helpers/lastmod";
 import { htmlToMarkdown } from "@drdustinedwards/site-helpers/markdown-copy";
-import { inArray, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import { inList, chunked, rowsPerInsert } from "@dustinedwards/site-runtime/d1";
 
 import { getDb, pageDateRows, type Db } from "~/db";
 import type { CronHandler } from "~/lib/cron/run";
@@ -28,20 +29,18 @@ async function savePageDates(db: Db, record: PageRecord): Promise<void> {
   const changed = Object.entries(record).filter(
     ([path, entry]) => previous[path]?.hash !== entry.hash,
   );
-  // D1 takes 100 bound variables a statement: three columns, so thirty rows at a time.
-  for (let i = 0; i < changed.length; i += 30) {
+  // D1 takes 100 bound variables a statement: three columns, so rowsPerInsert(3) rows at a time.
+  for (const part of chunked(changed, rowsPerInsert(3))) {
     await db
       .insert(pageDateRows)
-      .values(changed.slice(i, i + 30).map(([path, entry]) => ({ path, ...entry })))
+      .values(part.map(([path, entry]) => ({ path, ...entry })))
       .onConflictDoUpdate({
         target: pageDateRows.path,
         set: { hash: sqlExcluded("hash"), lastmod: sqlExcluded("lastmod") },
       });
   }
   const gone = Object.keys(previous).filter((path) => !(path in record));
-  for (let i = 0; i < gone.length; i += 90) {
-    await db.delete(pageDateRows).where(inArray(pageDateRows.path, gone.slice(i, i + 90)));
-  }
+  if (gone.length > 0) await db.delete(pageDateRows).where(inList(pageDateRows.path, gone));
 }
 
 const sqlExcluded = (column: string) => sql.raw(`excluded.${column}`);

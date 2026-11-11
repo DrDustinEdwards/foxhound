@@ -24,7 +24,7 @@
 // ol / li with href, target and rel on anchors. Nothing else here.
 
 import type { DeclineCategory } from "~/lib/constants";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
 /** Where the demo's card-update links point. An unknown token renders the

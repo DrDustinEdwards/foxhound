@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
@@ -5,6 +6,7 @@ import { Link } from "capsomer/react/link";
 import { ArrowLeft } from "lucide-react";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
 import { PageHead } from "capsomer/react/page-head";
@@ -12,6 +14,7 @@ import { Panel } from "capsomer/react/panel";
 import { Segmented } from "capsomer/react/segmented";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/copy.css";
 import "capsomer/empty.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -39,7 +42,6 @@ import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
 
 import type { Route } from "./+types/api-keys";
 import { NOINDEX } from "~/lib/seo/meta";
-import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 import { MCP_CALLS_SHOWN, outcomeWords } from "~/lib/admin/mcps";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
@@ -222,8 +224,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-function formatDate(at: Date | null): string {
-  return at ? formatDateShort(new Date(at)) : "Never";
+function dateOrNever(at: Date | null): string {
+  return at ? (formatDate(new Date(at), { style: "medium" }) ?? "") : "Never";
 }
 
 /** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):
@@ -290,8 +292,6 @@ function ScopePicker() {
 }
 
 function RevealKey({ rawKey }: { rawKey: string }) {
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
   const heading = useId();
   const keyBlock = useRef<HTMLPreElement>(null);
 
@@ -302,22 +302,6 @@ function RevealKey({ rawKey }: { rawKey: string }) {
   useEffect(() => {
     keyBlock.current?.focus();
   }, []);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  async function copyKey() {
-    try {
-      await navigator.clipboard.writeText(rawKey);
-      setCopyFailed(false);
-      setCopied(true);
-    } catch {
-      setCopyFailed(true);
-    }
-  }
 
   return (
     <Panel title="Your new API key" headingId={heading}>
@@ -334,20 +318,14 @@ function RevealKey({ rawKey }: { rawKey: string }) {
       <p className="cap-field-help">
         This key will not be shown again. Copy it now and store it somewhere safe.
       </p>
-      {copyFailed ? (
-        <Alert tone="crit">
-          {"Couldn't copy the key to your clipboard. Select and copy it manually."}
-        </Alert>
-      ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => void copyKey()}>{copied ? "Copied" : "Copy key"}</Button>
+        <CopyButton text={rawKey} variant="default">
+          Copy key
+        </CopyButton>
         <Link to="?" className="cap-btn" data-variant="quiet">
           Done
         </Link>
       </div>
-      <p role="status" className="sr-only">
-        {copied ? "Copied" : ""}
-      </p>
     </Panel>
   );
 }
@@ -490,8 +468,8 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                   {keys.map((k) => (
                     <tr key={k.id}>
                       <th scope="row">{k.label}</th>
-                      <td data-label="Created">{formatDate(k.createdAt)}</td>
-                      <td data-label="Last used">{formatDate(k.lastUsedAt)}</td>
+                      <td data-label="Created">{dateOrNever(k.createdAt)}</td>
+                      <td data-label="Last used">{dateOrNever(k.lastUsedAt)}</td>
                       <td data-label="Actions" data-num>
                         {owner ? (
                           <DemoGuardedForm method="post">
@@ -570,7 +548,9 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
               <tbody>
                 {log.calls.map((call) => (
                   <tr key={call.id}>
-                    <th scope="row">{formatTimestamp(new Date(call.createdAt))}</th>
+                    <th scope="row">
+                      {formatDate(new Date(call.createdAt), { style: "medium", time: true }) ?? ""}
+                    </th>
                     <td data-label="Tool" className="font-mono">
                       {call.tool}
                     </td>

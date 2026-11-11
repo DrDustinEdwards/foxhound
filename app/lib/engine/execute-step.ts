@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq, isNull } from "drizzle-orm";
 import { type Db, getDb, recoverySteps } from "~/db";
 import {
@@ -12,7 +13,7 @@ import { recoveryFooterNote } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { signEngagementToken } from "~/lib/engagement/token";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   applyCustomBody,
   generateDunningEmail,
@@ -537,7 +538,7 @@ export async function executeEmailStep(
   const generate = deps.generate ?? defaultGenerate;
 
   const now = new Date();
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
 
   let attempt: { ok: boolean; permanent?: boolean; error?: string };
   let resolvedCopy: EmailCopy | undefined;

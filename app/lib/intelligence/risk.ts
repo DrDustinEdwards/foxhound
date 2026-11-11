@@ -20,8 +20,8 @@
 // collection or a lower monthly amount, recorded as it happens from the
 // customer.subscription.updated webhook (subscription-change.ts).
 
+import { formatDate } from "capsomer/behavior/time";
 import { DAY_MS } from "~/lib/constants";
-import { formatDateShort } from "~/lib/date-format";
 import type { EngagementSignals, RecoverySignals } from "./signals";
 import type { SubscriptionChangeState } from "./subscription-change";
 
@@ -123,20 +123,24 @@ function subscriptionChangePart(changes: SubscriptionChangeState | null | undefi
     const at = changes.cancellationPending.at;
     deltaPoints += CANCELLATION_PENDING_POINTS;
     details.push(
-      at ? `cancellation scheduled for ${formatDateShort(at)}` : "cancellation scheduled",
+      at
+        ? `cancellation scheduled for ${formatDate(at, { style: "medium" }) ?? ""}`
+        : "cancellation scheduled",
     );
   } else if (changes?.pausePending) {
     const until = changes.pausePending.resumesAt;
     deltaPoints += PAUSE_PENDING_POINTS;
     details.push(
       until
-        ? `payment collection paused until ${formatDateShort(until)}`
+        ? `payment collection paused until ${formatDate(until, { style: "medium" }) ?? ""}`
         : "payment collection paused",
     );
   }
   if (changes?.recentDowngradeAt) {
     deltaPoints += RECENT_DOWNGRADE_POINTS;
-    details.push(`downgraded on ${formatDateShort(changes.recentDowngradeAt)}`);
+    details.push(
+      `downgraded on ${formatDate(changes.recentDowngradeAt, { style: "medium" }) ?? ""}`,
+    );
   }
   return { deltaPoints, details };
 }

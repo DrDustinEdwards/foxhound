@@ -5,7 +5,6 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useMatches,
   useRouteLoaderData,
 } from "react-router";
 
@@ -21,10 +20,11 @@ import {
   HOME_LABEL,
   recovaWords,
 } from "./components/error-view";
-import { cloudflareContext, getNonce } from "@dustinedwards/site-runtime/context";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { useNonce } from "@dustinedwards/site-runtime/nonce";
 import { PRELOADS } from "./lib/preloads";
 import { DEFAULT_THEME } from "./lib/theme";
-import type { loader as marketingLoader } from "./layouts/marketing";
+import { usePageHydrates } from "./lib/page-hydrates";
 import { resolveThemeForRequest } from "./lib/theme.server";
 
 export function meta({ error }: Route.MetaArgs) {
@@ -40,16 +40,9 @@ export const links: Route.LinksFunction = () => [...iconLinks(), ...PRELOADS.lin
 // HERE, because reading it only in a layout would leave them rendering the
 // default on a new device and then correcting, which is the exact flash this
 // loader exists to prevent. Anonymous requests still touch no DB.
-// nonce comes
-// from workers/app.ts's per-request generateNonce() (site-runtime; TASK-foxhound-csp-
-// nonce-hydration.md), threaded via cloudflareContext so <Scripts>/
-// <ScrollRestoration> below can carry the SAME value applySecurityHeaders
-// puts in the Content-Security-Policy header - a mismatch would make the
-// browser reject its own hydration scripts.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  const nonce = getNonce(context);
-  return { theme: await resolveThemeForRequest(env, request), nonce };
+  return { theme: await resolveThemeForRequest(env, request) };
 }
 
 // Paths that act on a GET, so a hovered link never prefetches them (a prefetch runs the loader),
@@ -76,26 +69,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // throwing.
   const data = useRouteLoaderData<typeof loader>("root");
   const theme = data?.theme ?? DEFAULT_THEME;
-  const nonce = data?.nonce;
+  // The render's nonce (site-runtime ./nonce, from ./react-entry), the one the policy names: never loader data, where a
+  // stored page would hand every reader the value it was rendered with.
+  const nonce = useNonce();
 
-  // HYDRATION IS OPT-IN BY ROUTE (`handle = { hydrate: true }`), as on dustinedwards.info. The public
-  // marketing pages send no React: their few widgets (the theme button and menus, the reveals, the FAQ,
-  // the calculator, the email generator) run from /site.js and its islands (app/site.ts, app/islands/).
-  // The signed-in app, the admin, the sign-in pages, /connect, the audit flow and the token pages
-  // opt in. A signed-in visitor on a marketing page also hydrates: their header carries the business
-  // switcher and Sign out, which are React's, and their pages are private and never edge-cached.
-  const matches = useMatches();
-  const signedIn =
-    useRouteLoaderData<typeof marketingLoader>("layouts/marketing")?.isAuthenticated === true;
-  const hydrates =
-    signedIn ||
-    matches.some((match) => (match.handle as { hydrate?: boolean } | undefined)?.hydrate === true);
+  const hydrates = usePageHydrates();
 
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="text-scale" content="scale" />
         {/* DEV ONLY. Since J22 style-src has no 'unsafe-inline' for elements,
             and Vite's dev client injects every stylesheet as an inline style
             element, which the policy then blocks (measured: an unstyled page

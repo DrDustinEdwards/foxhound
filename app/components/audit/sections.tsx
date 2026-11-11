@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCountUp } from "capsomer/react/count-up";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/banner.css";
+import "capsomer/count-up.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
 
@@ -25,7 +26,7 @@ import {
   type DeclineCategory,
 } from "~/lib/constants";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // The audit's render sections, shared by BOTH surfaces that show a run: the
 // live /audit/results and a saved run at /audit/results/:id. Recova shares its
@@ -360,30 +361,13 @@ export function AuditRecoverySection({
   );
 }
 
-/** Recova's RecoverableCountUp: the figure counts up from zero over 600ms
- *  with a cubic ease. The server renders the final figure, so the page reads
- *  right before scripts load, and a reader who asks for reduced motion sees
- *  it still. */
+/** Recova's RecoverableCountUp, now Capsomer's count-up: the figure counts up
+ *  from zero over 600ms. The server renders the final figure. */
 function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; currency: string }) {
-  const [progress, setProgress] = useState(1);
   // Keyed on the figures, not the array, so a parent re-render does not
   // restart the count.
   const key = totals.map((t) => `${t.currency}:${t.cents}`).join(",");
-  // A function of the figures, so it changes only when `key` does.
-  const hasFigure = anyAbove(totals);
-  useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    if (!hasFigure) return;
-    let frame = 0;
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min((now - start) / 600, 1);
-      setProgress(1 - Math.pow(1 - t, 3));
-      if (t < 1) frame = requestAnimationFrame(step);
-    };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [key, hasFigure]);
+  const progress = useCountUp(key, anyAbove(totals));
   const shown = totals.map((t) => ({
     currency: t.currency,
     cents: Math.round(t.cents * progress),

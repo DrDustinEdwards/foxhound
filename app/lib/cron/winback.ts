@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -276,7 +277,7 @@ export async function resolveWinbackCopy(
   // step's copy, reuse it rather than paying for another Claude call".
   if (step.cachedSubject && step.cachedBodyHtml) {
     const carries = await storedCopyCarriesResubscribeLink(env, step.cachedBodyHtml, {
-      baseUrl: env.BETTER_AUTH_URL ?? "",
+      baseUrl: appOrigin(env),
       mintedUrl: resubscribeUrl,
       sequenceId: step.sequenceId,
       stepNumber: step.stepNumber,
@@ -350,7 +351,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
         winBackStepNumber: step.stepNumber,
         accountId: step.accountId,
       });
-      const resubscribeUrl = `${env.BETTER_AUTH_URL ?? ""}/p/${token}`;
+      const resubscribeUrl = `${appOrigin(env)}/p/${token}`;
       const copy = await resolveWinbackCopy(env, db, step, resubscribeUrl);
       const outcome = await processEmailJob(
         env,

@@ -6,7 +6,7 @@ import { Status } from "capsomer/react/status";
 import type { ReactNode } from "react";
 import "capsomer/table.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { MCP_CALLS_SHOWN, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
 import type { AdminApiKeyRow, AdminMcpCallRow, loadMcpOverview } from "~/lib/admin/mcps.server";
 import { plural } from "~/lib/admin/overview";
@@ -233,10 +233,10 @@ function KeyRow({ apiKey: k }: { apiKey: AdminApiKeyRow }) {
         {k.revokedAt ? <Status tone="nodata">Revoked</Status> : <Status tone="ok">Active</Status>}
       </td>
       <td data-label="Created">
-        <AdminTime at={k.createdAt} />
+        <Time at={k.createdAt} empty="never" tip />
       </td>
       <td data-label="Last used">
-        <AdminTime at={k.lastUsedAt} />
+        <Time at={k.lastUsedAt} empty="never" tip />
       </td>
     </tr>
   );
@@ -260,7 +260,7 @@ function CallRow({ call: c }: { call: AdminMcpCallRow }) {
         <Status tone={c.outcome === "ok" ? "ok" : "crit"}>{outcomeWords(c.outcome)}</Status>
       </td>
       <td data-label="When">
-        <AdminTime at={c.createdAt} />
+        <Time at={c.createdAt} empty="never" tip />
       </td>
       <td
         data-label="Error"

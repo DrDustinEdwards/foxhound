@@ -11,7 +11,7 @@ import { Panel } from "capsomer/react/panel";
 import { Spinner } from "capsomer/react/skeleton";
 import { Glyph, Status } from "capsomer/react/status";
 import { TabLink, TabsNav } from "capsomer/react/tabs";
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import {
   CONNECTION_WORDS,
   merchantCancelHref,
@@ -379,12 +379,12 @@ function MerchantRow({
       </td>
       <td data-label="Last webhook">
         <span className={ABOVE_ROW_LINK}>
-          <AdminTime at={m.lastWebhookAt} empty="None received" />
+          <Time at={m.lastWebhookAt} empty="None received" tip />
         </span>
       </td>
       <td data-drop="1" data-label="Joined">
         <span className={ABOVE_ROW_LINK}>
-          <AdminTime at={m.createdAt} empty="Not recorded" />
+          <Time at={m.createdAt} empty="Not recorded" tip />
         </span>
       </td>
       {/* In the card layout (data-reflow) the buttons take the card's full width. */}

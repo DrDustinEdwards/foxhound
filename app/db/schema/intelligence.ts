@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, bool, json } from "./columns";
@@ -210,7 +211,16 @@ export const mrrSnapshots = sqliteTable(
     currency: text("currency").notNull(),
     createdAt: ts("created_at").notNull(),
   },
-  (t) => [index("mrr_snapshots_account_idx").on(t.accountId)],
+  (t) => [
+    index("mrr_snapshots_account_idx").on(t.accountId),
+    // One snapshot per account per UTC day (snapshot_date is ms): a second
+    // sync the same day replaces the day's row (sync.server.ts) instead of
+    // charting the day twice.
+    uniqueIndex("mrr_snapshots_account_day_uq").on(
+      t.accountId,
+      sql`(${t.snapshotDate} / 86400000)`,
+    ),
+  ],
 );
 
 export const intelligenceReports = sqliteTable(

@@ -1,3 +1,6 @@
+import { appOrigin } from "~/lib/app-origin";
+// Recova's describeAge (check-cron-health/route.ts), its units and its floor as written, "1 hours ago" included.
+import { describeAge } from "@dustinedwards/site-runtime/cron-alert";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
@@ -117,16 +120,6 @@ const CADENCE_LABEL: Record<string, string> = {
   [CRON_SCHEDULE_EXPIRING_CARDS]: "daily 09:00 UTC",
   [CRON_SCHEDULE_BLOG]: "every minute",
 };
-
-/** Recova's describeAge (check-cron-health/route.ts), its units and its floor
- *  as written, "1 hours ago" included. Pure. */
-export function describeAge(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds} seconds ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  return `${Math.floor(seconds / 86400)} days ago`;
-}
 
 export interface JobSchedule {
   name: string;
@@ -367,7 +360,7 @@ export async function sendAlert(
 
   try {
     if ("alert" in message) {
-      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, env.BETTER_AUTH_URL ?? "", now);
+      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, appOrigin(env), now);
       const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
       if (outcome.status === "sent") return { sent: true };
       return { sent: false, reason: "send_failed", error: outcome.error ?? outcome.reason };

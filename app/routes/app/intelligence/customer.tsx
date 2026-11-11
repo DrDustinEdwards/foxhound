@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
@@ -16,7 +17,6 @@ import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { formatDateShort } from "~/lib/date-format";
 import { planTierPill, scheduledChangeLabel } from "~/lib/intelligence/customer-directory";
 import {
   disputeSignalFields,
@@ -29,7 +29,7 @@ import {
 } from "~/lib/intelligence/customer-detail";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { getCustomerActivity, getCustomerHealthDetail } from "~/lib/intelligence/views.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
 import { RecommendationBanner } from "~/components/recommendation-banner";
 
@@ -171,7 +171,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
               aria-hidden="true"
               size={13}
               strokeWidth={1.5}
-              className="transition-transform duration-150 group-hover:translate-x-0.5"
+              className="motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
             />
           </Link>
         ) : null}
@@ -217,7 +217,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             <p className="m-0 text-body leading-relaxed text-text">{customer.aiAssessment}</p>
             {customer.aiAssessmentGeneratedAt ? (
               <p className="m-0 mt-3 font-mono text-micro text-text-subtle">
-                Updated {formatDateShort(customer.aiAssessmentGeneratedAt)}
+                Updated {formatDate(customer.aiAssessmentGeneratedAt, { style: "medium" }) ?? ""}
               </p>
             ) : null}
           </Panel>
@@ -291,11 +291,13 @@ function HeaderCard({
       // The latest event Foxhound has for this customer (getCustomerActivity),
       // never customer_context.last_seen_at, which the nightly sync sets to its
       // own run time. With no event, Foxhound has not seen them, and says so.
-      value: lastSeenAt ? formatDateShort(lastSeenAt) : "Not tracked",
+      value: lastSeenAt ? (formatDate(lastSeenAt, { style: "medium" }) ?? "") : "Not tracked",
     },
     {
       label: "Customer since",
-      value: customer.customerSince ? formatDateShort(customer.customerSince) : "-",
+      value: customer.customerSince
+        ? (formatDate(customer.customerSince, { style: "medium" }) ?? "")
+        : "-",
     },
   ];
   return (
@@ -457,7 +459,9 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
               <tbody>
                 {customer.predictions.map((p, i) => (
                   <tr key={i}>
-                    <td className="text-text-tertiary">{formatDateShort(p.predictedAt)}</td>
+                    <td className="text-text-tertiary">
+                      {formatDate(p.predictedAt, { style: "medium" }) ?? ""}
+                    </td>
                     <td data-label="Score" className="font-mono text-text">
                       {p.score}
                     </td>

@@ -1,6 +1,6 @@
 // Pure display formatters + constants for the admin surface, used by BOTH the
 // loader and the rendered component on /admin and /admin/operations. Not a
-// `.server.ts` module (mirrors app/lib/money-format.ts): anything a route
+// `.server.ts` module (mirrors app/lib/money/totals.ts): anything a route
 // component reads directly (not just its loader) must live outside a
 // server-only file, or the RR8/Vite "server-only module referenced by
 // client" build check fails (confirmed by CI on this exact mistake with

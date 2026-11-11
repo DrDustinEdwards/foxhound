@@ -19,6 +19,7 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import { byAccountActive } from "~/db/scope";
 import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { billableRecoveryRowConditions, exemptionForgaveRecovery } from "~/db/billable";
@@ -193,7 +194,7 @@ export async function countFailuresByCustomer(
       and(
         byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
         eq(failedPayments.isRenewalNoise, false),
-        inArray(failedPayments.stripeCustomerId, stripeCustomerIds),
+        inList(failedPayments.stripeCustomerId, stripeCustomerIds),
       ),
     );
   const counts: Record<string, number> = {};

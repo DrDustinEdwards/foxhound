@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, notExists, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, notExists, sql } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -55,10 +56,32 @@ export type DisputeRow = typeof disputes.$inferSelect;
 export type DisputeEvidenceRow = typeof disputeEvidence.$inferSelect;
 type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
 
-/** Every dispute for the account, newest first. */
+/** Every dispute for the account, newest first. The disputes page needs them
+ *  all for its stats; an agent reads one page at a time (listDisputesPage). */
 export async function listDisputes(db: Db, accountId: string): Promise<DisputeRow[]> {
   const rows = await db.select().from(disputes).where(eq(disputes.accountId, accountId));
   return sortDisputesNewestFirst(rows);
+}
+
+/** One page of the account's disputes, newest first (id breaks a tie), read
+ *  bounded in SQL, with the total for the page count. */
+export async function listDisputesPage(
+  db: Db,
+  accountId: string,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: DisputeRow[]; total: number }> {
+  const [rows, [counted]] = await Promise.all([
+    db
+      .select()
+      .from(disputes)
+      .where(eq(disputes.accountId, accountId))
+      .orderBy(desc(disputes.createdAt), desc(disputes.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db.select({ n: count() }).from(disputes).where(eq(disputes.accountId, accountId)),
+  ]);
+  return { rows, total: counted?.n ?? 0 };
 }
 
 export interface DisputeDetail {
@@ -335,10 +358,6 @@ export async function approveAndSubmitDispute(
   });
 }
 
-/** D1 caps bound parameters per statement, so an id list is
- *  read in chunks well under the cap (health scores and evidence alike). */
-const HEALTH_LOOKUP_CHUNK = 90;
-
 /**
  * Intelligence health scores for the given Stripe customers, keyed by Stripe
  * customer id (J66: the disputes list shows one beside each customer, as
@@ -352,23 +371,18 @@ export async function getCustomerHealthScores(
 ): Promise<Record<string, number>> {
   const ids = [...new Set(stripeCustomerIds)];
   const scores: Record<string, number> = {};
-  for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
-    const chunk = ids.slice(i, i + HEALTH_LOOKUP_CHUNK);
-    const rows = await db
-      .select({
-        stripeCustomerId: customerContext.stripeCustomerId,
-        healthScore: customerContext.healthScore,
-      })
-      .from(customerContext)
-      .where(
-        and(
-          eq(customerContext.accountId, accountId),
-          inArray(customerContext.stripeCustomerId, chunk),
-        ),
-      );
-    for (const row of rows) {
-      if (row.healthScore !== null) scores[row.stripeCustomerId] = row.healthScore;
-    }
+  if (ids.length === 0) return scores;
+  const rows = await db
+    .select({
+      stripeCustomerId: customerContext.stripeCustomerId,
+      healthScore: customerContext.healthScore,
+    })
+    .from(customerContext)
+    .where(
+      and(eq(customerContext.accountId, accountId), inList(customerContext.stripeCustomerId, ids)),
+    );
+  for (const row of rows) {
+    if (row.healthScore !== null) scores[row.stripeCustomerId] = row.healthScore;
   }
   return scores;
 }
@@ -377,7 +391,7 @@ export async function getCustomerHealthScores(
  * Which of the given disputes hold at least one non-blank evidence field in
  * Foxhound's draft. The list says Recova's "Evidence ready" only of these
  * (disputeListStatus, labels.ts). Account-scoped on the evidence rows
- * themselves, and chunked under the D1 parameter cap like the health lookup.
+ * themselves; the id list is one bound parameter, like the health lookup.
  */
 export async function getDisputesWithEvidence(
   db: Db,
@@ -386,24 +400,20 @@ export async function getDisputesWithEvidence(
 ): Promise<Set<string>> {
   const ids = [...new Set(disputeIds)];
   const found = new Set<string>();
-  for (let i = 0; i < ids.length; i += HEALTH_LOOKUP_CHUNK) {
-    const chunk = ids.slice(i, i + HEALTH_LOOKUP_CHUNK);
-    const rows = await db
-      .select({
-        disputeId: disputeEvidence.disputeId,
-        fieldName: disputeEvidence.fieldName,
-        fieldValue: disputeEvidence.fieldValue,
-      })
-      .from(disputeEvidence)
-      .where(
-        and(eq(disputeEvidence.accountId, accountId), inArray(disputeEvidence.disputeId, chunk)),
-      );
-    for (const row of rows) {
-      // An uploaded file is not drafted evidence: Recova's "Evidence ready"
-      // read staged_at, which a file never set.
-      if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "")
-        found.add(row.disputeId);
-    }
+  if (ids.length === 0) return found;
+  const rows = await db
+    .select({
+      disputeId: disputeEvidence.disputeId,
+      fieldName: disputeEvidence.fieldName,
+      fieldValue: disputeEvidence.fieldValue,
+    })
+    .from(disputeEvidence)
+    .where(and(eq(disputeEvidence.accountId, accountId), inList(disputeEvidence.disputeId, ids)));
+  for (const row of rows) {
+    // An uploaded file is not drafted evidence: Recova's "Evidence ready"
+    // read staged_at, which a file never set.
+    if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "")
+      found.add(row.disputeId);
   }
   return found;
 }

@@ -1,3 +1,4 @@
+import { relative, toMs } from "capsomer/behavior/time";
 import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import {
@@ -8,12 +9,11 @@ import {
   RECOVERY_MATURITY_MS,
 } from "~/lib/constants";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
-import { formatRelativeTime } from "~/lib/dashboard/recovery-window";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
@@ -155,7 +155,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       status: f.status,
       statusLabel: FAILED_PAYMENT_STATUS_LABELS[f.status] ?? f.status,
       failureCount: failuresByCustomer.get(f.stripeCustomerId) ?? 1,
-      detectedAgo: formatRelativeTime(f.detectedAt, nowMs) ?? "",
+      detectedAgo: relative(toMs(f.detectedAt), nowMs, "UTC", { granularity: "day" }),
       detectedDate: DATE_FORMAT.format(f.detectedAt),
     };
   });

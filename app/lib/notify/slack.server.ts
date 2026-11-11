@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { accounts, getDb } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
+import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 
 // THE SLACK SENDER. Ported from legacy's `sendSlackNotification` in
 // lib/recovery-execution.ts (blob 3a8f8768, 27,136 bytes, lines 121 to 146).
@@ -95,7 +96,7 @@ export async function resolveSlackTarget(
     // Legacy's truthy gate: NULL and false are one case.
     if (!row.enabled) return { status: "disabled" };
     if (!row.webhookUrl) return { status: "no_webhook" };
-    return { status: "ready", webhookUrl: row.webhookUrl };
+    return { status: "ready", webhookUrl: (await openSlackWebhook(env, row.webhookUrl))! };
   } catch {
     return { status: "failed", reason: "gate_read" };
   }

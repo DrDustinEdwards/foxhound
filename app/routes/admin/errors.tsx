@@ -9,7 +9,7 @@ import { Status, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/table.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import {
   auditActor,
@@ -164,7 +164,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                 {failed.map((e) => (
                   <tr key={e.id}>
                     <td>
-                      <AdminTime at={e.createdAt} />
+                      <Time at={e.createdAt} empty="never" tip />
                     </td>
                     <td data-label="Action">{e.action}</td>
                     <td data-label="Actor" className="break-all">
@@ -279,10 +279,10 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
                   {figure(issue.userCount)}
                 </td>
                 <td data-label="Last seen">
-                  <AdminTime at={issue.lastSeen} empty="Not known" />
+                  <Time at={issue.lastSeen} empty="Not known" tip />
                 </td>
                 <td data-label="First seen">
-                  <AdminTime at={issue.firstSeen} empty="Not known" />
+                  <Time at={issue.firstSeen} empty="Not known" tip />
                 </td>
               </tr>
             );

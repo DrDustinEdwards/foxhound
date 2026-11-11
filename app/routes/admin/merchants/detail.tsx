@@ -1,10 +1,12 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
 import "capsomer/button.css";
 import { useState } from "react";
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { data, Form, useNavigation } from "react-router";
 
 import { ViewAsForm } from "~/components/admin-merchants-parts";
-import { Badge } from "~/components/badge";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
@@ -18,8 +20,8 @@ import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatMoney } from "~/lib/money-format";
-import { parseDollarsToCents } from "~/lib/settings/dollars";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
+import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
@@ -120,7 +122,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       .trim()
       .toLowerCase();
     const description = String(form.get("description") ?? "").trim();
-    const magnitudeCents = parseDollarsToCents(String(form.get("amount") ?? ""));
+    const magnitudeCents = parseMoneyInput(String(form.get("amount") ?? ""), "usd");
     const idempotencyToken = String(form.get("idempotencyToken") ?? "");
 
     if (
@@ -325,26 +327,26 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
     <div>
       <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
-          {account.cancelledAt ? <Badge tone="failure">Canceled</Badge> : null}
-          {account.billingExempt ? <Badge tone="neutral">Billing exempt</Badge> : null}
+          {account.cancelledAt ? <Pill {...BADGE_PILL.failure}>Canceled</Pill> : null}
+          {account.billingExempt ? <Pill {...BADGE_PILL.neutral}>Billing exempt</Pill> : null}
           {account.processingPaused ? (
-            <Badge tone="failure">
+            <Pill {...BADGE_PILL.failure}>
               {account.pauseReason === PAUSE_REASON_BRAKE ? "Paused by brake" : "Processing paused"}
-            </Badge>
+            </Pill>
           ) : null}
           {!account.cancelledAt && !account.billingExempt && !account.processingPaused ? (
-            <Badge tone="success">Normal</Badge>
+            <Pill {...BADGE_PILL.success}>Normal</Pill>
           ) : null}
         </div>
         <p className="mt-2 text-label text-text-tertiary">
           Account id <span className="font-mono text-text">{account.id}</span>
         </p>
         <p className="text-label text-text-tertiary">
-          Created <AdminTime at={account.createdAt} empty="unknown" />
+          Created <Time at={account.createdAt} empty="unknown" tip />
         </p>
         {account.cancelledAt ? (
           <p className="text-label text-text-tertiary">
-            Canceled <AdminTime at={account.cancelledAt} />
+            Canceled <Time at={account.cancelledAt} empty="never" tip />
           </p>
         ) : null}
         <p className="text-label text-text-tertiary">
@@ -437,10 +439,12 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
                   <p className="font-mono text-micro text-text-subtle">{c.stripeUserId}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {c.isPrimary && !c.disconnectedAt ? <Badge tone="neutral">Primary</Badge> : null}
-                  <Badge tone={c.disconnectedAt ? "failure" : "success"}>
+                  {c.isPrimary && !c.disconnectedAt ? (
+                    <Pill {...BADGE_PILL.neutral}>Primary</Pill>
+                  ) : null}
+                  <Pill {...BADGE_PILL[c.disconnectedAt ? "failure" : "success"]}>
                     {c.disconnectedAt ? "Disconnected" : "Active"}
-                  </Badge>
+                  </Pill>
                 </div>
               </div>
             ))}
@@ -470,7 +474,9 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
                     <span className="ml-1.5 text-text-subtle">(admin-granted)</span>
                   ) : null}
                 </span>
-                <Badge tone={s.status === "active" ? "success" : "neutral"}>{s.status}</Badge>
+                <Pill {...BADGE_PILL[s.status === "active" ? "success" : "neutral"]}>
+                  {s.status}
+                </Pill>
               </li>
             ))}
           </ul>
@@ -525,9 +531,9 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
                       {formatMoney(inv.totalCents, inv.currency)}
                     </td>
                     <td className="py-2">
-                      <Badge tone={billingInvoiceStatusTone(inv.status)}>
+                      <Pill {...BADGE_PILL[billingInvoiceStatusTone(inv.status)]}>
                         {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
-                      </Badge>
+                      </Pill>
                     </td>
                   </tr>
                 ))}

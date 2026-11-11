@@ -2,6 +2,7 @@
 // selector, onboarding checklist, stat cards, ROI, win-back, queue,
 // deliverability and the payments table. Presentational.
 
+import { relative, toMs, until } from "capsomer/behavior/time";
 import type { ComponentType, ReactNode } from "react";
 import {
   Activity,
@@ -22,7 +23,6 @@ import { TabLink, TabsNav } from "capsomer/react/tabs";
 import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import {
-  formatRelativeTime,
   RECOVERY_RANGES,
   type RecoveryRange,
   type WebhookHealthTone,
@@ -39,8 +39,7 @@ import {
   type RoiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
 import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
-import { formatRelativeFuture, formatTimestamp } from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import {
   DECLINE_CATEGORY_LABELS,
@@ -163,11 +162,11 @@ export function OnboardingChecklist({
 
 // ---- Stat cards ----
 
-type Icon = ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
-
 /** Recova's PrimaryCard and SecondaryCard: an icon, the label, the figure and
  *  an optional line under it, here as a small Capsomer panel (Capsomer's stat
  *  tile is always a link or a button, and Recova's cards lead nowhere). */
+type Icon = ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
+
 function StatCard({
   icon: IconComponent,
   label,
@@ -399,7 +398,7 @@ export function RecoveryQueue({
             detail={`${formatStepType(s.stepType)} · ${formatMoney(s.amountCents, s.currency)}`}
             meta={
               <span className="font-mono text-micro text-brand-text">
-                {formatRelativeFuture(s.scheduledAt, nowMs) ?? formatTimestamp(s.scheduledAt)}
+                {until(toMs(s.scheduledAt), nowMs)}
               </span>
             }
           />
@@ -616,7 +615,9 @@ export function PaymentsTable({
                           data-label="Detected"
                           className="whitespace-nowrap text-micro text-text-subtle"
                         >
-                          <span className="block">{formatRelativeTime(p.detectedAt, nowMs)}</span>
+                          <span className="block">
+                            {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
+                          </span>
                           <span className="block">{formatLongDate(p.detectedAt)}</span>
                         </td>
                         <td data-label="Actions">

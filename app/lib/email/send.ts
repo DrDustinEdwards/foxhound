@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
 
 import { sendEmail as send } from "@dustinedwards/site-runtime/email";
@@ -144,7 +145,7 @@ export async function sendJobEmail(
   if (!env.EMAIL) {
     throw new Error("EMAIL binding is not configured");
   }
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
   const sent = await send(env.EMAIL, buildEmailMessage(job, baseUrl), { secrets: job.redact });
   if (!sent.sent) throw new Error(sent.error);
   return { providerMessageId: sent.messageId };

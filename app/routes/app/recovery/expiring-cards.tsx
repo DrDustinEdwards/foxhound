@@ -1,4 +1,7 @@
-import { Badge } from "~/components/badge";
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
+import { formatDate } from "capsomer/behavior/time";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
@@ -8,7 +11,6 @@ import { listExpiringCardAlerts } from "~/lib/recovery/queries.server";
 import type { Route } from "./+types/expiring-cards";
 import { NOINDEX } from "~/lib/seo/meta";
 import "capsomer/table.css";
-import { formatDateShort } from "~/lib/date-format";
 
 export function meta() {
   return [{ title: "Expiring cards - Foxhound" }, NOINDEX];
@@ -85,16 +87,22 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                     </td>
                     <td data-label="Status">
                       {noPaymentMethod ? (
-                        <Badge tone="neutral">{expired ? "Trial ended" : "Trial ending"}</Badge>
+                        <Pill {...BADGE_PILL.neutral}>
+                          {expired ? "Trial ended" : "Trial ending"}
+                        </Pill>
                       ) : (
-                        <Badge tone={expired ? "failure" : expiringSoon ? "neutral" : "neutral"}>
+                        <Pill
+                          {...BADGE_PILL[
+                            expired ? "failure" : expiringSoon ? "neutral" : "neutral"
+                          ]}
+                        >
                           {expired ? "Expired" : expiringSoon ? "Expiring soon" : "Valid"}
-                        </Badge>
+                        </Pill>
                       )}
                     </td>
                     <td data-label="Alert" className="text-text-tertiary">
                       {alert.alertSentAt
-                        ? `Sent ${formatDateShort(alert.alertSentAt)}`
+                        ? `Sent ${formatDate(alert.alertSentAt, { style: "medium" }) ?? ""}`
                         : "Not sent yet"}
                     </td>
                   </tr>

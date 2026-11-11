@@ -1,4 +1,4 @@
-import type { BadgeTone } from "~/components/badge";
+import type { BadgeTone } from "~/lib/recovery/labels";
 import type { DeclineCategory } from "~/lib/constants";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 

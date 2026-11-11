@@ -1,6 +1,7 @@
 import { Pill } from "capsomer/react/status";
 
-import { PreviewStatCard } from "~/components/stat-card";
+import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
+import "capsomer/stat-tile.css";
 import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 
@@ -61,34 +62,24 @@ function TriagePill({ row }: { row: PreviewDisputeRow }) {
   );
 }
 
-function Figure({ value }: { value: string | number }) {
-  return <p className="m-0 font-mono text-title font-bold tabular-nums text-text">{value}</p>;
-}
-
 /** The dashboard's five cards. `columns` is Recova's grid: five across on the
  *  dashboard, three across in the numbers block. */
 function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
   const { stats } = preview;
-  const grid = columns === 5 ? "md:grid-cols-5" : "sm:grid-cols-3";
+  const grid =
+    columns === 5
+      ? "md:[--tiles-columns:repeat(5,minmax(0,1fr))]"
+      : "sm:[--tiles-columns:repeat(3,minmax(0,1fr))]";
   return (
-    <ul className={`m-0 grid list-none grid-cols-2 gap-3 p-0 ${grid}`} aria-label="Dispute figures">
-      <PreviewStatCard label="Open disputes">
-        <Figure value={stats.openCount} />
-      </PreviewStatCard>
-      <PreviewStatCard label="At stake">
-        <Figure value={stats.atStake} />
-      </PreviewStatCard>
-      <PreviewStatCard label="Submitted by Foxhound">
-        <Figure value={stats.submittedByFoxhound} />
-      </PreviewStatCard>
-      <PreviewStatCard label="Fees owed">
-        <Figure value={stats.feesOwed} />
-      </PreviewStatCard>
-      <PreviewStatCard label="Win rate">
-        <Figure value={stats.winRate} />
-        <p className="m-0 mt-1 text-label text-text-tertiary">{stats.winRateSubtext}</p>
-      </PreviewStatCard>
-    </ul>
+    <div className={`fh-tiles-preview [--tiles-columns:repeat(2,minmax(0,1fr))] ${grid}`}>
+      <StatTiles layout="grid" label="Dispute figures">
+        <StaticStatTile label="Open disputes" figure={stats.openCount} />
+        <StaticStatTile label="At stake" figure={stats.atStake} />
+        <StaticStatTile label="Submitted by Foxhound" figure={stats.submittedByFoxhound} />
+        <StaticStatTile label="Fees owed" figure={stats.feesOwed} />
+        <StaticStatTile label="Win rate" figure={stats.winRate} detail={stats.winRateSubtext} />
+      </StatTiles>
+    </div>
   );
 }
 
