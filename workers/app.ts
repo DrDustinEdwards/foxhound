@@ -10,7 +10,7 @@ import {
   settleCacheHeaders,
   withPurgePages,
 } from "@dustinedwards/site-runtime/edge-cache";
-import { withRequestLog } from "@dustinedwards/site-runtime/log";
+import { routeNamer, withRequestLog } from "@dustinedwards/site-runtime/log";
 import { maintenanceOn, maintenanceResponse } from "@dustinedwards/site-runtime/maintenance";
 import { preloads, rootStylesheets, withPreloadHeader } from "@dustinedwards/site-runtime/preload";
 import {
@@ -64,6 +64,21 @@ export { AdminApi } from "./admin-api";
 
 const serverBuild = () => import("virtual:react-router/server-build") as Promise<ServerBuild>;
 const requestHandler = createRequestHandler(serverBuild, import.meta.env.MODE);
+
+// The route pattern each `request` log line names (`/blog/:slug`), from the React Router build's route table, made once
+// per isolate (site-runtime ./log's routeNamer). Requests the Worker answers itself (/api, /health, /mcp, /media) carry
+// the path alone. The build loads beside the request, so the first few lines in an isolate may go without a route.
+let nameRoute: ((request: Request) => string | undefined) | undefined;
+function routeName(request: Request): string | undefined {
+  if (!nameRoute)
+    void serverBuild().then(
+      (build) => (nameRoute ??= routeNamer(build.routes)),
+      () => undefined,
+    );
+  return /^\/(api|health|mcp|media)(\/|$)/.test(new URL(request.url).pathname)
+    ? undefined
+    : nameRoute?.(request);
+}
 
 // The daily page-dates job reads each code-written sitemap page as the Renderer would render it (app/lib/page-dates.server.ts).
 setPageRenderer(async (path, env) => {
@@ -297,6 +312,7 @@ export default {
   // withRequestLog types the request as a plain Request; the runtime hands the incoming one through unchanged.
   fetch: withRequestLog(withMarkdownCopies, {
     sha: (env) => (env as { DEPLOY_SHA?: string }).DEPLOY_SHA,
+    route: routeName,
   }),
 } satisfies ExportedHandler<Env>;
 
