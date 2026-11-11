@@ -16,7 +16,13 @@ export default function start(
     const out = el.querySelector(`[data-calc="${name}"]`);
     if (out) out.textContent = text;
   };
+  // Each slider's readout is RangeField's, at the end of its label's line (Capsomer's HTML contract).
+  const readout = (input: HTMLInputElement, text: string) => {
+    const out = input.closest(".cap-field")?.querySelector(".cap-range-field-value");
+    if (out) out.textContent = text;
+  };
   const sync = (input: HTMLInputElement, text: string) => {
+    readout(input, text);
     input.setAttribute("aria-valuenow", input.value);
     input.setAttribute("aria-valuetext", text);
     input.style.setProperty(
@@ -31,9 +37,6 @@ export default function start(
       recoveryShare: Number(recovery.value),
     };
     const f = calculatorFigures({ ...values, ...props });
-    set("mrr", fmt(values.mrr));
-    set("failureShare", `${values.failureShare}%`);
-    set("recoveryShare", `${values.recoveryShare}%`);
     sync(mrr, fmt(values.mrr));
     sync(failure, `${values.failureShare}%`);
     sync(recovery, `${values.recoveryShare}%`);

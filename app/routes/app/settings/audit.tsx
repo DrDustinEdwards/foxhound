@@ -2,7 +2,6 @@ import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
 import { Segmented } from "capsomer/react/segmented";
 import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
@@ -14,8 +13,11 @@ import "capsomer/switch.css";
 // /settings/alerts and /settings/api-keys load them.
 import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
+import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import "capsomer/settings-row.css";
+import { routerLink } from "~/lib/router-link";
 import { accounts, getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -112,6 +114,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function AuditSettings({ loaderData, actionData }: Route.ComponentProps) {
+  const demo = useDemoGuard();
   const [lookbackDays, setLookbackDays] = useState<string>(String(loaderData.lookbackDays));
   const [autoRun, setAutoRun] = useState<boolean>(loaderData.autoRun);
   const busy = useNavigation().state !== "idle";
@@ -121,14 +124,12 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const failed = actionData?.ok === false;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Recova's PageHeader sits mb-8 above the first card. */}
-      <div className="mb-8">
-        <PageHead title="Audit" lead="Lookback period and monthly digest options." />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsLayout
+      title="Audit"
+      lead="Lookback period and monthly digest options."
+      renderLink={routerLink}
+    >
+      <ReadOnlyForm {...demo} method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
         <div className="mb-4">
@@ -203,7 +204,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
             Save changes
           </Button>
         </div>
-      </DemoGuardedForm>
-    </>
+      </ReadOnlyForm>
+    </SettingsLayout>
   );
 }

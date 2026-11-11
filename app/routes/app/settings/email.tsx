@@ -1,7 +1,7 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
+import { TextField } from "capsomer/react/field";
 import { Status } from "capsomer/react/status";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -14,9 +14,11 @@ import "capsomer/switch.css";
 // page whole under any layout, as /settings/notifications does.
 import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { ToggleRow } from "~/components/settings-toggle-row";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
+import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import "capsomer/settings-row.css";
+import { routerLink } from "~/lib/router-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -85,7 +87,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // `form` attribute. Recova's is a type="button" inside the save form that
 // fetches its own route; a submit button owned by the save form would be the
 // one an Enter key in the sender name presses, and would send mail. Owned by
-// its own DemoGuardedForm it keeps the demo refusal and works without script.
+// its own ReadOnlyForm it keeps the demo refusal and works without script.
 
 // THE RECOVERY EMAILS CARD was /settings/features (S34, J38): Recova's two
 // switches, win-back sequences and expiring card alerts. Dustin had the page
@@ -245,62 +247,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-/** One of Recova's text fields: label, input, then help under it, as
- *  EmailSection draws them, from Capsomer's field parts. */
-function TextField({
-  name,
-  type,
-  label,
-  help,
-  defaultValue,
-  placeholder,
-  maxLength,
-  error,
-}: {
-  name: string;
-  type: "email" | "text";
-  label: string;
-  help: string;
-  defaultValue: string;
-  placeholder: string;
-  maxLength: number;
-  error?: string;
-}) {
-  const base = useId();
-  const id = `${base}-control`;
-  const helpId = `${base}-help`;
-  const errorId = `${base}-error`;
-  return (
-    <div className="cap-field" data-invalid={error ? "true" : undefined}>
-      <label className="cap-field-label" htmlFor={id}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        name={name}
-        className="cap-input"
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        aria-describedby={error ? `${errorId} ${helpId}` : helpId}
-        aria-invalid={error ? true : undefined}
-      />
-      <p className="cap-field-help" id={helpId}>
-        {help}
-      </p>
-      <p
-        className="cap-field-error"
-        id={errorId}
-        role={error ? "alert" : undefined}
-        hidden={!error}
-      >
-        {error ?? null}
-      </p>
-    </div>
-  );
-}
-
 /** The test email's last outcome, held for legacy's four seconds and then
  *  dropped, so the button goes back to "Send test email". */
 function useShownTestResult(result: ActionResult | undefined): ActionResult | undefined {
@@ -321,6 +267,7 @@ function testOutcome(result: ActionResult | undefined): string | null {
 }
 
 export default function EmailSettings({ loaderData, actionData }: Route.ComponentProps) {
+  const demo = useDemoGuard();
   const { connectionId, senderName, replyToEmail } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
@@ -339,24 +286,21 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Email"
-          lead="Configure how recovery emails appear to your customers, and which ones are sent."
-        />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsLayout
+      title="Email"
+      lead="Configure how recovery emails appear to your customers, and which ones are sent."
+      renderLink={routerLink}
+    >
+      <ReadOnlyForm {...demo} method="post">
         <input type="hidden" name="_action" value="sender" />
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
+              {/* Recova puts help under the control. */}
               <TextField
+                helpPlacement="after"
+                announce
                 name="senderName"
                 type="text"
                 label="Sender name"
@@ -369,7 +313,10 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             </div>
 
             <div className="mb-6">
+              {/* Recova puts help under the control. */}
               <TextField
+                helpPlacement="after"
+                announce
                 name="replyToEmail"
                 type="email"
                 label="Reply-to email"
@@ -409,22 +356,21 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             Save changes
           </Button>
         </div>
-      </DemoGuardedForm>
+      </ReadOnlyForm>
 
       {/* The recovery emails card, once /settings/features. */}
-      <DemoGuardedForm method="post" className="mt-10">
+      <ReadOnlyForm {...demo} method="post" className="mt-10">
         <input type="hidden" name="_action" value="features" />
         <h2 className="m-0 mb-3 text-heading font-semibold text-text">Recovery emails</h2>
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <ToggleRow
-              first
+            <SwitchRow
               name="winbackNotificationsEnabled"
               label="Win-back sequences"
               help="Send re-engagement emails to customers who cancel their subscription"
               defaultChecked={loaderData.winbackNotificationsEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="expiringCardNotificationsEnabled"
               label="Expiring card alerts"
               help="Email customers before their card expires to prevent future failures"
@@ -443,12 +389,12 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             Save changes
           </Button>
         </div>
-      </DemoGuardedForm>
+      </ReadOnlyForm>
 
       {/* The test email's own form: nothing typed, only the intent. */}
-      <DemoGuardedForm method="post" id={TEST_FORM_ID}>
+      <ReadOnlyForm {...demo} method="post" id={TEST_FORM_ID}>
         <input type="hidden" name="_action" value="test-email" />
-      </DemoGuardedForm>
-    </>
+      </ReadOnlyForm>
+    </SettingsLayout>
   );
 }

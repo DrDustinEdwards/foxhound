@@ -15,6 +15,7 @@ import {
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
+import { isSlug } from "@drdustinedwards/site-helpers/slug";
 import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { desc, eq } from "drizzle-orm";
 
@@ -83,8 +84,6 @@ const CARREL_SITE = {
 
 const KIND = "post";
 const DEFAULT_AUTHOR = "Foxhound";
-/** A rename's new id is the post's new address, /blog/<id>. */
-const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const REVISION_PREFIX = "rev-";
 /** Every schedule is due by then, so `due` at this time lists every row. A
  *  four-digit year, since the store compares times as ISO text. */
@@ -466,7 +465,8 @@ export function carrelAdapter(
       async rename(id, input) {
         const { row, pending } = await held(id, input.expectedVersion);
         const { newId } = input;
-        if (!SLUG.test(newId)) {
+        // A rename's new id is the post's new address, /blog/<id>.
+        if (!isSlug(newId)) {
           throw new RefusedError(
             "A post's id is its address, /blog/<id>: lower case letters and digits, joined by single hyphens.",
           );

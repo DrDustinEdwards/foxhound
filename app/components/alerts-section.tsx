@@ -3,7 +3,7 @@ import { Form, useNavigation, useSearchParams } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
+import { Field, InputGroup, InputGroupAddon, TextField } from "capsomer/react/field";
 import { Panel } from "capsomer/react/panel";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
@@ -14,7 +14,8 @@ import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/table.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
+import { useDemoGuard } from "~/lib/demo/use-demo-guard";
 import {
   ALERT_DIRECTION_LABELS,
   ALERT_METRICS,
@@ -74,6 +75,7 @@ export function AlertsSection({
   data: Awaited<ReturnType<typeof loadAlertsSection>>;
   result?: AlertActionResult;
 }) {
+  const demo = useDemoGuard();
   const busy = useNavigation().state !== "idle";
   const [params] = useSearchParams();
   const creating = params.get("new") === "1";
@@ -195,13 +197,13 @@ export function AlertsSection({
                               />
                             </td>
                             <td data-label="Actions" data-num="">
-                              <DemoGuardedForm method="post">
+                              <ReadOnlyForm {...demo} method="post">
                                 <input type="hidden" name="_action" value="delete" />
                                 <input type="hidden" name="alertId" value={a.id} />
                                 <Button type="submit" size="sm" pending={busy}>
                                   Delete alert
                                 </Button>
-                              </DemoGuardedForm>
+                              </ReadOnlyForm>
                             </td>
                           </tr>
                         );
@@ -303,9 +305,10 @@ function AlertSwitch({
   name: string;
   busy: boolean;
 }) {
+  const demo = useDemoGuard();
   const form = useRef<HTMLFormElement>(null);
   return (
-    <DemoGuardedForm method="post" ref={form}>
+    <ReadOnlyForm {...demo} method="post" ref={form}>
       <input type="hidden" name="_action" value="toggle" />
       <input type="hidden" name="alertId" value={id} />
       <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
@@ -315,7 +318,7 @@ function AlertSwitch({
         busy={busy}
         onCheckedChange={() => form.current?.requestSubmit()}
       />
-    </DemoGuardedForm>
+    </ReadOnlyForm>
   );
 }
 
@@ -340,6 +343,7 @@ function CreateAlertForm({
   initialMetric: string | null;
   hasSlack: boolean;
 }) {
+  const demo = useDemoGuard();
   const [metric, setMetric] = useState<string>(alertFormMetric(initialMetric));
   const [direction, setDirection] = useState<AlertDirection>(DIRECTION_ORDER[0]);
   const [channel, setChannel] = useState<"email" | "slack">("email");
@@ -349,7 +353,7 @@ function CreateAlertForm({
   return (
     <div className="mt-6 min-w-0">
       <Panel title="Create a new alert" level={3}>
-        <DemoGuardedForm method="post" className="min-w-0">
+        <ReadOnlyForm {...demo} method="post" className="min-w-0">
           <input type="hidden" name="_action" value="create" />
           <div className="flex flex-col gap-4 text-label">
             <Field label="Metric">
@@ -371,43 +375,34 @@ function CreateAlertForm({
               options={DIRECTION_ORDER.map((d) => ({ value: d, label: ALERT_DIRECTION_LABELS[d] }))}
             />
 
-            {/* Field clones its one child, and here the child is a group, so
-                the threshold is composed from Field's own parts around
-                Capsomer's InputGroup. */}
-            <div className="cap-field">
-              <label className="cap-field-label" htmlFor="alert-threshold">
-                Threshold
-              </label>
-              <InputGroup>
-                {prefix ? <InputGroupAddon align="inline-start">{prefix}</InputGroupAddon> : null}
-                <input
-                  className="cap-input"
-                  id="alert-threshold"
-                  name="threshold"
-                  type="number"
-                  min={0}
-                  step={1}
-                  required
-                  placeholder={suffix ? "25" : prefix ? "5000" : "10"}
-                />
-                {suffix ? <InputGroupAddon align="inline-end">{suffix}</InputGroupAddon> : null}
-              </InputGroup>
-            </div>
+            {/* Recova's threshold has no "Required" marker. */}
+            <Field label="Threshold" id="alert-threshold" required showRequired={false}>
+              {(p) => (
+                <InputGroup>
+                  {prefix ? <InputGroupAddon align="inline-start">{prefix}</InputGroupAddon> : null}
+                  <input
+                    {...p}
+                    className="cap-input"
+                    name="threshold"
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder={suffix ? "25" : prefix ? "5000" : "10"}
+                  />
+                  {suffix ? <InputGroupAddon align="inline-end">{suffix}</InputGroupAddon> : null}
+                </InputGroup>
+              )}
+            </Field>
 
-            <Field
+            <TextField
               label={
                 <>
                   Label <span className="text-text-subtle">(optional)</span>
                 </>
               }
-            >
-              <input
-                className="cap-input"
-                name="label"
-                type="text"
-                placeholder="e.g. Low recovery rate warning"
-              />
-            </Field>
+              name="label"
+              placeholder="e.g. Low recovery rate warning"
+            />
 
             {/* Recova's Email or Slack. Slack waits for a webhook, as Recova's
                 button does, with its sentence saying where to add one. */}
@@ -447,7 +442,7 @@ function CreateAlertForm({
               Cancel
             </Link>
           </div>
-        </DemoGuardedForm>
+        </ReadOnlyForm>
       </Panel>
     </div>
   );

@@ -126,7 +126,7 @@ export function SignInMethodsPanel({
     // press while another runs does nothing.
     if (busy !== null) return;
     setError(null);
-    // The demo saves nothing, as DemoGuardedForm refuses every other write.
+    // The demo saves nothing, as ReadOnlyForm refuses every other write.
     if (isDemo) {
       setError(DEMO_READ_ONLY_MESSAGE);
       return;

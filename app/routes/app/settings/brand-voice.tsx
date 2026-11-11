@@ -1,7 +1,6 @@
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
 import { Status } from "capsomer/react/status";
@@ -16,8 +15,11 @@ import "capsomer/status.css";
 // page whole under any layout, as /settings/features does.
 import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
+import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import "capsomer/settings-row.css";
+import { routerLink } from "~/lib/router-link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -218,23 +220,18 @@ function CategoryVoice({
 }
 
 export default function BrandVoiceSettings({ loaderData, actionData }: Route.ComponentProps) {
+  const demo = useDemoGuard();
   const { connectionId, stored, samples } = loaderData;
   const result = actionData as ActionResult | undefined;
   const saving = useNavigation().state === "submitting";
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Brand voice"
-          lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
-        />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsLayout
+      title="Brand voice"
+      lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
+      renderLink={routerLink}
+    >
+      <ReadOnlyForm {...demo} method="post">
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -288,7 +285,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             Save changes
           </Button>
         </div>
-      </DemoGuardedForm>
-    </>
+      </ReadOnlyForm>
+    </SettingsLayout>
   );
 }

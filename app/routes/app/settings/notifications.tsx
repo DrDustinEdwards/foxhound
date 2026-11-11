@@ -1,7 +1,6 @@
-import { useId } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
+import { TextField } from "capsomer/react/field";
 import { Status } from "capsomer/react/status";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -15,9 +14,11 @@ import "capsomer/switch.css";
 import "~/site-header.css";
 
 import { AlertsSection } from "~/components/alerts-section";
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { ToggleRow } from "~/components/settings-toggle-row";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
+import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import "capsomer/settings-row.css";
+import { routerLink } from "~/lib/router-link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -222,60 +223,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   return data<ActionResult>({ ok: true });
 }
 
-/** One of Recova's text fields: label, input, then help under it, as
- *  NotificationsSection draws them, from Capsomer's field parts. */
-function TextField({
-  name,
-  type,
-  label,
-  help,
-  defaultValue,
-  placeholder,
-  error,
-}: {
-  name: string;
-  type: "email" | "text";
-  label: string;
-  help: string;
-  defaultValue: string;
-  placeholder?: string;
-  error?: string;
-}) {
-  const base = useId();
-  const id = `${base}-control`;
-  const helpId = `${base}-help`;
-  const errorId = `${base}-error`;
-  return (
-    <div className="cap-field" data-invalid={error ? "true" : undefined}>
-      <label className="cap-field-label" htmlFor={id}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        name={name}
-        className="cap-input"
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        aria-describedby={error ? `${errorId} ${helpId}` : helpId}
-        aria-invalid={error ? true : undefined}
-      />
-      <p className="cap-field-help" id={helpId}>
-        {help}
-      </p>
-      <p
-        className="cap-field-error"
-        id={errorId}
-        role={error ? "alert" : undefined}
-        hidden={!error}
-      >
-        {error ?? null}
-      </p>
-    </div>
-  );
-}
-
 export default function NotificationSettings({ loaderData, actionData }: Route.ComponentProps) {
+  const demo = useDemoGuard();
   const navigation = useNavigation();
   // An alert's toggle or delete is not a save of this form.
   const busy = navigation.state !== "idle" && !navigation.formData?.has("_action");
@@ -287,22 +236,19 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Notifications"
-          lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
-        />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsLayout
+      title="Notifications"
+      lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
+      renderLink={routerLink}
+    >
+      <ReadOnlyForm {...demo} method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
+              {/* Recova puts help under the control. */}
               <TextField
+                helpPlacement="after"
+                announce
                 name="notificationEmail"
                 type="email"
                 label="Notification email"
@@ -311,8 +257,12 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
               />
             </div>
 
-            <div className="mb-5 border-t border-border pt-4">
+            {/* The rule under the webhook field stands above the first switch row. */}
+            <div className="border-y border-border pt-4 pb-5">
+              {/* Recova puts help under the control. */}
               <TextField
+                helpPlacement="after"
+                announce
                 name="slackWebhookUrl"
                 type="text"
                 label="Slack webhook URL"
@@ -323,25 +273,25 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
               />
             </div>
 
-            <ToggleRow
+            <SwitchRow
               name="slackNotificationsEnabled"
               label="Slack notifications"
               help="Notify when a payment is recovered or an email is sent"
               defaultChecked={loaderData.slackNotificationsEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="digestEnabled"
               label="Weekly digest"
               help="Monday summary of recovered revenue and active sequences"
               defaultChecked={loaderData.digestEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="recoveryNotificationsEnabled"
               label="Payment recovered notification"
               help="Email me when a payment is successfully recovered"
               defaultChecked={loaderData.recoveryNotificationsEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="sequenceCompleteNotificationsEnabled"
               label="Sequence complete notification"
               help="Email me when a recovery sequence ends without recovering the payment"
@@ -362,9 +312,9 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
             Save changes
           </Button>
         </div>
-      </DemoGuardedForm>
+      </ReadOnlyForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />
-    </>
+    </SettingsLayout>
   );
 }

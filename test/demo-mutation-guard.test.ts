@@ -105,7 +105,7 @@ describe("every action route in the app shell is guarded by appShellMiddleware",
 });
 
 // TASK-foxhound-demo-inline-refusal.md: the client-side interception
-// (DemoGuardedForm) added in this task is deliberately NOT the security
+// (ReadOnlyForm) added in this task is deliberately NOT the security
 // boundary, only a better experience for the common case. This proves the
 // real boundary - appShellMiddleware's demoBlocksMethod check and its
 // throw data(DEMO_READ_ONLY_MESSAGE, {status: 405}) - is byte-for-byte

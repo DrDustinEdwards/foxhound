@@ -8,8 +8,11 @@ import "capsomer/status.css";
 // the disputes list and the payment pages load them.
 import "~/site-header.css";
 import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
-import { useEffect, useReducer, useState } from "react";
-import { Form, useFetcher, useNavigation } from "react-router";
+import { useEffect, useReducer } from "react";
+import { Form, useFetcher, useNavigation, useSearchParams } from "react-router";
+import { InlineConfirm } from "capsomer/react/inline-confirm";
+import "capsomer/inline-confirm.css";
+import { routerForm } from "~/lib/router-link";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
@@ -36,6 +39,7 @@ import {
   evidenceFieldLabel,
   outcomeWord,
   splitEvidence,
+  ACCEPT_CONFIRM_LINE,
 } from "~/lib/disputes/detail";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { getDisputeFindings } from "~/lib/disputes/findings.server";
@@ -66,7 +70,6 @@ import type { Route } from "./+types/detail";
 import { disputeDetailAction } from "./detail.action.server";
 import {
   ApproveButton,
-  AcceptControl,
   FieldRow,
   EvidenceFileForms,
   EvidenceFiles,
@@ -171,24 +174,16 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
     prediction,
   } = loaderData;
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
   const accepting = navigation.state !== "idle" && pressedIntent === "accept";
   // Recova's acceptState: hidden until "Accept dispute", then the confirmation,
-  // which stays open over a failed accept so its error sits beside it.
-  const acceptFromAction =
-    actionData !== undefined &&
-    "intent" in actionData &&
-    (actionData.intent === "accept_confirm" || actionData.intent === "accept");
-  const [acceptOpen, setAcceptOpen] = useState(acceptFromAction);
-  const [acceptCancelled, setAcceptCancelled] = useState(false);
-  // A new accept result reopens the confirmation, adjusted during render (React's
-  // "storing information from previous renders") rather than in an effect.
-  const [seenActionData, setSeenActionData] = useState(actionData);
-  if (seenActionData !== actionData) {
-    setSeenActionData(actionData);
-    if (acceptFromAction) setAcceptOpen(true);
-  }
+  // which stays open over a failed accept so its error sits beside it. Without
+  // script the first step is a link to ?confirm=accept.
+  const acceptOpen =
+    searchParams.get("confirm") === "accept" ||
+    (actionData !== undefined && "intent" in actionData && actionData.intent === "accept");
   const saveFetcher = useFetcher<typeof action>();
   const saving = saveFetcher.state !== "idle";
   // The save result: the fetcher's in a browser, or the action's after a
@@ -731,19 +726,23 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   {approval ? (
                     <p className="m-0 text-text-secondary">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
                   ) : (
-                    <AcceptControl
-                      open={acceptOpen}
-                      accepting={accepting}
-                      returnFocus={acceptCancelled}
-                      onOpen={() => {
-                        setAcceptCancelled(false);
-                        setAcceptOpen(true);
-                      }}
-                      onCancel={() => {
-                        setAcceptCancelled(true);
-                        setAcceptOpen(false);
-                      }}
-                    />
+                    // Recova's Accept (DisputeActionBar.tsx): "Accept dispute", then in
+                    // its place the line, "Yes, accept" and "Cancel". Opening lands on
+                    // Cancel, so a second Enter cannot concede the dispute.
+                    <InlineConfirm
+                      form={routerForm}
+                      size="default"
+                      label="Accept dispute"
+                      question={ACCEPT_CONFIRM_LINE}
+                      confirmLabel="Yes, accept"
+                      openHref="?confirm=accept"
+                      closeHref="?"
+                      defaultOpen={acceptOpen}
+                      pending={accepting}
+                      pendingLabel="Accepting…"
+                    >
+                      <input type="hidden" name="intent" value="accept" />
+                    </InlineConfirm>
                   )}
                 </div>
               )}

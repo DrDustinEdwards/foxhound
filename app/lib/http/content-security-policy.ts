@@ -20,7 +20,7 @@
 //    allowed by style-src-attr 'unsafe-inline', which runs no code. The two
 //    inline <style> elements are trusted by hash (inline-styles.ts).
 //  - form-action is 'self' plus Stripe Checkout and Connect. Checkout starts through a
-//    React Router <Form method="post"> (DemoGuardedForm on
+//    React Router <Form method="post"> (ReadOnlyForm on
 //    app/routes/app/billing/index.tsx, the card-update and win-back forms on
 //    app/routes/utility/card-update.tsx) whose action returns
 //    `redirect(session.url)`. Once hydrated, that submission is a fetch and the

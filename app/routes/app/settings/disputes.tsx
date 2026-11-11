@@ -1,9 +1,7 @@
-import { useId, useRef } from "react";
+import { useId } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
 import { Pill, Status } from "capsomer/react/status";
-import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -14,8 +12,11 @@ import "capsomer/switch.css";
 // /settings/features loads them.
 import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
+import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import "capsomer/settings-row.css";
+import { routerLink } from "~/lib/router-link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -141,95 +142,67 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function DisputeSettings({ loaderData, actionData }: Route.ComponentProps) {
+  const demo = useDemoGuard();
   const navigation = useNavigation();
   const toggling =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "toggle_disputes";
   const saving = navigation.state === "submitting" && !toggling;
   const result = actionData as ActionResult | undefined;
-  const toggleForm = useRef<HTMLFormElement>(null);
   const { enabled } = loaderData;
   const id = useId();
-  const disputesLabelId = `${id}-disputes-label`;
   const descriptionHelpId = `${id}-description-help`;
-  const autoLabelId = `${id}-auto-label`;
-  const autoHelpId = `${id}-auto-help`;
-  const shipsLabelId = `${id}-ships-label`;
-  const shipsHelpId = `${id}-ships-help`;
 
   return (
-    <>
-      <SettingsBackLink />
-      <div className="mb-8">
-        <PageHead title="Disputes" lead={DISPUTES_SETTINGS_LINE} />
-      </div>
-
+    <SettingsLayout title="Disputes" lead={DISPUTES_SETTINGS_LINE} renderLink={routerLink}>
       {/* The switch's own form, as Recova's DisputesToggle posted on its own:
-          it carries the new value, and the switch below submits it at once.
+          it carries the new value, and the switch below sends it at once
+          (SwitchRow submitOnChange; without script its Save button does).
           The switch follows the stored value, so a refused change (the demo,
           a failed write) springs back. */}
-      <DemoGuardedForm method="post" ref={toggleForm} id={`${id}-toggle`}>
+      <ReadOnlyForm {...demo} method="post" id={`${id}-toggle`}>
         <input type="hidden" name="_action" value="toggle_disputes" />
         <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
-      </DemoGuardedForm>
+      </ReadOnlyForm>
 
-      <DemoGuardedForm method="post">
+      <ReadOnlyForm {...demo} method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
             {/* Recova's top row: the product's name, its active pill while on,
-                its line and the switch. */}
-            <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
-              <div className="flex-1 pr-4">
-                <div className="mb-0.5 flex items-center gap-2">
-                  <div id={disputesLabelId} className="text-label text-text">
-                    Disputes
-                  </div>
+                its line and the switch, which sends its own form at once. */}
+            <SwitchRow
+              form={`${id}-toggle`}
+              submitOnChange
+              label={
+                <span className="inline-flex items-center gap-2">
+                  Disputes
                   {enabled ? <Pill tone="ok">Active</Pill> : null}
-                </div>
-                <p className="m-0 text-micro text-text-subtle">{DISPUTES_SETTINGS_LINE}</p>
-              </div>
-              <Switch
-                id={`${id}-enabled`}
-                form={`${id}-toggle`}
-                label={null}
-                checked={enabled}
-                busy={toggling}
-                aria-labelledby={disputesLabelId}
-                onCheckedChange={() => toggleForm.current?.requestSubmit()}
-              />
-            </div>
+                </span>
+              }
+              help={DISPUTES_SETTINGS_LINE}
+              checked={enabled}
+              busy={toggling}
+            />
 
             {enabled ? (
               <>
-                <div className="flex items-center justify-between gap-4 py-4">
-                  <div className="pr-4">
-                    <div id={autoLabelId} className="mb-0.5 text-label text-text">
-                      Auto-submit disputes
-                    </div>
-                    <p id={autoHelpId} className="m-0 text-micro text-text-subtle">
-                      Foxhound will automatically submit your dispute response 24 hours before the
-                      deadline if you haven&apos;t acted. Off by default.
-                      {loaderData.isOwner ? null : " Only the account owner can change this."}
-                    </p>
-                  </div>
-                  {/* A member sees the switch but cannot move it: auto-submit
-                      sends responses to Stripe on the account's behalf, so it
-                      is the owner's. The hidden field posts the stored value,
-                      so saving the other fields leaves it as it is. */}
-                  {loaderData.isOwner ? null : loaderData.autoSubmit ? (
-                    <input type="hidden" name="dispute_auto_submit" value="on" />
-                  ) : null}
-                  <Switch
-                    id={`${id}-auto`}
-                    name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
-                    label={null}
-                    defaultChecked={loaderData.autoSubmit}
-                    disabled={!loaderData.isOwner}
-                    aria-labelledby={autoLabelId}
-                    aria-describedby={autoHelpId}
-                  />
-                </div>
+                {/* A member sees the switch but cannot move it: auto-submit sends
+                    responses to Stripe on the account's behalf, so it is the owner's.
+                    The hidden field posts the stored value, so saving the other
+                    fields leaves it as it is. */}
+                {loaderData.isOwner ? null : loaderData.autoSubmit ? (
+                  <input type="hidden" name="dispute_auto_submit" value="on" />
+                ) : null}
+                <SwitchRow
+                  name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
+                  label="Auto-submit disputes"
+                  help="Foxhound will automatically submit your dispute response 24 hours before the deadline if you haven't acted. Off by default."
+                  defaultChecked={loaderData.autoSubmit}
+                  disabledReason={
+                    loaderData.isOwner ? undefined : "Only the account owner can change this."
+                  }
+                />
 
-                <div className="border-t border-border py-4">
+                <div className="border-y border-border py-4">
                   <label
                     htmlFor={`${id}-description`}
                     className="mb-0.5 block text-label text-text"
@@ -251,25 +224,12 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                   />
                 </div>
 
-                <div className="flex items-center justify-between gap-4 border-t border-border py-4">
-                  <div className="pr-4">
-                    <div id={shipsLabelId} className="mb-0.5 text-label text-text">
-                      Ships physical goods
-                    </div>
-                    <p id={shipsHelpId} className="m-0 text-micro text-text-subtle">
-                      Enable if you ship physical products. Adds shipping evidence fields to dispute
-                      responses.
-                    </p>
-                  </div>
-                  <Switch
-                    id={`${id}-ships`}
-                    name="dispute_ships_physical"
-                    label={null}
-                    defaultChecked={loaderData.shipsPhysical}
-                    aria-labelledby={shipsLabelId}
-                    aria-describedby={shipsHelpId}
-                  />
-                </div>
+                <SwitchRow
+                  name="dispute_ships_physical"
+                  label="Ships physical goods"
+                  help="Enable if you ship physical products. Adds shipping evidence fields to dispute responses."
+                  defaultChecked={loaderData.shipsPhysical}
+                />
               </>
             ) : (
               <p className="m-0 pt-4 text-micro text-text-subtle">
@@ -296,7 +256,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
             </Button>
           ) : null}
         </div>
-      </DemoGuardedForm>
-    </>
+      </ReadOnlyForm>
+    </SettingsLayout>
   );
 }
