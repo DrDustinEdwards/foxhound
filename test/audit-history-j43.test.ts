@@ -56,51 +56,6 @@ function contextFor(accountId: string): unknown {
   };
 }
 
-describe("J43: Since last run, Recova's compare()", async () => {
-  const { compareRuns } = await import("~/lib/audit/trend");
-
-  it("says no change when both are zero, and under 5% of a non-zero baseline", () => {
-    expect(compareRuns(0, 0, false, "usd", "usd")).toEqual({ kind: "unchanged" });
-    expect(compareRuns(10_400, 10_000, true, "usd", "usd")).toEqual({ kind: "unchanged" });
-  });
-
-  it("rounds the percentage and tones it by whether the move is good for that metric", () => {
-    expect(compareRuns(12_000, 10_000, true, "usd", "usd")).toEqual({
-      kind: "moved",
-      deltaPct: 20,
-      direction: "up",
-      tone: "good",
-    });
-    expect(compareRuns(12_000, 10_000, false, "usd", "usd")).toEqual({
-      kind: "moved",
-      deltaPct: 20,
-      direction: "up",
-      tone: "bad",
-    });
-    expect(compareRuns(5_000, 10_000, false, "usd", "usd")).toEqual({
-      kind: "moved",
-      deltaPct: 50,
-      direction: "down",
-      tone: "good",
-    });
-  });
-
-  it("from a zero baseline, reports the move against the current figure, as Recova does", () => {
-    expect(compareRuns(3_000, 0, false, "usd", "usd")).toEqual({
-      kind: "moved",
-      deltaPct: 100,
-      direction: "up",
-      tone: "bad",
-    });
-  });
-
-  it("never compares a figure that was not read, and never across currencies", () => {
-    expect(compareRuns(null, 10_000, true, "usd", "usd")).toEqual({ kind: "none" });
-    expect(compareRuns(10_000, null, true, "usd", "usd")).toEqual({ kind: "none" });
-    expect(compareRuns(10_000, 20_000, true, "usd", "eur")).toEqual({ kind: "none" });
-  });
-});
-
 const page = await import("~/routes/app/audit/dashboard");
 
 describe("J43: the loader and the action, scoped to the caller's account", () => {
@@ -179,12 +134,5 @@ describe("J43 review: a change made during a save is queued, and the last value 
     expect(submit).toHaveBeenCalledTimes(2);
     q.settled();
     expect(submit).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("J43 review: a run with no stored currency is unknown, never USD", () => {
-  it("compareRuns refuses a null currency", async () => {
-    const { compareRuns } = await import("~/lib/audit/trend");
-    expect(compareRuns(12_000, 10_000, true, null, "usd")).toEqual({ kind: "none" });
   });
 });

@@ -182,82 +182,75 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         />
       </div>
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Recent admin actions"
-          src={reading}
-          more={<Link to="/admin/platform/audit-log">View audit log</Link>}
-          flush
-        >
-          {recentActions.length === 0 ? (
-            <Empty kind="nothing-yet" title="No admin actions yet.">
-              Every admin action that changes production writes one here and in the audit log.
-            </Empty>
-          ) : (
-            <RowList label="Recent admin actions" primary={false}>
-              {recentActions.map((a) => (
-                <Row
-                  key={a.id}
-                  // The row's one link opens what the action was done to, or the
-                  // audit log when the action has no page of its own to open.
-                  title={a.action}
-                  href={a.target?.href ?? "/admin/platform/audit-log"}
-                  renderLink={rowLink}
-                  detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
-                  meta={<Time at={a.createdAt} empty="never" tip />}
-                />
-              ))}
-            </RowList>
-          )}
-        </Panel>
-      </div>
+      <Panel
+        title="Recent admin actions"
+        reading={pending}
+        more={<Link to="/admin/platform/audit-log">View audit log</Link>}
+        flush
+      >
+        {recentActions.length === 0 ? (
+          <Empty kind="nothing-yet" title="No admin actions yet.">
+            Every admin action that changes production writes one here and in the audit log.
+          </Empty>
+        ) : (
+          <RowList label="Recent admin actions" primary={false}>
+            {recentActions.map((a) => (
+              <Row
+                key={a.id}
+                // The row's one link opens what the action was done to, or the
+                // audit log when the action has no page of its own to open.
+                title={a.action}
+                href={a.target?.href ?? "/admin/platform/audit-log"}
+                renderLink={rowLink}
+                detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
+                meta={<Time at={a.createdAt} empty="never" tip />}
+              />
+            ))}
+          </RowList>
+        )}
+      </Panel>
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Cron health"
-          src={reading}
-          more={<Link to="/admin/platform/crons">View crons</Link>}
-        >
-          <div className="grid gap-2">
-            <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
-              {failed === 1 ? (
-                <Link
-                  to={cronRunHref(failedRuns[0].id)}
-                  className="text-error-text underline underline-offset-2"
-                >
-                  {failedSentence}
-                </Link>
-              ) : (
-                failedSentence
-              )}
-            </p>
-            {failed > 0 ? (
-              <ul className="m-0 grid gap-1 p-0 text-label">
-                {failedRuns.map((run) => (
-                  <li key={run.id}>
-                    <Link
-                      to={cronRunHref(run.id)}
-                      className="text-text underline underline-offset-2"
-                    >
-                      {run.cronName}
-                    </Link>{" "}
-                    <span className="text-text-tertiary">
-                      failed <Time at={run.finishedAt} empty="never" tip />
-                      {run.message ? `: ${run.message}` : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <p className="m-0 text-label text-text-tertiary">
-              Last run <Time at={lastRunAt} empty="never" tip />
-              {disabledCount > 0
-                ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`
-                : null}
-            </p>
-          </div>
-        </Panel>
-      </div>
+      <Panel
+        title="Cron health"
+        reading={pending}
+        more={<Link to="/admin/platform/crons">View crons</Link>}
+      >
+        <div className="grid gap-2">
+          <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
+            {failed === 1 ? (
+              <Link
+                to={cronRunHref(failedRuns[0].id)}
+                className="text-error-text underline underline-offset-2"
+              >
+                {failedSentence}
+              </Link>
+            ) : (
+              failedSentence
+            )}
+          </p>
+          {failed > 0 ? (
+            <ul className="m-0 grid gap-1 p-0 text-label">
+              {failedRuns.map((run) => (
+                <li key={run.id}>
+                  <Link to={cronRunHref(run.id)} className="text-text underline underline-offset-2">
+                    {run.cronName}
+                  </Link>{" "}
+                  <span className="text-text-tertiary">
+                    failed <Time at={run.finishedAt} empty="never" tip />
+                    {run.message ? `: ${run.message}` : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="m-0 text-label text-text-tertiary">
+            Last run <Time at={lastRunAt} empty="never" tip />
+            {disabledCount > 0
+              ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`
+              : null}
+          </p>
+        </div>
+      </Panel>
     </div>
   );
 }

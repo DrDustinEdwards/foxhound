@@ -1,3 +1,4 @@
+import { pageEnvelope, parsePage, statusText } from "capsomer/behavior/pagination";
 import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -70,26 +71,24 @@ import {
   bulkResultClearsItself,
   bulkResultLine,
   parsePaymentsAmount,
-  parsePaymentsPage,
   parsePaymentsPageSize,
   parsePaymentsSort,
   parsePaymentsTimeRange,
   declineWord,
   paymentsHeaderLine,
-  paymentsShowingText,
 } from "~/lib/recovery/payments-list";
 import { paymentHeaderStats, paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments-stats";
 import {
-  actionableSelection,
   allVisibleSelected,
-  selectedCount,
   toggleAllVisible,
   toggleOne,
-} from "~/lib/recovery/bulk-selection";
+  visibleSelection,
+} from "capsomer/behavior/bulk-bar";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
+  actionableSelection,
   failedIds,
   isBulkActionIntent,
   isBulkRefusal,
@@ -156,7 +155,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const declineCategory = params.get("category") || null;
   const sort = parsePaymentsSort(params.get("sort"));
   const time = parsePaymentsTimeRange(params.get("time"));
-  const page = parsePaymentsPage(params.get("page"));
+  const page = parsePage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);
@@ -478,6 +477,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     from: undefined,
   }));
   const rows = result.payments;
+  // Recova's pager line ("Showing 1 to 25 of 60 payments"), with All as one
+  // page of the whole list.
+  const shown = pageEnvelope(result.page, result.pageSize, result.totalCount);
+  const showing = statusText(shown.page, shown.perPage, shown.total, "payments");
 
   // Failures stay selected (approved 2026-09-19): when a response lands the
   // selection becomes exactly the ids that failed, until it is edited again.
@@ -508,7 +511,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   const confirming = confirmFor !== null && confirmFor.from === bulk ? confirmFor.intent : null;
   const [lastConfirm, setLastConfirm] = useState<BulkActionIntent>("trigger");
 
-  const selectionCount = selectedCount(selected, rows);
+  const selectionCount = visibleSelection(selected, rows).length;
   const actionable = actionableSelection(selected, rows);
   const headerChecked = allVisibleSelected(selected, rows);
 
@@ -594,7 +597,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
     // the page's one <main>, so this is a plain wrapper.
-    <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead
           title="Payments"
@@ -1026,9 +1029,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       {result.totalCount > 0 ? (
         <div className="mt-4">
           <nav className="cap-pagination" aria-label="Payment pages">
-            <p className="cap-pagination-status">
-              {paymentsShowingText(result.page, result.pageSize, result.totalCount)}
-            </p>
+            <p className="cap-pagination-status">{showing}</p>
             <ul className="cap-pagination-list">
               <li>
                 {result.page > 1 ? (

@@ -155,7 +155,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
   // shell owns the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
+    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
       <div className="mb-6">
         <PageHead title="Dashboard" lead="MRR trends and customer health" />
       </div>

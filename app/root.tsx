@@ -16,7 +16,7 @@ import "./app.css";
 import {
   ErrorBar,
   ErrorFooter,
-  ErrorLinks,
+  errorActions,
   HOME_LABEL,
   recovaWords,
 } from "./components/error-view";
@@ -144,10 +144,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         className="flex-1"
         siteHeader={<ErrorBar />}
         siteFooter={<ErrorFooter />}
+        actions={errorActions(routeError?.status === 404)}
         dev={import.meta.env.DEV}
-      >
-        <ErrorLinks notFound={routeError?.status === 404} />
-      </ErrorPage>
+      />
     </div>
   );
 }

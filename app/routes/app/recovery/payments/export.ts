@@ -1,3 +1,5 @@
+import { parsePage } from "capsomer/behavior/pagination";
+
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -5,7 +7,6 @@ import { csvResponse } from "@dustinedwards/site-runtime/csv";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
 import {
   parsePaymentsAmount,
-  parsePaymentsPage,
   parsePaymentsPageSize,
   parsePaymentsSort,
   parsePaymentsTimeRange,
@@ -39,7 +40,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const declineCategory = params.get("category") || null;
   const sort = parsePaymentsSort(params.get("sort"));
   const time = parsePaymentsTimeRange(params.get("time"));
-  const page = parsePaymentsPage(params.get("page"));
+  const page = parsePage(params.get("page"));
   const pageSize = parsePaymentsPageSize(params.get("perPage"));
 
   const bounds = await getAmountBounds(db, accountId);

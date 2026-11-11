@@ -2,12 +2,11 @@ import "capsomer/button.css";
 import "capsomer/panel.css";
 import "capsomer/row-list.css";
 import "capsomer/status.css";
-import { Panel } from "capsomer/react/panel";
+import { SetupChecklist } from "capsomer/react/setup-checklist";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "react-router";
 import { Link } from "capsomer/react/link";
 
-import { ChecklistStatus, StaticRow } from "~/components/recovery-dashboard-panels";
 import { accounts, getDb, stripeConnections } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -23,8 +22,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 // /console. It shows "You're connected.", the connection's name (or its Stripe
 // id), one line, Recova's "Two quick steps" (sender name, notification email)
 // and the way on to the Recovery dashboard. Inside the dashboard frame, so the
-// parts are Capsomer's: the panel and the rows the dashboard's own
-// getting-started checklist uses.
+// parts are Capsomer's: the setup checklist the dashboard's own getting
+// started panel uses.
 //
 // Recova's app/api/welcome/activate route (blob b6bbc549) is not ported:
 // nothing in Recova calls it (WelcomeClient posts nothing), and the
@@ -85,34 +84,33 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
       </div>
 
       <div className="mb-8">
-        <Panel title="Two quick steps">
-          <ul className="cap-rows" role="list" data-gap="sm">
-            <StaticRow
-              status={<ChecklistStatus done={senderNameSet} />}
-              title="Set your sender name"
-              detail="The name customers see in recovery emails."
-              actions={
-                senderNameSet ? null : (
-                  <Link to="/settings" className="cap-btn" data-size="sm">
-                    Open settings
-                  </Link>
-                )
-              }
-            />
-            <StaticRow
-              status={<ChecklistStatus done={notificationEmailSet} />}
-              title="Set your notification email"
-              detail="We'll alert you when a payment is recovered."
-              actions={
-                notificationEmailSet ? null : (
-                  <Link to="/settings" className="cap-btn" data-size="sm">
-                    Open settings
-                  </Link>
-                )
-              }
-            />
-          </ul>
-        </Panel>
+        <SetupChecklist
+          title="Two quick steps"
+          steps={[
+            {
+              id: "sender",
+              title: "Set your sender name",
+              detail: "The name customers see in recovery emails.",
+              done: senderNameSet,
+              action: (
+                <Link to="/settings" className="cap-btn" data-size="sm">
+                  Open settings
+                </Link>
+              ),
+            },
+            {
+              id: "alerts",
+              title: "Set your notification email",
+              detail: "We'll alert you when a payment is recovered.",
+              done: notificationEmailSet,
+              action: (
+                <Link to="/settings" className="cap-btn" data-size="sm">
+                  Open settings
+                </Link>
+              ),
+            },
+          ]}
+        />
       </div>
 
       <div className="text-center">

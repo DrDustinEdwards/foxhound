@@ -4,6 +4,7 @@ import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
+import { Pagination } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
 import "capsomer/empty.css";
@@ -179,7 +180,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell
   // owns the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
+    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
       <div className="mb-6">
         <PageHead
           title={heading}
@@ -357,8 +358,19 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         </>
       )}
 
+      {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form;
+          Recova's mt-4 sits on a wrapper so the nav carries no Foxhound class). */}
       {result.totalPages > 1 ? (
-        <Pager filters={filters} page={result.page} totalPages={result.totalPages} />
+        <div className="mt-4">
+          <Pagination
+            form="steps"
+            page={result.page}
+            pageCount={result.totalPages}
+            hrefFor={(n) => pageHref(filters, n)}
+            renderLink={({ href, ...props }) => <Link to={href} {...props} />}
+            label="Customer pages"
+          />
+        </div>
       ) : null}
 
       {otherDemoName ? (
@@ -456,57 +468,5 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
         </div>
       </div>
     </Form>
-  );
-}
-
-/** Recova's pager: "Page N of M" on the left, then Previous and Next together
- *  on the right, each shown only when it leads somewhere. Capsomer's pagination
- *  markup with its status line and its two ends; Capsomer's chevrons stand in
- *  for Recova's arrows. Its React Pagination adds page numbers and always shows
- *  both ends, which Recova's page does not (gap named in the J30 notes). */
-function Pager({
-  filters,
-  page,
-  totalPages,
-}: {
-  filters: Filters;
-  page: number;
-  totalPages: number;
-}) {
-  return (
-    // Recova's mt-4 sits on a wrapper so the Capsomer nav carries no Foxhound class.
-    <div className="mt-4">
-      <nav className="cap-pagination" aria-label="Customer pages">
-        <p className="cap-pagination-status">
-          Page {page} of {totalPages}
-        </p>
-        <ul className="cap-pagination-list">
-          {page > 1 ? (
-            <li>
-              <Link
-                className="cap-page"
-                data-kind="prev"
-                to={pageHref(filters, page - 1)}
-                rel="prev"
-              >
-                Previous
-              </Link>
-            </li>
-          ) : null}
-          {page < totalPages ? (
-            <li>
-              <Link
-                className="cap-page"
-                data-kind="next"
-                to={pageHref(filters, page + 1)}
-                rel="next"
-              >
-                Next
-              </Link>
-            </li>
-          ) : null}
-        </ul>
-      </nav>
-    </div>
   );
 }

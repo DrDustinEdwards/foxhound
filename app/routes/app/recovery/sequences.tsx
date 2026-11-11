@@ -268,7 +268,7 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
 
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
-    <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="cap-admin-page gap-0 px-4 py-10 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead
           title="Recovery sequence"

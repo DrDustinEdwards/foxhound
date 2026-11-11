@@ -5,9 +5,11 @@ import { Link } from "capsomer/react/link";
 import { eq } from "drizzle-orm";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
+import { compareFigures, Delta, type DeltaValue } from "capsomer/react/delta";
 import { Segmented } from "capsomer/react/segmented";
 import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
+import "capsomer/delta.css";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
@@ -25,7 +27,6 @@ import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { listAuditRuns } from "~/lib/audit/persist.server";
 import { formatCents, formatTotals, toStoredAuditRun } from "~/lib/audit/render";
 import { createSaveQueue, type SaveQueue } from "~/lib/audit/save-queue";
-import { compareTotals, type TrendComparison, type TrendSide } from "~/lib/audit/trend";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -69,7 +70,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // "written by AI", as /settings/audit already does on Dustin's word in 316's
 // session. And a figure that could not be read on a run says so instead of
 // Recova's `?? 0`, in the table and in Since last run, which
-// shows no comparison when either side is unread (app/lib/audit/trend.ts).
+// shows no comparison when either side is unread (compareTotals below).
 //
 // ONE LINE PER CURRENCY (Dustin, 2026-10-25, parity/APPROVED-DIFFERENCES.md).
 // Each money figure is its totals per currency from money_by_currency, read
@@ -109,7 +110,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       return {
         id: run.id,
         runAt: run.runAt,
-        // NULL when the run stored none (trend.ts).
+        // NULL when the run stored none (compareTotals).
         currency: row.currency,
         perCurrency: row.moneyByCurrency !== null,
         failedInvoices: run.failedInvoices?.totals ?? null,
@@ -144,6 +145,61 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+/** One currency's line of a Since last run row. */
+interface TrendLine {
+  currency: string;
+  currentCents: number;
+  previousCents: number;
+  comparison: DeltaValue;
+}
+
+/** One run's side of a money row: its per-currency totals (null when the
+ *  scope was not read), and whether the run stored them per currency. */
+interface TrendSide {
+  totals: readonly { currency: string; cents: number }[] | null;
+  currency: string | null;
+  perCurrency: boolean;
+}
+
+/**
+ * A money row compared like with like, one line per currency (Dustin,
+ * 2026-10-25, one line per currency): each currency's figure on this run
+ * against the same currency's on the last, through Capsomer's compareFigures, in
+ * currency-code order. A currency missing from one side is zero there, since
+ * the totals leave zeroes out.
+ *
+ * Null, and so no change drawn, when either side is unread or was stored
+ * before money_by_currency. Such a run's one figure may have added several
+ * currencies together, so a move against it would be a move nobody made.
+ */
+function compareTotals(
+  current: TrendSide,
+  previous: TrendSide,
+  higherIsBetter: boolean,
+): TrendLine[] | null {
+  if (current.totals === null || previous.totals === null) return null;
+  if (!current.perCurrency || !previous.perCurrency) return null;
+  const cents = (side: readonly { currency: string; cents: number }[], currency: string) =>
+    side.find((t) => t.currency === currency)?.cents ?? 0;
+  const currencies = [
+    ...new Set([...current.totals, ...previous.totals].map((t) => t.currency)),
+  ].sort((a, b) => a.localeCompare(b));
+  // No money on either run: one zero line in the run's currency, as a
+  // single-currency run always showed.
+  if (currencies.length === 0)
+    currencies.push((current.currency ?? previous.currency ?? "usd").toLowerCase());
+  return currencies.map((currency) => {
+    const currentCents = cents(current.totals ?? [], currency);
+    const previousCents = cents(previous.totals ?? [], currency);
+    return {
+      currency,
+      currentCents,
+      previousCents,
+      comparison: compareFigures(currentCents, previousCents, { higherIsBetter }),
+    };
+  });
+}
+
 type RunView = Route.ComponentProps["loaderData"]["runs"][number];
 
 /** A stored figure, one line per currency, or "Not read" when the scope was
@@ -158,19 +214,6 @@ function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: s
       {lines.map((line) => (
         <span key={line}>{line}</span>
       ))}
-    </span>
-  );
-}
-
-/** Recova's move: the arrow is drawn, and the direction is also in words for
- *  a screen reader, so the color is never the only signal. */
-function Move({ cmp }: { cmp: TrendComparison }) {
-  if (cmp.kind === "unchanged") return <span className="text-text-subtle">no change</span>;
-  if (cmp.kind !== "moved") return null;
-  return (
-    <span className={cmp.tone === "good" ? "text-green" : "text-red"}>
-      <span aria-hidden="true">{cmp.direction === "up" ? "▲" : "▼"}</span>
-      <span className="sr-only">{cmp.direction}</span> {cmp.deltaPct}%
     </span>
   );
 }
@@ -214,7 +257,7 @@ function TrendRow({
               <span className="text-text-subtle">
                 vs {formatCents(line.previousCents, line.currency)}
               </span>
-              <Move cmp={line.comparison} />
+              <Delta delta={line.comparison} />
             </div>
           ))}
         </div>
@@ -381,7 +424,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   // the page's one <main>, so this is a plain wrapper.
   if (runs.length === 0) {
     return (
-      <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
+      <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
         {/* Capsomer's empty state, as markup: its React part puts the title in
             a <p>, and Recova's is the page's h1 (gap named in the J43 PR). */}
         <div className="mb-6">
@@ -410,7 +453,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   });
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead
           title="Audit history"

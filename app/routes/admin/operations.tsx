@@ -2,7 +2,6 @@ import { useNavigation, useRevalidator } from "react-router";
 import { Empty } from "capsomer/react/empty";
 import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { Status } from "capsomer/react/status";
 import "capsomer/meter.css";
 
@@ -88,16 +87,15 @@ const figure = (n: number) => n.toLocaleString("en-US");
 export default function AdminOperations({ loaderData }: Route.ComponentProps) {
   const { queue, locks, sizeBytes, migrations, growthTables, envSanity, mcp } = loaderData;
   const pending = pagePending(useNavigation(), useRevalidator().state, OPERATIONS_PATH);
-  const spinner = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
   const share = sizeBytes / D1_CAP_BYTES;
   const overHalf = share >= D1_ALERT_THRESHOLD;
   const appliedCount = migrations.rows.filter((m) => m.applied).length;
 
   return (
-    <div className="grid grid-cols-1 gap-6" aria-busy={pending || undefined}>
+    <div className="grid grid-cols-1 gap-6">
       <Panel
         title="Recovery queue"
-        src={spinner}
+        reading={pending}
         description="Recovery work waiting on the recovery tick. Demo accounts are not counted."
       >
         <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -132,7 +130,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
       <Panel
         title="Cron locks"
         headingId={LOCKS_HEADING_ID}
-        src={spinner}
+        reading={pending}
         description={locks.length > 0 ? lockSummaryWords(locks) : undefined}
         flush
       >
@@ -172,7 +170,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         )}
       </Panel>
 
-      <Panel title="Database size" src={spinner}>
+      <Panel title="Database size" reading={pending}>
         <Meter
           label="D1 database"
           value={sizeBytes}
@@ -189,7 +187,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
       <Panel
         title="Table growth"
         headingId={GROWTH_HEADING_ID}
-        src={spinner}
+        reading={pending}
         description="Rows in each table with a retention rule. The database reports only its whole size, so row counts are the signal per table."
         flush
       >
@@ -240,7 +238,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
       <Panel
         title="Migrations"
         headingId={MIGRATIONS_HEADING_ID}
-        src={spinner}
+        reading={pending}
         description={
           migrations.rows.length > 0
             ? `${migrationsSummaryWords(appliedCount, migrations.rows.length)} The deploy itself is not readable in the Worker, so this is the sign that code and data agree.`
@@ -301,7 +299,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
       <Panel
         title="Settings"
         headingId={SETTINGS_HEADING_ID}
-        src={spinner}
+        reading={pending}
         description="Whether each binding, variable and secret the Worker uses is set, and whether the Stripe key is a live one. Names only: values are never shown here."
         flush
       >
@@ -351,7 +349,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
 
       {/* Once /admin/mcps, folded in here (Dustin, 2026-10-29). */}
       <h2 className="m-0 mt-4 text-heading font-semibold text-text">MCP servers</h2>
-      <AdminMcpPanels data={mcp} spinner={spinner} />
+      <AdminMcpPanels data={mcp} reading={pending} />
     </div>
   );
 }

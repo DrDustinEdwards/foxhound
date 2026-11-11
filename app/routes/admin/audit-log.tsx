@@ -2,7 +2,6 @@ import { useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
@@ -62,77 +61,75 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
   const pending = pagePending(useNavigation(), useRevalidator().state, AUDIT_LOG_PATH);
 
   return (
-    <div aria-busy={pending || undefined}>
-      <Panel
-        title="Operator actions"
-        headingId={HEADING_ID}
-        src={pending ? <Spinner size="sm" label="Reading again" /> : undefined}
-        description={
-          entries.length === 0
-            ? "No entries yet."
-            : `Showing the last ${plural(entries.length, "entry", "entries")}, newest first.`
-        }
-        flush
-      >
-        {entries.length === 0 ? (
-          <Empty kind="nothing-yet" title="No audit log entries yet.">
-            Every admin action that changes how Foxhound runs writes an entry here.
-          </Empty>
-        ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-labelledby={HEADING_ID}
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <caption className="cap-sr-only">The audit log, newest first.</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Time</th>
-                  <th scope="col">Actor</th>
-                  <th scope="col">Action</th>
-                  <th scope="col">Target</th>
-                  <th scope="col">Detail</th>
+    <Panel
+      title="Operator actions"
+      headingId={HEADING_ID}
+      reading={pending}
+      description={
+        entries.length === 0
+          ? "No entries yet."
+          : `Showing the last ${plural(entries.length, "entry", "entries")}, newest first.`
+      }
+      flush
+    >
+      {entries.length === 0 ? (
+        <Empty kind="nothing-yet" title="No audit log entries yet.">
+          Every admin action that changes how Foxhound runs writes an entry here.
+        </Empty>
+      ) : (
+        <div
+          className="cap-table-wrap"
+          data-reflow=""
+          data-cap="table"
+          role="region"
+          aria-labelledby={HEADING_ID}
+          tabIndex={0}
+        >
+          <table className="cap-table">
+            <caption className="cap-sr-only">The audit log, newest first.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Actor</th>
+                <th scope="col">Action</th>
+                <th scope="col">Target</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id}>
+                  <td>
+                    <Time at={e.createdAt} empty="never" tip />
+                  </td>
+                  <td data-label="Actor" className="break-all">
+                    {e.actor}
+                  </td>
+                  <td data-label="Action">{e.action}</td>
+                  <td data-label="Target" data-wrap="">
+                    {e.target === null ? (
+                      <span className="text-text-tertiary">None</span>
+                    ) : e.target.href ? (
+                      <Link to={e.target.href} className={LINK}>
+                        {e.target.label}
+                      </Link>
+                    ) : (
+                      <span className="break-all">{e.target.label}</span>
+                    )}
+                  </td>
+                  <td
+                    data-label="Detail"
+                    data-wrap=""
+                    className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}
+                  >
+                    {e.detail ?? "None"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {entries.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <Time at={e.createdAt} empty="never" tip />
-                    </td>
-                    <td data-label="Actor" className="break-all">
-                      {e.actor}
-                    </td>
-                    <td data-label="Action">{e.action}</td>
-                    <td data-label="Target" data-wrap="">
-                      {e.target === null ? (
-                        <span className="text-text-tertiary">None</span>
-                      ) : e.target.href ? (
-                        <Link to={e.target.href} className={LINK}>
-                          {e.target.label}
-                        </Link>
-                      ) : (
-                        <span className="break-all">{e.target.label}</span>
-                      )}
-                    </td>
-                    <td
-                      data-label="Detail"
-                      data-wrap=""
-                      className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}
-                    >
-                      {e.detail ?? "None"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
-    </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   );
 }
