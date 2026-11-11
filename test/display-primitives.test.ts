@@ -1,41 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatRelativeFuture } from "~/lib/date-format";
 import { recoveryRateBand } from "~/lib/dashboard/recovery-rate";
-
-describe("formatRelativeFuture", () => {
-  const now = Date.parse("2026-03-04T12:00:00Z");
-  const at = (iso: string) => formatRelativeFuture(new Date(iso), now);
-
-  it("says due now once the moment has passed", () => {
-    expect(at("2026-03-04T12:00:00Z")).toBe("due now");
-    expect(at("2026-03-04T11:59:00Z")).toBe("due now");
-  });
-
-  it("renders sub-hour distances in minutes", () => {
-    expect(at("2026-03-04T12:45:00Z")).toBe("in 45m");
-    expect(at("2026-03-04T12:00:30Z")).toBe("in 1m");
-  });
-
-  // The recovery queue's job is telling a merchant how soon the next step
-  // fires; "in 3h" would hide up to 59 minutes of that.
-  it("carries minutes in the hour form", () => {
-    expect(at("2026-03-04T15:20:00Z")).toBe("in 3h 20m");
-    expect(at("2026-03-04T15:00:00Z")).toBe("in 3h");
-  });
-
-  it("carries a 60-minute rounding up into the hour instead of printing 60m", () => {
-    expect(at("2026-03-04T15:59:40Z")).toBe("in 4h");
-  });
-
-  it("drops hours at day distance", () => {
-    expect(at("2026-03-06T18:00:00Z")).toBe("in 2d");
-  });
-
-  it("returns null for null so a caller can omit the element", () => {
-    expect(formatRelativeFuture(null, now)).toBeNull();
-  });
-});
 
 describe("recoveryRateBand", () => {
   // Thresholds are DESIGN.md canon: 0-20 red, 21-35 caution, 36+ green.

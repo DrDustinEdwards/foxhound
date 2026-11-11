@@ -511,7 +511,7 @@ export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----
-export const MINUTE_MS = 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 /** Max age of a /p/:token card-update link before it is treated as expired

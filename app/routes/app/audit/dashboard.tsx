@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useRouteLoaderData } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -32,7 +33,6 @@ import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settin
 
 import type { Route } from "./+types/dashboard";
 import { NOINDEX } from "~/lib/seo/meta";
-import { formatDateShort } from "~/lib/date-format";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -414,7 +414,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
       <div className="mb-6">
         <PageHead
           title="Audit history"
-          lead={`Last run ${formatDateShort(last.runAt)}`}
+          lead={`Last run ${formatDate(last.runAt, { style: "medium" }) ?? ""}`}
           actions={<RunNewAudit>Run new audit</RunNewAudit>}
         />
       </div>
@@ -477,7 +477,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
               <tbody>
                 {runs.map((run) => (
                   <tr key={run.id}>
-                    <th scope="row">{formatDateShort(run.runAt)}</th>
+                    <th scope="row">{formatDate(run.runAt, { style: "medium" }) ?? ""}</th>
                     <td data-label="Failed" data-num="" className="font-mono">
                       <Amount totals={run.failedInvoices} currency={run.currency} />
                     </td>
@@ -490,7 +490,10 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                     <td data-label="View" data-num="">
                       <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
                         View
-                        <span className="sr-only"> the run of {formatDateShort(run.runAt)}</span>
+                        <span className="sr-only">
+                          {" "}
+                          the run of {formatDate(run.runAt, { style: "medium" }) ?? ""}
+                        </span>
                       </Link>
                     </td>
                   </tr>

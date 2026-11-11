@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -56,7 +57,6 @@ import {
 } from "~/lib/disputes/labels";
 import { getDisputeDetail, readDisputeSettings } from "~/lib/disputes/queries.server";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
-import { formatDateShort, formatTimestamp } from "~/lib/date-format";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS } from "~/lib/recovery/labels";
 import { declineWord } from "~/lib/recovery/payments-list";
@@ -365,7 +365,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             {timeline.map((item, i) => (
               <li key={i} className="flex items-baseline gap-4">
                 <span className="w-[140px] shrink-0 font-mono text-micro text-text-subtle">
-                  {item.at ? formatTimestamp(item.at) : ""}
+                  {item.at ? (formatDate(item.at, { style: "medium", time: true }) ?? "") : ""}
                 </span>
                 <span className="text-label text-text">{item.label}</span>
               </li>
@@ -468,7 +468,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                 <ul className="m-0 list-none space-y-1 p-0">
                   {findings.recovery.emails.map((e) => (
                     <li key={e.id} className="text-text">
-                      <span className="text-text-tertiary">{formatDateShort(e.executedAt)}</span>{" "}
+                      <span className="text-text-tertiary">
+                        {formatDate(e.executedAt, { style: "medium" }) ?? ""}
+                      </span>{" "}
                       {e.label}
                       {e.openedCount !== null && e.openedCount > 0 ? (
                         <span className="text-text-subtle"> · opened {e.openedCount}x</span>
@@ -516,13 +518,17 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   {subscription.start_date ? (
                     <FieldRow
                       label="Started"
-                      value={formatDateShort(new Date(subscription.start_date))}
+                      value={
+                        formatDate(new Date(subscription.start_date), { style: "medium" }) ?? ""
+                      }
                     />
                   ) : null}
                   {subscription.canceled_at ? (
                     <FieldRow
                       label="Canceled"
-                      value={formatDateShort(new Date(subscription.canceled_at))}
+                      value={
+                        formatDate(new Date(subscription.canceled_at), { style: "medium" }) ?? ""
+                      }
                     />
                   ) : null}
                 </dl>
@@ -756,7 +762,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             <div className="text-label">
               <p className="m-0 text-text-secondary">
                 {approval
-                  ? `Approved by ${approval.approvedByEmail} on ${formatTimestamp(approval.approvedAt)}`
+                  ? `Approved by ${approval.approvedByEmail} on ${formatDate(approval.approvedAt, { style: "medium", time: true }) ?? ""}`
                   : "No approval record."}
               </p>
               {resolved ? (

@@ -1,12 +1,14 @@
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
+import { formatDate } from "capsomer/behavior/time";
 import { Link } from "capsomer/react/link";
 
-import { Badge } from "~/components/badge";
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import type { AttributionKind } from "~/lib/constants";
 import { BILLING_LINE_ITEM_TYPE_LABELS } from "~/lib/billing/labels";
 import type { EnrichedLineItem, FreeLedgerEntry } from "~/lib/billing/queries.server";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { ATTRIBUTION_KIND_LABELS, formatStepType } from "~/lib/recovery/labels";
-import { formatDateShort } from "~/lib/date-format";
 
 // The shared "action -> recovery -> fee" chain rendering (DESIGN.md flagship
 // surface 1), reused by /billing (the whole-account ledger) and
@@ -35,8 +37,10 @@ function Header({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-center gap-2">
-        <Badge tone="neutral">{typeLabel}</Badge>
-        <span className="text-micro text-text-subtle">{formatDateShort(date)}</span>
+        <Pill {...BADGE_PILL.neutral}>{typeLabel}</Pill>
+        <span className="text-micro text-text-subtle">
+          {formatDate(date, { style: "medium" }) ?? ""}
+        </span>
       </div>
       <p className="font-mono text-body font-medium text-text">
         {formatMoney(amountCents, currency)}
@@ -66,14 +70,17 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
           {ATTRIBUTION_KIND_LABELS[recoveredPayment.attributionKind as AttributionKind] ??
             recoveredPayment.attributionKind}
           {creditedStepType ? ` (${formatStepType(creditedStepType)})` : ""} on{" "}
-          {formatDateShort(recoveredPayment.attributedAt ?? recoveredPayment.recoveredAt)} recovered{" "}
+          {formatDate(recoveredPayment.attributedAt ?? recoveredPayment.recoveredAt, {
+            style: "medium",
+          }) ?? ""}{" "}
+          recovered{" "}
           <Link
             to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}
             className="text-brand-text hover:underline"
           >
             {formatMoney(recoveredPayment.amountCents, recoveredPayment.currency)}
           </Link>{" "}
-          on {formatDateShort(recoveredPayment.recoveredAt)}
+          on {formatDate(recoveredPayment.recoveredAt, { style: "medium" }) ?? ""}
         </p>
       ) : null}
 
@@ -81,7 +88,10 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
         <p className="text-label text-text-tertiary">
           {dispute.customerName ?? dispute.customerEmail ?? dispute.stripeChargeId} won a{" "}
           {dispute.reason} dispute for {formatMoney(dispute.amountCents, dispute.currency)}
-          {dispute.resolvedAt ? ` on ${formatDateShort(dispute.resolvedAt)}` : ""}.{" "}
+          {dispute.resolvedAt
+            ? ` on ${formatDate(dispute.resolvedAt, { style: "medium" }) ?? ""}`
+            : ""}
+          .{" "}
           <Link to={`/disputes/${dispute.id}`} className="text-brand-text hover:underline">
             View dispute
           </Link>
@@ -113,9 +123,9 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
     <ChainRow>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2">
-          <Badge tone="free">Stripe baseline - FREE</Badge>
+          <Pill {...BADGE_PILL.neutral}>Stripe baseline - FREE</Pill>
           <span className="text-micro text-text-subtle">
-            {formatDateShort(recoveredPayment.recoveredAt)}
+            {formatDate(recoveredPayment.recoveredAt, { style: "medium" }) ?? ""}
           </span>
         </div>
         <p className="font-mono text-body font-medium text-text-tertiary">

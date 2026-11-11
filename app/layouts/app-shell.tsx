@@ -27,7 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
-import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
 import { Banner } from "capsomer/react/banner";
 import "capsomer/admin-shell.css";
@@ -47,10 +47,9 @@ import {
   businessRows,
   currentRow,
   headerLogo,
-  personInitials,
   renderHeaderLink,
   THEME_PREF_KEY,
-  useThemeMemory,
+  themeMemory,
 } from "~/components/site-header";
 import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
@@ -236,7 +235,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const submit = useSubmit();
-  useThemeMemory(theme, "account");
   useCollapseKey();
   const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
@@ -394,6 +392,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         band="dark"
         switchers={business ? [business, products] : [products]}
         themePrefKey={THEME_PREF_KEY}
+        {...themeMemory("account", theme)}
         renderLink={renderHeaderLink}
         updated={{ at: readAt }}
         status={
@@ -409,7 +408,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         onHelp={() => void navigate("/help")}
         account={{
           name: userName || email,
-          initials: personInitials(userName, email),
+          initials: initialsOf(userName, email),
           email: userName ? email : undefined,
           appLabel: accountName ?? email,
           appLinks: [
@@ -501,7 +500,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   // The header's theme button still saves where the layout's did.
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
-  useThemeMemory(rootTheme, "account");
 
   // Capsomer's error page (its failed Empty), as the root boundary draws it (app/root.tsx), under the shell's header.
   return (
@@ -516,6 +514,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             <SiteHeader
               logo={headerLogo("/")}
               themePrefKey={THEME_PREF_KEY}
+              {...themeMemory("account", rootTheme)}
               sheetTitle="Foxhound menu"
               renderLink={renderHeaderLink}
             />

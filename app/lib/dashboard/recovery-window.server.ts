@@ -1,3 +1,4 @@
+import { relative, toMs } from "capsomer/behavior/time";
 import type { Db } from "~/db";
 import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory, HOUR_MS } from "~/lib/constants";
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
@@ -30,7 +31,6 @@ import {
   countByDayAndCategory,
   cumulativeRecoveryRateDaily,
   type DailyRatePoint,
-  formatRelativeTime,
   type RecoveryTimingBucket,
   recoveryTimingBuckets,
   resolveRangeCutoff,
@@ -268,7 +268,7 @@ export async function getRecoveryDashboardWindow(
     isCardExpiringSoon(c.expiresYear, c.expiresMonth, new Date(nowMs)),
   ).length;
   const webhookHealth = connection ? classifyWebhookHealth(connection.lastWebhookAt, nowMs) : null;
-  const lastRecoveryAgo = formatRelativeTime(lastRecoveryAt, nowMs);
+  const lastRecoveryAgo = relative(toMs(lastRecoveryAt), nowMs, "UTC", { granularity: "day" });
 
   return {
     rangeLabel,

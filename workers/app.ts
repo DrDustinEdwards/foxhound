@@ -70,7 +70,13 @@ const carrel: GatewayStep<Env> = async (request, env, ctx, kit) => {
   const { pathname } = kit.url;
   if (!pathname.startsWith("/api/carrel/v1") && !pathname.startsWith("/preview/")) return undefined;
   const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
-  const answer = await handleCarrelRequest(request, env, ctx, await kit.stylesheets());
+  // The root's stylesheets, then the blog post route's (its prose blocks), so a preview is drawn as /blog/<slug> draws
+  // the post.
+  const stylesheets = [
+    ...(await kit.stylesheets()),
+    ...((await serverBuild()).assets.routes["routes/blog/post"]?.css ?? []),
+  ];
+  const answer = await handleCarrelRequest(request, env, ctx, stylesheets);
   if (answer && !pathname.startsWith("/preview/"))
     kit.purgeAfterWrite(request, answer, `carrel ${request.method} ${pathname}`);
   return answer;
