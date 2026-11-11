@@ -314,17 +314,6 @@ describe("PLANT 3: pause is a direct write, audited under the acting admin", () 
   });
 });
 
-describe("the backup state", () => {
-  it("reads for an admin; a merchant key is refused", async () => {
-    const { keys } = await seed();
-    const refused = await api("/backup", { key: keys.merchant, actor: ADMIN });
-    expect(refused.status).toBeGreaterThanOrEqual(401);
-    const state = await api("/backup", asAdmin(keys.admin));
-    expect(state.status).toBe(200);
-    expect(state.json.data).toEqual({ last_ok: null, age_hours: null, files: {} });
-  });
-});
-
 describe("PLANT 4: money starts only after a human confirms in /admin", () => {
   it("staging a resume leaves the merchant paused and writes a pending row plus an audit entry", async () => {
     const { db, keys } = await seed();

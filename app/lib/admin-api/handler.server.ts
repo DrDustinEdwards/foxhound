@@ -29,7 +29,6 @@ import {
   listMerchants,
   setProcessingPaused,
 } from "~/lib/admin/merchants.server";
-import { backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import {
@@ -65,7 +64,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // next call, whatever the MCP still believes. The key failures share one 401
 // body so a guess cannot tell a revoked key from an unknown one.
 //
-// WHAT IT OFFERS. Reads, the files backup run now (copy only), a pause (one merchant, or every merchant through the
+// WHAT IT OFFERS. Reads (backups are Capsid Admin's, through /api/operator), a pause (one merchant, or every merchant through the
 // brake), staging, and the owner's test mail (/emails: preview any email, or
 // send it to the caller's own inbox; ../admin/email-send.server.ts, approved by
 // Dustin 2026-10-15). Test mail moves no money and writes no recovery state. Pausing stops money moving, so it is a direct write;
@@ -445,13 +444,6 @@ const ROUTES: ApiRoute[] = [
       const { items, ...rest } = slice("/audit-log", rows, page(url, "/audit-log"));
       return { entries: items, ...rest };
     },
-  },
-  {
-    // The backup state now, uncached: the newest complete dump and each files pass, warning past 26 hours. The same
-    // read as /health's backup field, which /health caches for an hour.
-    method: "GET",
-    pattern: "/backup",
-    handler: async ({ env, now }) => ({ ...(await backupStatus(env, now)) }),
   },
   {
     method: "POST",
