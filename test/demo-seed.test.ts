@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { getRecoveryStats, getMrrAnalytics } from "~/lib/dashboard/stats.server";
 import { DEMO_ACCOUNT_ID, DEMO_BOLT_ACCOUNT_ID } from "~/lib/demo/constants";
-import { listDisputes } from "~/lib/disputes/queries.server";
+import { listDisputesPage } from "~/lib/disputes/queries.server";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import { listFailedPayments } from "~/lib/recovery/queries.server";
@@ -73,7 +73,7 @@ describe("demo seeder -> real loaders render populated data", () => {
     expect(mrr.latest!.totalMrrCents).toBeGreaterThan(500_000);
     expect(mrr.latest!.totalMrrCents).toBeLessThan(2_000_000);
 
-    const disputes = await listDisputes(db, DEMO_BOLT_ACCOUNT_ID);
+    const { rows: disputes } = await listDisputesPage(db, DEMO_BOLT_ACCOUNT_ID, 1, 25);
     expect(disputes.map((d) => d.customerName).sort()).toEqual([
       "Drift Logic",
       "Lane Owens",

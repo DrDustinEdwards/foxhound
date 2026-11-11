@@ -1,5 +1,6 @@
-// Summary stats for the /disputes stat cards. Pure: the route
-// hands it the rows it already loaded, so no extra query.
+// Summary stats for the /disputes stat cards. Pure: /disputes hands it the
+// account's disputes grouped in SQL (disputeStatGroups), the preview and the
+// audit figures their own rows.
 //
 // Recova's view (app/(app)/disputes/dashboard/DisputesDashboardView.tsx, blob
 // 3c1b7a98) has five cards: Open disputes, At stake, Submitted by Recova, Fees
@@ -37,12 +38,8 @@ export interface DisputeStats {
   openCount: number;
   /** The disputed amount of each open dispute, in its own currency. */
   atStakeParts: CurrencyAmount[];
-  /**
-   * Every dispute whose evidence Foxhound submitted, in any state, lifetime
-   * (Recova's card is a lifetime count too). submitted_at is written only once
-   * Stripe has accepted a Foxhound submission (approval.server.ts), and a
-   * stored submitted_by of merchant_or_stripe says someone else sent it.
-   */
+  /** Every dispute whose evidence Foxhound submitted (submittedByFoxhound), in
+   *  any state, lifetime (Recova's card is a lifetime count too). */
   submittedByFoxhoundCount: number;
   wonCount: number;
   lostCount: number;
@@ -51,22 +48,51 @@ export interface DisputeStats {
   winRatePct: number | null;
 }
 
+/** Disputes alike for every card: one state and currency, submitted by
+ *  Foxhound or not, with how many there are and their total amount. */
+export interface DisputeStatGroup {
+  state: string;
+  currency: string;
+  foxhoundSubmitted: boolean;
+  count: number;
+  amountCents: number;
+}
+
+/** Whether Foxhound sent the evidence. submitted_at is written only once
+ *  Stripe has accepted a Foxhound submission (approval.server.ts), and a stored
+ *  submitted_by of merchant_or_stripe says someone else sent it. */
+export function submittedByFoxhound(row: Pick<DisputeStatsInput, "submittedAt" | "submittedBy">) {
+  return row.submittedAt !== null && row.submittedBy !== SUBMITTED_EXTERNALLY;
+}
+
 export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
+  return computeDisputeStatsFromGroups(
+    rows.map((row) => ({
+      state: row.state,
+      currency: row.currency,
+      foxhoundSubmitted: submittedByFoxhound(row),
+      count: 1,
+      amountCents: row.amountCents,
+    })),
+  );
+}
+
+export function computeDisputeStatsFromGroups(groups: DisputeStatGroup[]): DisputeStats {
   let openCount = 0;
   const atStakeParts: CurrencyAmount[] = [];
   let submittedByFoxhoundCount = 0;
   let wonCount = 0;
   let lostCount = 0;
 
-  for (const row of rows) {
-    if (row.submittedAt && row.submittedBy !== SUBMITTED_EXTERNALLY) submittedByFoxhoundCount++;
-    if (!isDisputeResolved(row.state)) {
-      openCount++;
-      atStakeParts.push({ currency: row.currency, cents: row.amountCents });
-    } else if (row.state === "resolved_won") {
-      wonCount++;
-    } else if (row.state === "resolved_lost") {
-      lostCount++;
+  for (const group of groups) {
+    if (group.foxhoundSubmitted) submittedByFoxhoundCount += group.count;
+    if (!isDisputeResolved(group.state)) {
+      openCount += group.count;
+      atStakeParts.push({ currency: group.currency, cents: group.amountCents });
+    } else if (group.state === "resolved_won") {
+      wonCount += group.count;
+    } else if (group.state === "resolved_lost") {
+      lostCount += group.count;
     }
   }
 

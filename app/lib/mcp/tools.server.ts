@@ -226,7 +226,7 @@ function lineItemForAgent(l: EnrichedLineItem) {
 /**
  * What a dispute looks like on the wire, and why it is a PICK rather than a row.
  *
- * `listDisputes` is `db.select()` over a 60-column table, and that table holds
+ * `listDisputesPage` is `db.select()` over a 60-column table, and that table holds
  * far more about a customer than the two fields 370 ruled on: `customerIp`,
  * `billingAddress`, the model-written `aiResponseText` and `triageReasoning`,
  * and four JSON blobs including `priorChargesJson` and `recoveryEmailsJson`,

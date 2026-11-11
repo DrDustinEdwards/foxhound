@@ -2,9 +2,11 @@ import { data } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
+import { Pagination } from "capsomer/react/pagination";
 import { Pill, type Tone as PillTone } from "capsomer/react/status";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
+import "capsomer/pagination.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
@@ -40,11 +42,12 @@ import {
 } from "~/lib/disputes/fraud-warnings.server";
 import { importDisputeFromStripe } from "~/lib/disputes/manual-import.server";
 import {
+  disputeStatGroups,
   getCustomerHealthScores,
   getDisputesWithEvidence,
-  listDisputes,
+  listDisputesPage,
 } from "~/lib/disputes/queries.server";
-import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
+import { computeDisputeStatsFromGroups, winRateCard } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import type { Tone } from "~/lib/recovery/labels";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
@@ -80,29 +83,31 @@ export function meta() {
   return [{ title: "Disputes - Foxhound" }, NOINDEX];
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+/** Rows per page of the disputes table, the payments list's default. */
+const DISPUTES_PAGE_SIZE = 25;
+
+export async function loader({ context, request }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
   const db = getDb(env);
 
-  // Newest first, as Recova orders the list (created_at descending).
+  // The cards count every dispute in SQL; the table reads one page, newest
+  // first, as Recova orders the list (created_at descending).
   const nowMs = Date.now();
-  const [disputes, feesOwed, warnings] = await Promise.all([
-    listDisputes(db, accountId),
+  const asked = Number(new URL(request.url).searchParams.get("page") ?? "1");
+  const requestedPage = Number.isInteger(asked) && asked > 0 ? asked : 1;
+  const [groups, feesOwed, warnings] = await Promise.all([
+    disputeStatGroups(db, accountId),
     getDisputeFeesOwed(db, accountId, nowMs),
     listEarlyFraudWarnings(db, accountId),
   ]);
+  const total = groups.reduce((n, g) => n + g.count, 0);
+  const pageCount = Math.max(1, Math.ceil(total / DISPUTES_PAGE_SIZE));
+  const page = Math.min(requestedPage, pageCount);
+  const { rows: disputes } = await listDisputesPage(db, accountId, page, DISPUTES_PAGE_SIZE);
 
-  const parts = computeDisputeStats(
-    disputes.map((d) => ({
-      state: d.state,
-      amountCents: d.amountCents,
-      currency: d.currency,
-      submittedAt: d.submittedAt,
-      submittedBy: d.submittedBy,
-    })),
-  );
+  const parts = computeDisputeStatsFromGroups(groups);
   const stats = {
     openCount: parts.openCount,
     atStake: groupSumByCurrency(parts.atStakeParts),
@@ -139,6 +144,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   // is still the boundary for a hand-crafted POST.
   return {
     disputes,
+    pagination: { page, pageCount, total, perPage: DISPUTES_PAGE_SIZE },
     stats,
     health,
     withEvidence,
@@ -222,7 +228,8 @@ function WinRateTile({ stats }: { stats: Parameters<typeof winRateCard>[0] }) {
 }
 
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
-  const { disputes, stats, health, withEvidence, nowMs, isDemo, isOwner, warnings } = loaderData;
+  const { disputes, pagination, stats, health, withEvidence, nowMs, isDemo, isOwner, warnings } =
+    loaderData;
   const hasEvidence = new Set(withEvidence);
 
   return (
@@ -248,7 +255,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
         </StatTiles>
       </div>
 
-      {disputes.length === 0 ? (
+      {pagination.total === 0 ? (
         <Empty kind="nothing-yet" title="No disputes yet.">
           When a customer disputes a charge, Foxhound automatically builds your response.
         </Empty>
@@ -336,6 +343,19 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
               </table>
             </div>
           </div>
+          {pagination.pageCount > 1 ? (
+            <div className="cap-panel-foot">
+              <Pagination
+                page={pagination.page}
+                pageCount={pagination.pageCount}
+                total={pagination.total}
+                perPage={pagination.perPage}
+                noun="disputes"
+                hrefFor={(n) => (n > 1 ? `/disputes?page=${n}` : "/disputes")}
+                label="Dispute pages"
+              />
+            </div>
+          ) : null}
         </div>
       )}
 
