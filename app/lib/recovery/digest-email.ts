@@ -25,7 +25,7 @@
 import type { Block } from "capsomer/email";
 
 import { recoveryFooterNote } from "~/lib/email/templates";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { CurrencyAmount } from "~/lib/money/totals";
 
 export const DIGEST_TEMPLATE = "weekly_digest";

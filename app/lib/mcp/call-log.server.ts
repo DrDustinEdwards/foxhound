@@ -4,6 +4,7 @@ import {
   loggedArgs,
   recordAudit,
 } from "@dustinedwards/site-runtime/audit-log";
+import { chunked, rowsPerInsert } from "@dustinedwards/site-runtime/d1";
 import { callerName } from "@dustinedwards/site-runtime/mcp-server";
 
 import type { Db } from "~/db";
@@ -233,7 +234,12 @@ export async function recordToolCalls(
     });
   }
   try {
-    await db.insert(mcpCalls).values(rows);
+    // Nine columns, so rowsPerInsert(9) rows a statement: a JSON-RPC batch can
+    // carry any number of tool calls. One db.batch keeps the log all-or-nothing.
+    const [first, ...rest] = chunked(rows, rowsPerInsert(9)).map((part) =>
+      db.insert(mcpCalls).values(part),
+    );
+    if (first !== undefined) await db.batch([first, ...rest]);
   } catch (err) {
     console.error(
       "mcp call log write failed:",

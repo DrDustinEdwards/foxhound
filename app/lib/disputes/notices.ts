@@ -3,7 +3,7 @@ import { isoDay } from "@drdustinedwards/site-helpers/xml";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // THE MERCHANT'S DISPUTE NOTICES: the words and the
 // pure rules, no database and no send. Recova is the spec, read whole:

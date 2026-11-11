@@ -18,8 +18,8 @@ import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatMoney } from "~/lib/money-format";
-import { parseDollarsToCents } from "~/lib/settings/dollars";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
+import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
@@ -120,7 +120,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       .trim()
       .toLowerCase();
     const description = String(form.get("description") ?? "").trim();
-    const magnitudeCents = parseDollarsToCents(String(form.get("amount") ?? ""));
+    const magnitudeCents = parseMoneyInput(String(form.get("amount") ?? ""), "usd");
     const idempotencyToken = String(form.get("idempotencyToken") ?? "");
 
     if (

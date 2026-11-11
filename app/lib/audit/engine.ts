@@ -7,7 +7,7 @@ import {
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import { byCurrencyCode } from "~/lib/money-format";
+import { byCurrencyCode } from "~/lib/money/totals";
 import { classifyDecline } from "~/lib/recovery/decline";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's

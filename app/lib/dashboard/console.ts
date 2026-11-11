@@ -8,7 +8,7 @@
 // passes typecheck and fails the client build, so anything a component calls has
 // to live here.
 
-import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
 /** How far ahead a dispute deadline counts as urgent, matching legacy's

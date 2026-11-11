@@ -13,7 +13,7 @@ import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";

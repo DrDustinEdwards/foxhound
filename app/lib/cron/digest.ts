@@ -1,17 +1,6 @@
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import {
-  and,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  isNotNull,
-  like,
-  notInArray,
-  sql,
-} from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, isNotNull, like, notInArray, sql } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import {
@@ -151,7 +140,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
     .from(stripeConnections)
     .where(
       and(
-        inArray(
+        inList(
           stripeConnections.accountId,
           withEmail.map((a) => a.accountId),
         ),

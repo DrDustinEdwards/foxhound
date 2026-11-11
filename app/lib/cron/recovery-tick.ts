@@ -1,4 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import { type Db, accounts, cronConfig, disputes, failedPayments, getDb } from "~/db";
 import {
   FAILED_PAYMENT_STATUS_UNRECOVERED,
@@ -408,7 +409,7 @@ function readClaimedSequences(db: Db, ids: string[], now: Date): Promise<Claimed
     .from(failedPayments)
     .where(
       and(
-        inArray(failedPayments.id, ids),
+        inList(failedPayments.id, ids),
         eq(failedPayments.status, FAILED_PAYMENT_STATUS_UNRECOVERED),
         eq(failedPayments.resolvedAt, now),
       ),

@@ -29,7 +29,7 @@ import {
 } from "~/lib/intelligence/customer-detail";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import { getCustomerActivity, getCustomerHealthDetail } from "~/lib/intelligence/views.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
 import { RecommendationBanner } from "~/components/recommendation-banner";
 
