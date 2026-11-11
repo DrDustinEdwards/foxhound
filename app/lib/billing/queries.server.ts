@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import {
@@ -46,16 +47,13 @@ async function enrichLineItems(
 
   const [recoveredRows, disputeRows, auditRows] = await Promise.all([
     recoveredPaymentIds.length
-      ? db
-          .select()
-          .from(recoveredPayments)
-          .where(inArray(recoveredPayments.id, recoveredPaymentIds))
+      ? db.select().from(recoveredPayments).where(inList(recoveredPayments.id, recoveredPaymentIds))
       : Promise.resolve([]),
     disputeIds.length
-      ? db.select().from(disputes).where(inArray(disputes.id, disputeIds))
+      ? db.select().from(disputes).where(inList(disputes.id, disputeIds))
       : Promise.resolve([]),
     auditIds.length
-      ? db.select().from(adminAuditLog).where(inArray(adminAuditLog.id, auditIds))
+      ? db.select().from(adminAuditLog).where(inList(adminAuditLog.id, auditIds))
       : Promise.resolve([]),
   ]);
 
@@ -66,7 +64,7 @@ async function enrichLineItems(
     ? await db
         .select({ id: recoverySteps.id, stepType: recoverySteps.stepType })
         .from(recoverySteps)
-        .where(inArray(recoverySteps.id, stepIds))
+        .where(inList(recoverySteps.id, stepIds))
     : [];
 
   const recoveredById = new Map(recoveredRows.map((r) => [r.id, r]));

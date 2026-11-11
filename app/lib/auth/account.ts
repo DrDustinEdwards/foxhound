@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import {
   type Db,
   accountFirstCreations,
@@ -145,7 +146,7 @@ export async function resolveActiveMembershipFrom(
     .from(accounts)
     .where(
       and(
-        inArray(
+        inList(
           accounts.id,
           memberships.map((m) => m.accountId),
         ),

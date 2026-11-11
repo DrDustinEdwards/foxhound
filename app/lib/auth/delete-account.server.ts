@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import type { BatchItem } from "drizzle-orm/batch";
 import {
   type Db,
@@ -133,7 +134,7 @@ async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | 
           .from(stripeConnections)
           .where(
             and(
-              inArray(stripeConnections.accountId, ownedAccountIds),
+              inList(stripeConnections.accountId, ownedAccountIds),
               isNull(stripeConnections.disconnectedAt),
             ),
           );
@@ -144,7 +145,7 @@ async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | 
       : await db
           .select({ id: recoveredPayments.id })
           .from(recoveredPayments)
-          .where(inArray(recoveredPayments.accountId, ownedAccountIds));
+          .where(inList(recoveredPayments.accountId, ownedAccountIds));
 
   return {
     userId,
