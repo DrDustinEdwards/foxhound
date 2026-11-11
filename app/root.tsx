@@ -96,6 +96,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="text-scale" content="scale" />
         {/* DEV ONLY. Since J22 style-src has no 'unsafe-inline' for elements,
             and Vite's dev client injects every stylesheet as an inline style
             element, which the policy then blocks (measured: an unstyled page
