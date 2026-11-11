@@ -30,14 +30,16 @@ import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
 import { Banner } from "capsomer/react/banner";
+import { shouldShowRouteSplash } from "capsomer/behavior/route-splash";
+import { RouteSplash } from "capsomer/react/route-splash";
 import "capsomer/admin-shell.css";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/route-splash.css";
 import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
 import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
-import { RouteSplash } from "~/components/route-splash";
 import {
   ACCOUNT_SWITCH_URL,
   businessSwitcher,
@@ -51,7 +53,7 @@ import {
   THEME_PREF_KEY,
   themeMemory,
 } from "~/components/site-header";
-import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
+import { isSplashPath } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { IMPERSONATION_STOP_PATH } from "~/lib/admin/impersonation.server";
@@ -238,10 +240,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   useCollapseKey();
   const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
-  // Legacy's loading.tsx, ported to RR8's substrate (305). The decision lives in
-  // a pure predicate so it can be tested without a DOM; see its header for why a
-  // bare state check would blank this page during every money action.
-  const splash = shouldShowRouteSplash(useNavigation());
+  // Legacy's loading.tsx on RR8's substrate: Capsomer decides when (never during
+  // the revalidation after a post), and the app names the paths.
+  const splash = shouldShowRouteSplash(useNavigation(), isSplashPath);
 
   // The menu: the product you are in and its pages. On a settings page it is
   // the settings list instead, under a row back to the product, so a settings
@@ -475,7 +476,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             header, menu and footer stay put and only the page swaps. The
             footer stays below the page, as legacy's SiteFooter is a sibling of
             the page content. */}
-        <div className="fh-app-page">{splash ? <RouteSplash /> : <Outlet />}</div>
+        <div className="fh-app-page">{splash ? <RouteSplash mark={{ src: "/icon-512.png", alt: "Foxhound" }} /> : <Outlet />}</div>
         <Footer variant="app" />
       </AdminShell>
     </div>
