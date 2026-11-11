@@ -16,6 +16,7 @@ import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
+import { RangeSlider } from "capsomer/react/range-slider";
 import { Glyph, Pill, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/bulk-bar.css";
@@ -28,6 +29,7 @@ import "capsomer/field.css";
 import "capsomer/page-head.css";
 import "capsomer/pagination.css";
 import "capsomer/panel.css";
+import "capsomer/range-slider.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
@@ -36,7 +38,6 @@ import "capsomer/table.css";
 // /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
-import { DualRangeSlider } from "~/components/dual-range-slider";
 import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -59,6 +60,7 @@ import type {
   FailedPaymentSort,
 } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { sliderDollars } from "~/lib/recovery/payments-list";
 import {
   AMOUNT_SLIDER_STEP_CENTS,
   DECLINE_CATEGORY_WORDS,
@@ -793,14 +795,17 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   ))}
                 </select>
               </div>
-              <DualRangeSlider
+              <RangeSlider
+                className="md:min-w-[220px] md:flex-[0_0_240px]"
+                label="Amount"
                 min={bounds.minCents}
                 max={bounds.maxCents}
-                valueMin={filters.amountMinCents}
-                valueMax={filters.amountMaxCents}
+                low={filters.amountMinCents}
+                high={filters.amountMaxCents}
                 step={AMOUNT_SLIDER_STEP_CENTS}
-                minName="amountMin"
-                maxName="amountMax"
+                names={["amountMin", "amountMax"]}
+                handleLabels={["Minimum amount", "Maximum amount"]}
+                format={(cents, which) => sliderDollars(cents, which === "high", bounds.maxCents)}
                 onCommit={(nextMin, nextMax) =>
                   go({
                     amountMin: nextMin > bounds.minCents ? String(nextMin) : "",

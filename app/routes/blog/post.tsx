@@ -1,5 +1,5 @@
 import { formatDate } from "capsomer/behavior/time";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Link2 } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import "~/blog-prose.css";
 
@@ -8,8 +8,11 @@ import { goneResponse } from "@dustinedwards/site-runtime/url";
 import { CoverPicture } from "~/components/blog/cover-picture";
 import { SectionTrail } from "~/components/section-trail";
 import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
-import { ShareRow } from "~/components/blog/share-row";
-import { TableOfContents } from "~/components/blog/table-of-contents";
+import { ShareRow } from "capsomer/react/share-row";
+import { Toc } from "capsomer/react/toc";
+import "capsomer/share-row.css";
+import "capsomer/toc.css";
+import { CopyLinkButton } from "~/components/copy-link-button";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
@@ -255,9 +258,22 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             {post.excerpt}
           </p>
 
-          <ShareRow url={canonical} title={post.title} />
+          <ShareRow url={canonical} title={post.title}>
+            <CopyLinkButton
+              url={canonical}
+              resetMs={2000}
+              aria-label="Copy link"
+              icon={(copied) =>
+                copied ? (
+                  <Check size={13} strokeWidth={1.5} aria-hidden />
+                ) : (
+                  <Link2 size={13} strokeWidth={1.5} aria-hidden />
+                )
+              }
+            />
+          </ShareRow>
 
-          <TableOfContents items={toc} variant="inline" />
+          <Toc items={toc} variant="inline" />
 
           <div
             className="blog-prose e-content"
@@ -268,7 +284,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           />
         </article>
 
-        <TableOfContents items={toc} variant="sidebar" />
+        <Toc items={toc} variant="sidebar" />
       </div>
 
       {related.length > 0 ? (

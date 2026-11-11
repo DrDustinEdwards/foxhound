@@ -63,13 +63,10 @@
  *  is RAISED for a ruling rather than covered on an inference.
  */
 
-/** The shape this predicate needs from RR's `Navigation`, narrowed so the
- *  decision is testable without a DOM or a router. */
-export type SplashNavigation = {
-  state: "idle" | "loading" | "submitting";
-  formMethod?: string | undefined;
-  location?: { pathname: string } | undefined;
-};
+/** The paths that splash. Capsomer's shouldShowRouteSplash
+ *  (capsomer/behavior/route-splash) decides when (a plain navigation, never the
+ *  revalidation after a post) and normalizes a trailing slash; this is only the
+ *  app's own set. */
 
 /** `/recovery/payments/:id` and nothing else under that prefix. The list itself
  *  is one segment shorter and has its own entry below, and export.csv is a
@@ -86,25 +83,8 @@ const SPLASH_PATHS: ReadonlySet<string> = new Set([
   "/settings",
 ]);
 
-export function isPaymentDetailPath(pathname: string): boolean {
-  return PAYMENT_DETAIL_PATH.test(pathname);
-}
-
-/** Every path legacy splashes, mapped onto Foxhound's routes. */
+/** Every path legacy splashes, mapped onto Foxhound's routes. Capsomer passes
+ *  the path with a trailing slash already removed. */
 export function isSplashPath(pathname: string): boolean {
-  // A trailing slash is the same page; without this a stray "/settings/" would
-  // silently stall instead of splashing.
-  const path = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-  return SPLASH_PATHS.has(path) || isPaymentDetailPath(path);
-}
-
-export function shouldShowRouteSplash(navigation: SplashNavigation): boolean {
-  // Settled: whatever is on screen is the answer, never a splash.
-  if (navigation.state !== "loading") return false;
-  // Post-submission revalidation, not a navigation. See the header note. This
-  // guard is what keeps a money action from blanking the page, and 306 extends
-  // its reach: it now protects five paths rather than one.
-  if (navigation.formMethod != null) return false;
-  const pathname = navigation.location?.pathname;
-  return pathname != null && isSplashPath(pathname);
+  return SPLASH_PATHS.has(pathname) || PAYMENT_DETAIL_PATH.test(pathname);
 }
