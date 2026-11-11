@@ -302,7 +302,7 @@ describe("J75: the loader", () => {
       params: {},
     } as never)) as Response;
     expect(res.status).toBe(200);
-    return (await res.text()).trim().split("\n").slice(1);
+    return (await res.text()).trim().split("\r\n").slice(1);
   }
 
   it("exports the rows on screen, as Recova's Export CSV does, never every filtered row", async () => {
