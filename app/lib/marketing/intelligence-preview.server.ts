@@ -15,7 +15,7 @@ import {
   signedMoney,
 } from "~/lib/intelligence/dashboard";
 import { healthScoreBand, type HealthScoreBand } from "~/lib/intelligence/health-band";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
 import { HOUR_MS } from "~/lib/constants";

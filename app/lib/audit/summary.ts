@@ -1,5 +1,5 @@
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
-import { plainMajorAmount } from "~/lib/money-format";
+import { moneyInputValue } from "@dustinedwards/site-runtime/money";
 import { PLAIN_WRITING_PROMPT } from "~/lib/ai/plain-writing";
 
 // Phase (c) of the audit port. Legacy's `generateAiSummary`
@@ -25,8 +25,8 @@ import { PLAIN_WRITING_PROMPT } from "~/lib/ai/plain-writing";
  *  too small and in the wrong currency. */
 function amountIn(currency: string): (minor: number) => string {
   const code = currency.toLowerCase();
-  if (code === "usd") return (minor) => `$${plainMajorAmount(minor, "usd")}`;
-  return (minor) => `${plainMajorAmount(minor, code)} ${code.toUpperCase()}`;
+  if (code === "usd") return (minor) => `$${moneyInputValue(minor, "usd")}`;
+  return (minor) => `${moneyInputValue(minor, code)} ${code.toUpperCase()}`;
 }
 
 /**

@@ -13,7 +13,7 @@ import { recoveryFooterNote } from "~/lib/email/templates";
 import type { EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { signEngagementToken } from "~/lib/engagement/token";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   applyCustomBody,
   generateDunningEmail,

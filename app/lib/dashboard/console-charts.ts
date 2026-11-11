@@ -2,7 +2,7 @@ import { barChart } from "enarratio/lite/bar";
 import type { ChartFit } from "capsomer/react/chart-frame";
 
 import type { CohortRow } from "~/lib/intelligence/mrr";
-import { formatMoneyShort, fromMajorUnits } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import { mrrMovementAlt, mrrMovementBars, type MovementTotals } from "./console";
 

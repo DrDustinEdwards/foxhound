@@ -15,7 +15,7 @@ import {
   fraudTypeWords,
   warningCustomerLabel,
 } from "~/lib/disputes/fraud-warnings";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 // The disputes dashboard's "Early fraud warnings" section: the open warnings,
 // each with Refund this charge and Dismiss. Look is the disputes table's own

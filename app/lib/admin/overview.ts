@@ -17,7 +17,7 @@ import { cronRunHref } from "~/lib/admin/crons";
 import { merchantHref, pagePending } from "~/lib/admin/page";
 import type { AdminOverview } from "~/lib/admin/overview.server";
 import { daysUntilDeadline, deadlineLabel, humanizeDisputeReason } from "~/lib/disputes/labels";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { DAY_MS } from "~/lib/constants";
 
 export function plural(n: number, one: string, many: string): string {

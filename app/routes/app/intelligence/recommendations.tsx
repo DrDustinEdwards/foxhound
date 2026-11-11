@@ -24,7 +24,7 @@ import {
   RECOMMENDATIONS_PAGE_SIZE,
   type RecommendationRow,
 } from "~/lib/intelligence/recommendations.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/recommendations";
 import { NOINDEX } from "~/lib/seo/meta";

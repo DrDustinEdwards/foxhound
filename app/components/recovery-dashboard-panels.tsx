@@ -40,7 +40,7 @@ import {
 } from "~/lib/dashboard/recovery-dashboard";
 import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatRelativeFuture, formatTimestamp } from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import {
   DECLINE_CATEGORY_LABELS,

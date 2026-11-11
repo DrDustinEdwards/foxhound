@@ -3,7 +3,7 @@ import { and, count, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 import { accounts, auditRuns, customerContext, disputes, recoveredPayments, type Db } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
-import { byCurrencyCode } from "~/lib/money-format";
+import { byCurrencyCode } from "~/lib/money/totals";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   ATTENTION_ROWS_PER_CATEGORY,

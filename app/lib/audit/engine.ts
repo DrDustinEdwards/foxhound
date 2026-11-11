@@ -8,7 +8,7 @@ import {
 } from "~/lib/constants";
 import { monthlyEquivalentCents, type BillingInterval } from "~/lib/intelligence/signals";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import { byCurrencyCode } from "~/lib/money-format";
+import { byCurrencyCode } from "~/lib/money/totals";
 import { classifyDecline } from "~/lib/recovery/decline";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's
