@@ -94,24 +94,6 @@ export const emailDeadLetters = sqliteTable(
   (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
 );
 
-/** RETIRED: nothing reads or writes it since the alerts moved onto `alerts_sent`
- *  (below). It stays declared so drizzle-kit does not generate its drop: a drop
- *  is a contract migration the deploy refuses, run by hand when Dustin says. */
-export const cronAlerts = sqliteTable(
-  "cron_alerts",
-  {
-    id: id(),
-    cronName: text("cron_name").notNull(),
-    /** "failure" | "stale" | "dead_letter" */
-    kind: text("kind").notNull(),
-    /** UTC date, YYYY-MM-DD. The day-granularity half of the dedupe key. */
-    alertedOn: text("alerted_on").notNull(),
-    detail: text("detail"),
-    createdAt: ts("created_at").notNull(),
-  },
-  (t) => [uniqueIndex("cron_alerts_dedupe_uq").on(t.cronName, t.kind, t.alertedOn)],
-);
-
 /** site-runtime ./cron-alert's ALERTS_SQL (migration 0077): one row per alert
  *  sent, which is also the dedupe, claimed before the mail so two invocations
  *  cannot both send. Written and read only by alertOnce and cronAlert. Epoch ms. */

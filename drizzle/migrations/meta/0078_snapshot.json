@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2acd39c6-0280-4ccc-b9dc-2c68421813cb",
+  "id": "49ee4c96-13a5-4d51-ad49-655e1cb2780d",
   "prevId": "f71fc3c0-3dc6-4688-b68b-727c7d663dec",
   "tables": {
     "audit_digest_runs": {
@@ -2894,68 +2894,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "cron_alerts": {
-      "name": "cron_alerts",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "cron_name": {
-          "name": "cron_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "alerted_on": {
-          "name": "alerted_on",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "detail": {
-          "name": "detail",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "cron_alerts_dedupe_uq": {
-          "name": "cron_alerts_dedupe_uq",
-          "columns": [
-            "cron_name",
-            "kind",
-            "alerted_on"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "email_dead_letters": {
       "name": "email_dead_letters",
       "columns": {
@@ -4814,7 +4752,7 @@
           "name": "account_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "stripe_connection_id": {
@@ -5846,7 +5784,7 @@
           "name": "account_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "stripe_connection_id": {
@@ -5982,7 +5920,7 @@
           "name": "account_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "deleted_at": {
@@ -6952,7 +6890,7 @@
           "name": "account_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "report_month": {
