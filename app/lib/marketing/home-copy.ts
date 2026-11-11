@@ -129,7 +129,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     // "Auto-submitted before the deadline"; the merchant signs, and auto-submit
     // is an opt-in that is off by default.
     foxhoundTitle: "Evidence drafted, you review and sign",
-    foxhoundBody: `Evidence built from your recovery history, Stripe signals, and transaction data. You review and sign every submission before the deadline. ${DISPUTE_FEE} only when you win, capped at ${DISPUTE_CAP}.`,
+    foxhoundBody: `Evidence built from your recovery history, Stripe signals, and transaction data. You approve every submission before the deadline, or turn on auto-submit. ${DISPUTE_FEE} only when you win, capped at ${DISPUTE_CAP}.`,
     foxhoundHref: "/product/disputes",
   },
 ];
@@ -158,7 +158,7 @@ export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
   },
   disputes: {
     description:
-      "Evidence drafted for every dispute. You review and sign every submission before it reaches Stripe.",
+      "Evidence drafted for every dispute. You approve every submission before it reaches Stripe, or turn on auto-submit.",
     price: `${DISPUTE_FEE} of won disputes, capped at ${DISPUTE_CAP}`,
   },
   intelligence: {

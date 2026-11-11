@@ -755,7 +755,7 @@ export const DOC_GUIDES: DocGuide[] = [
     slug: "disputes",
     datePublished: DOCS_FIRST_PUBLISHED,
     title: "Disputes",
-    description: "Evidence drafted for you. You review and sign every submission.",
+    description: "Evidence drafted for you. You approve every submission, or turn on auto-submit.",
     heading: "Disputes",
     lead: "Evidence building, triage scoring, review and submission for Stripe disputes.",
     sections: [

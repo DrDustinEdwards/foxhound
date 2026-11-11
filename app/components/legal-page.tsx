@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "capsomer/react/link";
 
+import { DISPUTE_AUTO_SUBMIT_HOURS } from "~/lib/disputes/approval";
+import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
+
 import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the Panel, the
 // link roles and the focus ring read. The site header loads the same file;
@@ -103,8 +106,12 @@ export function LegalPreambleHeading({ children }: { children: ReactNode }) {
   return <h2 className={LEGAL_H2}>{children}</h2>;
 }
 
-export function LegalH3({ children }: { children: ReactNode }) {
-  return <h3 className="mb-2 mt-6 text-item-title font-medium text-text">{children}</h3>;
+export function LegalH3({ id, children }: { id?: string; children: ReactNode }) {
+  return (
+    <h3 id={id} className="mb-2 mt-6 scroll-mt-20 text-item-title font-medium text-text">
+      {children}
+    </h3>
+  );
 }
 
 export function LegalP({ children }: { children: ReactNode }) {
@@ -132,5 +139,39 @@ export function LegalLink({ to, children }: { to: string; children: ReactNode })
     <Link to={to} className={LEGAL_LINK}>
       {children}
     </Link>
+  );
+}
+
+/** A link off the site, opened in a new tab as Recova's legal pages open them. */
+export function LegalExternal({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={LEGAL_LINK}>
+      {children}
+    </a>
+  );
+}
+
+/**
+ * Recova's one-paragraph description of the product, which both legal pages
+ * carry, rewritten to what Foxhound does: silent retry first, the email
+ * sequence's real length, and dispute responses that go to Stripe only on a
+ * person's approval or the merchant's own opt-in auto-submit. The numbers are
+ * the engine's constants (foxhound CLAUDE.md, hard rule 1).
+ */
+export function LegalServiceDescription() {
+  return (
+    <>
+      Foxhound is a SaaS application that recovers failed subscription payments for businesses using
+      Stripe. When a subscriber&apos;s payment fails, Foxhound detects the failure via Stripe
+      webhook, classifies the decline, and, wherever the decline can be retried, attempts a silent
+      retry before any customer ever sees an email. If there is no silent retry or it does not work,
+      Foxhound generates a personalized recovery email and, unless the customer has revoked
+      authorization, continues the sequence over {RECOVERY_SEQUENCE_DAYS} days. Foxhound also drafts
+      dispute evidence. A drafted response goes to Stripe only when someone on the merchant&apos;s
+      team approves it, or, if the merchant has turned on auto-submit (off by default),{" "}
+      {DISPUTE_AUTO_SUBMIT_HOURS} hours before the dispute&apos;s evidence deadline. Merchants
+      connect their Stripe account once via OAuth, and Foxhound runs automatically in the
+      background. Foxhound does not store card numbers or access payout or bank account information.
+    </>
   );
 }

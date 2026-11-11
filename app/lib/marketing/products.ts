@@ -49,7 +49,7 @@ export const PRODUCTS: Record<ProductKey, ProductDef> = {
     key: "disputes",
     name: "Disputes",
     description:
-      "Evidence drafted for every dispute. You review and sign every submission before it reaches Stripe.",
+      "Evidence drafted for every dispute. You approve every submission before it reaches Stripe, or turn on auto-submit.",
     price: `${DISPUTE_FEE_PERCENT}%`,
     priceLabel: `of won disputes, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`,
     href: "/product/disputes",
