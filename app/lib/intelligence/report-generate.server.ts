@@ -6,7 +6,8 @@ import { HOUR_MS, INTELLIGENCE_REPORT_HOURLY_LIMIT } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 
 import { writeNarrativeReport } from "./ai-run.server";
-import { monthKeyOf, type GenerateReportError } from "./dashboard";
+import type { GenerateReportError } from "./dashboard";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import { narrativeFactsFor, writeIntelligenceNarrative, type NarrativeCustomer } from "./narrative";
 import type { HealthFactor } from "./risk";
 
@@ -46,7 +47,7 @@ export async function generateMonthlyReport(
 ): Promise<GenerateReportResult> {
   if (!MONTH_PATTERN.test(month)) return { ok: false, error: "invalid_month" };
   const now = new Date(nowMs);
-  if (month !== monthKeyOf(now)) return { ok: false, error: "not_current_month" };
+  if (month !== monthKey(now)) return { ok: false, error: "not_current_month" };
 
   if (
     !(await isWithinRateLimit(

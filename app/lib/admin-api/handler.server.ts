@@ -52,6 +52,7 @@ import { ToolInputError } from "~/lib/mcp/registry";
 import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
 import { readJson } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
 
 // THE FOXHOUND ADMIN API at /api/admin/v1 (MCP ruling 2026-10-10, rule 9
 // amendment; job_21de68b30fc2 PR 1).
@@ -170,12 +171,8 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
 function page(url: URL, route: string): number {
   const raw = url.searchParams.get("cursor");
   if (!raw) return 1;
-  try {
-    const { t, p } = JSON.parse(atob(raw)) as { t?: unknown; p?: unknown };
-    if (t === route && typeof p === "number" && Number.isInteger(p) && p >= 1) return p;
-  } catch {
-    // Falls through to the refusal.
-  }
+  const p = readPageCursor(route, raw);
+  if (p !== null && p >= 1) return p;
   throw new ApiError(
     400,
     `That cursor was not issued by ${route}. Omit cursor to start from the first page.`,
@@ -189,9 +186,7 @@ function slice<T>(route: string, rows: T[], pageNumber: number) {
     items,
     total: rows.length,
     has_more: hasMore,
-    next_cursor: hasMore
-      ? btoa(JSON.stringify({ t: route, p: pageNumber + 1 })).replace(/=+$/, "")
-      : null,
+    next_cursor: hasMore ? pageCursor(route, pageNumber + 1) : null,
   };
 }
 
