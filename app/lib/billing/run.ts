@@ -281,7 +281,7 @@ type SweepRunStatus = "completed" | "aborted";
  * gate, so an unknown number of stranded invoices were never looked at at all.
  *
  * Those two states used to be indistinguishable from outside. The sweep's tally
- * was a console.log and the abort was a console.error, so a cron_run_history row
+ * was a console.log and the abort was a console.error, so a cron_run_log row
  * reading "3 accounts, 2 invoices" meant either "nothing was stranded" or "we
  * never found out", and an operator had no way to tell which (gate review 7.4).
  */
@@ -299,7 +299,7 @@ export interface MonthlyBillingResult {
   sweep: SweepRunSummary;
 }
 
-/** The sweep clause of the cron_run_history message. Pure, so the wording an
+/** The sweep clause of the cron_run_log message. Pure, so the wording an
  *  operator actually reads is asserted in a test rather than eyeballed after a
  *  deploy. ABORTED is shouted because it is the one value that means a silence
  *  is not evidence of nothing to do. */

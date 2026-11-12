@@ -17,12 +17,12 @@ import { isRetryStep } from "~/lib/recovery/schedule";
 import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 
 // The recovery tick: the sweep that runs due recovery_steps. Registered through
-// runCronJob (registry.ts), so cron-level overlap safety (the per-cron DO lock),
+// runScheduledJobs (run.ts), so cron-level overlap safety (the per-cron DO lock),
 // the config-enabled gate, and the min-interval gate are all handled by the
 // wrapper; this handler only does the per-step work.
 //
 // Safety model:
-//   - Overlap: the cron mutex (runCronJob) prevents two whole ticks overlapping.
+//   - Overlap: the cron mutex (runScheduledJobs) prevents two whole ticks overlapping.
 //   - Per-step exactly-once: the executors themselves are idempotent (Stripe
 //     idempotency key on the charge, conditional executed_at claim); the
 //     invoice.payment_succeeded webhook is the sole recovery recorder, and the

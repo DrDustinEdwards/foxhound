@@ -1,13 +1,7 @@
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  accounts,
-  auditDigestRuns,
-  auditRuns,
-  cronRunHistory,
-  stripeConnections,
-} from "~/db/schema";
+import { accounts, auditDigestRuns, auditRuns, stripeConnections } from "~/db/schema";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
@@ -21,7 +15,7 @@ import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 //
 // The cron now only enqueues, one message per opted-in account, and the queue
 // consumer audits the one account its message names. Every test here drives the
-// REAL registered cron handler through runCronJob and the REAL consumer entry
+// REAL registered cron handler through the real runner and the REAL consumer entry
 // (handleQueueBatch, which workers/app.ts hands every non-DLQ batch to), with
 // getConnectedStripe as the only live seam and an in-memory queue standing in
 // for the AUDIT_QUEUE producer binding.
@@ -43,7 +37,8 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
   decryptToken: async () => "sk_test_token",
 }));
 
-const { runCronJob } = await import("~/lib/cron/run");
+const { loggedRuns, runJob } = await import("./helpers/cron");
+const { cronRunId } = await import("~/lib/admin/crons");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { handleQueueBatch } = await import("~/lib/queue/consumer");
 
@@ -147,7 +142,7 @@ function setup() {
   } as unknown as Env;
   const alerts = () =>
     sqlite.prepare("SELECT * FROM alerts_sent").all() as Array<{ key: string; kind: string }>;
-  return { db, env: e, queue, stripeCalls: calls, delivered, messages, failFor, alerts };
+  return { db, sqlite, env: e, queue, stripeCalls: calls, delivered, messages, failFor, alerts };
 }
 
 async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> = {}) {
@@ -172,7 +167,7 @@ async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> 
 
 async function runCron(e: Env) {
   const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-  return runCronJob(e, job.name, job.handler);
+  return runJob(e, job.name, job.handler, job.schedule);
 }
 
 interface Delivery {
@@ -214,7 +209,7 @@ const bodyFor = (bodies: unknown[], accountId: string) =>
 
 describe("the cron enqueues one message per opted-in account and audits nothing itself", () => {
   it("only opted-in, processing-eligible accounts are queued, each with its month and run", async () => {
-    const { db, env, queue, stripeCalls, delivered } = setup();
+    const { db, sqlite, env, queue, stripeCalls, delivered } = setup();
     await seedAccount(db, "a_on");
     await seedAccount(db, "b_on");
     await seedAccount(db, "c_off", { auditAutoRun: false });
@@ -222,12 +217,10 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
     await seedAccount(db, "e_paused", { processingPaused: true });
     await seedAccount(db, "demo_teamflow");
 
-    const outcome = await runCron(env);
+    await runCron(env);
 
-    expect(outcome.status).toBe("success");
-    const runs = await db.select().from(cronRunHistory);
-    expect(runs).toHaveLength(1);
-    expect(runs[0].rowsProcessed).toBe(2);
+    const runs = loggedRuns(sqlite, CRON_NAME);
+    expect(runs.map((r) => r.outcome)).toEqual(["ok"]);
 
     const queued = queue.bodies as { accountId: string }[];
     expect(queued.map((b) => b.accountId).sort()).toEqual(["a_on", "b_on"]);
@@ -235,7 +228,7 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
       expect(body).toEqual({
         accountId: body.accountId,
         periodMonth: PERIOD,
-        cronRunId: runs[0].id,
+        cronRunId: cronRunId(CRON_NAME, runs[0]!.started_at),
       });
     }
 

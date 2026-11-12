@@ -522,7 +522,7 @@ export interface AccountSyncResult {
    *  change than this pass warrants for a pre-launch account base). Stripe's
    *  default list order is newest-first, so a truncated account rescans the
    *  same customers every run; this flag is how that becomes visible in
-   *  cron_run_history instead of silently under-covering the account forever. */
+   *  cron_run_log instead of silently under-covering the account forever. */
   truncated: boolean;
 }
 

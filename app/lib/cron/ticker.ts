@@ -7,7 +7,7 @@ import {
 } from "~/lib/constants";
 
 import type { CronJob } from "./registry";
-import { runCronJob, runScheduledJobs } from "./run";
+import { runScheduledJobs } from "./run";
 
 // THE FIVE-MINUTE TICKER, the logic half. workers/cron-ticker.ts is the Durable
 // Object shell; it imports "cloudflare:workers" and cannot load under vitest, so
@@ -21,9 +21,9 @@ import { runCronJob, runScheduledJobs } from "./run";
 // they no longer depend on that one trigger. The trigger stays in wrangler.jsonc
 // as a backup.
 //
-// NOTHING ABOUT THE JOBS CHANGES. Each runs through runCronJob, so cron_config,
-// the minimum interval, the CRON_LOCK lease and cron_run_history all apply as
-// they do for a trigger run. If the trigger comes back, a trigger run and an
+// NOTHING ABOUT THE JOBS CHANGES. Each runs through runScheduledJobs, so
+// cron_config, the minimum interval, the CRON_LOCK lease, cron_runs and
+// cron_run_log all apply as they do for a trigger run. If the trigger comes back, a trigger run and an
 // alarm run in the same window meet the lock (one skips as "locked") or run one
 // after the other, and the per-step and per-send claims stop any double charge
 // or double send, as they already do for overlapping trigger runs.
@@ -36,14 +36,15 @@ import { runCronJob, runScheduledJobs } from "./run";
 // the same minute applies nothing.
 
 export interface TickerDeps {
-  run: typeof runCronJob;
+  /** The run, runScheduledJobs by default. */
+  run: typeof runScheduledJobs;
   /** The jobs to run. Dynamic by default for the reason scheduled() gives: the
    *  registry's billing, AI and recovery graph stays out of module init. */
   jobs: () => Promise<CronJob[]>;
 }
 
 const defaultDeps: TickerDeps = {
-  run: runCronJob,
+  run: runScheduledJobs,
   jobs: async () => {
     const { jobsForSchedule } = await import("./registry");
     return [
@@ -59,7 +60,7 @@ const defaultDeps: TickerDeps = {
  *  swallows and logs this one's closing throw, which a retried alarm would
  *  otherwise turn into a second run of the jobs. */
 export async function runTickerJobs(env: Env, deps: TickerDeps = defaultDeps): Promise<void> {
-  await runScheduledJobs(env, await deps.jobs(), deps.run);
+  await deps.run(env, await deps.jobs());
 }
 
 /** Ask the ticker to make sure its alarm is set. Called from scheduled() and

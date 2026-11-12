@@ -200,8 +200,8 @@ export default withSentry<Env>(sentryOptions, {
     await handleQueueBatch(batch, env);
   },
   // Cron Triggers: Foxhound's own, not the shared `cron`, because each job runs
-  // through runCronJob (config + interval + DO-lock gates, cron_run_history
-  // logging) and the five-minute ticker must be re-armed on every trigger. Jobs
+  // behind Foxhound's gates (config + interval + DO lock, app/lib/cron/run.ts)
+  // and the five-minute ticker must be re-armed on every trigger. Jobs
   // are independent, run sequentially to keep D1 load bounded.
   async scheduled(controller, env) {
     // Every trigger, on every schedule, makes sure the five-minute ticker's
@@ -213,10 +213,10 @@ export default withSentry<Env>(sentryOptions, {
     // code paths, which never call this. See foxhound-audit-perf.md H-2.
     const { jobsForSchedule } = await import("~/lib/cron/registry");
     // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
-    // runCronJob, which is total: it returns a failed outcome rather than
-    // throwing, including for infrastructure failures outside the handler.
-    // runScheduledJobs records each in cron_runs and throws after the last
-    // job when any failed, so Cloudflare marks the invocation failed.
+    // site-runtime's runJobs: a throw, from a handler or its gates, is that
+    // job's recorded failure and the next job still runs. runScheduledJobs
+    // throws after the last job when any failed, so Cloudflare marks the
+    // invocation failed.
     await runScheduledJobs(env, jobsForSchedule(controller.cron));
   },
 } satisfies ExportedHandler<Env>);

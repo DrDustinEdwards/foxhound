@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { auditLookupIds, auditTarget } from "~/lib/admin/audit-describe";
-import { cronAnchor, cronRunAnchor, cronRunHref, describeCronSchedule } from "~/lib/admin/crons";
+import {
+  cronAnchor,
+  cronRunAnchor,
+  cronRunHref,
+  cronRunId,
+  describeCronSchedule,
+} from "~/lib/admin/crons";
 import { listCronRows } from "~/lib/admin/crons.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import { adminPageName } from "~/lib/admin/page";
@@ -56,39 +62,31 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
 
   function seed(now = NOW) {
     const { db, sqlite } = createInMemoryDb();
-    const run = (
-      id: string,
-      cronName: string,
-      status: string,
-      hoursAgo: number,
-      message: string | null = null,
-    ) =>
+    // Oldest first, as runJobs appends them.
+    const run = (cronName: string, outcome: string, hoursAgo: number, reason = "") =>
       sqlite
         .prepare(
-          "insert into cron_run_history (id, cron_name, started_at, finished_at, status, rows_processed, message, created_at) values (?, ?, ?, ?, ?, 0, ?, ?)",
+          "insert into cron_run_log (name, started_at, finished_at, outcome, reason) values (?, ?, ?, ?, ?)",
         )
-        .run(
-          id,
-          cronName,
-          now - hoursAgo * HOUR - 1000,
-          now - hoursAgo * HOUR,
-          status,
-          message,
-          now - hoursAgo * HOUR,
-        );
-    run("r-ok", "weekly-digest", "success", 1);
-    run("r-fail", "weekly-digest", "failed", 5, "Email binding unavailable");
-    run("r-old", "weekly-digest", "failed", 30, "too old to count");
-    run("r-tick", "recovery-tick", "success", 0.2);
+        .run(cronName, now - hoursAgo * HOUR - 1000, now - hoursAgo * HOUR, outcome, reason);
+    run("weekly-digest", "failed", 30, "too old to count");
+    run("weekly-digest", "failed", 5, "Email binding unavailable");
+    run("weekly-digest", "ok", 1);
+    run("recovery-tick", "ok", 0.2);
     return db;
   }
+  const failedId = (now: number) => cronRunId("weekly-digest", now - 5 * HOUR - 1000);
 
   it("the Crons page puts the failure on that cron, with the run's own anchor", async () => {
     const rows = await listCronRows(seed(), NOW);
     const digest = rows.find((r) => r.name === "weekly-digest");
-    expect(digest?.lastRun?.status).toBe("success");
+    expect(digest?.lastRun?.status).toBe("ok");
     expect(digest?.recentFailures).toEqual([
-      { id: "r-fail", finishedAt: new Date(NOW - 5 * HOUR), message: "Email binding unavailable" },
+      {
+        id: failedId(NOW),
+        finishedAt: new Date(NOW - 5 * HOUR),
+        message: "Email binding unavailable",
+      },
     ]);
     expect(rows.find((r) => r.name === "recovery-tick")?.recentFailures).toEqual([]);
   });
@@ -96,12 +94,15 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
   it("the Overview counts the same run and links to that anchor", async () => {
     // getPlatformOverview reads its 24-hour window from the real clock, so this
     // seed is relative to it.
-    const overview = await getPlatformOverview(seed(Date.now()));
+    const now = Date.now();
+    const overview = await getPlatformOverview(seed(now));
     expect(overview.cronHealth.failedLast24h).toBe(1);
     expect(overview.cronHealth.failedRuns.map((r) => [r.id, r.cronName, r.message])).toEqual([
-      ["r-fail", "weekly-digest", "Email binding unavailable"],
+      [failedId(now), "weekly-digest", "Email binding unavailable"],
     ]);
-    expect(cronRunHref("r-fail")).toBe(`/admin/platform/crons#${cronRunAnchor("r-fail")}`);
+    expect(cronRunHref(failedId(now))).toBe(
+      `/admin/platform/crons#${cronRunAnchor(failedId(now))}`,
+    );
     expect(cronAnchor("weekly-digest")).toBe("cron-weekly-digest");
   });
 });

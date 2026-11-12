@@ -13,6 +13,7 @@ import {
   inArray,
   isNull,
   lt,
+  max,
   notInArray,
   notLike,
   sql,
@@ -23,7 +24,7 @@ import {
   accounts,
   billingInvoices,
   cronConfig,
-  cronRunHistory,
+  cronRuns,
   disputes,
   failedPayments,
   mrrSnapshots,
@@ -31,6 +32,7 @@ import {
   stripeConnections,
 } from "~/db";
 import { auditTarget, describeAuditAction, type AuditTarget } from "~/lib/admin/audit-describe";
+import { failedCronRuns } from "~/lib/admin/crons.server";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
@@ -187,29 +189,18 @@ export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrB
 }
 
 async function cronHealth(db: Db, nowMs: number): Promise<PlatformOverview["cronHealth"]> {
-  const since = new Date(nowMs - DAY_MS);
   const [failedRuns, lastRunRows, disabledRows] = await Promise.all([
+    failedCronRuns(db, nowMs - DAY_MS),
     db
-      .select({
-        id: cronRunHistory.id,
-        cronName: cronRunHistory.cronName,
-        finishedAt: cronRunHistory.finishedAt,
-        message: cronRunHistory.message,
-      })
-      .from(cronRunHistory)
-      .where(and(eq(cronRunHistory.status, "failed"), gte(cronRunHistory.finishedAt, since)))
-      .orderBy(desc(cronRunHistory.finishedAt)),
-    db
-      .select({ finishedAt: cronRunHistory.finishedAt })
-      .from(cronRunHistory)
-      .orderBy(desc(cronRunHistory.finishedAt))
-      .limit(1),
+      .select({ okAt: max(cronRuns.lastOkAt), failedAt: max(cronRuns.lastFailedAt) })
+      .from(cronRuns),
     db.select({ n: count() }).from(cronConfig).where(eq(cronConfig.enabled, false)),
   ]);
+  const lastRunMs = Math.max(lastRunRows[0]?.okAt ?? 0, lastRunRows[0]?.failedAt ?? 0);
   return {
     failedLast24h: failedRuns.length,
     failedRuns,
-    lastRunAt: lastRunRows[0]?.finishedAt ?? null,
+    lastRunAt: lastRunMs ? new Date(lastRunMs) : null,
     disabledCount: disabledRows[0]?.n ?? 0,
   };
 }

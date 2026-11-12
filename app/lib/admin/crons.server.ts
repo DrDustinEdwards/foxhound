@@ -1,14 +1,15 @@
-// /admin/platform/crons data layer: cron_config enable/disable + cron_run_history.
+// /admin/platform/crons data layer: cron_config enable/disable, with each job's
+// last run from cron_runs and cron_run_log (site-runtime's, written by runJobs).
 // Not money-adjacent (this toggles operational scheduling, not billing), so
 // this is Pass 1 scope; still audit-logged since it's a real operator action
 // that changes production behavior.
 
-import { chunked } from "@dustinedwards/site-runtime/d1";
-import { and, desc, eq, gte, max, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, max, ne } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { CRON_JOBS } from "~/lib/cron/registry";
-import { cronConfig, cronRunHistory } from "~/db";
+import { cronConfig, cronRunLog, cronRuns } from "~/db";
+import { cronRunId } from "~/lib/admin/crons";
 import { DAY_MS } from "~/lib/constants";
 
 export interface CronRow {
@@ -21,9 +22,9 @@ export interface CronRow {
   minIntervalMinutes: number | null;
   lastRun: {
     id: string;
+    /** cron_run_log's outcome: ok, refused or failed. */
     status: string;
     finishedAt: Date;
-    rowsProcessed: number | null;
     message: string | null;
   } | null;
   /** When this cron's newest successful run finished; null when it has none
@@ -34,121 +35,78 @@ export interface CronRow {
   recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
 }
 
-const FAILURE_WINDOW_MS = DAY_MS;
-const PAIRS_PER_READ = 30;
+/** The runs that failed (or were refused) since `sinceMs`, newest first, every
+ *  job's: the Overview's cron health and the Crons page's failures. An empty
+ *  reason is null, so the page says none was recorded. */
+export async function failedCronRuns(
+  db: Db,
+  sinceMs: number,
+): Promise<Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>> {
+  const rows = await db
+    .select()
+    .from(cronRunLog)
+    .where(and(ne(cronRunLog.outcome, "ok"), gte(cronRunLog.finishedAt, sinceMs)))
+    .orderBy(desc(cronRunLog.id));
+  return rows.map((run) => ({
+    id: cronRunId(run.name, run.startedAt),
+    cronName: run.name,
+    finishedAt: new Date(run.finishedAt),
+    message: run.reason || null,
+  }));
+}
 
 /** One row per registered job (app/lib/cron/registry.ts is the source of
  *  truth for what jobs exist; cron_config only overrides enabled/interval - a
- *  missing config row means enabled, per app/lib/cron/gating.ts).
- *
- *  Each cron's own newest run, not the newest 500 runs overall. The recovery
- *  tick and the win-back send write a row every five minutes, 576 a day
- *  between them, so a daily job that ran 21 hours ago fell outside a shared
- *  window and the page said it had never run; a monthly job always did. Four
- *  reads for today's registry, whatever the history's size: the config, the
- *  newest finish per cron and status, those newest rows, and the last day's
+ *  missing config row means enabled, per app/lib/cron/gating.ts). Four reads
+ *  whatever the log's size: the config, each job's newest run, its last success
+ *  from cron_runs (which keeps it however long ago it was), and the last day's
  *  failures. */
 export async function listCronRows(db: Db, now: number = Date.now()): Promise<CronRow[]> {
-  const [configRows, newest, failures] = await Promise.all([
+  const [configRows, newest, runRows, failures] = await Promise.all([
     db.select().from(cronConfig),
     db
-      .select({
-        cronName: cronRunHistory.cronName,
-        status: cronRunHistory.status,
-        finishedAt: max(cronRunHistory.finishedAt),
-      })
-      .from(cronRunHistory)
-      .groupBy(cronRunHistory.cronName, cronRunHistory.status),
-    db
-      .select({
-        id: cronRunHistory.id,
-        cronName: cronRunHistory.cronName,
-        finishedAt: cronRunHistory.finishedAt,
-        message: cronRunHistory.message,
-      })
-      .from(cronRunHistory)
+      .select()
+      .from(cronRunLog)
       .where(
-        and(
-          eq(cronRunHistory.status, "failed"),
-          gte(cronRunHistory.finishedAt, new Date(now - FAILURE_WINDOW_MS)),
+        inArray(
+          cronRunLog.id,
+          db
+            .select({ id: max(cronRunLog.id) })
+            .from(cronRunLog)
+            .groupBy(cronRunLog.name),
         ),
-      )
-      .orderBy(desc(cronRunHistory.finishedAt)),
+      ),
+    db.select({ name: cronRuns.name, okAt: cronRuns.lastOkAt }).from(cronRuns),
+    failedCronRuns(db, now - DAY_MS),
   ]);
 
   const configByName = new Map(configRows.map((c) => [c.cronName, c]));
-
-  // The newest finish of any status, and of a success, per cron.
-  const lastFinishByName = new Map<string, { status: string; at: Date }>();
-  const lastSuccessByName = new Map<string, Date>();
-  for (const n of newest) {
-    if (!n.finishedAt) continue;
-    const at = n.finishedAt;
-    const seen = lastFinishByName.get(n.cronName);
-    if (!seen || at.getTime() > seen.at.getTime())
-      lastFinishByName.set(n.cronName, { status: n.status, at });
-    if (n.status === "success") lastSuccessByName.set(n.cronName, at);
-  }
-
-  // The rows behind those newest finishes, for their status and message. Only
-  // registered crons (a retired name's history is not shown), and in chunks:
-  // each one binds three parameters and D1 takes at most 100 in one statement.
-  // Naming the status lets each read seek the (cron_name, status, finished_at)
-  // index on all three columns.
-  const registered = new Set(CRON_JOBS.map((j) => j.name));
-  const pairs = [...lastFinishByName].filter(([name]) => registered.has(name));
-  const lastRunByName = new Map<string, typeof cronRunHistory.$inferSelect>();
-  const lastRuns = (
-    await Promise.all(
-      chunked(pairs, PAIRS_PER_READ).map((chunk) =>
-        db
-          .select()
-          .from(cronRunHistory)
-          .where(
-            or(
-              ...chunk.map(([name, { status, at }]) =>
-                and(
-                  eq(cronRunHistory.cronName, name),
-                  eq(cronRunHistory.status, status),
-                  eq(cronRunHistory.finishedAt, at),
-                ),
-              ),
-            ),
-          ),
-      ),
-    )
-  ).flat();
-  for (const run of lastRuns) {
-    // Two runs finishing in the same millisecond: either is the last run.
-    if (!lastRunByName.has(run.cronName)) lastRunByName.set(run.cronName, run);
-  }
-
+  const newestByName = new Map(newest.map((r) => [r.name, r]));
+  const okAtByName = new Map(runRows.map((r) => [r.name, r.okAt]));
   const failuresByName = new Map<string, CronRow["recentFailures"]>();
-  for (const run of failures) {
-    const list = failuresByName.get(run.cronName) ?? [];
-    list.push({ id: run.id, finishedAt: run.finishedAt, message: run.message });
-    failuresByName.set(run.cronName, list);
+  for (const { cronName, ...run } of failures) {
+    failuresByName.set(cronName, [...(failuresByName.get(cronName) ?? []), run]);
   }
 
   return CRON_JOBS.map((job) => {
     const config = configByName.get(job.name);
-    const lastRun = lastRunByName.get(job.name);
+    const last = newestByName.get(job.name);
+    const okAt = okAtByName.get(job.name);
     return {
       name: job.name,
       schedule: job.schedule,
       enabled: config?.enabled ?? true,
       configured: config !== undefined,
       minIntervalMinutes: config?.minIntervalMinutes ?? null,
-      lastRun: lastRun
+      lastRun: last
         ? {
-            id: lastRun.id,
-            status: lastRun.status,
-            finishedAt: lastRun.finishedAt,
-            rowsProcessed: lastRun.rowsProcessed,
-            message: lastRun.message,
+            id: cronRunId(job.name, last.startedAt),
+            status: last.outcome,
+            finishedAt: new Date(last.finishedAt),
+            message: last.reason || null,
           }
         : null,
-      lastSucceededAt: lastSuccessByName.get(job.name) ?? null,
+      lastSucceededAt: okAt == null ? null : new Date(okAt),
       recentFailures: failuresByName.get(job.name) ?? [],
     };
   });

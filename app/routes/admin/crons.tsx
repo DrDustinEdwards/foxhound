@@ -111,9 +111,9 @@ export async function action({ context, request }: Route.ActionArgs) {
 // color together), not an uppercase code-style badge. Recova's status pills:
 // success, failed, and "no runs" for a cron that has never run.
 const RUN_STATUS: Record<string, { tone: StatusTone; word: string }> = {
-  success: { tone: "ok", word: "Succeeded" },
+  ok: { tone: "ok", word: "Succeeded" },
   failed: { tone: "crit", word: "Failed" },
-  skipped: { tone: "nodata", word: "Skipped" },
+  refused: { tone: "crit", word: "Refused" },
 };
 
 const HEADING_ID = "admin-crons-heading";

@@ -24,15 +24,15 @@ export const emailSends = sqliteTable(
     error: text("error"),
     sentAt: ts("sent_at"),
     /** The cron run that produced this send. Ruling 311 measured that a
-     *  send could not be attributed to its run: nothing joined email_sends to
-     *  cron_run_history, so "which run sent this" meant correlating timestamps.
+     *  send could not be attributed to its run, so "which run sent this" meant
+     *  correlating timestamps. This is the run's id (cronRunId in
+     *  app/lib/admin/crons.ts: its job and start, the key of its cron_run_log
+     *  row).
      *
-     *  NULLABLE, and deliberately NOT a foreign key. The retention windows
-     *  DISAGREE: email_sends is kept 180 days (RETENTION_EMAIL_SENDS_DAYS) and
-     *  cron_run_history 90 (RETENTION_CRON_HISTORY_DAYS), so between days 90 and
-     *  180 a send legitimately outlives its run and an FK would make the
-     *  cron-history retention sweeper fail on exactly those rows. This column
-     *  records provenance; it is not a live relation. */
+     *  NULLABLE, and deliberately NOT a foreign key: email_sends is kept 180
+     *  days (RETENTION_EMAIL_SENDS_DAYS) and cron_run_log 90
+     *  (RETENTION_CRON_LOG_DAYS), so a send legitimately outlives its run. This
+     *  column records provenance; it is not a live relation. */
     cronRunId: text("cron_run_id"),
     /** THE SEND CLAIM. `EmailJob.idempotencyKey` existed from the start and
      *  was read by NOTHING, which 376 item 15 recorded: the type promised a

@@ -96,10 +96,9 @@ export const auditDigestRuns = sqliteTable(
     status: text("status").notNull(),
     error: text("error"),
     sentAt: ts("sent_at"),
-    /** The cron run that produced this row. Deliberately NOT a foreign key, per
-     *  314's FK-retention catch: cron_run_history is swept at 90 days and these
-     *  rows outlive it, so an FK would fail the sweeper on exactly the
-     *  legitimate rows. Mirrors email_sends.cron_run_id. */
+    /** The cron run that produced this row (cronRunId: its job and start, the
+     *  key of its cron_run_log row). Provenance, not a foreign key: these rows
+     *  outlive the log's retention. Mirrors email_sends.cron_run_id. */
     cronRunId: text("cron_run_id"),
     createdAt: ts("created_at").notNull(),
   },

@@ -542,7 +542,7 @@ export async function runRecoveryTick(
   // "steps that failed", and folding a bookkeeping sweep into it would make the
   // number mean two things. Never silent, though: the note is on the recorded
   // run message, so a sweep that is quietly always failing is visible in
-  // cron_run_history rather than looking like a tick with nothing to flip.
+  // cron_run_log rather than looking like a tick with nothing to flip.
   let sweepNote = "";
   if (tally.halted) {
     // An operator disabled the tick mid-run. "Disabled" should mean the tick
@@ -571,7 +571,7 @@ export async function runRecoveryTick(
   const executed = tally.retries + tally.emails;
   // THE FAILING STEPS, NAMED IN THE RUN'S OWN RECORD. `console.error` above
   // reaches wrangler tail, which is a live stream nobody is watching at 03:00;
-  // cron_run_history is what somebody actually reads the next morning, and a row
+  // cron_run_log is what somebody actually reads the next morning, and a row
   // saying "3 failed" with no ids sends them back to the logs they no longer
   // have.
   //
@@ -591,7 +591,7 @@ export async function runRecoveryTick(
       }`
     : "";
   const backlogNote = tally.backlog ? ", BACKLOG (tick hit RECOVERY_TICK_LIMIT)" : "";
-  // Both stop conditions are named in the run message, so cron_run_history shows
+  // Both stop conditions are named in the run message, so cron_run_log shows
   // a deliberate halt as a halt rather than as a quiet short run.
   const haltedNote = tally.halted ? ", HALTED (tick disabled mid-run)" : "";
   const pausedNote =

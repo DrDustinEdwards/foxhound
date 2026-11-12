@@ -227,7 +227,7 @@ export async function priceUnpricedDisputeFees(
   return result;
 }
 
-/** The cron_run_history message. */
+/** The cron_run_log message. */
 export function describeDisputeFeePricing(result: DisputeFeePricingResult): string {
   const base = `${result.priced} dispute fees priced, ${result.notified} merchants told, ${result.failed} still unpriced`;
   return result.mismatched > 0

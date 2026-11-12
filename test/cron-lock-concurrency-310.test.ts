@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { loggedRuns, runJob } from "./helpers/cron";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // RULING 310 item 1. The premise was that overlapping cron runs are possible with
 // no mutex. REFUTED: CronLockDurableObject (workers/cron-lock.ts) is a per-cron
@@ -9,14 +10,14 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // pins the thing that actually prevents overlap: not that a lock EXISTS, but that
 // the runner refuses to do work when the claim is denied.
 //
-// runCronJob had NO test at all before this. The lock's caller contract was the
+// The runner had NO test at all before this. The lock's caller contract was the
 // gap, which is why the pin is worth writing rather than being a formality.
 //
 // COVERAGE BOUND, stated per 246. The Durable Object CLASS is not exercised here.
 // `workers/cron-lock.ts` imports "cloudflare:workers", which does not resolve in
 // this repo's node test environment (measured: "Cannot find package
 // 'cloudflare:workers'"), so its acquire/release/lease arithmetic cannot be
-// driven from vitest. What IS driven is the real runCronJob against a real
+// driven from vitest. What IS driven is the real runner against a real
 // in-memory SQLite with the committed migrations, with the lock faked at the
 // boundary. So this proves the RUNNER honors a denied claim; it does not prove
 // the DO's own lease arithmetic. That half rests on source review and is said
@@ -29,7 +30,6 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { runCronJob } = await import("~/lib/cron/run");
 const { CRON_LOCK_LEASE_MS } = await import("~/lib/constants");
 
 /** The recovery tick's period, written as the number rather than derived from
@@ -80,8 +80,10 @@ function lockNamespace(grants: boolean[], calls: LockCalls) {
 }
 
 function envWith(grants: boolean[], calls: LockCalls) {
-  harness.db = createInMemoryDb().db;
-  return { DB: {}, CRON_LOCK: lockNamespace(grants, calls) } as unknown as Env;
+  const { db, sqlite } = createInMemoryDb();
+  harness.db = db;
+  const env = { DB: d1Over(sqlite), CRON_LOCK: lockNamespace(grants, calls) } as unknown as Env;
+  return { env, runs: () => loggedRuns(sqlite, "recovery-tick").map((r) => r.outcome) };
 }
 
 describe("310 item 1: the cron runner honors the lock", () => {
@@ -90,27 +92,25 @@ describe("310 item 1: the cron runner honors the lock", () => {
     // would still report "locked" while doing the work twice, so the handler
     // spy is what makes this a real proof rather than a status check.
     const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
-    const env = envWith([false], calls);
+    const { env, runs } = envWith([false], calls);
     const handler = vi.fn(async () => ({ rowsProcessed: 99 }));
 
-    const outcome = await runCronJob(env, "recovery-tick", handler);
+    await runJob(env, "recovery-tick", handler);
 
     expect(handler).not.toHaveBeenCalled();
-    expect(outcome.status).toBe("skipped");
-    expect(outcome.message).toBe("locked");
-    expect(outcome.rowsProcessed).toBe(0);
+    expect(runs(), "a skip records no run").toEqual([]);
   });
 
   it("a granted lock runs the handler exactly once and releases", async () => {
     const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
-    const env = envWith([true], calls);
+    const { env, runs } = envWith([true], calls);
     const handler = vi.fn(async () => ({ rowsProcessed: 3 }));
 
-    const outcome = await runCronJob(env, "recovery-tick", handler);
+    await runJob(env, "recovery-tick", handler);
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(outcome.status).toBe("success");
-    expect(calls.released).toBe(1);
+    expect(runs()).toEqual(["ok"]);
+    expect(calls.releasedWith).toEqual(calls.granted);
   });
 
   it("TWO OVERLAPPING FIRINGS: the work happens once, not twice", async () => {
@@ -118,15 +118,14 @@ describe("310 item 1: the cron runner honors the lock", () => {
     // guarantees in production: one instance per cron, so the second firing sees
     // the first one's claim.
     const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
-    const env = envWith([true, false], calls);
+    const { env, runs } = envWith([true, false], calls);
     const handler = vi.fn(async () => ({ rowsProcessed: 1 }));
 
-    const first = await runCronJob(env, "recovery-tick", handler);
-    const second = await runCronJob(env, "recovery-tick", handler);
+    await runJob(env, "recovery-tick", handler);
+    await runJob(env, "recovery-tick", handler);
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect([first.status, second.status]).toEqual(["success", "skipped"]);
-    expect(second.message).toBe("locked");
+    expect(runs()).toEqual(["ok"]);
     expect(calls.acquired).toBe(2);
   });
 
@@ -134,14 +133,14 @@ describe("310 item 1: the cron runner honors the lock", () => {
     // Without the `finally`, one exception wedges the cron until the lease
     // lapses. Proven non-vacuous by its own plant per 296.
     const calls: LockCalls = { acquired: 0, released: 0, granted: [], releasedWith: [] };
-    const env = envWith([true], calls);
+    const { env, runs } = envWith([true], calls);
     const handler = vi.fn(async () => {
       throw new Error("handler blew up");
     });
 
-    const outcome = await runCronJob(env, "recovery-tick", handler);
+    await runJob(env, "recovery-tick", handler);
 
-    expect(outcome.status).toBe("failed");
+    expect(runs()).toEqual(["failed"]);
     expect(calls.released, "a thrown handler must not wedge the cron").toBe(1);
   });
 

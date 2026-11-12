@@ -640,7 +640,7 @@ export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
  *   1-2 the step-state write, plus attribution reads on a retry
  *   ------
  *   ~4-5 per step, so 100 steps is ~400-500 plus the selection query, the
- *        exhausted sweep and one cron_run_history write.
+ *        exhausted sweep and one cron_run_log write.
  *
  * At 500 that arithmetic lands around 2000-2500 and the tick could not have
  * completed a full batch. The old value only ever looked safe because a full
@@ -715,7 +715,7 @@ export const RETENTION_ENGAGEMENT_DAYS = 180;
 export const RETENTION_EMAIL_SENDS_DAYS = 180;
 export const RETENTION_WEBHOOK_EVENTS_DAYS = 90;
 export const RETENTION_HEALTH_SCORE_DAYS = 90;
-export const RETENTION_CRON_HISTORY_DAYS = 90;
+export const RETENTION_CRON_LOG_DAYS = 90;
 export const RETENTION_AI_CALLS_DAYS = 90;
 export const RETENTION_SOCIAL_LEADS_DAYS = 180;
 /** The 404 counts: 90 days, the family default (pruneNotFound's own), which the admin report's 30-day view sits well inside. */
@@ -752,7 +752,7 @@ export const MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY = 3;
  *  persists which customers were already seen), so an account over this count
  *  rescans the same newest-first set every run rather than eventually covering
  *  everyone; app/lib/intelligence/sync.server.ts's AccountSyncResult.truncated
- *  flag surfaces this in cron_run_history so it is visible, not silent. */
+ *  flag surfaces this in cron_run_log so it is visible, not silent. */
 export const INTELLIGENCE_MAX_CUSTOMERS_SCANNED = 2000;
 /** Bounded invoice history read per customer when reconstructing billing-terms
  *  observations and payment-latency drift. */
