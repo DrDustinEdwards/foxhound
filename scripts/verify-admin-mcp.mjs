@@ -1,7 +1,6 @@
-import { errorMessage } from "@dustinedwards/site-runtime/log";
 // The live gate's verify for the admin MCP Worker (ci.yml, admin-mcp-deploy): run by devkit's worker-deploy.yml after
 // /health reports the commit this run deployed. Exit 0 passes, 1 refuses (devkit rolls the deploy back), 3 could not
-// decide (the job fails, nothing moves). No dependencies: the live gate does not install.
+// decide (the job fails, nothing moves). No imports at all: the live gate does not install.
 //
 // 1. The protected-resource metadata names this server's /mcp.
 // 2. /mcp with a foreign Origin is refused 403 before any token check (DNS rebinding).
@@ -53,7 +52,7 @@ for (let i = 1; i <= ATTEMPTS; i++) {
       process.exit(0);
     }
   } catch (error) {
-    last = `could not reach ${ORIGIN}: ${errorMessage(error)}`;
+    last = `could not reach ${ORIGIN}: ${error instanceof Error ? error.message : String(error)}`;
   }
   if (i < ATTEMPTS) await new Promise((resolve) => setTimeout(resolve, WAIT_MS));
 }
