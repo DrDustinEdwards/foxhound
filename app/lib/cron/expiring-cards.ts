@@ -1,4 +1,8 @@
 import { appOrigin } from "~/lib/app-origin";
+import {
+  activePrimaryConnectionWhere,
+  primaryConnectionValue,
+} from "~/lib/stripe/connections.server";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { Db, ExpiringCardAlertReason } from "~/db";
@@ -292,21 +296,15 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       expiresYear: expiringCardAlerts.expiresYear,
       reason: expiringCardAlerts.reason,
       notificationsEnabled: accounts.expiringCardNotificationsEnabled,
-      senderName: sql<string | null>`(
-        select ${stripeConnections.senderName} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
+      senderName: primaryConnectionValue<string>(
+        stripeConnections.senderName,
+        expiringCardAlerts.accountId,
+      ),
       // The Reply-To, from the same primary row as the sender name.
-      replyToEmail: sql<string | null>`(
-        select ${stripeConnections.replyToEmail} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
+      replyToEmail: primaryConnectionValue<string>(
+        stripeConnections.replyToEmail,
+        expiringCardAlerts.accountId,
+      ),
     })
     .from(expiringCardAlerts)
     .innerJoin(accounts, eq(accounts.id, expiringCardAlerts.accountId))
@@ -320,12 +318,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         // if the merchant reconnects inside the window (E12). Filtered here,
         // not in the loop, so unsendable rows never fill the 100-row page and
         // starve other merchants' alerts.
-        sql`exists (
-          select 1 from ${stripeConnections}
-          where ${stripeConnections.accountId} = ${expiringCardAlerts.accountId}
-            and ${stripeConnections.isPrimary} = 1
-            and ${stripeConnections.disconnectedAt} is null
-        )`,
+        sql`exists (select 1 from ${stripeConnections} where ${activePrimaryConnectionWhere(expiringCardAlerts.accountId)})`,
       ),
     )
     .limit(EXPIRING_CARD_SEND_LIMIT);

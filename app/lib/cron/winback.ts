@@ -1,5 +1,6 @@
 import { appOrigin } from "~/lib/app-origin";
-import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { primaryConnectionValue } from "~/lib/stripe/connections.server";
+import { and, eq, isNull, lte, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, getDb, stripeConnections, winBackSequences, winBackSteps } from "~/db";
@@ -114,34 +115,22 @@ async function queryDueWinbackSteps(
       scheduledAt: winBackSteps.scheduledAt,
       sequenceCreatedAt: winBackSequences.createdAt,
       notificationsEnabled: accounts.winbackNotificationsEnabled,
-      brandVoice: sql<string | null>`(
-        select ${stripeConnections.brandVoice} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      brandVoiceSamples: sql<string | null>`(
-        select ${stripeConnections.brandVoiceSamples} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      senderName: sql<string | null>`(
-        select ${stripeConnections.senderName} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      replyToEmail: sql<string | null>`(
-        select ${stripeConnections.replyToEmail} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
+      brandVoice: primaryConnectionValue<string>(
+        stripeConnections.brandVoice,
+        winBackSequences.accountId,
+      ),
+      brandVoiceSamples: primaryConnectionValue<string>(
+        stripeConnections.brandVoiceSamples,
+        winBackSequences.accountId,
+      ),
+      senderName: primaryConnectionValue<string>(
+        stripeConnections.senderName,
+        winBackSequences.accountId,
+      ),
+      replyToEmail: primaryConnectionValue<string>(
+        stripeConnections.replyToEmail,
+        winBackSequences.accountId,
+      ),
     })
     .from(winBackSteps)
     .innerJoin(winBackSequences, eq(winBackSequences.id, winBackSteps.winBackSequenceId))

@@ -496,6 +496,21 @@ export interface RunAuditInput {
 }
 
 /**
+ * The audit's two windows, in Stripe's Unix seconds: the lookback, and the card updater's, which is the shorter of the
+ * lookback and Stripe's 30-day event retention (legacy's asymmetry). collectAuditInputs reads over them and runAudit
+ * computes over the same ones.
+ */
+export function auditWindows(ranAt: Date, lookbackDays: number) {
+  const nowMs = ranAt.getTime();
+  const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
+  return {
+    lookbackStartSeconds: Math.floor((nowMs - lookbackDays * DAY_MS) / 1000),
+    cauWindowDays,
+    cauWindowStartSeconds: Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000),
+  };
+}
+
+/**
  * The whole audit, from injected reads. Pure: same inputs, same output, no clock
  * and no network.
  *
@@ -504,13 +519,13 @@ export interface RunAuditInput {
  */
 export function runAudit(input: RunAuditInput): AuditResult {
   const { stripeAccountId, lookbackDays, ranAt, reads } = input;
-  const nowMs = ranAt.getTime();
-  const lookbackStartSeconds = Math.floor((nowMs - lookbackDays * DAY_MS) / 1000);
-  const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
-  const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000);
+  const { lookbackStartSeconds, cauWindowDays, cauWindowStartSeconds } = auditWindows(
+    ranAt,
+    lookbackDays,
+  );
 
   const currency = resolveCurrency(reads);
-  const failed = resolveFailedInvoices(reads, nowMs);
+  const failed = resolveFailedInvoices(reads, ranAt.getTime());
 
   const failedInvoices: ScopeOutcome<FailedInvoicesScope> = failed.ok
     ? { ok: true, data: computeFailedInvoices(failed.data, currency) }

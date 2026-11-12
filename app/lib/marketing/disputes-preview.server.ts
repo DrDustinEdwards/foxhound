@@ -14,9 +14,9 @@ import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { formatAmounts, type CurrencyAmount } from "~/lib/money/totals";
+import { hourlyPreview } from "./hourly-preview";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
-import { HOUR_MS } from "~/lib/constants";
 
 // The data behind the /product/disputes previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from a hand-written
@@ -126,13 +126,5 @@ function buildDisputesPreview(now: Date): DisputesPreview {
   };
 }
 
-// The seed is cheap, but its deadlines count whole days from `now`, so one
-// preview serves every request in the same hour, as the Recovery spoke's does.
-let cached: { hour: number; preview: DisputesPreview } | null = null;
-
-export function disputesPreviewFor(nowMs: number): DisputesPreview {
-  const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour)
-    cached = { hour, preview: buildDisputesPreview(new Date(hour * HOUR_MS)) };
-  return cached.preview;
-}
+// One preview per clock hour (hourlyPreview).
+export const disputesPreviewFor = hourlyPreview(buildDisputesPreview);
