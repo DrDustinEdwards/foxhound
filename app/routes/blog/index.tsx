@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
@@ -326,3 +327,5 @@ function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
     </section>
   );
 }
+
+export const headers = () => publicPageHeaders();

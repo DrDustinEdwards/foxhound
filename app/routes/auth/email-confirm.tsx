@@ -30,9 +30,6 @@ export function meta() {
   return [{ title: "Confirm your email change - Foxhound" }, NOINDEX];
 }
 
-// The page's URL holds the token.
-export const headers = () => ({ "Cache-Control": "no-store" });
-
 export async function loader({ request, context }: Route.LoaderArgs) {
   const result = emailLinkResult(request.url);
   if (result.done !== "changed") return { ...result, newEmail: null };

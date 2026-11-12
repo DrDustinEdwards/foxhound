@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import {
   Outlet,
   useLocation,
@@ -93,6 +94,9 @@ const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
+
+// Drawn for one reader and kept out of Web Analytics (site-runtime PRIVATE_PAGE_HEADERS); the children inherit it.
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export const middleware: Route.MiddlewareFunction[] = [
   noindexHeader,

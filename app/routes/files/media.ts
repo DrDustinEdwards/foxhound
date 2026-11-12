@@ -18,7 +18,7 @@ import type { Route } from "./+types/media";
 // is a new address and the year-long immutable default of ./image's respond is
 // safe. An address without a version, or with one that is no longer the file's,
 // would outlive new bytes under the same key, so it gets five minutes, as the
-// blog's own short TTL does (cache-policy.ts); the transformed sizes stay in the
+// feed's own short TTL does; the transformed sizes stay in the
 // Cache API by etag, so a refresh is not another billed transform.
 const UNVERSIONED_CACHE_CONTROL = "public, max-age=300";
 

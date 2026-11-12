@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import {
   LegalBody,
   LegalContents,
@@ -972,3 +973,5 @@ export default function PrivacyPage() {
     </>
   );
 }
+
+export const headers = () => publicPageHeaders();

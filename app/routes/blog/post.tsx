@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { CTA_BUTTON } from "~/components/marketing-card";
@@ -405,3 +406,5 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return <MarketingError error={error} />;
 }
+
+export const headers = () => publicPageHeaders();

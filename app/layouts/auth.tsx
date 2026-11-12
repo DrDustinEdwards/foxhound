@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { Outlet } from "react-router";
 
 import { Footer } from "~/components/footer";
@@ -26,6 +27,9 @@ export const handle = { hydrate: true };
 // root loader's (<html data-theme>), and with no header there is no toggle,
 // as in Recova.
 // The sign-in pages are not for search results (each page's meta says so too).
+// Drawn for one reader and kept out of Web Analytics (site-runtime PRIVATE_PAGE_HEADERS); the children inherit it.
+export const headers = () => PRIVATE_PAGE_HEADERS;
+
 export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
 
 export default function AuthLayout() {

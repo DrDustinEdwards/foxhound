@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { ConsentRefusal, ConsentScreen } from "capsomer/react/consent";
 import type { FormHTMLAttributes, ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
@@ -53,8 +54,8 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 //     /login honors it through safeNextPath, whose checks are anchored.
 //   - Recova's force-dynamic fix and its hard-navigation login fix existed
 //     because Next.js served a cached signed-out render. A React Router loader
-//     runs on every request, the cache policy makes this path private, no-store
-//     (app/lib/http/cache-policy.ts), and the login action answers with a
+//     runs on every request, this page is private, no-store (its `headers`
+//     below), and the login action answers with a
 //     server redirect that carries the session cookie, so neither has anything
 //     to fix here.
 //   - The scope a URL asks for can never raise what is granted. Every grant
@@ -73,6 +74,9 @@ export const handle = { hydrate: true };
 export function meta() {
   return [{ title: "Authorize access - Foxhound" }, NOINDEX];
 }
+
+// Drawn for one reader, and its URL holds a token: kept out of caches and Web Analytics (site-runtime PRIVATE_PAGE_HEADERS).
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
 

@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { Button } from "capsomer/react/button";
 import { data, Form, redirect, useNavigation } from "react-router";
 
@@ -66,6 +67,9 @@ async function accept(db: Db, token: string, session: Session, headers?: Headers
     ? data({ accountName: null, error: INVALID }, { status: 403, headers })
     : data({ accountName: null, error: INVALID }, { status: 400, headers });
 }
+
+// Drawn for one reader, and its URL holds a token: kept out of caches and Web Analytics (site-runtime PRIVATE_PAGE_HEADERS).
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

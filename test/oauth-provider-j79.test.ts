@@ -5,12 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiKeys, oauthAuthorizationCodes, oauthGrants } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
 import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
 import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
-import { applyCachePolicy, classifyPath, NO_TRANSFORM_PREFIXES } from "~/lib/http/cache-policy";
 import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect } from "~/lib/oauth/redirects";
 import { DISALLOW_PATHS } from "~/lib/seo/files";
@@ -850,38 +849,9 @@ describe("expiry and revocation", () => {
   });
 });
 
-describe("the shared cache policy owns the private responses (test/cache-policy.test.ts PLANT 7)", () => {
-  it("the protected-resource document and revocation get the policy's private, no-store", async () => {
-    const prmReq = new Request(`${ORIGIN}/.well-known/oauth-protected-resource`);
-    const prm = applyCachePolicy(
-      prmReq,
-      resourceRoute.loader({ request: prmReq } as never) as Response,
-    );
-    expect(prm.headers.get("Cache-Control")).toBe(UNCACHED);
-    expect(prm.headers.get("Access-Control-Allow-Origin")).toBe("*");
-
-    const revReq = new Request(`${ORIGIN}/api/oauth/revoke`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ token: "fox_rt_unknown" }),
-    });
-    const rev = applyCachePolicy(
-      revReq,
-      (await revokeRoute.action({
-        request: revReq,
-        context: context(),
-        params: {},
-      } as never)) as Response,
-    );
-    expect(rev.status).toBe(200);
-    expect(rev.headers.get("Cache-Control")).toBe(UNCACHED);
-  });
-});
-
 describe("the authorize page stays out of caches, analytics and crawls", () => {
   it("is private, carries no analytics, and Recova's robots line returns", () => {
-    expect(classifyPath("/oauth/authorize")).toBe("private");
-    expect(NO_TRANSFORM_PREFIXES).toContain("/oauth/");
+    expect(authorizeRoute.headers()).toBe(PRIVATE_PAGE_HEADERS);
     expect(DISALLOW_PATHS).toContain("/oauth/");
   });
 });
@@ -991,7 +961,7 @@ describe("a grant ends when the person who approved it leaves the account", () =
   });
 });
 
-describe("least scope: read unless the owner allows changes, with a step-up for a write", () => {
+describe("least scope: read unless the owner allows changes", () => {
   const writes: string[] = [];
   const tool = (name: string, scope: "read" | "write"): McpTool => ({
     name,
@@ -1033,7 +1003,7 @@ describe("least scope: read unless the owner allows changes, with a step-up for 
     return (await handleMcpRequest(req, env(), REGISTRY)) as Response;
   }
 
-  it("a grant is read only unless the owner ticks Allow changes, and a write on it gets the 403 step-up", async () => {
+  it("a grant is read only unless the owner ticks Allow changes, and lists no write tool", async () => {
     writes.length = 0;
     const read = await grant(false);
     expect(read.scope).toBe("merchant.read");
@@ -1041,14 +1011,15 @@ describe("least scope: read unless the owner allows changes, with a step-up for 
       expect(
         toolOutput(await readMcp(await callTool(read.access, "foxhound_get_probe", era))).isError,
       ).toBe(false);
-      const refused = await callTool(read.access, "foxhound_update_probe", era);
-      expect(refused.status, era).toBe(403);
-      const challenge = refused.headers.get("WWW-Authenticate") ?? "";
-      expect(challenge).toMatch(/error="insufficient_scope"/);
-      expect(challenge).toMatch(/scope="merchant\.read merchant\.write"/);
-      expect(challenge).toContain(
-        `resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp"`,
+      const listed = await readMcp(
+        (await handleMcpRequest(
+          mcpRequest({ token: read.access, era, method: "tools/list", params: {} }),
+          env(),
+          REGISTRY,
+        )) as Response,
       );
+      expect(JSON.stringify(listed), era).not.toContain("foxhound_update_probe");
+      await callTool(read.access, "foxhound_update_probe", era);
     }
     expect(writes, "the write tool never ran").toEqual([]);
 
@@ -1062,11 +1033,13 @@ describe("least scope: read unless the owner allows changes, with a step-up for 
   });
 
   it("a grant made before the split, holding no scopes, is read only", async () => {
+    writes.length = 0;
     const { access } = await fullFlow();
     const [key] = await db.select().from(apiKeys);
     sqlite.prepare("UPDATE api_keys SET scopes = NULL WHERE id = ?").run(key.id);
     expect((await verifyMcpToken(db, access))!.scopes).toEqual(["merchant.read"]);
-    expect((await callTool(access, "foxhound_update_probe", "legacy")).status).toBe(403);
+    await callTool(access, "foxhound_update_probe", "legacy");
+    expect(writes, "the write tool never ran").toEqual([]);
   });
 });
 

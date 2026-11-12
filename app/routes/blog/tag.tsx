@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
@@ -109,3 +110,5 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

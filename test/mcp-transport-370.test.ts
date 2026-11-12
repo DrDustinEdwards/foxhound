@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { classifyPath } from "~/lib/http/cache-policy";
 import {
   DENIED_TOOL_FRAGMENTS,
   defineToolRegistry,
@@ -290,11 +289,7 @@ describe("PLANT 5: the posture", () => {
   });
 
   it("/mcp IS PRIVATE, and no public directive can reach it", async () => {
-    // The cache policy classifies anything unmatched as private, and /mcp is
-    // unmatched deliberately. Asserted through the real classifier rather than
-    // by reading the match list.
-    expect(classifyPath("/mcp")).toBe("private");
-    // And the handler sets it on the response itself, belt and braces.
+    // The handler sets it on the response itself, whatever the SDK set.
     const { good } = await seed();
     const { res } = await call({ token: good });
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");

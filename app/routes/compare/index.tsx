@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
@@ -73,3 +74,5 @@ export default function CompareIndex() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

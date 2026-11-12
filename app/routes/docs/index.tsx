@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
@@ -148,3 +149,5 @@ function GuideCard({ guide }: { guide: DocGuide }) {
     </Link>
   );
 }
+
+export const headers = () => publicPageHeaders();

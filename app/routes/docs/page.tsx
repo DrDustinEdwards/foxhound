@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { slugify } from "@drdustinedwards/site-helpers/slug";
 
 import { DocBlocks } from "~/components/docs/doc-blocks";
@@ -129,3 +130,5 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

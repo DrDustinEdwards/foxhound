@@ -5,11 +5,18 @@ import {
   isLegacyRequest,
   type JsonSchemaType,
   McpServer,
-  requireScopes,
 } from "@modelcontextprotocol/server";
 import { PROBE_PRINCIPAL } from "@dustinedwards/site-runtime/agent-keys";
 import { correlationId, recordAudit } from "@dustinedwards/site-runtime/audit-log";
-import { mcpCacheHints, routeMcpEra } from "@dustinedwards/site-runtime/mcp-server";
+import {
+  authorizeCall,
+  mcpCacheHints,
+  type McpCaller,
+  routeMcpEra,
+  toolScope,
+  toolScopeChallenge,
+  toolsForGrant,
+} from "@dustinedwards/site-runtime/mcp-server";
 
 import { MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
@@ -59,10 +66,6 @@ export const MCP_SERVER = {
   version: MCP_SERVER_INFO.version,
 };
 
-/** site-runtime's words for the list-only test key, which lists tools and runs none. */
-const PROBE_REFUSAL =
-  "Refused: this is the list-only test key for Foxhound. It can list tools and never runs one.";
-
 const INSTRUCTIONS = [
   "Foxhound recovers failed Stripe payments and tracks disputes and subscription health for one merchant: the account this key belongs to, and no other.",
   "Every tool reads or changes that account only. Ids come from the list tools. Nothing here moves money, submits a dispute, issues a refund, or connects or disconnects Stripe; those stay in the Foxhound app.",
@@ -107,9 +110,9 @@ function errorForAgent(tool: string, err: unknown): string {
 }
 
 /**
- * One server for one request, with every registered tool on it in registry
- * order, so `tools/list` is deterministic. `scopes` is null for the list-only
- * test key, which holds no OAuth token and runs nothing.
+ * One server for one request, with the tools the grant can call (site-runtime toolsForGrant: a read grant lists no
+ * write tool) in registry order, so `tools/list` is deterministic. `scopes` is null for the list-only test key, which
+ * holds no OAuth token, is listed what a read grant is, and runs nothing.
  */
 function buildMcpServer(
   registry: McpToolRegistry,
@@ -122,9 +125,20 @@ function buildMcpServer(
     cacheHints: CACHE_HINTS,
     maxToolInputElements: 10_000,
   });
-  for (const descriptor of registry.list()) {
+  // The door (./handler.server.ts) verified the account key, so only the grant's scopes decide (site-runtime's
+  // `person` caller); no person's email reaches this door, and the call log names the key.
+  const caller: McpCaller = scopes
+    ? { kind: "person", email: "", scopes }
+    : { kind: "probe", principal: PROBE_PRINCIPAL, scopes: [] };
+  const tools = registry.list().flatMap((descriptor) => {
     const tool = registry.get(descriptor.name);
-    if (!tool) continue;
+    return tool ? [{ descriptor, tool, name: descriptor.name, scope: tool.scope }] : [];
+  });
+  for (const { descriptor, tool, ...declared } of toolsForGrant(
+    tools,
+    scopes ?? [MERCHANT_SCOPES.read],
+    MERCHANT_SCOPES,
+  )) {
     server.registerTool(
       descriptor.name,
       {
@@ -137,58 +151,41 @@ function buildMcpServer(
         annotations: descriptor.annotations,
         // Each tool wears the site's icon, as on every network server (area 11, T9).
         icons: MCP_SERVER_INFO.icons,
-        // A key without the scope the tool needs gets the SDK's 403
-        // insufficient_scope, naming every scope the call needs and where to
-        // find the authorization server, before the tool runs, so the client
-        // can step up instead of failing. The list-only test key gets no
-        // challenge: it has no OAuth token to step up, and its refusal below
-        // is a tool result, so the SDK's own header checks still answer first
-        // and a valid call is a 200 (conformance P4,
+        // site-runtime's step-up: a token without the scope the call needs gets the 403 insufficient_scope before the
+        // tool runs. The list-only test key gets none: it has no OAuth token to step up, and its refusal below is a
+        // tool result, so the SDK's own header checks still answer first and a valid call is a 200 (conformance P4,
         // sep-2243-server-accepts-whitespace-header-value, run 55).
-        ...(scopes
-          ? {
-              scopeChallenge:
-                tool.scope === "write"
-                  ? requireScopes(MERCHANT_SCOPES.read, MERCHANT_SCOPES.write)
-                  : requireScopes(MERCHANT_SCOPES.read),
-            }
-          : {}),
+        ...(scopes ? { scopeChallenge: toolScopeChallenge(ctx.env, MCP_SERVER, declared) } : {}),
       },
       async (args: unknown, extra: { mcpReq?: { _meta?: Record<string, unknown> } }) => {
-        // THE LIST-ONLY TEST KEY RUNS NOTHING. It is refused in words, with a
-        // `refused` row in the shared log, as site-runtime's invokeTool refuses
-        // it on the other family servers (not imported here: the Worker sits at
-        // its size budget, and recordAudit is already in the bundle).
-        if (!scopes) {
-          await recordAudit(ctx.env, {
-            callId: crypto.randomUUID(),
-            phase: "refused",
-            caller: `probe:${PROBE_PRINCIPAL}`,
-            tool: descriptor.name,
-            result: { isError: true, text: PROBE_REFUSAL },
-            server: { name: MCP_SERVER.name, version: MCP_SERVER.version },
-            correlationId: correlationId(extra?.mcpReq?._meta),
-          });
-          return toolResult({ error: PROBE_REFUSAL, tool: descriptor.name }, true);
-        }
-        // The challenge above runs only when the transport is handed the key's
-        // scopes; this check holds whatever path reaches the tool.
-        const needed = tool.scope === "write" ? MERCHANT_SCOPES.write : MERCHANT_SCOPES.read;
-        if (!scopes.includes(needed)) {
-          return toolResult(
-            {
-              error: `${descriptor.name} needs ${needed}. Reconnect and tick "Allow changes" on the consent page.`,
+        const input = (args ?? {}) as Record<string, unknown>;
+        // site-runtime's authorizeCall, whatever path reaches the tool: the list-only test key runs nothing, and a
+        // grant without the tool's scope is refused in words.
+        const refused = authorizeCall(
+          ctx.env,
+          caller,
+          toolScope(declared, input, MERCHANT_SCOPES),
+          MCP_SERVER,
+        );
+        if (refused) {
+          if (!scopes)
+            await recordAudit(ctx.env, {
+              callId: crypto.randomUUID(),
+              phase: "refused",
+              caller: `probe:${PROBE_PRINCIPAL}`,
               tool: descriptor.name,
-            },
-            true,
-          );
+              result: { isError: true, text: refused },
+              server: { name: MCP_SERVER.name, version: MCP_SERVER.version },
+              correlationId: correlationId(extra?.mcpReq?._meta),
+            });
+          return toolResult({ error: refused, tool: descriptor.name }, true);
         }
         try {
           // THE TRACE NAMES THE TOOL BEING RUN, set here rather than passed in,
           // so a tool cannot record a different tool's name against its write.
           const data = await tool.execute(
             { ...ctx, trace: { ...ctx.trace, tool: descriptor.name } },
-            (args ?? {}) as Record<string, unknown>,
+            input,
           );
           return toolResult(data);
         } catch (err) {

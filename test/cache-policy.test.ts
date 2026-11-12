@@ -1,233 +1,83 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
+import { matchRoutes, type RouteObject } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { SHARED_CACHE_CONTROL, UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
+import routes from "~/routes";
+import { STATIC_PAGES } from "~/routes/files/sitemap";
 
-import {
-  applyCachePolicy,
-  CACHE_DIRECTIVES,
-  classifyPath,
-  cacheable,
-  hasSessionCookie,
-  resolveCacheControl,
-} from "~/lib/http/cache-policy";
+// The cache rule is the network's (site-runtime ./worker and ./edge-cache, tested there): a route whose `headers` is
+// publicPageHeaders() is stored at the edge and handed to every anonymous reader; every other answer leaves private,
+// no-store. What is Foxhound's is WHICH routes say so, and a mistake there cannot be undone: a page drawn for one reader
+// and marked public is stored and served to strangers (CLAUDE.md hard rule 9). Read from source, as the route modules
+// pull in the whole app.
 
-// SESSION 53 / 345 binding 4: the response cache policy, shipped BEFORE the
-// cache is enabled.
-//
-// THE ONE ASSERTION EVERYTHING ELSE SERVES: a request carrying a session cookie
-// never receives a public directive, on any route. Cloudflare bypasses on
-// Set-Cookie and Authorization but NOT on a request Cookie header, and the
-// marketing layout renders the signed-in switcher on the same URLs anonymous
-// visitors fetch, so a cached signed-in render of / would be served to a
-// stranger. The platform will not stop that; this policy is what does.
+type Entry = { file: string; path?: string; index?: boolean; children?: Entry[] };
 
-/** Production's cookie name, with the __Secure- prefix Better Auth applies on
- *  https. A matcher written against the LOCAL name would miss this one and
- *  classify every signed-in production request as anonymous. */
-const PROD_COOKIE = "__Secure-better-auth.session_token=abc123";
-const LOCAL_COOKIE = "better-auth.session_token=abc123";
+const APP = join(__dirname, "../app");
+const source = (file: string) => readFileSync(join(APP, file), "utf8");
+const PUBLIC = /export const headers = \(\) => publicPageHeaders\(\);/;
+const PRIVATE = /export const headers = \(\) => PRIVATE_PAGE_HEADERS;/;
 
-const PUBLIC_ROUTES = [
-  ["/", "marketing"],
-  ["/pricing", "marketing"],
-  ["/features", "marketing"],
-  ["/about", "marketing"],
-  ["/privacy", "marketing"],
-  ["/terms", "marketing"],
-  ["/products", "marketing"],
-  ["/product/recovery", "marketing"],
-  ["/products/recovery", "marketing"],
-  ["/compare", "marketing"],
-  ["/compare/chargeflow", "marketing"],
-  ["/decline-codes", "marketing"],
-  ["/decline-codes/card_declined", "marketing"],
-  ["/audit", "marketing"],
-  ["/demos", "marketing"],
-  ["/docs", "docs"],
-  ["/docs/recovery", "docs"],
-  ["/blog", "blog"],
-  ["/blog/archive", "blog"],
-  ["/blog/tag/recovery", "blog"],
-  ["/blog/some-post", "blog"],
-  ["/sitemap.xml", "files"],
-  ["/llms.txt", "files"],
-  ["/llms-full.txt", "files"],
-  ["/feed.rss", "files"],
-  ["/og/anything", "files"],
-  // Recova's card URL shape: the type rides in the query.
-  ["/og", "files"],
-] as const;
+/** The route tree with each route's module file as its id. */
+function tree(entries: Entry[]): RouteObject[] {
+  return entries.map((entry) =>
+    entry.index
+      ? { id: entry.file, index: true, path: entry.path }
+      : { id: entry.file, path: entry.path, children: tree(entry.children ?? []) },
+  );
+}
+const ROUTES = tree(routes as Entry[]);
 
-/** Every PRIVATE-class route, including the ones added after 345 was written. */
-const PRIVATE_ROUTES = [
-  "/console",
-  "/recovery/dashboard",
-  "/recovery/sequence",
-  "/recovery/payments",
-  "/recovery/payments/abc",
-  "/recovery/winback",
-  "/recovery/expiring-cards",
-  "/disputes/dashboard",
-  "/disputes/abc",
-  "/intelligence/dashboard",
-  "/intelligence/customers",
-  "/billing",
-  "/billing/invoices/abc",
-  // Sessions 42 to 46.
-  "/settings",
-  "/settings/team",
-  "/settings/audit",
-  "/settings/email",
-  "/settings/alerts",
-  "/settings/api-keys",
-  "/settings/brand-voice",
-  "/help",
-  "/welcome",
-  "/admin",
-  "/admin/merchants",
-  "/admin/operations",
-  "/admin/blog",
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/connect",
-  "/connect/callback",
-  // Session 51's second half of phase (d).
-  "/connect/additional",
-  "/invite/tok",
-  "/auth/google",
-  "/auth/google/callback",
-  "/api/auth/session",
-  "/api/theme",
-  "/api/account/switch",
-  "/logout",
-  "/demo/exit",
-  "/u/tok",
-  // The card-update page, alert AND resubscribe modes.
-  "/p/tok",
-  "/e/o/tok",
-  "/e/c/tok",
-  "/webhooks/stripe",
-  "/marketing/generate-email-sample",
-  // A demo entry sets the demo cookie.
-  "/demos/dashboard",
-  "/recovery/payments/export.csv",
-];
-
-function request(path: string, cookie?: string): Request {
-  return new Request(`https://foxhoundapp.com${path}`, {
-    headers: cookie ? { cookie } : {},
-  });
+/** Every module in the tree, with the layouts above it. */
+function walk(entries: Entry[], above: string[] = []): { file: string; above: string[] }[] {
+  return entries.flatMap((entry) => [
+    { file: entry.file, above },
+    ...walk(entry.children ?? [], [...above, entry.file]),
+  ]);
 }
 
-describe("PLANT 1: an anonymous page is shared only as the Renderer rendered it", () => {
-  it.each(PUBLIC_ROUTES)("%s is %s", (path, expected) => {
-    expect(classifyPath(path)).toBe(expected);
-    const directive = expected === "files" ? CACHE_DIRECTIVES.files : SHARED_CACHE_CONTROL;
-    expect(resolveCacheControl(request(path), true)).toBe(directive);
-  });
+const PRIVATE_LAYOUTS = [
+  "./layouts/app-shell.tsx",
+  "./layouts/admin-shell.tsx",
+  "./layouts/auth.tsx",
+];
 
-  it("a page the gateway rendered (with its nonce) is never shared", () => {
-    expect(resolveCacheControl(request("/pricing"))).toBe(UNCACHED);
-  });
-
-  it("a shared page carries the edge lifetime and the purge tag; one that sets a cookie does not", () => {
-    const shared = applyCachePolicy(request("/pricing"), new Response("x"), true);
-    expect(shared.headers.get("Cloudflare-CDN-Cache-Control")).toMatch(/^max-age=\d+/);
-    expect(shared.headers.get("Cache-Tag")).toBe("pages");
-    const cookied = applyCachePolicy(
-      request("/pricing"),
-      new Response("x", { headers: { "Set-Cookie": "a=1" } }),
-      true,
-    );
-    expect(cookied.headers.get("Cache-Control")).toBe(UNCACHED);
-    expect(cookied.headers.get("Cache-Tag")).toBeNull();
+describe("PLANT 5: every page in the sitemap is stored for every reader", () => {
+  // /security once shipped in the sitemap and was served private, no-store, because nobody listed it.
+  it("each STATIC_PAGES path lands on a route whose headers are publicPageHeaders", () => {
+    expect(STATIC_PAGES.length).toBeGreaterThan(5);
+    for (const { path } of STATIC_PAGES) {
+      const matched = matchRoutes(ROUTES, path);
+      const leaf = matched?.at(-1)?.route.id;
+      expect(leaf, `${path} matches no route`).toBeTruthy();
+      expect(source(leaf!), `${path} (${leaf}) is in the sitemap but not marked public`).toMatch(
+        PUBLIC,
+      );
+    }
   });
 });
 
-describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
-  const PAGES = PUBLIC_ROUTES.filter(([, c]) => c !== "files");
-
-  it.each(PAGES)("%s is private with a PRODUCTION session cookie", (path) => {
-    expect(resolveCacheControl(request(path, PROD_COOKIE), true)).toBe(UNCACHED);
+describe("PLANT 9: nothing drawn for one reader is marked public", () => {
+  it("the signed-in, admin and sign-in layouts are private and untransformed", () => {
+    for (const layout of PRIVATE_LAYOUTS) expect(source(layout), layout).toMatch(PRIVATE);
   });
 
-  it.each(PAGES)("%s is private with a LOCAL session cookie", (path) => {
-    expect(resolveCacheControl(request(path, LOCAL_COOKIE), true)).toBe(UNCACHED);
+  it("no route under them is marked public", () => {
+    for (const { file, above } of walk(routes as Entry[])) {
+      if (above.some((layout) => PRIVATE_LAYOUTS.includes(layout)))
+        expect(source(file), file).not.toMatch(PUBLIC);
+    }
   });
 
-  it("it is found among OTHER cookies, not only when it is alone", () => {
-    expect(hasSessionCookie(request("/", `theme=dark; ${PROD_COOKIE}; demo=1`))).toBe(true);
-  });
-});
-
-describe("PLANT 8: only a public page or files route may go to the Renderer", () => {
-  // site-runtime's Worker sends there only a read whose every cookie is the theme (tested there); which paths may go
-  // is Foxhound's.
-  const at = (path: string) => cacheable(new URL(`https://foxhoundapp.com${path}`));
-
-  it.each(PUBLIC_ROUTES)("%s may", (path) => {
-    expect(at(path)).toBe(true);
-  });
-
-  it.each(PRIVATE_ROUTES)("%s never does", (path) => {
-    expect(at(path)).toBe(false);
-  });
-
-  it("nor the media library", () => {
-    expect(at("/media/a.png")).toBe(false);
-  });
-});
-
-describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () => {
-  // THE HEADER THE CACHE-CONTROL POLICY COULD NOT REPLACE. The Worker does not
-  // run on a cache hit, so a directive computed inside it cannot govern what is
-  // SERVED. Vary moves the decision into the cache key, which is the only layer
-  // that runs on a hit.
-
-  it.each(PUBLIC_ROUTES)("%s carries Vary: Cookie when anonymous", (path) => {
-    const applied = applyCachePolicy(request(path), new Response("x"));
-    expect(applied.headers.get("Vary")).toBe("Cookie");
-  });
-
-  it.each(PRIVATE_ROUTES)("%s does NOT gain Vary", (path) => {
-    const applied = applyCachePolicy(request(path), new Response("x"));
-    expect(applied.headers.get("Vary")).toBeNull();
-  });
-
-  it("a PUBLIC route that sets its OWN Cache-Control still gets Vary", () => {
-    // The files routes set their own directive and are still public-class, so
-    // the question Vary answers still applies to them.
-    const existing = new Response("x", {
-      headers: { "Cache-Control": "public, max-age=86400" },
-    });
-    const applied = applyCachePolicy(request("/sitemap.xml"), existing);
-    expect(applied.headers.get("Cache-Control")).toBe("public, max-age=86400");
-    expect(applied.headers.get("Vary")).toBe("Cookie");
-  });
-
-  it("an EXISTING Vary is appended to, never clobbered, and never duplicated", () => {
-    const withVary = new Response("x", { headers: { Vary: "Accept-Encoding" } });
-    expect(applyCachePolicy(request("/"), withVary).headers.get("Vary")).toBe(
-      "Accept-Encoding, Cookie",
-    );
-
-    const already = new Response("x", { headers: { Vary: "Cookie" } });
-    expect(applyCachePolicy(request("/"), already).headers.get("Vary")).toBe("Cookie");
-
-    const cased = new Response("x", { headers: { Vary: "cookie" } });
-    expect(applyCachePolicy(request("/"), cased).headers.get("Vary")).toBe("cookie");
-  });
-});
-
-describe("PLANT 7: the policy is applied at the one choke point", () => {
-  it("the shared Worker's respond applies it to every page and step answer, stored or live", () => {
-    const source = readFileSync("workers/app.ts", "utf8").replace(/\s+/g, "");
-    expect(source).toContain(
-      "respond:(response,request,_env,{stored})=>applyCachePolicy(request,response,stored)",
-    );
+  it("the token and consent pages outside them are private and untransformed", () => {
+    for (const file of [
+      "./routes/auth/invite.tsx",
+      "./routes/oauth/authorize.tsx",
+      "./routes/utility/unsubscribe.tsx",
+      "./routes/utility/card-update.tsx",
+    ])
+      expect(source(file), file).toMatch(PRIVATE);
   });
 });
