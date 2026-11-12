@@ -23,6 +23,7 @@ import {
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 import { monthKey } from "@dustinedwards/site-runtime/time";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // The charge-dispatch retry sweep: the thing that makes a committed
 // billing_invoices row whose charge never landed recoverable instead of
@@ -375,7 +376,7 @@ export async function retryInvoiceCharge(
     } catch (err) {
       console.error(
         `platform customer create failed for billing invoice ${invoice.id}:`,
-        err instanceof Error ? err.message : err,
+        errorMessage(err),
       );
       return { invoiceId: invoice.id, outcome: "skipped", reason: "no_platform_customer" };
     }
@@ -702,10 +703,7 @@ export async function runChargeRetrySweep(
         outcome: "failed",
         reason: err instanceof Error ? err.message : "charge retry failed",
       });
-      console.error(
-        `charge retry failed for billing invoice ${invoice.id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`charge retry failed for billing invoice ${invoice.id}:`, errorMessage(err));
     }
   }
   return results;

@@ -23,6 +23,7 @@ import type { Block } from "capsomer/email";
 import { linksTo, storedCopyCarriesResubscribeLink } from "~/lib/recovery/update-link";
 import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 import { HOUR_MS } from "~/lib/constants";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // THE WIN-BACK SEND CRON. Ported from legacy's
 // app/api/cron/process-winback/route.ts (blob `18f20de9`, 24,184 bytes).
@@ -319,10 +320,7 @@ export async function resolveWinbackCopy(
   } catch (err) {
     // Legacy's rule, quoted in its own source: "AI failure must never block an
     // email, fall through to template".
-    console.error(
-      `winback generation failed for step ${step.stepId}:`,
-      err instanceof Error ? err.message : err,
-    );
+    console.error(`winback generation failed for step ${step.stepId}:`, errorMessage(err));
     return template();
   }
 }
@@ -425,10 +423,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
       }
       result.sent += 1;
     } catch (err) {
-      console.error(
-        `winback send failed for step ${step.stepId}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`winback send failed for step ${step.stepId}:`, errorMessage(err));
       result.skipped += 1;
     }
   }

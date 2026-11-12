@@ -50,6 +50,7 @@ import {
   type ScheduledChange,
   type ScheduleTerms,
 } from "./subscription-terms";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // The live Stripe + D1 seam for the Intelligence deterministic engine
 // (TASK-foxhound-intelligence-deterministic.md's "key architectural fact":
@@ -732,10 +733,7 @@ export async function runIntelligenceSyncForAllAccounts(
         snapshotWritten: false,
         truncated: false,
       });
-      console.error(
-        `intelligence sync failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`intelligence sync failed for account ${id}:`, errorMessage(err));
     }
   }
   return results;

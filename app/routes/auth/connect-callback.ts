@@ -26,6 +26,7 @@ import { findLiveAttachment } from "~/lib/stripe/connections.server";
 import { clearStateCookie, readStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect-callback";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Stripe Connect OAuth callback (ROUTES.md: /connect/callback). Stripe redirects
 // here with ?code&state after the merchant authorizes, and every path out of it
@@ -132,12 +133,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ctx.waitUntil(
       import("~/lib/intelligence/sync.server")
         .then((m) => m.runIntelligenceSyncForAccount(env, accountId, Date.now()))
-        .catch((err) =>
-          console.error(
-            "first intelligence sync failed:",
-            err instanceof Error ? err.message : err,
-          ),
-        ),
+        .catch((err) => console.error("first intelligence sync failed:", errorMessage(err))),
     );
 
   try {

@@ -4,11 +4,7 @@
 //
 // Prelum's own blocks carry the `:::faq` list (its pairs feed the FAQPage
 // JSON-LD) and `::postlink[slug|text]`, looked up in D1 (an unknown slug shows
-// as code so it is seen). What only Foxhound writes is one site pack:
-//
-//   - Heading ids come from legacy's generateSlug, so links to a section
-//     made before the move still land.
-//   - Links off this site open in a new tab, as legacy's did.
+// as code so it is seen). Heading ids are Prelum's slugger's.
 //
 // A hand-drawn diagram is a `:::figure` that names its light and dark files.
 // The renderer takes that pair out and inlines one SVG (./diagrams). An
@@ -16,18 +12,13 @@
 // their fills from the site's variables, so the same art follows the theme.
 
 import { ContentError, RENDER_VERSION, render } from "@drdustinedwards/site-helpers/render/nomath";
-import type { RenderPack } from "@drdustinedwards/site-helpers/render/packs";
 import { keyOfAddress, keysAtAddresses } from "@dustinedwards/site-runtime/image";
-import type { Root as HastRoot } from "hast";
-import { toString as hastToString } from "hast-util-to-string";
-import { visit } from "unist-util-visit";
 
 import type { Db } from "~/db";
 import { MEDIA_ADDRESSES, images, mediaUrl } from "~/lib/media/images";
 import { mediaRow, mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
 
 import { BLOG_DIAGRAMS } from "./diagrams";
-import { generateSlug } from "./format";
 import { resolvePostLink, type BlogPostSummary } from "./queries.server";
 
 export interface TocItem {
@@ -35,29 +26,6 @@ export interface TocItem {
   text: string;
   id: string;
 }
-
-// Before Prelum's own slugger, which keeps an id already set.
-function rehypeHeadingIds() {
-  return (tree: HastRoot) => {
-    const used = new Map<string, number>();
-    visit(tree, "element", (node) => {
-      if (node.tagName !== "h2" && node.tagName !== "h3") return;
-      const base = generateSlug(hastToString(node).trim()) || "section";
-      const count = used.get(base) ?? 0;
-      used.set(base, count + 1);
-      node.properties.id = count === 0 ? base : `${base}-${count + 1}`;
-    });
-  };
-}
-
-const foxhoundPack: RenderPack = {
-  name: "foxhound",
-  directives: [],
-  setup: () => ({
-    remark: [],
-    rehype: [[rehypeHeadingIds]],
-  }),
-};
 
 // A post's pictures are the media library's (/media/<key>, sized by the
 // library's index in app/lib/carrel/media-adapter.server.ts). A library
@@ -228,7 +196,7 @@ export async function renderMarkdown(
     file: "post",
     body: diagrams.body,
     resolveImage,
-    options: { packs: [foxhoundPack], media, postLink },
+    options: { media, postLink },
   });
   const html = stitchDiagramFigures(rendered.html, diagrams.slugs);
   const { toc, faq } = rendered;
