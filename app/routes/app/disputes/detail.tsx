@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -431,8 +432,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   Prior charge history
                 </h3>
                 <p className="m-0 mb-2 text-text">
-                  {dispute.priorChargesCount} prior successful charge
-                  {dispute.priorChargesCount === 1 ? "" : "s"} totaling{" "}
+                  {plural(dispute.priorChargesCount, "prior successful charge")} totaling{" "}
                   {formatMoney(dispute.priorChargesTotal ?? 0, dispute.currency)}
                 </p>
                 {priorCharges.length > 0 ? (

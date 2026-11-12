@@ -1,6 +1,7 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { formatStepType } from "./labels";
 import { isEmailStep, isRetryStep, RECOVERY_SCHEDULES } from "./schedule";
+import { plural } from "@drdustinedwards/site-helpers/text";
 
 // Pure account-wide step-performance aggregation for /recovery/sequence
 // (Foxhound's equivalent of legacy's sequence-utils.ts + SequenceView.tsx),
@@ -62,7 +63,7 @@ for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
  *  every offset, as Recova's chips say them (SequenceView.tsx 5507b89f:
  *  "72 hours after failure", "168 hours after failure"). */
 export function formatStepTiming(hours: number): string {
-  return `${hours} hour${hours === 1 ? "" : "s"} after failure`;
+  return `${plural(hours, "hour")} after failure`;
 }
 
 /**
