@@ -28,7 +28,7 @@ import {
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
-import { plural } from "@drdustinedwards/site-helpers/text";
+import { capitalize, plural } from "@drdustinedwards/site-helpers/text";
 
 // /features content. Recova's spec is
 // app/(marketing)/features/features-data.ts (blob a0a5dd20), read whole.
@@ -112,10 +112,6 @@ function cronWhen(expr: string): string {
   if (cadence === "weekly") return `each ${cronWeekday(expr)}`;
   if (cadence === "nightly") return "each night";
   return cadence;
-}
-
-function capitalize(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 /** The day of the month of a monthly "M H D * *" schedule. */

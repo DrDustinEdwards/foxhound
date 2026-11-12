@@ -143,14 +143,6 @@ export function formatStepType(stepType: string): string {
   return detail ? `${kindLabel} (${detail})` : kindLabel;
 }
 
-/** "retry_card_declined" -> "Retry card declined". */
-export function formatStepResult(result: string): string {
-  return result
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 /** Merchant-facing words for why a click was not counted.
  *  Plain description, never a vendor name or an accusation: the merchant needs
  *  to know the click was not billed and why, not to adjudicate it. */

@@ -1,3 +1,4 @@
+import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
@@ -7,7 +8,6 @@ import "capsomer/picture.css";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatTagChip } from "~/lib/blog/format";
 import { coverPicture } from "~/lib/blog/markdown.server";
 import {
   getFeaturedPost,
@@ -197,7 +197,7 @@ function BlogHero({
                   className="cap-pill"
                   data-variant="outline"
                 >
-                  {formatTagChip(post.tags[0])}
+                  {titleCase(post.tags[0])}
                 </Link>
               </>
             ) : null}

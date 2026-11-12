@@ -1,3 +1,4 @@
+import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { AlertTriangle, CreditCard, Scale, Activity } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill, type Tone } from "capsomer/react/status";
@@ -11,7 +12,6 @@ import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import {
   DECLINE_CATEGORY_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,
-  formatStepResult,
   formatStepType,
 } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
@@ -210,7 +210,7 @@ function PaymentTimeline() {
                 {timingLabel(step.offsetHours)}
               </span>
               {i === 0 && isRetryStep(step.stepType) ? (
-                <Pill tone="crit">{formatStepResult("retry_failed")}</Pill>
+                <Pill tone="crit">{titleCase("retry_failed")}</Pill>
               ) : (
                 <Pill variant="secondary">Pending</Pill>
               )}

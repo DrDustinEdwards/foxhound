@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { data, useFetcher } from "react-router";
@@ -268,9 +269,7 @@ function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; 
         </p>
       </Panel>
       <Panel title="Active customers" size="sm">
-        <p className={`${figure} text-text`}>
-          {latest.activeCustomersCount.toLocaleString("en-US")}
-        </p>
+        <p className={`${figure} text-text`}>{formatCount(latest.activeCustomersCount)}</p>
       </Panel>
       <Panel title="New MRR (MTD)" size="sm">
         <p className={`${figure} text-success-text`}>
