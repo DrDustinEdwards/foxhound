@@ -74,6 +74,7 @@ import {
   type McpToolRegistry,
   ToolInputError,
 } from "./registry";
+import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
 
 // THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING.
 //
@@ -162,10 +163,6 @@ const CURSOR_PROPERTY = {
   description: "Omit for the first page. To read on, pass next_cursor from the previous answer.",
 } as const;
 
-function encodeOffsetCursor(tool: string, page: number): string {
-  return btoa(JSON.stringify({ t: tool, p: page })).replace(/=+$/, "");
-}
-
 /** The 1-based page a cursor names, or 1 when there is none. */
 function decodeOffsetCursor(tool: string, args: ToolArgs): number {
   const raw = args["cursor"];
@@ -173,21 +170,14 @@ function decodeOffsetCursor(tool: string, args: ToolArgs): number {
   const refusal = new ToolInputError(
     `That cursor was not issued by ${tool}. Omit cursor to start from the first page.`,
   );
-  if (typeof raw !== "string") throw refusal;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(atob(raw));
-  } catch {
-    throw refusal;
-  }
-  const { t, p } = (parsed ?? {}) as { t?: unknown; p?: unknown };
-  if (t !== tool || typeof p !== "number" || !Number.isInteger(p) || p < 1) throw refusal;
+  const p = typeof raw === "string" ? readPageCursor(tool, raw) : null;
+  if (p === null || p < 1) throw refusal;
   return p;
 }
 
 function pageInfo(tool: string, page: number, totalPages: number) {
   const hasMore = page < totalPages;
-  return { has_more: hasMore, next_cursor: hasMore ? encodeOffsetCursor(tool, page + 1) : null };
+  return { has_more: hasMore, next_cursor: hasMore ? pageCursor(tool, page + 1) : null };
 }
 
 /** One page of an in-memory list the helper already scoped to the account. */

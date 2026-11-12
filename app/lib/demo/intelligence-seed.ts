@@ -12,6 +12,7 @@ import {
   type DemoEngagementOverride,
 } from "./customer-base";
 import { DAY_MS } from "~/lib/constants";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 // Intelligence seed (TASK-foxhound-demo-data-engine.md Phase 3): customer_context
 // + health_score_history + mrr_snapshots + the demo alert rules, built from the
@@ -277,10 +278,6 @@ interface MrrRosterEntry {
   activeMonthlyMrrCents: number;
 }
 
-function cohortKeyFor(d: Date): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
 function buildMrrRoster(
   customers: DemoCustomer[],
   disputeOnly: { id: string; planName: string; joinedAt: Date; mrrCents: number }[],
@@ -288,7 +285,7 @@ function buildMrrRoster(
   const fromBase: MrrRosterEntry[] = customers.map((c) => ({
     stripeCustomerId: c.stripeCustomerId,
     planName: planNameFor(c),
-    cohortKey: cohortKeyFor(c.customerSince),
+    cohortKey: monthKey(c.customerSince),
     joinedAt: c.customerSince,
     churnedAt: c.status === "churned" ? c.churnedAt : null,
     // Ignore the *current* churned/paused status for the historical-arc walk;
@@ -299,7 +296,7 @@ function buildMrrRoster(
   const fromDisputes: MrrRosterEntry[] = disputeOnly.map((d) => ({
     stripeCustomerId: d.id,
     planName: d.planName,
-    cohortKey: cohortKeyFor(d.joinedAt),
+    cohortKey: monthKey(d.joinedAt),
     joinedAt: d.joinedAt,
     churnedAt: null,
     activeMonthlyMrrCents: d.mrrCents,

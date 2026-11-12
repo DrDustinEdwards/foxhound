@@ -31,6 +31,7 @@ import {
 } from "./stripe-invoice";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 // The monthly billing run (PRICING.md billing mechanics + SCHEMA.md billing).
 // One invoice per account per currency, its line items FK-linked to their
 // evidence (recovered payment / dispute), committed as ONE atomic money-write
@@ -64,11 +65,8 @@ export function computeBillingPeriod(nowMs: number): BillingPeriod {
   const m = now.getUTCMonth(); // 0-11, current month
   const startY = m === 0 ? y - 1 : y;
   const startM = m === 0 ? 11 : m - 1;
-  return {
-    periodStart: new Date(Date.UTC(startY, startM, 1)),
-    periodEnd: new Date(Date.UTC(y, m, 1)),
-    periodKey: `${startY}-${String(startM + 1).padStart(2, "0")}`,
-  };
+  const periodStart = new Date(Date.UTC(startY, startM, 1));
+  return { periodStart, periodEnd: new Date(Date.UTC(y, m, 1)), periodKey: monthKey(periodStart) };
 }
 
 interface BillableRecoveryLite {

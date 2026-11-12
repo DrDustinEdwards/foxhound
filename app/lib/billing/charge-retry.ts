@@ -22,6 +22,7 @@ import {
   STRIPE_SETTLED_STATUSES,
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 // The charge-dispatch retry sweep: the thing that makes a committed
 // billing_invoices row whose charge never landed recoverable instead of
@@ -148,12 +149,6 @@ function linesFromLineItems(
   }));
 }
 
-/** YYYY-MM of an invoice's billing period, the same key buildBillingInvoiceBatch
- *  used when it first derived the line keys. */
-export function periodKeyOf(periodStart: Date): string {
-  return `${periodStart.getUTCFullYear()}-${String(periodStart.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
 async function loadLines(
   env: Env,
   invoiceId: string,
@@ -182,7 +177,8 @@ async function loadLines(
     .where(eq(billingLineItems.invoiceId, invoiceId));
   const lines = linesFromLineItems(rows, {
     accountId: invoice.accountId,
-    periodKey: periodKeyOf(invoice.periodStart),
+    // The same key buildBillingInvoiceBatch used when it first derived the line keys.
+    periodKey: monthKey(invoice.periodStart),
     currency: invoice.currency,
   });
   return { lines, periodStart: invoice.periodStart };

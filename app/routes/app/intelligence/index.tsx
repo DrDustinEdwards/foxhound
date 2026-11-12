@@ -21,7 +21,6 @@ import {
   GENERATE_REPORT_ERROR_STATUS,
   dayOverDayCents,
   firstSnapshotSentence,
-  monthKeyOf,
   monthLabel,
   narrativeErrorMessage,
   newMrrMonthToDateCents,
@@ -32,6 +31,7 @@ import {
   weeklyMovements,
   type GenerateReportError,
 } from "~/lib/intelligence/dashboard";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import {
   drawHealth,
   drawMovement,
@@ -98,8 +98,8 @@ export async function loader({ context }: Route.LoaderArgs) {
     overview,
     healthDistribution,
     mrrSeries,
-    reports: archive.map((r) => ({ month: monthKeyOf(r.reportMonth), narrative: r.narrative })),
-    currentMonth: monthKeyOf(new Date(nowMs)),
+    reports: archive.map((r) => ({ month: monthKey(r.reportMonth), narrative: r.narrative })),
+    currentMonth: monthKey(new Date(nowMs)),
     nowMs,
     isDemo: auth.isDemo,
   };

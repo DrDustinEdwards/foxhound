@@ -37,11 +37,6 @@ export function resolveRangeCutoff(range: RecoveryRange, nowMs: number): RangeRe
   return { cutoffMs: nowMs - 30 * DAY_MS, rangeDays: 30, rangeLabel: "30d" };
 }
 
-/** UTC "YYYY-MM" bucket for a timestamp. */
-export function monthKeyUTC(when: Date): string {
-  return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
 /** "YYYY-MM-DD" in UTC, the day-bucket key used throughout. Pure. */
 export function dayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
