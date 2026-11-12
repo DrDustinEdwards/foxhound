@@ -1,10 +1,11 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
-import { StatTile, StatTiles } from "capsomer/react/stat-tile";
+import { RecordFacts } from "capsomer/react/record-facts";
 import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
+import "capsomer/record-facts.css";
 import "capsomer/status.css";
 import { data, Form, useNavigation } from "react-router";
 
@@ -187,7 +188,7 @@ function EventLine({
       <span className="font-mono text-text-secondary">{event.actorEmail}</span>
       {/* "intended", because the umbrella row is written before the account
           writes so that a partial failure still leaves a record of the attempt.
-          The live truth is the count in the tiles above. */}
+          The live truth is the count in the facts above. */}
       {event.count !== null ? ` (${event.count} account(s) intended)` : null}
     </p>
   );
@@ -219,17 +220,20 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         }
       >
         <div className="cap-stack">
-          <StatTiles label="Paused accounts">
-            <StatTile label="Paused by brake" figure={String(status.brakePausedCount)} />
-            {/* Not "individually": the demo account is paused by the seeder, and
-                a pre-pause_reason row carries no reason either. What the number
-                actually means is "paused, and release will not touch it". */}
-            <StatTile
-              label="Paused outside the brake"
-              figure={String(status.individuallyPausedCount)}
-            />
-            <StatTile label="Eligible to pause now" figure={String(status.eligibleCount)} />
-          </StatTiles>
+          {/* "Outside the brake", not "individually": the demo account is paused by
+              the seeder, and a pre-pause_reason row carries no reason either. What
+              the number means is "paused, and release will not touch it". */}
+          <RecordFacts
+            facts={[
+              { label: "Paused by brake", value: status.brakePausedCount, mono: true },
+              {
+                label: "Paused outside the brake",
+                value: status.individuallyPausedCount,
+                mono: true,
+              },
+              { label: "Eligible to pause now", value: status.eligibleCount, mono: true },
+            ]}
+          />
           <div>
             <EventLine label="Last engage" event={status.lastEngage} />
             <EventLine label="Last release" event={status.lastRelease} />
