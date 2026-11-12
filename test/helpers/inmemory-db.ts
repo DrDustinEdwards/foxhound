@@ -102,9 +102,12 @@ export function inMemoryMoneyWriter(sqlite: () => Database.Database) {
   return { binding, commits };
 }
 
-/** The part of a D1 binding site-api's d1ScheduledUpdates uses, over the same
- *  in-memory SQLite, so the package's own SQL runs against the migrated schema. */
-export function d1Over(sqlite: Database.Database): D1Like {
+/** The part of a D1 binding site-api's stores use (d1ScheduledUpdates, d1MediaStore),
+ *  over the same in-memory SQLite, so the package's own SQL runs against the migrated
+ *  schema. `batch` runs its statements in one transaction, as D1 does. */
+export function d1Over(sqlite: Database.Database): D1Like & {
+  batch(statements: D1StatementLike[]): Promise<unknown[]>;
+} {
   // D1 takes numbered parameters (?1, ?2), which better-sqlite3 refuses; they
   // become plain ? with the values in the order they appear.
   const plain = (sql: string, values: unknown[]): [string, never[]] => {
@@ -139,5 +142,20 @@ export function d1Over(sqlite: Database.Database): D1Like {
       },
     };
   };
-  return { prepare: (sql) => statement(sql) };
+  const pending = new WeakMap<D1StatementLike, () => unknown>();
+  const batched = (sql: string, values: unknown[] = []): D1StatementLike => {
+    const made = statement(sql, values);
+    const bind = (...next: unknown[]) => batched(sql, next);
+    pending.set(made, () => {
+      const [text, args] = plain(sql, values);
+      const stmt = sqlite.prepare(text);
+      return stmt.reader ? { results: stmt.all(...args) } : { results: [], ...stmt.run(...args) };
+    });
+    return Object.assign(made, { bind });
+  };
+  return {
+    prepare: (sql) => batched(sql),
+    batch: async (statements) =>
+      sqlite.transaction(() => statements.map((s) => pending.get(s)!()))(),
+  };
 }

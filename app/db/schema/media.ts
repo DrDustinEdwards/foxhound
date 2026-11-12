@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { json, ts } from "./columns";
+import { json } from "./columns";
 
 // ============================================================================
 // The blog's media library (global, no account: editorial pictures only)
@@ -8,7 +8,9 @@ import { json, ts } from "./columns";
 //
 // What Carrel uploads for blog posts (app/lib/carrel/media-adapter.server.ts).
 // The bytes live in the MEDIA R2 bucket under the same key; this is the index
-// site-api's media group answers from. No merchant data is ever stored here:
+// site-api's media group answers from: its standard tables (MEDIA_LIBRARY_SQL,
+// migration 0080), written only by its d1MediaStore, described here for the
+// blog's reads and for drizzle-kit. No merchant data is ever stored here:
 // the only writer is Carrel's site-api mount, and merchant dispute evidence
 // stays in its own EVIDENCE bucket and tables.
 
@@ -40,12 +42,13 @@ export const media = sqliteTable(
     /** A 16 px blurred WebP data: URI and the main color (#rrggbb), from site-api's prepareUpload for the current bytes. */
     placeholder: text("placeholder"),
     color: text("color"),
-    trashedAt: ts("trashed_at"),
-    uploadedAt: ts("uploaded_at").notNull(),
+    /** ISO 8601 UTC, as site-api's d1MediaStore writes it. */
+    uploadedAt: text("uploaded_at").notNull(),
+    trashedAt: text("trashed_at"),
     /** Moved by every write in the statement that checks it, so a stale write is refused, never lost. */
     rev: integer("rev").notNull().default(0),
   },
-  (t) => [index("media_sha256_idx").on(t.sha256)],
+  (t) => [index("media_sha256").on(t.sha256)],
 );
 
 /** Every set of bytes a file has had, newest last. The earlier sets are kept in MEDIA under `copy_key`. */
@@ -54,7 +57,7 @@ export const mediaRevisions = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     mediaKey: text("media_key").notNull(),
-    at: ts("at").notNull(),
+    at: text("at").notNull(),
     bytes: integer("bytes").notNull(),
     width: integer("width"),
     height: integer("height"),
@@ -64,15 +67,11 @@ export const mediaRevisions = sqliteTable(
     /** Where these bytes were kept once newer ones replaced them; null while they are the current ones. */
     copyKey: text("copy_key"),
   },
-  (t) => [index("media_revisions_key_idx").on(t.mediaKey, t.id)],
+  (t) => [index("media_revisions_key").on(t.mediaKey, t.id)],
 );
 
-/** One row per change to a `media` row, written by triggers (migration 0059): what `changedSince` reads. */
-export const mediaChanges = sqliteTable(
-  "media_changes",
-  {
-    seq: integer("seq").primaryKey({ autoIncrement: true }),
-    mediaKey: text("media_key").notNull(),
-  },
-  (t) => [index("media_changes_key_idx").on(t.mediaKey, t.seq)],
-);
+/** One row per change to a `media` row, written by triggers (migration 0080): what `changedSince` reads. */
+export const mediaChanges = sqliteTable("media_changes", {
+  seq: integer("seq").primaryKey({ autoIncrement: true }),
+  mediaKey: text("media_key").notNull(),
+});
