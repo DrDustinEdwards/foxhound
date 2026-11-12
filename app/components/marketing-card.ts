@@ -4,6 +4,13 @@
 // card sets both to 24px on the panel.
 export const CARD = "cap-panel [--gap:1.5rem] [--pad-card:1.5rem]";
 
+// Recova's p-5 card (the reference pages' sections and link cards): the site's
+// 20px --pad-card, with the body's top and bottom matched to it.
+export const CARD_MD = "cap-panel [--gap:1.25rem]";
+
+// Recova's p-4 card (the decline code library's grid).
+export const CARD_SM = "cap-panel [--gap:1rem] [--pad-card:1rem]";
+
 // Recova's closing call to action: px-6 py-3 at 1rem semibold, a size up from
 // Capsomer's large button.
 export const CTA_BUTTON =

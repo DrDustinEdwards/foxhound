@@ -1,6 +1,14 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { Link } from "capsomer/react/link";
 
+import {
+  LegalBody,
+  LegalContents,
+  LegalLink,
+  LegalP as P,
+  LegalRule,
+  LegalSection as Section,
+  type LegalSectionDef,
+} from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
@@ -33,31 +41,10 @@ import type { Route } from "./+types/security";
 // pinned to /privacy's, because two pages naming different subprocessors is a
 // worse failure than either naming none.
 //
-// The shell is /privacy's and /terms': MarketingPageHeader plus the same 720px
-// prose column, the same Section and P helpers. No layout system changes.
+// The shell is /privacy's and /terms': MarketingPageHeader plus legal-page's
+// column, contents, rule, Section and P.
 
-export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Security",
-    description:
-      "How Foxhound handles Stripe access, encryption, data retention, subprocessors and vulnerability reports.",
-    path: "/security",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
-}
-
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
-
-interface SectionDef {
-  id: string;
-  number: number;
-  title: string;
-}
-
-export const SECURITY_SECTIONS: SectionDef[] = [
+export const SECURITY_SECTIONS: LegalSectionDef[] = [
   { id: "stripe-access", number: 1, title: "WHAT FOXHOUND CAN DO IN YOUR STRIPE ACCOUNT" },
   { id: "card-data", number: 2, title: "CARD DATA" },
   { id: "encryption", number: 3, title: "ENCRYPTION AT REST" },
@@ -69,29 +56,19 @@ export const SECURITY_SECTIONS: SectionDef[] = [
   { id: "entity", number: 9, title: "WHO OPERATES FOXHOUND" },
 ];
 
-function Section({
-  id,
-  number,
-  title,
-  children,
-}: {
-  id: string;
-  number: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <h2 id={id} className="mb-4 mt-12 scroll-mt-20 text-title font-medium text-text">
-        {number}. {title}
-      </h2>
-      {children}
-    </section>
-  );
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
 }
 
-function P({ children }: { children: React.ReactNode }) {
-  return <p className="mb-4 text-item-title leading-relaxed text-text-secondary">{children}</p>;
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Security",
+    description:
+      "How Foxhound handles Stripe access, encryption, data retention, subprocessors and vulnerability reports.",
+    path: "/security",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
 }
 
 export default function SecurityPage() {
@@ -103,26 +80,10 @@ export default function SecurityPage() {
         subtext="What Foxhound can reach, how it is stored, and how to report a problem"
       />
 
-      <div className="mx-auto max-w-[720px] px-6 pb-16">
-        <section className="mb-12">
-          <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-            Contents
-          </h2>
-          <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
-            {SECURITY_SECTIONS.map((s) => (
-              <li key={s.id} className="list-none text-label">
-                <a
-                  href={`#${s.id}`}
-                  className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"
-                >
-                  {s.number}. {s.title}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </section>
+      <LegalBody>
+        <LegalContents heading="Contents" sections={SECURITY_SECTIONS} />
 
-        <hr className="my-10 border-border" />
+        <LegalRule />
 
         <P>
           This page describes what Foxhound can reach in a connected Stripe account, how that access
@@ -210,13 +171,8 @@ export default function SecurityPage() {
             Foxhound shares data with the infrastructure providers that run the service: Stripe
             (payments and Connect), Cloudflare (hosting, database and email delivery), and Anthropic
             (drafting recovery emails and dispute evidence). The same three are named in the{" "}
-            <Link
-              to="/privacy"
-              className="text-brand-text underline underline-offset-2 hover:text-brand-text-hover"
-            >
-              privacy policy
-            </Link>
-            , and that list is the authoritative one.
+            <LegalLink to="/privacy">privacy policy</LegalLink>, and that list is the authoritative
+            one.
           </P>
           <P>
             Foxhound does not sell data and does not share it with advertising or analytics
@@ -273,7 +229,7 @@ export default function SecurityPage() {
             signed one.
           </P>
         </Section>
-      </div>
+      </LegalBody>
     </>
   );
 }

@@ -1,5 +1,6 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import "capsomer/panel.css";
+import "capsomer/status.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
 import "capsomer/source-line.css";
@@ -488,7 +489,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {SECURITY_CHIPS.map((label) => (
                 <li
                   key={label}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 font-mono text-micro text-text-tertiary"
+                  className="cap-pill font-mono font-normal"
+                  data-variant="outline"
+                  data-tone="muted"
                 >
                   <svg
                     width="10"

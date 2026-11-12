@@ -5,6 +5,7 @@ import { Link } from "capsomer/react/link";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
 import { FaqList } from "~/components/faq-list";
+import { CARD, CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
@@ -21,6 +22,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/code";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "capsomer/button.css";
+import "capsomer/panel.css";
 
 // NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
 // Category, retryability, and whether the code rides classifyDecline()'s
@@ -58,7 +60,13 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
   const { view, content } = loaderData;
 
   return (
-    <div>
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+    // the pills, panels, FAQ, button and focus ring read the family.
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <MarketingPageHeader
         trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
         eyebrow="Decline code"
@@ -68,7 +76,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
 
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
         <div className="mb-8 flex flex-wrap items-center gap-2">
-          <span className="rounded-lg border border-border bg-surface px-3 py-1.5 font-mono text-micro text-text-tertiary">
+          <span className="cap-pill font-mono font-normal" data-variant="outline" data-tone="muted">
             {view.code}
           </span>
           <Pill {...BADGE_PILL[categoryBadgeTone(view.category)]}>
@@ -86,12 +94,18 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           <p className="text-body leading-relaxed text-text-secondary">{content.howToFix}</p>
         </section>
 
-        <section className="mb-10 rounded-lg border border-border bg-surface p-5">
-          <h2 className="mb-3 text-title font-medium text-text">How Foxhound recovers it</h2>
-          <p className="text-body leading-relaxed text-text-secondary">{recoveryApproach(view)}</p>
+        <section className={`${CARD_MD} mb-10`}>
+          <div className="cap-panel-body">
+            <div>
+              <h2 className="mb-3 text-title font-medium text-text">How Foxhound recovers it</h2>
+              <p className="text-body leading-relaxed text-text-secondary">
+                {recoveryApproach(view)}
+              </p>
+            </div>
+          </div>
         </section>
 
-        <section className="fh-cap mb-10" data-cap-site="foxhound" data-family="amber">
+        <section className="mb-10">
           <h2 className="mb-4 text-title font-medium text-text">Questions</h2>
           <FaqList
             name="decline-code-faq"
@@ -99,21 +113,21 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           />
         </section>
 
-        <div
-          className="fh-cap rounded-lg border border-border bg-surface p-6 text-center"
-          data-cap-site="foxhound"
-          data-family="amber"
-        >
-          <p className="mb-2 text-body font-medium text-text">
-            See what this looks like on your account
-          </p>
-          <p className="mb-5 text-label text-text-secondary">
-            The free audit shows what Stripe already recovered and what is still dying, no signup
-            required.
-          </p>
-          <Link to="/audit" className="cap-btn" data-variant="primary">
-            Run your free audit
-          </Link>
+        <div className={`${CARD} text-center`}>
+          <div className="cap-panel-body">
+            <div>
+              <p className="mb-2 text-body font-medium text-text">
+                See what this looks like on your account
+              </p>
+              <p className="mb-5 text-label text-text-secondary">
+                The free audit shows what Stripe already recovered and what is still dying, no
+                signup required.
+              </p>
+              <Link to="/audit" className="cap-btn" data-variant="primary">
+                Run your free audit
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
