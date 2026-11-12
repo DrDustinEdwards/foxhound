@@ -44,21 +44,6 @@ import type { Route } from "./+types/security";
 // The shell is /privacy's and /terms': MarketingPageHeader plus legal-page's
 // column, contents, rule, Section and P.
 
-export function meta({ loaderData }: Route.MetaArgs) {
-  return marketingMeta({
-    title: "Security",
-    description:
-      "How Foxhound handles Stripe access, encryption, data retention, subprocessors and vulnerability reports.",
-    path: "/security",
-    siteUrl: loaderData?.siteUrl ?? "",
-  });
-}
-
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
-
 export const SECURITY_SECTIONS: LegalSectionDef[] = [
   { id: "stripe-access", number: 1, title: "WHAT FOXHOUND CAN DO IN YOUR STRIPE ACCOUNT" },
   { id: "card-data", number: 2, title: "CARD DATA" },
@@ -70,6 +55,21 @@ export const SECURITY_SECTIONS: LegalSectionDef[] = [
   { id: "dpa", number: 8, title: "DATA PROCESSING AGREEMENT" },
   { id: "entity", number: 9, title: "WHO OPERATES FOXHOUND" },
 ];
+
+export function loader({ context }: Route.LoaderArgs) {
+  const { env } = context.get(cloudflareContext);
+  return { siteUrl: siteUrl(env) };
+}
+
+export function meta({ loaderData }: Route.MetaArgs) {
+  return marketingMeta({
+    title: "Security",
+    description:
+      "How Foxhound handles Stripe access, encryption, data retention, subprocessors and vulnerability reports.",
+    path: "/security",
+    siteUrl: loaderData?.siteUrl ?? "",
+  });
+}
 
 export default function SecurityPage() {
   return (

@@ -1,9 +1,9 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import "capsomer/panel.css";
 
 import { CARD_MD } from "~/components/marketing-card";
+import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
@@ -37,20 +37,20 @@ export function loader({ context }: Route.LoaderArgs) {
 
 export default function CompareIndex() {
   return (
-    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
-    // the cards' accent edge and the focus ring read the family.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div>
       <MarketingPageHeader
         eyebrow="Compare"
         title="How Foxhound compares"
         subtext="Honest tables, including where Foxhound is newer or narrower than the incumbents. No fabricated competitor numbers."
       />
 
-      <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-8">
+      {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+          the cards' accent edge and the focus ring read the family. */}
+      <div
+        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {COMPETITOR_ORDER.map((slug) => {
             const c = COMPETITORS[slug];
@@ -67,13 +67,7 @@ export default function CompareIndex() {
                       {c.oneLiner}
                     </p>
                     <div className="text-label text-brand-text">
-                      See the comparison{" "}
-                      <ArrowRight
-                        className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                        size={13}
-                        strokeWidth={1.5}
-                        aria-hidden
-                      />
+                      See the comparison <Arrow />
                     </div>
                   </div>
                 </div>

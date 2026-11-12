@@ -1,12 +1,12 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
-import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import "capsomer/panel.css";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
 import { CARD_SM } from "~/components/marketing-card";
+import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
@@ -49,20 +49,20 @@ export default function DeclineCodesIndex() {
   })).filter((g) => g.codes.length > 0);
 
   return (
-    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
-    // the cards' accent edge and the focus ring read the family.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div>
       <MarketingPageHeader
         eyebrow="Reference"
         title="Stripe decline code library"
         subtext="What each code means, why it happens, and how it gets recovered. No invented recovery-rate numbers, no platform history exists yet to project one from."
       />
 
-      <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-8">
+      {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+          the cards' accent edge and the focus ring read the family. */}
+      <div
+        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         {byCategory.map((group) => (
           <section key={group.category} className="border-b border-border-sub py-8 last:border-0">
             <div className="mb-4 flex items-center gap-2">
@@ -87,13 +87,7 @@ export default function DeclineCodesIndex() {
                         {code.code}
                       </div>
                       <div className="text-label text-brand-text">
-                        Read more{" "}
-                        <ArrowRight
-                          className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                          size={13}
-                          strokeWidth={1.5}
-                          aria-hidden
-                        />
+                        Read more <Arrow />
                       </div>
                     </div>
                   </div>
