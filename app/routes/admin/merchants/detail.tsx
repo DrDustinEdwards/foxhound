@@ -1,6 +1,17 @@
+import { Alert, Banner } from "capsomer/react/banner";
+import { Empty } from "capsomer/react/empty";
+import { Field } from "capsomer/react/field";
+import { Panel } from "capsomer/react/panel";
+import { RecordFacts } from "capsomer/react/record-facts";
+import { Row, RowList } from "capsomer/react/row-list";
+import { Select } from "capsomer/react/select";
 import { Pill } from "capsomer/react/status";
-import "capsomer/status.css";
+import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/record-facts.css";
+import "capsomer/select.css";
+import "capsomer/status.css";
 import { useState } from "react";
 import { Time } from "capsomer/react/time";
 import { data, Form, useNavigation } from "react-router";
@@ -154,6 +165,8 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   return data<ActionResult>({ ok: false, error: "Unknown action." }, { status: 400 });
 }
 
+const INVOICES_HEADING_ID = "admin-merchant-invoices";
+
 function ActionButton({
   children,
   tone = "default",
@@ -166,11 +179,8 @@ function ActionButton({
     <button
       type="submit"
       disabled={busy}
-      className={
-        tone === "danger"
-          ? "rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg disabled:opacity-60"
-          : "rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
-      }
+      className="cap-btn"
+      data-variant={tone === "danger" ? "danger" : undefined}
     >
       {children}
     </button>
@@ -186,7 +196,8 @@ function CancelForm({ accountId }: { accountId: string }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg"
+        className="cap-btn"
+        data-variant="danger"
       >
         Cancel merchant
       </button>
@@ -194,7 +205,7 @@ function CancelForm({ accountId }: { accountId: string }) {
   }
 
   return (
-    <Form method="post" className="flex flex-wrap items-center gap-2">
+    <Form method="post" className="cap-cluster">
       <input type="hidden" name="intent" value="cancel" />
       <span className="text-label text-error-text">
         Disconnects Stripe and stops all processing for {accountId}. Already-matured, unbilled fees
@@ -205,7 +216,8 @@ function CancelForm({ accountId }: { accountId: string }) {
         type="button"
         onClick={() => setConfirming(false)}
         disabled={busy}
-        className="rounded-md border border-border px-3 py-1.5 text-label text-text-tertiary hover:text-text"
+        className="cap-btn"
+        data-variant="quiet"
       >
         Never mind
       </button>
@@ -224,90 +236,60 @@ function AdjustmentForm({
 }) {
   const busy = useNavigation().state !== "idle";
   return (
-    <Form method="post" className="flex flex-col gap-3">
+    <Form method="post" className="cap-stack">
       <input type="hidden" name="intent" value="create-adjustment" />
       <input type="hidden" name="idempotencyToken" value={idempotencyToken} />
-      {actionData?.error ? (
-        <p
-          role="alert"
-          className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-        >
-          {actionData.error}
-        </p>
-      ) : null}
-      {actionData?.adjustmentInvoiceId ? (
-        <p
-          role="status"
-          className="rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text"
-        >
-          Adjustment recorded.
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-0 max-w-full flex-col gap-1.5">
-          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Direction
-          </span>
-          <select
+      {actionData?.error ? <Alert>{actionData.error}</Alert> : null}
+      {actionData?.adjustmentInvoiceId ? <Banner tone="ok">Adjustment recorded.</Banner> : null}
+      <div className="cap-cluster items-start">
+        <Field label="Direction">
+          <Select
+            native
             name="direction"
             defaultValue="credit"
-            className="max-w-full rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
-          >
-            <option value="credit">Credit merchant (reduces what they owe)</option>
-            <option value="correction">Correction (increases what they owe)</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Amount
-          </span>
+            options={[
+              { value: "credit", label: "Credit merchant (reduces what they owe)" },
+              { value: "correction", label: "Correction (increases what they owe)" },
+            ]}
+          />
+        </Field>
+        <Field label="Amount" size="short">
           <input
             name="amount"
             type="text"
             inputMode="decimal"
             placeholder="0.00"
             required
-            className="w-32 rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
+            className="cap-input"
           />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Currency
-          </span>
+        </Field>
+        <Field label="Currency" size="short">
           <input
             name="currency"
             type="text"
             defaultValue={defaultCurrency}
             required
-            className="w-20 rounded-md border border-border bg-surface px-3 py-2 text-body text-text focus-visible:border-brand"
+            className="cap-input"
           />
-        </label>
+        </Field>
       </div>
-      <label className="flex flex-col gap-1.5">
-        <span className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Reason
-        </span>
+      <Field
+        label="Reason"
+        help="Adjustments never touch Stripe: they are internal ledger entries only, never a card charge or refund."
+      >
         <textarea
           name="description"
           rows={2}
           required
           placeholder="Goodwill credit for a delayed dunning email; error correction for..."
-          className="rounded-md border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-text-subtle focus-visible:border-brand"
+          className="cap-input"
         />
-      </label>
+      </Field>
       <div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-md bg-brand px-4 py-2 text-body font-medium text-on-brand disabled:opacity-60"
-        >
+        <button type="submit" disabled={busy} className="cap-btn" data-variant="primary">
           Record adjustment
         </button>
       </div>
-      <p className="text-micro text-text-tertiary">
-        Adjustments never touch Stripe: they are internal ledger entries only, never a card charge
-        or refund.
-      </p>
     </Form>
   );
 }
@@ -324,213 +306,199 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
   } = loaderData;
 
   return (
-    <div>
-      <section className="rounded-lg border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {account.cancelledAt ? <Pill {...BADGE_PILL.failure}>Canceled</Pill> : null}
-          {account.billingExempt ? <Pill {...BADGE_PILL.neutral}>Billing exempt</Pill> : null}
-          {account.processingPaused ? (
-            <Pill {...BADGE_PILL.failure}>
-              {account.pauseReason === PAUSE_REASON_BRAKE ? "Paused by brake" : "Processing paused"}
-            </Pill>
-          ) : null}
-          {!account.cancelledAt && !account.billingExempt && !account.processingPaused ? (
-            <Pill {...BADGE_PILL.success}>Normal</Pill>
-          ) : null}
-        </div>
-        <p className="mt-2 text-label text-text-tertiary">
-          Account id <span className="font-mono text-text">{account.id}</span>
-        </p>
-        <p className="text-label text-text-tertiary">
-          Created <Time at={account.createdAt} empty="unknown" tip />
-        </p>
-        {account.cancelledAt ? (
-          <p className="text-label text-text-tertiary">
-            Canceled <Time at={account.cancelledAt} empty="never" tip />
-          </p>
-        ) : null}
-        <p className="text-label text-text-tertiary">
-          Platform Stripe customer:{" "}
-          <span className="font-mono text-text">
-            {account.platformStripeCustomerId ?? "not set up"}
-          </span>
-        </p>
-
-        {actionData?.warning ? (
-          <p
-            role="alert"
-            className="mt-3 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-          >
-            {actionData.warning}
-          </p>
-        ) : null}
-
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Form method="post">
-            <input type="hidden" name="intent" value="toggle-billing-exempt" />
-            <input type="hidden" name="nextExempt" value={String(!account.billingExempt)} />
-            <ActionButton>
-              {account.billingExempt ? "Remove billing exemption" : "Exempt from billing"}
-            </ActionButton>
-          </Form>
-
-          <Form method="post">
-            <input type="hidden" name="intent" value="toggle-processing-paused" />
-            <input type="hidden" name="nextPaused" value={String(!account.processingPaused)} />
-            <ActionButton>
-              {account.processingPaused ? "Resume processing" : "Pause processing"}
-            </ActionButton>
-          </Form>
-
-          <ViewAsForm accountId={account.id} who={account.name ?? account.id} />
-
-          {!account.cancelledAt ? <CancelForm accountId={account.id} /> : null}
-        </div>
-
-        {/* Review INFO-E. The pause toggle behaves differently on a row the brake
-            owns, and nothing on this page said so. Both sentences below are the
-            behavior pinned in test/admin-brake.test.ts: resuming clears the
-            marker, and re-pausing a still-marked row PRESERVES 'brake' via the
-            CASE in buildSetProcessingPaused, so that pause is undone by the next
-            Release. The stale-tab version of that (a form rendered before the
-            brake engaged, submitted after) is exactly how an operator hits it. */}
-        {account.processingPaused && account.pauseReason === PAUSE_REASON_BRAKE ? (
-          <p
-            role="status"
-            className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text"
-          >
-            The global emergency brake paused this account, not a person. Resuming here takes it off
-            the brake&apos;s books for good, and a later Release will leave it alone. Pausing it
-            again while the brake still holds it keeps the brake marker, so that pause will NOT
-            survive the next Release. To hold this merchant for its own reasons, resume it first,
-            then pause it.
-          </p>
-        ) : null}
-      </section>
-
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Record a billing adjustment
-        </p>
-        <div className="mt-3">
-          <AdjustmentForm
-            defaultCurrency={account.currency ?? "usd"}
-            actionData={actionData}
-            idempotencyToken={adjustmentToken}
+    <div className="grid grid-cols-1 gap-6">
+      <Panel
+        title="Account"
+        actions={
+          <>
+            {account.cancelledAt ? <Pill {...BADGE_PILL.failure}>Canceled</Pill> : null}
+            {account.billingExempt ? <Pill {...BADGE_PILL.neutral}>Billing exempt</Pill> : null}
+            {account.processingPaused ? (
+              <Pill {...BADGE_PILL.failure}>
+                {account.pauseReason === PAUSE_REASON_BRAKE
+                  ? "Paused by brake"
+                  : "Processing paused"}
+              </Pill>
+            ) : null}
+            {!account.cancelledAt && !account.billingExempt && !account.processingPaused ? (
+              <Pill {...BADGE_PILL.success}>Normal</Pill>
+            ) : null}
+          </>
+        }
+      >
+        <div className="cap-stack">
+          <RecordFacts
+            facts={[
+              { label: "Account id", value: account.id, mono: true },
+              { label: "Created", value: <Time at={account.createdAt} empty="unknown" tip /> },
+              ...(account.cancelledAt
+                ? [
+                    {
+                      label: "Canceled",
+                      value: <Time at={account.cancelledAt} empty="never" tip />,
+                    },
+                  ]
+                : []),
+              {
+                label: "Platform Stripe customer",
+                value: account.platformStripeCustomerId ?? "not set up",
+                mono: account.platformStripeCustomerId !== null,
+              },
+            ]}
           />
-        </div>
-      </section>
 
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Stripe connections
-        </p>
-        {connections.length === 0 ? (
-          <p className="mt-2 text-label text-text-tertiary">No Stripe connections.</p>
-        ) : (
-          <div className="mt-3 flex flex-col gap-2">
-            {connections.map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center justify-between border-b border-border-sub py-2 last:border-0"
-              >
-                <div>
-                  <p className="text-text">{c.name ?? c.stripeUserId}</p>
-                  <p className="font-mono text-micro text-text-subtle">{c.stripeUserId}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {c.isPrimary && !c.disconnectedAt ? (
-                    <Pill {...BADGE_PILL.neutral}>Primary</Pill>
-                  ) : null}
-                  <Pill {...BADGE_PILL[c.disconnectedAt ? "failure" : "success"]}>
-                    {c.disconnectedAt ? "Disconnected" : "Active"}
-                  </Pill>
-                </div>
-              </div>
-            ))}
+          {actionData?.warning ? <Alert>{actionData.warning}</Alert> : null}
+
+          <div className="cap-cluster">
+            <Form method="post">
+              <input type="hidden" name="intent" value="toggle-billing-exempt" />
+              <input type="hidden" name="nextExempt" value={String(!account.billingExempt)} />
+              <ActionButton>
+                {account.billingExempt ? "Remove billing exemption" : "Exempt from billing"}
+              </ActionButton>
+            </Form>
+
+            <Form method="post">
+              <input type="hidden" name="intent" value="toggle-processing-paused" />
+              <input type="hidden" name="nextPaused" value={String(!account.processingPaused)} />
+              <ActionButton>
+                {account.processingPaused ? "Resume processing" : "Pause processing"}
+              </ActionButton>
+            </Form>
+
+            <ViewAsForm accountId={account.id} who={account.name ?? account.id} />
+
+            {!account.cancelledAt ? <CancelForm accountId={account.id} /> : null}
           </div>
+
+          {/* Review INFO-E. The pause toggle behaves differently on a row the brake
+              owns, and nothing on this page said so. Both sentences below are the
+              behavior pinned in test/admin-brake.test.ts: resuming clears the
+              marker, and re-pausing a still-marked row PRESERVES 'brake' via the
+              CASE in buildSetProcessingPaused, so that pause is undone by the next
+              Release. The stale-tab version of that (a form rendered before the
+              brake engaged, submitted after) is exactly how an operator hits it. */}
+          {account.processingPaused && account.pauseReason === PAUSE_REASON_BRAKE ? (
+            <Banner tone="warn">
+              The global emergency brake paused this account, not a person. Resuming here takes it
+              off the brake&apos;s books for good, and a later Release will leave it alone. Pausing
+              it again while the brake still holds it keeps the brake marker, so that pause will NOT
+              survive the next Release. To hold this merchant for its own reasons, resume it first,
+              then pause it.
+            </Banner>
+          ) : null}
+        </div>
+      </Panel>
+
+      <Panel title="Record a billing adjustment">
+        <AdjustmentForm
+          defaultCurrency={account.currency ?? "usd"}
+          actionData={actionData}
+          idempotencyToken={adjustmentToken}
+        />
+      </Panel>
+
+      <Panel title="Stripe connections" flush={connections.length > 0}>
+        {connections.length === 0 ? (
+          <Empty kind="nothing-yet" title="No Stripe connections." flush />
+        ) : (
+          <RowList label="Stripe connections">
+            {connections.map((c) => (
+              <Row
+                key={c.id}
+                title={c.name ?? c.stripeUserId}
+                meta={<span className="font-mono">{c.stripeUserId}</span>}
+                actions={
+                  <>
+                    {c.isPrimary && !c.disconnectedAt ? (
+                      <Pill {...BADGE_PILL.neutral}>Primary</Pill>
+                    ) : null}
+                    <Pill {...BADGE_PILL[c.disconnectedAt ? "failure" : "success"]}>
+                      {c.disconnectedAt ? "Disconnected" : "Active"}
+                    </Pill>
+                  </>
+                }
+              />
+            ))}
+          </RowList>
         )}
-      </section>
+      </Panel>
 
       {/* The Products card was REMOVED with the account_products table.
           It had ZERO writers, so it rendered "None." for every merchant on every
           visit since the rebuild: a permanently empty card describing a table
           nothing filled. Subscriptions was its grid partner and is now a plain
-          full-width section, matching this page's four other full-width sections
+          full-width panel, matching this page's other full-width panels
           rather than sitting alone in a grid built for two. */}
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Subscriptions
-        </p>
+      <Panel title="Subscriptions" flush={subscriptions.length > 0}>
         {subscriptions.length === 0 ? (
-          <p className="mt-2 text-label text-text-tertiary">None.</p>
+          <Empty kind="nothing-yet" title="No subscriptions." flush />
         ) : (
-          <ul className="mt-2 flex flex-col gap-1.5">
+          <RowList label="Subscriptions">
             {subscriptions.map((s) => (
-              <li key={s.id} className="flex items-center justify-between text-label">
-                <span className="text-text">
-                  {s.product}
-                  {s.adminGranted ? (
-                    <span className="ml-1.5 text-text-subtle">(admin-granted)</span>
-                  ) : null}
-                </span>
-                <Pill {...BADGE_PILL[s.status === "active" ? "success" : "neutral"]}>
-                  {s.status}
-                </Pill>
-              </li>
+              <Row
+                key={s.id}
+                title={s.product}
+                meta={s.adminGranted ? "Admin-granted" : undefined}
+                actions={
+                  <Pill {...BADGE_PILL[s.status === "active" ? "success" : "neutral"]}>
+                    {s.status}
+                  </Pill>
+                }
+              />
             ))}
-          </ul>
+          </RowList>
         )}
-      </section>
+      </Panel>
 
-      <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Recovery activity
-          </p>
-          <p className="mt-2 text-label text-text-tertiary">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Panel title="Recovery activity" size="sm">
+          <p className="text-label text-text-tertiary">
             <span className="font-mono text-text">{recoveryActivity.activeCount}</span> active,{" "}
             <span className="font-mono text-text">{recoveryActivity.recoveredCount}</span> recovered
           </p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Dispute activity
-          </p>
-          <p className="mt-2 text-label text-text-tertiary">
+        </Panel>
+        <Panel title="Dispute activity" size="sm">
+          <p className="text-label text-text-tertiary">
             <span className="font-mono text-text">{disputeActivity.openCount}</span> open,{" "}
             <span className="font-mono text-text">{disputeActivity.resolvedWonCount}</span> won,{" "}
             <span className="font-mono text-text">{disputeActivity.resolvedLostCount}</span> lost
           </p>
-        </div>
-      </section>
+        </Panel>
+      </div>
 
-      <section className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Recent invoices
-        </p>
+      <Panel title="Recent invoices" headingId={INVOICES_HEADING_ID} flush>
         {recentInvoices.length === 0 ? (
-          <p className="mt-2 text-label text-text-tertiary">No invoices yet.</p>
+          <Empty kind="nothing-yet" title="No invoices yet." />
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-label">
+          <div
+            className="cap-table-wrap"
+            data-reflow="medium"
+            role="region"
+            aria-labelledby={INVOICES_HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">This merchant&apos;s recent invoices.</caption>
               <thead>
-                <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                  <th className="py-2 pr-4 font-normal">Period</th>
-                  <th className="py-2 pr-4 font-normal">Total</th>
-                  <th className="py-2 font-normal">Status</th>
+                <tr>
+                  <th scope="col">Period</th>
+                  <th scope="col" data-num="">
+                    Total
+                  </th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {recentInvoices.map((inv) => (
-                  <tr key={inv.id} className="border-b border-border-sub last:border-0">
-                    <td className="py-2 pr-4 text-text-tertiary">
+                  <tr key={inv.id}>
+                    <th scope="row" className="font-normal">
                       {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
-                    </td>
-                    <td className="py-2 pr-4 font-mono text-text">
+                    </th>
+                    <td data-label="Total" data-num="">
                       {formatMoney(inv.totalCents, inv.currency)}
                     </td>
-                    <td className="py-2">
+                    <td data-label="Status">
                       <Pill {...BADGE_PILL[billingInvoiceStatusTone(inv.status)]}>
                         {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
                       </Pill>
@@ -541,7 +509,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
             </table>
           </div>
         )}
-      </section>
+      </Panel>
     </div>
   );
 }

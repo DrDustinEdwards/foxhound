@@ -1,8 +1,15 @@
+import { Alert, Banner } from "capsomer/react/banner";
+import { Panel } from "capsomer/react/panel";
+import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import { Pill } from "capsomer/react/status";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
 import "capsomer/status.css";
 import { data, Form, useNavigation } from "react-router";
 
 import { Time } from "capsomer/react/time";
+import { ConfirmPhraseField } from "~/components/admin-confirm-phrase";
 import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
@@ -149,37 +156,19 @@ function ConfirmForm({
   busy: boolean;
   danger?: boolean;
 }) {
-  const phrase = BRAKE_CONFIRM_PHRASES[intent];
-  const inputId = `confirm-${intent}`;
   return (
-    <Form method="post" className="flex flex-col gap-2">
+    <Form method="post">
       <input type="hidden" name="intent" value={intent} />
-      <p className="text-label text-text-tertiary">{description}</p>
-      <label htmlFor={inputId} className="text-label text-text-secondary">
-        Type <span className="font-mono text-text">{phrase}</span> to confirm
-      </label>
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          id={inputId}
-          name="confirm"
-          type="text"
-          autoComplete="off"
-          required
-          placeholder={phrase}
-          className="rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-label text-text placeholder:text-text-subtle"
-        />
+      <ConfirmPhraseField phrase={BRAKE_CONFIRM_PHRASES[intent]} help={description}>
         <button
           type="submit"
+          className="cap-btn"
+          data-variant={danger ? "danger" : undefined}
           disabled={busy}
-          className={
-            danger
-              ? "rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg disabled:opacity-60"
-              : "rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
-          }
         >
           {label}
         </button>
-      </div>
+      </ConfirmPhraseField>
     </Form>
   );
 }
@@ -198,7 +187,7 @@ function EventLine({
       <span className="font-mono text-text-secondary">{event.actorEmail}</span>
       {/* "intended", because the umbrella row is written before the account
           writes so that a partial failure still leaves a record of the attempt.
-          The live truth is the count in the state grid above. */}
+          The live truth is the count in the tiles above. */}
       {event.count !== null ? ` (${event.count} account(s) intended)` : null}
     </p>
   );
@@ -210,90 +199,66 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
   const engaged = status.brakePausedCount > 0;
 
   return (
-    <div>
-      {actionData?.error ? (
-        <p
-          role="alert"
-          className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-        >
-          {actionData.error}
-        </p>
-      ) : null}
+    <div className="grid grid-cols-1 gap-6">
+      {actionData?.error ? <Alert>{actionData.error}</Alert> : null}
       {actionData?.ok && actionData.message ? (
-        <p
-          role="status"
-          className="mb-4 rounded-md border border-green bg-green-bg px-3 py-2 text-label text-success-text"
-        >
-          {actionData.message}
-        </p>
+        <Banner tone="ok">{actionData.message}</Banner>
       ) : null}
 
-      <section className="mb-6 rounded-lg border border-border bg-surface p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-label font-semibold text-text">Current state</h2>
-          <div className="flex items-center gap-2">
+      <Panel
+        title="Current state"
+        actions={
+          <>
             <Pill {...BADGE_PILL[engaged ? "failure" : "neutral"]}>
               {engaged ? "Brake ENGAGED" : "Brake not engaged"}
             </Pill>
             <Pill {...BADGE_PILL[status.tickEnabled ? "success" : "failure"]}>
               {status.tickEnabled ? "Tick enabled" : "Tick DISABLED"}
             </Pill>
-          </div>
-        </div>
-        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <div>
-            <dt className="text-micro text-text-subtle">Paused by brake</dt>
-            <dd className="font-mono text-label text-text">{status.brakePausedCount}</dd>
-          </div>
-          <div>
+          </>
+        }
+      >
+        <div className="cap-stack">
+          <StatTiles label="Paused accounts">
+            <StatTile label="Paused by brake" figure={String(status.brakePausedCount)} />
             {/* Not "individually": the demo account is paused by the seeder, and
                 a pre-pause_reason row carries no reason either. What the number
                 actually means is "paused, and release will not touch it". */}
-            <dt className="text-micro text-text-subtle">Paused outside the brake</dt>
-            <dd className="font-mono text-label text-text">{status.individuallyPausedCount}</dd>
-          </div>
+            <StatTile
+              label="Paused outside the brake"
+              figure={String(status.individuallyPausedCount)}
+            />
+            <StatTile label="Eligible to pause now" figure={String(status.eligibleCount)} />
+          </StatTiles>
           <div>
-            <dt className="text-micro text-text-subtle">Eligible to pause now</dt>
-            <dd className="font-mono text-label text-text">{status.eligibleCount}</dd>
+            <EventLine label="Last engage" event={status.lastEngage} />
+            <EventLine label="Last release" event={status.lastRelease} />
           </div>
-        </dl>
-        <div className="mt-3 border-t border-border-sub pt-3">
-          <EventLine label="Last engage" event={status.lastEngage} />
-          <EventLine label="Last release" event={status.lastRelease} />
+          {staleMarkers.markedButNotPaused > 0 ? (
+            <Banner tone="warn">
+              {staleMarkers.markedButNotPaused} account(s) carry a pause reason but are not paused.
+              Something wrote processing_paused outside setProcessingPaused.
+            </Banner>
+          ) : null}
+          {staleMarkers.pausedWithUnknownReason > 0 ? (
+            <Banner tone="warn">
+              {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognized pause
+              reason. Release matches only the brake marker, so it will never resume them.
+            </Banner>
+          ) : null}
         </div>
-        {staleMarkers.markedButNotPaused > 0 ? (
-          <p
-            role="status"
-            className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text"
-          >
-            {staleMarkers.markedButNotPaused} account(s) carry a pause reason but are not paused.
-            Something wrote processing_paused outside setProcessingPaused.
-          </p>
-        ) : null}
-        {staleMarkers.pausedWithUnknownReason > 0 ? (
-          <p
-            role="status"
-            className="mt-3 rounded-md border border-orange bg-orange-bg px-3 py-2 text-label text-warning-text"
-          >
-            {staleMarkers.pausedWithUnknownReason} paused account(s) carry an unrecognized pause
-            reason. Release matches only the brake marker, so it will never resume them.
-          </p>
-        ) : null}
-      </section>
+      </Panel>
 
-      <section className="mb-6 rounded-lg border border-border bg-surface p-4">
-        <h2 className="mb-1 text-label font-semibold text-text">The brake: pause every merchant</h2>
-        <p className="mb-3 text-label text-text-tertiary">
-          Pauses processing for every account except demo accounts, accounts already paused, and
-          canceled accounts. Merchants paused outside the brake keep their pause and are never
-          resumed by a release.
-        </p>
-        <p className="mb-3 text-label text-text-tertiary">
-          What this does not stop: a canceled account still pays fees it already owed, because those
-          were earned before it canceled and the brake has no lever over them. Everything else,
-          including billing-exempt accounts, stops.
-        </p>
-        <div className="flex flex-col gap-4">
+      <Panel
+        title="The brake: pause every merchant"
+        description="Pauses processing for every account except demo accounts, accounts already paused, and canceled accounts. Merchants paused outside the brake keep their pause and are never resumed by a release."
+      >
+        <div className="cap-stack">
+          <p className="text-label text-text-tertiary">
+            What this does not stop: a canceled account still pays fees it already owed, because
+            those were earned before it canceled and the brake has no lever over them. Everything
+            else, including billing-exempt accounts, stops.
+          </p>
           <ConfirmForm
             intent="engage"
             label="Engage brake"
@@ -301,23 +266,19 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
             busy={busy}
             description={`Will pause ${status.eligibleCount} account(s).`}
           />
-          <div className="border-t border-border-sub pt-4">
-            <ConfirmForm
-              intent="release"
-              label="Release brake"
-              busy={busy}
-              description={`Will resume ${status.brakePausedCount} account(s) paused by the brake. ${status.individuallyPausedCount} account(s) paused outside the brake will stay paused.`}
-            />
-          </div>
+          <ConfirmForm
+            intent="release"
+            label="Release brake"
+            busy={busy}
+            description={`Will resume ${status.brakePausedCount} account(s) paused by the brake. ${status.individuallyPausedCount} account(s) paused outside the brake will stay paused.`}
+          />
         </div>
-      </section>
+      </Panel>
 
-      <section className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="mb-1 text-label font-semibold text-text">The harder stop: recovery tick</h2>
-        <p className="mb-3 text-label text-text-tertiary">
-          The brake pauses accounts. This stops the loop itself, for everyone, including accounts
-          the brake skips. Use it when the problem is the engine rather than a merchant.
-        </p>
+      <Panel
+        title="The harder stop: recovery tick"
+        description="The brake pauses accounts. This stops the loop itself, for everyone, including accounts the brake skips. Use it when the problem is the engine rather than a merchant."
+      >
         {status.tickEnabled ? (
           <ConfirmForm
             intent="tick-disable"
@@ -334,7 +295,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
             description="Resumes the five-minute loop. Due steps that piled up while disabled will run on the next tick."
           />
         )}
-      </section>
+      </Panel>
     </div>
   );
 }

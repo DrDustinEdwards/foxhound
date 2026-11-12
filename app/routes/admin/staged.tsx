@@ -1,8 +1,15 @@
-import { Pill } from "capsomer/react/status";
-import "capsomer/status.css";
 import { data, Form, useNavigation } from "react-router";
-
+import { Alert, Banner } from "capsomer/react/banner";
+import { Empty } from "capsomer/react/empty";
+import { Panel } from "capsomer/react/panel";
+import { Pill } from "capsomer/react/status";
 import { Time } from "capsomer/react/time";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/status.css";
+
+import { ConfirmPhraseField } from "~/components/admin-confirm-phrase";
 import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import {
@@ -88,107 +95,91 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 const STATUS_TONE = { confirmed: "success", rejected: "neutral", failed: "failure" } as const;
+const DECIDED_HEADING_ID = "admin-staged-decided";
 
 export default function AdminStaged({ loaderData, actionData }: Route.ComponentProps) {
   const { pending, recent } = loaderData;
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div>
-      <p className="mb-4 text-body text-text-tertiary">
+    <div className="grid grid-cols-1 gap-6">
+      <p className="text-body text-text-tertiary">
         Changes the admin AI asked for that start or change money. Nothing here has happened yet.
         Confirming one applies it now, under your name.
       </p>
 
-      {actionData && !actionData.ok && actionData.error ? (
-        <p
-          role="alert"
-          className="mb-4 rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-        >
-          {actionData.error}
-        </p>
-      ) : null}
+      {actionData && !actionData.ok && actionData.error ? <Alert>{actionData.error}</Alert> : null}
       {actionData && actionData.ok && actionData.message ? (
-        <p
-          role="status"
-          className="mb-4 rounded-md border border-border bg-surface px-3 py-2 text-label text-text"
-        >
-          {actionData.message}
-        </p>
+        <Banner tone="ok">{actionData.message}</Banner>
       ) : null}
 
       {pending.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
-          Nothing is waiting.
-        </p>
+        <Empty kind="all-clear" title="Nothing is waiting." />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pending.map((row) => (
-            <div key={row.id} className="rounded-lg border border-border bg-surface p-4">
-              <p className="text-body text-text">{row.summary}</p>
-              <p className="mt-1 text-label text-text-tertiary">
+        pending.map((row) => (
+          <Panel
+            key={row.id}
+            title={row.summary}
+            description={
+              <>
                 Asked for by {row.requestedBy} via {row.requestedVia},{" "}
                 <Time at={row.requestedAt} empty="never" tip />
                 {row.note ? `: ${row.note}` : ""}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Form method="post" className="flex flex-wrap items-center gap-2">
-                  <input type="hidden" name="intent" value="confirm" />
-                  <input type="hidden" name="id" value={row.id} />
-                  {row.phrase ? (
-                    <>
-                      <label
-                        htmlFor={`confirm-${row.id}`}
-                        className="text-label text-text-secondary"
-                      >
-                        Type <span className="font-mono text-text">{row.phrase}</span> to confirm
-                      </label>
-                      <input
-                        id={`confirm-${row.id}`}
-                        name="confirm"
-                        type="text"
-                        autoComplete="off"
-                        required
-                        placeholder={row.phrase}
-                        className="rounded-md border border-border bg-bg px-3 py-1.5 font-mono text-label text-text placeholder:text-text-subtle"
-                      />
-                    </>
-                  ) : null}
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="rounded-md border border-red px-3 py-1.5 text-label text-error-text hover:bg-red-bg disabled:opacity-60"
-                  >
-                    Confirm
-                  </button>
-                </Form>
-                <Form method="post">
-                  <input type="hidden" name="intent" value="reject" />
-                  <input type="hidden" name="id" value={row.id} />
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="rounded-md border border-border px-3 py-1.5 text-label text-text hover:border-brand disabled:opacity-60"
-                  >
-                    Reject
-                  </button>
-                </Form>
-              </div>
+              </>
+            }
+          >
+            <div className="cap-cluster">
+              <Form method="post">
+                <input type="hidden" name="intent" value="confirm" />
+                <input type="hidden" name="id" value={row.id} />
+                {row.phrase ? (
+                  <ConfirmPhraseField phrase={row.phrase}>
+                    <ConfirmButton busy={busy} />
+                  </ConfirmPhraseField>
+                ) : (
+                  <ConfirmButton busy={busy} />
+                )}
+              </Form>
+              <Form method="post" className="self-end">
+                <input type="hidden" name="intent" value="reject" />
+                <input type="hidden" name="id" value={row.id} />
+                <button type="submit" className="cap-btn" disabled={busy}>
+                  Reject
+                </button>
+              </Form>
             </div>
-          ))}
-        </div>
+          </Panel>
+        ))
       )}
 
       {recent.length > 0 ? (
-        <>
-          <h2 className="mb-3 mt-8 text-label font-semibold text-text">Decided</h2>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-label">
+        <Panel title="Decided" headingId={DECIDED_HEADING_ID} flush>
+          <div
+            className="cap-table-wrap"
+            data-reflow="medium"
+            role="region"
+            aria-labelledby={DECIDED_HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">
+                Staged changes already confirmed, rejected or failed, most recently asked for first.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Change</th>
+                  <th scope="col">Outcome</th>
+                  <th scope="col">Decided by</th>
+                  <th scope="col">When</th>
+                </tr>
+              </thead>
               <tbody>
                 {recent.map((row) => (
-                  <tr key={row.id} className="border-b border-border-sub last:border-0">
-                    <td className="px-4 py-3 text-text">{row.summary}</td>
-                    <td className="px-4 py-3">
+                  <tr key={row.id}>
+                    <th scope="row" className="font-normal" data-wrap="">
+                      {row.summary}
+                    </th>
+                    <td data-label="Outcome">
                       <Pill
                         {...BADGE_PILL[
                           STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"
@@ -197,8 +188,8 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
                         {row.status}
                       </Pill>
                     </td>
-                    <td className="px-4 py-3 text-text-tertiary">{row.decidedBy ?? "-"}</td>
-                    <td className="px-4 py-3 text-text-tertiary">
+                    <td data-label="Decided by">{row.decidedBy ?? "-"}</td>
+                    <td data-label="When">
                       <Time at={row.decidedAt} empty="-" tip />
                     </td>
                   </tr>
@@ -206,8 +197,16 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
               </tbody>
             </table>
           </div>
-        </>
+        </Panel>
       ) : null}
     </div>
+  );
+}
+
+function ConfirmButton({ busy }: { busy: boolean }) {
+  return (
+    <button type="submit" className="cap-btn" data-variant="danger" disabled={busy}>
+      Confirm
+    </button>
   );
 }
