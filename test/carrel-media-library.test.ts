@@ -20,7 +20,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 // The blog's media library through Carrel's real site-api mount, over the real
-// schema (migration 0059's tables and triggers) and in-memory stand-ins for the
+// schema (site-api's standard tables and triggers, migration 0080) and in-memory stand-ins for the
 // R2 bucket, the Images binding and Workers AI.
 
 const KEY = "k".repeat(40);
@@ -155,6 +155,7 @@ function setup() {
   const { db, sqlite } = createInMemoryDb();
   const bucket = fakeBucket();
   const env = {
+    DB: d1Over(sqlite),
     MEDIA: bucket,
     IMAGES: fakeImages,
     AI: {
