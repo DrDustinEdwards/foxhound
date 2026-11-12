@@ -37,11 +37,6 @@ export type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOP
 /** Identifying prefix so a leaked token is recognizable and greppable in scans. */
 export const MCP_TOKEN_PREFIX = "fox_mcp_";
 
-/** SHA-256 hex of the presented token; only this is stored. */
-export function hashMcpToken(token: string): Promise<string> {
-  return sha256Hex(token);
-}
-
 /** A fresh 32-byte secret, base64url without padding (43 characters). The
  *  OAuth provider mints its codes and refresh tokens the same way. */
 export function generateSecret(): string {
@@ -75,7 +70,7 @@ export function mintMcpTokenValue(): string {
  */
 export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<IssuedMcpToken> {
   const token = mintMcpTokenValue();
-  const keyHash = await hashMcpToken(token);
+  const keyHash = await sha256Hex(token);
   const keyId = crypto.randomUUID();
   const accountId = input.scope === MCP_TOKEN_SCOPE.ADMIN ? null : input.accountId;
 
@@ -111,7 +106,7 @@ export interface VerifiedMcpToken {
 export async function verifyMcpToken(db: Db, presented: string): Promise<VerifiedMcpToken | null> {
   if (!presented.startsWith(MCP_TOKEN_PREFIX)) return null;
 
-  const keyHash = await hashMcpToken(presented);
+  const keyHash = await sha256Hex(presented);
   const rows = await db
     .select({
       id: apiKeys.id,

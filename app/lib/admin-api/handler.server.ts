@@ -45,7 +45,7 @@ import {
 } from "~/lib/admin/staged.server";
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { isAdminEmail } from "~/lib/auth/roles";
+import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { ToolInputError } from "~/lib/mcp/registry";

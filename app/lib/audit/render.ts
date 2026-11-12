@@ -249,11 +249,6 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
 /** The one sentence every surface uses for a scope that was not read. */
 export const SCOPE_UNREAD = "Could not be read on this run.";
 
-/** Minor units to a whole-unit display string in the run's currency. */
-export function formatCents(cents: number, currency: string): string {
-  return formatMoneyShort(cents, currency);
-}
-
 /**
  * A figure's display lines, one per currency in its totals' order. No money
  * at all reads as a zero in the run's currency, which is what a
@@ -263,8 +258,8 @@ export function formatTotals(
   totals: readonly { currency: string; cents: number }[],
   runCurrency: string,
 ): string[] {
-  if (totals.length === 0) return [formatCents(0, runCurrency)];
-  return totals.map((t) => formatCents(t.cents, t.currency));
+  if (totals.length === 0) return [formatMoneyShort(0, runCurrency)];
+  return totals.map((t) => formatMoneyShort(t.cents, t.currency));
 }
 
 /** Whether a figure carries any money above zero. */

@@ -25,7 +25,8 @@ import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { accounts, getDb } from "~/db";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { listAuditRuns } from "~/lib/audit/persist.server";
-import { formatCents, formatTotals, toStoredAuditRun } from "~/lib/audit/render";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { formatTotals, toStoredAuditRun } from "~/lib/audit/render";
 import { createSaveQueue, type SaveQueue } from "~/lib/audit/save-queue";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -253,9 +254,11 @@ function TrendRow({
               key={line.currency}
               className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label"
             >
-              <span className="text-text">{formatCents(line.currentCents, line.currency)}</span>
+              <span className="text-text">
+                {formatMoneyShort(line.currentCents, line.currency)}
+              </span>
               <span className="text-text-subtle">
-                vs {formatCents(line.previousCents, line.currency)}
+                vs {formatMoneyShort(line.previousCents, line.currency)}
               </span>
               <Delta delta={line.comparison} />
             </div>

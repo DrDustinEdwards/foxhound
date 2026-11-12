@@ -39,8 +39,3 @@ export function calculatorFigures({
 export function fmt(n: number): string {
   return "$" + n.toLocaleString();
 }
-
-/** Capsomer's Range fill: how far along its track the thumb is. */
-export function rangeFill(value: number, min: number, max: number): string {
-  return `${(max > min ? ((value - min) / (max - min)) * 100 : 0).toFixed(2)}%`;
-}

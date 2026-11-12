@@ -26,7 +26,7 @@ import { HoundMark } from "~/components/hound-mark";
 import { renderHeaderLink, THEME_PREF_KEY, themeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
-import { getAdminSession } from "~/lib/auth/access.server";
+import { accessAdmin } from "@dustinedwards/site-runtime/access";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { useReadAt } from "~/lib/use-read-at";
 import { DEFAULT_THEME, type Theme } from "~/lib/theme";
@@ -40,7 +40,7 @@ export const handle = { hydrate: true };
 
 // The ONE gate for /admin. Cloudflare Access signs the person in before a
 // request reaches the Worker; this re-verifies Access's JWT and the
-// ADMIN_EMAIL and CO_OWNER_EMAILS roster (app/lib/auth/access.server.ts), so a request that got
+// ADMIN_EMAIL and CO_OWNER_EMAILS roster (site-runtime accessAdmin), so a request that got
 // round Access, or an Access setup that is wrong, never reaches an admin loader
 // or action. Anything else gets a 404, as before, so /admin's existence is not
 // disclosed. /admin no longer sits under the merchant app shell: no Better Auth
@@ -49,7 +49,7 @@ export const middleware: Route.MiddlewareFunction[] = [
   noindexHeader,
   async ({ request, context }, next) => {
     const { env } = context.get(cloudflareContext);
-    const session = await getAdminSession(env, request);
+    const session = await accessAdmin(request, env);
     if (!session) throw new Response("Not Found", { status: 404 });
     // ONLY THIS ORIGIN MAY WRITE. Access's CF_Authorization cookie rides along
     // on a POST from any site the admin has open, so every admin action (the

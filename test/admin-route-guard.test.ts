@@ -5,8 +5,8 @@ import routes from "~/routes";
 // Structural regression guard (Phase 7 Pass 1, re-pointed by job_6566f4776fdf):
 // every /admin/* route file MUST be reachable only through the admin-shell
 // layout (app/layouts/admin-shell.tsx), whose middleware verifies Cloudflare
-// Access's JWT and the ADMIN_EMAIL allowlist (app/lib/auth/access.server.ts,
-// tested in site-runtime) and 404s anything else, at the loader and,
+// Access's JWT and the ADMIN_EMAIL allowlist (site-runtime accessAdmin,
+// tested there) and 404s anything else, at the loader and,
 // since actions run through the same route tree, at the action too. This test
 // proves route wiring can never silently drift a new admin route outside the
 // guarded subtree, which is the actual way this kind of route could stop

@@ -13,7 +13,8 @@ import {
   categoryBadgeTone,
   recoveryApproach,
 } from "~/lib/decline-codes/presentation";
-import { faqPageJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { faqPage } from "@drdustinedwards/site-helpers/schema";
+import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
@@ -46,9 +47,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       siteUrl: url,
     }),
     jsonLd(
-      faqPageJsonLd(
-        loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer })),
-      ),
+      faqPage(loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer }))),
     ),
   ];
 }

@@ -51,7 +51,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 const { MERCHANT_TOOLS, MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } =
   await import("~/lib/mcp/tools.server");
 const { applyIntelligenceContext } = await import("~/lib/settings/apply.server");
@@ -119,7 +119,7 @@ async function seed() {
     await db.insert(apiKeys).values({
       id: `key_${account}`,
       accountId: account,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "agent",
       scope: MCP_TOKEN_SCOPE.MERCHANT,
       // A key that may change the account, as one made in Settings.
@@ -567,7 +567,7 @@ describe("PLANT 8: the demo account is refused at the gate, before any tool runs
     await db.insert(apiKeys).values({
       id: "key_demo",
       accountId: "demo_acct",
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "agent",
       scope: MCP_TOKEN_SCOPE.MERCHANT,
       createdAt: NOW,

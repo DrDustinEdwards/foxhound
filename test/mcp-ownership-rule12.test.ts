@@ -54,7 +54,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
 
 const MINE = "acct_mine";
@@ -91,7 +91,7 @@ async function seed() {
     await db.insert(apiKeys).values({
       id: `key_${account}`,
       accountId: account,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "agent",
       scope: MCP_TOKEN_SCOPE.MERCHANT,
       // A key that may change the account, as one made in Settings.

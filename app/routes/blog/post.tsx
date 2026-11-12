@@ -26,18 +26,12 @@ import {
   getPostLinks,
   getPreviousPost,
 } from "~/lib/blog/queries.server";
-import {
-  articleJsonLd,
-  faqPageJsonLd,
-  organizationJsonLd,
-  personJsonLd,
-  siteUrl,
-} from "~/lib/seo/jsonld";
+import { articleJsonLd, organizationJsonLd, personJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { faqPage, jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { MarketingError } from "~/components/error-view";
 import { markup } from "capsomer/behavior/trusted-html";
@@ -181,7 +175,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
         authorName: post.author,
       }),
     ),
-    ...(loaderData.faq.length > 0 ? [jsonLd(faqPageJsonLd(loaderData.faq))] : []),
+    ...(loaderData.faq.length > 0 ? [jsonLd(faqPage(loaderData.faq))] : []),
   ];
 }
 

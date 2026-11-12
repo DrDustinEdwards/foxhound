@@ -596,27 +596,10 @@
    holding opacity 0 for its whole delay (320ms on the hero's last item) before
    snapping in. The guard prevents that, and it is also what legacy does.
 
-   card-elevated sits OUTSIDE the guard, matching legacy: it is a shadow, not an
-   animation. Its light variant keys on :root[data-theme=light], which is
-   already Foxhound's theming mechanism, so it ports unchanged.
-
    The delay utilities set animation-delay, deliberately unlike Tailwind's
-   built-in delay-* which set transition-delay. None of 80/160/240/320/400 is a
+   built-in delay-* which set transition-delay. None of 80/160/240/320 is a
    default Tailwind delay value, so there is no collision with generated
    utilities. */
-.card-elevated {
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
-    0 1px 3px 0 rgba(0, 0, 0, 0.4),
-    0 1px 2px 0 rgba(0, 0, 0, 0.3);
-}
-
-:root[data-theme="light"] .card-elevated {
-  box-shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.08),
-    0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
 /* Primary brand-accent CTA (amber), ported from legacy app/globals.css:640 for the M6 product
    spokes (divergence 10: legacy uses this class, Foxhound was hand-rolling
    `bg-brand hover:bg-brand-dark` at each call site). Pair it with text-on-brand
@@ -693,17 +676,6 @@
 
   .delay-320 {
     animation-delay: 320ms;
-  }
-
-  .delay-400 {
-    animation-delay: 400ms;
-  }
-
-  .hover-spring {
-    transition:
-      transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-      border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-      box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 

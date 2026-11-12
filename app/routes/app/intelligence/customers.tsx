@@ -1,7 +1,7 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { Scale } from "lucide-react";
 import { Form } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
@@ -368,7 +368,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             page={result.page}
             pageCount={result.totalPages}
             hrefFor={(n) => pageHref(filters, n)}
-            renderLink={({ href, ...props }) => <Link to={href} {...props} />}
+            renderLink={routerRenderLink}
             label="Customer pages"
           />
         </div>

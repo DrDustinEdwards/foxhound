@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { SHARED_CACHE_CONTROL } from "@dustinedwards/site-runtime/edge-cache";
+import { SHARED_CACHE_CONTROL, UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
 
 import {
   applyCachePolicy,
@@ -10,7 +10,6 @@ import {
   classifyPath,
   cacheable,
   hasSessionCookie,
-  PRIVATE_DIRECTIVE,
   resolveCacheControl,
 } from "~/lib/http/cache-policy";
 
@@ -133,7 +132,7 @@ describe("PLANT 1: an anonymous page is shared only as the Renderer rendered it"
   });
 
   it("a page the gateway rendered (with its nonce) is never shared", () => {
-    expect(resolveCacheControl(request("/pricing"))).toBe(PRIVATE_DIRECTIVE);
+    expect(resolveCacheControl(request("/pricing"))).toBe(UNCACHED);
   });
 
   it("a shared page carries the edge lifetime and the purge tag; one that sets a cookie does not", () => {
@@ -145,7 +144,7 @@ describe("PLANT 1: an anonymous page is shared only as the Renderer rendered it"
       new Response("x", { headers: { "Set-Cookie": "a=1" } }),
       true,
     );
-    expect(cookied.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+    expect(cookied.headers.get("Cache-Control")).toBe(UNCACHED);
     expect(cookied.headers.get("Cache-Tag")).toBeNull();
   });
 });
@@ -154,11 +153,11 @@ describe("PLANT 2: A SIGNED-IN REQUEST NEVER GETS A PUBLIC DIRECTIVE", () => {
   const PAGES = PUBLIC_ROUTES.filter(([, c]) => c !== "files");
 
   it.each(PAGES)("%s is private with a PRODUCTION session cookie", (path) => {
-    expect(resolveCacheControl(request(path, PROD_COOKIE), true)).toBe(PRIVATE_DIRECTIVE);
+    expect(resolveCacheControl(request(path, PROD_COOKIE), true)).toBe(UNCACHED);
   });
 
   it.each(PAGES)("%s is private with a LOCAL session cookie", (path) => {
-    expect(resolveCacheControl(request(path, LOCAL_COOKIE), true)).toBe(PRIVATE_DIRECTIVE);
+    expect(resolveCacheControl(request(path, LOCAL_COOKIE), true)).toBe(UNCACHED);
   });
 
   it("it is found among OTHER cookies, not only when it is alone", () => {

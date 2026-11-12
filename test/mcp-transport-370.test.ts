@@ -34,7 +34,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 
 const ACCOUNT = "acct_alpha";
 const DEMO_ACCOUNT = "demo_teamflow";
@@ -63,7 +63,7 @@ async function seed() {
     await db.insert(apiKeys).values({
       id: `key_${token}`,
       accountId,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "test",
       scope,
       createdAt: NOW,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
-import { isAdminEmail } from "~/lib/auth/roles";
+import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 
 // Pure auth logic (no DB): the admin allowlist parsing and the disposable-email
 // blocklist. The DB-backed account/invite flow is verified against a live D1
