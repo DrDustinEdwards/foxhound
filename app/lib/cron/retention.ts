@@ -27,7 +27,7 @@ import {
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
 import { computeAiCallCostCents } from "~/lib/ai/cost";
-import { monthKeyUTC } from "~/lib/dashboard/recovery-window";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 import type { CronJobResult } from "./run";
 
@@ -206,7 +206,7 @@ export function aggregateAiCalls(rows: AiCallRow[]): AiCallAggregate[] {
   const map = new Map<string, AiCallAggregate>();
   for (const r of rows) {
     const accountKey = r.accountId ?? "";
-    const month = monthKeyUTC(r.createdAt);
+    const month = monthKey(r.createdAt);
     const key = `${accountKey}|${r.model}|${month}`;
     const agg = map.get(key) ?? {
       accountKey,

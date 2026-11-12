@@ -8,12 +8,12 @@ import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
 import { planTierPill } from "~/lib/intelligence/customer-directory";
 import {
   dayOverDayCents,
-  monthKeyOf,
   monthLabel,
   newMrrMonthToDateCents,
   planBreakdownRows,
   signedMoney,
 } from "~/lib/intelligence/dashboard";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import { healthScoreBand, type HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
@@ -129,7 +129,7 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
       newMrrMtd: formatMoneyShort(newMrrMonthToDateCents(daily, now.getTime()), currency),
       currency,
       plans: planBreakdownRows(latest?.perPlanBreakdown ?? null),
-      narrativeMonth: monthLabel(monthKeyOf(report.reportMonth)),
+      narrativeMonth: monthLabel(monthKey(report.reportMonth)),
       narrative: report.narrative,
     },
     customers: rows,

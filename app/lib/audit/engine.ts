@@ -11,6 +11,7 @@ import { monthlyEquivalentCents, type BillingInterval } from "~/lib/intelligence
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { byCurrencyCode } from "~/lib/money/totals";
 import { classifyDecline } from "~/lib/recovery/decline";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's
 // `lib/audit-engine.ts` (blob `040912f895b556163d1a08d8af1974bd6af9b2ed`,
@@ -364,7 +365,7 @@ function computeExpiringCards(
       const bucketDate = new Date(
         Date.UTC(currentYear, currentMonth - 1 + Math.max(0, monthsAhead), 1),
       );
-      const key = `${bucketDate.getUTCFullYear()}-${String(bucketDate.getUTCMonth() + 1).padStart(2, "0")}`;
+      const key = monthKey(bucketDate);
       let bucket = buckets.get(key);
       if (!bucket) {
         bucket = new Set<string>();

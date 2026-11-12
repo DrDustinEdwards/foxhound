@@ -1,6 +1,7 @@
 import { formatDate } from "capsomer/behavior/time";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 // Pure helpers for the Intelligence dashboard, shared by the
 // page and its tests. No database, no AI, no server import: the page bundles
@@ -8,15 +9,10 @@ import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // ---- The monthly summary's month pager (Recova's MonthlyNarrative.tsx) ----
 
-/** "YYYY-MM" of a date, in UTC. */
-export function monthKeyOf(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
 /** The month `delta` months from "YYYY-MM". Recova's shiftMonth. */
 export function shiftMonth(yyyymm: string, delta: number): string {
   const [y, m] = yyyymm.split("-");
-  return monthKeyOf(new Date(Date.UTC(Number(y), Number(m) - 1 + delta, 1)));
+  return monthKey(new Date(Date.UTC(Number(y), Number(m) - 1 + delta, 1)));
 }
 
 /** "October 2026". Recova's monthLabel. */
@@ -68,10 +64,8 @@ export function dayOverDayCents(points: readonly DailyPoint[]): number | null {
 
 /** Recova's "New MRR (MTD)": new MRR summed over this UTC month's snapshots. */
 export function newMrrMonthToDateCents(points: readonly DailyPoint[], nowMs: number): number {
-  const month = monthKeyOf(new Date(nowMs));
-  return points
-    .filter((p) => monthKeyOf(p.at) === month)
-    .reduce((sum, p) => sum + p.newMrrCents, 0);
+  const month = monthKey(new Date(nowMs));
+  return points.filter((p) => monthKey(p.at) === month).reduce((sum, p) => sum + p.newMrrCents, 0);
 }
 
 /** "+$120" or "-$45": Recova printed only a plus, and a fall read as a rise. */

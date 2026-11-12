@@ -21,7 +21,7 @@ import {
   INTELLIGENCE_MAX_CUSTOMERS_SCANNED,
   INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER,
 } from "~/lib/constants";
-import { monthKeyUTC } from "~/lib/dashboard/recovery-window";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { findActiveConnection } from "~/lib/stripe/connections.server";
@@ -606,7 +606,7 @@ export async function runIntelligenceSyncForAccount(
       stripeCustomerId: customer.id,
       mrrCents: fields.mrrContributionCents,
       planName: fields.currentPlanName,
-      cohortKey: monthKeyUTC(new Date(customerSinceMs)),
+      cohortKey: monthKey(new Date(customerSinceMs)),
       churnReason: snapshot.churnReason,
     });
 

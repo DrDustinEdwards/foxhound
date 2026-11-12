@@ -19,6 +19,7 @@ import {
   MONTHLY_AUDIT_TEMPLATE,
   buildMonthlyAuditEmail,
 } from "./monthly-email";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 // THE MERGED MONTHLY AUDIT. One cron, one email.
 //
@@ -56,7 +57,7 @@ import {
  *  Date.UTC normalizes month -1 across a year boundary. */
 function auditPeriod(now: Date): string {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  return monthKey(d);
 }
 
 interface MonthlyAuditAccountRow {
