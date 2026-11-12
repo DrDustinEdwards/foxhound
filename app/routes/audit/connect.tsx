@@ -4,7 +4,6 @@ import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { Form, redirect, useFormAction, useNavigation } from "react-router";
 import { Link } from "capsomer/react/link";
-import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -16,7 +15,7 @@ import "~/site-header.css";
 
 import { AUDIT_LOOKBACK_DAYS, RATE_LIMIT_AUDIT } from "~/lib/constants";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { AUDIT_ACCESS_ASK, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { AUDIT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
 import { buildAuditAuthorizeUrl } from "~/lib/stripe/connect";
@@ -113,14 +112,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // is 10 per hour on `audit-connect:{ip}`). Fail-open like every other caller,
   // which is legacy's posture too: its Redis limiter returns true on any error
   // for the same reason.
-  const ip = clientIp(request);
-  const allowed = await isWithinRateLimit(
-    env,
-    "audit-connect",
-    ip,
-    RATE_LIMIT_AUDIT.max,
-    RATE_LIMIT_AUDIT.windowMs,
-  );
+  const allowed = await isIpWithinRateLimit(env, request, "audit-connect", RATE_LIMIT_AUDIT);
   if (!allowed) return redirect("/audit/connect?error=rate_limited");
 
   if (!env.STRIPE_CLIENT_ID) {

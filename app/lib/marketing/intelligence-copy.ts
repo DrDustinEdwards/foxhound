@@ -8,6 +8,7 @@ import {
 import { countWord, DECLINE_CATEGORY_COUNT } from "~/lib/marketing/decline-categories";
 import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
+import { listText } from "capsomer/behavior/hooks";
 
 // The /product/intelligence copy. Recova's spec is
 // app/(marketing)/product/intelligence/page.tsx (blob 4f258429), read whole,
@@ -56,12 +57,8 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 const customerCap = formatCount(INTELLIGENCE_MAX_CUSTOMERS_SCANNED);
 const labels: string[] = Object.values(HEALTH_SIGNAL_LABELS);
 const signalCount = countWord(labels.length);
-/** "a, b, and c". */
-function series(words: string[]): string {
-  return `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;
-}
 /** "payment timing, billing changes, refunds and disputes, recovery engagement, tenure, and card on file". */
-const signalList = series(labels);
+const signalList = listText(labels);
 
 /** Each signal as the score FAQ explains it, built on the engine's own label.
  *  Keyed by the engine's signals, so a new signal does not compile until its
@@ -75,7 +72,7 @@ const SIGNAL_EXPLAINED: Record<HealthSignal, (label: string) => string> = {
   tenure: (l) => l,
   payment_method: (l) => `${l} (a prepaid card on the latest failed payment)`,
 };
-const signalsExplained = series(
+const signalsExplained = listText(
   (Object.keys(HEALTH_SIGNAL_LABELS) as HealthSignal[]).map((k) =>
     SIGNAL_EXPLAINED[k](HEALTH_SIGNAL_LABELS[k]),
   ),

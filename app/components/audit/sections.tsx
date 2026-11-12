@@ -28,6 +28,7 @@ import {
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { plural } from "@drdustinedwards/site-helpers/text";
+import { percent } from "capsomer/behavior/meter";
 
 // The audit's render sections, shared by BOTH surfaces that show a run: the
 // live /audit/results and a saved run at /audit/results/:id. Recova shares its
@@ -466,8 +467,7 @@ function DisputeFigures({
 }) {
   const { open, acceptedWithoutFighting: accepted, historical } = data;
   const totalHistorical = historical.won + historical.lost;
-  const winRatePct =
-    totalHistorical > 0 ? Math.round((historical.won / totalHistorical) * 100) : null;
+  const winRatePct = totalHistorical > 0 ? percent(historical.won, totalHistorical) : null;
 
   return (
     <>

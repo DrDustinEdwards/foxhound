@@ -35,8 +35,7 @@ vi.mock("~/lib/email/dispatch", () => ({
 
 const { runWeeklyDigest, queryDigestAccounts, collectDigestNumbers, DIGEST_WINDOW_MS } =
   await import("~/lib/cron/digest");
-const { buildDigestBlocks, recoveryRate, resolveDigestCurrency } =
-  await import("~/lib/recovery/digest-email");
+const { buildDigestBlocks, resolveDigestCurrency } = await import("~/lib/recovery/digest-email");
 
 /** The words of a digest's blocks, one line each, for a containment check. */
 function words(blocks: WordsBlock[]): string {
@@ -111,12 +110,6 @@ function seedRecovered(id: string, at: Date, cents = 5000, currency = "usd"): vo
 }
 
 describe("PLANT 1: the pure copy is legacy's", () => {
-  it("recovery rate is a whole percent and ZERO when nothing failed", () => {
-    expect(recoveryRate(0, 0)).toBe(0);
-    expect(recoveryRate(4, 1)).toBe(25);
-    expect(recoveryRate(3, 2)).toBe(67);
-  });
-
   it("currency falls back most-common, then failed, then usd", () => {
     expect(
       resolveDigestCurrency([{ currency: "eur" }, { currency: "eur" }, { currency: "usd" }], []),

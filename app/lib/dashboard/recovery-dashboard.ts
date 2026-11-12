@@ -11,6 +11,7 @@ import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { formatMoney, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
+import { percent } from "capsomer/behavior/meter";
 
 // The /recovery/dashboard page's display arithmetic: pure, no
 // database, safe in the browser bundle. Recova is the spec for what each panel
@@ -244,10 +245,9 @@ export function declineRows(input: {
       category,
       label: DECLINE_CATEGORY_LABELS[category],
       count,
-      pct: input.totalFailedCount > 0 ? Math.round((count / input.totalFailedCount) * 100) : 0,
+      pct: percent(count, input.totalFailedCount),
       // Recova's own rule: a rate only once a category has two failures.
-      recoveredPct:
-        stats && stats.total >= 2 ? Math.round((stats.recovered / stats.total) * 100) : null,
+      recoveredPct: stats && stats.total >= 2 ? percent(stats.recovered, stats.total) : null,
       spark: (input.categorySparkline[category] ?? []).map((p) => p.count),
     };
   });
@@ -367,7 +367,7 @@ export function deliverabilityFigures(c: {
   complaints: number;
 }): DeliverabilityFigures | null {
   if (c.bounced + c.complaints === 0) return null;
-  const pct = (n: number) => (c.sent > 0 ? Math.round((n / c.sent) * 100) : null);
+  const pct = (n: number) => (c.sent > 0 ? percent(n, c.sent) : null);
   return {
     sent: c.sent,
     bounced: c.bounced,

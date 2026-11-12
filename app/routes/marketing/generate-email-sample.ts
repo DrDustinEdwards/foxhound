@@ -1,9 +1,8 @@
-import { clientIp } from "@dustinedwards/site-runtime/http";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { data, redirect } from "react-router";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import {
   MARKETING_EMAIL_CATEGORIES,
   type MarketingEmailCategory,
@@ -51,8 +50,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const categoryInput = String(form.get("category") ?? "");
   const category: MarketingEmailCategory = isValidCategory(categoryInput) ? categoryInput : "soft";
 
-  const key = clientIp(request);
-  const allowed = await isWithinRateLimit(env, "marketing_email_sample", key, 10, 60_000);
+  const allowed = await isIpWithinRateLimit(env, request, "marketing_email_sample", {
+    max: 10,
+    windowMs: 60_000,
+  });
   if (!allowed) {
     return data(UNAVAILABLE, { status: 429 });
   }

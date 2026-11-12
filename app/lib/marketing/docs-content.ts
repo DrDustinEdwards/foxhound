@@ -41,6 +41,7 @@ import {
   AUDIT_GRANT_MINUTES,
 } from "~/lib/marketing/audit-access";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
+import { listText } from "capsomer/behavior/hooks";
 
 // THE BLOCK VOCABULARY, Recova's own.
 //
@@ -655,7 +656,7 @@ export const DOC_GUIDES: DocGuide[] = [
             ],
           },
           { kind: "h3", text: "Date range filter" },
-          `The ${RECOVERY_RANGES.slice(0, -1).join(", ")} and ${RECOVERY_RANGES.at(-1)} buttons in the dashboard header change the window the trend charts, the decline breakdown, the win-back panel and the payments preview read from. The recovery timing chart stays on the last 30 days, as the stat cards do. The range starts at 30 days.`,
+          `The ${listText(RECOVERY_RANGES)} buttons in the dashboard header change the window the trend charts, the decline breakdown, the win-back panel and the payments preview read from. The recovery timing chart stays on the last 30 days, as the stat cards do. The range starts at 30 days.`,
           "The recovery queue always shows the steps due in the next 48 hours, whatever the range.",
           "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam. Foxhound records each bounce and spam report against the account that sent the email, and when there are none in the range the panel says so. It shows no delivered rate, because Foxhound does not record delivery.",
           { kind: "h3", text: "ROI widget" },

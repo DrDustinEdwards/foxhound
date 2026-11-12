@@ -6,7 +6,7 @@ import {
 } from "@dustinedwards/site-runtime/log";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 import { eq } from "drizzle-orm";
-import { clientIp, jsonResponse } from "@dustinedwards/site-runtime/http";
+import { jsonResponse } from "@dustinedwards/site-runtime/http";
 
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls } from "~/db/schema";
@@ -48,7 +48,7 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mc
 import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
 import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit, isWithinRateLimit } from "~/lib/http/rate-limit";
 import { ToolInputError } from "~/lib/mcp/registry";
 import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
 import { readJson } from "@dustinedwards/site-runtime/body";
@@ -110,20 +110,13 @@ class ApiError extends Error {
 const UNAUTHORIZED = () => jsonResponse({ ok: false, error: "Unauthorized" }, 401);
 
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
-  const ip = clientIp(request);
   const refuse = async (response: Response, reason: string) => {
     logEvent(
       OWASP_EVENTS.authorizationFailure,
       { ...requestFields(request), door: "admin-api", reason },
       { level: "warn" },
     );
-    const allowed = await isWithinRateLimit(
-      env,
-      "admin-api-anon",
-      ip,
-      RATE_LIMIT_MCP_ANON.max,
-      RATE_LIMIT_MCP_ANON.windowMs,
-    );
+    const allowed = await isIpWithinRateLimit(env, request, "admin-api-anon", RATE_LIMIT_MCP_ANON);
     return allowed ? response : jsonResponse({ ok: false, error: "Too many requests" }, 429);
   };
 

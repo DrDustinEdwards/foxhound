@@ -148,6 +148,17 @@ export async function isWithinRateLimit(
   );
 }
 
+/** isWithinRateLimit on the caller's address (site-runtime clientIp: an IPv6
+ *  address by its /64), for the routes that limit by IP. Fails open. */
+export function isIpWithinRateLimit(
+  env: Env,
+  request: Request,
+  bucket: string,
+  rule: { readonly max: number; readonly windowMs: number },
+): Promise<boolean> {
+  return isWithinRateLimit(env, bucket, clientIp(request), rule.max, rule.windowMs);
+}
+
 /**
  * Check the request against whichever rate-limit rule applies, and return
  * the 429 response to send if it is over budget, or null if the request

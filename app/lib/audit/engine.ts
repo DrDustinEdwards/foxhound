@@ -12,6 +12,7 @@ import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { byCurrencyCode } from "~/lib/money/totals";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { monthKey } from "@dustinedwards/site-runtime/time";
+import { stripeMs } from "~/lib/stripe/time";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's
 // `lib/audit-engine.ts` (blob `040912f895b556163d1a08d8af1974bd6af9b2ed`,
@@ -279,7 +280,7 @@ function resolveFailedInvoices(inputs: AuditInputs, nowMs: number): ScopeOutcome
   }
   if (!inputs.openInvoices.ok) return { ok: false, reason: inputs.openInvoices.reason };
   const overdue = inputs.openInvoices.data.filter(
-    (invoice) => typeof invoice.due_date === "number" && invoice.due_date * 1000 < nowMs,
+    (invoice) => (stripeMs(invoice.due_date) ?? Infinity) < nowMs,
   );
   return { ok: true, data: [...inputs.uncollectibleInvoices.data, ...overdue] };
 }

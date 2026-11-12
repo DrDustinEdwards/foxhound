@@ -1,5 +1,6 @@
 import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
+import { useShownFor } from "capsomer/react/hooks";
 import { data, useNavigation, useRouteLoaderData } from "react-router";
 import { Link } from "capsomer/react/link";
 import { eq } from "drizzle-orm";
@@ -294,13 +295,7 @@ export function AuditSettingsForm({
 
   // Recova clears "Saved." after three seconds and keeps a failure until the
   // next try.
-  const [dismissed, setDismissed] = useState<SaveResult>(undefined);
-  const shown = result !== dismissed ? result : undefined;
-  useEffect(() => {
-    if (!result?.ok) return;
-    const timer = setTimeout(() => setDismissed(result), 3000);
-    return () => clearTimeout(timer);
-  }, [result]);
+  const [shown] = useShownFor(result, 3000, (r) => r.ok);
 
   // The control has already changed in the page when its handler runs, so the
   // form posts the new value.

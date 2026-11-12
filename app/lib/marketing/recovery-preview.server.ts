@@ -16,6 +16,7 @@ import { summarizeSequence } from "~/lib/recovery/sequence-summary";
 import { hourlyPreview } from "./hourly-preview";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
+import { percent } from "capsomer/behavior/meter";
 
 // The data behind the /product/recovery previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hardcoded Teamflow
@@ -92,7 +93,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   const cohort = failures.filter((f) => f.detectedAt.getTime() >= cutoff30);
   const ratePct =
     cohort.length > 0
-      ? Math.round((cohort.filter((f) => recoveredIds.has(f.id)).length / cohort.length) * 100)
+      ? percent(cohort.filter((f) => recoveredIds.has(f.id)).length, cohort.length)
       : null;
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));

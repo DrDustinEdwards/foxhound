@@ -1,3 +1,4 @@
+import { percent } from "capsomer/behavior/meter";
 // Pure MRR movement math (PRICING.md free tier: MRR, movements, churn, simple
 // cohorts; mrr_snapshots in SCHEMA.md). There is no subscription-history table
 // in the schema (the task's key architectural fact), so movements are computed
@@ -210,7 +211,7 @@ function buildCohortBreakdown(current: CustomerMrrPoint[]): CohortRow[] {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([cohortKey, total]) => ({
       label: cohortKey,
-      values: [Math.round(((activeByCohort.get(cohortKey) ?? 0) / total) * 100)],
+      values: [percent(activeByCohort.get(cohortKey) ?? 0, total)],
     }));
 }
 
