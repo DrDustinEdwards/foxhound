@@ -596,10 +596,6 @@
    holding opacity 0 for its whole delay (320ms on the hero's last item) before
    snapping in. The guard prevents that, and it is also what legacy does.
 
-   card-elevated sits OUTSIDE the guard, matching legacy: it is a shadow, not an
-   animation. Its light variant keys on :root[data-theme=light], which is
-   already Foxhound's theming mechanism, so it ports unchanged.
-
    The delay utilities set animation-delay, deliberately unlike Tailwind's
    built-in delay-* which set transition-delay. None of 80/160/240/320 is a
    default Tailwind delay value, so there is no collision with generated
