@@ -5,7 +5,7 @@ import { id, ts } from "./columns";
 import { disputes } from "./disputes";
 import { adminAuditLog } from "./platform";
 import { recoveredPayments } from "./recovery";
-import { accounts } from "./tenancy";
+import { accountRef } from "./tenancy";
 
 // ============================================================================
 // Billing (rebuilt per PRICING.md: invoices + line items, no orphan charges)
@@ -15,9 +15,7 @@ export const billingInvoices = sqliteTable(
   "billing_invoices",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     currency: text("currency").notNull(),
     periodStart: ts("period_start").notNull(),
     periodEnd: ts("period_end").notNull(),
@@ -49,9 +47,7 @@ export const billingLineItems = sqliteTable(
     invoiceId: text("invoice_id")
       .notNull()
       .references(() => billingInvoices.id),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     // recovery_fee | dispute_fee | subscription | adjustment (PRICING.md)
     type: text("type").notNull(),
     currency: text("currency").notNull(),
@@ -135,9 +131,7 @@ export const billingExemptionPeriods = sqliteTable(
   "billing_exemption_periods",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     startedAt: ts("started_at").notNull(),
     endedAt: ts("ended_at"),
     /** The change that ended this stretch, so the caller can tell its own

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, bool, json } from "./columns";
-import { accounts } from "./tenancy";
+import { accountRef } from "./tenancy";
 
 // ============================================================================
 // Intelligence
@@ -12,9 +12,7 @@ export const customerContext = sqliteTable(
   "customer_context",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     customerEmail: text("customer_email"),
     customerName: text("customer_name"),
@@ -76,9 +74,7 @@ export const subscriptionChanges = sqliteTable(
   "subscription_changes",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     stripeSubscriptionId: text("stripe_subscription_id").notNull(),
     stripeEventId: text("stripe_event_id").notNull(),
@@ -104,9 +100,7 @@ export const healthScoreHistory = sqliteTable(
   "health_score_history",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     customerContextId: text("customer_context_id")
       .notNull()
       .references(() => customerContext.id),
@@ -128,9 +122,7 @@ export const predictions = sqliteTable(
   "predictions",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     score: integer("score").notNull(),
     // hash of the evidence bands that produced the score
@@ -155,9 +147,7 @@ export const recommendationLog = sqliteTable(
   "recommendation_log",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     recommendedAt: ts("recommended_at").notNull(),
     action: text("action").notNull(),
@@ -188,9 +178,7 @@ export const mrrSnapshots = sqliteTable(
   "mrr_snapshots",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     snapshotDate: ts("snapshot_date").notNull(),
     totalMrrCents: integer("total_mrr_cents").notNull(),
     newMrrCents: integer("new_mrr_cents").notNull(),
@@ -227,9 +215,7 @@ export const intelligenceReports = sqliteTable(
   "intelligence_reports",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     reportMonth: ts("report_month").notNull(),
     narrative: text("narrative").notNull(),
     generatedAt: ts("generated_at").notNull(),
@@ -247,9 +233,7 @@ export const alerts = sqliteTable(
   "alerts",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     metric: text("metric").notNull(),
     thresholdValue: real("threshold_value").notNull(),
     direction: text("direction").notNull(),
@@ -269,9 +253,7 @@ export const alertHistory = sqliteTable(
     // NULL on the critical customers firing (E22), which has no alert row
     // behind it, as Recova writes it (lib/alert-evaluation.ts, blob 0e28ecbf).
     alertId: text("alert_id").references(() => alerts.id),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     metric: text("metric").notNull(),
     thresholdValue: real("threshold_value").notNull(),
     direction: text("direction").notNull(),
@@ -290,9 +272,7 @@ export const intelligenceNotificationPreferences = sqliteTable(
   "intelligence_notification_preferences",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     // soft ref to Better Auth user.id
     userId: text("user_id").notNull(),
     weeklyNarrativeEmail: bool("weekly_narrative_email").notNull().default(true),

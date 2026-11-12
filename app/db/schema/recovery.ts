@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, bool } from "./columns";
-import { accounts, stripeConnections } from "./tenancy";
+import { stripeConnections, accountRef } from "./tenancy";
 
 // ============================================================================
 // Recovery core
@@ -56,9 +56,7 @@ export const failedPayments = sqliteTable(
     amountTier: text("amount_tier"),
     abTestGroup: text("ab_test_group"),
     customerAgeDays: integer("customer_age_days"),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     isRenewalNoise: bool("is_renewal_noise").notNull().default(false),
     /**
@@ -95,6 +93,18 @@ export const failedPayments = sqliteTable(
   ],
 );
 
+/** The columns a recovery step and a win-back step share: when it runs and ran,
+ *  its result, the AI-written mail and its first open and click. */
+const sentStepColumns = () => ({
+  scheduledAt: ts("scheduled_at").notNull(),
+  executedAt: ts("executed_at"),
+  result: text("result"),
+  aiSubject: text("ai_subject"),
+  aiBodyHtml: text("ai_body_html"),
+  openedAt: ts("opened_at"),
+  clickedAt: ts("clicked_at"),
+});
+
 export const recoverySteps = sqliteTable(
   "recovery_steps",
   {
@@ -104,13 +114,7 @@ export const recoverySteps = sqliteTable(
       .references(() => failedPayments.id),
     stepType: text("step_type").notNull(),
     stepNumber: integer("step_number"),
-    scheduledAt: ts("scheduled_at").notNull(),
-    executedAt: ts("executed_at"),
-    result: text("result"),
-    aiSubject: text("ai_subject"),
-    aiBodyHtml: text("ai_body_html"),
-    openedAt: ts("opened_at"),
-    clickedAt: ts("clicked_at"),
+    ...sentStepColumns(),
     deletedAt: ts("deleted_at"),
     emailOpenedCount: integer("email_opened_count"),
     emailClickedCount: integer("email_clicked_count"),
@@ -126,9 +130,7 @@ export const recoverySteps = sqliteTable(
     retryResult: text("retry_result"),
     abVariant: text("ab_variant"),
     customBody: text("custom_body"),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     attemptCount: integer("attempt_count").notNull().default(0),
     lastAttemptError: text("last_attempt_error"),
     nextRetryAt: ts("next_retry_at"),
@@ -156,9 +158,7 @@ export const recoveredPayments = sqliteTable(
     daysToRecover: integer("days_to_recover"),
     recoveryAttemptNumber: integer("recovery_attempt_number"),
     recoveryTrigger: text("recovery_trigger"),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     refundedAt: ts("refunded_at"),
     // Attribution spine (SCHEMA.md #1). CHECK enforces the four canon values.
     attributionKind: text("attribution_kind").notNull().default("stripe_baseline"),
@@ -200,9 +200,7 @@ export const expiringCardAlerts = sqliteTable(
     expiresYear: integer("expires_year").notNull(),
     alertSentAt: ts("alert_sent_at"),
     createdAt: ts("created_at").notNull(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
     // WHY THE ROW EXISTS (migration 0050). 'card_expiring' is every row the
@@ -256,9 +254,7 @@ export const winBackSequences = sqliteTable(
     resolvedAt: ts("resolved_at"),
     reactivatedAt: ts("reactivated_at"),
     reactivatedByStepId: text("reactivated_by_step_id"),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
   },
   (t) => [
@@ -275,16 +271,8 @@ export const winBackSteps = sqliteTable(
       .notNull()
       .references(() => winBackSequences.id),
     stepNumber: integer("step_number").notNull(),
-    scheduledAt: ts("scheduled_at").notNull(),
-    executedAt: ts("executed_at"),
-    result: text("result"),
-    aiSubject: text("ai_subject"),
-    aiBodyHtml: text("ai_body_html"),
-    openedAt: ts("opened_at"),
-    clickedAt: ts("clicked_at"),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    ...sentStepColumns(),
+    accountId: accountRef(),
     deletedAt: ts("deleted_at"),
     attemptCount: integer("attempt_count").notNull().default(0),
     lastAttemptError: text("last_attempt_error"),

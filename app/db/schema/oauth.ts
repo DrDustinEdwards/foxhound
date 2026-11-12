@@ -1,7 +1,7 @@
 import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, json } from "./columns";
-import { accounts, apiKeys } from "./tenancy";
+import { apiKeys, accountRef } from "./tenancy";
 
 // ============================================================================
 // OAuth provider for external agents
@@ -32,9 +32,7 @@ export const oauthAuthorizationCodes = sqliteTable(
     clientId: text("client_id")
       .notNull()
       .references(() => oauthClients.id),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     /** Who approved. Soft reference to Better Auth's user, as elsewhere. */
     userId: text("user_id").notNull(),
     redirectUri: text("redirect_uri").notNull(),
@@ -62,9 +60,7 @@ export const oauthGrants = sqliteTable(
     clientId: text("client_id")
       .notNull()
       .references(() => oauthClients.id),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     apiKeyId: text("api_key_id")
       .notNull()
       .references(() => apiKeys.id),
