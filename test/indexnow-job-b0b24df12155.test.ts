@@ -18,7 +18,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { INDEXNOW_KEY } = await import("~/lib/seo/indexnow-key");
-const keyRoute = await import("~/routes/files/indexnow-key");
 const { carrelSiteApi } = await import("~/lib/carrel/handler.server");
 
 const ORIGIN = "https://foxhoundapp.com";
@@ -126,15 +125,6 @@ function expectFoxhoundSubmission(c: Captured, slug: string) {
     urlList: [`https://foxhoundapp.com/blog/${slug}`],
   });
 }
-
-describe("(a) the key file", () => {
-  it("the route serves exactly the key, 200, as plain text, with no trailing newline", async () => {
-    const res = keyRoute.loader();
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
-    expect(await res.text()).toBe(INDEXNOW_KEY);
-  });
-});
 
 describe("(b) a publish submits exactly Foxhound's changed URL", () => {
   it("Carrel: a draft save of an unpublished post submits nothing; publish submits the one URL", async () => {

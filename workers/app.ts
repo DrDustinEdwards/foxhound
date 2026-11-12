@@ -14,6 +14,7 @@ import type { ServerBuild } from "react-router";
 
 import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
 import { setPageRenderer } from "~/lib/page-dates.server";
+import { siteFiles } from "~/lib/seo/files";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { codePagePaths } from "~/routes/files/sitemap";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
@@ -107,7 +108,7 @@ const mcp: GatewayStep<Env> = async (request, env, _ctx, kit) => {
 const CODE_PAGES = new Set(codePagePaths());
 
 /**
- * The site's Worker (site-runtime ./worker). What is Foxhound's own: its rate limit, Carrel's site API, the operator
+ * The site's Worker (site-runtime ./worker). What is Foxhound's own: its machine files, its rate limit, Carrel's site API, the operator
  * API and the merchant MCP as steps; its route-class cache rule (respond: Vary: Cookie on public classes, private
  * no-store on the rest, CLAUDE.md rule 9); the theme in the cache key; Carrel's tombstones on a 404; the Markdown copies;
  * the admin idle sign-out; and the token routes cut from the logs.
@@ -119,6 +120,8 @@ const site = defineSite<Env>({
   withSecurityHeaders,
   // One hop to the canonical address: https, the bare host, no trailing slash.
   canonical: { host: "foxhoundapp.com" },
+  // robots.txt, ai.txt, site.webmanifest and the IndexNow key file (Prelum's standardFiles, app/lib/seo/files.ts).
+  files: siteFiles,
   speculationExclude: SPECULATION_OPTIONS.exclude,
   steps: [rateLimit, carrel, operator, mcp],
   publicCookies: [THEME_COOKIE],

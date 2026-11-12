@@ -11,10 +11,7 @@
 // is 16 random bytes in hex from node's crypto.randomBytes, which sits inside
 // IndexNow's rule of 8 to 128 characters of a-z, A-Z, 0-9 and "-".
 //
-// Kept apart from indexnow.server.ts because app/routes.ts imports it to name
-// the route, and the route config should not pull in the submit path.
+// Kept apart from indexnow.server.ts so the key file (app/lib/seo/files.ts)
+// does not pull in the submit path.
 
 export const INDEXNOW_KEY = "e9244b5b7fea38f9566fdad541569627";
-
-/** Where the key file is served: the site root, named after the key. */
-export const INDEXNOW_KEY_PATH = `/${INDEXNOW_KEY}.txt`;

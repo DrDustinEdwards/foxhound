@@ -4,6 +4,7 @@ import { DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { RECOVA_CONFIG_REDIRECTS } from "~/lib/redirects/recova-config-redirects";
 import { deriveRecovaMap } from "~/lib/redirects/derive-recova-map";
 import { RECOVA_MAP_HOSTS, RECOVA_REDIRECT_MAP } from "~/lib/redirects/recova-map";
+import { siteFiles } from "~/lib/seo/files";
 import routes from "~/routes";
 
 import { LEGACY_MARKETING_ROUTES } from "./fixtures/legacy-marketing-routes";
@@ -51,12 +52,16 @@ const SERVED = new Set([
 // /blog/sitemap.xml).
 
 describe("RECOVA_REDIRECT_MAP", () => {
-  it("sends every Recova path to a path Foxhound serves", () => {
+  it("sends every Recova path to a path Foxhound serves", async () => {
     const shapes = new Set([...SERVED].map((p) => p.replace(/:[^/]+/g, ":")));
     for (const entry of RECOVA_REDIRECT_MAP) {
       const shape = entry.to.replace(/:[^/]+/g, ":");
       // A concrete post address (/blog/foxhound-vs-churnkey) is served by /blog/:slug.
-      const served = shapes.has(shape) || shapes.has(shape.replace(/\/[^/:]+$/, "/:"));
+      // robots.txt is answered before React Router, by the standard files.
+      const served =
+        shapes.has(shape) ||
+        shapes.has(shape.replace(/\/[^/:]+$/, "/:")) ||
+        (await siteFiles(new Request(`https://foxhoundapp.com${entry.to}`))) !== null;
       expect(served, `${entry.from} -> ${entry.to}`).toBe(true);
     }
   });

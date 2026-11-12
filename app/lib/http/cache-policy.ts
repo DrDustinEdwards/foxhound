@@ -1,7 +1,5 @@
 import { publicPageHeaders, UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
 
-import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
-
 // THE RESPONSE CACHE POLICY (345 binding 4; the edge page cache since
 // site-runtime 0.33.0's ./edge-cache).
 //
@@ -118,19 +116,7 @@ const MARKETING_PREFIXES = ["/product/", "/products/", "/compare/", "/decline-co
 /** Files routes. `/og/` and `/og` are included: the card route sets no
  *  Cache-Control of its own today and its output is a pure function of the
  *  URL (path params, or Recova's query form on `/og`). */
-const FILES_EXACT = new Set([
-  "/sitemap.xml",
-  "/robots.txt",
-  "/llms.txt",
-  "/llms-full.txt",
-  "/feed.rss",
-  // RFC 9116. A static text file whose only variable is the
-  // request clock, so it caches exactly like the other files routes.
-  "/.well-known/security.txt",
-  // The IndexNow key file. Its body is a constant that only
-  // a deploy changes, so it caches like the other files routes.
-  INDEXNOW_KEY_PATH,
-]);
+const FILES_EXACT = new Set(["/sitemap.xml", "/llms.txt", "/llms-full.txt", "/feed.rss"]);
 
 /**
  * Classify a pathname.
