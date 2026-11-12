@@ -600,39 +600,6 @@
    built-in delay-* which set transition-delay. None of 80/160/240/320 is a
    default Tailwind delay value, so there is no collision with generated
    utilities. */
-/* Primary brand-accent CTA (amber), ported from legacy app/globals.css:640 for the M6 product
-   spokes (divergence 10: legacy uses this class, Foxhound was hand-rolling
-   `bg-brand hover:bg-brand-dark` at each call site). Pair it with text-on-brand
-   and the normal radius/padding/font utilities, exactly as legacy does.
-
-   Sits OUTSIDE the reduced-motion guard because that is where legacy defines
-   it, per the port-the-STRUCTURE rule. Foxhound's own reduce block below
-   already collapses the transition duration, which legacy has no equivalent of.
-
-   NOT ported: legacy's site-wide press-feedback ruleset (button, [role=button],
-   a.btn, a.btn-primary, a.btn-ghost, a.btn-ghost-subtle plus their .no-spring
-   opt-outs, globals.css:768-802). That is a site-wide affordance, not this
-   component's, and it belongs to a site-wide ledger row rather than to M6. */
-.btn-primary {
-  background: var(--brand);
-  transition: background 150ms ease;
-}
-
-.btn-primary:hover {
-  background: var(--brand-dark);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .btn-primary {
-    transition:
-      background 150ms ease,
-      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .btn-primary:active {
-    transform: scale(0.97);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   @keyframes fade-up {
     from {

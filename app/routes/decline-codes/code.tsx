@@ -19,6 +19,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "capsomer/button.css";
 
 // NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
 // Category, retryability, and whether the code rides classifyDecline()'s
@@ -96,7 +97,11 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           />
         </section>
 
-        <div className="rounded-lg border border-border bg-surface p-6 text-center">
+        <div
+          className="fh-cap rounded-lg border border-border bg-surface p-6 text-center"
+          data-cap-site="foxhound"
+          data-family="amber"
+        >
           <p className="mb-2 text-body font-medium text-text">
             See what this looks like on your account
           </p>
@@ -104,10 +109,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
             The free audit shows what Stripe already recovered and what is still dying, no signup
             required.
           </p>
-          <Link
-            to="/audit"
-            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
-          >
+          <Link to="/audit" className="cap-btn" data-variant="primary">
             Run your free audit
           </Link>
         </div>
