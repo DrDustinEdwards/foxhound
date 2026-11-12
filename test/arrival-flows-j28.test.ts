@@ -101,20 +101,22 @@ describe("A7: accepting an invite before signing in", () => {
       `/signup?next=${encodeURIComponent(`/invite/${TOKEN}`)}`,
     );
     const cookie = clicked.headers.get("set-cookie") ?? "";
-    expect(cookie).toContain(`invite_token=${TOKEN}`);
+    expect(cookie).toContain(`__Host-invite_token=${TOKEN}`);
     expect(cookie).toMatch(/HttpOnly/i);
 
     // Signed in as the invited address, back on the invite page with the cookie.
     signIn("user_mate", "mate@acme.test");
     const back = await run(() =>
       invite.loader({
-        request: request(`/invite/${TOKEN}`, { headers: { cookie: `invite_token=${TOKEN}` } }),
+        request: request(`/invite/${TOKEN}`, {
+          headers: { cookie: `__Host-invite_token=${TOKEN}` },
+        }),
         params: { token: TOKEN },
         context: context(),
       } as never),
     );
     expect(back.headers.get("location")).toBe("/console");
-    expect(back.headers.get("set-cookie")).toMatch(/invite_token=;.*Max-Age=0/i);
+    expect(back.headers.get("set-cookie")).toMatch(/__Host-invite_token=;.*Max-Age=0/i);
     expect(
       sqlite
         .prepare("SELECT user_id AS u, status AS s FROM account_members WHERE id = 'm_1'")

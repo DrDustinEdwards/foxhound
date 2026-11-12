@@ -7,6 +7,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { readEvidenceFile } from "~/lib/disputes/evidence-files.server";
 
 import type { Route } from "./+types/file";
+import { contentDisposition } from "@dustinedwards/site-runtime/r2-object";
 
 // /disputes/:id/files/:fileId: one merchant evidence file, served by the
 // Worker. Recova's evidence-url route (57ccef71) checked the key's account
@@ -50,7 +51,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         ? { "Content-Security-Policy": PDF_POLICY }
         : {}),
       "Content-Type": result.contentType,
-      "Content-Disposition": `inline; filename="${result.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
+      "Content-Disposition": contentDisposition("inline", result.name),
     },
   });
 }

@@ -79,7 +79,8 @@ import {
   paymentsHeaderLine,
 } from "~/lib/recovery/payments-list";
 import { paymentHeaderStats, paymentStepLabel } from "~/lib/recovery/payments-list.server";
-import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments-stats";
+import { showingCountFor } from "~/lib/recovery/payments-stats";
+import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import {
   allVisibleSelected,
   toggleAllVisible,
@@ -598,7 +599,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     {
       label: "Recovery rate",
       value: `${globalRecoveryRatePct}%`,
-      className: recoveryRateValueClass(globalRecoveryRatePct),
+      className: recoveryRateClassName(globalRecoveryRatePct),
     },
   ];
 

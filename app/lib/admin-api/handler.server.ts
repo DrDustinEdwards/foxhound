@@ -6,7 +6,7 @@ import {
 } from "@dustinedwards/site-runtime/log";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 import { eq } from "drizzle-orm";
-import { clientIp } from "@dustinedwards/site-runtime/http";
+import { clientIp, jsonResponse } from "@dustinedwards/site-runtime/http";
 
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls } from "~/db/schema";
@@ -46,6 +46,7 @@ import {
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "@dustinedwards/site-runtime/access";
+import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
 import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { ToolInputError } from "~/lib/mcp/registry";
@@ -106,14 +107,7 @@ class ApiError extends Error {
   }
 }
 
-function json(status: number, body: Json): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" },
-  });
-}
-
-const UNAUTHORIZED = () => json(401, { ok: false, error: "Unauthorized" });
+const UNAUTHORIZED = () => jsonResponse({ ok: false, error: "Unauthorized" }, 401);
 
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
   const ip = clientIp(request);
@@ -130,13 +124,10 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
       RATE_LIMIT_MCP_ANON.max,
       RATE_LIMIT_MCP_ANON.windowMs,
     );
-    return allowed ? response : json(429, { ok: false, error: "Too many requests" });
+    return allowed ? response : jsonResponse({ ok: false, error: "Too many requests" }, 429);
   };
 
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.toLowerCase().startsWith("bearer ")
-    ? header.slice("bearer ".length).trim()
-    : "";
+  const token = bearerToken(request.headers.get("authorization")) ?? "";
   if (!token.startsWith(MCP_TOKEN_PREFIX)) return refuse(UNAUTHORIZED(), "no admin key");
   const verified = await verifyMcpToken(db, token);
   if (!verified || verified.scope !== MCP_TOKEN_SCOPE.ADMIN)
@@ -145,10 +136,13 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
   const actor = (request.headers.get(ACTING_ADMIN_HEADER) ?? "").trim().toLowerCase();
   if (!isAdminEmail(env, actor)) {
     return refuse(
-      json(403, {
-        ok: false,
-        error: `The acting admin is missing or not a Foxhound admin. Send the signed-in admin's email in ${ACTING_ADMIN_HEADER}.`,
-      }),
+      jsonResponse(
+        {
+          ok: false,
+          error: `The acting admin is missing or not a Foxhound admin. Send the signed-in admin's email in ${ACTING_ADMIN_HEADER}.`,
+        },
+        403,
+      ),
       "acting admin not on ADMIN_EMAIL",
     );
   }
@@ -160,7 +154,7 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
     RATE_LIMIT_MCP.max,
     RATE_LIMIT_MCP.windowMs,
   );
-  if (!within) return json(429, { ok: false, error: "Too many requests" });
+  if (!within) return jsonResponse({ ok: false, error: "Too many requests" }, 429);
   return { keyId: verified.keyId, actorEmail: actor };
 }
 
@@ -691,7 +685,7 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
   let error: string | null = null;
   if (!found) {
     error = `No ${request.method} ${path}. This API offers: ${ADMIN_API_ROUTES.join(", ")}.`;
-    response = json(404, { ok: false, error });
+    response = jsonResponse({ ok: false, error }, 404);
   } else {
     try {
       const data = await found.route.handler({
@@ -703,17 +697,17 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
         body,
         now: new Date(),
       });
-      response = json(200, { ok: true, data });
+      response = jsonResponse({ ok: true, data });
     } catch (err) {
       if (err instanceof ApiError) {
         error = err.message;
-        response = json(err.status, { ok: false, error });
+        response = jsonResponse({ ok: false, error }, err.status);
       } else {
         // An unexpected failure's text stays on the server, as on the merchant
         // MCP: it can carry the values of the query it failed on.
         console.error("admin api failed:", path, errorMessage(err));
         error = "Foxhound could not finish this call because of an internal error. Try again.";
-        response = json(500, { ok: false, error });
+        response = jsonResponse({ ok: false, error }, 500);
       }
     }
   }
