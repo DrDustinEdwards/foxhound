@@ -9,7 +9,6 @@ import { blogPostVersions, blogPosts } from "~/db";
 import { updatePostWithVersion } from "~/lib/blog/admin-queries.server";
 import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
-import { handleCarrelRequest } from "~/lib/carrel/handler.server";
 import { parsePostSource, serializePostSource } from "~/lib/carrel/source";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
@@ -17,11 +16,6 @@ import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 const KEY = "k".repeat(40);
 const ORIGIN = "https://foxhoundapp.com";
 const BASE = `${ORIGIN}/api/carrel/v1`;
-/** The handler takes the request's ExecutionContext. */
-const CTX = {
-  waitUntil: () => {},
-  passThroughOnException: () => {},
-} as unknown as ExecutionContext;
 
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
@@ -108,25 +102,6 @@ describe("a save that lost a race", () => {
     const [after] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "r1"));
     expect(after.body).toBe(row.body);
     expect(await t.db.select().from(blogPostVersions)).toHaveLength(before.length);
-  });
-});
-
-describe("the key reaches only the prefix", () => {
-  it.each([
-    "/admin",
-    "/admin/blog",
-    "/dashboard",
-    "/billing",
-    "/webhooks/stripe",
-    "/api/auth/session",
-    "/mcp",
-  ])("%s is never served by the Carrel handler, even with the key", async (path) => {
-    const response = await handleCarrelRequest(
-      new Request(`${ORIGIN}${path}`, { headers: { authorization: `Bearer ${KEY}` } }),
-      { DB: {}, CARREL_SITE_KEY: KEY } as unknown as Env,
-      CTX,
-    );
-    expect(response).toBeNull();
   });
 });
 

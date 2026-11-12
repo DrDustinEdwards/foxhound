@@ -1,3 +1,4 @@
+import { isEmail } from "@dustinedwards/site-runtime/email";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
@@ -229,9 +230,6 @@ interface ActionResult {
   sentTo?: string;
 }
 
-/** Enough of an address's shape to refuse a typo before Better Auth's own check. */
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /** The session when it was made in the last 10 minutes (site-runtime
  *  requireFreshSession), else null, which the page answers by asking for a
  *  new sign-in. */
@@ -400,7 +398,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         .toLowerCase();
       const refuse = (error: string) =>
         data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
-      if (!EMAIL_SHAPE.test(newEmail)) return refuse("Enter an email address.");
+      if (!isEmail(newEmail)) return refuse("Enter an email address.");
       if (newEmail === fresh.user.email.toLowerCase())
         return refuse("That is already your address.");
       if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
