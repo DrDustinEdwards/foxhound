@@ -23,7 +23,7 @@
       "routes/app/disputes/index": 243008,
       "routes/audit/results": 241656,
       "routes/admin/index": 240921,
-      "routes/admin/merchants/detail": 239234,
+      "routes/admin/merchants/detail": 251736,
       "routes/app/settings/notifications": 236059,
       "routes/admin/crons": 234093,
       "routes/app/disputes/detail": 232241,
