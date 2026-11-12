@@ -13,7 +13,7 @@ import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { applyCachePolicy, classifyPath, NO_TRANSFORM_PREFIXES } from "~/lib/http/cache-policy";
 import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect } from "~/lib/oauth/redirects";
-import { DISALLOW_PATHS } from "~/routes/files/robots";
+import { DISALLOW_PATHS } from "~/lib/seo/files";
 
 import { defineToolRegistry, type McpTool } from "~/lib/mcp/registry";
 

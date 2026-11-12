@@ -17,12 +17,13 @@
 
 import { ContentError, RENDER_VERSION, render } from "@drdustinedwards/site-helpers/render/nomath";
 import type { RenderPack } from "@drdustinedwards/site-helpers/render/packs";
+import { keyOfAddress, keysAtAddresses } from "@dustinedwards/site-runtime/image";
 import type { Root as HastRoot } from "hast";
 import { toString as hastToString } from "hast-util-to-string";
 import { visit } from "unist-util-visit";
 
 import type { Db } from "~/db";
-import { images, mediaKeyOf, mediaKeysIn, mediaUrl } from "~/lib/media/images";
+import { MEDIA_ADDRESSES, images, mediaUrl } from "~/lib/media/images";
 import { mediaRow, mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
 
 import { BLOG_DIAGRAMS } from "./diagrams";
@@ -73,7 +74,7 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
   const resolveImage = async (src: string): Promise<{ width: number; height: number }> => {
     const size = DIAGRAM.exec(src);
     if (size) return { width: Number(size[1]), height: Number(size[2]) };
-    const key = mediaKeyOf(src);
+    const key = keyOfAddress(src, MEDIA_ADDRESSES);
     const picture = key ? pictures.get(key) : undefined;
     if (picture?.width && picture.height) return { width: picture.width, height: picture.height };
     throw new ContentError(
@@ -84,7 +85,7 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
     );
   };
   const imageProps = (src: string) => {
-    const key = mediaKeyOf(src);
+    const key = keyOfAddress(src, MEDIA_ADDRESSES);
     const picture = key ? pictures.get(key) : undefined;
     if (!picture) return null;
     const attrs = images.attributes(
@@ -104,7 +105,10 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
       sources: attrs.sources.map((source) => ({ type: source.type, srcSet: source.srcset })),
     };
   };
-  return { resolveImage, media: { keyOf: mediaKeyOf, imageProps } };
+  return {
+    resolveImage,
+    media: { keyOf: (src: string) => keyOfAddress(src, MEDIA_ADDRESSES), imageProps },
+  };
 }
 
 /**
@@ -119,7 +123,7 @@ export async function coverPicture(
   use: "content" | "featured",
 ) {
   if (!post.coverImageUrl) return null;
-  const key = mediaKeyOf(post.coverImageUrl);
+  const key = keyOfAddress(post.coverImageUrl, MEDIA_ADDRESSES);
   const row = key ? await mediaRow(db, key) : null;
   const src = row ? mediaUrl(row.key, row.sha256) : post.coverImageUrl;
   const alt = post.coverImageAlt ?? post.title;
@@ -213,10 +217,8 @@ export async function renderMarkdown(
   version: string;
 }> {
   const diagrams = takeDiagramFigures(body);
-  const keys = mediaKeysIn(diagrams.body);
-  const pictures = new Map(
-    (keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]),
-  );
+  const keys = [...keysAtAddresses(diagrams.body, MEDIA_ADDRESSES)];
+  const pictures = new Map((await mediaRowsByKey(db, keys)).map((row) => [row.key, row]));
   const { resolveImage, media } = mediaOptions(pictures);
   const postLink = async (slug: string) => {
     const target = await resolvePostLink(db, slug);

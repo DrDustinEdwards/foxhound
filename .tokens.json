@@ -3,7 +3,7 @@
   "hex_exempt": [
     "app/app.css",
     "app/routes/files/og.ts",
-    "app/routes/files/site-webmanifest.ts",
+    "app/lib/seo/files.ts",
     "app/lib/email/"
   ],
   "px_font_exempt": ["app/routes/files/og.ts", "app/lib/email/"]

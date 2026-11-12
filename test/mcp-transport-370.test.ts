@@ -9,7 +9,7 @@ import {
   isDeniedToolName,
   type McpTool,
 } from "~/lib/mcp/registry";
-import { DISALLOW_PATHS } from "~/routes/files/robots";
+import { DISALLOW_PATHS } from "~/lib/seo/files";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, type McpCallInit, toolCallLogStub } from "./helpers/mcp-client";

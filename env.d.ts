@@ -2,19 +2,11 @@
 // values; set via `wrangler secret put`). Declaration-merges with the generated
 // Env interface in worker-configuration.d.ts. Non-secret config (BETTER_AUTH_URL,
 // GOOGLE_CLIENT_ID) lives in wrangler.jsonc `vars` and is typed by `wrangler types`.
-interface Env {
-  // "1" or "true" puts the site in maintenance: every path but /health answers the 503 page (site-runtime ./maintenance).
-  // Set in the dashboard.
-  MAINTENANCE?: string;
-  // Carrel's key for the site-api mount at /api/carrel/v1 (job_cbe1b96107fc).
-  // Separate and revocable; read only by app/lib/carrel/handler.server.ts.
-  // Unset or shorter than 32 characters, the mount refuses every request.
-  CARREL_SITE_KEY?: string;
-  // The operator API's bearer (/api/operator, app/lib/operator.server.ts): Capsid Admin's backup check, back up now
-  // and run a job now. Set by Capsid Admin's site key control, never shown; unset or under 32 characters, 503.
-  OPERATOR_TOKEN?: string;
-  // Keys site-runtime's admin idle cookie (withAdminIdle `secret`). Minted by the deploy (devkit worker-deploy `generated-secrets`), never shown; unset, the admin paths fail (site-runtime 0.82 requires it).
-  ADMIN_IDLE_SECRET: string;
+// The family's own (maintenance, admins, Access, the admin idle key, the operator
+// and Carrel keys, Anthropic, Turnstile) are site-runtime's SiteSecrets.
+type SiteSecrets = import("@dustinedwards/site-runtime/worker").SiteSecrets;
+
+interface Env extends SiteSecrets {
   // Extra exact callbacks a merchant MCP client registration may name, space or
   // comma separated, beside site-runtime's DCR_CALLBACKS (registerClient). A
   // plain list of https URLs, not a secret.
@@ -46,23 +38,10 @@ interface Env {
   APPLE_TEAM_ID?: string;
   APPLE_KEY_ID?: string;
   APPLE_PRIVATE_KEY?: string;
-  // Admins (C4): ADMIN_EMAIL is the main admin, CO_OWNER_EMAILS the comma-separated co-owners
-  // (full use, no say over admins). Access-control sensitive -> secrets, not committed vars.
-  // ADMIN_EMAIL unset => no admins.
-  ADMIN_EMAIL?: string;
-  CO_OWNER_EMAILS?: string;
   // Extra inboxes the owner-only admin email send (app/lib/admin/email-send.server.ts)
   // may mail, comma separated. Unset => only the acting admin's own address.
   // A plain list of the owner's own test inboxes; never a customer's address.
   ADMIN_EMAIL_TEST_RECIPIENTS?: string;
-  // Cloudflare Access in front of /admin (app/lib/auth/access.server.ts). The
-  // team domain (https://<team>.cloudflareaccess.com) and the Access
-  // application's AUD tag. Either unset => nobody is admin (fails closed).
-  ACCESS_TEAM_DOMAIN?: string;
-  ACCESS_AUD?: string;
-  // "1" in .dev.vars only: lets localhost into /admin as ADMIN_EMAIL,
-  // since no Access sits in front of `npm run dev`. Ignored on any other host.
-  ACCESS_DEV_BYPASS?: string;
 
   // ---- Phase 4a: Stripe Connect + token encryption ----
   // AES-256-GCM key for encrypting connected-account Stripe tokens at rest.
@@ -100,12 +79,6 @@ interface Env {
   // /mcp admits only merchant keys, as before.
   MCP_PROBE_KEY?: string;
 
-  // ---- Phase 4b: AI dunning-copy generation ----
-  // Anthropic API key for Sonnet dunning-copy generation. Dustin-gated secret
-  // (set via `wrangler secret put`); the generation call is a seam that stays
-  // inert until this is present. Generated copy is sanitized before use.
-  ANTHROPIC_API_KEY?: string;
-
   // ---- Phase 4c: email pipeline (Dustin-provisioned; wrangler bindings added
   // once the queue exists + Email Service is enabled on the zone). Declared
   // ambient + optional so the code is guarded and deploy stays green until then.
@@ -114,16 +87,6 @@ interface Env {
   EMAIL?: EmailSendBinding;
   // CAN-SPAM sender postal address (ARCHITECTURE #8: required before any send).
   PHYSICAL_ADDRESS?: string;
-
-  // ---- Phase 6 Pass 3: no-auth estimator Turnstile gate ----
-  // Secret key for the Cloudflare Turnstile siteverify call. Dustin-gated
-  // secret (set via `wrangler secret put`), never a committed var. While
-  // unset, the estimator's action stays cleanly inert: it renders a
-  // "temporarily unavailable" state and never accepts a submission or skips
-  // the gate silently (mirrors gotcha #16's ANTHROPIC_API_KEY pattern). With
-  // TURNSTILE_SITE_KEY it also puts the check on the sign-in email link
-  // (site-runtime ./sign-in's captcha plugin); without, the link has none.
-  TURNSTILE_SECRET_KEY?: string;
 }
 
 // Foxhound's adapter shape over the Cloudflare Email Service send binding. The

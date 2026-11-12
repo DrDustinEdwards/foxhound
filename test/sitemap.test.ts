@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 import routes from "~/routes";
 
@@ -99,12 +98,9 @@ const EXCLUDED_PREFIXES = [
   // is the first of those.
   "/api/",
   // Machine-readable files: either not HTML (llms*.txt, feed.rss, og/*
-  // images) or the sitemap/robots routes themselves.
+  // images) or the sitemap route itself.
   "/sitemap.xml",
-  "/robots.txt",
-  "/site.webmanifest",
   "/llms.txt",
-  "/ai.txt",
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
@@ -121,15 +117,8 @@ const EXCLUDED_PREFIXES = [
   // The OAuth consent page: a step inside an agent's connect flow,
   // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
   "/oauth/",
-  // RFC 9116's well-known file. Not HTML, and not a page a reader
-  // navigates to: a client looks for it at a fixed path by the spec, so listing
-  // it in the sitemap would advertise a file that is found by convention.
-  // The /security PAGE it points at IS in STATIC_PAGES.
+  // The OAuth discovery files under /.well-known/: found by convention, not pages.
   "/.well-known/",
-  // The IndexNow key file. A verification file the engines
-  // fetch by the protocol's convention, not a page; Recova's sitemap leaves its
-  // own key file out too.
-  INDEXNOW_KEY_PATH,
 ];
 
 function isExcluded(path: string): boolean {

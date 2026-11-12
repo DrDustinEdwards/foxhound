@@ -52,7 +52,6 @@ const PUBLIC_ROUTES = [
   ["/blog/tag/recovery", "blog"],
   ["/blog/some-post", "blog"],
   ["/sitemap.xml", "files"],
-  ["/robots.txt", "files"],
   ["/llms.txt", "files"],
   ["/llms-full.txt", "files"],
   ["/feed.rss", "files"],
@@ -205,7 +204,7 @@ describe("PLANT 6: Vary: Cookie keys the cache by session presence (348)", () =>
     const existing = new Response("x", {
       headers: { "Cache-Control": "public, max-age=86400" },
     });
-    const applied = applyCachePolicy(request("/robots.txt"), existing);
+    const applied = applyCachePolicy(request("/sitemap.xml"), existing);
     expect(applied.headers.get("Cache-Control")).toBe("public, max-age=86400");
     expect(applied.headers.get("Vary")).toBe("Cookie");
   });

@@ -52,25 +52,9 @@ export const mediaUrl = (key: string, sha256?: string) =>
   `${MEDIA_PATH}${key}${sha256 ? `?v=${sha256.slice(0, VERSION_LENGTH)}` : ""}`;
 
 /**
- * The library key a post's image address cites, or null when it is not one:
- * `/media/<key>` or this site's full URL to it, with any `?w=` size dropped.
+ * Where a post names a library file: `/media/<key>` or this site's full URL to
+ * it, for site-runtime ./image's keyOfAddress and keysAtAddresses.
  */
-export function mediaKeyOf(src: string): string | null {
-  const path =
-    src.replace(/^https:\/\/(?:www\.)?foxhoundapp\.com(?=\/)/, "").split(/[?#]/)[0] ?? "";
-  if (!path.startsWith(MEDIA_PATH)) return null;
-  const key = path.slice(MEDIA_PATH.length);
-  return UPLOAD_KEY.test(key) ? key : null;
-}
-
-/** Every library key a markdown source cites, once each, in order. */
-export function mediaKeysIn(source: string): string[] {
-  const keys = new Set<string>();
-  for (const m of source.matchAll(
-    /(?:https:\/\/(?:www\.)?foxhoundapp\.com)?\/media\/[^\s)"'<>\]]+/g,
-  )) {
-    const key = mediaKeyOf(m[0]);
-    if (key) keys.add(key);
-  }
-  return [...keys];
-}
+export const MEDIA_ADDRESSES = {
+  origins: ["https://foxhoundapp.com", "https://www.foxhoundapp.com"],
+};
