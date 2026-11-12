@@ -1,10 +1,9 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Link } from "capsomer/react/link";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { organizationJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { organizationJsonLd, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/contact";
@@ -26,10 +25,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function ContactPage() {
   return (

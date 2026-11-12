@@ -15,10 +15,9 @@ import {
 } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
-import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/terms";
@@ -50,10 +49,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   });
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 const SECTIONS: LegalSectionDef[] = [
   { id: "services", number: 1, title: "OUR SERVICES" },

@@ -6,8 +6,7 @@ import {
 
 import { LegalBody } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/accessibility";
@@ -42,10 +41,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   });
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function AccessibilityPage() {
   return (

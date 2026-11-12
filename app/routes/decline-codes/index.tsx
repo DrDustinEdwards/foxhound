@@ -8,10 +8,9 @@ import { BADGE_PILL } from "~/lib/recovery/labels";
 import { CARD_SM } from "~/components/marketing-card";
 import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone } from "~/lib/decline-codes/presentation";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
@@ -36,10 +35,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function DeclineCodesIndex() {
   const views = listDeclineCodeViews();

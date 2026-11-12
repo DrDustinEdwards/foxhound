@@ -4,7 +4,6 @@ import { Link } from "capsomer/react/link";
 
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
@@ -12,7 +11,7 @@ import {
   PRICING_META_DESCRIPTION,
 } from "~/lib/marketing/pricing-copy";
 import { PRODUCTS } from "~/lib/marketing/products";
-import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
+import { speakableWebPageJsonLd, siteUrlLoader } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -76,10 +75,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function PricingPage() {
   return (

@@ -15,14 +15,13 @@ import {
 } from "~/components/legal-page";
 import { CARD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   RETENTION_AI_CALLS_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
-import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/privacy";
@@ -59,10 +58,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   });
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 const SECTIONS: LegalSectionDef[] = [
   { id: "collect", number: 1, title: "WHAT INFORMATION DO WE COLLECT?" },
