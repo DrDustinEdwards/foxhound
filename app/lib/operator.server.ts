@@ -8,7 +8,7 @@ import { operatorResponse } from "@dustinedwards/site-runtime/operator";
 
 import { backupStatus } from "~/lib/backup/d1-backup";
 import { RUN_NOW_JOBS } from "~/lib/cron/registry";
-import { runJobNowList } from "~/lib/cron/run";
+import { CRON_HISTORY, runJobNowList } from "~/lib/cron/run";
 
 /** The OPERATOR_TOKEN bearer and the per-caller limiter, 30 calls a minute; closed (503) until the secret is set. */
 export function operatorAnswer(request: Request, env: Env): Promise<Response> {
@@ -20,6 +20,7 @@ export function operatorAnswer(request: Request, env: Env): Promise<Response> {
       jobs: () => runJobNowList(env, RUN_NOW_JOBS),
       backupStatus: () => backupStatus(env),
       files: ["media", "evidence"],
+      history: CRON_HISTORY,
     }),
   });
 }

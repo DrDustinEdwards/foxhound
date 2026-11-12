@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { cronRunHistory, emailDeadLetters } from "~/db/schema";
+import { emailDeadLetters } from "~/db/schema";
 import {
   buildFailureAlertEmail,
   runCronHealthCheck,
@@ -11,12 +11,13 @@ import { recordDeadLetters } from "~/lib/email/dead-letters.server";
 import { buildEmailSendRow } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
 
+import { loggedRuns, runJob } from "./helpers/cron";
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // RULING 313: the observability batch. Ruling 311 measured three holes and this
 // closes them.
 //
-//   A. A failing cron recorded status "failed" to cron_run_history and notified
+//   A. A failing cron recorded a failed run and notified
 //      NOBODY. billing-monthly has never executed once in any environment, and
 //      nothing would have said so.
 //   B. foxhound-email-dlq had ZERO consumers (measured against the account), so
@@ -208,7 +209,7 @@ describe("313 C: send-to-run attribution", () => {
   });
 });
 
-// The WIRING, driven through the real runCronJob. Everything above tests the
+// The WIRING, driven through the real runner. Everything above tests the
 // alert module; this proves the runner actually calls it, which is the part that
 // would silently rot if only the module were covered.
 const harness = vi.hoisted(() => ({ db: null as unknown }));
@@ -216,7 +217,6 @@ vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
 }));
-const { runCronJob } = await import("~/lib/cron/run");
 
 function lockEnv(send: () => Promise<{ id: string }>, sqlite: Parameters<typeof d1Over>[0]) {
   const stub = { acquire: async () => true, release: async () => {} };
@@ -228,7 +228,7 @@ function lockEnv(send: () => Promise<{ id: string }>, sqlite: Parameters<typeof 
   } as unknown as Env;
 }
 
-describe("313 A: runCronJob actually alerts", () => {
+describe("313 A: the runner actually alerts", () => {
   it("a SECOND failure the same day is deduped, and the run still records", async () => {
     const { sqlite, db: fresh } = createInMemoryDb();
     harness.db = fresh;
@@ -237,12 +237,13 @@ describe("313 A: runCronJob actually alerts", () => {
       throw new Error("boom");
     };
 
-    await runCronJob(env, "billing-monthly", boom);
-    const second = await runCronJob(env, "billing-monthly", boom);
+    await runJob(env, "billing-monthly", boom);
+    await runJob(env, "billing-monthly", boom);
 
-    expect(second.alert).toEqual({ sent: false, reason: "deduped" });
-    const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
-    expect(await db.select().from(cronRunHistory)).toHaveLength(2); // both runs recorded
+    expect(loggedRuns(sqlite, "billing-monthly").map((r) => r.outcome)).toEqual([
+      "failed",
+      "failed",
+    ]); // both runs recorded
     expect(sqlite.prepare("SELECT * FROM alerts_sent").all()).toHaveLength(1); // one alert
   });
 });

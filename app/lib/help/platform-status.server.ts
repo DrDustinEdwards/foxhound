@@ -1,15 +1,13 @@
-import { desc, eq, max } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
-import { cronRunHistory, type Db } from "~/db";
+import { cronRuns, type Db } from "~/db";
 
 // /help's Platform status panel, ported from legacy app/(app)/help/page.tsx.
 //
 // Legacy reads a `cron_runs` table that keeps ONE ROW PER CRON carrying
-// `last_succeeded_at` and `last_run_status`. Foxhound keeps `cron_run_history`,
-// which is append-only, one row per RUN. So the two columns legacy selects are
-// derived here rather than read: the newest successful run's finish time, and
-// the status of the newest run whatever it was. Same two facts, same display
-// rules, different storage shape (class (a) internals).
+// `last_succeeded_at` and `last_run_status`. Foxhound's `cron_runs` is
+// site-runtime's, the same shape: `last_ok_at` is the last success, and the
+// newest of `last_ok_at` and `last_failed_at` says whether the last run failed.
 
 export type CronDisplayStatus = "ok" | "stale" | "error" | "pending";
 
@@ -70,15 +68,12 @@ const CRON_STALE_MINUTES: Record<string, number> = {
 
 const DEFAULT_STALE_MINUTES = 90;
 
-/** Legacy's getCronStatus, with Foxhound's status vocabulary. Legacy compares
- *  against its own `'error'`; `cron_run_history.status` is written
- *  `success` / `failed` / `skipped` by app/lib/cron/run.ts. A cron with no run
- *  recorded at all is legacy's `pending_first_run`, expressed here as the
- *  absence of a row rather than as a sentinel string.
- *
- *  A `skipped` latest run (disabled, not due, locked) is deliberately NOT an
- *  error: it falls through to the age check, so a paused cron reads stale once
- *  it actually is, rather than reading as a failure the moment it is paused. */
+/** Legacy's getCronStatus, with Foxhound's status vocabulary: `failed` is
+ *  legacy's `'error'`. A cron with no run recorded at all is legacy's
+ *  `pending_first_run`, expressed here as the absence of a row rather than as a
+ *  sentinel string. A skipped run (disabled, not due, locked) records nothing,
+ *  so a paused cron reads stale once it actually is, rather than reading as a
+ *  failure the moment it is paused. */
 export function cronDisplayStatus(
   lastRunStatus: string | null,
   lastSucceededAt: Date | null,
@@ -99,39 +94,17 @@ export function cronDisplayStatus(
  * holds here because the list is the spec and the query only decorates it.
  */
 export async function getVisibleCronStatus(db: Db, nowMs: number): Promise<CronStatusRow[]> {
-  const [succeeded, latest] = await Promise.all([
-    db
-      .select({
-        cronName: cronRunHistory.cronName,
-        lastSucceededAt: max(cronRunHistory.finishedAt),
-      })
-      .from(cronRunHistory)
-      .where(eq(cronRunHistory.status, "success"))
-      .groupBy(cronRunHistory.cronName),
-    Promise.all(
-      VISIBLE_CRONS.map((cronName) =>
-        db
-          .select({ status: cronRunHistory.status })
-          .from(cronRunHistory)
-          .where(eq(cronRunHistory.cronName, cronName))
-          .orderBy(desc(cronRunHistory.finishedAt))
-          .limit(1)
-          .then((rows) => ({ cronName, status: rows[0]?.status ?? null })),
-      ),
-    ),
-  ]);
-
-  const succeededByName = new Map(
-    succeeded.map((r) => [
-      r.cronName,
-      r.lastSucceededAt === null ? null : new Date(r.lastSucceededAt),
-    ]),
-  );
-  const statusByName = new Map(latest.map((r) => [r.cronName, r.status]));
+  const rows = await db
+    .select({ name: cronRuns.name, okAt: cronRuns.lastOkAt, failedAt: cronRuns.lastFailedAt })
+    .from(cronRuns)
+    .where(inArray(cronRuns.name, [...VISIBLE_CRONS]));
+  const byName = new Map(rows.map((r) => [r.name, r]));
 
   return VISIBLE_CRONS.map((cronName) => {
-    const lastSucceededAt = succeededByName.get(cronName) ?? null;
-    const lastRunStatus = statusByName.get(cronName) ?? null;
+    const row = byName.get(cronName);
+    const lastSucceededAt = row?.okAt == null ? null : new Date(row.okAt);
+    const lastRunStatus =
+      row?.failedAt != null && row.failedAt > (row.okAt ?? 0) ? "failed" : row ? "ok" : null;
     return {
       cronName,
       label: CRON_LABELS[cronName] ?? cronName,

@@ -7,7 +7,6 @@ import type { Db } from "~/db";
 import {
   aiCalls,
   aiCallsMonthly,
-  cronRunHistory,
   emailSends,
   engagementEvents,
   getDb,
@@ -18,7 +17,6 @@ import {
 import {
   DAY_MS,
   RETENTION_AI_CALLS_DAYS,
-  RETENTION_CRON_HISTORY_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
@@ -154,18 +152,6 @@ export async function sweepHealthScoreHistory(env: Env): Promise<CronJobResult> 
   return { rowsProcessed: rows };
 }
 
-export async function sweepCronRunHistory(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_CRON_HISTORY_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    cronRunHistory,
-    cronRunHistory.id,
-    cronRunHistory.createdAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
-}
-
 /** Non-actioned social leads only (a lead we replied to is kept).
  *
  *  Two predicate terms rather than one, but still a PREDICATE: it goes through
@@ -293,5 +279,8 @@ export async function sweepAiCalls(env: Env): Promise<CronJobResult> {
     BatchItem<"sqlite">,
     ...BatchItem<"sqlite">[],
   ]);
-  return { rowsProcessed: rows.length, message: `${groups.length} monthly buckets` };
+  return {
+    rowsProcessed: rows.length,
+    message: `${rows.length} calls into ${groups.length} monthly buckets`,
+  };
 }

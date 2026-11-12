@@ -50,7 +50,8 @@ vi.mock("~/db/billable", async (importOriginal) => {
 const { alertCronFailure, buildFailureAlertEmail, runCronHealthCheck } =
   await import("~/lib/cron/alerts.server");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
-const { runCronJob } = await import("~/lib/cron/run");
+const { runJob, loggedRuns } = await import("./helpers/cron");
+const { cronRunId } = await import("~/lib/admin/crons");
 const constants = await import("~/lib/constants");
 const schema = await import("~/db/schema");
 
@@ -158,14 +159,14 @@ describe("E26 trigger: every cron's catch, with the error's stack", () => {
   it("a failing run sends the alert with Recova's stack excerpt", async () => {
     harness.db = freshDb();
     const e = env();
-    const outcome = await runCronJob(e, "recovery-tick", async () => {
+    await runJob(e, "recovery-tick", async () => {
       throw new Error("boom");
     });
-    expect(outcome.alert).toEqual({ sent: true });
+    const [run] = loggedRuns(harness.sqlite as Parameters<typeof loggedRuns>[0], "recovery-tick");
     const m = only();
     expect(m.subject).toBe("[Foxhound Ops] Cron failure: recovery-tick");
     expectBothParts(m, ["Message: boom", "Stack (first 500 chars):", "Error: boom"]);
-    expect(m.text).toContain(`Run id: ${outcome.runId}`);
+    expect(m.text).toContain(`Run id: ${cronRunId("recovery-tick", run!.started_at)}`);
   });
 });
 

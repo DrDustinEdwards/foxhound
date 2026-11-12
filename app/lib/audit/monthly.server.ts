@@ -259,9 +259,9 @@ export interface MonthlyAuditEnqueueResult {
  * in its own invocation (max_batch_size 1), so each account gets its own budget.
  *
  * This invocation makes 1 D1 read plus ceil(opted-in / 100) sendBatch calls,
- * besides runCronJob's own bookkeeping, and touches no Stripe account.
+ * besides runScheduledJobs' own bookkeeping, and touches no Stripe account.
  *
- * A sendBatch that throws fails the cron run, so runCronJob records it and the
+ * A sendBatch that throws fails the cron run, so runScheduledJobs records it and the
  * failure alert fires. Messages already sent stay sent, and a re-run is safe:
  * the month claim refuses any account that already finished.
  */
@@ -565,7 +565,7 @@ export async function processMonthlyAuditMessage(
   return "retry";
 }
 
-/** How the cron run reads in cron_run_history and on /admin/operations. Each
+/** How the cron run reads in cron_run_log and on /admin/operations. Each
  *  account's own result is its audit_digest_runs row. */
 export function describeMonthlyAuditRun(result: MonthlyAuditEnqueueResult): string {
   return (

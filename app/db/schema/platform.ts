@@ -61,38 +61,9 @@ export const cronConfig = sqliteTable("cron_config", {
   updatedAt: ts("updated_at").notNull(),
 });
 
-// global: single canonical run log (cron_runs merged in)
-export const cronRunHistory = sqliteTable(
-  "cron_run_history",
-  {
-    id: id(),
-    cronName: text("cron_name").notNull(),
-    startedAt: ts("started_at"),
-    finishedAt: ts("finished_at").notNull(),
-    status: text("status").notNull(),
-    rowsProcessed: integer("rows_processed"),
-    message: text("message"),
-    createdAt: ts("created_at").notNull(),
-  },
-  (t) => [
-    index("cron_run_history_cron_idx").on(t.cronName),
-    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
-    index("cron_run_history_created_idx").on(t.createdAt),
-    // The admin overview's "last cron finished" read (admin/overview.server.ts).
-    index("cron_run_history_finished_idx").on(t.finishedAt),
-    // The admin Crons page reads each cron's newest run and newest
-    // success (max finished_at grouped by cron and status, then those rows) and
-    // the last day's failures. Without these it scans the whole history, which
-    // the five-minute ticks fill at 576 rows a day.
-    index("cron_run_history_cron_status_finished_idx").on(t.cronName, t.status, t.finishedAt),
-    index("cron_run_history_status_finished_idx").on(t.status, t.finishedAt),
-    // runJobs reads each cron's newest finish (cron/run.ts) without a status.
-    index("cron_run_history_cron_finished_idx").on(t.cronName, t.finishedAt),
-  ],
-);
-
-// site-runtime ./cron's CRON_SQL, written by runJobs and read by /health's cronCheck.
-export { cronRuns } from "@dustinedwards/site-runtime/drizzle";
+// site-runtime ./cron's CRON_SQL and CRON_LOG_SQL, written by runJobs: one row per job (read by /health's cronCheck
+// and the gates in app/lib/cron/run.ts) and each run kept (the admin Crons page, the alerts).
+export { cronRunLog, cronRuns } from "@dustinedwards/site-runtime/drizzle";
 
 // global
 export const adminAuditLog = sqliteTable("admin_audit_log", {

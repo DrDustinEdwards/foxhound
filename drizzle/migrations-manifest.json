@@ -78,6 +78,7 @@
     "0077_alerts_sent.sql": "3ebd8f84b4221d0a41b9c0443b3327b2914d54d2278a6e64768c7194f542f52f",
     "0078_drop_cron_alerts.sql": "764a7a3f2dfe82af90c2faab2ff28af980b33d40c088ca06f816d454db94f41e",
     "0079_account_id_not_null.sql": "9077e8134cb6711dee11253d1f78f57eded251a1262808c2c2615b9423245ce6",
-    "0080_shared_media_store.sql": "7819fd16f8b8069cd5ccaf4d584b1b06801c0c1a87ad6567dafe4956731640c0"
+    "0080_shared_media_store.sql": "7819fd16f8b8069cd5ccaf4d584b1b06801c0c1a87ad6567dafe4956731640c0",
+    "0081_cron_run_log.sql": "0c244ae7b1cb0bee36fb454eab78dca7b8aedb48e4731bb92771713ab4b05cc6"
   }
 }

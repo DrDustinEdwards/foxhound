@@ -60,7 +60,6 @@ import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
 import {
   sweepAiCalls,
-  sweepCronRunHistory,
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
@@ -70,8 +69,8 @@ import {
 
 // The scheduled-job registry: the single list mapping cron schedules to handlers.
 // The scheduled() handler in workers/app.ts dispatches by controller.cron to every
-// job on that schedule; each goes through runCronJob (config gate + interval gate
-// + per-cron DO lock + cron_run_history). Every schedule here MUST appear in
+// job on that schedule; each goes through runScheduledJobs (config gate + interval
+// gate + per-cron DO lock, cron_runs and cron_run_log). Every schedule here MUST appear in
 // wrangler.jsonc triggers.crons, or the job never fires (guarded by a test).
 
 export interface CronJob {
@@ -463,7 +462,6 @@ export const CRON_JOBS: CronJob[] = [
     schedule: CRON_SCHEDULE_DAILY,
     handler: sweepHealthScoreHistory,
   },
-  { name: "retention-cron-history", schedule: CRON_SCHEDULE_DAILY, handler: sweepCronRunHistory },
   { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
@@ -497,7 +495,6 @@ const RUN_NOW: Record<string, { backup?: boolean }> = {
   "retention-email-sends": {},
   "retention-webhook-events": {},
   "retention-health-score": {},
-  "retention-cron-history": {},
   "retention-social-leads": {},
   "retention-page-404": {},
   "retention-ai-calls": {},

@@ -6,10 +6,11 @@ import {
   describeAge,
   type AlertOutcome,
 } from "@dustinedwards/site-runtime/cron-alert";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
-import { cronRunHistory } from "~/db/schema";
+import { cronRunLog, cronRuns } from "~/db/schema";
+import { cronRunId } from "~/lib/admin/crons";
 import {
   CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_DAILY,
@@ -31,7 +32,7 @@ import type { Rendered } from "capsomer/email";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 /** Cron-failure alerting. Ruling 311 measured that a failing cron records
- *  `status: "failed"` to cron_run_history and notifies NOBODY, so a job that
+ *  a failed run and notifies NOBODY, so a job that
  *  fails every run fails silently until somebody opens /admin/operations. That
  *  matters most for billing-monthly, which has never executed once in any
  *  environment and whose first real run is a supervised event.
@@ -202,7 +203,7 @@ export function buildStaleAlertEmail(
         `Last succeeded: ${finding.lastRunAt ? finding.lastRunAt.toISOString() : "(never)"}`,
         `Age: ${agePhrase}`,
         ...(cadence ? [`Expected cadence: ${cadence}`] : []),
-        "Check /admin/operations and the cron_run_history table.",
+        "Check /admin/platform/crons and the cron_run_log table.",
       ],
     },
   };
@@ -304,17 +305,14 @@ async function deliver(
   return { sent: true };
 }
 
-/** The last successful run of a cron, for the failure email's context. */
+/** The last successful run of a cron, for the failure email's context: cron_runs keeps it however long ago it was. */
 async function lastSuccessAt(db: Db, cronName: string): Promise<Date | null> {
-  const row = (
-    await db
-      .select({ finishedAt: cronRunHistory.finishedAt })
-      .from(cronRunHistory)
-      .where(and(eq(cronRunHistory.cronName, cronName), eq(cronRunHistory.status, "success")))
-      .orderBy(desc(cronRunHistory.finishedAt))
-      .limit(1)
-  )[0];
-  return row?.finishedAt ?? null;
+  const [row] = await db
+    .select({ okAt: cronRuns.lastOkAt })
+    .from(cronRuns)
+    .where(eq(cronRuns.name, cronName))
+    .limit(1);
+  return row?.okAt == null ? null : new Date(row.okAt);
 }
 
 /** The dead-letter alert (313 build B). Shares the dedupe mechanism with the cron
@@ -349,21 +347,18 @@ export async function alertDeadLetters(
   }
 }
 
-/** The last failed run of a cron, for a failure the health check finds. */
+/** The last failed (or refused) run of a cron, for a failure the health check finds. */
 async function lastFailedRun(
   db: Db,
   cronName: string,
 ): Promise<{ id: string; message: string | null } | null> {
-  return (
-    (
-      await db
-        .select({ id: cronRunHistory.id, message: cronRunHistory.message })
-        .from(cronRunHistory)
-        .where(and(eq(cronRunHistory.cronName, cronName), eq(cronRunHistory.status, "failed")))
-        .orderBy(desc(cronRunHistory.finishedAt))
-        .limit(1)
-    )[0] ?? null
-  );
+  const [run] = await db
+    .select({ startedAt: cronRunLog.startedAt, reason: cronRunLog.reason })
+    .from(cronRunLog)
+    .where(and(eq(cronRunLog.name, cronName), ne(cronRunLog.outcome, "ok")))
+    .orderBy(desc(cronRunLog.id))
+    .limit(1);
+  return run ? { id: cronRunId(cronName, run.startedAt), message: run.reason || null } : null;
 }
 
 /** The failing, overdue and never-run detector, as a cron handler: site-runtime's

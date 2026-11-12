@@ -1,100 +1,44 @@
 import {
-  CRON_SKIPPED,
   runJobs,
+  type CronHistory,
   type CronJob as SiteCronJob,
 } from "@dustinedwards/site-runtime/cron";
-import { logEvent } from "@dustinedwards/site-runtime/log";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import type { Db } from "~/db";
-import { cronConfig, cronRunHistory, getDb } from "~/db";
-import { CRON_LOCK_LEASE_MS } from "~/lib/constants";
+import { cronConfig, cronRuns, getDb } from "~/db";
+import { cronRunId } from "~/lib/admin/crons";
+import { CRON_LOCK_LEASE_MS, RETENTION_CRON_LOG_DAYS } from "~/lib/constants";
 
-import { alertCronFailure, SCHEDULE_PERIOD_MS, type AlertOutcome } from "./alerts.server";
+import { alertCronFailure, SCHEDULE_PERIOD_MS } from "./alerts.server";
 import { isCronEnabled, isDueByInterval } from "./gating";
 import type { CronJob } from "./registry";
 
-// The cron runner: the single wrapper every scheduled job goes through. It
-// enforces the three gates in order (config-enabled -> min-interval -> per-cron DO
-// lock), runs the handler, and records the run in cron_run_history. History writes
-// are operational (not money), so a plain insert via getDb, not the money DO.
+// The cron runner: every scheduled job goes through site-runtime's runJobs, which
+// records it in cron_runs (what /health and cron-health read) and keeps each run
+// in cron_run_log (what the admin Crons page and the alerts read). Around each
+// handler Foxhound adds its three gates, in order: config-enabled, min-interval,
+// the per-cron Durable Object lock. A gated run is a skip and records nothing.
 //
-// A job's own logic never touches cron_config or the lock; it just does work and
-// reports how many rows it processed.
+// A job's own logic never touches cron_config or the lock; it does its work and
+// reports how many rows it processed and what it did.
 
 export interface CronJobResult {
   rowsProcessed: number;
   message?: string;
 }
-/** What a handler learns about the run it is executing inside. Optional
- *  so the twelve handlers that do not send email are untouched: only the paths
- *  that WRITE an email_sends row need to attribute it. */
+/** What a handler learns about the run it is executing inside: its id, so the
+ *  paths that write an email_sends or audit_digest_runs row can name the run. */
 interface CronRunContext {
   runId: string;
 }
 export type CronHandler = (env: Env, ctx?: CronRunContext) => Promise<CronJobResult>;
 
-type CronRunStatus = "success" | "failed" | "skipped";
-export interface CronRunOutcome {
-  cronName: string;
-  status: CronRunStatus;
-  rowsProcessed: number;
-  message?: string;
-  /** The cron_run_history id, on runs that executed. Absent on skips,
-   *  which write no history row. */
-  runId?: string;
-  /** What the failure alert did, on failed runs. Carried rather than
-   *  thrown: the alert path is fail-open by design, so its outcome is data. */
-  alert?: AlertOutcome;
-}
-
-/** The cron_run_history insert for one executed run. Operational, not a money write. */
-function buildCronRunInsert(
-  db: Db,
-  input: {
-    /** Minted by the CALLER rather than defaulted by the schema, so the
-     *  run can be named in a failure alert. A row whose id nothing knows cannot
-     *  be referenced by the thing that reports on it. */
-    id: string;
-    cronName: string;
-    startedAt: Date;
-    finishedAt: Date;
-    status: Exclude<CronRunStatus, "skipped">;
-    rowsProcessed: number;
-    message: string | null;
-  },
-) {
-  return db.insert(cronRunHistory).values({
-    id: input.id,
-    cronName: input.cronName,
-    startedAt: input.startedAt,
-    finishedAt: input.finishedAt,
-    status: input.status,
-    rowsProcessed: input.rowsProcessed,
-    message: input.message,
-    createdAt: input.finishedAt,
-  });
-}
-
-async function recordRun(
-  env: Env,
-  runId: string,
-  cronName: string,
-  startedAt: Date,
-  status: Exclude<CronRunStatus, "skipped">,
-  rowsProcessed: number,
-  message: string | null,
-): Promise<void> {
-  await buildCronRunInsert(getDb(env), {
-    id: runId,
-    cronName,
-    startedAt,
-    finishedAt: new Date(),
-    status,
-    rowsProcessed,
-    message,
-  });
-}
+/** cron_run_log's bounds. The Crons page shows each job's last day of failures,
+ *  and blog-schedules runs every minute, so a job keeps its newest 1,500 runs
+ *  (over a day of minutes) and none older than RETENTION_CRON_LOG_DAYS, which
+ *  still holds a monthly job's last run. runJobs prunes as it writes, so no
+ *  retention sweep of its own. */
+export const CRON_HISTORY: CronHistory = { keep: 1500, retentionDays: RETENTION_CRON_LOG_DAYS };
 
 /** How often a job's trigger fires, in minutes: its schedule's period. cron_runs and /health's cronCheck judge it by
  *  this. */
@@ -102,255 +46,119 @@ export function cronEveryMinutes(schedule: string): number {
   return SCHEDULE_PERIOD_MS[schedule]! / 60_000;
 }
 
-/** Past this, cron_runs records a run as overrun (failed, "timed out"): its own period, at most ten minutes, because
- *  every job on the daily 03:00 trigger shares one invocation and Cloudflare stops a Cron Trigger at fifteen. */
+/** Past this, a run is recorded failed ("timed out"): its own period, at most ten minutes, because every job on the
+ *  daily 03:00 trigger shares one invocation and Cloudflare stops a Cron Trigger at fifteen. */
 const CRON_OVERRUN_CAP_MS = 10 * 60_000;
 function cronTimeoutMs(schedule: string): number {
   return Math.min(SCHEDULE_PERIOD_MS[schedule]!, CRON_OVERRUN_CAP_MS);
 }
 
-/** A schedule's jobs, each through runCronJob (its gates, lock and cron_run_history, unchanged), with each run that
- *  really executes also recorded by site-runtime's runJobs in cron_runs, so /health's cronCheck notices one that
- *  failed, overran or stopped.
- *
- *  ONLY A RUN THAT EXECUTES IS RECORDED. runJobs sits inside the handler runCronJob calls, so a job the gates skip
- *  (disabled, not due, locked) never reaches it and writes nothing to cron_runs: it is logged as cron_job_skipped,
- *  not recorded as a success it never had. A failure before the handler (the config read, the lock) is recorded
- *  failed there too.
- *
- *  THE TIMEOUT MARKS, IT DOES NOT LET GO. A run past cronTimeoutMs is recorded failed ("timed out") so /health warns,
- *  but the handler is still awaited and keeps its CRON_LOCK lease until it really ends: handing the lock on while a
- *  money job is still running would let a second run start beside it. Cloudflare's own fifteen-minute limit is the
- *  hard stop. After the last job, one Error names the failed ones, so Cloudflare marks the invocation failed. */
-export async function runScheduledJobs(
-  env: Env,
-  jobs: CronJob[],
-  run: typeof runCronJob = runCronJob,
-): Promise<void> {
-  const failed: string[] = [];
-  for (const job of jobs) {
-    const record = {
-      name: job.name,
-      everyMinutes: cronEveryMinutes(job.schedule),
-      timeoutMs: cronTimeoutMs(job.schedule),
-    };
-    let executed = false;
-    const outcome = await run(env, job.name, async (runEnv, ctx) => {
-      executed = true;
-      const work = job.handler(runEnv, ctx);
-      await runJobs(() => env.DB, [{ ...record, run: () => work }]).catch(() => undefined);
-      return work;
-    });
-    if (outcome.status === "skipped") {
-      logEvent("cron_job_skipped", { name: job.name, reason: outcome.message ?? "skipped" });
-    } else if (outcome.status === "failed") {
-      failed.push(job.name);
-      if (!executed) {
-        const error = new Error(outcome.message ?? "failed");
-        await runJobs(() => env.DB, [{ ...record, run: () => Promise.reject(error) }]).catch(
-          () => undefined,
-        );
-      }
-    }
-  }
-  if (failed.length) throw new Error(`cron jobs failed: ${failed.join(", ")}`);
-}
-
-/** Run one scheduled job through the config + interval + lock gates, logging the
- *  result to cron_run_history. A skipped run (disabled / not due / locked) writes
- *  no history row; a run that executes writes exactly one. */
-export async function runCronJob(
-  env: Env,
-  cronName: string,
-  handler: CronHandler,
-  options: { now?: boolean } = {},
-): Promise<CronRunOutcome> {
-  try {
-    return await executeCronJob(env, cronName, handler, options);
-  } catch (err) {
-    // THE INFRASTRUCTURE GUARD (376 item 15's verify-first list, session 85).
-    //
-    // WHAT WAS WRONG. The try/catch inside `executeCronJob` wraps the HANDLER
-    // and nothing else. Everything before it (the config read, the interval
-    // read, acquiring the lock) and the history write after it run unguarded, so
-    // a D1 blip or a Durable Object hiccup did not fail this job, it threw out
-    // of `runCronJob` entirely. `scheduled()` iterates the jobs for a schedule
-    // with no guard of its own, so that one throw skipped EVERY REMAINING JOB on
-    // that schedule, silently: no history row, no alert, nothing to read
-    // afterwards saying they had not run. On the daily schedule that is seven
-    // jobs behind the first one to trip, including four retention sweeps.
-    //
-    // ONE AUTHORITY, HERE. `runCronJob` is now total: it either returns an
-    // outcome or returns a failed outcome, and never throws. The loop in
-    // `scheduled()` is therefore safe without a second try/catch of its own,
-    // which would be two guards for one rule.
-    const message = err instanceof Error ? err.message : "cron infrastructure error";
-    return {
-      cronName,
-      status: "failed",
-      rowsProcessed: 0,
-      message,
-      ...(await recordInfrastructureFailure(env, cronName, message)),
-    };
-  }
+/** The one line cron_run_log keeps for a run that executed: the handler's
+ *  message, or its row count when it has none. */
+function reasonOf(result: CronJobResult): string {
+  return result.message ?? `${result.rowsProcessed} rows`;
 }
 
 /**
- * Best-effort record of a failure that happened OUTSIDE the handler.
+ * One registry job as a site-runtime job, behind its gates.
  *
- * BEST-EFFORT IS THE HONEST WORD, and the limit is worth stating rather than
- * implying: the commonest cause of an infrastructure throw here is D1 being
- * unreachable, and D1 is also what a history row is written to. When that is the
- * failure, there is nowhere to record it and the outcome is returned to the
- * caller without a row. What this DOES buy is every other case: a Durable Object
- * hiccup, a lock RPC failure, a bad binding, all of which leave D1 fine and are
- * recorded normally.
+ * THE GATES. A job cron_config switches off, one inside its minimum interval
+ * (measured from its last finish in cron_runs) and one whose lock another run
+ * holds are skips: runJobs logs them and records no run they never had. A run
+ * now (`now: true`, the operator's run_job) asks on purpose, so the interval does
+ * not apply; the enabled gate and the lock still do.
  *
- * It never throws, or it would defeat the guard that calls it.
+ * THE TIMEOUT MARKS, IT DOES NOT LET GO (`holdOnTimeout`). A run past
+ * cronTimeoutMs is recorded failed so /health warns, but runJobs waits for it and
+ * it keeps its CRON_LOCK lease until it really ends: handing the lock on while a
+ * money job is still running would let a second run start beside it.
+ * Cloudflare's own fifteen-minute limit is the hard stop.
+ *
+ * THE ALERT. Any throw, from the handler or from the gates around it (a D1 blip,
+ * a lock RPC failure), mails the failure once a day through alertCronFailure,
+ * which never throws, and is then rethrown so runJobs records the run failed.
+ *
+ * THE TOKEN IS THE FENCE. `acquire` hands back the holder's token and `release`
+ * takes it, so a run frees only its own lease. A failed release is swallowed: it
+ * must not turn a run that succeeded into a failure, and the lease lapses anyway.
  */
-async function recordInfrastructureFailure(
-  env: Env,
-  cronName: string,
-  message: string,
-): Promise<{ runId?: string; alert?: AlertOutcome }> {
-  const runId = crypto.randomUUID();
-  try {
-    await recordRun(env, runId, cronName, new Date(), "failed", 0, message);
-  } catch {
-    // Nothing to do and nowhere to say it: see above.
-    return {};
-  }
-  try {
-    // The same alert a handler failure raises. An infrastructure failure
-    // that recorded a row and told nobody would be exactly the silence 313 was
-    // built to end.
-    const alert = await alertCronFailure(
-      env,
-      getDb(env),
-      { cronName, runId, error: message },
-      new Date(),
-    );
-    return { runId, alert };
-  } catch {
-    return { runId };
-  }
-}
-
-async function executeCronJob(
-  env: Env,
-  cronName: string,
-  handler: CronHandler,
-  { now = false }: { now?: boolean },
-): Promise<CronRunOutcome> {
-  const db = getDb(env);
-
-  const cfg = (
-    await db.select().from(cronConfig).where(eq(cronConfig.cronName, cronName)).limit(1)
-  )[0];
-  const config = cfg ? { enabled: cfg.enabled, minIntervalMinutes: cfg.minIntervalMinutes } : null;
-
-  if (!isCronEnabled(config)) {
-    return { cronName, status: "skipped", rowsProcessed: 0, message: "disabled" };
-  }
-
-  const last = (
-    await db
-      .select({ finishedAt: cronRunHistory.finishedAt })
-      .from(cronRunHistory)
-      .where(eq(cronRunHistory.cronName, cronName))
-      .orderBy(desc(cronRunHistory.finishedAt))
-      .limit(1)
-  )[0];
-  // A run now (runJobNowList) asks for this run on purpose, so the interval does not apply; the enabled gate and the
-  // lock still do.
-  if (
-    !now &&
-    !isDueByInterval(last?.finishedAt ?? null, config?.minIntervalMinutes ?? null, new Date())
-  ) {
-    return { cronName, status: "skipped", rowsProcessed: 0, message: "not_due" };
-  }
-
-  const lockNs = env.CRON_LOCK;
-  const lock = lockNs.get(lockNs.idFromName(cronName));
-  // THE TOKEN IS THE FENCE. `acquire` hands back the holder's
-  // token, and the `finally` below hands that same token to `release`, so this
-  // run can only ever free ITS OWN lease. An overrunning run whose lease has
-  // already lapsed releases nothing, rather than freeing the lease of the run
-  // that replaced it.
-  const lockToken = await lock.acquire(CRON_LOCK_LEASE_MS);
-  if (lockToken === null) {
-    return { cronName, status: "skipped", rowsProcessed: 0, message: "locked" };
-  }
-
-  const startedAt = new Date();
-  const runId = crypto.randomUUID();
-  try {
-    const result = await handler(env, { runId });
-    await recordRun(
-      env,
-      runId,
-      cronName,
-      startedAt,
-      "success",
-      result.rowsProcessed,
-      result.message ?? null,
-    );
-    return {
-      cronName,
-      status: "success",
-      rowsProcessed: result.rowsProcessed,
-      message: result.message,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "cron error";
-    await recordRun(env, runId, cronName, startedAt, "failed", 0, message);
-    // THE ALERT. Deliberately AFTER the history write, so the run is on the
-    // record even if alerting is broken, and deliberately FAIL-OPEN: alertCronFailure
-    // never throws, and its outcome is carried on the result rather than raised.
-    // An observability tool that can fail a money job is worse than none.
-    // The stack goes with it: Recova's alert carries its first 500 characters (E26).
-    const stack = err instanceof Error ? (err.stack ?? null) : null;
-    const alert = await alertCronFailure(
-      env,
-      getDb(env),
-      { cronName, runId, error: message, stack },
-      new Date(),
-    );
-    return { cronName, status: "failed", rowsProcessed: 0, message, runId, alert };
-  } finally {
-    // A FAILED RELEASE MUST NOT REWRITE THE RUN'S OUTCOME. A throw from here
-    // would replace the return value above, so a successful run whose lock
-    // release failed would be reported as a failure, contradicting the history
-    // row that already says success. The lease is the backstop: an unreleased
-    // lock lapses on its own, which is the whole reason it is a lease.
-    try {
-      await lock.release(lockToken);
-    } catch {
-      // Deliberately swallowed. See above.
-    }
-  }
-}
-
-/** The jobs the operator API's run_job may run now (RUN_NOW_JOBS in registry.ts), each through runCronJob with the
- *  interval gate off: cron_config's enabled gate, the CRON_LOCK lease, cron_run_history and the failure alert all hold,
- *  and site-runtime's runJobNow records the run in cron_runs as the trigger does. A disabled or locked job is a skip,
- *  never a success it did not have; a failure throws its message. */
-export function runJobNowList(
-  env: Env,
-  jobs: (CronJob & { backup?: boolean })[],
-  run: typeof runCronJob = runCronJob,
-): SiteCronJob[] {
-  return jobs.map((job) => ({
+function gatedJob(env: Env, job: CronJob, { now = false }: { now?: boolean } = {}): SiteCronJob {
+  return {
     name: job.name,
     everyMinutes: cronEveryMinutes(job.schedule),
     timeoutMs: cronTimeoutMs(job.schedule),
     holdOnTimeout: true,
-    ...(job.backup ? { backup: true } : {}),
-    run: async () => {
-      const outcome = await run(env, job.name, job.handler, { now: true });
-      if (outcome.status === "skipped") return CRON_SKIPPED;
-      if (outcome.status === "failed") throw new Error(outcome.message ?? "failed");
-      return { rowsProcessed: outcome.rowsProcessed, message: outcome.message };
+    run: async (_signal, { startedAt }) => {
+      const runId = cronRunId(job.name, startedAt);
+      try {
+        const db = getDb(env);
+        const [config] = await db
+          .select()
+          .from(cronConfig)
+          .where(eq(cronConfig.cronName, job.name))
+          .limit(1);
+        if (!isCronEnabled(config ?? null)) return { outcome: "skipped", reason: "disabled" };
+        const [last] = await db
+          .select({ okAt: cronRuns.lastOkAt, failedAt: cronRuns.lastFailedAt })
+          .from(cronRuns)
+          .where(eq(cronRuns.name, job.name))
+          .limit(1);
+        const lastFinish = Math.max(last?.okAt ?? 0, last?.failedAt ?? 0);
+        if (
+          !now &&
+          !isDueByInterval(
+            lastFinish ? new Date(lastFinish) : null,
+            config?.minIntervalMinutes ?? null,
+            new Date(startedAt),
+          )
+        )
+          return { outcome: "skipped", reason: "not_due" };
+        const lock = env.CRON_LOCK.get(env.CRON_LOCK.idFromName(job.name));
+        const token = await lock.acquire(CRON_LOCK_LEASE_MS);
+        if (token === null) return { outcome: "skipped", reason: "locked" };
+        try {
+          return { outcome: "ok", reason: reasonOf(await job.handler(env, { runId })) };
+        } finally {
+          try {
+            await lock.release(token);
+          } catch {
+            // Deliberately swallowed: see THE TOKEN IS THE FENCE above.
+          }
+        }
+      } catch (err) {
+        await alertCronFailure(
+          env,
+          getDb(env),
+          {
+            cronName: job.name,
+            runId,
+            error: err instanceof Error ? err.message : String(err),
+            // Recova's alert carries the stack's first 500 characters (E26).
+            stack: err instanceof Error ? (err.stack ?? null) : null,
+          },
+          new Date(),
+        );
+        throw err;
+      }
     },
+  };
+}
+
+/** A schedule's jobs in turn, each behind its gates, through runJobs: each run that executes is in cron_runs and
+ *  cron_run_log, and after the last one Error names the failed ones, so Cloudflare marks the invocation failed. */
+export async function runScheduledJobs(env: Env, jobs: CronJob[]): Promise<void> {
+  await runJobs(
+    () => env.DB,
+    jobs.map((job) => gatedJob(env, job)),
+    { history: CRON_HISTORY },
+  );
+}
+
+/** The jobs the operator API's run_job may run now (RUN_NOW_JOBS in registry.ts), behind the enabled gate and the
+ *  lock but not the interval, recorded as the trigger records them. */
+export function runJobNowList(env: Env, jobs: (CronJob & { backup?: boolean })[]): SiteCronJob[] {
+  return jobs.map((job) => ({
+    ...gatedJob(env, job, { now: true }),
+    ...(job.backup ? { backup: true } : {}),
   }));
 }

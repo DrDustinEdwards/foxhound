@@ -4,6 +4,12 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { ordinal } from "~/lib/billing/page";
 
+/** A run's id: its job and start (epoch ms), the key of its cron_run_log row. email_sends and audit_digest_runs
+ *  record it as cron_run_id, and the Crons page anchors the run by it. */
+export function cronRunId(cronName: string, startedAt: number): string {
+  return `${cronName}-${startedAt}`;
+}
+
 /** The element id of one run on /admin/platform/crons. */
 export function cronRunAnchor(runId: string): string {
   return `run-${runId}`;
