@@ -14,7 +14,7 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
-import { groupSumByCurrency } from "~/lib/money/totals";
+import { byCurrencyCode, groupSumByCurrency } from "~/lib/money/totals";
 import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import { ENGAGEMENT_WINDOW_DAYS } from "./recommendations.server";
 import type { CustomerActivity } from "./customer-detail";
@@ -263,9 +263,6 @@ export async function getCustomerHealthDetail(
 const latest = (dates: readonly (Date | null)[]): Date | null =>
   dates.reduce<Date | null>((max, d) => (d && (!max || d > max) ? d : max), null);
 
-const byCurrency = (rows: readonly { currency: string; cents: number }[]) =>
-  groupSumByCurrency([...rows]).sort((a, b) => a.currency.localeCompare(b.currency));
-
 /**
  * What Foxhound has on record for one customer of one account: the customer
  * detail page's three signal cards. Read from Foxhound's own
@@ -360,7 +357,7 @@ export async function getCustomerActivity(
     recovery: {
       failedPaymentCount: failedRows.length,
       recoveredCount: recoveredRows.length,
-      recoveredAmounts: byCurrency(recoveredRows),
+      recoveredAmounts: groupSumByCurrency(recoveredRows).sort(byCurrencyCode),
       lastFailedAt: latest(failedRows.map((f) => f.detectedAt)),
       lastRecoveredAt: latest(recoveredRows.map((r) => r.recoveredAt)),
       activeRecovery: failedRows.some((f) => f.status === FAILED_PAYMENT_STATUS_ACTIVE),
@@ -370,7 +367,7 @@ export async function getCustomerActivity(
       openCount: disputeRows.length - resolved.length,
       wonCount: resolved.filter((d) => d.state === "resolved_won").length,
       lostCount: resolved.filter((d) => d.state === "resolved_lost").length,
-      totalDisputed: byCurrency(disputeRows),
+      totalDisputed: groupSumByCurrency(disputeRows).sort(byCurrencyCode),
       lastDisputeAt: latest(disputeRows.map((d) => d.createdAt)),
       lastOutcome: lastOutcome as CustomerActivity["disputes"]["lastOutcome"],
     },
