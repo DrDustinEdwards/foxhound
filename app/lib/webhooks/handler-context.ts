@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 
-import type { WebhookClaimInput } from "./batches";
+import { executeMoneyWrite } from "~/lib/money/execute";
+import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import type { WebhookIntent } from "./events";
 
 export type WebhookOutcome =
@@ -22,3 +23,14 @@ export interface WebhookContext {
 }
 
 export type IntentOf<K extends WebhookIntent["kind"]> = Extract<WebhookIntent, { kind: K }>;
+
+/** Commit the claim alone, with no other write: the event is recorded and ignored for
+ *  `reason`, or comes back a duplicate when it was already claimed. */
+export async function claimOnly(ctx: WebhookContext, reason: string): Promise<WebhookOutcome> {
+  const { applied } = await executeMoneyWrite(ctx.env, {
+    accountId: ctx.accountId,
+    idempotencyKey: ctx.idempotencyKey,
+    build: (db) => buildClaimOnlyBatch(db, ctx.claim),
+  });
+  return applied ? { status: "ignored", reason } : { status: "duplicate" };
+}

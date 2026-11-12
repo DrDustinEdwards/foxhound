@@ -1,4 +1,5 @@
-import { and, desc, eq, exists, gt, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, exists, gt, isNull, or } from "drizzle-orm";
+import { olderThan } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import { apiKeys, mcpCalls, oauthGrants } from "~/db";
@@ -162,12 +163,7 @@ export async function listAccountMcpCalls(
     .where(
       and(
         eq(mcpCalls.accountId, accountId),
-        before
-          ? or(
-              lt(mcpCalls.createdAt, before.at),
-              and(eq(mcpCalls.createdAt, before.at), lt(mcpCalls.id, before.id)),
-            )
-          : undefined,
+        before ? olderThan(mcpCalls.createdAt, mcpCalls.id, before.at, before.id) : undefined,
       ),
     )
     .orderBy(desc(mcpCalls.createdAt), desc(mcpCalls.id))

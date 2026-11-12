@@ -106,16 +106,12 @@ export function resolveDigestCurrency(
   return failed[0]?.currency ?? "usd";
 }
 
-function formatAmount(cents: number, currency: string): string {
-  return formatMoney(cents, currency);
-}
-
 /** Per-currency totals joined ("$693.00 + €40.00"), or zero in the account's
  *  currency when there is nothing to total. */
 function formatAmounts(amounts: CurrencyAmount[], fallbackCurrency: string): string {
   const shown = amounts.filter((a) => a.cents !== 0);
-  if (shown.length === 0) return formatAmount(0, fallbackCurrency);
-  return shown.map((a) => formatAmount(a.cents, a.currency)).join(" + ");
+  if (shown.length === 0) return formatMoney(0, fallbackCurrency);
+  return shown.map((a) => formatMoney(a.cents, a.currency)).join(" + ");
 }
 
 /**
@@ -178,7 +174,7 @@ function intelligenceSection(input: DigestInput): Block[] {
       { type: "paragraph", text: "Top at-risk customers" },
       ...input.highRiskCustomers.map((c): Block =>
         c.mrrCents != null
-          ? row(c.name, `${formatAmount(c.mrrCents, c.currency ?? input.currency)}/mo`)
+          ? row(c.name, `${formatMoney(c.mrrCents, c.currency ?? input.currency)}/mo`)
           : { type: "paragraph", text: c.name },
       ),
     );

@@ -67,6 +67,10 @@ export const FEE_INVOICE_MAX_RETRY_AGE_DAYS = 90;
  */
 export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
 
+const MINUTE_MS = 60 * 1000;
+export const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
+
 // ---- Maturity window (PRICING.md maturity-window billing) ----
 /** A recovery is billable only once it is at least this old (refund window absorption). */
 /**
@@ -86,10 +90,10 @@ export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
  * records, as `stripe_baseline`, free.
  */
 export const EMAIL_ENGAGEMENT_WINDOW_DAYS = 14;
-export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * DAY_MS;
 
 export const RECOVERY_MATURITY_DAYS = 30;
-export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * 24 * 60 * 60 * 1000;
+export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * DAY_MS;
 
 // ---- failed_payments lifecycle ----
 /** The in-recovery status: a sequence is running and manual actions apply.
@@ -511,9 +515,6 @@ export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----
-const MINUTE_MS = 60 * 1000;
-export const HOUR_MS = 60 * MINUTE_MS;
-export const DAY_MS = 24 * HOUR_MS;
 /** Max age of a /p/:token card-update link before it is treated as expired
  *  (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
  *  valid for the full life of the sequence that carries it). */
@@ -929,12 +930,12 @@ export const OAUTH_ACCESS_TOKEN_TTL_SECONDS = 3600;
 
 /** A refresh token lives 30 days from its last rotation, as Recova's comment
  *  on its token route said ("rotates refresh tokens (30d) on every refresh"). */
-export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * DAY_MS;
 
 /** An authorization code lives ten minutes, the ceiling RFC 6749 section 4.1.2
  *  recommends. Recova's lifetime was a Supabase column default outside its
  *  repo, so it could not be read; this is Foxhound's own. */
-export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000;
+export const OAUTH_CODE_TTL_MS = 10 * MINUTE_MS;
 
 /** Recova's four OAuth limits (lib/constants.ts lines 116 to 119), unchanged:
  *  approve is per signed-in user, the other three per IP. */

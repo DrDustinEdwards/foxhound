@@ -182,10 +182,7 @@ export async function claimStepSent(
   now: Date,
   result: string = "email_sent_fallback",
 ): Promise<boolean> {
-  await db
-    .update(winBackSteps)
-    .set({ executedAt: now, result })
-    .where(and(eq(winBackSteps.id, stepId), isNull(winBackSteps.executedAt)));
+  await stampStep(db, stepId, result, now);
   const rows = await db
     .select({ executedAt: winBackSteps.executedAt })
     .from(winBackSteps)

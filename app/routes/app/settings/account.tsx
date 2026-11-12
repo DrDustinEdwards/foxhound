@@ -59,7 +59,8 @@ import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { chooseTheme } from "~/lib/settings/theme-choice";
-import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
+import { isThemeChoice } from "capsomer/theme-server";
+import { DEFAULT_THEME, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -139,7 +140,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // The theme this account stores, which is the one the root drew the page
     // in: accounts.theme is NOT NULL, so for a signed-in merchant
     // resolveThemePreference always takes it (lib/theme.ts).
-    theme: isTheme(account.theme) ? account.theme : DEFAULT_THEME,
+    theme: isThemeChoice(account.theme) ? account.theme : DEFAULT_THEME,
     // Only the owner may cancel the account; the action enforces it, this
     // only decides whether to draw the control (team.tsx does the same).
     isOwner: auth.membership.role === MEMBER_ROLE.OWNER,

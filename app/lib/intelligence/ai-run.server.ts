@@ -9,6 +9,7 @@ import {
   intelligenceReports,
   type Db,
 } from "~/db";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { PREDICTION_HORIZON_DAYS } from "~/lib/constants";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 
@@ -210,7 +211,7 @@ export async function writeNarrativeReport(
   },
 ): Promise<void> {
   const { accountId, now, result, scored } = input;
-  const reportMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const reportMonth = new Date(startOfUtcMonthMs(now.getTime()));
   const idByCustomer = new Map(scored.map((c) => [c.stripeCustomerId, c.customerContextId]));
   const narrativeBatch: BatchItem<"sqlite">[] = [
     db

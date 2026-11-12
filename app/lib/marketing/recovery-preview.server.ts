@@ -1,13 +1,9 @@
-import { relative, toMs } from "capsomer/behavior/time";
+import { formatDate, relative, toMs } from "capsomer/behavior/time";
 import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
-import {
-  DAY_MS,
-  type DeclineCategory,
-  HOUR_MS,
-  RECOVERY_FEE_BPS,
-  RECOVERY_MATURITY_MS,
-} from "~/lib/constants";
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
+import { DAY_MS, type DeclineCategory, HOUR_MS, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
@@ -68,13 +64,6 @@ function roiColumn(rows: { amountCents: number; currency: string }[]): RoiColumn
   };
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildRecoveryPreview(now: Date): RecoveryPreview {
   const nowMs = now.getTime();
@@ -106,7 +95,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       : null;
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
-  const firstOfMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const firstOfMonth = startOfUtcMonthMs(nowMs);
   // This month: Foxhound-attributed recoveries since the 1st, matured or not.
   // Asking isBillableRecoveryRow as of each row's own maturity date keeps the
   // engine's attribution allow-list and its refund, dispute and delete checks
@@ -156,7 +145,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       statusLabel: FAILED_PAYMENT_STATUS_LABELS[f.status] ?? f.status,
       failureCount: failuresByCustomer.get(f.stripeCustomerId) ?? 1,
       detectedAgo: relative(toMs(f.detectedAt), nowMs, "UTC", { granularity: "day" }),
-      detectedDate: DATE_FORMAT.format(f.detectedAt),
+      detectedDate: formatDate(f.detectedAt, { style: "medium" }) ?? "",
     };
   });
 
@@ -174,7 +163,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       rateTone: ratePct === null ? null : recoveryRateTone(ratePct),
     },
     roi: {
-      feePct: RECOVERY_FEE_BPS / 100,
+      feePct: RECOVERY_FEE_PERCENT,
       thisMonth: roiColumn(thisMonth),
       allTime: roiColumn(billable),
     },

@@ -1,5 +1,5 @@
 import { chunked } from "@dustinedwards/site-runtime/d1";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -62,6 +62,7 @@ import {
 } from "./intelligence-seed";
 import { buildNarrativeSeed } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
+import { resolveDemoMemberships } from "./session";
 
 // The demo seeder. Builds the demo businesses as real accounts (Teamflow and
 // Bolt Analytics, legacy's two: app/api/cron/reset-demo/route.ts, blob
@@ -443,16 +444,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
 /** Every demo business has its account row (the reset seeds them in order, so
  *  the last one landing means the whole set is there). */
 async function demoAccountExists(db: Db): Promise<boolean> {
-  const existing = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(
-      inArray(
-        accounts.id,
-        DEMO_BUSINESSES.map((b) => b.accountId),
-      ),
-    );
-  return existing.length === DEMO_BUSINESSES.length;
+  return (await resolveDemoMemberships(db)).length === DEMO_BUSINESSES.length;
 }
 
 interface DemoResetLock {

@@ -11,9 +11,9 @@ import {
   isDisputeResolved,
 } from "~/lib/disputes/labels";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
-import { computeDisputeStats, winRateCard, type MoneyPart } from "~/lib/disputes/stats";
+import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
-import { formatAmounts } from "~/lib/money/totals";
+import { formatAmounts, type CurrencyAmount } from "~/lib/money/totals";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 import { HOUR_MS } from "~/lib/constants";
@@ -53,7 +53,7 @@ const PREVIEW_TABLE_ROWS = 6;
  * whose dispute fees are settled. So nothing is owed, and the card reads
  * $0.00, as the demo dashboard does (PR #79).
  */
-const DEMO_FEES_OWED: MoneyPart[] = [];
+const DEMO_FEES_OWED: CurrencyAmount[] = [];
 
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildDisputesPreview(now: Date): DisputesPreview {

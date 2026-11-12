@@ -16,6 +16,7 @@ import {
 } from "~/db";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
+import { ENGAGEMENT_WINDOW_DAYS } from "./recommendations.server";
 import type { CustomerActivity } from "./customer-detail";
 import { healthScoreBand } from "./health-band";
 import { narrativeWithCustomerIds } from "./narrative";
@@ -258,8 +259,6 @@ export async function getCustomerHealthDetail(
     predictions: predictionRows,
   };
 }
-
-const ENGAGEMENT_WINDOW_DAYS = 30;
 
 const latest = (dates: readonly (Date | null)[]): Date | null =>
   dates.reduce<Date | null>((max, d) => (d && (!max || d > max) ? d : max), null);

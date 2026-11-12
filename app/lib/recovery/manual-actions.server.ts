@@ -1,3 +1,4 @@
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { and, eq } from "drizzle-orm";
 import type { MoneyWriteBuilder } from "~/db/money-write";
 import { type Db, failedPayments, recoverySteps } from "~/db";
@@ -9,7 +10,6 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { getFailedPaymentDetail } from "./queries.server";
 import { lastResendableEmailStep, nextPendingStep } from "./step-state";
 import {
-  noteContentToken,
   buildSaveNoteBatch,
   resendRepeatToken,
   buildResendStepBatch,
@@ -500,10 +500,11 @@ async function triggerNextStep(
 
 async function saveNote(req: ManualActionRequest): Promise<ManualActionOutcome> {
   const note = typeof req.note === "string" ? req.note : "";
+  // Keyed on the note's content: the same text resubmitted is a no-op, an edit is a new key.
   const key = manualActionIdempotencyKey(
     NOTE_INTENT,
     req.failedPaymentId,
-    await noteContentToken(note),
+    (await sha256Hex(note)).slice(0, 16),
   );
   try {
     await req.commit(req.accountId, key, (db) =>

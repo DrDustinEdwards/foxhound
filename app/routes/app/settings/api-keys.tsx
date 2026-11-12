@@ -4,7 +4,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 import { Link } from "capsomer/react/link";
-import { ArrowLeft } from "lucide-react";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { CopyButton } from "capsomer/react/copy";
@@ -28,6 +27,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { SettingsBackLink } from "~/components/settings-back-link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -227,20 +227,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 function dateOrNever(at: Date | null): string {
   return at ? (formatDate(new Date(at), { style: "medium" }) ?? "") : "Never";
-}
-
-/** Legacy's SettingsBackLink (components/SettingsBackLink.tsx, blob 64d4a153):
- *  on a phone, where the settings menu is hidden, a link back to the hub. */
-function SettingsBackLink() {
-  return (
-    <Link
-      to="/settings"
-      className="mb-6 inline-flex min-h-6 items-center gap-1.5 text-label text-text-secondary no-underline hover:text-text md:hidden"
-    >
-      <ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
-      Settings
-    </Link>
-  );
 }
 
 /** Generate new key stays where it is while the form or the key is open, as

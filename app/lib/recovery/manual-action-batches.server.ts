@@ -2,7 +2,6 @@
 // (manual-actions.server.ts): note, resend, mark recovered and stop recovery.
 // Pure builders; the dispatcher commits each through the money-write DO.
 
-import { toHex } from "@dustinedwards/site-runtime/encoding";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { MoneyWriteBatch } from "~/db/money-write";
 import { type Db, failedPayments, recoverySteps } from "~/db";
@@ -12,22 +11,6 @@ import {
   MANUAL_ATTRIBUTION_KIND,
 } from "~/lib/constants";
 import { buildRecoveryBatch } from "./record-recovery";
-
-/**
- * The note key's repeat token: a digest of the note's CONTENT.
- *
- * This is the shape the brief asks for and the reason is worth stating. A key
- * fixed per payment would collapse every later edit into a no-op, so the second
- * thing a merchant ever typed would be silently discarded. A key varying per
- * request would make a retried submission write twice, which for this update is
- * harmless but defeats the point of having a key at all. Keying on the content
- * gives both: re-submitting the SAME text is a true no-op, and changing one
- * character is a new key that applies.
- */
-export async function noteContentToken(note: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(note));
-  return toHex(new Uint8Array(digest).slice(0, 8));
-}
 
 // ---------------------------------------------------------------------------
 // Atomic batches. Exported pure so each is unit-tested against the real schema.

@@ -32,6 +32,7 @@ import {
   planNameFor,
   pick,
   seededFloat,
+  daysAgo,
   seededInt,
   type DemoCustomer,
 } from "./customer-base";
@@ -688,14 +689,12 @@ export function buildRecoverySeed(
   const recoveredPayments: RecoveredPaymentInsert[] = [];
   let idSeq = 0;
 
-  const daysAgo = (n: number) => new Date(now.getTime() - n * DAY_MS);
-
   // Scripted narrative failures, placed exactly per their event list.
   for (const c of customers) {
     if (!c.scripted) continue;
     for (const ev of c.scripted.failedPaymentEvents) {
       idSeq++;
-      const detectedAt = daysAgo(ev.detectedDaysAgo);
+      const detectedAt = daysAgo(now, ev.detectedDaysAgo);
       const seed = `${c.stripeCustomerId}:${ev.detectedDaysAgo}`;
       const declineCode = sampleDeclineCodeForCategory(seed, ev.declineCategory);
       const forcedOutcome: ResolvedOutcome =
@@ -732,7 +731,7 @@ export function buildRecoverySeed(
   const eligible = customers.filter(isDayWalkEligible);
   const recentByCustomer = new Map<string, Date[]>();
   for (let dayAgoVal = WALK_DAYS; dayAgoVal >= 0; dayAgoVal--) {
-    const day = daysAgo(dayAgoVal);
+    const day = daysAgo(now, dayAgoVal);
     const intensity = classifyDayIntensity(day);
     const dailySeed = `${biz.walkSalt}walk:day:${dayAgoVal}`;
     const numFailures = failuresForDay(intensity, dailySeed);
@@ -784,7 +783,7 @@ export function buildRecoverySeed(
     // actually executed rather than sitting entirely in the future.
     const dayAgoVal = Math.min(WALK_DAYS, 10 + topUpIndex * 3);
     topUpIndex++;
-    const day = daysAgo(dayAgoVal);
+    const day = daysAgo(now, dayAgoVal);
     const pickSeed = `${biz.walkSalt}walk:topup:${category}`;
     const customer = pickCustomerForDay(eligible, day, pickSeed, recentByCustomer) ?? eligible[0];
     if (!customer) continue;

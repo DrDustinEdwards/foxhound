@@ -18,7 +18,6 @@ import {
 } from "~/lib/recovery/manual-action-deps.server";
 import {
   buildStopRecoveryBatch,
-  noteContentToken,
   resendRepeatToken,
 } from "~/lib/recovery/manual-action-batches.server";
 import type { EmailJobResult } from "~/lib/email/dispatch";
@@ -278,12 +277,6 @@ describe("note save: legacy's contract, through the money DO seam", () => {
   });
 
   it("the key collapses a resubmitted SAME note and varies when the text changes", async () => {
-    const sameA = await noteContentToken("call the customer");
-    const sameB = await noteContentToken("call the customer");
-    const different = await noteContentToken("call the customer.");
-    expect(sameA).toBe(sameB);
-    expect(different).not.toBe(sameA);
-
     const { sqlite, db } = seed();
     const keys: string[] = [];
     const commit = inMemoryCommit(sqlite, db, keys);
