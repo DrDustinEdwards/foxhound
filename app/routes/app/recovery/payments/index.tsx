@@ -1,5 +1,5 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
-import { pageEnvelope, parsePage, statusText } from "capsomer/behavior/pagination";
+import { pageEnvelope, statusText } from "capsomer/behavior/pagination";
 import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -48,11 +48,11 @@ import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-das
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
-  getAmountBounds,
   getGlobalPaymentStatusCounts,
   listFilteredFailedPayments,
   listPaymentSummaryRows,
   listStepsForFailedPayments,
+  readPaymentFilters,
   tallyStatusCounts,
 } from "~/lib/recovery/queries.server";
 import { countFailuresByCustomer } from "~/lib/recovery/dashboard-queries.server";
@@ -71,10 +71,6 @@ import {
   BULK_RESULT_DISMISS_MS,
   bulkResultClearsItself,
   bulkResultLine,
-  parsePaymentsAmount,
-  parsePaymentsPageSize,
-  parsePaymentsSort,
-  parsePaymentsTimeRange,
   declineWord,
   paymentsHeaderLine,
 } from "~/lib/recovery/payments-list";
@@ -102,7 +98,7 @@ import { moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
 import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
 import { BULK_ACTION_CONFIRM_THRESHOLD, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
+import type { PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -151,46 +147,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const nowMs = Date.now();
 
-  const params = new URL(request.url).searchParams;
-  const search = params.get("q")?.trim() || null;
-  const status = params.get("status") || null;
-  const declineCategory = params.get("category") || null;
-  const sort = parsePaymentsSort(params.get("sort"));
-  const time = parsePaymentsTimeRange(params.get("time"));
-  const page = parsePage(params.get("page"));
-  const pageSize = parsePaymentsPageSize(params.get("perPage"));
-
-  const bounds = await getAmountBounds(db, accountId, params.get("currency"));
-  const amountMinParsed = parsePaymentsAmount(
-    params.get("amountMin"),
-    bounds.minCents,
-    bounds.maxCents,
-  );
-  const amountMaxParsed = parsePaymentsAmount(
-    params.get("amountMax"),
-    bounds.minCents,
-    bounds.maxCents,
-  );
-  // A handle resting on its own end is no filter.
-  const amountMinCents =
-    amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
-  const amountMaxCents =
-    amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
-  const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);
-
-  const filterInput = {
-    search,
-    declineCategory,
-    detectedAfterMs,
-    amountMinCents,
-    amountMaxCents,
-    amountCurrency: bounds.currency,
-  };
+  const { input, filters, time, bounds, amountMinParsed, amountMaxParsed } =
+    await readPaymentFilters(db, accountId, new URL(request.url).searchParams, nowMs);
 
   const [result, globalCounts, summaryRows] = await Promise.all([
-    listFilteredFailedPayments(db, accountId, { ...filterInput, status, sort, page, pageSize }),
+    listFilteredFailedPayments(db, accountId, filters),
     getGlobalPaymentStatusCounts(db, accountId),
-    listPaymentSummaryRows(db, accountId, filterInput),
+    listPaymentSummaryRows(db, accountId, input),
   ]);
 
   const customerIds = [...new Set(result.payments.map((p) => p.stripeCustomerId))];
@@ -251,12 +214,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     bounds,
     nowMs,
     filters: {
-      search: search ?? "",
-      status: status ?? "",
-      declineCategory: declineCategory ?? "",
+      search: filters.search ?? "",
+      status: filters.status ?? "",
+      declineCategory: filters.declineCategory ?? "",
       time,
-      sort,
-      pageSize,
+      sort: filters.sort,
+      pageSize: filters.pageSize,
       amountMinCents: amountMinParsed ?? bounds.minCents,
       amountMaxCents: amountMaxParsed ?? bounds.maxCents,
     },

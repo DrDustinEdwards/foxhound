@@ -1,4 +1,5 @@
-import { and, eq, isNull, type SQL } from "drizzle-orm";
+import { and, eq, isNull, sql, type SQL } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { stripeConnections } from "~/db";
 import type { Db } from "~/db";
@@ -31,13 +32,24 @@ export function activeConnectionWhere(accountId: string): SQL {
 }
 
 /** The account's live primary connection: activeConnectionWhere plus
- *  is_primary, the row sender settings and brand voice are read from. */
-export function activePrimaryConnectionWhere(accountId: string): SQL {
+ *  is_primary, the row sender settings and brand voice are read from.
+ *  `accountId` may be an outer query's column, for a correlated subquery. */
+export function activePrimaryConnectionWhere(accountId: string | AnySQLiteColumn): SQL {
   return and(
     eq(stripeConnections.accountId, accountId),
     eq(stripeConnections.isPrimary, true),
     isNull(stripeConnections.disconnectedAt),
   ) as SQL;
+}
+
+/** One column of the live primary connection of the account in `accountId` (an
+ *  outer query's column), as a scalar subquery: null when there is none. */
+export function primaryConnectionValue<T>(column: AnySQLiteColumn, accountId: AnySQLiteColumn) {
+  return sql<T | null>`(
+    select ${column} from ${stripeConnections}
+    where ${activePrimaryConnectionWhere(accountId)}
+    limit 1
+  )`;
 }
 
 /** Every live connection of the account, with its encrypted access token. */

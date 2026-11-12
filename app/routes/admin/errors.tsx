@@ -23,7 +23,7 @@ import {
   type SentryIssue,
   type SentryState,
 } from "~/lib/admin/errors.server";
-import { plural } from "@drdustinedwards/site-helpers/text";
+import { capitalize, formatCount, plural } from "@drdustinedwards/site-helpers/text";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -72,12 +72,10 @@ function levelOf(level: string): { tone: StatusTone; word: string } {
   return (
     LEVELS[level] ?? {
       tone: "nodata",
-      word: level ? level[0].toUpperCase() + level.slice(1) : "Unknown",
+      word: level ? capitalize(level) : "Unknown",
     }
   );
 }
-
-const figure = (n: number) => n.toLocaleString("en-US");
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Errors"), tables in
@@ -271,10 +269,10 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
                   <Status tone={level.tone}>{level.word}</Status>
                 </td>
                 <td data-label="Events" className="tabular-nums">
-                  {figure(issue.count)}
+                  {formatCount(issue.count)}
                 </td>
                 <td data-label="Users" className="tabular-nums">
-                  {figure(issue.userCount)}
+                  {formatCount(issue.userCount)}
                 </td>
                 <td data-label="Last seen">
                   <Time at={issue.lastSeen} empty="Not known" tip />

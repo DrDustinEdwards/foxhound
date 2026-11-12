@@ -1,3 +1,4 @@
+import { capitalize } from "@drdustinedwards/site-helpers/text";
 import type { ReactNode } from "react";
 import { routerRenderLink } from "capsomer/react/link";
 import { ArrowUpRight } from "lucide-react";
@@ -21,7 +22,6 @@ import {
   subscriptionDetail,
   subscriptionStatusLabel,
   subscriptionStatusTone,
-  titleCase,
   type DisputeFeeRow,
   type FeeStatusTone,
   type RecoveryHistoryRow,
@@ -359,7 +359,7 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
         {card ? (
           <div>
             <p className="text-label text-text">
-              {titleCase(card.brand)} ending {card.last4}
+              {capitalize(card.brand)} ending {card.last4}
             </p>
             <p className="mt-1 text-micro text-text-subtle">
               Expires {String(card.expMonth).padStart(2, "0")}/{card.expYear}

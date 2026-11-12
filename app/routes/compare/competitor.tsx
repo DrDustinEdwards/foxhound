@@ -10,6 +10,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
 import "capsomer/table.css";
+import "capsomer/button.css";
 
 // NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
 // each of the six named competitors (ROUTES.md Rev 2). Neither Capsid
@@ -126,17 +127,18 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           <p className="mb-10 text-label text-text-tertiary">{competitor.omittedNote}</p>
         ) : null}
 
-        <div className="rounded-lg border border-border bg-surface p-6 text-center">
+        <div
+          className="fh-cap rounded-lg border border-border bg-surface p-6 text-center"
+          data-cap-site="foxhound"
+          data-family="amber"
+        >
           <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
           <p className="mb-5 text-label text-text-secondary">
             {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of won
             disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
             {RECOVERY_MATURITY_DAYS} days.
           </p>
-          <Link
-            to="/pricing"
-            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
-          >
+          <Link to="/pricing" className="cap-btn" data-variant="primary">
             View pricing
           </Link>
         </div>

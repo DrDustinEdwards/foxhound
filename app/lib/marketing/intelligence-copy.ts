@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { INTELLIGENCE_MAX_CUSTOMERS_SCANNED, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
 import {
   HEALTH_SCORE_BASELINE,
@@ -52,7 +53,7 @@ import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 //
 // Every one of these is listed in the J58 PR notes for the seat to read.
 
-const customerCap = INTELLIGENCE_MAX_CUSTOMERS_SCANNED.toLocaleString("en-US");
+const customerCap = formatCount(INTELLIGENCE_MAX_CUSTOMERS_SCANNED);
 const labels: string[] = Object.values(HEALTH_SIGNAL_LABELS);
 const signalCount = countWord(labels.length);
 /** "a, b, and c". */

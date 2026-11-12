@@ -5,7 +5,7 @@ import {
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
 } from "~/lib/constants";
-import { readCookie } from "@dustinedwards/site-runtime/headers";
+import { hostCookie, readCookie } from "@dustinedwards/site-runtime/headers";
 import { bare, setHostCookie } from "~/lib/http/cookies";
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 
@@ -111,7 +111,10 @@ export async function setAuditGrantCookie(
       iat: issuedAtMs,
     }),
   );
-  return `${AUDIT_TOKEN_COOKIE}=${sealed}; HttpOnly; Secure; SameSite=Lax; Path=/audit; Max-Age=${AUDIT_TOKEN_TTL_SECONDS}`;
+  return hostCookie(bare(AUDIT_TOKEN_COOKIE), sealed, {
+    maxAge: AUDIT_TOKEN_TTL_SECONDS,
+    path: "/audit",
+  });
 }
 
 /**

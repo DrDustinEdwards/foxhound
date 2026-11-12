@@ -7,6 +7,7 @@ import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { getStripe } from "~/lib/stripe/client";
 
 import { stripeErrorSummary } from "./stripe-invoice";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Billing-setup (Phase 5 slice 5d, PRICING.md rev 3: direct platform invoicing).
 // The merchant is a Customer on FOXHOUND'S OWN Stripe account, never charged
@@ -354,7 +355,7 @@ export async function getDefaultCard(
       expYear: pm.card.exp_year,
     };
   } catch (err) {
-    console.error("billing card read failed:", err instanceof Error ? err.message : err);
+    console.error("billing card read failed:", errorMessage(err));
     return null;
   }
 }

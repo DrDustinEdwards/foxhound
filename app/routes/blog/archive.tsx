@@ -14,6 +14,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/archive";
 import { SectionTrail } from "~/components/section-trail";
+import "capsomer/chips.css";
 
 // Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
 // back-link, an H1 that names the active filter, an article count, a row of
@@ -65,13 +66,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env), posts, activeTag, visibleTags };
 }
 
-function pillClassName(active: boolean): string {
-  const base = "rounded-full border px-3 py-1.5 font-mono text-xs no-underline transition-colors";
-  return active
-    ? `${base} border-brand bg-brand text-on-brand`
-    : `${base} border-border-sub bg-surface text-text-secondary hover:border-border hover:text-text`;
-}
-
 export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
   const { posts, activeTag, visibleTags } = loaderData;
   const activeLabel = activeTag ? labelForTag(activeTag) : "All articles";
@@ -85,16 +79,40 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
         {plural(posts.length, "article")}
       </p>
 
-      <div className="mb-8 mt-8 flex flex-wrap gap-2">
-        <Link to="/blog/archive" className={pillClassName(!activeTag)}>
-          All
-        </Link>
-        {visibleTags.map((t) => (
-          <Link key={t} to={`/blog/archive?tag=${t}`} className={pillClassName(activeTag === t)}>
-            {labelForTag(t)}
-          </Link>
-        ))}
-      </div>
+      {/* Recova's tag filter: mono chips, the current one filled amber. Link
+          chips (Capsomer chips.md): the tag is in the address. */}
+      <nav
+        aria-label="Filter articles by tag"
+        className="fh-cap mb-8 mt-8"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
+        <ul
+          className="cap-chips [--ui:var(--mono)] [&_.cap-chip]:min-h-[30px] [&_.cap-chip]:text-caption"
+          data-variant="solid"
+        >
+          <li>
+            <Link
+              to="/blog/archive"
+              className="cap-chip"
+              aria-current={activeTag ? undefined : "true"}
+            >
+              All
+            </Link>
+          </li>
+          {visibleTags.map((t) => (
+            <li key={t}>
+              <Link
+                to={`/blog/archive?tag=${t}`}
+                className="cap-chip"
+                aria-current={activeTag === t ? "true" : undefined}
+              >
+                {labelForTag(t)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       {posts.length === 0 ? (
         <p className="text-sm text-text-secondary">No articles found.</p>

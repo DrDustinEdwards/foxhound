@@ -1,3 +1,4 @@
+import { humanize } from "@drdustinedwards/site-helpers/text";
 import type { DisputeState } from "~/lib/constants";
 import type { Tone } from "~/lib/recovery/labels";
 import { DAY_MS } from "~/lib/constants";
@@ -153,9 +154,7 @@ export function humanizeDisputeReason(reason: string | null): string {
   if (!reason) return "Unknown";
   const mapped = DISPUTE_REASON_LABELS[reason];
   if (mapped) return mapped;
-  const spaced = reason.replace(/_/g, " ").trim();
-  if (!spaced) return "Unknown";
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  return humanize(reason) || "Unknown";
 }
 
 /** Whole days until `deadline`, rounded up. Null passes through so a dispute

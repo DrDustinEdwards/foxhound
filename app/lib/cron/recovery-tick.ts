@@ -169,10 +169,7 @@ async function hasLostDispute(
       .limit(1);
     return rows.length > 0;
   } catch (err) {
-    console.error(
-      "lost-dispute check failed, retry proceeds:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("lost-dispute check failed, retry proceeds:", errorMessage(err));
     return false;
   }
 }
@@ -346,15 +343,11 @@ export async function retryOnUpdatedCard(
         const result = await runGuardedRetry(env, row, now, io);
         if (typeof result === "object") attempted += 1;
       } catch (err) {
-        console.error(
-          "card updater retry failed:",
-          row.stepId,
-          err instanceof Error ? err.message : err,
-        );
+        console.error("card updater retry failed:", row.stepId, errorMessage(err));
       }
     }
   } catch (err) {
-    console.error("card updater retry lookup failed:", err instanceof Error ? err.message : err);
+    console.error("card updater retry lookup failed:", errorMessage(err));
   }
   return attempted;
 }
@@ -571,7 +564,7 @@ export async function runRecoveryTick(
       }
     } catch (err) {
       sweepNote = ", exhausted-sweep FAILED";
-      console.error("exhausted-sequence sweep failed:", err instanceof Error ? err.message : err);
+      console.error("exhausted-sequence sweep failed:", errorMessage(err));
     }
   }
 

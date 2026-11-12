@@ -3,7 +3,7 @@ import "capsomer/status.css";
 import { Link } from "capsomer/react/link";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
-import { FaqAccordion } from "~/components/faq-accordion";
+import { FaqList } from "~/components/faq-list";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
@@ -19,6 +19,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "capsomer/button.css";
 
 // NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
 // Category, retryability, and whether the code rides classifyDecline()'s
@@ -89,14 +90,19 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           <p className="text-body leading-relaxed text-text-secondary">{recoveryApproach(view)}</p>
         </section>
 
-        <section className="mb-10">
+        <section className="fh-cap mb-10" data-cap-site="foxhound" data-family="amber">
           <h2 className="mb-4 text-title font-medium text-text">Questions</h2>
-          <FaqAccordion
-            faqs={content.faqs.map((f) => ({ question: f.question, answer: f.answer }))}
+          <FaqList
+            name="decline-code-faq"
+            faqs={content.faqs.map((f) => ({ q: f.question, a: f.answer }))}
           />
         </section>
 
-        <div className="rounded-lg border border-border bg-surface p-6 text-center">
+        <div
+          className="fh-cap rounded-lg border border-border bg-surface p-6 text-center"
+          data-cap-site="foxhound"
+          data-family="amber"
+        >
           <p className="mb-2 text-body font-medium text-text">
             See what this looks like on your account
           </p>
@@ -104,10 +110,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
             The free audit shows what Stripe already recovered and what is still dying, no signup
             required.
           </p>
-          <Link
-            to="/audit"
-            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
-          >
+          <Link to="/audit" className="cap-btn" data-variant="primary">
             Run your free audit
           </Link>
         </div>

@@ -1,6 +1,6 @@
+import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { Link } from "capsomer/react/link";
 
-import { formatTagChip } from "~/lib/blog/format";
 import type { BlogPostSummary } from "~/lib/blog/queries.server";
 
 // Ported from legacy app/(marketing)/blog/BlogPostCard.tsx (blob 48ba6d39).
@@ -21,7 +21,7 @@ import type { BlogPostSummary } from "~/lib/blog/queries.server";
 // page, where the h1 is the only heading above the cards.
 export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level?: 2 | 3 }) {
   const Title = level === 2 ? "h2" : "h3";
-  const tag = post.tags[0] ? formatTagChip(post.tags[0]) : null;
+  const tag = post.tags[0] ? titleCase(post.tags[0]) : null;
   return (
     <Link
       to={`/blog/${post.slug}`}

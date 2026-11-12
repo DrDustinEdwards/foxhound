@@ -547,11 +547,6 @@
 
   --violet-vivid: #b429f0;
   --violet-ui: #9010cc;
-  --violet-muted: #cd82ed;
-  --violet-subtle: #dcb6ed;
-  --violet-bg: #2d0c3b;
-  --violet-bg-subtle: #200a29;
-  --violet-border: #45165a;
 
   --border: #cccbc3;
   --border-sub: #e2e1da;
@@ -569,22 +564,6 @@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 6%);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 8%);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 12%);
-  --scrim-light: rgb(0 0 0 / 45%);
-  --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-violet: rgb(180 41 240 / 15%);
-
-  --warning: var(--orange);
-  --warning-bg: var(--orange-bg);
-  --error: var(--red);
-  --error-bg: var(--red-bg);
-  --bg-surface: var(--surface);
-  --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--brand-ui), var(--brand-dark));
-  --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
-  --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
-  --gradient-brand-violet: linear-gradient(135deg, var(--chrome-brand), var(--violet-vivid));
-  --gradient-dark: linear-gradient(135deg, var(--bg), var(--surface));
-  --gradient-subtle: linear-gradient(180deg, var(--surface), var(--bg));
 }
 
 /* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
@@ -600,39 +579,6 @@
    built-in delay-* which set transition-delay. None of 80/160/240/320 is a
    default Tailwind delay value, so there is no collision with generated
    utilities. */
-/* Primary brand-accent CTA (amber), ported from legacy app/globals.css:640 for the M6 product
-   spokes (divergence 10: legacy uses this class, Foxhound was hand-rolling
-   `bg-brand hover:bg-brand-dark` at each call site). Pair it with text-on-brand
-   and the normal radius/padding/font utilities, exactly as legacy does.
-
-   Sits OUTSIDE the reduced-motion guard because that is where legacy defines
-   it, per the port-the-STRUCTURE rule. Foxhound's own reduce block below
-   already collapses the transition duration, which legacy has no equivalent of.
-
-   NOT ported: legacy's site-wide press-feedback ruleset (button, [role=button],
-   a.btn, a.btn-primary, a.btn-ghost, a.btn-ghost-subtle plus their .no-spring
-   opt-outs, globals.css:768-802). That is a site-wide affordance, not this
-   component's, and it belongs to a site-wide ledger row rather than to M6. */
-.btn-primary {
-  background: var(--brand);
-  transition: background 150ms ease;
-}
-
-.btn-primary:hover {
-  background: var(--brand-dark);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .btn-primary {
-    transition:
-      background 150ms ease,
-      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .btn-primary:active {
-    transform: scale(0.97);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   @keyframes fade-up {
     from {
@@ -705,17 +651,23 @@ body {
   font-family: var(--font-dm-sans), Arial, sans-serif;
 }
 
-*:focus {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-}
-*:focus:not(:focus-visible) {
-  outline: none;
-}
-*:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
-  border-radius: 2px;
+/* The focus ring for everything that has none of its own. In the base layer,
+   below Capsomer's (cap), so a Capsomer part keeps its own ring and corners,
+   and below Tailwind's utilities, so a rounded element's ring follows its
+   shape. The forced-colors ring below stays unlayered, so it wins everywhere. */
+@layer base {
+  *:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 /* Accessibility: forced-colors mode gets surgical border + focus-ring
@@ -786,54 +738,6 @@ body {
   /* Recova's nav links are 13px. */
   --header-fs: 0.8125rem;
 }
-/* Foxhound's own focus rule above squares every focused element's corners;
-   the header's round avatar and its panels keep their own shapes. */
-.cap-site-header :focus-visible,
-.cap-site-header-panel :focus-visible {
-  border-radius: revert-layer;
-}
-/* The same for a Capsomer panel that is itself a link (the /products hub
-   cards, J16): it keeps its own rounded corners when a keyboard user lands on
-   it, so the amber ring follows the card's shape. */
-.fh-cap .cap-panel:focus-visible {
-  border-radius: revert-layer;
-}
-
-/* The wordmark in the header: DM Mono, the x in amber. */
-.fh-wordmark {
-  font-family: "DM Mono", monospace;
-  font-size: 1.125rem;
-  font-weight: 500;
-  letter-spacing: -0.5px;
-  color: var(--header-fg);
-}
-.fh-wordmark-x {
-  color: var(--header-brand);
-}
-
-/* Capsomer's controls on a .fh-cap marketing page (the Recovery spoke, J56):
-   a button and a table's scroll region. Foxhound's global focus rule is
-   unlayered, so it beats Capsomer's layered rings and squares their corners.
-   Reverting the three properties to the layer below hands each its own ring
-   back; it adds nothing to the components. A disclosure's summary has no ring
-   of its own in Capsomer, so it keeps Foxhound's amber one. */
-.fh-cap :is(.cap-btn, .cap-table-wrap):focus-visible {
-  outline: revert-layer;
-  outline-offset: revert-layer;
-  border-radius: revert-layer;
-}
-
-/* A link pill on a .fh-cap page (the blog's tag, J19) gets its own ring back
-   the same way. Not under forced colors, where the global 3px Highlight ring
-   must stay (as on /features). */
-@media not (forced-colors: active) {
-  .fh-cap .cap-pill:focus-visible {
-    outline: revert-layer;
-    outline-offset: revert-layer;
-    border-radius: revert-layer;
-  }
-}
-
 /* The business tile in the switcher's panel and the phone's sheet: a square
    with the business's initial, like the one on its button. */
 .fh-account-tile {
@@ -889,34 +793,6 @@ body {
   .cap-site-header-sheet-account
   li:has(> a[href]:not([href="/settings"], [href="/help"], [href="/admin"])) {
   display: none;
-}
-
-/* Capsomer's filter chips and its button on /features (J60; .fh-features is
-   that page's wrapper). Foxhound's global focus rule above is unlayered, so it
-   beats Capsomer's layered ring: a 2px --border-focus outline, and corners
-   squared to 2px, which turns a focused round chip into a square. Reverting
-   the three properties to the layer below hands each part back its own ring
-   (3px, the family's --ring), as app/error-page.css does for the error page;
-   it adds nothing to the components. Not under forced colors, where the
-   global 3px Highlight ring must stay. */
-@media not (forced-colors: active) {
-  .fh-features :is(.cap-chip, .cap-btn):focus-visible {
-    outline: revert-layer;
-    outline-offset: revert-layer;
-    border-radius: revert-layer;
-  }
-}
-
-/* A Capsomer button inside a .fh-cap page (the /pricing closing link, J54).
-   Foxhound's global focus rule above is unlayered, so it beats Capsomer's
-   layered ring: a 2px --border-focus outline and corners squared to 2px.
-   Reverting the three properties to the layer below hands the button back its
-   own ring (3px, the family's --ring), as app/error-page.css does for the
-   error page; it adds nothing to the component. */
-.fh-cap .cap-btn:focus-visible {
-  outline: revert-layer;
-  outline-offset: revert-layer;
-  border-radius: revert-layer;
 }
 
 /* Foxhound's own look on Capsomer's shared parts, set by token (Capsomer 0.94.0). The network

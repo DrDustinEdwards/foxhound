@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { useId } from "react";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { Disclosure } from "capsomer/react/disclosure";
@@ -100,7 +101,7 @@ function StatCard({
 function StatRow({ performance }: { performance: StepPerformanceSummary }) {
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-      <StatCard label="Emails sent" value={performance.totalSent.toLocaleString("en-US")} />
+      <StatCard label="Emails sent" value={formatCount(performance.totalSent)} />
       <StatCard
         label="Avg open rate"
         value={`${performance.avgOpenRatePct}%`}

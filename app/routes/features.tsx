@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "capsomer/react/link";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
-import { SequenceTimeline } from "~/components/docs/sequence-timeline";
+import { SequenceSteps } from "~/components/recovery-previews";
 import { FeatureFilter } from "~/components/feature-filter";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { ProductTag } from "~/components/tone-pills";
@@ -85,7 +85,11 @@ function FeatureCard({ feature }: { feature: Feature }) {
 // sentence states the same bands, from the same constants.
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {
-    return <SequenceTimeline category="soft" />;
+    return (
+      <div className="my-4">
+        <SequenceSteps category="soft" />
+      </div>
+    );
   }
   if (id === "intelligence") {
     return (

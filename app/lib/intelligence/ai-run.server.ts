@@ -25,6 +25,7 @@ import { buildRecommendationLogInsert, recommendForAccount } from "./recommendat
 import { computeHealthScore, type HealthFactor } from "./risk";
 import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.server";
 import { accountProcessingEligible } from "./sync.server";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // The Intelligence nightly orchestration: scoring -> predictions -> narrative,
 // for one account, then for every processing-eligible account
@@ -258,10 +259,7 @@ export async function runIntelligenceAiForAllAccounts(
         customersScored: 0,
         error: err instanceof Error ? err.message : "run failed",
       });
-      console.error(
-        `intelligence run failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`intelligence run failed for account ${id}:`, errorMessage(err));
     }
   }
   return results;

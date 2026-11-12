@@ -8,6 +8,7 @@ import { mediaSuggester } from "@dustinedwards/site-api";
 
 import { getDb } from "~/db";
 import { buildAiCallRow } from "~/lib/ai/cost";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 export const suggestFor = mediaSuggester<Env>({
   app: "foxhound",
@@ -24,10 +25,7 @@ export const suggestFor = mediaSuggester<Env>({
         createdAt: new Date(),
       });
     } catch (err) {
-      console.error(
-        "ai_calls write failed for media-suggest:",
-        err instanceof Error ? err.message : err,
-      );
+      console.error("ai_calls write failed for media-suggest:", errorMessage(err));
     }
   },
 });

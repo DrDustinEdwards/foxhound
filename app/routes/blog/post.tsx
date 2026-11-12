@@ -1,5 +1,6 @@
 import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { CTA_BUTTON } from "~/components/marketing-card";
 import { Link } from "capsomer/react/link";
 import { RelatedLinks } from "capsomer/react/related-links";
 import "capsomer/related-links.css";
@@ -366,17 +367,18 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         </nav>
       ) : null}
 
-      <div className="mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center">
+      <div
+        className="fh-cap mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         <h2 className="mb-2 text-feature-title font-medium text-text">
           Run your free Stripe audit
         </h2>
         <p className="mx-auto mb-6 max-w-[480px] text-item-title leading-relaxed text-text-secondary">
           See exactly what your account is leaking. Free, no account required.
         </p>
-        <Link
-          to="/audit"
-          className="btn-primary group inline-block rounded-md px-6 py-3 text-item-title font-semibold text-on-brand"
-        >
+        <Link to="/audit" className={`${CTA_BUTTON} group`} data-variant="primary" data-size="lg">
           Start free audit{" "}
           <ArrowRight
             className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"

@@ -14,6 +14,7 @@ import {
   disputeContextColumns,
   emptyDisputeContext,
 } from "./triage";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Recova's fetchDisputeContext (lib/disputes-evidence.ts, blob 2d5e7af6) on the
 // connected account's own token: the disputed charge's billing details, card
@@ -67,10 +68,7 @@ export async function fetchDisputeContextWith(
     };
     context.smartDisputesStatus = dispute.smart_disputes?.status ?? null;
   } catch (err) {
-    console.error(
-      "dispute context: disputes.retrieve failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: disputes.retrieve failed", errorMessage(err));
   }
 
   let disputedCurrency: string | null = null;
@@ -92,10 +90,7 @@ export async function fetchDisputeContextWith(
       input.customerId ??
       (typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null));
   } catch (err) {
-    console.error(
-      "dispute context: charges.retrieve failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: charges.retrieve failed", errorMessage(err));
     return context;
   }
 
@@ -123,7 +118,7 @@ export async function fetchDisputeContextWith(
       status: c.status,
     }));
   } catch (err) {
-    console.error("dispute context: charges.list failed", err instanceof Error ? err.message : err);
+    console.error("dispute context: charges.list failed", errorMessage(err));
   }
 
   try {
@@ -140,10 +135,7 @@ export async function fetchDisputeContextWith(
       };
     }
   } catch (err) {
-    console.error(
-      "dispute context: subscriptions.list failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: subscriptions.list failed", errorMessage(err));
   }
 
   return context;
@@ -167,10 +159,7 @@ async function fetchDisputeContext(
     const stripe = getConnectedStripe(await decryptToken(env, row.token));
     return await fetchDisputeContextWith(stripe, input);
   } catch (err) {
-    console.error(
-      "dispute context: connection read failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: connection read failed", errorMessage(err));
     return emptyDisputeContext(input.customerId);
   }
 }
