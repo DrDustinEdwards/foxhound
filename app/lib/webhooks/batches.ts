@@ -381,9 +381,9 @@ export function buildRefundStampBatch(
 /** The conditional recovered_payments.disputed_at stamp (feeds the billable
  *  predicate, SCHEMA.md spine #3): only touches a row that is not already
  *  stamped, so a replay or a second dispute event on the same recovery is a
- *  no-op, not a second write. Shared by buildDisputeStampBatch and
- *  buildDisputeIntakeBatch (dispute intake also excludes the underlying
- *  recovery from billing when the disputed charge is resolved to one). */
+ *  no-op, not a second write. Used by buildDisputeIntakeBatch, which excludes
+ *  the underlying recovery from billing when the disputed charge is resolved
+ *  to one. */
 function buildDisputedAtStamp(db: Db, accountId: string, failedPaymentId: string, at: Date) {
   return [
     // The order-independent half, as refund_signal_at is for refunds: a dispute
@@ -410,17 +410,6 @@ function buildDisputedAtStamp(db: Db, accountId: string, failedPaymentId: string
         ),
       ),
   ] as const;
-}
-
-/** charge.dispute.created: claim + stamp recovered_payments.disputed_at (feeds the billable predicate). */
-export function buildDisputeStampBatch(
-  db: Db,
-  input: { claim: WebhookClaimInput; accountId: string; failedPaymentId: string; at: Date },
-): MoneyWriteBatch {
-  return [
-    buildWebhookClaim(db, input.claim),
-    ...buildDisputedAtStamp(db, input.accountId, input.failedPaymentId, input.at),
-  ];
 }
 
 export interface DisputeIntakeInput {
