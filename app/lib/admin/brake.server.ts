@@ -60,6 +60,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -170,14 +171,6 @@ export const SUBREQUEST_BUDGET = 1000;
  *  per-account rows carry every id, so this is a readability cap on one blob,
  *  not a loss of audit detail. */
 const AUDIT_ID_SAMPLE_LIMIT = 100;
-
-/** Split ids into batch-sized groups. Pure, so the subrequest arithmetic is
- *  assertable in a test instead of argued in a comment. */
-export function chunkAccountIds(ids: string[], size: number = BRAKE_CHUNK_ACCOUNTS): string[][] {
-  const out: string[][] = [];
-  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
-  return out;
-}
 
 /** Subrequests one engage/release costs: the eligibility read, the umbrella row,
  *  then TWO batches per chunk (flag writes, then audit rows for the ids those
@@ -298,7 +291,7 @@ async function applyBrakeTransition(
   });
 
   const committed: string[] = [];
-  for (const group of chunkAccountIds(accountIds)) {
+  for (const group of chunked(accountIds, BRAKE_CHUNK_ACCOUNTS)) {
     const flagWrites: BatchStatements = group.map((accountId) =>
       buildSetProcessingPaused(db, accountId, input.paused, input.reason, input.guard),
     );

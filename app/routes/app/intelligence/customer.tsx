@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
@@ -166,7 +167,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             to="/recovery/payments"
             className="group inline-flex min-h-6 items-center gap-1 text-accent-text no-underline hover:text-accent-hover"
           >
-            {recoveryCount} recovery {recoveryCount === 1 ? "payment" : "payments"}
+            {plural(recoveryCount, "recovery payment")}
             <ArrowRight
               aria-hidden="true"
               size={13}

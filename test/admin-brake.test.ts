@@ -1,3 +1,4 @@
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -13,7 +14,6 @@ import {
   BRAKE_CHUNK_ACCOUNTS,
   BRAKE_PAUSE_REASON,
   brakeSubrequestCost,
-  chunkAccountIds,
   countStaleMarkers,
   engageBrake,
   getBrakeStatus,
@@ -124,7 +124,7 @@ describe("engage", () => {
 describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () => {
   it("chunks cover every account exactly once, with no empty trailing batch", () => {
     const ids = Array.from({ length: 501 }, (_, i) => `acc_${i}`);
-    const chunks = chunkAccountIds(ids);
+    const chunks = chunked(ids, BRAKE_CHUNK_ACCOUNTS);
     expect(chunks.flat()).toEqual(ids);
     expect(chunks.every((c) => c.length > 0)).toBe(true);
     expect(chunks).toHaveLength((brakeSubrequestCost(ids.length) - 2) / 2);

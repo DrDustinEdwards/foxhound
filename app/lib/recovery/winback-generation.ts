@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
 
 import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
@@ -58,9 +59,9 @@ function describeWinbackDelay(offsetHours: number): string {
   const hours = Math.max(0, Math.round(offsetHours));
   if (hours >= 24 && hours % 24 === 0) {
     const days = hours / 24;
-    return `${days} ${days === 1 ? "day" : "days"}`;
+    return plural(days, "day");
   }
-  return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return plural(hours, "hour");
 }
 
 function describeStep(stepNumber: number, offsetHours: number): string {

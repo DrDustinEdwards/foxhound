@@ -21,7 +21,8 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accountMembers, accounts, adminImpersonations, user } from "~/db";
 import { getAdminSession } from "~/lib/auth/access.server";
-import { setHostCookie } from "~/lib/http/cookies";
+import { readCookie } from "@dustinedwards/site-runtime/headers";
+import { bare, setHostCookie } from "~/lib/http/cookies";
 import type { Membership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
@@ -34,15 +35,7 @@ export const IMPERSONATION_READ_ONLY_MESSAGE =
   "You are viewing this merchant read-only. Nothing can be changed while viewing as a merchant.";
 
 function readToken(request: Request): string | null {
-  const header = request.headers.get("cookie") ?? "";
-  for (const part of header.split(";")) {
-    const [key, ...rest] = part.trim().split("=");
-    if (key === IMPERSONATION_COOKIE) {
-      const value = rest.join("=");
-      return value.length > 0 ? value : null;
-    }
-  }
-  return null;
+  return readCookie(request, bare(IMPERSONATION_COOKIE)) || null;
 }
 
 /** Cookie presence only, no database: what the read-only gate keys on. */

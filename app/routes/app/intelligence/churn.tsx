@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { Link } from "capsomer/react/link";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { PageHead } from "capsomer/react/page-head";
@@ -128,7 +129,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                     {formatMoney(row.mrrCents, currency)}
                   </p>
                   <p className="m-0 text-label text-text-tertiary">
-                    {row.customerCount} {row.customerCount === 1 ? "customer" : "customers"} ·{" "}
+                    {plural(row.customerCount, "customer")} ·{" "}
                     {churnBandSharePct(row.mrrCents, view.scoredMrrCents)}% of scored MRR
                   </p>
                 </Panel>

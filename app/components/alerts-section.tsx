@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useRef, useState } from "react";
 import { Form, useNavigation, useSearchParams } from "react-router";
@@ -108,7 +109,7 @@ export function AlertsSection({
                 card past the 800px column instead of scrolling inside it. */}
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 text-label">
               <p className="m-0 text-text-secondary">
-                {alerts.length} {alerts.length === 1 ? "alert" : "alerts"} configured
+                {plural(alerts.length, "alert")} configured
                 {notificationEmail ? (
                   <span className="text-text-subtle"> · email goes to {notificationEmail}</span>
                 ) : null}

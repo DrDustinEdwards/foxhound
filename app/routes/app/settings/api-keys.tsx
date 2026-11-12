@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
@@ -413,9 +414,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
         <div className="cap-panel-body">
           <div className="flex flex-wrap items-center justify-between gap-3">
             {keys ? (
-              <p className="text-label text-text-secondary">
-                {keys.length} active {keys.length === 1 ? "key" : "keys"}
-              </p>
+              <p className="text-label text-text-secondary">{plural(keys.length, "active key")}</p>
             ) : (
               <span />
             )}

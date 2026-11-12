@@ -22,6 +22,7 @@
 // Its link is a digest token: following it switches off this
 // account's digest and suppresses no address (PR 158 review round 1).
 
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type { Block } from "capsomer/email";
 
 import { recoveryFooterNote } from "~/lib/email/templates";
@@ -169,7 +170,7 @@ function intelligenceSection(input: DigestInput): Block[] {
   if (outreach > 0) {
     out.push({
       type: "paragraph",
-      text: `${outreach} ${outreach === 1 ? "customer" : "customers"} flagged for personal outreach.`,
+      text: `${plural(outreach, "customer")} flagged for personal outreach.`,
     });
   }
   if (input.highRiskCustomers.length > 0) {

@@ -1,6 +1,7 @@
 // Pure display helpers for /admin/platform/crons and the Overview's cron health, shared
 // by both pages (not a .server module: the components render them).
 
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { ordinal } from "~/lib/billing/page";
 
 /** The element id of one run on /admin/platform/crons. */
@@ -86,7 +87,7 @@ export function cronEnableHref(cronName: string): string {
 
 /** "19 scheduled jobs, 1 switched off.", "1 scheduled job, none switched off." */
 export function cronsSummaryWords(total: number, switchedOff: number): string {
-  const jobs = total === 1 ? "1 scheduled job" : `${total} scheduled jobs`;
+  const jobs = plural(total, "scheduled job");
   return `${jobs}, ${switchedOff === 0 ? "none" : switchedOff} switched off.`;
 }
 

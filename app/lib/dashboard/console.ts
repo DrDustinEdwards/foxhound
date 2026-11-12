@@ -8,6 +8,7 @@
 // passes typecheck and fails the client build, so anything a component calls has
 // to live here.
 
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
@@ -84,12 +85,10 @@ export function isSequenceExhausted(
 export function atRiskSubtext(activeSequenceCount: number, openDisputeCount: number): string {
   const parts: string[] = [];
   if (activeSequenceCount > 0) {
-    parts.push(
-      `${activeSequenceCount} active ${activeSequenceCount === 1 ? "sequence" : "sequences"}`,
-    );
+    parts.push(plural(activeSequenceCount, "active sequence"));
   }
   if (openDisputeCount > 0) {
-    parts.push(`${openDisputeCount} open ${openDisputeCount === 1 ? "dispute" : "disputes"}`);
+    parts.push(plural(openDisputeCount, "open dispute"));
   }
   return parts.length > 0 ? parts.join(" · ") : "All clear";
 }
@@ -97,7 +96,7 @@ export function atRiskSubtext(activeSequenceCount: number, openDisputeCount: num
 /** The all-time recovery count subtext under the protected figure. */
 export function protectedSubtext(recoveredAllTimeCount: number): string {
   if (recoveredAllTimeCount === 0) return "No recoveries yet";
-  return `${recoveredAllTimeCount} ${recoveredAllTimeCount === 1 ? "payment" : "payments"} recovered all time`;
+  return `${plural(recoveredAllTimeCount, "payment")} recovered all time`;
 }
 
 /** Whether a card's expiry falls inside the feed's window. A card that expired

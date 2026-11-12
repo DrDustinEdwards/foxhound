@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type Stripe from "stripe";
 
 import type { EmailNotice } from "~/lib/email/templates";
@@ -99,7 +100,7 @@ export function healthProblemLines(problems: HealthProblem[], health: AccountHea
   if (problems.includes("past_due")) {
     const count = health.pastDueCount ?? 0;
     lines.push(
-      `Stripe lists ${count} past-due ${count === 1 ? "requirement" : "requirements"} on this account. ` +
+      `Stripe lists ${plural(count, "past-due requirement")} on this account. ` +
         "Stripe can turn off charges or payouts until they are provided.",
     );
   }

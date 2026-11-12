@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { Link } from "capsomer/react/link";
 
 import { getDb } from "~/db";
@@ -81,7 +82,7 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
 
       <h1 className="mt-3 text-2xl font-bold text-text">{activeLabel}</h1>
       <p className="mt-1 font-mono text-sm text-text-secondary">
-        {posts.length} {posts.length === 1 ? "article" : "articles"}
+        {plural(posts.length, "article")}
       </p>
 
       <div className="mb-8 mt-8 flex flex-wrap gap-2">

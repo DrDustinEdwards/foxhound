@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { WINBACK_STEP1_HOURS, WINBACK_UNFLAGGED_STEP1_HOURS } from "~/lib/constants";
 
 // The one Recovery timing Intelligence changes, in one sentence for every
@@ -8,6 +9,4 @@ import { WINBACK_STEP1_HOURS, WINBACK_UNFLAGGED_STEP1_HOURS } from "~/lib/consta
 // WINBACK_UNFLAGGED_STEP1_HOURS. Nothing writes the flag yet
 // (WINBACK_PRIORITY_ACTION has no producer), so the second sentence says so.
 
-const hours = (n: number) => `${n} ${n === 1 ? "hour" : "hours"}`;
-
-export const INTELLIGENCE_WINBACK_SENTENCE = `On an account with Intelligence, the first win-back email after a cancellation waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)} instead of ${hours(WINBACK_STEP1_HOURS)}, unless the customer is flagged as a win-back priority. Nothing in Foxhound flags a customer as a win-back priority yet, so today every canceled customer on such an account waits ${hours(WINBACK_UNFLAGGED_STEP1_HOURS)}.`;
+export const INTELLIGENCE_WINBACK_SENTENCE = `On an account with Intelligence, the first win-back email after a cancellation waits ${plural(WINBACK_UNFLAGGED_STEP1_HOURS, "hour")} instead of ${plural(WINBACK_STEP1_HOURS, "hour")}, unless the customer is flagged as a win-back priority. Nothing in Foxhound flags a customer as a win-back priority yet, so today every canceled customer on such an account waits ${plural(WINBACK_UNFLAGGED_STEP1_HOURS, "hour")}.`;

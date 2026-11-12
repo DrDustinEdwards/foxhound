@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 import type { DeclineCategory } from "~/lib/constants";
@@ -32,7 +33,7 @@ export function SequenceTimeline({ category }: { category: DeclineCategory }) {
   return (
     <div className="my-4 rounded-lg border border-border bg-surface p-4">
       <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
-        {DECLINE_CATEGORY_LABELS[category]}: {steps.length} {steps.length === 1 ? "step" : "steps"}
+        {DECLINE_CATEGORY_LABELS[category]}: {plural(steps.length, "step")}
       </div>
       <div className="pb-2">
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
