@@ -3,7 +3,7 @@ import { Button } from "capsomer/react/button";
 import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
-import { Link } from "capsomer/react/link";
+import { AuthLink } from "~/components/auth-card";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -242,19 +242,6 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
 
-/** A small text link on the card, amber, underlined so it is not told apart by
- *  color alone, and 24px tall as a target. */
-function CardLink({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <Link
-      to={to}
-      className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"
-    >
-      {children}
-    </Link>
-  );
-}
-
 /**
  * The page's frame: Recova's one card, centered, 480px wide (app/connect/page.tsx
  * line 43), under the site header. Not AuthShell: Recova's /connect has no
@@ -351,7 +338,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
           Your Stripe account is connected. Foxhound can now recover failed payments for you.
         </Banner>
         <p className="mt-4 text-center text-label">
-          <CardLink to="/console">Go to dashboard</CardLink>
+          <AuthLink to="/console">Go to dashboard</AuthLink>
         </p>
       </ConnectFrame>
     );
@@ -384,10 +371,10 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
         </p>
       )}
       <p className="mt-4 text-center text-micro text-text-subtle">
-        Not ready? <CardLink to="/demos/recovery">See a demo first</CardLink>
+        Not ready? <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>
       <p className="mt-2 text-center text-micro text-text-subtle">
-        <CardLink to="/settings">Manage account</CardLink>
+        <AuthLink to="/settings">Manage account</AuthLink>
       </p>
     </ConnectFrame>
   );

@@ -290,10 +290,7 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
             </p>
             <p className="mt-1 max-w-2xl text-copy text-text-secondary">{section.description}</p>
           </div>
-          <Link
-            to={section.tagHref}
-            className="group whitespace-nowrap text-copy font-medium leading-6 text-accent-text hover:underline"
-          >
+          <Link to={section.tagHref} className="group whitespace-nowrap text-copy leading-6">
             See all{" "}
             <ArrowRight
               className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"

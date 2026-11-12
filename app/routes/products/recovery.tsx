@@ -112,10 +112,7 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
             body: (
               <>
                 {categories.bodyBefore}{" "}
-                <a
-                  href={categories.linkHref}
-                  className="text-accent-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80"
-                >
+                <a href={categories.linkHref} rel="external">
                   {categories.linkText}
                 </a>{" "}
                 {categories.bodyAfter}

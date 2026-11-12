@@ -57,8 +57,7 @@ const ERRORS_PATH = "/admin/platform/errors";
 const ISSUES_HEADING_ID = "admin-errors-issues-heading";
 const FAILED_HEADING_ID = "admin-errors-failed-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK =
-  "inline-flex min-h-6 items-center gap-1 text-text underline underline-offset-2 hover:text-brand-text";
+const LINK = "inline-flex min-h-6 items-center gap-1";
 
 // Sentry's levels in words, with Capsomer's status glyph and tone.
 const LEVELS: Record<string, { tone: StatusTone; word: string }> = {

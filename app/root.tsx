@@ -75,8 +75,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const hydrates = usePageHydrates();
 
+  // data-family="amber" puts the amber family's accents in Capsomer's lowest layer (capbase) for the
+  // whole page, so a link outside a .fh-cap wrapper takes amber tints, not Capsomer's default purple.
+  // Foxhound's own unlayered :root tokens still win where they share a name.
   return (
-    <html lang="en" data-theme={theme} className="h-full antialiased">
+    <html lang="en" data-theme={theme} data-family="amber" className="h-full antialiased">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

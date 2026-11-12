@@ -26,9 +26,6 @@ import "~/site-header.css";
 // Text is at Recova's sizes: the 0.9375rem body, the 1.25rem section heads and
 // the 0.875rem summary.
 
-/** Capsomer's link, as base.css draws it, plus Recova's underline. */
-const LEGAL_LINK = "text-accent-text underline underline-offset-2 hover:text-accent-hover";
-
 export interface LegalSectionDef {
   id: string;
   number: number;
@@ -69,7 +66,7 @@ export function LegalContents({
       <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
         {sections.map((s) => (
           <li key={s.id} className="list-none text-label">
-            <a href={`#${s.id}`} className={LEGAL_LINK}>
+            <a href={`#${s.id}`}>
               {s.number}. {s.title}
             </a>
           </li>
@@ -127,25 +124,17 @@ export function LegalList({ children }: { children: ReactNode }) {
 }
 
 export function LegalMailto({ email }: { email: string }) {
-  return (
-    <a href={`mailto:${email}`} className={LEGAL_LINK}>
-      {email}
-    </a>
-  );
+  return <a href={`mailto:${email}`}>{email}</a>;
 }
 
 export function LegalLink({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <Link to={to} className={LEGAL_LINK}>
-      {children}
-    </Link>
-  );
+  return <Link to={to}>{children}</Link>;
 }
 
-/** A link off the site, opened in a new tab as Recova's legal pages open them. */
+/** A link off the site, in the same tab as every public link (link-rules), marked as leaving it. */
 export function LegalExternal({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={LEGAL_LINK}>
+    <a href={href} rel="external noopener noreferrer">
       {children}
     </a>
   );

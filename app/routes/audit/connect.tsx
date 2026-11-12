@@ -3,7 +3,7 @@ import { Button } from "capsomer/react/button";
 import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { Form, redirect, useFormAction, useNavigation } from "react-router";
-import { Link } from "capsomer/react/link";
+import { AuthLink } from "~/components/auth-card";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -233,12 +233,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
 
       <p className="mt-4 text-center text-micro text-text-subtle">
         {"Reads only · Secure · Free · "}
-        <Link
-          to="/demos/recovery"
-          className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"
-        >
-          See a demo first
-        </Link>
+        <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>
     </AuditConnectFrame>
   );

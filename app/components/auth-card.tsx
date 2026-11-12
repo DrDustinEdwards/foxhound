@@ -135,14 +135,11 @@ function AuthField({
   );
 }
 
-/** A small text link, amber, underlined so it is not told apart by color
- *  alone, and 24px tall as a target. */
+/** A small text link (Capsomer's link system, capsomer/links.css), 24px tall
+ *  as a target. */
 export function AuthLink({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <Link
-      to={to}
-      className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"
-    >
+    <Link to={to} className="inline-flex min-h-6 items-center">
       {children}
     </Link>
   );
