@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 
 import { asId } from "~/lib/stripe/ids";
+import { stripeDate } from "~/lib/stripe/time";
 
 // The ONE mapping from a Stripe.Dispute object to the fields dispute intake
 // writes, shared by the two callers that produce one.
@@ -59,10 +60,8 @@ export function disputeIntakeFields(
     currency: dispute.currency ?? "usd",
     reason: dispute.reason ?? "general",
     status: dispute.status ?? "needs_response",
-    evidenceDeadline: dispute.evidence_details?.due_by
-      ? new Date(dispute.evidence_details.due_by * 1000)
-      : null,
-    createdAt: dispute.created ? new Date(dispute.created * 1000) : now,
+    evidenceDeadline: stripeDate(dispute.evidence_details?.due_by),
+    createdAt: stripeDate(dispute.created) ?? now,
   };
 }
 
@@ -83,9 +82,7 @@ export function disputeLiveFields(dispute: Stripe.Dispute): DisputeLiveFields | 
   return {
     stripeDisputeId: dispute.id,
     status: dispute.status ?? "needs_response",
-    evidenceDeadline: dispute.evidence_details?.due_by
-      ? new Date(dispute.evidence_details.due_by * 1000)
-      : null,
+    evidenceDeadline: stripeDate(dispute.evidence_details?.due_by),
     hasEvidence: dispute.evidence_details?.has_evidence ?? false,
     submissionCount: dispute.evidence_details?.submission_count ?? 0,
     amountCents: dispute.amount ?? 0,
@@ -135,7 +132,7 @@ export function disputeFundsMovements(dispute: Stripe.Dispute): DisputeFundsMove
       amountCents,
       feeCents: bt.fee ?? 0,
       currency: bt.currency ?? dispute.currency ?? "usd",
-      occurredAt: new Date((bt.created ?? 0) * 1000),
+      occurredAt: stripeDate(bt.created ?? 0),
     });
   }
   return movements;

@@ -1,11 +1,11 @@
 import { capitalize } from "@drdustinedwards/site-helpers/text";
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
+import { SaveBar } from "capsomer/react/save-bar";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
-import { Status } from "capsomer/react/status";
+import "capsomer/save-bar.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -278,17 +278,13 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         </div>
 
         {/* Recova's SaveBar: right-aligned, the result beside the button. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <p role="status" className="text-label">
-            {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
-            {result?.ok === false ? (
-              <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
-            ) : null}
-          </p>
-          <Button type="submit" variant="primary" pending={saving}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          pending={saving}
+          saved={result?.ok === true}
+          error={
+            result?.ok === false ? (result.error ?? "Failed to save. Please try again.") : null
+          }
+        />
       </DemoGuardedForm>
     </>
   );

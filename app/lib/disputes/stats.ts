@@ -22,6 +22,7 @@
 
 import type { CurrencyAmount } from "~/lib/money/totals";
 import { SUBMITTED_EXTERNALLY, isDisputeResolved } from "./labels";
+import { percent } from "capsomer/behavior/meter";
 
 export interface DisputeStatsInput {
   state: string;
@@ -76,7 +77,7 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
     submittedByFoxhoundCount,
     wonCount,
     lostCount,
-    winRatePct: resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : null,
+    winRatePct: resolvedCount > 0 ? percent(wonCount, resolvedCount) : null,
   };
 }
 

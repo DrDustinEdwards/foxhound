@@ -8,7 +8,6 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
@@ -23,7 +22,7 @@ import {
 } from "~/lib/auth";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_INVITE } from "~/lib/constants";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 import { pendingState, shouldClearInvite, type TeamActionData } from "~/lib/settings/team-page";
@@ -151,10 +150,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // The limit is 311's limiter, used unchanged, at Recova's RATE_LIMIT_SIGNUP
   // numbers on `invite:{ip}`, and fails open like every other caller (Recova's
   // limiter does too). It is spent on every invite attempt, as Recova's is.
-  const ip = clientIp(request);
-  if (
-    !(await isWithinRateLimit(env, "invite", ip, RATE_LIMIT_INVITE.max, RATE_LIMIT_INVITE.windowMs))
-  ) {
+  if (!(await isIpWithinRateLimit(env, request, "invite", RATE_LIMIT_INVITE))) {
     return refuse("Too many requests. Try again later.", 429);
   }
   const email = String(form.get("email") ?? "").trim();

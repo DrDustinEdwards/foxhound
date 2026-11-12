@@ -2,6 +2,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 import type Stripe from "stripe";
 
 import type { EmailNotice } from "~/lib/email/templates";
+import { stripeDate } from "~/lib/stripe/time";
 
 // THE CONNECTED STRIPE ACCOUNT'S OWN HEALTH, read from account.updated. Stripe
 // sends that event to the Connect endpoint for the connected account itself
@@ -34,7 +35,7 @@ export function readAccountHealth(account: Stripe.Account): AccountHealth {
     payoutsEnabled: typeof account.payouts_enabled === "boolean" ? account.payouts_enabled : null,
     disabledReason: requirements?.disabled_reason ?? null,
     pastDueCount: requirements?.past_due ? requirements.past_due.length : null,
-    currentDeadline: deadline ? new Date(deadline * 1000) : null,
+    currentDeadline: stripeDate(deadline),
   };
 }
 

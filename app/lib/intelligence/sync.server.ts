@@ -51,6 +51,7 @@ import {
   type ScheduleTerms,
 } from "./subscription-terms";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
+import { stripeMs } from "~/lib/stripe/time";
 
 // The live Stripe + D1 seam for the Intelligence deterministic engine
 // (TASK-foxhound-intelligence-deterministic.md's "key architectural fact":
@@ -152,7 +153,7 @@ function narrowDiscounts(
     out.push({
       couponId: typeof coupon === "string" ? coupon : coupon.id,
       embedded: typeof coupon === "string" ? null : coupon,
-      endMs: d.end ? d.end * 1000 : null,
+      endMs: stripeMs(d.end),
     });
   }
   return out;
@@ -174,8 +175,8 @@ function narrowSchedule(schedule: Stripe.Subscription["schedule"]): ScheduleTerm
     status: schedule.status,
     endBehavior: schedule.end_behavior,
     phases: schedule.phases.map((p) => ({
-      startMs: p.start_date * 1000,
-      endMs: p.end_date * 1000,
+      startMs: stripeMs(p.start_date),
+      endMs: stripeMs(p.end_date),
       billingKey: phaseBillingKey(p),
     })),
   };
@@ -184,10 +185,10 @@ function narrowSchedule(schedule: Stripe.Subscription["schedule"]): ScheduleTerm
 function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription {
   return {
     status: sub.status,
-    createdMs: sub.created * 1000,
+    createdMs: stripeMs(sub.created),
     currency: sub.currency,
     churnReason: sub.status === "canceled" ? subscriptionCancellationChurnReason(sub) : null,
-    cancelAtMs: sub.cancel_at ? sub.cancel_at * 1000 : null,
+    cancelAtMs: stripeMs(sub.cancel_at),
     items: sub.items.data.map((item) => ({
       priceId: item.price.id,
       productId: asId(item.price.product) || null,
@@ -356,10 +357,8 @@ async function fetchCustomerStripeSnapshot(
     invoicesScanned += 1;
     if (invoicesScanned > INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER) break;
     invoiceHistory.push({
-      dueAt: invoice.due_date ? invoice.due_date * 1000 : null,
-      paidAt: invoice.status_transitions?.paid_at
-        ? invoice.status_transitions.paid_at * 1000
-        : null,
+      dueAt: stripeMs(invoice.due_date),
+      paidAt: stripeMs(invoice.status_transitions?.paid_at),
     });
     for (const line of invoice.lines.data) {
       const priceDetails = line.pricing?.price_details;
@@ -368,7 +367,7 @@ async function fetchCustomerStripeSnapshot(
       const priceId =
         typeof priceDetails.price === "string" ? priceDetails.price : priceDetails.price.id;
       billingHistory.push({
-        at: invoice.created * 1000,
+        at: stripeMs(invoice.created),
         priceId,
         quantity: line.quantity ?? 1,
         interval: priceInterval(price),
@@ -589,7 +588,7 @@ export async function runIntelligenceSyncForAccount(
     if (customer.deleted) continue;
 
     const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id, coupons, nowMs);
-    const customerSinceMs = customer.created * 1000;
+    const customerSinceMs = stripeMs(customer.created);
     const fields = buildCustomerContextFields({
       customerSinceMs,
       nowMs,

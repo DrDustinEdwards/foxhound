@@ -8,19 +8,6 @@ import type { ChartFit } from "capsomer/react/chart-frame";
 // cannot. Same reason app/routes/app/recovery/payments/index.tsx keeps its own
 // page-size constant.
 
-/**
- * Share of scored MRR one health band represents, as a rounded whole percent.
- *
- * The denominator is scored MRR, not total account MRR. Legacy divided band
- * totals (which only counted customers with a health score) by every customer's
- * MRR (scored or not), so the three shares silently failed to sum to 100%
- * whenever anyone was unscored, with nothing on screen explaining the gap.
- */
-export function churnBandSharePct(bandMrrCents: number, scoredMrrCents: number): number {
-  if (scoredMrrCents <= 0) return 0;
-  return Math.round((bandMrrCents / scoredMrrCents) * 100);
-}
-
 /** One month of the churn-rate chart, as the churn view returns it. */
 export interface ChurnRatePointLike {
   at: Date;

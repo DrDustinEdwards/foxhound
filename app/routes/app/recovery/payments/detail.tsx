@@ -1,5 +1,5 @@
 import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { ArrowRight, ArrowUpRight, Check, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
@@ -10,6 +10,7 @@ import { Panel } from "capsomer/react/panel";
 import { CopyButton } from "capsomer/react/copy";
 import { ExpandToggle } from "capsomer/react/disclosure";
 import { Pill } from "capsomer/react/status";
+import { useShownFor } from "capsomer/react/hooks";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/copy.css";
@@ -126,6 +127,11 @@ export const ACTION_SUCCESS_CLEAR_MS = 2000;
 
 /** Recova's 2000ms hold on "Saved" beside Save note (PaymentDetailClient.tsx 189). */
 export const NOTE_SAVED_CLEAR_MS = 2000;
+
+/** A result that clears on its own: a success notice (an error stays). */
+function isNotice(result: object): boolean {
+  return "notice" in result;
+}
 
 export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -316,32 +322,20 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const pressedIntent = navigation.formData?.get("intent") ?? null;
 
   // Recova's action result: a success clears after 2000ms, an error stays until the next press.
-  const notice = actionData && "notice" in actionData ? actionData.notice : null;
-  const [clearedNoticeFor, setClearedNoticeFor] = useState<unknown>(null);
+  const [shownActionData] = useShownFor(actionData, ACTION_SUCCESS_CLEAR_MS, isNotice);
   // Pressing an action clears the last result at once, as Recova's does.
   const actionResult = visibleActionResult({
-    actionData,
-    clearedFor: clearedNoticeFor,
+    actionData: shownActionData,
     pendingIntent: pressedIntent,
   });
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setClearedNoticeFor(actionData), ACTION_SUCCESS_CLEAR_MS);
-    return () => clearTimeout(timer);
-  }, [actionData, notice]);
 
   // Recova saves a note in place (PaymentDetailClient.tsx saveNote): "Saving..."
   // on the button, then "Saved" beside it for 2000ms, or its error line.
   const noteFetcher = useFetcher<typeof action>();
   const noteSaving = noteFetcher.state !== "idle";
   const noteResult = noteFetcher.data;
-  const [savedClearedFor, setSavedClearedFor] = useState<unknown>(null);
-  const noteSaved = Boolean(noteResult && "notice" in noteResult && savedClearedFor !== noteResult);
-  useEffect(() => {
-    if (!noteResult || !("notice" in noteResult)) return;
-    const timer = setTimeout(() => setSavedClearedFor(noteResult), NOTE_SAVED_CLEAR_MS);
-    return () => clearTimeout(timer);
-  }, [noteResult]);
+  const [shownNote] = useShownFor(noteResult, NOTE_SAVED_CLEAR_MS, isNotice);
+  const noteSaved = Boolean(shownNote && isNotice(shownNote));
   const noteError = noteResult && "error" in noteResult;
 
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;

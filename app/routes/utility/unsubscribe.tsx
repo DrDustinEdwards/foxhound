@@ -1,4 +1,3 @@
-import { clientIp } from "@dustinedwards/site-runtime/http";
 import { Button } from "capsomer/react/button";
 import { ResultPage } from "capsomer/react/status-mark";
 import { Form, useActionData, useNavigation } from "react-router";
@@ -20,7 +19,7 @@ import {
   verifyUnsubscribeToken,
   type UnsubscribeTokenPayload,
 } from "~/lib/email/unsubscribe-token";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 
 import type { Route } from "./+types/unsubscribe";
 import { readForm } from "@dustinedwards/site-runtime/body";
@@ -82,14 +81,7 @@ export const middleware: Route.MiddlewareFunction[] = [
   async ({ request, context }, next) => {
     if (request.method === "POST") return next();
     const { env } = context.get(cloudflareContext);
-    const ip = clientIp(request);
-    const allowed = await isWithinRateLimit(
-      env,
-      "unsubscribe",
-      ip,
-      RATE_LIMIT_UNSUBSCRIBE.max,
-      RATE_LIMIT_UNSUBSCRIBE.windowMs,
-    );
+    const allowed = await isIpWithinRateLimit(env, request, "unsubscribe", RATE_LIMIT_UNSUBSCRIBE);
     if (!allowed) {
       return new Response("Too many requests", {
         status: 429,

@@ -15,6 +15,7 @@ import {
   emptyDisputeContext,
 } from "./triage";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
+import { stripeDate } from "~/lib/stripe/time";
 
 // Recova's fetchDisputeContext (lib/disputes-evidence.ts, blob 2d5e7af6) on the
 // connected account's own token: the disputed charge's billing details, card
@@ -45,10 +46,6 @@ function combineAvs(
   const zip = card?.checks?.address_postal_code_check ?? null;
   if (!line1 && !zip) return null;
   return `line1:${line1 ?? "n/a"} zip:${zip ?? "n/a"}`;
-}
-
-function iso(seconds: number | null | undefined): string | null {
-  return seconds ? new Date(seconds * 1000).toISOString() : null;
 }
 
 /** Prior charges read for evidence, and how many are listed in it. */
@@ -85,7 +82,7 @@ export async function fetchDisputeContextWith(
     context.radarRiskScore = charge.outcome?.risk_score ?? null;
     context.radarRiskLevel = charge.outcome?.risk_level ?? null;
     context.threeDSecure = card?.three_d_secure?.result ?? null;
-    context.serviceDate = new Date(charge.created * 1000);
+    context.serviceDate = stripeDate(charge.created);
     context.customerId =
       input.customerId ??
       (typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null));
@@ -112,7 +109,7 @@ export async function fetchDisputeContextWith(
       .filter((c) => !disputedCurrency || c.currency === disputedCurrency)
       .reduce((sum, c) => sum + c.amount, 0);
     context.priorChargesJson = historic.slice(0, PRIOR_CHARGES_LISTED).map((c) => ({
-      date: new Date(c.created * 1000).toISOString(),
+      date: stripeDate(c.created).toISOString(),
       amount: c.amount,
       currency: c.currency,
       status: c.status,
@@ -129,8 +126,8 @@ export async function fetchDisputeContextWith(
       context.subscriptionJson = {
         id: sub.id,
         status: sub.status,
-        start_date: iso(sub.start_date),
-        canceled_at: iso(sub.canceled_at),
+        start_date: stripeDate(sub.start_date)?.toISOString() ?? null,
+        canceled_at: stripeDate(sub.canceled_at)?.toISOString() ?? null,
         plan_amount: sub.items.data[0]?.price?.unit_amount ?? null,
       };
     }

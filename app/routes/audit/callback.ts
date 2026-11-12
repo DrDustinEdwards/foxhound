@@ -1,10 +1,9 @@
 import { redirect } from "react-router";
-import { clientIp } from "@dustinedwards/site-runtime/http";
 
 import { revokeAuditGrant, scheduleAuditGrantRevoke } from "~/lib/audit/grant-revoke.server";
 import { RATE_LIMIT_AUDIT, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { exchangeConnectCode } from "~/lib/stripe/connect";
 import { AUDIT_ACTION, verifyConnectState } from "~/lib/stripe/connect-state";
 import {
@@ -58,14 +57,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     });
 
   // 311's limiter, used unchanged, at legacy's numbers on legacy's second key.
-  const ip = clientIp(request);
-  const allowed = await isWithinRateLimit(
-    env,
-    "audit-callback",
-    ip,
-    RATE_LIMIT_AUDIT.max,
-    RATE_LIMIT_AUDIT.windowMs,
-  );
+  const allowed = await isIpWithinRateLimit(env, request, "audit-callback", RATE_LIMIT_AUDIT);
   if (!allowed) return bounce("rate_limited");
 
   const code = url.searchParams.get("code");

@@ -1,8 +1,8 @@
+import { SaveBar } from "capsomer/react/save-bar";
 import { Field } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
-import { Status } from "capsomer/react/status";
+import "capsomer/save-bar.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -308,18 +308,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
           </div>
         </section>
 
-        {/* Legacy's SaveBar: right-aligned under the card, the result beside
-            the button. The live region is on the page from the start, so the
-            result is announced when it arrives. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <span role="status">
-            {result?.ok ? <Status tone="ok">Saved</Status> : null}
-            {otherError ? <Status tone="crit">{otherError}</Status> : null}
-          </span>
-          <Button type="submit" variant="primary" pending={busy}>
-            Save changes
-          </Button>
-        </div>
+        {/* Legacy's SaveBar: right-aligned under the card, the result beside the button. */}
+        <SaveBar pending={busy} saved={result?.ok === true} error={otherError} />
       </DemoGuardedForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />

@@ -1,9 +1,10 @@
 import { useId, useRef } from "react";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
+import { SaveBar } from "capsomer/react/save-bar";
 import { PageHead } from "capsomer/react/page-head";
-import { Pill, Status } from "capsomer/react/status";
+import { Pill } from "capsomer/react/status";
 import { Switch } from "capsomer/react/switch";
+import "capsomer/save-bar.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -283,19 +284,14 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
         {/* Recova's SaveBar: right-aligned, the result beside the button. Only
             while Disputes is on: with the settings hidden there is nothing to
             save, and a save would post them empty. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <p role="status" className="text-label">
-            {result?.ok === true && !result.toggled ? <Status tone="ok">Saved</Status> : null}
-            {result?.ok === false ? (
-              <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
-            ) : null}
-          </p>
-          {enabled ? (
-            <Button type="submit" variant="primary" pending={saving}>
-              Save changes
-            </Button>
-          ) : null}
-        </div>
+        <SaveBar
+          pending={saving}
+          saved={result?.ok === true && !result.toggled}
+          error={
+            result?.ok === false ? (result.error ?? "Failed to save. Please try again.") : null
+          }
+          button={enabled}
+        />
       </DemoGuardedForm>
     </>
   );

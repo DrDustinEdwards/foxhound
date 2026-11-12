@@ -1,8 +1,7 @@
-import { clientIp } from "@dustinedwards/site-runtime/http";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_OAUTH_TOKEN } from "~/lib/constants";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { exchangeToken, oauthResponse, parseOAuthBody } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/oauth-token";
@@ -17,16 +16,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return oauthResponse({ status: 405, body: { error: "invalid_request" } }, { Allow: "POST" });
   }
   const { env } = context.get(cloudflareContext);
-  const ip = clientIp(request);
-  if (
-    !(await isWithinRateLimit(
-      env,
-      "oauth-token",
-      ip,
-      RATE_LIMIT_OAUTH_TOKEN.max,
-      RATE_LIMIT_OAUTH_TOKEN.windowMs,
-    ))
-  ) {
+  if (!(await isIpWithinRateLimit(env, request, "oauth-token", RATE_LIMIT_OAUTH_TOKEN))) {
     return oauthResponse({
       status: 429,
       body: { error: "server_error", error_description: "Too many requests" },

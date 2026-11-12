@@ -29,6 +29,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/errors";
 import { NOINDEX } from "~/lib/seo/meta";
+import { listText } from "capsomer/behavior/hooks";
 
 export const handle: AdminHandle = { page: "Errors" };
 
@@ -207,7 +208,7 @@ function SentryNotice({ sentry }: { sentry: SentryState }) {
   if (sentry.state === "no-reader") {
     return (
       <Banner tone="info" title="Errors are sent to Sentry, but this page cannot read them yet.">
-        Set {sentry.missing.join(" and ")} to list them here.
+        Set {listText(sentry.missing)} to list them here.
       </Banner>
     );
   }

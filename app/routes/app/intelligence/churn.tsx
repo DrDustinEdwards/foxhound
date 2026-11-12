@@ -1,4 +1,5 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
+import { percent } from "capsomer/behavior/meter";
 import { Link } from "capsomer/react/link";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { PageHead } from "capsomer/react/page-head";
@@ -19,11 +20,7 @@ import {
   WATCH_CEILING,
   type HealthScoreBand,
 } from "~/lib/intelligence/health-band";
-import {
-  churnBandSharePct,
-  drawChurnRate,
-  type ChurnRatePointLike,
-} from "~/lib/intelligence/churn";
+import { drawChurnRate, type ChurnRatePointLike } from "~/lib/intelligence/churn";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
@@ -130,7 +127,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                   </p>
                   <p className="m-0 text-label text-text-tertiary">
                     {plural(row.customerCount, "customer")} ·{" "}
-                    {churnBandSharePct(row.mrrCents, view.scoredMrrCents)}% of scored MRR
+                    {percent(row.mrrCents, view.scoredMrrCents)}% of scored MRR
                   </p>
                 </Panel>
               );

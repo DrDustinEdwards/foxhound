@@ -1,10 +1,12 @@
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
+import { SaveBar } from "capsomer/react/save-bar";
 import { PageHead } from "capsomer/react/page-head";
 import { Segmented } from "capsomer/react/segmented";
 import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
+import "capsomer/save-bar.css";
+import "capsomer/status.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
 import "capsomer/segmented.css";
@@ -177,21 +179,11 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
 
         {/* Recova's SaveBar (blob f1d6eb23): a right-aligned row, the result
             in words, then Save changes. */}
-        <div className="mt-6 flex items-center justify-end gap-3 text-label">
-          {saved ? (
-            <span role="status" className="text-green">
-              Saved
-            </span>
-          ) : null}
-          {failed ? (
-            <span role="alert" className="text-red">
-              Failed to save. Please try again.
-            </span>
-          ) : null}
-          <Button type="submit" variant="primary" pending={busy}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          pending={busy}
+          saved={saved}
+          error={failed ? "Failed to save. Please try again." : null}
+        />
       </DemoGuardedForm>
     </>
   );

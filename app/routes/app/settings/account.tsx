@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
 import { applyTheme } from "capsomer/behavior/theme-switch";
+import { SaveBar } from "capsomer/react/save-bar";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
@@ -10,6 +11,7 @@ import { PageHead } from "capsomer/react/page-head";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
 import { Status } from "capsomer/react/status";
+import "capsomer/save-bar.css";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -596,15 +598,11 @@ function ProfileForm({
       </div>
 
       {/* Recova's SaveBar: right-aligned, the result beside the button. */}
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-        <p role="status" className="text-label">
-          {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
-          {barFailed ? <Status tone="crit">Failed to save. Please try again.</Status> : null}
-        </p>
-        <Button type="submit" variant="primary" pending={saving}>
-          Save changes
-        </Button>
-      </div>
+      <SaveBar
+        pending={saving}
+        saved={result?.ok === true}
+        error={barFailed ? "Failed to save. Please try again." : null}
+      />
     </DemoGuardedForm>
   );
 }
