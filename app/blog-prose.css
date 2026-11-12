@@ -25,6 +25,7 @@
   --prose-bullets: none;
   --prose-numbers: none;
   --prose-item-space: 0.375rem;
+  --prose-list-indent: 1.5rem;
   --prose-quote-line: var(--brand);
   --prose-quote-ink: var(--text-secondary);
   --prose-quote-style: italic;
@@ -38,6 +39,8 @@
   --prose-table-rule: var(--border);
   --accent-text: var(--brand-text);
   --link-decoration: underline;
+  /* The heading's section link, in Foxhound's tertiary ink. */
+  --muted: var(--text-tertiary);
   font-size: var(--fs-prose);
   line-height: var(--leading);
 }
@@ -46,6 +49,7 @@
    Set on the figure itself, where Capsomer sets its defaults. */
 .blog-prose .blog-diagram {
   --diagram-face: var(--font-dm-sans), sans-serif;
+  --mono: var(--font-dm-mono), ui-monospace, monospace;
   --diagram-label-weight: 400;
   --diagram-ink: var(--text);
   --diagram-ink-muted: var(--text-secondary);
@@ -89,6 +93,24 @@
 .blog-prose :where(li > ul, li > ol) {
   margin-block: 0 1.25rem;
 }
+.blog-prose .heading-anchor {
+  margin-inline-start: 0.375rem;
+}
+/* An untoned diagram header is a step bolder than its labels. */
+.blog-prose .blog-diagram .header:not(.accent, .success, .warning, .info, .critical) {
+  font-weight: 500;
+}
+/* Prelum's :::faq block: Foxhound's questions in its own ink, a gap between items. */
+.blog-prose .faq-item {
+  margin-block-end: 1rem;
+}
+.blog-prose .faq dt {
+  font-weight: 500;
+  color: var(--text);
+}
+.blog-prose .faq dd {
+  margin-block-start: 0.25rem;
+}
 /* The rest of Foxhound's post spacing and table look, which Capsomer's prose tokens don't cover. */
 .blog-prose blockquote {
   margin-block: 1.5rem;
@@ -126,6 +148,7 @@
 }
 .blog-prose th {
   border-bottom: 2px solid var(--border);
+  color: var(--text);
 }
 .blog-prose td {
   border-bottom: 1px solid var(--border-sub);

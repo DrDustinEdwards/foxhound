@@ -353,9 +353,9 @@ export function SignInLinkForm({
   );
 }
 
-/** The query a code form posts with, so an action knows a typed code from a
- *  link request before it reads the form (signup spends its hourly bucket only
- *  on a link). */
+/** The query a code form posts with, so /signup knows a typed code from a
+ *  link request before it reads the form (it spends its hourly bucket only on
+ *  a link). The form's own `intent=code` is what signInFormAction reads. */
 export const SIGN_IN_CODE_QUERY = "code";
 
 /**
@@ -385,6 +385,8 @@ export function SignInLinkSent({
         {SIGN_IN_EXPIRES_IN_WORDS}.
       </Banner>
       <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="mt-6">
+        {/* site-runtime ./sign-in-form SIGN_IN_INTENT: signInFormAction reads a typed code by it. */}
+        <input type="hidden" name="intent" value="code" />
         <input type="hidden" name="email" value={email} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <div className="cap-field mb-4">

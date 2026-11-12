@@ -85,10 +85,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES), {
-    isCode,
-    limited: SIGN_UP_LIMITED,
-  });
+  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES));
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {

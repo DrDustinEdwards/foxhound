@@ -7,7 +7,6 @@ import {
   AuthHeading,
   AuthLink,
   PasskeyContinue,
-  SIGN_IN_CODE_QUERY,
   SignInLinkForm,
   SignInLinkSent,
   SocialContinue,
@@ -70,11 +69,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const refusal = await checkAuthLimit(env, request, "credential");
   if (refusal) return limitedData({ sent: null, error: SIGN_IN_LIMITED, codeError: null }, refusal);
 
-  const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
-  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES), {
-    isCode,
-    limited: SIGN_IN_LIMITED,
-  });
+  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES));
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
