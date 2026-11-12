@@ -1,4 +1,5 @@
 import { DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { daysAgo } from "./customer-base";
 import type {
   disputeApprovals,
   disputeBalanceTransactions,
@@ -342,19 +343,19 @@ export function buildDisputesSeed(
   memberEmail: string,
   specs: DisputeSpec[] = TEAMFLOW_DISPUTE_SPECS,
 ): DisputesSeedResult {
-  const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
-
   const disputeRows: DisputeInsert[] = [];
   const evidenceRows: DisputeEvidenceInsert[] = [];
   const approvalRows: DisputeApprovalInsert[] = [];
   const fundsRows: DisputeBalanceTransactionInsert[] = [];
 
   for (const spec of specs) {
-    const createdAt = ago(spec.createdDaysAgo);
-    const resolvedAt = spec.resolvedDaysAgo !== null ? ago(spec.resolvedDaysAgo) : null;
+    const createdAt = daysAgo(now, spec.createdDaysAgo);
+    const resolvedAt = spec.resolvedDaysAgo !== null ? daysAgo(now, spec.resolvedDaysAgo) : null;
     const won = spec.state === "resolved_won";
     // Approved a day or two after the dispute was created; submitted right after.
-    const approvedAt = spec.foxhoundSubmitted ? ago(Math.max(0, spec.createdDaysAgo - 1)) : null;
+    const approvedAt = spec.foxhoundSubmitted
+      ? daysAgo(now, Math.max(0, spec.createdDaysAgo - 1))
+      : null;
     const resolvedFeeCents =
       won && spec.foxhoundSubmitted
         ? disputeFeeCents(spec.amountCents, DISPUTE_FEE_CAP_CENTS)
@@ -398,7 +399,7 @@ export function buildDisputesSeed(
       triageRecommendation: spec.triageRecommendation,
       triageConfidence: spec.triageConfidence,
       triageReasoning: spec.triageReasoning,
-      stagedAt: ago(spec.createdDaysAgo),
+      stagedAt: daysAgo(now, spec.createdDaysAgo),
       outcomeNotifiedAt: resolvedAt,
       state: spec.state,
       resolvedFeeCents,
@@ -489,7 +490,6 @@ export function buildEarlyFraudWarningsSeed(
   accountId: string,
   now: Date,
 ): EarlyFraudWarningInsert[] {
-  const ago = (days: number) => new Date(now.getTime() - days * DAY_MS);
   const specs = [
     {
       n: 1,
@@ -541,9 +541,9 @@ export function buildEarlyFraudWarningsSeed(
     actionable: !s.refunded,
     amountCents: s.cents,
     currency: "usd",
-    createdAt: ago(s.days),
-    receivedAt: ago(s.days),
-    refundedAt: s.refunded ? ago(s.days - 1) : null,
+    createdAt: daysAgo(now, s.days),
+    receivedAt: daysAgo(now, s.days),
+    refundedAt: s.refunded ? daysAgo(now, s.days - 1) : null,
     stripeRefundId: s.refunded ? `dstripe_re_efw_${s.n}` : null,
   }));
 }

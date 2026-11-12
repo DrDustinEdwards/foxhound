@@ -1,6 +1,5 @@
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
-import { eq } from "drizzle-orm";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
 import { Segmented } from "capsomer/react/segmented";
@@ -16,11 +15,12 @@ import "~/site-header.css";
 
 import { DemoGuardedForm } from "~/components/demo-guarded-form";
 import { SettingsBackLink } from "~/components/settings-back-link";
-import { accounts, getDb } from "~/db";
+import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
+import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
+import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 
 import type { Route } from "./+types/audit";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -69,18 +69,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { membership } = context.get(authContext);
   const db = getDb(env);
 
-  const row = (
-    await db
-      .select({
-        auditLookbackDays: accounts.auditLookbackDays,
-        auditAutoRun: accounts.auditAutoRun,
-      })
-      .from(accounts)
-      .where(eq(accounts.id, membership.accountId))
-      .limit(1)
-  )[0];
-
-  return readAuditSettings(row ?? { auditLookbackDays: null, auditAutoRun: null });
+  return readAccountAuditSettings(db, membership.accountId);
 }
 
 export async function action({ request, context }: Route.ActionArgs) {

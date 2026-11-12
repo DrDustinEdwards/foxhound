@@ -13,8 +13,6 @@ export const DEFAULT_THEME: Theme = "dark";
 // here, not in the .server module, since the client component needs it too.
 export const THEME_COOKIE = "fh_theme";
 
-export const isTheme = isThemeChoice;
-
 /**
  * Which theme a request should render under.
  *
@@ -32,7 +30,7 @@ export function resolveThemePreference(input: {
   // (schema.ts:93), and handing control back to the device on a bad row would
   // make the stored preference silently stop applying.
   if (input.accountTheme !== null) {
-    return isTheme(input.accountTheme) ? input.accountTheme : DEFAULT_THEME;
+    return isThemeChoice(input.accountTheme) ? input.accountTheme : DEFAULT_THEME;
   }
   return input.cookieTheme ?? DEFAULT_THEME;
 }

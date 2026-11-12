@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Disclosure } from "capsomer/react/disclosure";
 import { Pill } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
@@ -278,12 +279,9 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {faqs.map((faq) => (
             <li key={faq.q}>
-              <details className="cap-disclosure" data-variant="card" name={name}>
-                <summary>{faq.q}</summary>
-                <div className="cap-disclosure-body">
-                  <p className="m-0 text-copy leading-relaxed text-text-secondary">{faq.a}</p>
-                </div>
-              </details>
+              <Disclosure summary={faq.q} variant="card" name={name}>
+                <p className="m-0 text-copy leading-relaxed text-text-secondary">{faq.a}</p>
+              </Disclosure>
             </li>
           ))}
         </ul>

@@ -454,10 +454,7 @@ async function stampSent(db: Db, alertId: string, now: Date): Promise<void> {
  * outcome. Returns whether this call took the claim.
  */
 export async function claimSent(db: Db, alertId: string, now: Date): Promise<boolean> {
-  await db
-    .update(expiringCardAlerts)
-    .set({ alertSentAt: now })
-    .where(and(eq(expiringCardAlerts.id, alertId), isNull(expiringCardAlerts.alertSentAt)));
+  await stampSent(db, alertId, now);
   const rows = await db
     .select({ alertSentAt: expiringCardAlerts.alertSentAt })
     .from(expiringCardAlerts)

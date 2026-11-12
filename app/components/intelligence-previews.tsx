@@ -1,11 +1,11 @@
 import { frameHtml } from "capsomer/behavior/chart-frame";
-import { Pill, type Tone } from "capsomer/react/status";
+import { Pill } from "capsomer/react/status";
 
 import "~/components/charts.css";
 import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/stat-tile.css";
 import { drawPlans } from "~/lib/intelligence/dashboard-charts";
-import type { HealthScoreBand } from "~/lib/intelligence/health-band";
+import { METER_TONE, type HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 import { markup } from "capsomer/behavior/trusted-html";
 
@@ -35,11 +35,6 @@ import { markup } from "capsomer/behavior/trusted-html";
 // Left out: the customer table's Action column. Recova's reads a recommended
 // action, and nothing in Foxhound writes one (digest-email.ts records the same
 // finding). The J58 notes list it for the seat.
-
-/** A health band as Capsomer's badge tone: the color Recova's
- *  HealthScoreBadge and ChurnRiskSummary give it (red, the warning color,
- *  green), at Foxhound's cutoffs (healthScoreBand). */
-const BAND_TONE: Record<HealthScoreBand, Tone> = { at_risk: "crit", watch: "warn", healthy: "ok" };
 
 /** ChurnRiskSummary's words for the three bands. */
 const BAND_LABEL: Record<HealthScoreBand, string> = {
@@ -168,7 +163,7 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
                   </span>
                 </td>
                 <td data-label="Health">
-                  <Pill tone={BAND_TONE[row.band]}>{row.healthScore}</Pill>
+                  <Pill tone={METER_TONE[row.band]}>{row.healthScore}</Pill>
                 </td>
                 <td data-label="MRR" className="whitespace-nowrap">
                   <span className="font-mono text-label text-text">{row.mrr}</span>
@@ -195,7 +190,7 @@ export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview })
             <div className="cap-panel-body">
               <div>
                 <p className="m-0 mb-1">
-                  <Pill tone={BAND_TONE[b.band]}>{BAND_LABEL[b.band]}</Pill>
+                  <Pill tone={METER_TONE[b.band]}>{BAND_LABEL[b.band]}</Pill>
                 </p>
                 <p className="m-0 font-mono text-title font-medium tabular-nums text-text">
                   {b.customerCount}

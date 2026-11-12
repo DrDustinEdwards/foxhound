@@ -1,6 +1,6 @@
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import {
   EXPIRING_CARD_DAYS_AHEAD,
-  RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
   type DeclineCategory,
 } from "~/lib/constants";
@@ -24,7 +24,7 @@ import {
 // - Branding: Recova becomes Foxhound.
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
 //   2.1): the category count and names from RECOVERY_SCHEDULES, the sequence
-//   length from its longest schedule, the fee from RECOVERY_FEE_BPS, the
+//   length from its longest schedule, the fee from RECOVERY_FEE_PERCENT, the
 //   win-back steps and span from WIN_BACK_SCHEDULE, the expiring-card window
 //   from EXPIRING_CARD_DAYS_AHEAD.
 // - Truthfulness fixes where Recova's words describe something Foxhound does
@@ -32,7 +32,7 @@ import {
 //
 // Every one of these is listed in the J56 PR notes for the seat to read.
 
-const pct = `${RECOVERY_FEE_BPS / 100}%`;
+const pct = `${RECOVERY_FEE_PERCENT}%`;
 
 const WINBACK_STEPS = WIN_BACK_SCHEDULE.length;
 const WINBACK_DAYS = Math.round(WIN_BACK_SCHEDULE[WIN_BACK_SCHEDULE.length - 1].offsetHours / 24);

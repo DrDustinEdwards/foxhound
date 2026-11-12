@@ -3,6 +3,7 @@ import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { failedPayments, getDb, outcomes, recoveredPayments, recoverySteps } from "~/db";
+import { DAY_MS } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
@@ -259,7 +260,7 @@ export async function reconcileRetryRecovery(
 /** How far back the daily sweep looks. The race it closes is seconds wide and
  *  the sweep runs daily, so a week covers every missed tick without reaching
  *  back to re-attribute (and so newly bill) old history. */
-const ATTRIBUTION_SWEEP_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const ATTRIBUTION_SWEEP_LOOKBACK_MS = 7 * DAY_MS;
 const ATTRIBUTION_SWEEP_LIMIT = 200;
 
 export interface AttributionSweepResult {

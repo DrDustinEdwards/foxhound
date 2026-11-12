@@ -406,7 +406,7 @@ function emailFromName(name: string, customerId: string): string {
 // Anonymous-customer attribute samplers
 // ============================================================================
 
-function daysAgo(now: Date, n: number): Date {
+export function daysAgo(now: Date, n: number): Date {
   return new Date(now.getTime() - n * DAY_MS);
 }
 

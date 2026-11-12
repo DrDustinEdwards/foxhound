@@ -28,7 +28,12 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 import { buildClaimOnlyBatch } from "./batches";
-import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import {
+  claimOnly,
+  type IntentOf,
+  type WebhookContext,
+  type WebhookOutcome,
+} from "./handler-context";
 
 type RenewalIntent = IntentOf<"renewal_card_check">;
 
@@ -159,12 +164,7 @@ export async function handleRenewalCardCheck(
 
   const decision = candidateFor(intent, charge, receivedAt);
   if (!("candidate" in decision)) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: decision.reason } : { status: "duplicate" };
+    return claimOnly(ctx, decision.reason);
   }
 
   // The claim and the upsert ride one batch, as customer.updated's do, so a

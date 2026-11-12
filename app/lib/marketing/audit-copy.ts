@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { AUDIT_SUMMARY_STRUCTURE } from "~/lib/audit/summary";
 import { ordinal } from "~/lib/billing/page";
 import {
@@ -220,11 +221,7 @@ export const AUDIT_HISTORY_EXAMPLE = [
   { month: 3, summary: "4 failed · 1 expiring · 1 dispute" },
   { month: 2, summary: "2 failed · 0 expiring · 0 disputes" },
 ].map((run) => ({
-  date: new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2026, run.month, AUDIT_AUTO_RUN_DAY))),
+  date:
+    formatDate(new Date(Date.UTC(2026, run.month, AUDIT_AUTO_RUN_DAY)), { style: "medium" }) ?? "",
   summary: run.summary,
 }));

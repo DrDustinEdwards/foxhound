@@ -3,7 +3,7 @@
 
 import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { customerContext, healthScoreHistory, mrrSnapshots, type Db } from "~/db";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import { DAY_MS, HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { sampleEveryNth } from "./dashboard";
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { healthBandCondition } from "./directory.server";
@@ -52,8 +52,7 @@ export async function getMrrSnapshotSeries(
   accountId: string,
   nowMs: number,
 ): Promise<MrrSnapshotPoint[]> {
-  const cutoff = new Date(nowMs);
-  cutoff.setUTCDate(cutoff.getUTCDate() - MRR_CHART_DAYS);
+  const cutoff = new Date(nowMs - MRR_CHART_DAYS * DAY_MS);
 
   const rows = await db
     .select({
@@ -126,8 +125,7 @@ export async function getHealthDistribution(
   accountId: string,
   nowMs: number,
 ): Promise<HealthDistributionDay[]> {
-  const cutoff = new Date(nowMs);
-  cutoff.setUTCDate(cutoff.getUTCDate() - HEALTH_DISTRIBUTION_DAYS);
+  const cutoff = new Date(nowMs - HEALTH_DISTRIBUTION_DAYS * DAY_MS);
 
   const rows = await db
     .select({
@@ -230,8 +228,7 @@ async function getChurnBands(db: Db, accountId: string): Promise<ChurnBand[]> {
  * could read "at risk" in one place and "medium" here.
  */
 export async function getChurnView(db: Db, accountId: string, nowMs: number): Promise<ChurnView> {
-  const chartCutoff = new Date(nowMs);
-  chartCutoff.setUTCDate(chartCutoff.getUTCDate() - CHURN_CHART_DAYS);
+  const chartCutoff = new Date(nowMs - CHURN_CHART_DAYS * DAY_MS);
 
   const [bands, topHighRisk, snapshots] = await Promise.all([
     getChurnBands(db, accountId),

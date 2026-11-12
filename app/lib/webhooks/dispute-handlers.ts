@@ -22,7 +22,12 @@ import {
   buildDisputeIntakeBatch,
   buildDisputeResolutionBatch,
 } from "./batches";
-import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import {
+  claimOnly,
+  type IntentOf,
+  type WebhookContext,
+  type WebhookOutcome,
+} from "./handler-context";
 import { findDisputeByStripeId, resolveDisputedRecovery } from "./lookups";
 
 /**
@@ -72,12 +77,7 @@ export async function handleStampDispute(
     console.log(
       `dispute ${intent.stripeDisputeId}: Disputes is off for account ${accountId}; not created`,
     );
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "disputes_disabled" } : { status: "duplicate" };
+    return claimOnly(ctx, "disputes_disabled");
   }
   // charge.dispute.created (dispute intake): resolve the recovery this
   // charge belongs to (if any, the Phase 8-live enrichment seam above),
@@ -189,12 +189,7 @@ export async function handleDisputeResolved(
   // expected: a safe claim-only ignore, never a throw.
   const dispute = await findDisputeByStripeId(env, intent.stripeDisputeId);
   if (!dispute || dispute.accountId !== accountId) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "dispute_not_found" } : { status: "duplicate" };
+    return claimOnly(ctx, "dispute_not_found");
   }
   if (isDisputeResolved(dispute.state)) {
     const { applied } = await executeMoneyWrite(env, {

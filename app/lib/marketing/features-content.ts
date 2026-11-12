@@ -9,14 +9,13 @@ import {
   CRON_SCHEDULE_WEEKLY,
   EXPIRING_CARD_DAYS_AHEAD,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
-  RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
   SEND_MAX_ATTEMPTS,
   SEND_RETRY_BACKOFF_MINUTES,
   WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
 import { cronWeekdayIndex } from "~/lib/admin/crons";
-import { ordinal } from "~/lib/billing/page";
+import { RECOVERY_FEE_PERCENT, ordinal } from "~/lib/billing/page";
 import { recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 import { DEMO_BUSINESSES } from "~/lib/demo/constants";
@@ -203,7 +202,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const monthly = cronCadence(CRON_SCHEDULE_MONTHLY);
   const Monthly = capitalize(monthly);
   const auditCadence = cronCadence(CRON_SCHEDULE_MONTHLY_AUDIT);
-  const fee = `${RECOVERY_FEE_BPS / 100}%`;
+  const fee = `${RECOVERY_FEE_PERCENT}%`;
   const { redMax, cautionMax } = recoveryRateBands();
   const [winStep1, winStep2, winStep3] = WIN_BACK_SCHEDULE.map((s) => s.offsetHours);
   const backoff = listText(SEND_RETRY_BACKOFF_MINUTES.map(minutesText), "and");

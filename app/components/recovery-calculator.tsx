@@ -74,107 +74,47 @@ export function RecoveryCalculator() {
     >
       <div className="cap-panel-body">
         <div>
-          <div className="mb-6">
-            <div className="mb-2 flex items-center justify-between">
-              <label
-                htmlFor="mrr-slider"
-                className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
-              >
-                Monthly recurring revenue
-              </label>
-              <span className="font-mono text-body font-medium text-text" data-calc="mrr">
-                {fmt(mrr)}
-              </span>
-            </div>
-            <Range
-              id="mrr-slider"
-              min={1000}
-              max={500000}
-              step={1000}
-              value={mrr}
-              onChange={(e) => setMrr(Number(e.target.value))}
-              aria-valuemin={1000}
-              aria-valuemax={500000}
-              aria-valuenow={mrr}
-              aria-valuetext={fmt(mrr)}
-              // React itself injects a client-only style.caretColor on controlled
-              // range inputs during hydration (a Firefox thumb-rendering
-              // workaround baked into react-dom, not app markup), which is absent
-              // from the SSR HTML and otherwise logs a false-positive hydration
-              // mismatch warning on every load of this page.
-              suppressHydrationWarning
-            />
-            <div className="mt-1 flex justify-between">
-              <span className="font-mono text-source text-text-subtle">$1k</span>
-              <span className="font-mono text-source text-text-subtle">$500k</span>
-            </div>
-          </div>
+          <SliderRow
+            id="mrr-slider"
+            label="Monthly recurring revenue"
+            calc="mrr"
+            shown={fmt(mrr)}
+            min={1000}
+            max={500000}
+            step={1000}
+            value={mrr}
+            onChange={setMrr}
+            minLabel="$1k"
+            maxLabel="$500k"
+          />
 
-          <div className="mb-6">
-            <div className="mb-2 flex items-center justify-between">
-              <label
-                htmlFor="failure-share-slider"
-                className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
-              >
-                Assumed share of MRR that fails
-              </label>
-              <span
-                className="font-mono text-body font-medium text-text"
-                data-calc="failureShare"
-              >{`${failureShare}%`}</span>
-            </div>
-            <Range
-              id="failure-share-slider"
-              min={0}
-              max={20}
-              step={1}
-              value={failureShare}
-              onChange={(e) => setFailureShare(Number(e.target.value))}
-              aria-valuemin={0}
-              aria-valuemax={20}
-              aria-valuenow={failureShare}
-              aria-valuetext={`${failureShare}%`}
-              // Same react-dom hydration workaround as the slider above.
-              suppressHydrationWarning
-            />
-            <div className="mt-1 flex justify-between">
-              <span className="font-mono text-source text-text-subtle">0%</span>
-              <span className="font-mono text-source text-text-subtle">20%</span>
-            </div>
-          </div>
+          <SliderRow
+            id="failure-share-slider"
+            label="Assumed share of MRR that fails"
+            calc="failureShare"
+            shown={`${failureShare}%`}
+            min={0}
+            max={20}
+            step={1}
+            value={failureShare}
+            onChange={setFailureShare}
+            minLabel="0%"
+            maxLabel="20%"
+          />
 
-          <div className="mb-6">
-            <div className="mb-2 flex items-center justify-between">
-              <label
-                htmlFor="recovery-share-slider"
-                className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
-              >
-                Assumed recovery of the remainder
-              </label>
-              <span
-                className="font-mono text-body font-medium text-text"
-                data-calc="recoveryShare"
-              >{`${recoveryShare}%`}</span>
-            </div>
-            <Range
-              id="recovery-share-slider"
-              min={0}
-              max={100}
-              step={1}
-              value={recoveryShare}
-              onChange={(e) => setRecoveryShare(Number(e.target.value))}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={recoveryShare}
-              aria-valuetext={`${recoveryShare}%`}
-              // Same react-dom hydration workaround as the slider above.
-              suppressHydrationWarning
-            />
-            <div className="mt-1 flex justify-between">
-              <span className="font-mono text-source text-text-subtle">0%</span>
-              <span className="font-mono text-source text-text-subtle">100%</span>
-            </div>
-          </div>
+          <SliderRow
+            id="recovery-share-slider"
+            label="Assumed recovery of the remainder"
+            calc="recoveryShare"
+            shown={`${recoveryShare}%`}
+            min={0}
+            max={100}
+            step={1}
+            value={recoveryShare}
+            onChange={setRecoveryShare}
+            minLabel="0%"
+            maxLabel="100%"
+          />
 
           <div className="mb-6 flex flex-col gap-3">
             <Row
@@ -258,6 +198,72 @@ export function RecoveryCalculator() {
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** One assumption slider: its label, the figure it sets (data-calc, for the calculator island),
+ *  the range and its two end labels. */
+function SliderRow({
+  id,
+  label,
+  calc,
+  shown,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+  minLabel,
+  maxLabel,
+}: {
+  id: string;
+  label: string;
+  calc: string;
+  shown: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (value: number) => void;
+  minLabel: string;
+  maxLabel: string;
+}) {
+  return (
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
+        <label
+          htmlFor={id}
+          className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
+        >
+          {label}
+        </label>
+        <span className="font-mono text-body font-medium text-text" data-calc={calc}>
+          {shown}
+        </span>
+      </div>
+      <Range
+        id={id}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={shown}
+        // React itself injects a client-only style.caretColor on controlled
+        // range inputs during hydration (a Firefox thumb-rendering
+        // workaround baked into react-dom, not app markup), which is absent
+        // from the SSR HTML and otherwise logs a false-positive hydration
+        // mismatch warning on every load of this page.
+        suppressHydrationWarning
+      />
+      <div className="mt-1 flex justify-between">
+        <span className="font-mono text-source text-text-subtle">{minLabel}</span>
+        <span className="font-mono text-source text-text-subtle">{maxLabel}</span>
       </div>
     </div>
   );

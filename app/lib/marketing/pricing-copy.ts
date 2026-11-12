@@ -1,8 +1,7 @@
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import {
-  DISPUTE_FEE_BPS,
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
-  RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
 import {
@@ -34,7 +33,6 @@ import type { ProductKey } from "./products";
 // #5 and #8 (baseline-free, review-and-sign disputes, free intelligence tier,
 // maturity-window billing).
 
-const pct = (bps: number) => `${bps / 100}%`;
 const usd = (cents: number) => formatMoneyShort(cents, "usd");
 
 export interface PricingCard {
@@ -71,7 +69,7 @@ export const PRICING_CARDS: PricingCard[] = [
   {
     id: "recovery",
     name: "Recovery",
-    price: pct(RECOVERY_FEE_BPS),
+    price: `${RECOVERY_FEE_PERCENT}%`,
     priceLabel: "of Foxhound-attributed recoveries",
     description: `AI-drafted email sequences and silent retries across ${RECOVERY_SEQUENCE_DAYS} days. ${DECLINE_CATEGORY_COUNT_WORD} decline categories, ${countWord(DISTINCT_SEQUENCE_COUNT).toLowerCase()} different sequences.`,
     features: [
@@ -87,7 +85,7 @@ export const PRICING_CARDS: PricingCard[] = [
   {
     id: "disputes",
     name: "Disputes",
-    price: pct(DISPUTE_FEE_BPS),
+    price: `${DISPUTE_FEE_PERCENT}%`,
     priceLabel: `of won disputes, capped at ${usd(DISPUTE_FEE_CAP_CENTS)}`,
     description:
       "Evidence drafted from your Stripe data and recovery history. You approve every submission, or turn on auto-submit.",
@@ -97,7 +95,7 @@ export const PRICING_CARDS: PricingCard[] = [
       "Draft, review, approve, submit, every time",
       // Recova's "Auto-submit before deadline", off until the merchant turns it on.
       "Auto-submit before deadline, off by default",
-      `${pct(DISPUTE_FEE_BPS)} only when Foxhound wins, capped at ${usd(DISPUTE_FEE_CAP_CENTS)}`,
+      `${DISPUTE_FEE_PERCENT}% only when Foxhound wins, capped at ${usd(DISPUTE_FEE_CAP_CENTS)}`,
     ],
   },
   {

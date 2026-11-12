@@ -1,4 +1,4 @@
-import { groupSumByCurrency } from "~/lib/money/totals";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   DAY_MS,
   DECLINE_CATEGORIES,
@@ -17,20 +17,13 @@ import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recove
 // shows (app/(app)/recovery/dashboard at the blob shas named in the route);
 // every number here is computed from Foxhound's own read model and constants.
 
-/** A money total in one currency. Mirrors stats.server.ts's CurrencyAmount
- *  without importing a server module into the browser bundle. */
-export interface CurrencyCents {
-  currency: string;
-  cents: number;
-}
-
 /** The recovery fee as Foxhound's pricing constant prints it ("20%"). */
 export const RECOVERY_FEE_LABEL = `${RECOVERY_FEE_BPS / 100}%`;
 
 export interface RoiColumn {
-  recovered: CurrencyCents[];
-  fee: CurrencyCents[];
-  kept: CurrencyCents[];
+  recovered: CurrencyAmount[];
+  fee: CurrencyAmount[];
+  kept: CurrencyAmount[];
 }
 
 /**
@@ -61,7 +54,7 @@ export function roiColumn(rows: readonly { amountCents: number; currency: string
 }
 
 /** Totals side by side, each in its own currency; none at all reads as zero. */
-export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
+export function formatCurrencyTotals(rows: readonly CurrencyAmount[]): string {
   if (rows.length === 0) return formatMoney(0, "usd");
   return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
 }
@@ -73,7 +66,7 @@ export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
  * across currencies is meaningless.
  */
 export function atRiskPctOfMrr(
-  atRisk: readonly CurrencyCents[],
+  atRisk: readonly CurrencyAmount[],
   mrrEstimateCents: number | null,
 ): number | null {
   if (!mrrEstimateCents || mrrEstimateCents <= 0 || atRisk.length !== 1) return null;

@@ -3,6 +3,7 @@ import { signalPasskeys, signInWithPasskey } from "@dustinedwards/site-runtime/s
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { Panel } from "capsomer/react/panel";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Form } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -48,11 +49,9 @@ export function AuthCard({ children }: { children: ReactNode }) {
         data-auth-card=""
       >
         {/* Recova's card: p-12, its fields 42px tall (py-2.5 at 14px). */}
-        <section className="cap-panel [--gap:0px] [--pad-card:0px]">
-          <div className="cap-panel-body">
-            <div className="p-12">{children}</div>
-          </div>
-        </section>
+        <Panel className="[--gap:0px] [--pad-card:0px]">
+          <div className="p-12">{children}</div>
+        </Panel>
       </div>
     </div>
   );

@@ -7,7 +7,12 @@ import { reactivateWinbackSequence } from "~/lib/recovery/winback-reactivation.s
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { buildClaimOnlyBatch, buildInvoluntaryStopBatch, buildWinbackStartBatch } from "./batches";
-import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import {
+  claimOnly,
+  type IntentOf,
+  type WebhookContext,
+  type WebhookOutcome,
+} from "./handler-context";
 import {
   findWinbackSequence,
   hasRecentlyResolvedFailedPayment,
@@ -95,12 +100,7 @@ export async function handleWinbackStart(
     receivedAt.getTime() - WINBACK_RECENT_RESOLVED_DAYS * DAY_MS,
   );
   if (recentlyResolved) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "recently_resolved" } : { status: "duplicate" };
+    return claimOnly(ctx, "recently_resolved");
   }
 
   // 3. REPLAY GUARD. Legacy keys its own on stripe_subscription_id: "one
@@ -109,12 +109,7 @@ export async function handleWinbackStart(
   //    makes a concurrent redelivery roll the whole batch back.
   const existing = await findWinbackSequence(env, accountId, intent.subscriptionId);
   if (existing) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "winback_exists" } : { status: "duplicate" };
+    return claimOnly(ctx, "winback_exists");
   }
 
   // 4. THE EMAIL GATE. Legacy fetches the customer and returns on a missing
@@ -124,12 +119,7 @@ export async function handleWinbackStart(
   //    same empty-email return.
   const customer = await resolveConnectedCustomer(env, connectionId, intent.customerId);
   if (!customer?.email) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "no_customer_email" } : { status: "duplicate" };
+    return claimOnly(ctx, "no_customer_email");
   }
 
   // 5. THE INTELLIGENCE GATE, SEMANTICALLY ported from legacy.

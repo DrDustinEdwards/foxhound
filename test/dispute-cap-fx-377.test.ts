@@ -79,8 +79,7 @@ vi.mock("~/lib/money/execute", () => ({
 
 vi.mock("~/lib/stripe/encryption", () => ({ decryptToken: async () => "sk_test" }));
 
-const { resolveDisputeCap, minorUnitsPerMajor, DisputeCapQuoteError } =
-  await import("~/lib/billing/dispute-cap");
+const { resolveDisputeCap, DisputeCapQuoteError } = await import("~/lib/billing/dispute-cap");
 const { buildDisputeResolutionBatch } = await import("~/lib/webhooks/batches");
 const schema = await import("~/db/schema");
 
@@ -146,16 +145,6 @@ beforeEach(() => {
   harness.rates = {};
   harness.failQuote = false;
   harness.omitRate = false;
-});
-
-describe("minor units are per currency, or the cap is out by a factor of a hundred", () => {
-  it("usd and gbp have 100, jpy has 1, kwd has 1000", () => {
-    expect(minorUnitsPerMajor("usd")).toBe(100);
-    expect(minorUnitsPerMajor("gbp")).toBe(100);
-    expect(minorUnitsPerMajor("jpy")).toBe(1);
-    expect(minorUnitsPerMajor("kwd")).toBe(1_000);
-    expect(minorUnitsPerMajor("ugx")).toBe(100);
-  });
 });
 
 describe("a UGX dispute: Stripe sends UGX in hundredths, so the cap is too", () => {

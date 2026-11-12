@@ -1,5 +1,5 @@
 import { DISPUTE_FEE_CAP_CENTS, STRIPE_PREVIEW_API_VERSION } from "~/lib/constants";
-import { currencyExponent } from "@dustinedwards/site-runtime/money";
+import { fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { getStripe } from "~/lib/stripe/client";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
@@ -25,15 +25,6 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // wrapper is exactly what 371 binding 1 warns about on a money repo. The
 // response shape below is Stripe's documented one and has NOT been exercised
 // against a live account; that is stated rather than implied.
-
-/** Minor units per major unit for a currency, as Stripe reports amounts (100
- *  for USD, 1 for JPY, 1,000 for KWD, and 100 for UGX, which Stripe still
- *  sends as a two-decimal value). The exponent comes from the one table in
- *  site-runtime ./money, so the cap and every displayed amount agree on what a
- *  Stripe amount means. Getting this wrong scales a cap by 100. */
-export function minorUnitsPerMajor(currency: string): number {
-  return 10 ** currencyExponent(currency);
-}
 
 export interface ResolvedDisputeCap {
   /** The cap to apply, in the DISPUTE's minor units. */
@@ -117,7 +108,7 @@ export async function resolveDisputeCap(
   // being capped a hundred times too high.
   const capMajor = (DISPUTE_FEE_CAP_CENTS / 100) * rate;
   return {
-    capMinorUnits: Math.round(capMajor * minorUnitsPerMajor(code)),
+    capMinorUnits: fromMajorUnits(capMajor, code),
     rate,
     quoteId: quote.id ?? null,
     quotedAt: now,

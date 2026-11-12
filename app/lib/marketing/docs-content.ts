@@ -12,6 +12,8 @@
 // windows, the bands and the schedules.
 
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
   AUDIT_LOOKBACK_DAYS,
@@ -19,14 +21,12 @@ import {
   BULK_ACTION_MAX_PER_SUBMISSION,
   CAU_EVENT_RETENTION_DAYS,
   CLICK_SUSPECT_MIN_SECONDS,
-  DISPUTE_FEE_BPS,
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
   EXPIRING_CARD_DAYS_AHEAD,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
   INTELLIGENCE_REPORT_HOURLY_LIMIT,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
-  RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
@@ -96,10 +96,8 @@ export interface DocGuide {
 /** The date every guide in DOC_GUIDES first shipped. */
 export const DOCS_FIRST_PUBLISHED = "2026-07-19";
 
-const pct = (bps: number) => `${bps / 100}%`;
-const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US")}`;
-const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
-const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
+const RECOVERY_FEE = `${RECOVERY_FEE_PERCENT}%`;
+const DISPUTE_FEE = `${DISPUTE_FEE_PERCENT}%`;
 const NETWORK_FIRST = RECOVERY_SCHEDULES.network[0]!;
 const EXPIRED_RETRY_DAY =
   RECOVERY_SCHEDULES.expired.find((s) => s.stepType === "retry_day21")!.offsetHours / 24;
@@ -372,7 +370,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Roles" },
           "Each person on an account is its Owner or a Member. The owner invites and removes members and cannot be removed. Otherwise settings, billing and the Stripe connections are open to every member. Only the owner can cancel the account.",
           { kind: "h3", text: "Billing and subscription" },
-          `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE}. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE} of wins only, capped at ${dollars(DISPUTE_FEE_CAP_CENTS)} per dispute. Intelligence and the audit are always free.`,
+          `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE}. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE} of wins only, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute. Intelligence and the audit are always free.`,
           "A payment method goes on file once, under Billing. Invoices and the full evidence ledger are visible there at any time.",
           { kind: "h3", text: "Cancellation" },
           "Cancel account under Danger zone in Settings and My account stops the work. Only the account's owner sees it. Every Stripe connection on the account is disconnected, no further sequence runs, and the recoveries Foxhound already attributed still invoice. Your billing history and the evidence behind it are left intact.",
@@ -894,7 +892,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Billing",
         body: [
-          `${DISPUTE_FEE} of disputes Foxhound wins, capped at ${dollars(DISPUTE_FEE_CAP_CENTS)} per dispute. Nothing on disputes you lose or accept.`,
+          `${DISPUTE_FEE} of disputes Foxhound wins, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute. Nothing on disputes you lose or accept.`,
           "Nothing is charged on a dispute you lose, a dispute you accept, or a dispute you handled yourself outside Foxhound. The Fees owed card on the disputes dashboard shows what is still owed.",
         ],
       },

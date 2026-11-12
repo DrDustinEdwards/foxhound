@@ -34,7 +34,8 @@ import {
 // One query per input for the whole account, grouped in memory, as the sync
 // does, rather than Recova's two reads per customer.
 
-const ENGAGEMENT_WINDOW_DAYS = 30;
+/** How far back a customer's emails and clicks count as engagement (also the customer view's window). */
+export const ENGAGEMENT_WINDOW_DAYS = 30;
 
 /** Recova's rules_v1, named so a later rule change is told apart in the log. */
 const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";

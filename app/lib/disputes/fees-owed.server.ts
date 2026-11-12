@@ -5,7 +5,7 @@ import { billingInvoices, billingLineItems } from "~/db";
 import { getBillableDisputes } from "~/db/billable";
 import { SETTLED_STATUSES } from "~/lib/billing/charge-retry";
 
-import type { MoneyPart } from "./stats";
+import type { CurrencyAmount } from "~/lib/money/totals";
 
 // The disputes list's "Fees owed" card (J66 follow-up, Dustin's answer to PR #75
 // question 5: "yes ro all", 2026-10-15,
@@ -35,7 +35,7 @@ export async function getDisputeFeesOwed(
   db: Db,
   accountId: string,
   nowMs: number,
-): Promise<MoneyPart[]> {
+): Promise<CurrencyAmount[]> {
   const [pending, invoiced, credits] = await Promise.all([
     getBillableDisputes(db, accountId, nowMs),
     db
@@ -79,7 +79,7 @@ export async function getDisputeFeesOwed(
   }
 
   // The run's own fee: the stored snapshot. An unpriced win is not pending.
-  const parts: MoneyPart[] = pending.flatMap((d) =>
+  const parts: CurrencyAmount[] = pending.flatMap((d) =>
     d.resolvedFeeCents == null ? [] : [{ currency: d.currency, cents: d.resolvedFeeCents }],
   );
   for (const line of invoiced) {
