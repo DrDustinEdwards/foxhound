@@ -547,6 +547,13 @@
       "when": 1794480911903,
       "tag": "0081_cron_run_log",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1794480932147,
+      "tag": "0082_drop_cron_run_history",
+      "breakpoints": true
     }
   ]
 }
