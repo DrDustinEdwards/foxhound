@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
+import { Field } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
@@ -77,9 +78,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // here and in what order: the phone-only back link, the title and its line, one
 // card holding Sender name, Reply-to email and the Send test email button, and
 // under the card, right-aligned, Saved or the failure sentence beside Save
-// changes. Each field's help sits under its input, as Recova's does, so the
-// field is composed from Capsomer's field classes rather than its <Field>,
-// which puts help above the control (as /settings/notifications does).
+// changes. Each field is Capsomer's Field, with its help above the control.
 //
 // THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML
 // `form` attribute. Recova's is a type="button" inside the save form that
@@ -245,62 +244,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-/** One of Recova's text fields: label, input, then help under it, as
- *  EmailSection draws them, from Capsomer's field parts. */
-function TextField({
-  name,
-  type,
-  label,
-  help,
-  defaultValue,
-  placeholder,
-  maxLength,
-  error,
-}: {
-  name: string;
-  type: "email" | "text";
-  label: string;
-  help: string;
-  defaultValue: string;
-  placeholder: string;
-  maxLength: number;
-  error?: string;
-}) {
-  const base = useId();
-  const id = `${base}-control`;
-  const helpId = `${base}-help`;
-  const errorId = `${base}-error`;
-  return (
-    <div className="cap-field" data-invalid={error ? "true" : undefined}>
-      <label className="cap-field-label" htmlFor={id}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        name={name}
-        className="cap-input"
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        aria-describedby={error ? `${errorId} ${helpId}` : helpId}
-        aria-invalid={error ? true : undefined}
-      />
-      <p className="cap-field-help" id={helpId}>
-        {help}
-      </p>
-      <p
-        className="cap-field-error"
-        id={errorId}
-        role={error ? "alert" : undefined}
-        hidden={!error}
-      >
-        {error ?? null}
-      </p>
-    </div>
-  );
-}
-
 /** The test email's last outcome, held for legacy's four seconds and then
  *  dropped, so the button goes back to "Send test email". */
 function useShownTestResult(result: ActionResult | undefined): ActionResult | undefined {
@@ -356,29 +299,39 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
-              <TextField
-                name="senderName"
-                type="text"
+              <Field
+                announce
                 label="Sender name"
                 help="Name that appears in the From field of recovery emails"
-                defaultValue={senderName}
-                placeholder="e.g. Alex from Acme"
-                maxLength={SENDER_NAME_MAX_LENGTH}
                 error={fieldError("senderName")}
-              />
+              >
+                <input
+                  name="senderName"
+                  type="text"
+                  defaultValue={senderName}
+                  placeholder="e.g. Alex from Acme"
+                  maxLength={SENDER_NAME_MAX_LENGTH}
+                  className="cap-input"
+                />
+              </Field>
             </div>
 
             <div className="mb-6">
-              <TextField
-                name="replyToEmail"
-                type="email"
+              <Field
+                announce
                 label="Reply-to email"
                 help="Customer replies go here. Use your support inbox."
-                defaultValue={replyToEmail}
-                placeholder="support@yourapp.com"
-                maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
                 error={fieldError("replyToEmail")}
-              />
+              >
+                <input
+                  name="replyToEmail"
+                  type="email"
+                  defaultValue={replyToEmail}
+                  placeholder="support@yourapp.com"
+                  maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
+                  className="cap-input"
+                />
+              </Field>
             </div>
 
             {/* Legacy's test button, last in the card, at its own width,

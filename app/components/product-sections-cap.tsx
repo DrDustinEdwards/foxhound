@@ -276,17 +276,24 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
         <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
           Questions
         </h2>
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {faqs.map((faq) => (
-            <li key={faq.q}>
-              <Disclosure summary={faq.q} variant="card" name={name}>
-                <p className="m-0 text-copy leading-relaxed text-text-secondary">{faq.a}</p>
-              </Disclosure>
-            </li>
-          ))}
-        </ul>
+        <FaqList name={name} faqs={faqs} />
       </div>
     </section>
+  );
+}
+
+/** The questions as Capsomer card disclosures sharing `name`, so one opens at a time. */
+export function FaqList({ name, faqs }: { name: string; faqs: { q: string; a: string }[] }) {
+  return (
+    <ul className="m-0 flex list-none flex-col gap-3 p-0">
+      {faqs.map((faq) => (
+        <li key={faq.q}>
+          <Disclosure summary={faq.q} variant="card" name={name}>
+            <p className="m-0 text-copy leading-relaxed text-text-secondary">{faq.a}</p>
+          </Disclosure>
+        </li>
+      ))}
+    </ul>
   );
 }
 

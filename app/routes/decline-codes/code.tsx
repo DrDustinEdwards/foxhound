@@ -3,7 +3,7 @@ import "capsomer/status.css";
 import { Link } from "capsomer/react/link";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
-import { FaqAccordion } from "~/components/faq-accordion";
+import { FaqList } from "~/components/product-sections-cap";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
@@ -90,10 +90,11 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           <p className="text-body leading-relaxed text-text-secondary">{recoveryApproach(view)}</p>
         </section>
 
-        <section className="mb-10">
+        <section className="fh-cap mb-10" data-cap-site="foxhound" data-family="amber">
           <h2 className="mb-4 text-title font-medium text-text">Questions</h2>
-          <FaqAccordion
-            faqs={content.faqs.map((f) => ({ question: f.question, answer: f.answer }))}
+          <FaqList
+            name="decline-code-faq"
+            faqs={content.faqs.map((f) => ({ q: f.question, a: f.answer }))}
           />
         </section>
 
