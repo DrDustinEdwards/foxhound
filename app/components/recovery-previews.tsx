@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { AlertCircle, Percent, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill, Status, type Tone } from "capsomer/react/status";
@@ -31,7 +32,7 @@ const CATEGORIES = Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[];
 export function SequenceSteps({ category }: { category: DeclineCategory }) {
   const steps = RECOVERY_SCHEDULES[category];
   const label = DECLINE_CATEGORY_LABELS[category];
-  const count = `${steps.length} ${steps.length === 1 ? "step" : "steps"}`;
+  const count = plural(steps.length, "step");
   return (
     <div className="cap-panel">
       <div className="cap-panel-body">

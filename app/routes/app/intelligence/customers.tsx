@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { Scale } from "lucide-react";
 import { Form } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -196,8 +197,8 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             singular; Recova's "1 customers" is not copied. */}
         {result.totalCount > 0 ? (
           <p className="mt-2 mb-0 font-mono text-label text-text-tertiary">
-            {result.totalCount} {result.totalCount === 1 ? "customer" : "customers"} ·{" "}
-            {formatMoney(result.totalMrrCents, "usd")}/mo total MRR
+            {plural(result.totalCount, "customer")} · {formatMoney(result.totalMrrCents, "usd")}/mo
+            total MRR
           </p>
         ) : null}
       </div>

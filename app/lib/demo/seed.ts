@@ -1,3 +1,4 @@
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { and, eq, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
@@ -87,16 +88,9 @@ import { buildRecoverySeed } from "./recovery-seed";
 // Money is integer cents. Timestamps are relative to the passed-in `now`, so the
 // data always looks recent no matter when the reset cron last ran.
 
-/** Split an array into fixed-size chunks (keeps D1 statement/param counts bounded). */
-function chunk<T>(xs: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
-  return out;
-}
-
 /** Run a list of write statements as batched transactions (<=50 per batch). */
 async function runBatched(db: Db, statements: BatchItem<"sqlite">[]): Promise<void> {
-  for (const group of chunk(statements, 50)) {
+  for (const group of chunked(statements, 50)) {
     if (group.length === 0) continue;
     await db.batch(group as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   }

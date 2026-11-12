@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
@@ -91,8 +92,7 @@ function movementSentence(facts: NarrativeFacts): string {
 
 function riskSentence(facts: NarrativeFacts): string {
   if (facts.atRiskCustomerCount === 0) return "No customer is at risk right now.";
-  const who =
-    facts.atRiskCustomerCount === 1 ? "1 customer" : `${facts.atRiskCustomerCount} customers`;
+  const who = plural(facts.atRiskCustomerCount, "customer");
   const lowest = facts.topAtRiskCustomers[0];
   const lowestText = lowest
     ? ` The lowest health score is ${lowest.customerName ?? lowest.stripeCustomerId} at ${lowest.healthScore}/100.`

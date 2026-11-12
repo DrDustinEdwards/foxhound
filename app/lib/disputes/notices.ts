@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { isoDay } from "@drdustinedwards/site-helpers/xml";
 
 import { disputeFeeCents } from "~/lib/billing/fees";
@@ -209,11 +210,11 @@ const REMINDER_APPROVED_LINE =
 /** Recova's sendDisputeDeadlineReminderEmail. */
 export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
-  const plural = input.daysLeft === 1 ? "day" : "days";
+  const due = plural(input.daysLeft, "day");
   return {
-    subject: `URGENT: Dispute response due in ${input.daysLeft} ${plural}`,
+    subject: `URGENT: Dispute response due in ${due}`,
     notice: {
-      title: `Dispute response due in ${input.daysLeft} ${plural}.`,
+      title: `Dispute response due in ${due}.`,
       body: [
         `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
         "Current status: needs response.",
