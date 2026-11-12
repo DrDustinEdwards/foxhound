@@ -21,7 +21,8 @@ import {
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
-import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
+import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/privacy";

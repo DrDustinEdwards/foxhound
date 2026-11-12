@@ -1,6 +1,7 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { organizationJsonLd, personJsonLd, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
+import { organizationJsonLd, personJsonLd, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/about";

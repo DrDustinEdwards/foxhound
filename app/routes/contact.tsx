@@ -3,7 +3,8 @@ import { Link } from "capsomer/react/link";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { organizationJsonLd, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
+import { organizationJsonLd, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/contact";

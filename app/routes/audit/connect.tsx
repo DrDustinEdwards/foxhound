@@ -3,7 +3,7 @@ import { Button } from "capsomer/react/button";
 import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { Form, redirect, useFormAction, useNavigation } from "react-router";
-import { AuthLink } from "~/components/auth-card";
+import { AuthLink } from "~/components/auth-link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";

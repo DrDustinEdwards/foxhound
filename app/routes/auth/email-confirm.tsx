@@ -9,7 +9,8 @@ import { Button } from "capsomer/react/button";
 import { useEffect } from "react";
 import { data } from "react-router";
 
-import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
+import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
+import { AuthLink } from "~/components/auth-link";
 import { getAuth } from "~/lib/auth";
 import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-words";
 import { getSession } from "~/lib/auth/session";

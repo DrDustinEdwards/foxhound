@@ -4,7 +4,8 @@ import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { DOC_GUIDES, type DocGuide } from "~/lib/marketing/docs-content";
-import { docsItemListJsonLd, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
+import { docsItemListJsonLd, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";

@@ -7,7 +7,8 @@ import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { data } from "react-router";
 
-import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
+import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
+import { AuthLink } from "~/components/auth-link";
 import { getAuth } from "~/lib/auth";
 import { getSession } from "~/lib/auth/session";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";

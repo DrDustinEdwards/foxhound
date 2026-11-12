@@ -17,11 +17,10 @@
    layer declared above, so Tailwind's utilities still win. */
 @import "capsomer/utilities.css";
 /* Capsomer's link system, without the rest of base.css: every text link in the link color,
-   semibold with no underline, a soft tint under the pointer, the visited color once followed
-   (capsomer/links.css), and one cue more per kind of link (capsomer/link.css: another site,
-   a file, mail). In cap.base, so a Tailwind class on a link that is a button or a card wins. */
+   semibold with no underline, a soft tint under the pointer, the visited color once followed.
+   In cap.base, so a Tailwind class on a link that is a button or a card wins. The public pages
+   add each kind's cue (capsomer/link.css, in layouts/marketing.tsx). */
 @import "capsomer/links.css";
-@import "capsomer/link.css";
 /* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
 @import "capsomer/reading-progress.css";
 @import "capsomer/reveal.css";

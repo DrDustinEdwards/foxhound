@@ -20,7 +20,8 @@ import {
   AUDIT_SECTION_LABEL,
   AUDIT_STEPS,
 } from "~/lib/marketing/audit-copy";
-import { speakableWebPageJsonLd, siteUrlLoader } from "~/lib/seo/jsonld";
+import { speakableWebPageJsonLd } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";

@@ -6,7 +6,8 @@ import {
 
 import { LegalBody } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
+import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/accessibility";

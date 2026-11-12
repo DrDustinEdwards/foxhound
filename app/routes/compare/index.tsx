@@ -6,7 +6,7 @@ import { CARD_MD } from "~/components/marketing-card";
 import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
-import { siteUrlLoader } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";

@@ -5,12 +5,12 @@ import {
   AuthCard,
   AuthFootnote,
   AuthHeading,
-  AuthLink,
   PasskeyContinue,
   SignInLinkForm,
   SignInLinkSent,
   SocialContinue,
 } from "~/components/auth-card";
+import { AuthLink } from "~/components/auth-link";
 import { checkAuthLimit, limitedData, SIGN_IN_LIMITED } from "~/lib/auth/rate-limit.server";
 import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { DEFAULT_NEXT_PATH, REAUTH_PARAM } from "~/lib/auth/next-path";

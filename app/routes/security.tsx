@@ -19,7 +19,8 @@ import {
   STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
-import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL, siteUrlLoader } from "~/lib/seo/jsonld";
+import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/security";

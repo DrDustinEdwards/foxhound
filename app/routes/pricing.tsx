@@ -11,7 +11,8 @@ import {
   PRICING_META_DESCRIPTION,
 } from "~/lib/marketing/pricing-copy";
 import { PRODUCTS } from "~/lib/marketing/products";
-import { speakableWebPageJsonLd, siteUrlLoader } from "~/lib/seo/jsonld";
+import { speakableWebPageJsonLd } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";

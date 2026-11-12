@@ -5,7 +5,7 @@ import { Link } from "capsomer/react/link";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
 import { HUB_COPY } from "~/lib/marketing/products-hub";
-import { siteUrlLoader } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";

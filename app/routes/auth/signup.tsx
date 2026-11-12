@@ -5,12 +5,12 @@ import {
   AuthCard,
   AuthFootnote,
   AuthHeading,
-  AuthLink,
   SIGN_IN_CODE_QUERY,
   SignInLinkForm,
   SignInLinkSent,
   SocialContinue,
 } from "~/components/auth-card";
+import { AuthLink } from "~/components/auth-link";
 import {
   checkAuthLimit,
   limitedData,
