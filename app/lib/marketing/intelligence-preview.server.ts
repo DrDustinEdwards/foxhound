@@ -16,9 +16,9 @@ import {
 import { monthKey } from "@dustinedwards/site-runtime/time";
 import { healthScoreBand, type HealthScoreBand } from "~/lib/intelligence/health-band";
 import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { hourlyPreview } from "./hourly-preview";
 
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
-import { HOUR_MS } from "~/lib/constants";
 
 // The data behind the /product/intelligence previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hand-written numbers
@@ -137,13 +137,5 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
   };
 }
 
-// The seed is cheap, but its dates count from `now`, so one preview serves
-// every request in the same hour, as the Recovery and Disputes spokes' do.
-let cached: { hour: number; preview: IntelligencePreview } | null = null;
-
-export function intelligencePreviewFor(nowMs: number): IntelligencePreview {
-  const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour)
-    cached = { hour, preview: buildIntelligencePreview(new Date(hour * HOUR_MS)) };
-  return cached.preview;
-}
+// One preview per clock hour (hourlyPreview).
+export const intelligencePreviewFor = hourlyPreview(buildIntelligencePreview);

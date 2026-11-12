@@ -17,7 +17,15 @@ import {
   FAILED_PAYMENT_STATUS_UNRECOVERED,
   type DeclineCategory,
 } from "~/lib/constants";
+import { parsePage } from "capsomer/behavior/pagination";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
+import {
+  parsePaymentsAmount,
+  parsePaymentsPageSize,
+  parsePaymentsSort,
+  parsePaymentsTimeRange,
+} from "~/lib/recovery/payments-list";
+import { resolvePaymentTimeRangeCutoff } from "~/lib/recovery/time-range";
 import { notCancelledResult } from "./dashboard-queries.server";
 
 // Recovery-surface read models (Phase 5 slice 5b): failed payments, their
@@ -214,6 +222,47 @@ export async function getAmountBounds(
     defaultCurrency,
     currencies: rows.map((r) => r.currency),
   };
+}
+
+/** The payments list's filters as its URL states them, shared by the page and its CSV export so the export is always
+ *  the rows on screen. `filters` is what listFilteredFailedPayments takes; the amounts as parsed (null when absent)
+ *  are the slider's handles. A handle resting on its own end is no filter. */
+export async function readPaymentFilters(
+  db: Db,
+  accountId: string,
+  params: URLSearchParams,
+  nowMs: number,
+) {
+  const time = parsePaymentsTimeRange(params.get("time"));
+  const bounds = await getAmountBounds(db, accountId, params.get("currency"));
+  const amountMinParsed = parsePaymentsAmount(
+    params.get("amountMin"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
+  const amountMaxParsed = parsePaymentsAmount(
+    params.get("amountMax"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
+  const input: FailedPaymentFilterInput = {
+    search: params.get("q")?.trim() || null,
+    declineCategory: params.get("category") || null,
+    detectedAfterMs: resolvePaymentTimeRangeCutoff(time, nowMs),
+    amountMinCents:
+      amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null,
+    amountMaxCents:
+      amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null,
+    amountCurrency: bounds.currency,
+  };
+  const filters: FailedPaymentFilters = {
+    ...input,
+    status: params.get("status") || null,
+    sort: parsePaymentsSort(params.get("sort")),
+    page: parsePage(params.get("page")),
+    pageSize: parsePaymentsPageSize(params.get("perPage")),
+  };
+  return { input, filters, time, bounds, amountMinParsed, amountMaxParsed };
 }
 
 export interface PaymentStatusCounts {

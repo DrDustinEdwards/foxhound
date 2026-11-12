@@ -1,22 +1,13 @@
-import { parsePage } from "capsomer/behavior/pagination";
-
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { csvResponse } from "@dustinedwards/site-runtime/csv";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
 import {
-  parsePaymentsAmount,
-  parsePaymentsPageSize,
-  parsePaymentsSort,
-  parsePaymentsTimeRange,
-} from "~/lib/recovery/payments-list";
-import {
   countStepsForFailedPayments,
-  getAmountBounds,
   listFilteredFailedPayments,
+  readPaymentFilters,
 } from "~/lib/recovery/queries.server";
-import { resolvePaymentTimeRangeCutoff } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/export";
 
@@ -34,44 +25,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const nowMs = Date.now();
 
-  const params = new URL(request.url).searchParams;
-  const search = params.get("q")?.trim() || null;
-  const status = params.get("status") || null;
-  const declineCategory = params.get("category") || null;
-  const sort = parsePaymentsSort(params.get("sort"));
-  const time = parsePaymentsTimeRange(params.get("time"));
-  const page = parsePage(params.get("page"));
-  const pageSize = parsePaymentsPageSize(params.get("perPage"));
-
-  const bounds = await getAmountBounds(db, accountId, params.get("currency"));
-  const amountMinParsed = parsePaymentsAmount(
-    params.get("amountMin"),
-    bounds.minCents,
-    bounds.maxCents,
+  const { filters } = await readPaymentFilters(
+    db,
+    accountId,
+    new URL(request.url).searchParams,
+    nowMs,
   );
-  const amountMaxParsed = parsePaymentsAmount(
-    params.get("amountMax"),
-    bounds.minCents,
-    bounds.maxCents,
-  );
-  const amountMinCents =
-    amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
-  const amountMaxCents =
-    amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
-  const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);
-
-  const result = await listFilteredFailedPayments(db, accountId, {
-    search,
-    status,
-    declineCategory,
-    detectedAfterMs,
-    amountMinCents,
-    amountMaxCents,
-    amountCurrency: bounds.currency,
-    sort,
-    page,
-    pageSize,
-  });
+  const result = await listFilteredFailedPayments(db, accountId, filters);
 
   const stepCounts = await countStepsForFailedPayments(
     db,

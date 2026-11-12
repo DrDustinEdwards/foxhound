@@ -3,7 +3,7 @@ import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
-import { DAY_MS, type DeclineCategory, HOUR_MS, RECOVERY_MATURITY_MS } from "~/lib/constants";
+import { DAY_MS, type DeclineCategory, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
@@ -13,6 +13,7 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
+import { hourlyPreview } from "./hourly-preview";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
 
@@ -174,11 +175,4 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
 // The seed walks ninety days of a 200-customer account, which is real work, so
 // one preview serves every request in the same hour. Its relative times ("2d
 // ago") are read at the hour too, which keeps them right to the day.
-let cached: { hour: number; preview: RecoveryPreview } | null = null;
-
-export function recoveryPreviewFor(nowMs: number): RecoveryPreview {
-  const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour)
-    cached = { hour, preview: buildRecoveryPreview(new Date(hour * HOUR_MS)) };
-  return cached.preview;
-}
+export const recoveryPreviewFor = hourlyPreview(buildRecoveryPreview);
