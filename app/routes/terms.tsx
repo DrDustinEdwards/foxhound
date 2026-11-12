@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import {
   LegalBody,
   LegalContents,
@@ -700,3 +701,5 @@ export default function TermsPage() {
     </>
   );
 }
+
+export const headers = () => publicPageHeaders();

@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import {
   ACCESSIBILITY_PATH,
   accessibilityStatement,
@@ -62,3 +63,5 @@ export default function AccessibilityPage() {
     </>
   );
 }
+
+export const headers = () => publicPageHeaders();

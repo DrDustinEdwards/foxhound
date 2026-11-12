@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { Link } from "capsomer/react/link";
@@ -118,3 +119,5 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { TrendingUp } from "lucide-react";
 
 import {
@@ -135,3 +136,5 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

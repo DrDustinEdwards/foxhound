@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight, Check } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
@@ -238,3 +239,5 @@ export default function PricingPage() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

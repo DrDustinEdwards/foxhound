@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS, UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
 import { Button } from "capsomer/react/button";
 import { ResultPage } from "capsomer/react/status-mark";
 import { Form, useActionData, useNavigation } from "react-router";
@@ -39,11 +40,7 @@ export function meta() {
 // correctness class as the F2 robots row, where Foxhound already disallows
 // /u/ /p/ /e/ that legacy crawled and the ledger records that it must not be
 // reverted; robots.txt is advisory and a cache directive is not.
-const NO_STORE = "no-store, no-cache, must-revalidate, private";
-
-export function headers() {
-  return { "Cache-Control": NO_STORE };
-}
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 // CAN-SPAM one-click unsubscribe (ROUTES.md public-utility /u/:token, ARCHITECTURE
 // non-negotiable #8). Every dunning email signs a real unsubscribe token
@@ -85,7 +82,7 @@ export const middleware: Route.MiddlewareFunction[] = [
     if (!allowed) {
       return new Response("Too many requests", {
         status: 429,
-        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": NO_STORE },
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": UNCACHED },
       });
     }
     return next();

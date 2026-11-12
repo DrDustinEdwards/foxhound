@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { ArrowRight } from "lucide-react";
@@ -91,3 +92,5 @@ export default function DeclineCodesIndex() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

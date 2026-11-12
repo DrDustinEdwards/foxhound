@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
@@ -123,3 +124,5 @@ export default function ProductsIndexPage() {
     </>
   );
 }
+
+export const headers = () => publicPageHeaders();

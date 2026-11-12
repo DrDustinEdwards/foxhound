@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
@@ -464,3 +465,5 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

@@ -82,15 +82,6 @@ function mcpErrorBody(id: string | number | null, code: number, message: string)
 /** The server as the shared log names it. */
 const AUDIT_SERVER = { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
 
-/** The registry as the list-only test key sees it: the read tools only, as a read grant would see them. */
-function readToolsOnly(registry: McpToolRegistry): McpToolRegistry {
-  const read = (name: string) => {
-    const tool = registry.get(name);
-    return tool?.scope === "read" ? tool : null;
-  };
-  return { list: () => registry.list().filter((tool) => read(tool.name)), get: read };
-}
-
 /** What the endpoint resolved before dispatching. */
 interface McpAuthContext {
   keyId: string;
@@ -258,7 +249,7 @@ export async function handleMcpRequest(
       const now = new Date();
       return serveMcp(
         req,
-        readToolsOnly(registry),
+        registry,
         {
           env,
           db: getDb(env),

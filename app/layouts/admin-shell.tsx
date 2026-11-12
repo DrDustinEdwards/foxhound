@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
 import {
@@ -45,6 +46,9 @@ export const handle = { hydrate: true };
 // or action. Anything else gets a 404, as before, so /admin's existence is not
 // disclosed. /admin no longer sits under the merchant app shell: no Better Auth
 // session, no account, no demo cookie are involved.
+// Drawn for one reader and kept out of Web Analytics (site-runtime PRIVATE_PAGE_HEADERS); the children inherit it.
+export const headers = () => PRIVATE_PAGE_HEADERS;
+
 export const middleware: Route.MiddlewareFunction[] = [
   noindexHeader,
   async ({ request, context }, next) => {

@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Shield } from "lucide-react";
 
 import {
@@ -146,3 +147,5 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

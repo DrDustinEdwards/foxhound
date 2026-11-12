@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -276,3 +277,5 @@ export default function SecurityPage() {
     </>
   );
 }
+
+export const headers = () => publicPageHeaders();

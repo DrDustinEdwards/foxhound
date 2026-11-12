@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { RefreshCw } from "lucide-react";
 
 import {
@@ -154,3 +155,5 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

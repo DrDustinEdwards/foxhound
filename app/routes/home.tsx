@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
@@ -602,3 +603,5 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

@@ -22,7 +22,6 @@ import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { sentryOptions } from "~/lib/errors/sentry-options";
 import { TOKEN_ROUTES } from "~/lib/errors/token-routes";
-import { applyCachePolicy, cacheable } from "~/lib/http/cache-policy";
 import { withSecurityHeaders } from "~/lib/http/content-security-policy";
 import { SPECULATION_OPTIONS } from "~/lib/http/speculation-rules";
 import { enforceRateLimit } from "~/lib/http/rate-limit";
@@ -109,9 +108,9 @@ const CODE_PAGES = new Set(codePagePaths());
 
 /**
  * The site's Worker (site-runtime ./worker). What is Foxhound's own: its machine files, its rate limit, Carrel's site API, the operator
- * API and the merchant MCP as steps; its route-class cache rule (respond: Vary: Cookie on public classes, private
- * no-store on the rest, CLAUDE.md rule 9); the theme in the cache key; Carrel's tombstones on a 404; the Markdown copies;
- * the admin idle sign-out; and the token routes cut from the logs.
+ * API and the merchant MCP as steps; the theme in the cache key; Carrel's tombstones on a 404; the Markdown copies;
+ * the admin idle sign-out; and the token routes cut from the logs. The cache rule is the network's (CLAUDE.md rule 9):
+ * a public route's `headers` is publicPageHeaders (stored, Vary: Cookie), and every other answer leaves private, no-store.
  */
 const site = defineSite<Env>({
   name: "Foxhound",
@@ -125,9 +124,7 @@ const site = defineSite<Env>({
   speculationExclude: SPECULATION_OPTIONS.exclude,
   steps: [rateLimit, carrel, operator, mcp],
   publicCookies: [THEME_COOKIE],
-  cacheable: (_request, url) => cacheable(url),
   preloads: [...FONT_PRELOADS],
-  respond: (response, request, _env, { stored }) => applyCachePolicy(request, response, stored),
   onNotFound: (response, request, env) =>
     tombstoned(response, new URL(request.url).pathname, d1SiteApiStore(env.DB)),
   wrap: (handler) =>
@@ -164,8 +161,8 @@ setPageRenderer(async (path, env) => {
 
 /**
  * THE CACHEABLE ENTRYPOINT (site-runtime ./worker; wrangler.jsonc `exports`). The gateway sends it only an anonymous
- * read of a cacheable path; what it answers is stored by the Workers cache under the key the gateway names, with the
- * nonce it was rendered with, which the gateway renews for every reader.
+ * read; what a public route answers is stored by the Workers cache under the key the gateway names, with the nonce it
+ * was rendered with, which the gateway renews for every reader. Anything else leaves with an edge no-store.
  */
 export class Renderer extends siteRenderer(WorkerEntrypoint<Env>, site) {}
 

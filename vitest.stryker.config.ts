@@ -11,7 +11,6 @@ import base from "./vitest.config";
 
 const SOURCE_TEXT_TEST_FILES = [
   "test/ai-gateway-client.test.ts",
-  "test/cache-policy.test.ts",
   "test/d1-backup-job-f7f35d4b7ac7.test.ts",
   "test/expiring-card-cron.test.ts",
   "test/live-send-flag.test.ts",

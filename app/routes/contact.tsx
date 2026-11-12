@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Link } from "capsomer/react/link";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -88,3 +89,5 @@ export default function ContactPage() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

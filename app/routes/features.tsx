@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { useMemo, useState } from "react";
 import { Link } from "capsomer/react/link";
 
@@ -224,3 +225,5 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { Link } from "capsomer/react/link";
 
@@ -140,3 +141,5 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

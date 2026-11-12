@@ -6,7 +6,6 @@ import type { Db } from "~/db";
 import { accounts, disputeApprovals, disputeEvidence, disputes } from "~/db/schema";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { applyCachePolicy } from "~/lib/http/cache-policy";
 import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import type { DisputeSubmissionContext } from "~/lib/disputes/submission";
 
@@ -477,12 +476,8 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
     const res = await view(row.id, { bucket });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
-    // The one cache policy, applied on the way out, makes it private.
-    const sent = applyCachePolicy(
-      new Request(`https://foxhoundapp.test/disputes/dsp_1/files/${row.id}`),
-      res,
-    );
-    expect(sent.headers.get("cache-control")).toBe("private, no-store");
+    // No directive of its own, so the shared Worker sends it private, no-store; never a public one.
+    expect(res.headers.get("cache-control")).toBeNull();
     expect(res.headers.get("content-disposition")).toBe(
       `inline; filename="${row.field_value.split("/").pop()}"`,
     );
