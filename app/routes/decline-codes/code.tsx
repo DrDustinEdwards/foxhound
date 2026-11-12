@@ -3,7 +3,7 @@ import "capsomer/status.css";
 import { Link } from "capsomer/react/link";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
-import { FaqList } from "~/components/product-sections-cap";
+import { FaqList } from "~/components/faq-list";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getDeclineCodeView } from "~/lib/decline-codes/codes";
