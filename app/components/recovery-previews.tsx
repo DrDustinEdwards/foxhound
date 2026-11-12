@@ -5,7 +5,6 @@ import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 
 import { CategoryPill, StepChip } from "~/components/tone-pills";
-import { timingLabel } from "~/components/docs/sequence-timeline";
 import type { DeclineCategory } from "~/lib/constants";
 import type { RecoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import type {
@@ -18,7 +17,7 @@ import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 // The three previews on /product/recovery, Recova's three feature-block
 // UIs: the category sequences (page.tsx's CategorySequencePreview with
-// CategoryPill and SequenceTimeline), the dashboard (RecoveryDashboardPreview:
+// CategoryPill and SequenceTimeline, drawn by SequenceSteps here and on /features and the guide), the dashboard (RecoveryDashboardPreview:
 // StatCards' primary row and ROIWidget) and the payments table
 // (RecoveryPaymentsPreview: PaymentsTable and PaymentRow's preview row).
 //
@@ -28,6 +27,12 @@ import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 // Recova draws no chart in any of the three, so neither does this page.
 
 const CATEGORIES = Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[];
+
+/** Recova's step timing words: "4 hr" under a day, "Day N" from a day on. */
+export function timingLabel(offsetHours: number): string {
+  if (offsetHours < 24) return `${offsetHours} hr`;
+  return `Day ${Math.round(offsetHours / 24)}`;
+}
 
 export function SequenceSteps({ category }: { category: DeclineCategory }) {
   const steps = RECOVERY_SCHEDULES[category];

@@ -1,11 +1,11 @@
 import { isEmail } from "@dustinedwards/site-runtime/email";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { eq } from "drizzle-orm";
 import { applyTheme } from "capsomer/behavior/theme-switch";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { InputGroup, InputGroupAddon } from "capsomer/react/field";
+import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
 import { PageHead } from "capsomer/react/page-head";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
@@ -484,53 +484,6 @@ function mrrDollars(cents: number | null): string {
   return cents === null ? "" : String(cents / 100);
 }
 
-/** One field's label, control, help under it and error, from Capsomer's field
- *  parts, in Recova's arrangement (help under the control), as /settings/email
- *  draws its fields. `control` receives the id and description to carry. */
-function RecovaField({
-  label,
-  help,
-  error,
-  control,
-}: {
-  label: string;
-  help?: string;
-  error?: string;
-  control: (props: { id: string; "aria-describedby"?: string; "aria-invalid"?: true }) => ReactNode;
-}) {
-  const base = useId();
-  const id = `${base}-control`;
-  const helpId = `${base}-help`;
-  const errorId = `${base}-error`;
-  const describedBy =
-    [error ? errorId : null, help ? helpId : null].filter(Boolean).join(" ") || undefined;
-  return (
-    <div className="cap-field" data-invalid={error ? "true" : undefined}>
-      <label className="cap-field-label" htmlFor={id}>
-        {label}
-      </label>
-      {control({
-        id,
-        "aria-describedby": describedBy,
-        "aria-invalid": error ? true : undefined,
-      })}
-      {help ? (
-        <p className="cap-field-help" id={helpId}>
-          {help}
-        </p>
-      ) : null}
-      <p
-        className="cap-field-error"
-        id={errorId}
-        role={error ? "alert" : undefined}
-        hidden={!error}
-      >
-        {error ?? null}
-      </p>
-    </div>
-  );
-}
-
 /** AccountProfileForm: the name card, the profile card and one SaveBar. */
 function ProfileForm({
   account,
@@ -557,11 +510,13 @@ function ProfileForm({
       {/* AccountNameSection */}
       <section className="cap-panel">
         <div className="cap-panel-body">
-          <RecovaField
+          <Field
+            announce
             label="Account name"
             help="Your business or product name"
             error={fieldError("name")}
-            control={(p) => (
+          >
+            {(p) => (
               <input
                 {...p}
                 type="text"
@@ -571,7 +526,7 @@ function ProfileForm({
                 placeholder="e.g. Acme Inc"
               />
             )}
-          />
+          </Field>
         </div>
       </section>
 
@@ -580,9 +535,8 @@ function ProfileForm({
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
-              <RecovaField
-                label="Industry"
-                control={(p) => (
+              <Field announce label="Industry">
+                {(p) => (
                   <Select
                     {...p}
                     name="merchantIndustry"
@@ -590,7 +544,7 @@ function ProfileForm({
                     options={industryOptions(account.merchantIndustry)}
                   />
                 )}
-              />
+              </Field>
             </div>
 
             <div className="mb-5">
@@ -613,11 +567,13 @@ function ProfileForm({
               </fieldset>
             </div>
 
-            <RecovaField
+            <Field
+              announce
               label="Monthly Recurring Revenue"
               help="Used to personalize recovery emails."
               error={fieldError("merchantMrrSelfReported")}
-              control={(p) => (
+            >
+              {(p) => (
                 <InputGroup>
                   <InputGroupAddon align="inline-start">
                     <span className="cap-input-group-text">$</span>
@@ -634,7 +590,7 @@ function ProfileForm({
                   />
                 </InputGroup>
               )}
-            />
+            </Field>
           </div>
         </section>
       </div>

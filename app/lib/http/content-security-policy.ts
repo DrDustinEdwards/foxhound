@@ -15,7 +15,7 @@
 //    the policy and on only the elements that carried the stored value, so no
 //    two readers share a nonce and no injected script gains one.
 //  - style-src has no 'unsafe-inline' for elements. Inline style={{}} attributes (charts.tsx,
-//    fade-up.tsx, reading-progress-bar.tsx, faq-accordion.tsx and others) are
+//    fade-up.tsx, reading-progress-bar.tsx and others) are
 //    allowed by style-src-attr 'unsafe-inline', which runs no code. The two
 //    inline <style> elements are trusted by hash (inline-styles.ts).
 //  - form-action is 'self' plus Stripe Checkout and Connect. Checkout starts through a

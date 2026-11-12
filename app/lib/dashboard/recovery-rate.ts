@@ -16,6 +16,13 @@ const TONE_CLASS_NAME: Record<RecoveryRateTone, string> = {
   green: "text-success-text",
 };
 
+/** The band as a Capsomer status tone (StatTile, Pill). */
+export function recoveryRateStatusTone(pct: number): "crit" | "warn" | "ok" {
+  return STATUS_TONE[recoveryRateTone(pct)];
+}
+
+const STATUS_TONE = { green: "ok", caution: "warn", red: "crit" } as const;
+
 export function recoveryRateClassName(pct: number): string {
   return TONE_CLASS_NAME[recoveryRateTone(pct)];
 }

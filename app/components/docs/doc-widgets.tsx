@@ -4,8 +4,7 @@ import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
 import { CategoryPill } from "~/components/tone-pills";
-import { SequenceSteps } from "~/components/recovery-previews";
-import { timingLabel } from "~/components/docs/sequence-timeline";
+import { SequenceSteps, timingLabel } from "~/components/recovery-previews";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, type DeclineCategory } from "~/lib/constants";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
