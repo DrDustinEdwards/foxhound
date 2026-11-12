@@ -547,11 +547,6 @@
 
   --violet-vivid: #b429f0;
   --violet-ui: #9010cc;
-  --violet-muted: #cd82ed;
-  --violet-subtle: #dcb6ed;
-  --violet-bg: #2d0c3b;
-  --violet-bg-subtle: #200a29;
-  --violet-border: #45165a;
 
   --border: #cccbc3;
   --border-sub: #e2e1da;
@@ -569,22 +564,6 @@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 6%);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 8%);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 12%);
-  --scrim-light: rgb(0 0 0 / 45%);
-  --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-violet: rgb(180 41 240 / 15%);
-
-  --warning: var(--orange);
-  --warning-bg: var(--orange-bg);
-  --error: var(--red);
-  --error-bg: var(--red-bg);
-  --bg-surface: var(--surface);
-  --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--brand-ui), var(--brand-dark));
-  --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
-  --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
-  --gradient-brand-violet: linear-gradient(135deg, var(--chrome-brand), var(--violet-vivid));
-  --gradient-dark: linear-gradient(135deg, var(--bg), var(--surface));
-  --gradient-subtle: linear-gradient(180deg, var(--surface), var(--bg));
 }
 
 /* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
