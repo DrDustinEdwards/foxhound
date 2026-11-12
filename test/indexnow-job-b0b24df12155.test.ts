@@ -19,7 +19,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const { INDEXNOW_KEY } = await import("~/lib/seo/indexnow-key");
 const keyRoute = await import("~/routes/files/indexnow-key");
-const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
+const { carrelSiteApi } = await import("~/lib/carrel/handler.server");
 
 const ORIGIN = "https://foxhoundapp.com";
 const SITE_KEY = "k".repeat(40);
@@ -90,23 +90,21 @@ const SOURCE = serializePostSource({
 
 function carrel(path: string, body: unknown, origin = ORIGIN) {
   const env = envFor();
-  return handleCarrelRequest(
+  return carrelSiteApi(env).handle(
     new Request(`${origin}/api/carrel/v1${path}`, {
       method: path.endsWith("/draft") ? "PUT" : "POST",
       headers: { authorization: `Bearer ${SITE_KEY}`, "content-type": "application/json" },
       body: JSON.stringify(body),
     }),
-    env,
     ctx,
   );
 }
 
 async function carrelVersion(id: string): Promise<string> {
-  const res = await handleCarrelRequest(
+  const res = await carrelSiteApi(envFor()).handle(
     new Request(`${ORIGIN}/api/carrel/v1/content/${id}`, {
       headers: { authorization: `Bearer ${SITE_KEY}` },
     }),
-    envFor(),
     ctx,
   );
   return ((await res!.json()) as { version: string }).version;

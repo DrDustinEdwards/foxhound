@@ -25,7 +25,6 @@ import {
   renamePost,
   setPublished,
   setTrashed,
-  uniqueSlugFromTitle,
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
 import { renderMarkdown } from "~/lib/blog/markdown.server";
@@ -33,7 +32,7 @@ import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
-import { SLUG_PATTERN } from "@drdustinedwards/site-helpers/slug";
+import { SLUG_PATTERN, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
 
 // The Carrel site adapter over Foxhound's blog. Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
@@ -257,7 +256,20 @@ export function carrelAdapter(
       const existing = await load(id);
       if (existing) throw new VersionConflictError(existing.version);
       const post = parse(source);
-      const slug = post.slug ?? (await uniqueSlugFromTitle(db, post.title));
+      const slug =
+        post.slug ??
+        (await uniqueSlug(post.title, {
+          fallback: "post",
+          max: 80,
+          taken: async (candidate) =>
+            (
+              await db
+                .select({ id: blogPosts.id })
+                .from(blogPosts)
+                .where(eq(blogPosts.slug, candidate))
+                .limit(1)
+            ).length > 0,
+        }));
       await createPost(db, {
         id,
         title: post.title,

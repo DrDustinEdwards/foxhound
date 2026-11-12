@@ -1,5 +1,6 @@
 // aislop-ignore-next-line ai-slop/hallucinated-import -- a Workers built-in, not an npm package
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { siteApiStep } from "@dustinedwards/site-api";
 import { d1SiteApiStore, tombstoned } from "@dustinedwards/site-api/store";
 import { generateNonce } from "@dustinedwards/site-runtime/csp";
 import {
@@ -66,21 +67,15 @@ const rateLimit: GatewayStep<Env> = (request, env) => enforceRateLimit(request, 
  * does not overwrite them, so the token, which is the address, is never sent on) and writes nothing; any write Carrel
  * makes (a post, its schedule, a media library picture a post shows) can change a stored page, so the pages are purged.
  */
-const carrel: GatewayStep<Env> = async (request, env, ctx, kit) => {
-  const { pathname } = kit.url;
-  if (!pathname.startsWith("/api/carrel/v1") && !pathname.startsWith("/preview/")) return undefined;
-  const { handleCarrelRequest } = await import("~/lib/carrel/handler.server");
+const carrel = siteApiStep<Env>(async (env, kit) => {
+  const { carrelSiteApi } = await import("~/lib/carrel/handler.server");
   // The root's stylesheets, then the blog post route's (its prose blocks), so a preview is drawn as /blog/<slug> draws
   // the post.
-  const stylesheets = [
+  return carrelSiteApi(env, [
     ...(await kit.stylesheets()),
     ...((await serverBuild()).assets.routes["routes/blog/post"]?.css ?? []),
-  ];
-  const answer = await handleCarrelRequest(request, env, ctx, stylesheets);
-  if (answer && !pathname.startsWith("/preview/"))
-    kit.purgeAfterWrite(request, answer, `carrel ${request.method} ${pathname}`);
-  return answer;
-};
+  ]);
+});
 
 /**
  * THE OPERATOR API (app/lib/operator.server.ts): Capsid Admin's backups and run a job now, behind its own bearer. A
