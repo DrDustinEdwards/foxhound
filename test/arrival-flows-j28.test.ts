@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { SIGN_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -183,7 +184,7 @@ describe("A8: /welcome is the landing for one new connection", () => {
 });
 
 describe("A10: a disposable address at sign-up", () => {
-  it("is refused with a code that brings the visitor back to /login with Recova's sentence", async () => {
+  it("is refused with a code that brings the visitor back to /login with the network's sentence", async () => {
     const before = authOptions.databaseHooks.user.create.before;
     await expect(before({ email: "x@mailinator.com" } as never)).rejects.toMatchObject({
       body: { code: "disposable_email" },
@@ -193,8 +194,6 @@ describe("A10: a disposable address at sign-up", () => {
       params: {},
       context: context(),
     } as never);
-    expect((page as { error: string }).error).toBe(
-      "Please use a real email address. Disposable email providers are not allowed.",
-    );
+    expect((page as { error: string }).error).toBe(SIGN_IN_WORDS.code.disposable);
   });
 });
