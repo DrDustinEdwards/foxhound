@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { accounts, customerContext } from "~/db/schema";
-import { CRITICAL_HEALTH_SCORE_MAX } from "~/lib/intelligence/alerts";
+import { CRITICAL_HEALTH_SCORE_MAX } from "~/lib/constants";
 import { HEALTH_SCORE_BASELINE } from "~/lib/intelligence/risk";
 import { rescoreCustomer } from "~/lib/intelligence/score-inputs.server";
 import { classifyStripeEvent } from "~/lib/webhooks/events";

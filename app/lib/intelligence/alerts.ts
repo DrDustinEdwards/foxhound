@@ -147,9 +147,6 @@ export function buildAlertLastTriggeredUpdate(db: Db, alertId: string, firedAt: 
 
 export const CRITICAL_CUSTOMERS_METRIC = "cross_product_critical";
 
-/** Recova's high-risk ceiling for this check: health_score <= 33. */
-export const CRITICAL_HEALTH_SCORE_MAX = 33;
-
 /** The alert_history row for one critical customers firing, as Recova writes
  *  it: threshold 0, direction above, the count as the actual value, and the
  *  channel "email" when neither channel was available. */

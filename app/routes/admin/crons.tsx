@@ -1,9 +1,11 @@
 import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { Alert } from "capsomer/react/banner";
 import { Link } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
+import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/confirm-dialog.css";
@@ -164,14 +166,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      {error ? (
-        <p
-          role="alert"
-          className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-        >
-          {error}
-        </p>
-      ) : null}
+      {error ? <Alert>{error}</Alert> : null}
       {/* Present and empty until a change, so it is announced when filled. */}
       <p role="status" className={done ? "text-label text-text" : "cap-sr-only"}>
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}

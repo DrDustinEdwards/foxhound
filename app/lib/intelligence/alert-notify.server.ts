@@ -9,7 +9,9 @@ import { alertMetricLabel, isCentsMetric } from "~/lib/settings/alert-metrics";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 
-import { CRITICAL_HEALTH_SCORE_MAX, type AlertFiring } from "./alerts";
+import { CRITICAL_HEALTH_SCORE_MAX } from "~/lib/constants";
+
+import type { AlertFiring } from "./alerts";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
