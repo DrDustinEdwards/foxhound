@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type Stripe from "stripe";
 
 import {
@@ -230,8 +231,7 @@ export function buildCardUpdaterAdvisory(
 ): string | null {
   if (eventsInWindow > 0) return null;
   if (expiredCardDeclinesInWindow < MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY) return null;
-  const plural = expiredCardDeclinesInWindow === 1 ? "" : "s";
-  return `Stripe Account Updater is not firing for your cards. ${expiredCardDeclinesInWindow} expired-card decline${plural} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
+  return `Stripe Account Updater is not firing for your cards. ${plural(expiredCardDeclinesInWindow, "expired-card decline")} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
 }
 
 /** An empty bucket per category, so a category with no failures reads 0 rather

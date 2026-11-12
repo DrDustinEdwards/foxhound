@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { pageEnvelope, parsePage, statusText } from "capsomer/behavior/pagination";
 import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
@@ -850,7 +851,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               />
               <div className="flex flex-wrap items-center gap-3">
                 <span className="whitespace-nowrap text-micro text-text-subtle">
-                  {resultCount} result{resultCount !== 1 ? "s" : ""}
+                  {plural(resultCount, "result")}
                 </span>
                 {hasActiveFilters ? (
                   <Link
