@@ -1,7 +1,7 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, bool, json } from "./columns";
-import { accounts } from "./tenancy";
+import { accountRef, optionalAccountRef } from "./tenancy";
 
 // ============================================================================
 // Audit product
@@ -26,7 +26,7 @@ export const auditRuns = sqliteTable(
   "audit_runs",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     stripeAccountId: text("stripe_account_id"),
     runAt: ts("run_at").notNull(),
     lookbackDays: integer("lookback_days").notNull(),
@@ -87,13 +87,11 @@ export const auditDigestRuns = sqliteTable(
   "audit_digest_runs",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     /** The month the digest COVERS, "YYYY-MM" in UTC. The dedupe key's other half. */
     periodMonth: text("period_month").notNull(),
     /** CurrencyCents[]: the cumulative attributed-recovery total per currency. */
-    totals: json<{ currency: string; cents: number }[]>("totals"),
+    totals: json<CurrencyTotals>("totals"),
     /** "sent" | "no_recipient" | "failed" */
     status: text("status").notNull(),
     error: text("error"),
