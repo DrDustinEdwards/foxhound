@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { Form, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { ExternalLink } from "lucide-react";
 import { Empty } from "capsomer/react/empty";
 import { useMessage } from "capsomer/react/message";
@@ -108,11 +108,7 @@ export function MerchantsList({
 
       {figures ? <PlatformFigures figures={figures} reading={pending} /> : null}
 
-      <TabsNav
-        aria-label="Filter merchants"
-        variant="line"
-        renderLink={({ href, ...props }) => <Link to={href} {...props} />}
-      >
+      <TabsNav aria-label="Filter merchants" variant="line" renderLink={routerRenderLink}>
         {MERCHANT_VIEWS.map((v) => (
           <TabLink key={v.view} href={v.path} current={v.view === view} count={counts[v.view]}>
             {v.label}

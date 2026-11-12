@@ -1,9 +1,9 @@
 import { and, count, eq, isNull, notInArray } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
-import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
-import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
+import { Row, RowList } from "capsomer/react/row-list";
+import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/page-head.css";
 import "capsomer/row-list.css";
 import "capsomer/stat-tile.css";
@@ -127,19 +127,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-const rowLink = ({ href, children, ...rest }: RowLinkProps) => (
-  <Link to={href} {...rest}>
-    {children}
-  </Link>
-);
-
-// A Capsomer tile is a link; each figure opens the page behind it, as Recova's did.
-const tileLink = ({ href, children, ...rest }: StatTileLinkProps) => (
-  <Link to={href} {...rest}>
-    {children}
-  </Link>
-);
-
 /** One entry as a Capsomer row: the label is the row's one link, the
  *  description its detail, and Recova's chevron in the meta column. */
 function EntryRow({ entry }: { entry: SettingsHubEntry }) {
@@ -148,7 +135,7 @@ function EntryRow({ entry }: { entry: SettingsHubEntry }) {
       variant="outline"
       title={entry.label}
       href={entry.to}
-      renderLink={rowLink}
+      renderLink={routerRenderLink}
       detail={entry.description}
       meta={<ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />}
     />
@@ -197,21 +184,21 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
           <StatTiles label="Settings overview">
             <StatTile
               href="/settings/stripe"
-              renderLink={tileLink}
+              renderLink={routerRenderLink}
               label="Stripe"
               figure={stripeValue}
               detail={stripeSub}
             />
             <StatTile
               href="/recovery/dashboard"
-              renderLink={tileLink}
+              renderLink={routerRenderLink}
               label="Active sequences"
               figure={activeSequences.toLocaleString("en-US")}
               detail="Payments being recovered"
             />
             <StatTile
               href="/disputes/dashboard"
-              renderLink={tileLink}
+              renderLink={routerRenderLink}
               label="Open disputes"
               figure={openDisputes.toLocaleString("en-US")}
               detail={openDisputes > 0 ? `${openDisputes} need response` : "None open"}

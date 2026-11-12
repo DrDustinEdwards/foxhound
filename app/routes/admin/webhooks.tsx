@@ -1,11 +1,11 @@
 import { useId } from "react";
 import { Form, useNavigation, useRevalidator } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { ExpandRows } from "capsomer/react/disclosure";
 import { Empty } from "capsomer/react/empty";
 import { Pagination, pageHref } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
-import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
+import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import { Status } from "capsomer/react/status";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
@@ -56,15 +56,6 @@ const COLUMNS = 5;
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "inline-block min-h-6 leading-6 text-text underline underline-offset-2";
 
-// A Capsomer tile is a link or a button; each figure opens the events behind it.
-function tileLink({ href, children, ...rest }: StatTileLinkProps) {
-  return (
-    <Link to={href} {...rest}>
-      {children}
-    </Link>
-  );
-}
-
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Webhooks"), the
 // figures first, then one table in Capsomer's parts with plain sentence-case
@@ -85,14 +76,14 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
       <StatTiles label="Webhook health">
         <StatTile
           href={WEBHOOKS_PATH}
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Received"
           figure={String(summary.totalLast24h)}
           detail="In the last 24 hours"
         />
         <StatTile
           href={`${WEBHOOKS_PATH}?errors=1`}
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Errors"
           figure={String(summary.errorsLast24h)}
           tone={summary.errorsLast24h > 0 ? "crit" : undefined}
@@ -100,7 +91,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         />
         <StatTile
           href={`${WEBHOOKS_PATH}?pending=1`}
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Unprocessed"
           figure={String(summary.unprocessedCount)}
           tone={summary.unprocessedCount > 0 ? "crit" : undefined}

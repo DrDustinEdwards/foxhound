@@ -5,16 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiKeys, oauthAuthorizationCodes, oauthGrants } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
 import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
 import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
-import {
-  applyCachePolicy,
-  classifyPath,
-  NO_TRANSFORM_PREFIXES,
-  PRIVATE_DIRECTIVE,
-} from "~/lib/http/cache-policy";
+import { applyCachePolicy, classifyPath, NO_TRANSFORM_PREFIXES } from "~/lib/http/cache-policy";
 import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect } from "~/lib/oauth/redirects";
 import { DISALLOW_PATHS } from "~/routes/files/robots";
@@ -861,7 +857,7 @@ describe("the shared cache policy owns the private responses (test/cache-policy.
       prmReq,
       resourceRoute.loader({ request: prmReq } as never) as Response,
     );
-    expect(prm.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+    expect(prm.headers.get("Cache-Control")).toBe(UNCACHED);
     expect(prm.headers.get("Access-Control-Allow-Origin")).toBe("*");
 
     const revReq = new Request(`${ORIGIN}/api/oauth/revoke`, {
@@ -878,7 +874,7 @@ describe("the shared cache policy owns the private responses (test/cache-policy.
       } as never)) as Response,
     );
     expect(rev.status).toBe(200);
-    expect(rev.headers.get("Cache-Control")).toBe(PRIVATE_DIRECTIVE);
+    expect(rev.headers.get("Cache-Control")).toBe(UNCACHED);
   });
 });
 

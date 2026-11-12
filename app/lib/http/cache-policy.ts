@@ -1,4 +1,4 @@
-import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { publicPageHeaders, UNCACHED } from "@dustinedwards/site-runtime/edge-cache";
 
 import { INDEXNOW_KEY_PATH } from "~/lib/seo/indexnow-key";
 
@@ -53,8 +53,6 @@ export type CacheClass = "marketing" | "docs" | "blog" | "files" | "private";
 export const CACHE_DIRECTIVES: Record<"files", string> = {
   files: "public, max-age=86400, stale-while-revalidate=86400",
 };
-
-export const PRIVATE_DIRECTIVE = "private, no-store";
 
 /**
  * Better Auth's cookie name is `${securePrefix}${cookiePrefix}.${name}`
@@ -170,9 +168,9 @@ export function classifyPath(pathname: string): CacheClass {
  */
 export function resolveCacheControl(request: Request, edge = false): string {
   const cacheClass = classifyPath(new URL(request.url).pathname);
-  if (cacheClass === "private") return PRIVATE_DIRECTIVE;
+  if (cacheClass === "private") return UNCACHED;
   if (cacheClass === "files") return CACHE_DIRECTIVES.files;
-  if (!edge || hasSessionCookie(request)) return PRIVATE_DIRECTIVE;
+  if (!edge || hasSessionCookie(request)) return UNCACHED;
   return publicPageHeaders()["Cache-Control"];
 }
 
@@ -329,10 +327,7 @@ export function applyCachePolicy(request: Request, response: Response, edge = fa
     if (directive === shared["Cache-Control"] && !headers.has("Set-Cookie")) {
       for (const [name, value] of Object.entries(shared)) headers.set(name, value);
     } else {
-      headers.set(
-        "Cache-Control",
-        directive === shared["Cache-Control"] ? PRIVATE_DIRECTIVE : directive,
-      );
+      headers.set("Cache-Control", directive === shared["Cache-Control"] ? UNCACHED : directive);
     }
   }
   if (wantsNoTransform) addNoTransform(headers);

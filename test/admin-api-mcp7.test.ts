@@ -38,7 +38,7 @@ vi.mock("~/lib/backup/d1-backup", () => ({
 }));
 
 const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 const { confirmStagedChange, rejectStagedChange } = await import("~/lib/admin/staged.server");
 
 const ROOT = new URL("../", import.meta.url);
@@ -104,7 +104,7 @@ async function seed() {
     db.insert(apiKeys).values({
       id: `key_${token}`,
       accountId,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "test",
       scope,
       createdAt: NOW,

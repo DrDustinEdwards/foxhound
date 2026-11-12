@@ -1,10 +1,10 @@
 import { useNavigation, useRevalidator } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { AttentionList } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
-import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
+import { Row, RowList } from "capsomer/react/row-list";
+import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
@@ -41,25 +41,6 @@ export async function loader({ context }: Route.LoaderArgs) {
     listRecentAdminActions(db),
   ]);
   return { overview, d1SizeBytes, recentActions, now };
-}
-
-// A Capsomer tile is a link or a button; with nowhere to go it would be a
-// button that does nothing, so each tile opens the page behind its number.
-function tileLink({ href, children, ...rest }: StatTileLinkProps) {
-  return (
-    <Link to={href} {...rest}>
-      {children}
-    </Link>
-  );
-}
-
-// AttentionLinkProps is RowLinkProps (Capsomer), so one renderer serves both lists.
-function rowLink({ href, children, ...rest }: RowLinkProps) {
-  return (
-    <Link to={href} {...rest}>
-      {children}
-    </Link>
-  );
 }
 
 /** Amounts in several currencies are never added together:
@@ -100,7 +81,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
       <StatTiles label="Platform">
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="MRR under management"
           figure={moneyFigure(
             overview.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })),
@@ -116,18 +97,18 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
           figure={String(overview.merchantCount)}
           detail={`${overview.pausedCount} paused. Demo accounts are not counted.`}
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Recovered this month"
           figure={moneyFigure(overview.recoveredThisMonth.byCurrency)}
           detail={`${plural(overview.recoveredThisMonth.paymentCount, "attributed payment", "attributed payments")} since the 1st (UTC)`}
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Open disputes"
           figure={String(overview.openDisputesCount)}
           detail={
@@ -138,28 +119,28 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Active recoveries"
           figure={String(overview.activeRecoveriesCount)}
           detail="Failed payments currently in a sequence"
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="New connections"
           figure={String(overview.newConnectionsCount)}
           detail="Connected in the last 7 days and still connected"
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Billing exempt"
           figure={String(overview.billingExemptCount)}
           detail="Not invoiced"
         />
         <StatTile
           href="/admin/operations"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Database size"
           figure={formatBytes(d1SizeBytes)}
           tone={d1Share >= D1_ALERT_THRESHOLD ? "warn" : undefined}
@@ -172,7 +153,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         items={overviewAttention(overview, now)}
         groups={overviewAttentionGroups(overview)}
         reading={pending}
-        renderLink={rowLink}
+        renderLink={routerRenderLink}
       />
 
       <Panel
@@ -194,7 +175,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
                 // audit log when the action has no page of its own to open.
                 title={a.action}
                 href={a.target?.href ?? "/admin/platform/audit-log"}
-                renderLink={rowLink}
+                renderLink={routerRenderLink}
                 detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
                 meta={<Time at={a.createdAt} empty="never" tip />}
               />

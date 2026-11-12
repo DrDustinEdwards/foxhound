@@ -10,7 +10,8 @@ import { asc, desc, eq, inArray, max } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accountMembers, accounts, session, user } from "~/db";
 import { normalizeInviteEmail } from "~/lib/auth/invites";
-import { MEMBER_STATUS, isAdminEmail } from "~/lib/auth/roles";
+import { isAdminEmail } from "@dustinedwards/site-runtime/access";
+import { MEMBER_STATUS } from "~/lib/auth/roles";
 
 export interface UserMembership {
   accountId: string;

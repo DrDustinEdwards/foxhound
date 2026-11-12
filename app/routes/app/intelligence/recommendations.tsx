@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Pagination } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
@@ -137,7 +137,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
             page={page}
             pageCount={totalPages}
             hrefFor={pageHref}
-            renderLink={({ href, ...props }) => <Link to={href} {...props} />}
+            renderLink={routerRenderLink}
             label="Recommendation pages"
           />
         </div>

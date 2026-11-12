@@ -9,8 +9,8 @@ import * as authSchema from "~/db/auth-schema";
 import { accountDeletionHooks } from "./delete-account.server";
 import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { withSignIn } from "./options";
+import { EMAIL_CHANGE_EXPIRES_IN_SECONDS } from "@dustinedwards/site-runtime/sign-in-words";
 import {
-  EMAIL_CHANGE_EXPIRES_IN_SECONDS,
   sendEmailChangeConfirmation,
   sendNewEmailVerification,
   sendSecurityNoticeEmail,

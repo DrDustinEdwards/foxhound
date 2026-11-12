@@ -7,6 +7,7 @@ import "capsomer/source-line.css";
 // keeps the page whole under any layout.
 import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
+import { faqPage } from "@drdustinedwards/site-helpers/schema";
 import { Link } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
 import { EmailSamples } from "~/components/email-samples";
@@ -38,7 +39,6 @@ import {
 import { PRODUCT_ORDER, PRODUCTS } from "~/lib/marketing/products";
 import { STAT_AS_OF, STAT_SOURCES } from "~/lib/marketing/statistics";
 import {
-  faqPageJsonLd,
   organizationJsonLd,
   siteUrl,
   softwareApplicationJsonLd,
@@ -90,7 +90,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       ? [
           jsonLd(organizationJsonLd(url)),
           jsonLd(softwareApplicationJsonLd(url)),
-          jsonLd(faqPageJsonLd(FAQS)),
+          jsonLd(faqPage(FAQS)),
           jsonLd(
             speakableWebPageJsonLd(url, {
               path: "/",

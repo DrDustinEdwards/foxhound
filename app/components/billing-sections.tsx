@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "capsomer/react/link";
+import { routerRenderLink } from "capsomer/react/link";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";
@@ -127,12 +127,6 @@ function StatusPill({ label, tone }: { label: string; tone: FeeStatusTone }) {
   );
 }
 
-const routerLink = ({ href, children, ...rest }: RowLinkProps) => (
-  <Link to={href} {...rest}>
-    {children}
-  </Link>
-);
-
 /** Recova's "View invoice" (Stripe's hosted invoice, new tab), or the bare
  *  invoice id in mono when there is no hosted page. */
 function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | null }) {
@@ -233,7 +227,7 @@ export function RecoverySection({
               variant="outline"
               title={r.periodLabel}
               href={`/billing/invoices/${r.invoiceId}`}
-              renderLink={routerLink}
+              renderLink={routerRenderLink}
               detail={`Recovered: ${formatMoneyShort(r.recoveredCents, r.currency)} · Fee: ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
                 <span className="flex flex-wrap items-center gap-3">
@@ -291,7 +285,7 @@ export function DisputeFeesSection({
               variant="outline"
               title={`Dispute won: ${formatMoneyShort(r.disputeAmountCents, r.currency)}`}
               href={`/disputes/${r.disputeId}`}
-              renderLink={routerLink}
+              renderLink={routerRenderLink}
               detail={`Fee (${r.feeCapped ? "capped" : `${DISPUTE_FEE_PERCENT}%`}): ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
                 <span className="flex flex-wrap items-center gap-3">
@@ -336,7 +330,7 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
               variant="outline"
               title={productDisplayName(s.product)}
               href={PRODUCT_HREF[s.product] ?? ""}
-              renderLink={PRODUCT_HREF[s.product] ? routerLink : plainTitle}
+              renderLink={PRODUCT_HREF[s.product] ? routerRenderLink : plainTitle}
               detail={
                 detail ? (
                   <span className={detail.warn ? "text-accent-text" : undefined}>

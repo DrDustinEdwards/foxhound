@@ -1,19 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { Db } from "~/db";
-import { hashMcpToken, MCP_TOKEN_PREFIX, verifyMcpToken } from "~/lib/auth/mcp-tokens";
+import { MCP_TOKEN_PREFIX, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 
 // Pure-logic coverage for the MCP token model. Issuance/verification against a
 // real api_keys table is exercised in Phase 7 (the MCP consumes this model).
-
-describe("hashMcpToken", () => {
-  it("is deterministic and hex SHA-256 (64 chars)", async () => {
-    const a = await hashMcpToken("fox_mcp_abc");
-    const b = await hashMcpToken("fox_mcp_abc");
-    expect(a).toBe(b);
-    expect(a).toMatch(/^[0-9a-f]{64}$/);
-  });
-});
 
 describe("verifyMcpToken", () => {
   it("rejects tokens without the MCP prefix before any DB access", async () => {

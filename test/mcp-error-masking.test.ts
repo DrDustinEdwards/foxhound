@@ -29,7 +29,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 
 const MINE = "acct_mine";
 const NOW = new Date("2026-10-10T12:00:00.000Z");
@@ -85,7 +85,7 @@ async function seed() {
   await db.insert(apiKeys).values({
     id: `key_${MINE}`,
     accountId: MINE,
-    keyHash: await hashMcpToken(token),
+    keyHash: await sha256Hex(token),
     label: "agent",
     scope: MCP_TOKEN_SCOPE.MERCHANT,
     createdAt: NOW,

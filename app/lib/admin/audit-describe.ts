@@ -161,12 +161,6 @@ function count(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/** An amount with its currency; a code Intl refuses is shown beside the
- *  figure, which formatMoney now does itself. */
-function money(cents: number, currency: string): string {
-  return formatMoney(cents, currency);
-}
-
 /**
  * Recova's Detail column (app/admin/platform/audit-log/page.tsx, blob 5003157c)
  * in plain words: the one fact the action and its target do not already say,
@@ -216,7 +210,7 @@ export function auditDetail(entry: AuditEntryLike): string | null {
     case "billing.adjustment.create": {
       const cents = count(m.amountCents);
       if (cents === null) return null;
-      const amount = money(cents, str(m.currency) ?? "usd");
+      const amount = formatMoney(cents, str(m.currency) ?? "usd");
       const description = str(m.description);
       return description ? `${amount}: ${description}` : amount;
     }

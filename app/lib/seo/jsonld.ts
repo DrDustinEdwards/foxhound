@@ -1,6 +1,5 @@
 import {
   article,
-  faqPage,
   itemList,
   organization,
   person,
@@ -94,15 +93,6 @@ export function softwareApplicationJsonLd(url: string) {
     // The day a fixed-price plan exists with a checkout behind it, an Offer here
     // becomes both truthful and worth having.
   });
-}
-
-export interface JsonLdFaq {
-  question: string;
-  answer: string;
-}
-
-export function faqPageJsonLd(faqs: JsonLdFaq[]) {
-  return faqPage(faqs);
 }
 
 /** The speakable parts of a page, on Prelum's WebPage node (marketingMeta) by its `@id`, so the page is one node. */

@@ -1,3 +1,4 @@
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { appOrigin } from "~/lib/app-origin";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { type Db, accounts, auditDigestRuns, getDb, stripeConnections } from "~/db";
@@ -275,8 +276,7 @@ export async function enqueueMonthlyAudits(
   // renders them, and exactly as legacy's `= true` resolves them.
   const optedIn = candidates.filter((account) => isDigestEnabled(account.auditAutoRun));
 
-  for (let i = 0; i < optedIn.length; i += AUDIT_QUEUE_SEND_BATCH_MAX) {
-    const chunk = optedIn.slice(i, i + AUDIT_QUEUE_SEND_BATCH_MAX);
+  for (const chunk of chunked(optedIn, AUDIT_QUEUE_SEND_BATCH_MAX)) {
     await env.AUDIT_QUEUE.sendBatch(
       chunk.map((account) => ({
         body: { accountId: account.id, periodMonth, cronRunId } satisfies MonthlyAuditMessage,

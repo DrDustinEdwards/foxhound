@@ -3,6 +3,7 @@
 // this is Pass 1 scope; still audit-logged since it's a real operator action
 // that changes production behavior.
 
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { and, desc, eq, gte, max, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -97,12 +98,9 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
   const registered = new Set(CRON_JOBS.map((j) => j.name));
   const pairs = [...lastFinishByName].filter(([name]) => registered.has(name));
   const lastRunByName = new Map<string, typeof cronRunHistory.$inferSelect>();
-  const chunks: Array<typeof pairs> = [];
-  for (let i = 0; i < pairs.length; i += PAIRS_PER_READ)
-    chunks.push(pairs.slice(i, i + PAIRS_PER_READ));
   const lastRuns = (
     await Promise.all(
-      chunks.map((chunk) =>
+      chunked(pairs, PAIRS_PER_READ).map((chunk) =>
         db
           .select()
           .from(cronRunHistory)

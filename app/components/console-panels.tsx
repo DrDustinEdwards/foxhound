@@ -1,8 +1,8 @@
 import { ArrowRight } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
-import { StatTile, type StatTileLinkProps } from "capsomer/react/stat-tile";
+import { StatTile } from "capsomer/react/stat-tile";
 import "capsomer/button.css";
 import "capsomer/panel.css";
 import "capsomer/row-list.css";
@@ -90,13 +90,6 @@ export function ConsoleHeroRow({ hero }: { hero: ConsoleHero }) {
   );
 }
 
-/** A tile's link through the router, so it navigates without a reload. */
-const routerLink = ({ href, children, ...rest }: StatTileLinkProps) => (
-  <Link to={href} {...rest}>
-    {children}
-  </Link>
-);
-
 export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: number }) {
   const recovered = anyAboveZero(tiles.recoveredThisMonth);
   const highRisk = anyAboveZero(tiles.highRiskMrr);
@@ -116,14 +109,14 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
               tiles.recoveryRatePct === null ? "No failures yet" : `${tiles.recoveryRatePct}% rate`
             }
             href="/recovery/dashboard"
-            renderLink={routerLink}
+            renderLink={routerRenderLink}
           />
         ) : (
           <StatTile
             label="Recovery"
             figure="Connect Stripe"
             href="/connect"
-            renderLink={routerLink}
+            renderLink={routerRenderLink}
           />
         )}
       </li>
@@ -148,7 +141,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             ) : undefined
           }
           href="/disputes/dashboard"
-          renderLink={routerLink}
+          renderLink={routerRenderLink}
         />
       </li>
 
@@ -166,7 +159,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
               : "All healthy"
           }
           href="/intelligence/dashboard"
-          renderLink={routerLink}
+          renderLink={routerRenderLink}
         />
       </li>
 
@@ -181,14 +174,14 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
             tone={anyAboveZero(tiles.auditLeaking) ? "crit" : "ok"}
             detail={lastRunPhrase(tiles.lastAuditAt, nowMs)}
             href="/audit/dashboard"
-            renderLink={routerLink}
+            renderLink={routerRenderLink}
           />
         ) : (
           <StatTile
             label="Audit"
             figure="Run free audit"
             href="/audit/connect"
-            renderLink={routerLink}
+            renderLink={routerRenderLink}
           />
         )}
       </li>

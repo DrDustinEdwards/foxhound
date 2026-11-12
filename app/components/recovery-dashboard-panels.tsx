@@ -15,7 +15,7 @@ import {
   Tag,
   TrendingUp,
 } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Row } from "capsomer/react/row-list";
@@ -60,11 +60,7 @@ export const WEBHOOK_TONE: Record<WebhookHealthTone, StatusTone> = {
 
 export function RangeSelector({ range }: { range: RecoveryRange }) {
   return (
-    <TabsNav
-      aria-label="Date range"
-      size="sm"
-      renderLink={({ href, ...props }) => <Link to={href} {...props} />}
-    >
+    <TabsNav aria-label="Date range" size="sm" renderLink={routerRenderLink}>
       {RECOVERY_RANGES.map((r) => (
         <TabLink key={r} href={`/recovery/dashboard?range=${r}`} current={range === r}>
           {r}
