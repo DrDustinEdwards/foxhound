@@ -360,10 +360,7 @@ export async function runAlertsForAllAccounts(
     try {
       fired += await evaluateAccountAlerts(env, db, id, now);
     } catch (err) {
-      console.error(
-        `alert evaluation failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`alert evaluation failed for account ${id}:`, errorMessage(err));
     }
   }
   return { accounts: eligible.length, fired };

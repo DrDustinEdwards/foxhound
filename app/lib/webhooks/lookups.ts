@@ -30,6 +30,7 @@ import type { RecoveredChargeFee } from "~/lib/recovery/record-recovery";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 /** Map a connected Stripe account id to our account id AND the specific
  *  stripe_connections row it resolved through (Phase 5 review MEDIUM fix
@@ -522,10 +523,7 @@ export async function resolveExpiringCard(
   } catch (err) {
     // A Stripe failure here loses one candidate; the nightly scan finds the
     // same card again. Never fail the webhook for it.
-    console.error(
-      "expiring-card payment method lookup failed:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("expiring-card payment method lookup failed:", errorMessage(err));
     return null;
   }
 }

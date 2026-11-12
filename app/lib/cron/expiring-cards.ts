@@ -17,6 +17,7 @@ import {
   expiringCardAlertContent,
   EXPIRING_CARD_TEMPLATE,
 } from "~/lib/recovery/expiring-card-email";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // THE EXPIRING-CARD ALERT CRON. Ported from legacy's
 // app/api/cron/expiring-cards/route.ts (blob `717f6bbe`, 15,163 bytes), which
@@ -252,7 +253,7 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
       // One account's Stripe failure must not stop the sweep.
       console.error(
         `expiring-card scan failed for account ${account.accountId}:`,
-        err instanceof Error ? err.message : err,
+        errorMessage(err),
       );
     }
   }
@@ -429,10 +430,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       });
       result.sent += 1;
     } catch (err) {
-      console.error(
-        `expiring-card send failed for alert ${alert.id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`expiring-card send failed for alert ${alert.id}:`, errorMessage(err));
       result.skipped += 1;
     }
   }

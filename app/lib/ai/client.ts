@@ -9,6 +9,7 @@ import {
 import { getDb } from "~/db";
 
 import { buildAiCallRow } from "./cost";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // EVERY ANTHROPIC CALL GOES THROUGH site-runtime's ./anthropic, the family's one
 // caller: where the call goes (AI Gateway or direct), the deadline, the ONE retry
@@ -46,10 +47,7 @@ async function recordAiCall(env: Env, meter: AiCallMeter, record: CallRecord): P
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error(
-      `ai_calls write failed for ${meter.source}:`,
-      err instanceof Error ? err.message : err,
-    );
+    console.error(`ai_calls write failed for ${meter.source}:`, errorMessage(err));
   }
 }
 

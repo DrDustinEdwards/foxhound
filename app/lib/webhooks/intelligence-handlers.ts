@@ -4,6 +4,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
 import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 /** The claim plus one subscription_changes row per change. The rows are not
  *  money; they ride the claim's batch, as the expiring-card candidate does, so
@@ -59,7 +60,7 @@ export async function handleRecordSubscriptionChange(
   } catch (err) {
     console.error(
       `subscription change re-score failed for account ${accountId}:`,
-      err instanceof Error ? err.message : err,
+      errorMessage(err),
     );
   }
   return { status: "applied" };

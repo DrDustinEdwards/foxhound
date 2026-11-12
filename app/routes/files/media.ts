@@ -1,6 +1,7 @@
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { images, UPLOAD_KEY, VERSION_LENGTH } from "~/lib/media/images";
+import { imageVersion } from "@dustinedwards/site-runtime/image";
+import { images, UPLOAD_KEY } from "~/lib/media/images";
 import { mediaRow } from "~/lib/media/store.server";
 
 import type { Route } from "./+types/media";
@@ -33,7 +34,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     cacheControl: async ({ url, key }) => {
       const version = url.searchParams.get("v");
       const current = version
-        ? (await mediaRow(getDb(env), key))?.sha256.slice(0, VERSION_LENGTH) === version
+        ? imageVersion((await mediaRow(getDb(env), key))?.sha256) === version
         : false;
       return current ? undefined : UNVERSIONED_CACHE_CONTROL;
     },

@@ -191,7 +191,7 @@ export async function issueCreditNoteForEvidence(
     console.error(
       "credit note failed for",
       "recoveredPaymentId" in evidence ? evidence.recoveredPaymentId : evidence.disputeId,
-      err instanceof Error ? err.message : err,
+      errorMessage(err),
     );
     return { credited: false, reason: "credit_note_failed" };
   }

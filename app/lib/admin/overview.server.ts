@@ -175,14 +175,15 @@ export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrB
     if (!latestByAccount.has(row.accountId)) latestByAccount.set(row.accountId, row);
   }
 
-  const byCurrency = new Map<string, { totalCents: number; accountCount: number }>();
-  for (const row of latestByAccount.values()) {
-    const entry = byCurrency.get(row.currency) ?? { totalCents: 0, accountCount: 0 };
-    entry.totalCents += row.totalMrrCents;
-    entry.accountCount += 1;
-    byCurrency.set(row.currency, entry);
-  }
-  return [...byCurrency.entries()].map(([currency, v]) => ({ currency, ...v }));
+  // The totals through groupSumByCurrency (hard rule 2), each with how many accounts it holds.
+  const latest = [...latestByAccount.values()];
+  return groupSumByCurrency(
+    latest.map((row) => ({ currency: row.currency, cents: row.totalMrrCents })),
+  ).map(({ currency, cents }) => ({
+    currency,
+    totalCents: cents,
+    accountCount: latest.filter((row) => row.currency === currency).length,
+  }));
 }
 
 async function cronHealth(db: Db, nowMs: number): Promise<PlatformOverview["cronHealth"]> {
