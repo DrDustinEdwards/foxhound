@@ -1,6 +1,18 @@
 {
-  "path": ["app", "workers"],
-  "format": ["typescript", "tsx"],
+  "path": [
+    "app",
+    "workers",
+    "mcp",
+    "scripts",
+    "test",
+    "oxfmt.config.ts",
+    "oxlint.config.ts",
+    "stryker.config.mjs",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.stryker.config.ts"
+  ],
+  "format": ["typescript", "tsx", "javascript", "css"],
   "ignore": ["**/*.test.*", "**/*.d.ts", "**/+types/**", "app/assets/**"],
   "reporters": ["console"],
   "absolute": false,
