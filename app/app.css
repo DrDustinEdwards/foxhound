@@ -672,17 +672,23 @@ body {
   font-family: var(--font-dm-sans), Arial, sans-serif;
 }
 
-*:focus {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-}
-*:focus:not(:focus-visible) {
-  outline: none;
-}
-*:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
-  border-radius: 2px;
+/* The focus ring for everything that has none of its own. In the base layer,
+   below Capsomer's (cap), so a Capsomer part keeps its own ring and corners,
+   and below Tailwind's utilities, so a rounded element's ring follows its
+   shape. The forced-colors ring below stays unlayered, so it wins everywhere. */
+@layer base {
+  *:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 /* Accessibility: forced-colors mode gets surgical border + focus-ring
@@ -753,54 +759,6 @@ body {
   /* Recova's nav links are 13px. */
   --header-fs: 0.8125rem;
 }
-/* Foxhound's own focus rule above squares every focused element's corners;
-   the header's round avatar and its panels keep their own shapes. */
-.cap-site-header :focus-visible,
-.cap-site-header-panel :focus-visible {
-  border-radius: revert-layer;
-}
-/* The same for a Capsomer panel that is itself a link (the /products hub
-   cards, J16): it keeps its own rounded corners when a keyboard user lands on
-   it, so the amber ring follows the card's shape. */
-.fh-cap .cap-panel:focus-visible {
-  border-radius: revert-layer;
-}
-
-/* The wordmark in the header: DM Mono, the x in amber. */
-.fh-wordmark {
-  font-family: "DM Mono", monospace;
-  font-size: 1.125rem;
-  font-weight: 500;
-  letter-spacing: -0.5px;
-  color: var(--header-fg);
-}
-.fh-wordmark-x {
-  color: var(--header-brand);
-}
-
-/* Capsomer's controls on a .fh-cap marketing page (the Recovery spoke, J56):
-   a button and a table's scroll region. Foxhound's global focus rule is
-   unlayered, so it beats Capsomer's layered rings and squares their corners.
-   Reverting the three properties to the layer below hands each its own ring
-   back; it adds nothing to the components. A disclosure's summary has no ring
-   of its own in Capsomer, so it keeps Foxhound's amber one. */
-.fh-cap :is(.cap-btn, .cap-table-wrap):focus-visible {
-  outline: revert-layer;
-  outline-offset: revert-layer;
-  border-radius: revert-layer;
-}
-
-/* A link pill on a .fh-cap page (the blog's tag, J19) gets its own ring back
-   the same way. Not under forced colors, where the global 3px Highlight ring
-   must stay (as on /features). */
-@media not (forced-colors: active) {
-  .fh-cap .cap-pill:focus-visible {
-    outline: revert-layer;
-    outline-offset: revert-layer;
-    border-radius: revert-layer;
-  }
-}
-
 /* The business tile in the switcher's panel and the phone's sheet: a square
    with the business's initial, like the one on its button. */
 .fh-account-tile {
@@ -856,34 +814,6 @@ body {
   .cap-site-header-sheet-account
   li:has(> a[href]:not([href="/settings"], [href="/help"], [href="/admin"])) {
   display: none;
-}
-
-/* Capsomer's filter chips and its button on /features (J60; .fh-features is
-   that page's wrapper). Foxhound's global focus rule above is unlayered, so it
-   beats Capsomer's layered ring: a 2px --border-focus outline, and corners
-   squared to 2px, which turns a focused round chip into a square. Reverting
-   the three properties to the layer below hands each part back its own ring
-   (3px, the family's --ring), as app/error-page.css does for the error page;
-   it adds nothing to the components. Not under forced colors, where the
-   global 3px Highlight ring must stay. */
-@media not (forced-colors: active) {
-  .fh-features :is(.cap-chip, .cap-btn):focus-visible {
-    outline: revert-layer;
-    outline-offset: revert-layer;
-    border-radius: revert-layer;
-  }
-}
-
-/* A Capsomer button inside a .fh-cap page (the /pricing closing link, J54).
-   Foxhound's global focus rule above is unlayered, so it beats Capsomer's
-   layered ring: a 2px --border-focus outline and corners squared to 2px.
-   Reverting the three properties to the layer below hands the button back its
-   own ring (3px, the family's --ring), as app/error-page.css does for the
-   error page; it adds nothing to the component. */
-.fh-cap .cap-btn:focus-visible {
-  outline: revert-layer;
-  outline-offset: revert-layer;
-  border-radius: revert-layer;
 }
 
 /* Foxhound's own look on Capsomer's shared parts, set by token (Capsomer 0.94.0). The network

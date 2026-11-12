@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { Field } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 import { PageHead } from "capsomer/react/page-head";
@@ -61,9 +61,8 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // one card holding the notification email, the Slack webhook URL, then four
 // toggles (Slack notifications, Weekly digest, Payment recovered notification,
 // Sequence complete notification), and under the card, right-aligned, Saved or
-// the failure sentence beside Save changes. Each field's help sits under its
-// input, as Recova's does, so the field is composed from Capsomer's field
-// classes rather than its <Field>, which puts help above the control.
+// the failure sentence beside Save changes. Each field is Capsomer's Field, with
+// its help above the control.
 //
 // The win-back and expiring-card toggles are NOT here: legacy renders them on
 // its features page (S34).
@@ -224,59 +223,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   return data<ActionResult>({ ok: true });
 }
 
-/** One of Recova's text fields: label, input, then help under it, as
- *  NotificationsSection draws them, from Capsomer's field parts. */
-function TextField({
-  name,
-  type,
-  label,
-  help,
-  defaultValue,
-  placeholder,
-  error,
-}: {
-  name: string;
-  type: "email" | "text";
-  label: string;
-  help: string;
-  defaultValue: string;
-  placeholder?: string;
-  error?: string;
-}) {
-  const base = useId();
-  const id = `${base}-control`;
-  const helpId = `${base}-help`;
-  const errorId = `${base}-error`;
-  return (
-    <div className="cap-field" data-invalid={error ? "true" : undefined}>
-      <label className="cap-field-label" htmlFor={id}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        name={name}
-        className="cap-input"
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        aria-describedby={error ? `${errorId} ${helpId}` : helpId}
-        aria-invalid={error ? true : undefined}
-      />
-      <p className="cap-field-help" id={helpId}>
-        {help}
-      </p>
-      <p
-        className="cap-field-error"
-        id={errorId}
-        role={error ? "alert" : undefined}
-        hidden={!error}
-      >
-        {error ?? null}
-      </p>
-    </div>
-  );
-}
-
 export default function NotificationSettings({ loaderData, actionData }: Route.ComponentProps) {
   const navigation = useNavigation();
   // An alert's toggle or delete is not a save of this form.
@@ -304,25 +250,35 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
-              <TextField
-                name="notificationEmail"
-                type="email"
+              <Field
+                announce
                 label="Notification email"
                 help="Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Leave it blank and no notification emails are sent."
-                defaultValue={loaderData.notificationEmail}
-              />
+              >
+                <input
+                  name="notificationEmail"
+                  type="email"
+                  defaultValue={loaderData.notificationEmail}
+                  className="cap-input"
+                />
+              </Field>
             </div>
 
             <div className="mb-5 border-t border-border pt-4">
-              <TextField
-                name="slackWebhookUrl"
-                type="text"
+              <Field
+                announce
                 label="Slack webhook URL"
                 help="Get notified in Slack when payments are recovered"
-                defaultValue={loaderData.slackWebhookUrl}
-                placeholder={SLACK_WEBHOOK_PLACEHOLDER}
                 error={webhookError}
-              />
+              >
+                <input
+                  name="slackWebhookUrl"
+                  type="text"
+                  defaultValue={loaderData.slackWebhookUrl}
+                  placeholder={SLACK_WEBHOOK_PLACEHOLDER}
+                  className="cap-input"
+                />
+              </Field>
             </div>
 
             <ToggleRow

@@ -469,7 +469,7 @@ export async function runAccountBilling(
       } catch (err) {
         console.error(
           `platform customer create failed for account ${accountId} invoice ${invoiceId}:`,
-          err instanceof Error ? err.message : err,
+          errorMessage(err),
         );
       }
     }
@@ -506,7 +506,7 @@ export async function runAccountBilling(
         // reruns or rolls back the invoice, it stays 'draft' for retry/Phase 8.
         console.error(
           `platform charge failed for account ${accountId} invoice ${invoiceId}:`,
-          err instanceof Error ? err.message : err,
+          errorMessage(err),
         );
       }
     }
@@ -608,10 +608,7 @@ export async function runMonthlyBilling(
         error: errorMessage(err),
       });
       // Surface the failure without aborting the run; the cron logs the aggregate.
-      console.error(
-        `billing run failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`billing run failed for account ${id}:`, errorMessage(err));
     }
   }
   return { accounts: results, sweep };

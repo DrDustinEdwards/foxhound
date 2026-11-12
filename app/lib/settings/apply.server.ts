@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
@@ -185,7 +186,7 @@ export interface DisputeSettingsActor {
 }
 
 /** Stripe's limit on an evidence text field, which the description becomes. */
-export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
+export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${formatCount(DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH)} characters.`;
 
 /**
  * S32's three columns, and nothing else: the product description, which

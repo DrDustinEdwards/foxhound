@@ -28,7 +28,7 @@ import {
 import type { AdminMerchantRow } from "~/lib/admin/merchants.server";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { merchantHref, pagePending } from "~/lib/admin/page";
-import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
+import { recoveryRateBand, recoveryRateStatusTone } from "~/lib/dashboard/recovery-rate";
 import type { Route } from "../routes/admin/merchants/+types/index";
 import type { ActionData } from "../routes/admin/merchants/index";
 
@@ -346,7 +346,7 @@ function MerchantRow({
           // The band as words beside the rate: a hover title would sit under
           // the row's stretched link and never reach a mouse (PR 140 review).
           <Status
-            tone={RATE_TONE[recoveryRateTone(m.recoveryRatePct)]}
+            tone={recoveryRateStatusTone(m.recoveryRatePct)}
             reason={recoveryRateBand(m.recoveryRatePct)}
           >
             {`${m.recoveryRatePct}%`}
@@ -434,8 +434,6 @@ export function ViewAsForm({ accountId, who }: { accountId: string; who: string 
     </Form>
   );
 }
-
-const RATE_TONE = { green: "ok", caution: "warn", red: "crit" } as const;
 
 /** The answer to a post made without script (a fetcher's answer goes to the
  *  message region instead), or the cancel's answer, which the confirm page

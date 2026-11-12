@@ -3,6 +3,7 @@
 // query (views.server.ts) and the route component so the formatting rules
 // are unit-testable without a DB or a render tree.
 
+import { capitalize } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { DAY_MS } from "~/lib/constants";
 
@@ -20,8 +21,7 @@ export function formatRelativeLastSeen(date: Date | null, now: Date): string {
 }
 
 export function capitalizeTier(tier: string | null): string {
-  if (!tier) return "-";
-  return tier.charAt(0).toUpperCase() + tier.slice(1);
+  return tier ? capitalize(tier) : "-";
 }
 
 interface RecoverySignalsShape {

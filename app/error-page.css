@@ -18,19 +18,6 @@
 @import "capsomer/empty.css";
 @import "capsomer/error-page.css";
 
-/* Foxhound's global focus rule (app.css, *:focus-visible) is unlayered, so it
-   beats Capsomer's layered ring on every element: a 2px --border-focus outline, and
-   corners squared to 2px on the focused button itself. Reverting those three
-   properties to the layer below hands the button back its own ring (3px,
-   opaque, the family's --ring, button.md "The default and its reason"); it
-   adds nothing to the component. The site header does the same for its
-   corners (app.css, .cap-site-header :focus-visible). */
-.fh-error-page .cap-btn:focus-visible {
-  outline: revert-layer;
-  outline-offset: revert-layer;
-  border-radius: revert-layer;
-}
-
 /* The bar, in the site header's band colors (app.css, .fh-cap
    .cap-site-header): Foxhound's chrome, its line, and the header's wordmark in
    chrome text. Its home link is not a Capsomer component, so it keeps

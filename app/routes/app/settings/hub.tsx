@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { and, count, eq, isNull, notInArray } from "drizzle-orm";
 import { ChevronRight } from "lucide-react";
 import { routerRenderLink } from "capsomer/react/link";
@@ -193,14 +194,14 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
               href="/recovery/dashboard"
               renderLink={routerRenderLink}
               label="Active sequences"
-              figure={activeSequences.toLocaleString("en-US")}
+              figure={formatCount(activeSequences)}
               detail="Payments being recovered"
             />
             <StatTile
               href="/disputes/dashboard"
               renderLink={routerRenderLink}
               label="Open disputes"
-              figure={openDisputes.toLocaleString("en-US")}
+              figure={formatCount(openDisputes)}
               detail={openDisputes > 0 ? `${openDisputes} need response` : "None open"}
             />
           </StatTiles>

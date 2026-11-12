@@ -2,7 +2,8 @@
 // processed, which steps are due, the per-payment step choice, exhausted
 // sequences, and the row-to-context mapping the step executors take.
 
-import { and, asc, eq, isNull, lte, notExists, notLike, or, sql, type SQL } from "drizzle-orm";
+import { primaryConnectionValue } from "~/lib/stripe/connections.server";
+import { and, asc, eq, isNull, lte, notExists, notLike, or, type SQL } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
 import { type Db, accounts, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
 import {
@@ -215,13 +216,10 @@ export interface DueStepRow {
 // /settings/brand-voice, so they are read from there whichever connection the
 // payment came through (as win-back reads them). Inside the subquery its own
 // stripe_connections shadows the outer join's, as SQL scoping has it.
-const primarySamples = sql<string | null>`(
-  select ${stripeConnections.brandVoiceSamples} from ${stripeConnections}
-  where ${stripeConnections.accountId} = ${recoverySteps.accountId}
-    and ${stripeConnections.isPrimary} = 1
-    and ${stripeConnections.disconnectedAt} is null
-  limit 1
-)`;
+const primarySamples = primaryConnectionValue<string>(
+  stripeConnections.brandVoiceSamples,
+  recoverySteps.accountId,
+);
 
 /** One recovery step joined to its payment, account and connection: the row both selections below read. */
 function selectStepRows(db: Db) {

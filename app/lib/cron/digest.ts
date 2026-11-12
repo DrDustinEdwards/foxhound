@@ -29,6 +29,7 @@ import {
   resolveDigestCurrency,
   type DigestNumbers,
 } from "~/lib/recovery/digest-email";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // THE WEEKLY DIGEST CRON. Ported from legacy's
 // app/api/cron/weekly-digest/route.ts (blob `b6ff2a8c`, 22,247 bytes).
@@ -424,10 +425,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
 
       record(account.accountId, outcome.status);
     } catch (err) {
-      console.error(
-        `weekly digest failed for account ${account.accountId}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`weekly digest failed for account ${account.accountId}:`, errorMessage(err));
       record(account.accountId, "error");
     }
   }

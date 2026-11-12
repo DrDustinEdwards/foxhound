@@ -237,7 +237,7 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     expect(location).not.toContain(TOKEN);
     const cookies = setCookies(response);
     const token = cookies.find((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))!;
-    expect(token).toMatch(/; HttpOnly; Secure; SameSite=Lax; Path=\/audit; Max-Age=300$/);
+    expect(token).toMatch(/; Path=\/audit; Secure; HttpOnly; SameSite=Lax; Max-Age=300$/);
     // Sealed (PR #127): the value never carries the token in plain text, and
     // it opens to exactly the grant this callback was given.
     const value = token.split(";")[0].slice(AUDIT_TOKEN_COOKIE.length + 1);

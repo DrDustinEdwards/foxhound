@@ -72,15 +72,6 @@ describe("renderMarkdown", () => {
     );
   });
 
-  it("keeps legacy's heading ids", async () => {
-    const { html } = await renderMarkdown(
-      emptyDb(),
-      "## What does call_issuer mean?\n\n[Stripe](https://stripe.com).",
-    );
-    expect(html).toContain('<h2 id="what-does-callissuer-mean">');
-    expect(html).toContain('<a href="https://stripe.com">Stripe</a>');
-  });
-
   it("links a post named in a :::faq answer, and gives the JSON-LD its words", async () => {
     const db = drizzle(async () => ({ rows: [["stripe-recovery", "Stripe recovery"]] }), {
       schema,

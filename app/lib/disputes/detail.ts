@@ -1,3 +1,4 @@
+import { humanize } from "@drdustinedwards/site-helpers/text";
 import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
@@ -82,10 +83,7 @@ const EVIDENCE_FIELD_LABELS: Record<string, string> = {
 };
 
 export function evidenceFieldLabel(fieldName: string): string {
-  const mapped = EVIDENCE_FIELD_LABELS[fieldName];
-  if (mapped) return mapped;
-  const spaced = fieldName.replace(/_/g, " ").trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  return EVIDENCE_FIELD_LABELS[fieldName] ?? humanize(fieldName);
 }
 
 export interface EvidenceRowLike {

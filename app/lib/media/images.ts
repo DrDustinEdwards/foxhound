@@ -1,4 +1,4 @@
-import { defineImages } from "@dustinedwards/site-runtime/image";
+import { defineImages, imageVersion } from "@dustinedwards/site-runtime/image";
 
 // The blog's pictures, end to end through site-runtime ./image: the attributes a
 // post writes (markdown.server.ts) and the route that serves each size
@@ -40,16 +40,13 @@ export const EXTENSIONS: Readonly<Record<string, string>> = {
   "image/gif": "gif",
 };
 
-/** How much of a file's SHA-256 its versioned address carries. */
-export const VERSION_LENGTH = 12;
-
 /**
  * A file's address. With the file's SHA-256, it names these bytes (`?v=`), and
  * the route serves it for a year, immutable: a replace, a turn or a revert is
  * a new address.
  */
 export const mediaUrl = (key: string, sha256?: string) =>
-  `${MEDIA_PATH}${key}${sha256 ? `?v=${sha256.slice(0, VERSION_LENGTH)}` : ""}`;
+  `${MEDIA_PATH}${key}${sha256 ? `?v=${imageVersion(sha256)}` : ""}`;
 
 /**
  * Where a post names a library file: `/media/<key>` or this site's full URL to

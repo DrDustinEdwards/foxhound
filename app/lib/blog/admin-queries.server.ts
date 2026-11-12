@@ -6,10 +6,10 @@
 
 import { and, eq, or } from "drizzle-orm";
 
+import { readingMinutes, wordCount } from "@drdustinedwards/site-helpers/text";
+
 import type { Db } from "~/db";
 import { blogPostLinks, blogPostVersions, blogPosts, blogSlugRedirects } from "~/db";
-
-import { estimateReadingTime } from "./format";
 
 export interface CreatePostInput {
   title: string;
@@ -43,7 +43,7 @@ export async function createPost(db: Db, input: CreatePostInput): Promise<string
     author: input.author,
     tags: input.tags,
     featured: input.featured,
-    readingMinutes: estimateReadingTime(input.body),
+    readingMinutes: readingMinutes(wordCount(input.body)),
     published: false,
     publishedAt: null,
     coverImageUrl: input.coverImageUrl ?? null,
@@ -111,7 +111,7 @@ export async function updatePostWithVersion(
       author: input.author,
       tags: input.tags,
       featured: input.featured,
-      readingMinutes: estimateReadingTime(input.body),
+      readingMinutes: readingMinutes(wordCount(input.body)),
       coverImageUrl: input.coverImageUrl,
       coverImageAlt: input.coverImageAlt,
       ogTitle: input.ogTitle,

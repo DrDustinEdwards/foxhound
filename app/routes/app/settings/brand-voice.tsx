@@ -1,3 +1,4 @@
+import { capitalize } from "@drdustinedwards/site-helpers/text";
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
@@ -154,7 +155,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 const PRESET_OPTIONS = [
   { value: "", label: "Same as main voice" },
-  ...BRAND_VOICE_PRESETS.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) })),
+  ...BRAND_VOICE_PRESETS.map((p) => ({ value: p, label: capitalize(p) })),
   { value: CUSTOM_PRESET, label: "Custom..." },
 ];
 

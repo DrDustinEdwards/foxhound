@@ -4,7 +4,7 @@
 
 import { DISPUTE_EVIDENCE_MAX_SIZE_BYTES, type DisputeState } from "~/lib/constants";
 import * as Sentry from "@sentry/cloudflare";
-import { readCappedBytes } from "@dustinedwards/site-runtime/body";
+import { readForm } from "@dustinedwards/site-runtime/body";
 import { data, redirect } from "react-router";
 import { SYNC_RESULT_MESSAGES } from "~/components/sync-dispute-link";
 import { getDb } from "~/db";
@@ -47,18 +47,22 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   if (!detail) throw new Response("Not Found", { status: 404 });
 
   // No post to this page is near one evidence file's size except an upload, so
-  // a body far past it is refused before it is held in memory (J07). The
-  // declared Content-Length can be absent or understated, so the body is read
-  // to the ceiling as it arrives and only then parsed.
+  // a body far past it is refused before it is held in memory (J07): at once
+  // when its declared length says so, else by readForm, which reads to the
+  // ceiling as it arrives and throws its 413. Either is the upload field's error.
   const ceiling = DISPUTE_EVIDENCE_MAX_SIZE_BYTES + UPLOAD_BODY_SLACK_BYTES;
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  const body = declaredLength > ceiling ? null : await readCappedBytes(request, ceiling);
-  if (body === null) return fileResult("upload_file", "file_too_large", 413);
-
-  // readCappedBytes joins the chunks into a fresh ArrayBuffer-backed array.
-  const form = await new Response(body as Uint8Array<ArrayBuffer>, {
-    headers: { "Content-Type": request.headers.get("content-type") ?? "" },
-  }).formData();
+  if (Number(request.headers.get("content-length") ?? "0") > ceiling) {
+    return fileResult("upload_file", "file_too_large", 413);
+  }
+  let form: FormData;
+  try {
+    form = await readForm(request, ceiling);
+  } catch (err) {
+    if (err instanceof Response && err.status === 413) {
+      return fileResult("upload_file", "file_too_large", 413);
+    }
+    throw err;
+  }
   const intent = String(form.get("intent") ?? "");
 
   // Approving submits evidence to Stripe and accepting concedes the dispute;

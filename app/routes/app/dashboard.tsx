@@ -2,9 +2,11 @@ import { ChartFrame } from "capsomer/react/chart-frame";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
+import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
+import "capsomer/stat-tile.css";
 
 import { ConsoleAttentionFeed, ConsoleHeroRow, ConsoleTileRow } from "~/components/console-panels";
 import "~/components/charts.css";
@@ -15,7 +17,7 @@ import { mrrEmptySentence } from "~/lib/dashboard/console";
 import { drawCohorts, drawLatestMovement } from "~/lib/dashboard/console-charts";
 import { getConsoleView } from "~/lib/dashboard/console.server";
 import { formatCurrencyTotals, RECOVERY_FEE_LABEL } from "~/lib/dashboard/recovery-dashboard";
-import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
+import { recoveryRateStatusTone } from "~/lib/dashboard/recovery-rate";
 import { getMrrAnalytics, getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { drawMrrTrend } from "~/lib/intelligence/dashboard-charts";
 import { firstSnapshotSentence } from "~/lib/intelligence/dashboard";
@@ -73,29 +75,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   return { stats, mrr, consoleView, nowMs };
 }
 
-function StatPanel({
-  label,
-  value,
-  valueClassName,
-  sub,
-}: {
-  label: string;
-  value: string;
-  valueClassName?: string;
-  sub?: string;
-}) {
-  return (
-    <Panel size="sm" title={label}>
-      <p
-        className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}
-      >
-        {value}
-      </p>
-      {sub ? <p className="m-0 mt-1 text-label text-text-subtle">{sub}</p> : null}
-    </Panel>
-  );
-}
-
 export default function Console({ loaderData }: Route.ComponentProps) {
   const { stats, mrr, consoleView, nowMs } = loaderData;
   const latest = mrr.latest;
@@ -116,40 +95,42 @@ export default function Console({ loaderData }: Route.ComponentProps) {
       <ConsoleTileRow tiles={consoleView.tiles} nowMs={nowMs} />
       <ConsoleAttentionFeed rows={consoleView.attention} />
 
-      <section
-        className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
-        aria-label="Recovery figures"
-      >
-        <StatPanel label="Revenue recovered" value={formatCurrencyTotals(stats.revenueRecovered)} />
-        <StatPanel
-          label="Recovery rate"
-          value={stats.recoveryRatePct === null ? "-" : `${stats.recoveryRatePct}%`}
-          valueClassName={
-            stats.recoveryRatePct === null
-              ? undefined
-              : recoveryRateClassName(stats.recoveryRatePct)
-          }
-          sub={
-            stats.totalFailedCount === 0
-              ? "No failed payments yet"
-              : `${stats.recoveredCount} of ${stats.totalFailedCount} recovered`
-          }
-        />
-        <StatPanel
-          label="Failed payments"
-          value={String(stats.activeFailedCount)}
-          sub="Currently in recovery"
-        />
-        <StatPanel
-          label="Fee owed"
-          value={formatCurrencyTotals(stats.feeOwed)}
-          sub={
-            stats.feeOwed.length > 0 && stats.billableRevenue.length > 0
-              ? `${RECOVERY_FEE_LABEL} of ${formatCurrencyTotals(stats.billableRevenue)} recovered`
-              : "Nothing billable yet"
-          }
-        />
-      </section>
+      <div className="mt-10">
+        <StatTiles layout="grid" label="Recovery figures">
+          <StaticStatTile
+            label="Revenue recovered"
+            figure={formatCurrencyTotals(stats.revenueRecovered)}
+          />
+          <StaticStatTile
+            label="Recovery rate"
+            figure={stats.recoveryRatePct === null ? "-" : `${stats.recoveryRatePct}%`}
+            tone={
+              stats.recoveryRatePct === null
+                ? undefined
+                : recoveryRateStatusTone(stats.recoveryRatePct)
+            }
+            detail={
+              stats.totalFailedCount === 0
+                ? "No failed payments yet"
+                : `${stats.recoveredCount} of ${stats.totalFailedCount} recovered`
+            }
+          />
+          <StaticStatTile
+            label="Failed payments"
+            figure={stats.activeFailedCount}
+            detail="Currently in recovery"
+          />
+          <StaticStatTile
+            label="Fee owed"
+            figure={formatCurrencyTotals(stats.feeOwed)}
+            detail={
+              stats.feeOwed.length > 0 && stats.billableRevenue.length > 0
+                ? `${RECOVERY_FEE_LABEL} of ${formatCurrencyTotals(stats.billableRevenue)} recovered`
+                : "Nothing billable yet"
+            }
+          />
+        </StatTiles>
+      </div>
 
       <section className="mt-10" aria-labelledby="mrr-analytics">
         <h2 id="mrr-analytics" className="m-0 text-title font-medium text-text">
