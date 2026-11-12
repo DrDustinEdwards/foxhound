@@ -11,7 +11,7 @@ import {
 
 import { id, ts, bool, json } from "./columns";
 import { failedPayments } from "./recovery";
-import { accounts, stripeConnections } from "./tenancy";
+import { stripeConnections, accountRef } from "./tenancy";
 
 // ============================================================================
 // Disputes (rebuilt as a state machine with an approval gate)
@@ -21,9 +21,7 @@ export const disputes = sqliteTable(
   "disputes",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeDisputeId: text("stripe_dispute_id").notNull(),
     stripeChargeId: text("stripe_charge_id").notNull(),
     stripeCustomerId: text("stripe_customer_id"),
@@ -116,9 +114,7 @@ export const disputeBalanceTransactions = sqliteTable(
   "dispute_balance_transactions",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeDisputeId: text("stripe_dispute_id").notNull(),
     stripeBalanceTransactionId: text("stripe_balance_transaction_id").notNull(),
     kind: text("kind").notNull(),
@@ -142,9 +138,7 @@ export const disputeEvidence = sqliteTable(
     disputeId: text("dispute_id")
       .notNull()
       .references(() => disputes.id),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     fieldName: text("field_name").notNull(),
     fieldValue: text("field_value").notNull(),
     createdAt: ts("created_at").notNull(),
@@ -162,9 +156,7 @@ export const disputeApprovals = sqliteTable(
     disputeId: text("dispute_id")
       .notNull()
       .references(() => disputes.id),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     // soft ref to Better Auth user.id
     approvedByUserId: text("approved_by_user_id"),
     approvedByEmail: text("approved_by_email"),
@@ -199,9 +191,7 @@ export const earlyFraudWarnings = sqliteTable(
   "early_fraud_warnings",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     stripeWarningId: text("stripe_warning_id").notNull(),
     stripeChargeId: text("stripe_charge_id").notNull(),

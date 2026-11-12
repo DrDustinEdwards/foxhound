@@ -1,17 +1,9 @@
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts } from "./columns";
 import { recoverySteps, winBackSteps } from "./recovery";
-import { accounts } from "./tenancy";
+import { optionalAccountRef } from "./tenancy";
 
 // ============================================================================
 // Email dispatch and first-party engagement (redesigned off Email Service)
@@ -21,7 +13,7 @@ export const emailSends = sqliteTable(
   "email_sends",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     recoveryStepId: text("recovery_step_id").references(() => recoverySteps.id),
     winBackStepId: text("win_back_step_id").references(() => winBackSteps.id),
     queueMessageId: text("queue_message_id"),
@@ -94,27 +86,14 @@ export const emailDeadLetters = sqliteTable(
   (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
 );
 
-/** site-runtime ./cron-alert's ALERTS_SQL (migration 0077): one row per alert
- *  sent, which is also the dedupe, claimed before the mail so two invocations
- *  cannot both send. Written and read only by alertOnce and cronAlert. Epoch ms. */
-export const alertsSent = sqliteTable(
-  "alerts_sent",
-  {
-    key: text("key").notNull(),
-    kind: text("kind").notNull(),
-    /** UTC date, YYYY-MM-DD. */
-    day: text("day").notNull(),
-    detail: text("detail"),
-    createdAt: integer("created_at").notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.key, t.kind, t.day] })],
-);
+// site-runtime ./cron-alert's ALERTS_SQL, written and read only by alertOnce and cronAlert.
+export { alertsSent } from "@dustinedwards/site-runtime/drizzle";
 
 export const engagementEvents = sqliteTable(
   "engagement_events",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     emailSendId: text("email_send_id").references(() => emailSends.id),
     recoveryStepId: text("recovery_step_id").references(() => recoverySteps.id),
     // click is the billable engagement standard; open feeds Intelligence only (PRICING.md)
@@ -141,7 +120,7 @@ export const emailSuppressions = sqliteTable(
     email: text("email").notNull(),
     token: text("token").notNull(),
     suppressedAt: ts("suppressed_at"),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     reason: text("reason"),
   },
   (t) => [
