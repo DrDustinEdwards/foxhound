@@ -6,9 +6,9 @@
     "measured_at": "15ec9fb",
     "knip": {},
     "jscpd": {
-      "clones": 104,
-      "lines": 1124,
-      "percentage": 0.98
+      "clones": 106,
+      "lines": 1150,
+      "percentage": 0.97
     },
     "shared copies": {
       "clones": 0,
