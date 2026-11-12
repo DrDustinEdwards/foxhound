@@ -765,6 +765,10 @@ export const INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER = 100;
  *  healthier). Drives MRR-at-risk exposure, the narrative's top-N selection,
  *  and the /intelligence UI. */
 export const HEALTH_SCORE_AT_RISK_THRESHOLD = 40;
+
+/** Recova's high-risk ceiling (health_score <= 33): the high-risk count and
+ *  MRR that health alerts watch, and the critical customers check. */
+export const CRITICAL_HEALTH_SCORE_MAX = 33;
 /** How far out a logged prediction claims to look. Grading (filling
  *  realizedOutcome once this elapses) is a later backtest pass. */
 export const PREDICTION_HORIZON_DAYS = 30;

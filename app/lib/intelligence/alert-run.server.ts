@@ -25,7 +25,13 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
-import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE, HOUR_MS, type AlertMetric } from "~/lib/constants";
+import {
+  CRITICAL_HEALTH_SCORE_MAX,
+  DAY_MS,
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  HOUR_MS,
+  type AlertMetric,
+} from "~/lib/constants";
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
@@ -39,7 +45,6 @@ import {
 import {
   ALERT_COOLDOWN_WINDOW_MS,
   CRITICAL_CUSTOMERS_METRIC,
-  CRITICAL_HEALTH_SCORE_MAX,
   buildAlertHistoryInsert,
   buildCriticalAlertHistoryInsert,
   buildAlertLastTriggeredUpdate,

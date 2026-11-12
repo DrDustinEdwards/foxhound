@@ -21,6 +21,7 @@ import {
   BULK_ACTION_MAX_PER_SUBMISSION,
   CAU_EVENT_RETENTION_DAYS,
   CLICK_SUSPECT_MIN_SECONDS,
+  CRITICAL_HEALTH_SCORE_MAX,
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
   EXPIRING_CARD_DAYS_AHEAD,
@@ -1024,7 +1025,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Settings",
         body: [
           { kind: "h3", text: "Health alert" },
-          "The Alerts section of Settings and Notifications lets you set a threshold on the number of high-risk customers, those with a health score of 33 or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.",
+          `The Alerts section of Settings and Notifications lets you set a threshold on the number of high-risk customers, those with a health score of ${CRITICAL_HEALTH_SCORE_MAX} or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.`,
         ],
       },
     ],
