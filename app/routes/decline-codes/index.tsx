@@ -3,8 +3,10 @@ import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
+import "capsomer/panel.css";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
+import { CARD_SM } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
@@ -47,7 +49,13 @@ export default function DeclineCodesIndex() {
   })).filter((g) => g.codes.length > 0);
 
   return (
-    <div>
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+    // the cards' accent edge and the focus ring read the family.
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <MarketingPageHeader
         eyebrow="Reference"
         title="Stripe decline code library"
@@ -68,20 +76,26 @@ export default function DeclineCodesIndex() {
                 <Link
                   key={code.code}
                   to={`/decline-codes/${code.code}`}
-                  className="group block rounded-lg border border-border bg-surface p-4 hover:border-border-i"
+                  className={`${CARD_SM} group`}
                 >
-                  <div className="mb-2 font-mono text-label font-medium text-text">
-                    {code.displayName}
-                  </div>
-                  <div className="mb-3 font-mono text-micro text-text-tertiary">{code.code}</div>
-                  <div className="text-label text-brand-text">
-                    Read more{" "}
-                    <ArrowRight
-                      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                      size={13}
-                      strokeWidth={1.5}
-                      aria-hidden
-                    />
+                  <div className="cap-panel-body">
+                    <div>
+                      <div className="mb-2 font-mono text-label font-medium text-text">
+                        {code.displayName}
+                      </div>
+                      <div className="mb-3 font-mono text-micro text-text-tertiary">
+                        {code.code}
+                      </div>
+                      <div className="text-label text-brand-text">
+                        Read more{" "}
+                        <ArrowRight
+                          className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
+                          size={13}
+                          strokeWidth={1.5}
+                          aria-hidden
+                        />
+                      </div>
+                    </div>
                   </div>
                 </Link>
               ))}

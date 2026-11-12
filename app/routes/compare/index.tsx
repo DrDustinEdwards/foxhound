@@ -1,7 +1,9 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
+import "capsomer/panel.css";
 
+import { CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
@@ -35,7 +37,13 @@ export function loader({ context }: Route.LoaderArgs) {
 
 export default function CompareIndex() {
   return (
-    <div>
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+    // the cards' accent edge and the focus ring read the family.
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <MarketingPageHeader
         eyebrow="Compare"
         title="How Foxhound compares"
@@ -47,24 +55,27 @@ export default function CompareIndex() {
           {COMPETITOR_ORDER.map((slug) => {
             const c = COMPETITORS[slug];
             return (
-              <Link
-                key={slug}
-                to={`/compare/${slug}`}
-                className="group block rounded-lg border border-border bg-surface p-5 hover:border-border-i"
-              >
-                <p className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                  {c.category}
-                </p>
-                <p className="mb-2 text-body font-medium text-text">Foxhound vs {c.name}</p>
-                <p className="mb-4 text-label leading-relaxed text-text-secondary">{c.oneLiner}</p>
-                <div className="text-label text-brand-text">
-                  See the comparison{" "}
-                  <ArrowRight
-                    className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
+              <Link key={slug} to={`/compare/${slug}`} className={`${CARD_MD} group`}>
+                <div className="cap-panel-body">
+                  {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
+                  <div>
+                    <p className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">
+                      {c.category}
+                    </p>
+                    <p className="mb-2 text-body font-medium text-text">Foxhound vs {c.name}</p>
+                    <p className="mb-4 text-label leading-relaxed text-text-secondary">
+                      {c.oneLiner}
+                    </p>
+                    <div className="text-label text-brand-text">
+                      See the comparison{" "}
+                      <ArrowRight
+                        className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
+                        size={13}
+                        strokeWidth={1.5}
+                        aria-hidden
+                      />
+                    </div>
+                  </div>
                 </div>
               </Link>
             );

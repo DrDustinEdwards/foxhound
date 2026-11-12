@@ -1,7 +1,8 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { CTA_BUTTON } from "~/components/marketing-card";
+import { titleCase } from "@drdustinedwards/site-helpers/text";
+import { CARD_MD, CTA_BUTTON } from "~/components/marketing-card";
 import { Link } from "capsomer/react/link";
 import { RelatedLinks } from "capsomer/react/related-links";
 import "capsomer/related-links.css";
@@ -16,6 +17,8 @@ import { CopyButton } from "capsomer/react/copy";
 import { ShareRow } from "capsomer/react/share-row";
 import { Toc } from "capsomer/react/toc";
 import "capsomer/button.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
 import "capsomer/copy.css";
 import "capsomer/share-row.css";
 import "capsomer/toc.css";
@@ -216,14 +219,20 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           ) : null}
 
           {post.tags.length > 0 ? (
-            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            // Capsomer's outline pill as a link, as on /blog's cards, in the amber family.
+            <div
+              className="fh-cap mb-3 flex flex-wrap items-center gap-1.5"
+              data-cap-site="foxhound"
+              data-family="amber"
+            >
               {post.tags.map((t) => (
                 <Link
                   key={t}
                   to={`/blog/tag/${encodeURIComponent(t)}`}
-                  className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-micro text-text-tertiary transition-colors hover:border-brand hover:text-text"
+                  className="cap-pill"
+                  data-variant="outline"
                 >
-                  {t}
+                  {titleCase(t)}
                 </Link>
               ))}
             </div>
@@ -323,44 +332,50 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       {previous || next ? (
         <nav
           aria-label="Adjacent posts"
-          className="mx-auto mt-16 grid max-w-[1100px] grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2"
+          className="fh-cap mx-auto mt-16 grid max-w-[1100px] grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2"
+          data-cap-site="foxhound"
+          data-family="amber"
         >
           {previous ? (
-            <Link
-              to={`/blog/${previous.slug}`}
-              className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-i"
-            >
-              <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-                <ArrowLeft
-                  className="motion-safe:transition-transform group-hover:-translate-x-0.5"
-                  size={13}
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
-                Previous post
-              </div>
-              <div className="text-item-title font-medium leading-snug text-text">
-                {previous.title}
+            <Link to={`/blog/${previous.slug}`} className={`${CARD_MD} group`}>
+              <div className="cap-panel-body">
+                <div>
+                  <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                    <ArrowLeft
+                      className="motion-safe:transition-transform group-hover:-translate-x-0.5"
+                      size={13}
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                    Previous post
+                  </div>
+                  <div className="text-item-title font-medium leading-snug text-text">
+                    {previous.title}
+                  </div>
+                </div>
               </div>
             </Link>
           ) : (
             <span />
           )}
           {next ? (
-            <Link
-              to={`/blog/${next.slug}`}
-              className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-i sm:text-right"
-            >
-              <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-                Next post{" "}
-                <ArrowRight
-                  className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                  size={13}
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
+            <Link to={`/blog/${next.slug}`} className={`${CARD_MD} group sm:text-right`}>
+              <div className="cap-panel-body">
+                <div>
+                  <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                    Next post{" "}
+                    <ArrowRight
+                      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
+                      size={13}
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                  </div>
+                  <div className="text-item-title font-medium leading-snug text-text">
+                    {next.title}
+                  </div>
+                </div>
               </div>
-              <div className="text-item-title font-medium leading-snug text-text">{next.title}</div>
             </Link>
           ) : (
             <span />
