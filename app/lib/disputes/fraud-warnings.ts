@@ -1,3 +1,4 @@
+import { humanize } from "@drdustinedwards/site-helpers/text";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { NoticeMail } from "./notices";
@@ -31,10 +32,7 @@ const FRAUD_TYPE_WORDS: Record<string, string> = {
 };
 
 export function fraudTypeWords(fraudType: string): string {
-  const known = FRAUD_TYPE_WORDS[fraudType];
-  if (known) return known;
-  const spaced = fraudType.replace(/_/g, " ").trim();
-  return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : "Unknown";
+  return FRAUD_TYPE_WORDS[fraudType] || humanize(fraudType) || "Unknown";
 }
 
 /** A warning the merchant can still act on: Stripe still calls it actionable

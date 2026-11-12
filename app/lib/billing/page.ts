@@ -1,3 +1,4 @@
+import { humanize } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
 
@@ -100,7 +101,7 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
 
 /** A readable status, never the raw column value. */
 export function subscriptionStatusLabel(status: string): string {
-  return SUBSCRIPTION_STATUS_LABELS[status] ?? titleCase(status.replace(/[-_]/g, " "));
+  return SUBSCRIPTION_STATUS_LABELS[status] ?? humanize(status);
 }
 
 /** Recova's badge colors: active green, past due red, the rest neutral. */
@@ -117,11 +118,7 @@ const PRODUCT_DISPLAY_NAMES: Record<string, string> = {
 
 /** Recova's productDisplayName, word for word. */
 export function productDisplayName(slug: string): string {
-  return PRODUCT_DISPLAY_NAMES[slug] ?? titleCase(slug.replace(/[-_]/g, " "));
-}
-
-export function titleCase(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return PRODUCT_DISPLAY_NAMES[slug] ?? humanize(slug);
 }
 
 /**

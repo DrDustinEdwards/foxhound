@@ -18,7 +18,7 @@ import {
   settingKindWord,
 } from "~/lib/admin/operations";
 import { loadMcpOverview } from "~/lib/admin/mcps.server";
-import { plural } from "@drdustinedwards/site-helpers/text";
+import { formatCount, plural } from "@drdustinedwards/site-helpers/text";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,
@@ -70,8 +70,6 @@ const GROWTH_HEADING_ID = "admin-operations-growth-heading";
 const MIGRATIONS_HEADING_ID = "admin-operations-migrations-heading";
 const SETTINGS_HEADING_ID = "admin-operations-settings-heading";
 
-const figure = (n: number) => n.toLocaleString("en-US");
-
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Operations"),
 // Capsomer panels and tables with plain sentence-case words, relative times
@@ -102,7 +100,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
           <div>
             <dt className="text-label text-text-secondary">Payments in recovery</dt>
             <dd className="m-0 font-mono text-title tabular-nums text-text">
-              {figure(queue.activePayments)}
+              {formatCount(queue.activePayments)}
             </dd>
             <dd className="m-0 text-label text-text-secondary">
               Failed payments in an active sequence.
@@ -111,7 +109,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
           <div>
             <dt className="text-label text-text-secondary">Steps due now</dt>
             <dd className="m-0 font-mono text-title tabular-nums text-text">
-              {figure(queue.dueSteps)}
+              {formatCount(queue.dueSteps)}
             </dd>
             <dd className="m-0 text-label text-text-secondary">
               {queue.oldestDueAt ? (
@@ -225,7 +223,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
                       {t.retentionPolicy}
                     </td>
                     <td data-label="Rows" data-num="">
-                      {figure(t.rowCount)}
+                      {formatCount(t.rowCount)}
                     </td>
                   </tr>
                 ))}

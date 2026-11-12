@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
@@ -123,7 +124,7 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     asOf: now.toISOString(),
     dashboard: {
       mrr: formatMoneyShort(latest?.totalMrrCents ?? 0, currency),
-      activeCustomers: (latest?.activeCustomersCount ?? 0).toLocaleString("en-US"),
+      activeCustomers: formatCount(latest?.activeCustomersCount ?? 0),
       dayOverDay: delta ? signedMoney(delta, currency) : "--",
       dayOverDaySign: delta ? (delta > 0 ? 1 : -1) : 0,
       newMrrMtd: formatMoneyShort(newMrrMonthToDateCents(daily, now.getTime()), currency),

@@ -7,10 +7,11 @@
  * imports nothing from a `.server` file.
  */
 
+import { titleCase } from "@drdustinedwards/site-helpers/text";
 import type { Tone as StatusTone } from "capsomer/react/status";
 
 import type { AttributionKind } from "~/lib/constants";
-import { ATTRIBUTION_KIND_LABELS, formatStepResult, type Tone } from "~/lib/recovery/labels";
+import { ATTRIBUTION_KIND_LABELS, type Tone } from "~/lib/recovery/labels";
 
 /** Foxhound's three tones as Capsomer's status tones. Neutral has no tone, so
  *  the pill is a plain label with no glyph, as J75's list does. */
@@ -25,7 +26,7 @@ export const PILL_TONE: Record<Tone, StatusTone | undefined> = {
  * recovery engine writes. Recova splits a sent email into "(AI)" and
  * "(template)"; the recovery engine stores one value, `email_sent` (labels.ts
  * STEP_RESULT_TONE), so it takes the plain "Email sent". A value Recova has no
- * word for is shown in words (formatStepResult), never as the raw column value.
+ * word for is shown in words (titleCase), never as the raw column value.
  */
 const STEP_RESULT_WORDS: Record<string, string> = {
   email_sent: "Email sent",
@@ -47,7 +48,7 @@ const STEP_RESULT_WORDS: Record<string, string> = {
 export function stepResultWords(result: string | null, executed: boolean): string {
   if (!result && !executed) return "Pending";
   if (!result) return "Executed";
-  return STEP_RESULT_WORDS[result] ?? formatStepResult(result);
+  return STEP_RESULT_WORDS[result] ?? titleCase(result);
 }
 
 /**

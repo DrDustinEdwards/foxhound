@@ -1,4 +1,4 @@
-import { plural } from "@drdustinedwards/site-helpers/text";
+import { capitalize, plural } from "@drdustinedwards/site-helpers/text";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
@@ -61,7 +61,7 @@ export interface NarrativeResult {
 /** Factor details as one sentence: "a; b; c." */
 function factorSentence(details: string[]): string {
   const text = details.map((d) => d.replace(/\.$/, "")).join("; ");
-  return text.charAt(0).toUpperCase() + text.slice(1) + ".";
+  return `${capitalize(text)}.`;
 }
 
 /** The latest snapshot's movements. Snapshots are daily (intelligence-sync),

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatStepResult,
   formatStepType,
   recoveryLifecycleStatus,
   recoveryLifecycleTone,
@@ -14,14 +13,6 @@ describe("formatStepType", () => {
     expect(formatStepType("retry_day2")).toBe("Retry (day 2)");
     expect(formatStepType("email_day1")).toBe("Email (day 1)");
     expect(formatStepType("email_day30")).toBe("Email (day 30)");
-  });
-});
-
-describe("formatStepResult", () => {
-  it("humanizes a snake_case result", () => {
-    expect(formatStepResult("retry_succeeded")).toBe("Retry Succeeded");
-    expect(formatStepResult("retry_card_declined")).toBe("Retry Card Declined");
-    expect(formatStepResult("email_sent")).toBe("Email Sent");
   });
 });
 
