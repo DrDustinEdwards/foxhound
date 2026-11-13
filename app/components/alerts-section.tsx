@@ -1,8 +1,9 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
+import { Table } from "capsomer/react/table";
 import { useRef, useState } from "react";
 import { Form, useNavigation, useSearchParams } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field, InputGroup, InputGroupAddon, TextField } from "capsomer/react/field";
@@ -141,75 +142,66 @@ export function AlertsSection({
 
             {alerts.length > 0 ? (
               <div className="fh-alerts-table">
-                <div
-                  className="cap-table-wrap"
-                  data-reflow="medium"
-                  data-cap="table"
-                  role="region"
-                  aria-label="Alerts"
-                  tabIndex={0}
-                >
-                  <table className="cap-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Label</th>
-                        <th scope="col">Metric</th>
-                        <th scope="col">Condition</th>
-                        <th scope="col">Channel</th>
-                        <th scope="col">Last triggered</th>
-                        <th scope="col">Status</th>
-                        <th scope="col" data-num="">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alerts.map((a) => {
-                        const condition = alertConditionLabel(
-                          a.metric,
-                          a.direction,
-                          a.thresholdValue,
-                        );
-                        return (
-                          <tr key={a.id}>
-                            <td>{a.label ?? "-"}</td>
-                            <td data-label="Metric">
-                              <span className="fh-faint">{alertMetricLabel(a.metric)}</span>
-                            </td>
-                            <td data-label="Condition">{condition}</td>
-                            <td data-label="Channel">
-                              <span className="fh-caps-fine fh-mono fh-tiny fh-faint">
-                                {a.channel}
-                              </span>
-                            </td>
-                            <td data-label="Last triggered">
-                              <span className="fh-mono fh-faint">
-                                {dateOrNever(a.lastTriggeredAt)}
-                              </span>
-                            </td>
-                            <td data-label="Status">
-                              <AlertSwitch
-                                id={a.id}
-                                enabled={a.enabled}
-                                name={a.label ?? condition}
-                                busy={busy}
-                              />
-                            </td>
-                            <td data-label="Actions" data-num="">
-                              <DemoForm method="post">
-                                <input type="hidden" name="_action" value="delete" />
-                                <input type="hidden" name="alertId" value={a.id} />
-                                <Button type="submit" size="sm" pending={busy}>
-                                  Delete alert
-                                </Button>
-                              </DemoForm>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <Table caption="Alerts" captionHidden reflow="medium">
+                  <thead>
+                    <tr>
+                      <th scope="col">Label</th>
+                      <th scope="col">Metric</th>
+                      <th scope="col">Condition</th>
+                      <th scope="col">Channel</th>
+                      <th scope="col">Last triggered</th>
+                      <th scope="col">Status</th>
+                      <th scope="col" data-num="">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alerts.map((a) => {
+                      const condition = alertConditionLabel(
+                        a.metric,
+                        a.direction,
+                        a.thresholdValue,
+                      );
+                      return (
+                        <tr key={a.id}>
+                          <td>{a.label ?? "-"}</td>
+                          <td data-label="Metric">
+                            <span className="fh-faint">{alertMetricLabel(a.metric)}</span>
+                          </td>
+                          <td data-label="Condition">{condition}</td>
+                          <td data-label="Channel">
+                            <span className="fh-caps-fine fh-mono fh-tiny fh-faint">
+                              {a.channel}
+                            </span>
+                          </td>
+                          <td data-label="Last triggered">
+                            <span className="fh-mono fh-faint">
+                              {dateOrNever(a.lastTriggeredAt)}
+                            </span>
+                          </td>
+                          <td data-label="Status">
+                            <AlertSwitch
+                              id={a.id}
+                              enabled={a.enabled}
+                              name={a.label ?? condition}
+                              busy={busy}
+                            />
+                          </td>
+                          <td data-label="Actions" data-num="">
+                            <DemoForm method="post">
+                              <input type="hidden" name="_action" value="delete" />
+                              <input type="hidden" name="alertId" value={a.id} />
+                              <Button type="submit" size="sm" pending={busy}>
+                                Delete alert
+                              </Button>
+                            </DemoForm>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
               </div>
             ) : null}
 
@@ -232,49 +224,40 @@ export function AlertsSection({
               No alerts have fired yet. Triggers will appear here when a threshold crosses.
             </p>
           ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              data-cap="table"
-              role="region"
-              aria-label="Recent triggers"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Metric</th>
-                    <th scope="col">Condition</th>
-                    <th scope="col">Actual value</th>
-                    <th scope="col">Channel</th>
-                    <th scope="col">Fired at</th>
+            <Table caption="Recent triggers" captionHidden reflow>
+              <thead>
+                <tr>
+                  <th scope="col">Metric</th>
+                  <th scope="col">Condition</th>
+                  <th scope="col">Actual value</th>
+                  <th scope="col">Channel</th>
+                  <th scope="col">Fired at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id}>
+                    <td>{alertMetricLabel(h.metric)}</td>
+                    <td data-label="Condition">
+                      <span className="fh-faint">
+                        {alertShortCondition(h.direction, h.metric, h.thresholdValue)}
+                      </span>
+                    </td>
+                    <td data-label="Actual value">
+                      <span className="fh-mono">
+                        {formatThresholdValue(h.metric, h.actualValue)}
+                      </span>
+                    </td>
+                    <td data-label="Channel">
+                      <span className="fh-caps-fine fh-mono fh-tiny fh-faint">{h.channel}</span>
+                    </td>
+                    <td data-label="Fired at">
+                      <span className="fh-mono fh-faint">{formatDateTime(h.firedAt)}</span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {history.map((h) => (
-                    <tr key={h.id}>
-                      <td>{alertMetricLabel(h.metric)}</td>
-                      <td data-label="Condition">
-                        <span className="fh-faint">
-                          {alertShortCondition(h.direction, h.metric, h.thresholdValue)}
-                        </span>
-                      </td>
-                      <td data-label="Actual value">
-                        <span className="fh-mono">
-                          {formatThresholdValue(h.metric, h.actualValue)}
-                        </span>
-                      </td>
-                      <td data-label="Channel">
-                        <span className="fh-caps-fine fh-mono fh-tiny fh-faint">{h.channel}</span>
-                      </td>
-                      <td data-label="Fired at">
-                        <span className="fh-mono fh-faint">{formatDateTime(h.firedAt)}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </Table>
           )}
         </Panel>
       </div>
@@ -431,9 +414,9 @@ function CreateAlertForm({
             </Button>
             {/* Recova's Cancel closes the form. A link back to the page, in
                 Capsomer's quiet button markup, closes it with no script. */}
-            <Link className="cap-btn" data-variant="quiet" to="/settings/notifications">
+            <ButtonLink variant="quiet" to="/settings/notifications">
               Cancel
-            </Link>
+            </ButtonLink>
           </div>
         </DemoForm>
       </Panel>

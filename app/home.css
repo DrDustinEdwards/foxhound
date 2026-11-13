@@ -132,33 +132,6 @@
       padding-bottom: 5rem;
     }
   }
-  .fh-home-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    align-items: center;
-    gap: 3rem;
-  }
-  @media (width >= 64rem) {
-    .fh-home-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 4rem;
-    }
-  }
-  .fh-home-title {
-    margin-bottom: 1.25rem;
-    line-height: 1.02;
-    letter-spacing: -0.03em;
-  }
-  @media (width >= 40rem) {
-    .fh-home-title {
-      font-size: 4rem;
-      letter-spacing: -0.04em;
-    }
-  }
-  .fh-home-text {
-    margin-bottom: 2rem;
-    line-height: 1.6;
-  }
   .fh-home-link {
     --cap-btn-bg: transparent;
   }
@@ -171,11 +144,6 @@
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
       transition-duration: 150ms;
     }
-  }
-  .fh-home-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .fh-home-block-3 {
     margin-top: 1.25rem;
@@ -418,24 +386,6 @@
   }
   .fh-home-label-2 {
     margin-top: auto;
-  }
-  .fh-home-band-7 {
-    border-top: 1px solid var(--border-sub);
-    padding: 6rem 1.25rem;
-  }
-  @media (width >= 40rem) {
-    .fh-home-band-7 {
-      padding-inline: 2rem;
-    }
-  }
-  .fh-home-title-4 {
-    margin-bottom: 1rem;
-    letter-spacing: -0.02em;
-  }
-  @media (width >= 40rem) {
-    .fh-home-title-4 {
-      font-size: 2rem;
-    }
   }
   .fh-home-block-15 {
     margin-top: 1.25rem;

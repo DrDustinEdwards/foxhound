@@ -1,10 +1,14 @@
+import { marketingMeta } from "~/lib/seo/meta";
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { CtaBand } from "capsomer/react/cta-band";
+import { Hero } from "capsomer/react/hero";
 import { Link } from "capsomer/react/link";
 import { PriceCard, PriceGrid } from "capsomer/react/price-card";
+import "capsomer/cta-band.css";
+import "capsomer/hero.css";
 
-import { CARD, CTA_BUTTON } from "~/components/marketing-card";
-import { MarketingPageHeader } from "~/components/marketing-page-header";
+import { CARD, ConnectStripeAction } from "~/components/marketing-card";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
@@ -14,7 +18,6 @@ import {
 import { PRODUCTS } from "~/lib/marketing/products";
 import { speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
-import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
@@ -85,10 +88,11 @@ export default function PricingPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
-      <MarketingPageHeader
+      <Hero
+        className="fh-page-hero"
         eyebrow="Pricing"
         title="Pricing"
-        subtext="Two outcome-based products. Intelligence and Audit are always free."
+        lead="Two outcome-based products. Intelligence and Audit are always free."
       />
 
       {/* Legacy's pricing card grid is max-w-[1200px], NOT the 1100px the home
@@ -172,32 +176,31 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="fh-mk-band">
-        {/* Recova's 48px closing button at 1rem. */}
-        <div className="fh-mk-wrap-text fh-center">
-          <h2 className="fh-pricing-title-4 fh-section fh-medium fh-text">
-            See what your Stripe account is leaking
-          </h2>
-          <p className="fh-mk-sub fh-subhead fh-soft">
-            Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes,
-            and business health. Results in <span className="fh-mono">30</span> seconds.
-          </p>
-          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
-            Connect Stripe, it is free
-          </Link>
-          {/* 376 item 20: this line used to read "No account required . No Stripe
+      {/* Recova's 48px closing button at 1rem. */}
+      <CtaBand
+        quiet
+        className="fh-closing-band fh-closing-pricing"
+        title="See what your Stripe account is leaking"
+        actions={<ConnectStripeAction />}
+        note={
+          <>
+            {/* 376 item 20: this line used to read "No account required . No Stripe
               connection needed . Results in 30 seconds" directly under a button
               that says Connect Stripe. Both halves were true of DIFFERENT
               products, which is what made the pair a contradiction: the
               estimator needs no connection, the full audit is a connection. The
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
-          <div className="fh-pricing-block-4 fh-mono fh-caption fh-faint">
-            Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
-            that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
-          </div>
-        </div>
-      </section>
+            <span className="fh-pricing-block-4 fh-line fh-mono fh-caption fh-faint">
+              Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
+              that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
+            </span>
+          </>
+        }
+      >
+        Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
+        business health. Results in <span className="fh-mono">30</span> seconds.
+      </CtaBand>
     </div>
   );
 }

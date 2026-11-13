@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { Icon, iconCheck } from "capsomer/react/icons";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
@@ -171,70 +172,61 @@ function NothingToDo() {
 function SectionTable({ section, rows }: { section: Section; rows: RecommendationRow[] }) {
   return (
     <Panel title={section.title} description={section.subtitle} flush>
-      <div
-        className="cap-table-wrap"
-        data-reflow="medium"
-        data-cap="table"
-        role="region"
-        aria-label={section.title}
-        tabIndex={0}
-      >
-        <table className="cap-table">
-          <thead>
-            <tr>
-              <th scope="col">Customer</th>
-              <th scope="col">Plan</th>
-              <th scope="col" data-num="">
-                MRR
+      <Table caption={section.title} captionHidden reflow="medium">
+        <thead>
+          <tr>
+            <th scope="col">Customer</th>
+            <th scope="col">Plan</th>
+            <th scope="col" data-num="">
+              MRR
+            </th>
+            <th scope="col" data-num="">
+              Health
+            </th>
+            <th scope="col">Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((c) => (
+            <tr key={c.stripeCustomerId}>
+              <th scope="row">
+                <Link
+                  className="cap-table-open"
+                  to={`/intelligence/customers/${c.stripeCustomerId}`}
+                >
+                  {c.customerName ?? "(unnamed)"}
+                </Link>
+                {/* Recova's second line under the name: the Stripe id, micro and mono. */}
+                <span className="fh-line fh-mono fh-tiny fh-faint">{c.stripeCustomerId}</span>
               </th>
-              <th scope="col" data-num="">
-                Health
-              </th>
-              <th scope="col">Recommendation</th>
+              <td data-label="Plan">
+                <Pill variant="outline">{c.planName ?? "-"}</Pill>
+              </td>
+              <td data-label="MRR" data-num="">
+                <span className="fh-mono">
+                  {c.mrrContributionCents > 0
+                    ? formatMoney(c.mrrContributionCents, c.currency)
+                    : "-"}
+                </span>
+              </td>
+              <td data-label="Health" data-num="">
+                {c.healthScore == null ? (
+                  <span className="fh-mono fh-quiet">-</span>
+                ) : (
+                  <span className={`fh-mono fh-semibold ${healthScoreClassName(c.healthScore)}`}>
+                    {c.healthScore}
+                  </span>
+                )}
+              </td>
+              <td data-label="Recommendation">
+                <span className="fh-tiny fh-faint">
+                  {ACTION_LABEL[c.recommendedAction] ?? c.recommendedAction}
+                </span>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c.stripeCustomerId}>
-                <th scope="row">
-                  <Link
-                    className="cap-table-open"
-                    to={`/intelligence/customers/${c.stripeCustomerId}`}
-                  >
-                    {c.customerName ?? "(unnamed)"}
-                  </Link>
-                  {/* Recova's second line under the name: the Stripe id, micro and mono. */}
-                  <span className="fh-line fh-mono fh-tiny fh-faint">{c.stripeCustomerId}</span>
-                </th>
-                <td data-label="Plan">
-                  <Pill variant="outline">{c.planName ?? "-"}</Pill>
-                </td>
-                <td data-label="MRR" data-num="">
-                  <span className="fh-mono">
-                    {c.mrrContributionCents > 0
-                      ? formatMoney(c.mrrContributionCents, c.currency)
-                      : "-"}
-                  </span>
-                </td>
-                <td data-label="Health" data-num="">
-                  {c.healthScore == null ? (
-                    <span className="fh-mono fh-quiet">-</span>
-                  ) : (
-                    <span className={`fh-mono fh-semibold ${healthScoreClassName(c.healthScore)}`}>
-                      {c.healthScore}
-                    </span>
-                  )}
-                </td>
-                <td data-label="Recommendation">
-                  <span className="fh-tiny fh-faint">
-                    {ACTION_LABEL[c.recommendedAction] ?? c.recommendedAction}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </Table>
     </Panel>
   );
 }

@@ -1,8 +1,10 @@
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
+import { AwayLink } from "capsomer/react/link";
+import "capsomer/link.css";
 import { formatDate } from "capsomer/behavior/time";
 import { LedgerLineItemRow } from "~/components/billing-ledger-row";
-import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
@@ -51,15 +53,9 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
             {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
           </Pill>
           {invoice.stripeInvoiceUrl ? (
-            <a
-              href={invoice.stripeInvoiceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="fh-small"
-            >
+            <AwayLink href={invoice.stripeInvoiceUrl} newTab className="fh-small">
               View Stripe invoice
-              <span className="cap-sr-only"> (opens in a new tab)</span>
-            </a>
+            </AwayLink>
           ) : null}
         </div>
       </div>

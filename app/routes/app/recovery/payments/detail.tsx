@@ -1,7 +1,6 @@
 import {
   Icon,
   iconArrowRight,
-  iconArrowUpRight,
   iconCheck,
   iconCircle,
   iconMail,
@@ -12,7 +11,7 @@ import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
 import { useId, useState } from "react";
 
 import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { CopyButton } from "capsomer/react/copy";
@@ -26,6 +25,7 @@ import "capsomer/disclosure.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
+import "capsomer/link.css";
 // Capsomer's tokens and the amber family, which the components above read, as
 // the payments list and /disputes load them.
 import "~/site-header.css";
@@ -491,28 +491,22 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           </>
         ) : (
           <>
-            <a
-              className="cap-btn"
-              data-size="sm"
+            <ButtonLink
+              size="sm"
               href={`https://dashboard.stripe.com/invoices/${failedPayment.stripeInvoiceId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              away
+              newTab
             >
               View invoice in Stripe
-              <Icon d={iconArrowUpRight} className="fh-icon-12 fh-icon-fine" data-icon="end" />
-              <span className="cap-sr-only"> (opens in a new tab)</span>
-            </a>
-            <a
-              className="cap-btn"
-              data-size="sm"
+            </ButtonLink>
+            <ButtonLink
+              size="sm"
               href={`https://dashboard.stripe.com/customers/${failedPayment.stripeCustomerId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              away
+              newTab
             >
               View customer in Stripe
-              <Icon d={iconArrowUpRight} className="fh-icon-12 fh-icon-fine" data-icon="end" />
-              <span className="cap-sr-only"> (opens in a new tab)</span>
-            </a>
+            </ButtonLink>
           </>
         )}
       </div>

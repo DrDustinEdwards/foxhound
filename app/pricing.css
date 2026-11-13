@@ -60,15 +60,6 @@
   .fh-pricing-text-3 {
     line-height: 1.6;
   }
-  .fh-pricing-title-4 {
-    margin-bottom: 1rem;
-    letter-spacing: -0.01em;
-  }
-  @media (width >= 40rem) {
-    .fh-pricing-title-4 {
-      font-size: 2rem;
-    }
-  }
   .fh-pricing-block-4 {
     margin-top: 1.25rem;
   }

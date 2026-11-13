@@ -3,13 +3,17 @@ import { FeatureBlock, Features } from "capsomer/react/feature";
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { PriceCard, PriceGrid } from "capsomer/react/price-card";
 import { ProcessSteps } from "capsomer/react/process";
+import { CtaBand } from "capsomer/react/cta-band";
+import { Hero } from "capsomer/react/hero";
 import { Pill } from "capsomer/react/status";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
 import { FaqList } from "~/components/faq-list";
 
 import "capsomer/eyebrow.css";
 import "capsomer/feature.css";
+import "capsomer/cta-band.css";
+import "capsomer/hero.css";
 import "capsomer/panel.css";
 import "capsomer/price-card.css";
 import "capsomer/process.css";
@@ -47,15 +51,15 @@ interface CTA {
 /** A Capsomer primary button that is a link, at the large size. */
 function PrimaryLink({ cta }: { cta: CTA }) {
   return (
-    <Link
+    <ButtonLink
       to={cta.href}
       rel={appLinkRel(cta.href)}
-      className="fh-mk-big-button cap-btn"
-      data-variant="primary"
-      data-size="lg"
+      className="fh-mk-big-button"
+      variant="primary"
+      size="lg"
     >
       {cta.label}
-    </Link>
+    </ButtonLink>
   );
 }
 
@@ -86,23 +90,19 @@ export function ProductHero({
   secondaryCTA: CTA;
 }) {
   return (
-    <section className="fh-product-band speakable-hero fh-center">
-      <div className="fh-product-wrap">
-        <div className="fh-product-block">
-          <Pill variant="outline">
-            <Icon d={icon} className="fh-product-icon fh-accent" />
-            {productName}
-          </Pill>
-        </div>
-        {/* Recova's mechanism: a literal newline in the string is a line break. */}
-        <h1 className="fh-product-title fh-pre-line fh-product-hero fh-medium fh-text">
-          {headline}
-        </h1>
-        <p className="fh-product-wrap-2 speakable-description fh-product-sub fh-relaxed fh-soft">
-          {sub}
-        </p>
-        <p className="fh-product-text fh-mono fh-small fh-quiet">{pricing}</p>
-        <div className="fh-product-row">
+    <Hero
+      className="speakable-hero fh-product-hero"
+      align="center"
+      eyebrow={
+        <Pill variant="outline">
+          <Icon d={icon} className="fh-product-icon fh-accent" />
+          {productName}
+        </Pill>
+      }
+      title={headline}
+      lead={<span className="speakable-description">{sub}</span>}
+      actions={
+        <>
           <PrimaryLink cta={primaryCTA} />
           {/* leading-6 keeps the link a 24px target. */}
           <Link
@@ -112,9 +112,11 @@ export function ProductHero({
             {secondaryCTA.label}{" "}
             <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
           </Link>
-        </div>
-      </div>
-    </section>
+        </>
+      }
+    >
+      <p className="fh-mono fh-small fh-quiet">{pricing}</p>
+    </Hero>
   );
 }
 
@@ -226,13 +228,14 @@ export function BottomCTA({
   note: string;
 }) {
   return (
-    <section className="fh-product-band-4 fh-center">
-      <div className="fh-mk-lede">
-        <h2 className="fh-mk-heading fh-subsection fh-medium fh-text">{title}</h2>
-        <p className="fh-product-text fh-subhead fh-relaxed fh-soft">{sub}</p>
-        <PrimaryLink cta={cta} />
-        <p className="fh-product-text-2 fh-caption fh-quiet">{note}</p>
-      </div>
-    </section>
+    <CtaBand
+      quiet
+      className="fh-closing-band fh-closing-product"
+      title={title}
+      actions={<PrimaryLink cta={cta} />}
+      note={note}
+    >
+      {sub}
+    </CtaBand>
   );
 }

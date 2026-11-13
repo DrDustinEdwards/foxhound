@@ -1,8 +1,9 @@
+import { marketingMeta } from "~/lib/seo/meta";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { useMemo, useState } from "react";
 import { AnchorBar } from "capsomer/react/anchor-bar";
 import { FeatureGrid } from "capsomer/react/feature";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
 import { SequenceSteps } from "~/components/recovery-previews";
@@ -21,7 +22,6 @@ import {
 } from "~/lib/marketing/features-content";
 import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/anchor-bar.css";
 import "capsomer/feature.css";
@@ -185,14 +185,9 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           {/* Comfortable density for Capsomer's lg button, as /pricing: 40px
               tall with a pointer, 44px on a touch screen. */}
           <div data-density="comfortable">
-            <Link
-              to="/audit"
-              className="fh-mk-big-button cap-btn"
-              data-variant="primary"
-              data-size="lg"
-            >
+            <ButtonLink to="/audit" className="fh-mk-big-button" variant="primary" size="lg">
               Run your free audit
-            </Link>
+            </ButtonLink>
           </div>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { BADGE_PILL } from "~/lib/recovery/labels";
+import { Table } from "capsomer/react/table";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
@@ -17,7 +19,6 @@ import { Time } from "capsomer/react/time";
 import { data, Form, useNavigation } from "react-router";
 
 import { ViewAsForm } from "~/components/admin-merchants-parts";
-import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
@@ -31,8 +32,7 @@ import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatMoney } from "@dustinedwards/site-runtime/money";
-import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
+import { parseMoneyInput, formatMoney } from "@dustinedwards/site-runtime/money";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
@@ -471,43 +471,39 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         {recentInvoices.length === 0 ? (
           <Empty kind="nothing-yet" title="No invoices yet." />
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow="medium"
-            role="region"
-            aria-labelledby={INVOICES_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="This merchant's recent invoices."
+            captionHidden
+            labelledBy={INVOICES_HEADING_ID}
+            reflow="medium"
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">This merchant&apos;s recent invoices.</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Period</th>
-                  <th scope="col" data-num="">
-                    Total
+            <thead>
+              <tr>
+                <th scope="col">Period</th>
+                <th scope="col" data-num="">
+                  Total
+                </th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentInvoices.map((inv) => (
+                <tr key={inv.id}>
+                  <th scope="row" className="fh-regular">
+                    {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
                   </th>
-                  <th scope="col">Status</th>
+                  <td data-label="Total" data-num="">
+                    {formatMoney(inv.totalCents, inv.currency)}
+                  </td>
+                  <td data-label="Status">
+                    <Pill {...BADGE_PILL[billingInvoiceStatusTone(inv.status)]}>
+                      {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
+                    </Pill>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {recentInvoices.map((inv) => (
-                  <tr key={inv.id}>
-                    <th scope="row" className="fh-regular">
-                      {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
-                    </th>
-                    <td data-label="Total" data-num="">
-                      {formatMoney(inv.totalCents, inv.currency)}
-                    </td>
-                    <td data-label="Status">
-                      <Pill {...BADGE_PILL[billingInvoiceStatusTone(inv.status)]}>
-                        {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
-                      </Pill>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
     </div>

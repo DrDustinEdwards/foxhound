@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { Link } from "capsomer/react/link";
 
 import type { DocBlock, DocInline, DocRich } from "~/lib/marketing/docs-content";
@@ -5,6 +6,7 @@ import { appLinkRel } from "~/lib/marketing/app-links";
 
 import { DocWidget } from "./doc-widgets";
 import { HealthScoreBadge } from "./health-score-badge";
+import "capsomer/table.css";
 
 // Recova's docs block vocabulary, on Capsomer's parts.
 //
@@ -132,42 +134,34 @@ function Block({ block }: { block: DocBlock }) {
 
     case "table":
       return (
-        <div
-          className="fh-doc-blocks-block cap-table-wrap"
-          data-cap="table"
-          role="region"
-          aria-label={block.label}
-          tabIndex={0}
-        >
-          <table className="cap-table">
-            <thead>
-              <tr>
-                {block.columns.map((column) => (
-                  <th key={column} scope="col">
-                    {column}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {block.rows.map((row, i) => (
-                <tr key={i}>
-                  {row.map((cell, j) =>
-                    j === 0 ? (
-                      <th key={j} scope="row">
-                        <Rich content={cell} />
-                      </th>
-                    ) : (
-                      <td key={j}>
-                        <Rich content={cell} />
-                      </td>
-                    ),
-                  )}
-                </tr>
+        <Table caption={block.label} captionHidden className="fh-doc-blocks-block">
+          <thead>
+            <tr>
+              {block.columns.map((column) => (
+                <th key={column} scope="col">
+                  {column}
+                </th>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {block.rows.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) =>
+                  j === 0 ? (
+                    <th key={j} scope="row">
+                      <Rich content={cell} />
+                    </th>
+                  ) : (
+                    <td key={j}>
+                      <Rich content={cell} />
+                    </td>
+                  ),
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       );
   }
 }

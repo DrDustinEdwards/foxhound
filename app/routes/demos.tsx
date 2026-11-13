@@ -1,7 +1,6 @@
 import { Icon, iconOverview, iconRefresh, iconShield, iconTrendingUp } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { Link } from "capsomer/react/link";
-
+import { ButtonLink } from "capsomer/react/link";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -113,20 +112,11 @@ export default function DemosPage() {
                   <div>
                     <p className="fh-body fh-medium fh-text">{entry.name}</p>
                     <p className="fh-demos-text fh-small fh-soft">{entry.blurb}</p>
-                    {/* Capsomer's primary button as the link Recova draws full
-                        width: the one-column grid stretches it, so the button
-                        carries no Foxhound class. */}
-                    <div className="fh-demos-grid">
-                      <Link
-                        to={entry.href}
-                        rel="nofollow"
-                        className="cap-btn"
-                        data-variant="primary"
-                      >
-                        <Icon d={entry.icon} data-icon="start" />
-                        View {entry.name} demo
-                      </Link>
-                    </div>
+                    {/* Capsomer's primary button as the link Recova draws full width. */}
+                    <ButtonLink to={entry.href} rel="nofollow" variant="primary" block>
+                      <Icon d={entry.icon} data-icon="start" />
+                      View {entry.name} demo
+                    </ButtonLink>
                   </div>
                 </div>
               </div>

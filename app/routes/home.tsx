@@ -1,3 +1,4 @@
+import { marketingMeta } from "~/lib/seo/meta";
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import "capsomer/panel.css";
@@ -10,12 +11,16 @@ import "capsomer/source-line.css";
 // this page reads. The site header loads the same file; importing it here
 // keeps the page whole under any layout.
 import "~/site-header.css";
-import { faqPage } from "@drdustinedwards/site-helpers/schema";
 import { Eyebrow } from "capsomer/react/eyebrow";
-import { Link } from "capsomer/react/link";
+import { jsonLd, faqPage } from "@drdustinedwards/site-helpers/schema";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
+import { CtaBand } from "capsomer/react/cta-band";
+import { Hero } from "capsomer/react/hero";
+import "capsomer/cta-band.css";
+import "capsomer/hero.css";
 import { EmailSamples } from "~/components/email-samples";
-import { CARD, CTA_BUTTON } from "~/components/marketing-card";
+import { CARD, ConnectStripeAction } from "~/components/marketing-card";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
@@ -49,10 +54,8 @@ import {
   speakableWebPageJsonLd,
   websiteJsonLd,
 } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/home";
 import { PRODUCT_ICONS, Arrow, HOW_IT_WORKS, BILLING_ANSWER } from "../components/home-parts";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/home.css";
 
 // The marketing home page. Recova's spec, read whole at HEAD:
@@ -133,44 +136,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       {/* 1. Hero */}
-      <section className="fh-home-band speakable-hero">
+      <div className="fh-home-band speakable-hero">
         <div className="fh-mk-wrap">
-          <div className="fh-home-grid">
-            <div className="fh-mk-column">
-              <h1 className="fh-home-title animate-fade-up delay-80 fh-hero fh-semibold fh-text">
+          <Hero
+            className="fh-home-hero"
+            title={
+              <>
                 You pay when
                 <br />
                 you recover.
                 <br />
                 <span className="fh-accent">Not before.</span>
-              </h1>
-
-              <p className="fh-home-text animate-fade-up delay-160 fh-body fh-soft">
+              </>
+            }
+            lead={
+              <>
                 {HERO_LEAD} <span className="fh-mono fh-text">{RECOVERY_FEE}</span> of what Foxhound
                 recovers. Anything Stripe would have recovered on its own is free. Nothing until you
                 have held the money for <span className="fh-mono fh-text">{MATURITY_DAYS}</span>{" "}
                 days.
-              </p>
-
-              <div
-                className="cap-cluster animate-fade-up delay-240"
-                data-gap="5"
-                data-density="comfortable"
-              >
-                <Link
-                  to="/audit"
-                  className="cap-btn fh-semibold"
-                  data-variant="primary"
-                  data-size="lg"
-                >
+              </>
+            }
+            actions={
+              <div className="fh-density" data-density="comfortable">
+                <ButtonLink to="/audit" className="fh-semibold" variant="primary" size="lg">
                   Run your free audit
-                </Link>
+                </ButtonLink>
                 {/* Recova's outlined button: no fill at rest, amber sweeping in under the pointer. */}
-                <Link
+                <ButtonLink
                   to="/demos/recovery"
                   rel="nofollow"
-                  className="fh-home-link cap-btn fh-hover-group"
-                  data-size="lg"
+                  className="fh-home-link fh-hover-group"
+                  size="lg"
                 >
                   See it live
                   <Icon
@@ -178,14 +175,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="fh-icon-13 fh-icon-fine fh-home-block-2"
                     data-icon="end"
                   />
-                </Link>
+                </ButtonLink>
               </div>
-            </div>
-
-            <div className="fh-home-row animate-fade-in delay-320">
-              <RecoveryQueueDemo />
-            </div>
-          </div>
+            }
+            aside={<RecoveryQueueDemo />}
+          />
 
           {/* Trust row: full width, below both columns. */}
           <div className="fh-home-block-3">
@@ -212,7 +206,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </ul>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Stats: the problem */}
       <section className="fh-home-band-2">
@@ -532,42 +526,41 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
-      <section className="fh-home-band-7">
-        <div className="fh-mk-wrap-text fh-center" data-density="comfortable">
-          <h2 className="fh-home-title-4 fh-section fh-semibold fh-text">
-            See what your Stripe account is leaking
-          </h2>
-          <p className="fh-mk-sub fh-subhead fh-soft">
-            Connect Stripe for a free diagnostic. Results in <span className="fh-mono">30</span>{" "}
-            seconds. No setup, no card.
-          </p>
-          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
-            Connect Stripe, it is free
-          </Link>
-          <div className="fh-home-block-15 fh-mono fh-caption fh-faint">
-            No account required &middot; Results in 30 seconds &middot; Disconnect anytime
-          </div>
-          <div className="fh-home-block-16 fh-mono fh-caption fh-faint">
-            {COMPAT_TAGS.join(" · ")}
-          </div>
-          <div className="fh-home-row-4">
-            <Link
-              to="/demos/recovery"
-              rel="nofollow"
-              className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
-            >
-              View Recovery demo <Arrow />
-            </Link>
-            <Link
-              to="/demos/disputes"
-              rel="nofollow"
-              className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
-            >
-              View Disputes demo <Arrow />
-            </Link>
-          </div>
-        </div>
-      </section>
+      <CtaBand
+        quiet
+        className="fh-closing-band fh-closing-home"
+        title="See what your Stripe account is leaking"
+        actions={<ConnectStripeAction />}
+        note={
+          <>
+            <span className="fh-home-block-15 fh-line fh-mono fh-caption fh-faint">
+              No account required &middot; Results in 30 seconds &middot; Disconnect anytime
+            </span>
+            <span className="fh-home-block-16 fh-line fh-mono fh-caption fh-faint">
+              {COMPAT_TAGS.join(" · ")}
+            </span>
+            <span className="fh-home-row-4">
+              <Link
+                to="/demos/recovery"
+                rel="nofollow"
+                className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
+              >
+                View Recovery demo <Arrow />
+              </Link>
+              <Link
+                to="/demos/disputes"
+                rel="nofollow"
+                className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
+              >
+                View Disputes demo <Arrow />
+              </Link>
+            </span>
+          </>
+        }
+      >
+        Connect Stripe for a free diagnostic. Results in <span className="fh-mono">30</span>{" "}
+        seconds. No setup, no card.
+      </CtaBand>
     </div>
   );
 }
