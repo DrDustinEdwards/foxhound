@@ -4,7 +4,6 @@ import { Hero } from "capsomer/react/hero";
 import { Pill } from "capsomer/react/status";
 import { Link, ButtonLink } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
-import { CTA_BUTTON } from "~/components/marketing-card";
 import { FaqList } from "~/components/faq-list";
 
 import "capsomer/cta-band.css";
@@ -293,17 +292,5 @@ export function BottomCTA({
     >
       {sub}
     </CtaBand>
-  );
-}
-
-/** The home and pricing pages' closing button: Recova's 48px "Connect Stripe" at 1rem, in the
- *  comfortable density. */
-export function ConnectStripeAction() {
-  return (
-    <div className="fh-density" data-density="comfortable">
-      <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
-        Connect Stripe, it is free
-      </ButtonLink>
-    </div>
   );
 }

@@ -1,3 +1,5 @@
+import { ButtonLink } from "capsomer/react/link";
+
 // Recova's marketing card is p-6 all round (rounded-[12px] p-6). Capsomer's
 // panel body pads by --gap above and below and --pad-card beside, and the
 // foxhound site sets 20px for the app's cards (Recova's p-5), so a marketing
@@ -14,3 +16,15 @@ export const CARD_SM = "cap-panel fh-card-sm";
 // Recova's closing call to action: px-6 py-3 at 1rem semibold, a size up from
 // Capsomer's large button.
 export const CTA_BUTTON = "fh-cta-button fh-semibold";
+
+/** The home and pricing pages' closing button: Recova's 48px "Connect Stripe" at 1rem, in the
+ *  comfortable density. */
+export function ConnectStripeAction() {
+  return (
+    <div className="fh-density" data-density="comfortable">
+      <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
+        Connect Stripe, it is free
+      </ButtonLink>
+    </div>
+  );
+}

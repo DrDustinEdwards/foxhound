@@ -7,8 +7,7 @@ import { Link } from "capsomer/react/link";
 import "capsomer/cta-band.css";
 import "capsomer/hero.css";
 
-import { CARD } from "~/components/marketing-card";
-import { ConnectStripeAction } from "~/components/product-sections-cap";
+import { CARD, ConnectStripeAction } from "~/components/marketing-card";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
