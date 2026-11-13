@@ -106,10 +106,10 @@ function Block({ block }: { block: DocBlock }) {
         <div className="cap-steps fh-doc-blocks-list" data-variant="ordered">
           <ol className="cap-steps-list" aria-label="Steps">
             {block.items.map((item, i) => (
-              <li key={i} className="cap-step">
+              <li key={i} className="cap-step fh-subhead fh-relaxed fh-soft">
                 {/* Recova hand-writes "01", "02"; derived here so a step cannot
                     be inserted without its number following. */}
-                <span className="cap-step-number" aria-hidden="true">
+                <span className="cap-step-number fh-accent" aria-hidden="true">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span className="cap-step-name">
