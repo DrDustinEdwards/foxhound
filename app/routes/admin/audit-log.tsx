@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { usePagePending } from "capsomer/react/route-hooks";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
@@ -76,58 +77,48 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
           Every admin action that changes how Foxhound runs writes an entry here.
         </Empty>
       ) : (
-        <div
-          className="cap-table-wrap"
-          data-reflow=""
-          data-cap="table"
-          role="region"
-          aria-labelledby={HEADING_ID}
-          tabIndex={0}
-        >
-          <table className="cap-table">
-            <caption className="cap-sr-only">The audit log, newest first.</caption>
-            <thead>
-              <tr>
-                <th scope="col">Time</th>
-                <th scope="col">Actor</th>
-                <th scope="col">Action</th>
-                <th scope="col">Target</th>
-                <th scope="col">Detail</th>
+        <Table caption="The audit log, newest first." captionHidden labelledBy={HEADING_ID} reflow>
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              <th scope="col">Actor</th>
+              <th scope="col">Action</th>
+              <th scope="col">Target</th>
+              <th scope="col">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e) => (
+              <tr key={e.id}>
+                <td>
+                  <Time at={e.createdAt} empty="never" tip />
+                </td>
+                <td data-label="Actor" className="fh-break">
+                  {e.actor}
+                </td>
+                <td data-label="Action">{e.action}</td>
+                <td data-label="Target" data-wrap="">
+                  {e.target === null ? (
+                    <span className="fh-quiet">None</span>
+                  ) : e.target.href ? (
+                    <Link to={e.target.href} className={LINK}>
+                      {e.target.label}
+                    </Link>
+                  ) : (
+                    <span className="fh-break">{e.target.label}</span>
+                  )}
+                </td>
+                <td
+                  data-label="Detail"
+                  data-wrap=""
+                  className={e.detail === null ? "fh-quiet" : "fh-soft"}
+                >
+                  {e.detail ?? "None"}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {entries.map((e) => (
-                <tr key={e.id}>
-                  <td>
-                    <Time at={e.createdAt} empty="never" tip />
-                  </td>
-                  <td data-label="Actor" className="fh-break">
-                    {e.actor}
-                  </td>
-                  <td data-label="Action">{e.action}</td>
-                  <td data-label="Target" data-wrap="">
-                    {e.target === null ? (
-                      <span className="fh-quiet">None</span>
-                    ) : e.target.href ? (
-                      <Link to={e.target.href} className={LINK}>
-                        {e.target.label}
-                      </Link>
-                    ) : (
-                      <span className="fh-break">{e.target.label}</span>
-                    )}
-                  </td>
-                  <td
-                    data-label="Detail"
-                    data-wrap=""
-                    className={e.detail === null ? "fh-quiet" : "fh-soft"}
-                  >
-                    {e.detail ?? "None"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </Table>
       )}
     </Panel>
   );

@@ -1,3 +1,4 @@
+import { marketingMeta } from "~/lib/seo/meta";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -5,8 +6,7 @@ import { Field } from "capsomer/react/field";
 import { mountTurnstile, verifyTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { useEffect, useId, useRef } from "react";
 import { data, Form, useNavigation } from "react-router";
-import { Link } from "capsomer/react/link";
-
+import { ButtonLink } from "capsomer/react/link";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -30,7 +30,6 @@ import {
 } from "~/lib/estimator/estimate.server";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
 import { readForm } from "@dustinedwards/site-runtime/body";
@@ -291,16 +290,15 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               </ul>
 
               {/* Recova's full-width button: py-4 at 1rem bold, 10px corners. */}
-              <div className="fh-audit-grid-3">
-                <Link
-                  to="/audit/connect"
-                  className="fh-audit-link cap-btn fh-bold"
-                  data-variant="primary"
-                  data-size="lg"
-                >
-                  See my numbers
-                </Link>
-              </div>
+              <ButtonLink
+                to="/audit/connect"
+                className="fh-audit-link fh-bold"
+                variant="primary"
+                size="lg"
+                block
+              >
+                See my numbers
+              </ButtonLink>
               <p className="fh-audit-text-2 fh-small fh-faint">
                 {AUDIT_ACCESS_CHIP}. 30 seconds. No account required.
               </p>
@@ -359,9 +357,9 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 needed. Foxhound only reads, writes nothing back to Stripe, and disconnects itself
                 after {AUDIT_GRANT_MINUTES} minutes.
               </p>
-              <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+              <ButtonLink to="/audit/connect" variant="primary">
                 Run the free audit
-              </Link>
+              </ButtonLink>
               <p className="fh-audit-text-8 fh-mono fh-tiny fh-faint">
                 No account required &middot; The audit only reads &middot; Nothing is stored
               </p>
@@ -422,12 +420,9 @@ function EstimatorForm({
 
       <div ref={widget} />
 
-      {/* Full width, as the form's own submit was: the grid stretches it. */}
-      <div className="fh-audit-grid-3">
-        <Button type="submit" variant="primary" pending={busy}>
-          Estimate my leakage
-        </Button>
-      </div>
+      <Button type="submit" variant="primary" pending={busy} block>
+        Estimate my leakage
+      </Button>
     </Form>
   );
 }
@@ -453,9 +448,9 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
       {/* The estimator's own next step: the audit reads the merchant's actual
           account, takes no account to run, and is what this card has been
           promising as "your real numbers" all along. */}
-      <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+      <ButtonLink to="/audit/connect" variant="primary">
         Run the free audit on your real numbers
-      </Link>
+      </ButtonLink>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { copyright } from "capsomer/behavior/family-footer";
 import { useLocation } from "react-router";
 import { Link } from "capsomer/react/link";
 
@@ -133,8 +133,6 @@ const AUTH_LEGAL_LINKS = [
 ];
 
 export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = {}) {
-  // Read once per mount, as Foxing's page-shell does: the year is impure, so it must not run on every render.
-  const [year] = useState(() => new Date().getFullYear());
   const { pathname } = useLocation();
   const hasColumnsAbove = variant === "marketing";
 
@@ -187,7 +185,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 className="fh-footer-block"
                 aria-hidden
               />
-              <span className="fh-footer-label fh-mono">© {year} Foxhound.</span>
+              <span className="fh-footer-label fh-mono">{copyright("Foxhound")}.</span>
             </div>
             {variant === "auth" ? (
               <nav aria-label="Legal" className="fh-footer-row-3">

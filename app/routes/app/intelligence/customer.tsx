@@ -1,4 +1,5 @@
 import { Icon, iconArrowRight } from "capsomer/react/icons";
+import { Table } from "capsomer/react/table";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useCallback, useMemo } from "react";
@@ -412,43 +413,34 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
       {customer.predictions.length > 0 ? (
         <section className="fh-customer-section">
           <p className="fh-mono fh-tiny fh-quiet fh-caps">Predictions</p>
-          <div
-            className="fh-customer-table cap-table-wrap"
-            data-cap="table"
-            data-reflow=""
-            role="region"
-            aria-label="Churn predictions"
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <thead>
-                <tr>
-                  <th scope="col">Predicted</th>
-                  <th scope="col">Score</th>
-                  <th scope="col">Horizon</th>
-                  <th scope="col">Outcome</th>
+          <Table caption="Churn predictions" captionHidden reflow className="fh-customer-table">
+            <thead>
+              <tr>
+                <th scope="col">Predicted</th>
+                <th scope="col">Score</th>
+                <th scope="col">Horizon</th>
+                <th scope="col">Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customer.predictions.map((p, i) => (
+                <tr key={i}>
+                  <td className="fh-quiet">
+                    {formatDate(p.predictedAt, { style: "medium" }) ?? ""}
+                  </td>
+                  <td data-label="Score" className="fh-mono fh-text">
+                    {p.score}
+                  </td>
+                  <td data-label="Horizon" className="fh-quiet">
+                    {p.horizonDays}d
+                  </td>
+                  <td data-label="Outcome" className="fh-quiet">
+                    {p.realizedOutcome ?? "pending"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {customer.predictions.map((p, i) => (
-                  <tr key={i}>
-                    <td className="fh-quiet">
-                      {formatDate(p.predictedAt, { style: "medium" }) ?? ""}
-                    </td>
-                    <td data-label="Score" className="fh-mono fh-text">
-                      {p.score}
-                    </td>
-                    <td data-label="Horizon" className="fh-quiet">
-                      {p.horizonDays}d
-                    </td>
-                    <td data-label="Outcome" className="fh-quiet">
-                      {p.realizedOutcome ?? "pending"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </section>
       ) : null}
     </>

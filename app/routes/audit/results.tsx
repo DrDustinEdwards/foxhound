@@ -1,5 +1,5 @@
 import { redirect } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
@@ -163,9 +163,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
             <p className="fh-results-text fh-small fh-soft">
               This run is saved to your audit history. Trends show up after the second run.
             </p>
-            <Link to="/audit/dashboard" className="cap-btn">
-              View audit history
-            </Link>
+            <ButtonLink to="/audit/dashboard">View audit history</ButtonLink>
           </>
         ) : (
           // The refusal, said out loud. A run that quietly did
@@ -186,16 +184,11 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
   return (
     <Panel title="What's next">
       <div className="fh-center">
-        {/* Capsomer's button never wraps, so this 48-character label ran past
-            the panel's edge on a phone. The label wraps between its two
-            sentences, never inside one, and py-2 gives two lines room; on a
-            wide screen it is one line and the button keeps its height. */}
-        <Link to="/signup" className="fh-results-link cap-btn" data-variant="primary">
-          <span className="fh-results-label">
-            <span className="fh-nowrap">Start recovering this revenue.</span>{" "}
-            <span className="fh-nowrap">Free until we do.</span>
-          </span>
-        </Link>
+        {/* The label wraps between its two sentences, never inside one. */}
+        <ButtonLink to="/signup" variant="primary" wrap>
+          <span className="fh-nowrap">Start recovering this revenue.</span>{" "}
+          <span className="fh-nowrap">Free until we do.</span>
+        </ButtonLink>
         <p className="fh-results-text-2 fh-small fh-soft">
           Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}%
           of what we recover. Nothing until then.

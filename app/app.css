@@ -502,6 +502,31 @@ body {
   flex: 1 0 auto;
 }
 
+/* The audit dashboard's save line (Capsomer's save bar with no button, saving as each control
+   changes): left, close under the controls, in the small type Recova's status line used, where the
+   bar's default ends the row on the right and sits further below. */
+.fh-audit-autosave {
+  justify-content: flex-start;
+  margin-block-start: var(--space-3);
+  min-block-size: 1rem;
+}
+.fh-audit-autosave .cap-save-bar-status {
+  font-size: 0.6875rem;
+}
+
+/* A filter bar inside a Capsomer panel (the payments page): the panel is the frame, so the bar's own
+   bottom margin goes, and its count sits at the end of the row beside Clear, as Recova's did. */
+.fh-filter-panel {
+  margin: 0;
+}
+.fh-filter-panel .cap-filter-bar-count {
+  flex-basis: auto;
+}
+/* The payments page's own controls take the bar's whole row, its count and Clear below them. */
+.fh-filter-fill {
+  inline-size: 100%;
+}
+
 /* Foxhound's type and color roles: its type scale (one class per size token, kept apart on a value match as rulings 65 and 68 say), its four text grays, the status
    text colors and its faces, one class each, read by every page. Each page's own parts sit beside
    it (admin.css for the admin). */
