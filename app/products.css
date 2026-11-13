@@ -5,13 +5,13 @@
     padding: 1.25rem;
   }
   .fh-auditprev-label {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .fh-auditprev-block-2 {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-auditprev-block-3 {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-auditprev-block-4 {
     overflow: hidden;
@@ -20,16 +20,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--line-w) solid var(--border);
     background-color: var(--surface2);
-    padding: 0.75rem 1.25rem;
+    padding: var(--space-4) 1.25rem;
   }
   .fh-auditprev-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem 1.25rem;
+    gap: var(--space-5);
+    padding: var(--space-4) 1.25rem;
   }
   .fh-dispprev-block {
     --tiles-columns: repeat(2, minmax(0, 1fr));
@@ -38,7 +38,7 @@
     padding: 1.25rem;
   }
   .fh-dispprev-block-3 {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-intelprev-col {
     display: flex;
@@ -57,35 +57,30 @@
   .fh-intelprev-block-2 {
     padding: 1.25rem;
   }
-  .fh-intelprev-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
   @media (width >= 40rem) {
     .fh-intelprev-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   .fh-intelprev-text {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-intelprev-text-2 {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .fh-product-band {
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--line-w) solid var(--border);
     padding: 5rem 1.25rem;
     /* Recova's 96px between feature blocks. */
     --cap-features-gap: 6rem;
   }
   @media (width >= 40rem) {
     .fh-product-band {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-product-block {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-product-icon {
     inline-size: 0.75rem;
@@ -93,39 +88,39 @@
     flex-shrink: 0;
   }
   .fh-product-text {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-product-band-2 {
-    border-bottom: 1px solid var(--border);
-    padding: 4rem 1.25rem;
+    border-bottom: var(--line-w) solid var(--border);
+    padding: var(--space-9) 1.25rem;
   }
   /* How it works: Capsomer's process steps at Recova's sizes, the step name 0.9375rem and its text 0.875rem. */
   .fh-product-band-2 .cap-process {
     --fs-h3: 0.9375rem;
-    --text-size: 0.875rem;
+    --text-size: var(--fs-body);
   }
   @media (width >= 40rem) {
     .fh-product-band-2 {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-product-title-2 {
     margin-bottom: 2.5rem;
   }
   .fh-product-block-3 {
-    margin-bottom: 4rem;
+    margin-bottom: var(--space-9);
   }
   .fh-product-band-3 {
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--line-w) solid var(--border);
     background-color: var(--surface);
-    padding: 4rem 1.25rem;
+    padding: var(--space-9) 1.25rem;
     /* Recova's price card: the page ground on the surface band, p-8, a 48px price in the text
        color at medium weight, green checks. */
-    --pad-card: 2rem;
+    --pad-card: var(--space-7);
     --cap-price-size: 3rem;
-    --cap-price-weight: 500;
+    --cap-price-weight: var(--weight-medium);
     --cap-price-color: var(--text);
-    --cap-price-label-size: 0.875rem;
+    --cap-price-label-size: var(--fs-body);
     --cap-price-check: var(--green);
 
     & .cap-price-card {
@@ -134,7 +129,7 @@
   }
   @media (width >= 40rem) {
     .fh-product-band-3 {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-product-wrap-4 {
@@ -144,33 +139,33 @@
   .fh-demos-wrap {
     margin-inline: auto;
     max-width: 1200px;
-    padding-inline: 1rem;
-    padding-bottom: 4rem;
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-9);
   }
   @media (width >= 48rem) {
     .fh-demos-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-demos-grid {
     display: grid;
   }
   .fh-demos-text {
-    margin-top: 0.5rem;
-    margin-bottom: 1.5rem;
+    margin-top: var(--space-3);
+    margin-bottom: var(--space-6);
   }
   .fh-demos-text-2 {
-    margin-top: 2rem;
+    margin-top: var(--space-7);
   }
   .fh-products-wrap {
     margin-inline: auto;
     max-width: 720px;
     padding-inline: 1.25rem;
-    padding-bottom: 4rem;
+    padding-bottom: var(--space-9);
   }
   @media (width >= 40rem) {
     .fh-products-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-mk-card {
@@ -179,13 +174,13 @@
     --pad-card: 1.25rem;
   }
   .fh-products-block {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-products-block-2 {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-products-block-3 {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   @media (width >= 48rem) {
     .fh-dispprev-tiles-5 {

@@ -9,19 +9,19 @@
   .fh-audit-wrap {
     margin-inline: auto;
     max-width: 680px;
-    padding: 2.5rem 1rem;
+    padding: 2.5rem var(--space-5);
   }
   @media (width >= 48rem) {
     .fh-audit-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
       padding-block: 5rem;
     }
   }
   .fh-audit-block {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-audit-label {
-    letter-spacing: 0.06em;
+    letter-spacing: var(--tracking-widest);
     --_bg: color-mix(in srgb, var(--primary) 13%, transparent);
     --_fg: var(--accent-text);
     --_line: color-mix(in srgb, var(--primary) 27%, transparent);
@@ -34,20 +34,20 @@
   }
   .fh-audit-text {
     margin-bottom: 2.5rem;
-    line-height: 1.6;
+    line-height: var(--leading-relaxed);
   }
   .fh-audit-grid {
     margin-bottom: 2.5rem;
     display: grid;
   }
   .fh-audit-grid-2 {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
     display: grid;
   }
   .fh-audit-band {
     border-radius: 1rem;
-    --gap: 1.5rem;
-    --pad-card: 1.5rem;
+    --gap: var(--space-6);
+    --pad-card: var(--space-6);
   }
   @media (width >= 48rem) {
     .fh-audit-band {
@@ -57,17 +57,17 @@
   }
   .fh-audit-title-2 {
     margin-bottom: 1.25rem;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
   .fh-audit-list {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-audit-item {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-audit-label-2 {
     margin-top: 7px;
@@ -78,21 +78,18 @@
     background-color: var(--accent);
   }
   .fh-audit-label-3 {
-    margin-bottom: 0.125rem;
+    margin-bottom: var(--space-1);
   }
   .fh-audit-link {
-    border-radius: 10px;
-    --cap-btn-fs: 1rem;
+    border-radius: var(--radius-l);
+    --cap-btn-fs: var(--title-6);
     --cap-btn-h: 3.5rem;
   }
   .fh-audit-text-2 {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-audit-grid-4 {
     margin-block: 2.5rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
   }
   @media (width >= 48rem) {
     .fh-audit-grid-4 {
@@ -100,14 +97,14 @@
     }
   }
   .fh-audit-text-3 {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-audit-text-4 {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
     color: var(--blue);
   }
   .fh-audit-text-5 {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-audit-link-2 {
     display: inline-flex;
@@ -125,68 +122,68 @@
     display: grid;
   }
   .fh-audit-text-6 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-audit-text-7 {
     margin-bottom: 1.25rem;
   }
   .fh-audit-text-8 {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-audit-text-9 {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-auditconnect-row {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 60px 1rem;
+    padding: 60px var(--space-5);
   }
   .fh-auditconnect-block {
     width: 100%;
     max-width: 480px;
   }
   .fh-auditconnect-block-2 {
-    padding: 2.25rem 2rem;
+    padding: 2.25rem var(--space-7);
   }
   .fh-auditconnect-title {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-auditconnect-text {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-auditconnect-block-3 {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-auditconnect-grid {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
     display: grid;
-    gap: 1rem;
+    gap: var(--space-5);
     border-radius: 0.5rem;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--border);
     background-color: var(--bg);
-    padding: 1rem;
+    padding: var(--space-5);
   }
   .fh-auditconnect-text-2 {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-results-text {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-results-text-2 {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-results-text-3 {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-results-block {
     min-width: 0px;
     padding-block: 2.5rem;
   }
   .fh-results-block-2 {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-results-block-3 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
 }

@@ -4,18 +4,18 @@
   .fh-rival-wrap {
     margin-inline: auto;
     max-width: 56rem;
-    padding-inline: 1rem;
-    padding-bottom: 4rem;
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-9);
   }
   @media (width >= 40rem) {
     .fh-rival-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-rival-block-2 {
     margin-bottom: 2.5rem;
     border-radius: 0.5rem;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--border);
   }
   .fh-rival-th {
     vertical-align: top;
@@ -24,15 +24,15 @@
     margin-bottom: 2.5rem;
   }
   .fh-rival-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-rival-list {
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
+    gap: var(--space-3-5);
   }
   .fh-rival-label {
-    margin-top: 0.375rem;
+    margin-top: var(--space-2-5);
     height: 0.25rem;
     width: 0.25rem;
     flex-shrink: 0;
@@ -40,10 +40,10 @@
     background-color: var(--text-tertiary);
   }
   .fh-rival-text {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-rival-text-2 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-rival-text-3 {
     margin-bottom: 1.25rem;
@@ -51,18 +51,13 @@
   .fh-mk-page {
     margin-inline: auto;
     max-width: 64rem;
-    padding-inline: 1rem;
-    padding-bottom: 4rem;
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-9);
   }
   @media (width >= 40rem) {
     .fh-mk-page {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
-  }
-  .fh-mk-cards-3 {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
   }
   @media (width >= 40rem) {
     .fh-mk-cards-3 {
@@ -75,61 +70,61 @@
     }
   }
   .fh-compare-text {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-compare-text-2 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-compare-text-3 {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-code-wrap {
     margin-inline: auto;
     max-width: 48rem;
-    padding-inline: 1rem;
-    padding-bottom: 4rem;
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-9);
   }
   @media (width >= 40rem) {
     .fh-code-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-code-block-2 {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-code-band {
     margin-bottom: 2.5rem;
   }
   .fh-code-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-code-title-2 {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-code-text {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-code-text-2 {
     margin-bottom: 1.25rem;
   }
   .fh-codes-band {
-    border-bottom: 1px solid var(--border-sub);
-    padding-block: 2rem;
+    border-bottom: var(--line-w) solid var(--border-sub);
+    padding-block: var(--space-7);
   }
   .fh-codes-band:last-child {
     border-style: solid;
     border-width: 0px;
   }
   .fh-codes-row {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-codes-block {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-codes-block-2 {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
 }

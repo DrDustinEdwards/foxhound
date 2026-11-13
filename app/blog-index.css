@@ -2,7 +2,7 @@
    (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-blog-header-intro-block {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-blog-post-card-link {
     --card-lift: 0px;
@@ -15,49 +15,42 @@
   .fh-blog-post-card-block {
     line-height: 1.375;
   }
-  .fh-blog-wrap {
-    margin-inline: auto;
-    max-width: 1080px;
-    padding-inline: 1.25rem;
-    padding-top: 4rem;
-    padding-bottom: 2.5rem;
-  }
   @media (width >= 40rem) {
     .fh-blog-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-mk-wide {
     margin-inline: auto;
     max-width: 80rem;
-    padding: 2.5rem 1rem;
+    padding: 2.5rem var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-mk-wide {
-      padding-inline: 1.5rem;
+      padding-inline: var(--space-6);
     }
   }
   @media (width >= 64rem) {
     .fh-mk-wide {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-archive-title {
-    margin-top: 0.75rem;
-    font-size: 1.5rem;
+    margin-top: var(--space-4);
+    font-size: var(--title-3);
     line-height: 2rem;
   }
   .fh-archive-text {
-    margin-top: 0.25rem;
-    font-size: 0.875rem;
+    margin-top: var(--space-2);
+    font-size: var(--fs-body);
     line-height: 1.25rem;
   }
   .fh-archive-nav {
-    margin-top: 2rem;
-    margin-bottom: 2rem;
+    margin-top: var(--space-7);
+    margin-bottom: var(--space-7);
   }
   .fh-archive-text-2 {
-    font-size: 0.875rem;
+    font-size: var(--fs-body);
     line-height: 1.25rem;
   }
   .fh-archive-col {
@@ -65,15 +58,15 @@
     flex-direction: column;
   }
   :where(.fh-archive-col > :not(:last-child)) {
-    border-bottom: 1px solid var(--border-sub);
+    border-bottom: var(--line-w) solid var(--border-sub);
   }
   .fh-archive-link {
-    margin-inline: -0.5rem;
+    margin-inline: calc(-1 * var(--space-3));
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
+    gap: var(--space-5);
     border-radius: 0.5rem;
-    padding: 1rem 0.5rem;
+    padding: var(--space-5) var(--space-3);
     text-decoration-line: none;
   }
   @media (hover: hover) {
@@ -82,12 +75,12 @@
     }
   }
   .fh-archive-text-3 {
-    font-size: 0.875rem;
+    font-size: var(--fs-body);
     line-height: 1.375;
   }
   .fh-archive-text-4 {
-    margin-top: 0.125rem;
-    font-size: 0.75rem;
+    margin-top: var(--space-1);
+    font-size: var(--fs-small);
     line-height: 1rem;
   }
   @media (width >= 40rem) {
@@ -109,17 +102,17 @@
   .fh-blog-wrap-2 {
     margin-inline: auto;
     max-width: 36rem;
-    padding-inline: 1rem;
-    padding-top: 1rem;
+    padding-inline: var(--space-5);
+    padding-top: var(--space-5);
     padding-bottom: 5rem;
   }
   @media (width >= 40rem) {
     .fh-blog-wrap-2 {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-blog-link-2 {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
     display: inline-block;
     line-height: 1.5rem;
   }
@@ -129,7 +122,7 @@
     }
   }
   .fh-blog-band {
-    border-bottom: 1px solid var(--border-sub);
+    border-bottom: var(--line-w) solid var(--border-sub);
     background-color: var(--surface);
   }
   .fh-blog-grid {
@@ -138,29 +131,29 @@
     max-width: 80rem;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     align-items: center;
-    gap: 2rem;
-    padding: 3rem 1rem;
+    gap: var(--space-7);
+    padding: var(--space-8) var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-blog-grid {
-      padding-inline: 1.5rem;
+      padding-inline: var(--space-6);
     }
   }
   @media (width >= 64rem) {
     .fh-blog-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      padding-inline: 2rem;
-      padding-block: 4rem;
+      padding-inline: var(--space-7);
+      padding-block: var(--space-9);
     }
   }
   .fh-blog-title {
-    margin-top: 0.75rem;
-    font-size: 1.875rem;
+    margin-top: var(--space-4);
+    font-size: var(--title-2);
     line-height: 1.25;
   }
   @media (width >= 64rem) {
     .fh-blog-title {
-      font-size: 2.25rem;
+      font-size: var(--title-1);
     }
   }
   @media (hover: hover) {
@@ -169,23 +162,23 @@
     }
   }
   .fh-blog-text {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-blog-block-3 {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-blog-label {
     opacity: 40%;
   }
   .fh-blog-block-4 {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-blog-link-4 {
     aspect-ratio: 16 / 9;
     width: 100%;
     overflow: hidden;
     border-radius: 0.75rem;
-    border: 1px solid var(--border-sub);
+    border: var(--line-w) solid var(--border-sub);
     background-color: var(--bg);
   }
   .fh-blog-block-5 {
@@ -193,24 +186,21 @@
     width: 100%;
     overflow: hidden;
     border-radius: 0.75rem;
-    border: 1px solid var(--border-sub);
+    border: var(--line-w) solid var(--border-sub);
   }
   .fh-blog-band-2 {
-    border-bottom: 1px solid var(--border-sub);
+    border-bottom: var(--line-w) solid var(--border-sub);
     background-color: var(--bg);
   }
   .fh-blog-text-2 {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
     max-width: 42rem;
   }
   .fh-blog-link-5 {
     line-height: 1.5rem;
   }
   .fh-blog-grid-2 {
-    margin-top: 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
+    margin-top: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-blog-grid-2 {
@@ -226,10 +216,7 @@
     background-color: var(--bg);
   }
   .fh-blog-grid-3 {
-    margin-top: 1rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
+    margin-top: var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-blog-grid-3 {
@@ -242,16 +229,11 @@
     }
   }
   .fh-tag-title {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
     letter-spacing: -0.025em;
   }
   .fh-tag-text {
     margin-bottom: 2.5rem;
-  }
-  .fh-tag-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1.5rem;
   }
   @media (width >= 40rem) {
     .fh-tag-grid {

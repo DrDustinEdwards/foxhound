@@ -8,40 +8,40 @@
   }
   .fh-doc-blocks-code {
     border-radius: 0.25rem;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--border);
     background-color: var(--surface);
-    padding: 0.125rem 0.375rem;
+    padding: var(--space-1) var(--space-2-5);
   }
   .fh-doc-blocks-title {
-    margin-top: 2rem;
-    margin-bottom: 0.75rem;
+    margin-top: var(--space-7);
+    margin-bottom: var(--space-4);
   }
   .fh-doc-blocks-list {
-    margin-block: 1rem;
+    margin-block: var(--space-5);
   }
   :where(.fh-doc-blocks-list > :not(:last-child)) {
-    margin-block: 0 0.75rem;
+    margin-block: 0 var(--space-4);
   }
   .fh-doc-blocks-item {
     display: flex;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-doc-blocks-list-2 {
-    margin-block: 1rem;
+    margin-block: var(--space-5);
     list-style-position: inside;
     list-style-type: disc;
   }
   :where(.fh-doc-blocks-list-2 > :not(:last-child)) {
-    margin-block: 0 0.5rem;
+    margin-block: 0 var(--space-3);
   }
   .fh-doc-blocks-block {
-    margin-block: 1.5rem;
+    margin-block: var(--space-6);
   }
   .fh-docs-block {
-    margin-top: 3rem;
+    margin-top: var(--space-8);
   }
   .fh-docs-text {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-docs-link {
     border-radius: 0.5rem;
@@ -50,24 +50,24 @@
     --pad-card: 1.25rem;
   }
   .fh-docs-block-2 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-docs-block-3 {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-doc-wrap {
     margin-inline: auto;
     max-width: 760px;
-    padding: 4rem 1.5rem;
+    padding: var(--space-9) var(--space-6);
   }
   .fh-doc-block {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-doc-text {
     margin-bottom: 2.5rem;
   }
   .fh-doc-nav {
-    margin-bottom: 3rem;
+    margin-bottom: var(--space-8);
     border-radius: 0.5rem;
     --gap: 1.25rem;
     --pad-card: 1.25rem;
@@ -76,20 +76,20 @@
     line-height: 1.5rem;
   }
   .fh-doc-block-2 {
-    margin-top: 4rem;
-    margin-bottom: 0.5rem;
+    margin-top: var(--space-9);
+    margin-bottom: var(--space-3);
   }
   .fh-doc-title {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
     scroll-margin-top: 5rem;
   }
   .fh-doc-para {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-doc-note {
-    margin-block: 1rem;
-    border-left: 2px solid var(--border);
-    padding-left: 1rem;
+    margin-block: var(--space-5);
+    border-left: var(--line-w-thick) solid var(--border);
+    padding-left: var(--space-5);
   }
   .fh-doc-note-info {
     border-color: var(--brand);
