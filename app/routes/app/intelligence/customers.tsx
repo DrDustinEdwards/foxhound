@@ -386,7 +386,8 @@ function CustomerFilters({ filters, tiers }: { filters: Filters; tiers: string[]
           <FilterBar
             label="Filter customers"
             Form={Form}
-            className="fh-filter-panel fh-filter-primary"
+            className="fh-filter-panel"
+            applyVariant="primary"
             applyLabel="Filter"
           >
             <div className="cap-field">

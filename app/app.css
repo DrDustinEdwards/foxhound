@@ -892,17 +892,6 @@ body {
   flex-basis: auto;
 }
 
-/* A filter bar whose Apply is the view's primary action (customers): amber, as Capsomer's primary
-   button, which the bar's own Apply does not offer. */
-.fh-filter-primary .cap-filter-bar-actions > button[type="submit"].cap-btn {
-  --cap-btn-fg: var(--primary-fg);
-  --cap-btn-bg: var(--primary);
-  --cap-btn-line: var(--primary-line);
-  --cap-btn-hover: var(--primary-hover);
-  --cap-btn-press: var(--primary-hover);
-  font-weight: 600;
-}
-
 /* The legal pages (privacy, terms, security, accessibility): Capsomer's legal page at Recova's sizes
    and colors. The 0.9375rem body, the 1.25rem section heads and the mono micro contents heading, as
    Recova writes them. Links are the network's (capsomer/links.css, Foxhound's entry). */
