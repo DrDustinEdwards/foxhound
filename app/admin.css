@@ -4,7 +4,7 @@
    AdminShell and its time and tooltip use, and the Overview's parts (panels,
    the attention list and the row list under it, empty states, the spinner), and
    the Users page's table. The layer order is declared at the top
-   of app.css, so Capsomer sits above Tailwind's base and below its utilities.
+   of app.css, so Capsomer sits above Foxhound's base and below its site layer.
    Foxhound's family is amber (Dustin's answer 1 of 2026-10-13): its tokens come
    after the themes, so the accents are amber in both. */
 @import "capsomer/tokens.css";
@@ -26,8 +26,8 @@
 @import "capsomer/skeleton.css";
 @import "capsomer/table.css";
 
-/* The admin pages are written with Foxhound's Tailwind utilities (bg-surface,
-   text-text-tertiary, border-border, the brand accent, the status triads). Inside the
+/* The admin pages are written with Foxhound's roles and parts (surfaces, text
+   tones, lines, the brand accent, the status triads). Inside the
    admin those names resolve to Capsomer's tokens, so the pages wear Capsomer's
    palette and faces without a second set of components. --surface, --sunken and
    --text already share a name with Capsomer's and need no line here. The brand
@@ -143,4 +143,116 @@
 .fh-admin .cap-table thead th {
   letter-spacing: normal;
   text-transform: none;
+}
+
+/* The admin pages' own parts: row links with a 24 px target, the filter bar, panel notes, the
+   figure grids and the payload box. In the site layer (app.css). */
+@layer site {
+  .fh-row-link {
+    display: inline-block;
+    min-height: 1.5rem;
+    line-height: 1.5rem;
+  }
+  .fh-row-link-out {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .fh-above-row {
+    position: relative;
+    z-index: 1;
+  }
+  .fh-cron-schedule {
+    margin-left: 0.5rem;
+  }
+  .fh-cron-failures {
+    margin-top: 0.5rem;
+  }
+  .fh-cron-run {
+    border-radius: 0.25rem;
+  }
+  .fh-out-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+  .fh-panel-note {
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-color: var(--border);
+    padding-inline: 1rem;
+    padding-block: 0.75rem;
+  }
+  .fh-panel-foot {
+    border-top-style: solid;
+    border-top-width: 1px;
+    border-color: var(--border);
+    padding-inline: 1rem;
+    padding-block: 0.75rem;
+  }
+  .fh-section-title {
+    margin-top: 1rem;
+  }
+  .fh-staged-submit {
+    align-self: flex-end;
+  }
+  .fh-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    column-gap: 1rem;
+    row-gap: 0.75rem;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-color: var(--border);
+    padding-inline: 1rem;
+    padding-block: 0.75rem;
+  }
+  .fh-filter-search {
+    min-width: 14rem;
+    flex-grow: 1;
+  }
+  @media (width >= 40rem) {
+    .fh-filter-search {
+      width: 20rem;
+      flex-grow: 0;
+    }
+  }
+  .fh-check-row {
+    min-height: 1.5rem;
+  }
+  .fh-payload {
+    max-height: 24rem;
+    overflow: auto;
+    border-radius: 0.375rem;
+    border-style: solid;
+    border-width: 1px;
+    border-color: var(--border);
+    background-color: var(--sunken);
+    padding: 0.75rem;
+  }
+  .fh-halves {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-halves {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-halves[data-cols="5"] {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+  .fh-figure {
+    display: grid;
+    align-content: flex-start;
+    gap: 0.125rem;
+  }
+  .fh-row-actions {
+    grid-column: 1/-1;
+  }
 }

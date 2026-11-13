@@ -161,7 +161,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
               form={`${id}-toggle`}
               submitOnChange
               label={
-                <span className="inline-flex items-center gap-2">
+                <span className="fh-toggle-label fh-inline-row">
                   Disputes
                   {enabled ? <Pill tone="ok">Active</Pill> : null}
                 </span>
@@ -190,14 +190,14 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                   }
                 />
 
-                <div className="border-y border-border py-4">
+                <div className="fh-dispute-setting">
                   <label
                     htmlFor={`${id}-description`}
-                    className="mb-0.5 block text-label text-text"
+                    className="fh-setting-label fh-line fh-small fh-text"
                   >
                     Product description
                   </label>
-                  <p id={descriptionHelpId} className="m-0 mb-2 text-micro text-text-subtle">
+                  <p id={descriptionHelpId} className="fh-dispute-help fh-tiny fh-faint">
                     Describe what your product or service is. Used in all dispute responses.
                   </p>
                   <textarea
@@ -220,7 +220,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 />
               </>
             ) : (
-              <p className="m-0 pt-4 text-micro text-text-subtle">
+              <p className="fh-dispute-foot fh-tiny fh-faint">
                 Enable Disputes above to configure auto-submit, product description, and shipping
                 settings.
               </p>

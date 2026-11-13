@@ -9,8 +9,7 @@ import DocsIndexPage from "~/routes/docs/index";
 // J17, row M17: the /docs index. The spec is Recova's
 // app/(marketing)/docs/page.tsx (blob 4562a1ed) and
 // components/MarketingPageHeader.tsx (blob 118a5104), read whole. This file
-// pins the layout, the links and the look (Capsomer's parts, amber, the five
-// text sizes). The copy is 20d-frozen and not touched by this job.
+// checks that every link on the page goes to a route that exists.
 //
 // These read the RENDERED page below the shared marketing page header (row
 // M29), so a class on a helper that never reaches a reader cannot pass.
@@ -21,9 +20,9 @@ function render(): string {
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-/** The docs column: Recova's 720px wrapper and everything inside it. */
+/** The docs column: Recova's 720px wrapper (fh-mk-article) and everything inside it. */
 function column(html: string): string {
-  const col = html.indexOf("max-w-[720px]");
+  const col = html.indexOf("fh-mk-article");
   expect(col, "the 720px docs column is on the page").toBeGreaterThan(-1);
   const body = html.slice(html.lastIndexOf("<div", col));
   return body;
@@ -55,8 +54,6 @@ function routePaths(entries: RouteEntry[], parent = "", out = new Set<string>())
   }
   return out;
 }
-
-// Tailwind's text-* utilities that are colors, not sizes.
 
 describe("/docs index (J17, row M17)", () => {
   const html = render();

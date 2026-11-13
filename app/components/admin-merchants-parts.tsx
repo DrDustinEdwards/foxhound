@@ -5,7 +5,7 @@ import { useCallback, useEffect } from "react";
 import { useFetcherPromise, usePagePending } from "capsomer/react/route-hooks";
 import { Form, useFetcher, useFetchers } from "react-router";
 import { Link, routerRenderLink } from "capsomer/react/link";
-import { ExternalLink } from "lucide-react";
+import { Icon, iconExternal } from "capsomer/react/icons";
 import { Empty } from "capsomer/react/empty";
 import { useMessage } from "capsomer/react/message";
 import { Panel } from "capsomer/react/panel";
@@ -39,7 +39,7 @@ const HEADING_ID = "admin-merchants-heading";
 // (hover and focus show the exact time), so my own wrapper lifts them too,
 // until Capsomer lifts every focusable element;
 // then this wrapper goes.
-const ABOVE_ROW_LINK = "relative z-[1]";
+const ABOVE_ROW_LINK = "fh-above-row";
 
 type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
 
@@ -102,7 +102,7 @@ export function MerchantsList({
   const words = VIEW_WORDS[view];
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       {actionData ? <PostedResult result={actionData} action={action} /> : null}
 
       {figures ? <PlatformFigures figures={figures} reading={pending} /> : null}
@@ -201,7 +201,7 @@ function PlatformFigures({ figures, reading }: { figures: Figures; reading: bool
   const mrrAccounts = figures.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
   return (
     <Panel title="Platform" reading={reading} description="Demo accounts are not counted.">
-      <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <dl className="fh-halves" data-cols="5">
         <Figure
           label="Estimated MRR"
           figure={moneyWords(
@@ -241,10 +241,10 @@ function PlatformFigures({ figures, reading }: { figures: Figures; reading: bool
 
 function Figure({ label, figure, detail }: { label: string; figure: string; detail: string }) {
   return (
-    <div className="grid content-start gap-0.5">
-      <dt className="text-label text-text-secondary">{label}</dt>
-      <dd className="m-0 font-mono text-title text-text tabular-nums">{figure}</dd>
-      <dd className="m-0 text-label text-text-tertiary">{detail}</dd>
+    <div className="fh-figure">
+      <dt className="fh-small fh-soft">{label}</dt>
+      <dd className="fh-mono fh-title fh-text cap-num">{figure}</dd>
+      <dd className="fh-small fh-quiet">{detail}</dd>
     </div>
   );
 }
@@ -323,7 +323,7 @@ function MerchantRow({
       </td>
       <td data-label="Recovery rate">
         {m.recoveryRatePct === null ? (
-          <span className="text-text-tertiary">{recoveryRateBand(null)}</span>
+          <span className="fh-quiet">{recoveryRateBand(null)}</span>
         ) : (
           // The band as words beside the rate: a hover title would sit under
           // the row's stretched link and never reach a mouse (PR 140 review).
@@ -352,8 +352,8 @@ function MerchantRow({
         </span>
       </td>
       {/* In the card layout (data-reflow) the buttons take the card's full width. */}
-      <td data-label="Actions" className="[grid-column:1/-1]">
-        <div className="flex flex-wrap items-center gap-2">
+      <td data-label="Actions" className="fh-row-actions">
+        <div className="cap-cluster" data-gap="3">
           {m.stripeUserId ? (
             <a
               href={`https://dashboard.stripe.com/${encodeURIComponent(m.stripeUserId)}`}
@@ -364,7 +364,7 @@ function MerchantRow({
               data-variant="quiet"
             >
               Stripe
-              <ExternalLink data-icon="end" aria-hidden="true" />
+              <Icon d={iconExternal} data-icon="end" />
               <span className="cap-sr-only"> dashboard for {who} (opens in a new tab)</span>
             </a>
           ) : null}

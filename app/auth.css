@@ -1,0 +1,179 @@
+/* The sign-in pages' own parts (the auth card, /connect, the OAuth consent, the card update and
+   unsubscribe pages): Recova's centered card, its 48px inset and 42px fields, the provider list and
+   the "or" rule. In the site layer (app.css). */
+@layer site {
+  .fh-connect-note {
+    margin-bottom: 1.5rem;
+    display: grid;
+    gap: 1rem;
+    border-radius: 0.5rem;
+    border-style: solid;
+    border-width: 1px;
+    border-color: var(--border);
+    background-color: var(--bg);
+    padding: 1rem;
+  }
+  .fh-connect-page {
+    display: flex;
+    justify-content: center;
+    padding-inline: 1rem;
+    padding-block: 60px;
+  }
+  .fh-connect-card {
+    width: 100%;
+    max-width: 480px;
+  }
+  .fh-auth-title-sub {
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+  .fh-connect-form {
+    display: grid;
+    gap: 1rem;
+  }
+  .fh-auth-after {
+    margin-top: 1rem;
+    text-align: center;
+  }
+  .fh-connect-block {
+    margin-bottom: 1.5rem;
+  }
+  .fh-auth-actions {
+    display: grid;
+  }
+  .fh-connect-fine {
+    margin-top: 0.5rem;
+    text-align: center;
+  }
+  .fh-auth-form {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .fh-auth-title-tight {
+    margin-bottom: 0.5rem;
+  }
+  .fh-invite-actions {
+    display: grid;
+  }
+  .fh-invite-actions .cap-btn {
+    --cap-btn-fs: 0.875rem;
+    --cap-btn-h: 2.75rem;
+  }
+  .fh-auth-screen-left {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    background-color: var(--bg);
+  }
+  .fh-card-update {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 28rem;
+    padding-inline: 1rem;
+    padding-block: 2rem;
+  }
+  @media (width >= 48rem) {
+    .fh-card-update {
+      padding-block: 4rem;
+    }
+  }
+  .fh-card-update-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .fh-unsubscribe {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+  }
+  .fh-unsubscribe-main {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    background-color: var(--bg);
+  }
+  .fh-target-link {
+    display: inline-flex;
+    min-height: var(--target);
+    align-items: center;
+  }
+  .fh-auth-screen {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg);
+  }
+  .fh-auth-card {
+    width: 100%;
+    max-width: 400px;
+    --control: 2.625rem;
+  }
+  .fh-auth-card .cap-btn {
+    font-weight: 600;
+    --cap-btn-fs: 0.9375rem;
+    --cap-btn-h: 2.9375rem;
+  }
+  .fh-auth-panel {
+    --gap: 0px;
+    --pad-card: 0px;
+  }
+  .fh-auth-inset {
+    padding: 3rem;
+  }
+  .fh-auth-lede {
+    margin-bottom: 2rem;
+    text-align: center;
+    line-height: 1.625;
+  }
+  .fh-auth-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .fh-auth-foot {
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+  .fh-auth-providers {
+    margin-bottom: 0.75rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .fh-auth-provider {
+    margin-bottom: 0.75rem;
+    display: grid;
+  }
+  .fh-auth-or {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .fh-auth-or-line {
+    height: 1px;
+    flex: 1;
+    background-color: var(--border);
+  }
+  .fh-auth-gap {
+    margin-bottom: 1rem;
+  }
+  .fh-auth-code {
+    margin-top: 1.5rem;
+  }
+  .fh-code-input {
+    letter-spacing: 0.1em;
+  }
+  .fh-auth-link {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+  }
+  .fh-auth-title {
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+}

@@ -1,6 +1,6 @@
+import { Icon, iconChevronLeft, iconChevronRight } from "capsomer/react/icons";
 import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { useCallback, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { data, useFetcher } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
@@ -156,8 +156,8 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
   // shell owns the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
-      <div className="mb-6">
+    <div className="fh-intel-page-tall cap-admin-page" data-width="page">
+      <div className="fh-intel-head">
         <PageHead title="Dashboard" lead="MRR trends and customer health" />
       </div>
 
@@ -166,16 +166,16 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
         // a plain Capsomer panel body rather than Empty (whose title would be
         // a heading Recova does not have).
         <div className="cap-panel">
-          <div className="cap-panel-body text-center">
-            <p className="m-0 text-body font-medium text-text">Syncing your MRR data</p>
-            <p className="m-0 text-label text-text-tertiary">{firstSnapshotSentence()}</p>
-            <p className="m-0 text-label text-text-tertiary">
+          <div className="cap-panel-body fh-center">
+            <p className="fh-body fh-medium fh-text">Syncing your MRR data</p>
+            <p className="fh-small fh-quiet">{firstSnapshotSentence()}</p>
+            <p className="fh-small fh-quiet">
               While you wait, walk through your recovery sequences or review any open disputes.
             </p>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
+        <div className="fh-intel-stack">
           <StatCards series={mrrSeries} latest={latest} nowMs={nowMs} />
           <MrrTrend series={mrrSeries} currency={latest.currency} />
           <NrrCard series={mrrSeries} />
@@ -187,31 +187,29 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
       )}
 
       {overview.topAtRisk.length > 0 ? (
-        <section className="mt-8">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Most at-risk customers
-          </p>
-          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-label">
+        <section className="fh-intel-section">
+          <p className="fh-mono fh-tiny fh-quiet fh-caps">Most at-risk customers</p>
+          <div className="fh-intel-table-wrap">
+            <table className="fh-intel-table fh-left fh-small">
               <thead>
-                <tr className="border-b border-border text-micro uppercase tracking-wide text-text-tertiary">
-                  <th className="px-4 py-3 font-normal">Customer</th>
-                  <th className="px-4 py-3 font-normal">Health</th>
-                  <th className="px-4 py-3 font-normal">MRR</th>
+                <tr className="fh-intel-table-head fh-tiny fh-quiet fh-caps">
+                  <th className="fh-intel-cell fh-regular">Customer</th>
+                  <th className="fh-intel-cell fh-regular">Health</th>
+                  <th className="fh-intel-cell fh-regular">MRR</th>
                 </tr>
               </thead>
               <tbody>
                 {overview.topAtRisk.map((c) => (
-                  <tr key={c.stripeCustomerId} className="border-b border-border-sub last:border-0">
-                    <td className="px-4 py-3">
+                  <tr key={c.stripeCustomerId} className="fh-intel-row">
+                    <td className="fh-intel-cell">
                       <Link
                         to={`/intelligence/customers/${c.stripeCustomerId}`}
-                        className="text-text hover:text-brand-text"
+                        className="fh-intel-name fh-text"
                       >
                         {c.customerName ?? c.stripeCustomerId}
                       </Link>
                     </td>
-                    <td className="w-40 px-4 py-3">
+                    <td className="fh-intel-cell-bar">
                       <Meter
                         label={<span className="cap-sr-only">Health score</span>}
                         size="sm"
@@ -222,7 +220,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
                         valueText={`Health score ${c.healthScore} of 100.`}
                       />
                     </td>
-                    <td className="px-4 py-3 font-mono text-text">
+                    <td className="fh-intel-cell fh-mono fh-text">
                       {formatMoney(c.mrrContributionCents, overview.currency)}
                     </td>
                   </tr>
@@ -250,16 +248,12 @@ type Latest = Series[number];
  */
 function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; nowMs: number }) {
   const delta = dayOverDayCents(series);
-  const deltaClass = !delta
-    ? "text-text-tertiary"
-    : delta > 0
-      ? "text-success-text"
-      : "text-error-text";
-  const figure = "m-0 font-mono text-title font-bold tabular-nums";
+  const deltaClass = !delta ? "fh-quiet" : delta > 0 ? "fh-success" : "fh-error";
+  const figure = "fh-mono fh-title fh-bold cap-num";
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="fh-intel-tiles">
       <Panel title="MRR" size="sm">
-        <p className={`${figure} text-brand-text`}>
+        <p className={`${figure} fh-brand`}>
           {formatMoneyShort(latest.totalMrrCents, latest.currency)}
         </p>
       </Panel>
@@ -269,10 +263,10 @@ function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; 
         </p>
       </Panel>
       <Panel title="Active customers" size="sm">
-        <p className={`${figure} text-text`}>{formatCount(latest.activeCustomersCount)}</p>
+        <p className={`${figure} fh-text`}>{formatCount(latest.activeCustomersCount)}</p>
       </Panel>
       <Panel title="New MRR (MTD)" size="sm">
-        <p className={`${figure} text-success-text`}>
+        <p className={`${figure} fh-success`}>
           {formatMoneyShort(newMrrMonthToDateCents(series, nowMs), latest.currency)}
         </p>
       </Panel>
@@ -428,8 +422,8 @@ function MonthlySummary({
     <Panel
       title="Monthly summary"
       actions={
-        <span className="flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-1">
+        <span className="cap-cluster" data-gap="4">
+          <span className="fh-intel-month">
             <Button
               variant="quiet"
               size="sm"
@@ -437,13 +431,11 @@ function MonthlySummary({
               label="Previous month"
               onClick={() => go(-1)}
             >
-              <ChevronLeft aria-hidden="true" size={16} />
+              <Icon d={iconChevronLeft} className="fh-icon-16" />
             </Button>
-            <span className="min-w-[120px] text-center font-mono text-label text-text">
-              {label}
-            </span>
+            <span className="fh-intel-month-label fh-center fh-mono fh-small fh-text">{label}</span>
             <Button variant="quiet" size="sm" iconOnly label="Next month" onClick={() => go(1)}>
-              <ChevronRight aria-hidden="true" size={16} />
+              <Icon d={iconChevronRight} className="fh-icon-16" />
             </Button>
           </span>
           {canGenerate ? (
@@ -456,19 +448,17 @@ function MonthlySummary({
     >
       <div aria-live="polite">
         {loading ? (
-          <p className="m-0 text-label text-text-tertiary">Generating your monthly summary...</p>
+          <p className="fh-small fh-quiet">Generating your monthly summary...</p>
         ) : error ? (
-          <p className="m-0 text-label text-error-text">{error}</p>
+          <p className="fh-small fh-error">{error}</p>
         ) : narrative ? (
-          <p className="m-0 whitespace-pre-wrap text-label leading-relaxed text-text">
-            {narrative}
-          </p>
+          <p className="fh-pre-wrap fh-small fh-relaxed fh-text">{narrative}</p>
         ) : canGenerate ? (
-          <p className="m-0 text-label text-text-tertiary">
+          <p className="fh-small fh-quiet">
             No report yet for {label}. Click Generate report to create one.
           </p>
         ) : (
-          <p className="m-0 text-label text-text-tertiary">No report for {label}.</p>
+          <p className="fh-small fh-quiet">No report for {label}.</p>
         )}
       </div>
     </Panel>

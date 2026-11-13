@@ -1,5 +1,5 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { TrendingUp } from "lucide-react";
+import { iconTrendingUp } from "capsomer/react/icons";
 
 import {
   ChurnBandsPreview,
@@ -31,6 +31,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/intelligence";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/products.css";
 
 // The Intelligence spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/intelligence/page.tsx (blob 4f258429) and the files
@@ -98,7 +99,7 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Intelligence"
-        Icon={TrendingUp}
+        icon={iconTrendingUp}
         headline={INTELLIGENCE_HERO.headline}
         sub={INTELLIGENCE_HERO.sub}
         pricing={INTELLIGENCE_HERO.pricing}

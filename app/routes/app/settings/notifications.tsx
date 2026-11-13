@@ -231,7 +231,7 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
       <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="mb-5">
+            <div className="fh-email-block">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"
@@ -245,7 +245,7 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
             </div>
 
             {/* The rule under the webhook field stands above the first switch row. */}
-            <div className="border-y border-border pt-4 pb-5">
+            <div className="fh-notify-group">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"

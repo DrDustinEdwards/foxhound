@@ -23,21 +23,21 @@ import {
  *  breakpoint, each a glyph beside a title and its line. */
 export function AuditScopeCard() {
   return (
-    <div className="p-5">
-      <ul className="m-0 my-6 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+    <div className="fh-auditprev-block">
+      <ul className="fh-mk-doc-cards">
         {AUDIT_SCOPES.map((s) => (
           <li key={s.title} className="cap-panel">
             <div className="cap-panel-body">
-              <div className="flex items-start gap-3">
+              <div className="fh-mk-point-wide">
                 <span
                   aria-hidden="true"
-                  className="mt-0.5 font-mono text-card-title leading-none text-accent-text"
+                  className="fh-auditprev-label fh-mono fh-card-title fh-tight fh-accent"
                 >
                   {s.icon}
                 </span>
                 <div>
-                  <div className="mb-1 text-copy font-medium text-text">{s.title}</div>
-                  <div className="text-label leading-relaxed text-text-secondary">{s.desc}</div>
+                  <div className="fh-auditprev-block-2 fh-copy fh-medium fh-text">{s.title}</div>
+                  <div className="fh-small fh-relaxed fh-soft">{s.desc}</div>
                 </div>
               </div>
             </div>
@@ -51,16 +51,14 @@ export function AuditScopeCard() {
 /** Recova's AISummaryPreview: a micro label over the summary, figures in mono. */
 export function AISummaryPreview() {
   return (
-    <div className="p-5">
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
-        AI Summary
-      </div>
-      <p className="m-0 text-copy leading-relaxed text-text-secondary">
+    <div className="fh-auditprev-block">
+      <div className="fh-auditprev-block-3 fh-tiny fh-medium fh-quiet fh-caps-wide">AI Summary</div>
+      <p className="fh-copy fh-relaxed fh-soft">
         {AUDIT_SUMMARY_EXAMPLE.map((part, i) =>
           typeof part === "string" ? (
             part
           ) : (
-            <span key={i} className="font-mono">
+            <span key={i} className="fh-mono">
               {part.figure}
             </span>
           ),
@@ -73,18 +71,16 @@ export function AISummaryPreview() {
 /** Recova's AuditHistoryPreview: a header strip, then one row per run. */
 export function AuditHistoryPreview() {
   return (
-    <div className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border bg-surface2 px-5 py-3">
-        <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          Audit history
-        </span>
-        <span className="font-mono text-micro text-accent-text">Monthly auto-run on</span>
+    <div className="fh-auditprev-block-4">
+      <div className="fh-auditprev-row">
+        <span className="fh-tiny fh-medium fh-quiet fh-caps-wide">Audit history</span>
+        <span className="fh-mono fh-tiny fh-accent">Monthly auto-run on</span>
       </div>
-      <ul className="m-0 list-none divide-y divide-border p-0">
+      <ul className="fh-mk-rules">
         {AUDIT_HISTORY_EXAMPLE.map((run) => (
-          <li key={run.date} className="flex items-center justify-between gap-4 px-5 py-3">
-            <span className="font-mono text-label text-text-secondary">{run.date}</span>
-            <span className="text-caption text-text-tertiary">{run.summary}</span>
+          <li key={run.date} className="fh-auditprev-item">
+            <span className="fh-mono fh-small fh-soft">{run.date}</span>
+            <span className="fh-caption fh-quiet">{run.summary}</span>
           </li>
         ))}
       </ul>

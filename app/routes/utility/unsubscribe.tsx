@@ -25,6 +25,7 @@ import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import type { Route } from "./+types/unsubscribe";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import "~/auth.css";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -189,18 +190,14 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
   const confirming = state.state === "confirm";
   const tone = state.state === "done" || state.state === "already" ? "ok" : "crit";
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="fh-unsubscribe">
       <Header isAuthenticated={false} />
       {/* Capsomer's result page: the wordmark over one card, the mark (none
           while it still asks), the sentence as a polite status and the way on.
           Its h1 is for screen readers only: Recova's page has none visible,
           and the wordmark is not one. It names the outcome, so the result is
           in the heading as well as the status paragraph. */}
-      <div
-        className="fh-cap flex flex-1 items-center bg-bg"
-        data-cap-site="foxhound"
-        data-family="amber"
-      >
+      <div className="fh-unsubscribe-main fh-cap" data-cap-site="foxhound" data-family="amber">
         <ResultPage
           title={HEADING[state.state]}
           titleHidden
@@ -218,7 +215,7 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
               ) : null}
               {/* A small text link. Its box is Capsomer's minimum target height
                   (--target), so the 13px line is still a 24px target (WCAG 2.2, 2.5.8). */}
-              <a href="/" className="inline-flex min-h-[var(--target)] items-center text-label">
+              <a href="/" className="fh-target-link fh-small">
                 Return to Foxhound
               </a>
             </>

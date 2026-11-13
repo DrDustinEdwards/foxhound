@@ -28,23 +28,21 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
   const { reports } = loaderData;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Reports</h1>
+    <div className="fh-reports">
+      <h1 className="fh-title fh-medium fh-text">Reports</h1>
 
       {reports.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
+        <p className="fh-empty-box fh-body fh-quiet">
           No narrative reports yet. The nightly Intelligence run generates one once there is enough
           data to narrate honestly.
         </p>
       ) : (
-        <ol className="mt-6 flex flex-col gap-4">
+        <ol className="cap-stack fh-reports-list" data-gap="5">
           {reports.map((r) => (
-            <li key={r.id} className="rounded-lg border border-border bg-surface p-4">
-              <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                {monthLabel(r.reportMonth)}
-              </p>
-              <p className="mt-2 text-body text-text">{r.narrative}</p>
-              <p className="mt-2 text-micro text-text-subtle">
+            <li key={r.id} className="fh-box">
+              <p className="fh-mono fh-tiny fh-quiet fh-caps">{monthLabel(r.reportMonth)}</p>
+              <p className="fh-reports-line fh-body fh-text">{r.narrative}</p>
+              <p className="fh-reports-line fh-tiny fh-faint">
                 Generated {formatDate(r.generatedAt, { style: "medium" }) ?? ""}
               </p>
             </li>

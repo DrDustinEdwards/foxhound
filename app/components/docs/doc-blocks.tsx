@@ -26,17 +26,13 @@ import { HealthScoreBadge } from "./health-score-badge";
 function InlineRun({ inline }: { inline: DocInline }) {
   if (typeof inline === "string") return <>{inline}</>;
   if ("code" in inline) {
-    return (
-      <code className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-label">
-        {inline.code}
-      </code>
-    );
+    return <code className="fh-doc-blocks-code fh-mono fh-small">{inline.code}</code>;
   }
   if ("strong" in inline) {
-    return <strong className="font-medium text-text">{inline.strong}</strong>;
+    return <strong className="fh-medium fh-text">{inline.strong}</strong>;
   }
   if ("mono" in inline) {
-    return <span className="font-mono">{inline.mono}</span>;
+    return <span className="fh-mono">{inline.mono}</span>;
   }
   // Recova's HealthScoreBadge inside the thresholds paragraph, banded by the
   // engine's healthScoreBand.
@@ -66,18 +62,16 @@ function Rich({ content }: { content: DocRich }) {
   );
 }
 
-const P = "mb-4 text-subhead leading-relaxed text-text-secondary";
+const P = "fh-doc-para fh-subhead fh-relaxed fh-soft";
 
 /** Recova's note: a 2px rule down the left, amber for the one that matters
  *  (info), the plain border otherwise, read in the flow. */
 function Callout({ tone, word, body }: { tone: "neutral" | "info"; word: string; body: DocRich }) {
   return (
     <p
-      className={`my-4 border-l-2 pl-4 text-label leading-relaxed text-text-secondary ${
-        tone === "info" ? "border-brand" : "border-border"
-      }`}
+      className={`fh-doc-note fh-small fh-relaxed fh-soft ${tone === "info" ? "fh-doc-note-info" : ""}`}
     >
-      <span className="font-medium text-text">{word}</span> <Rich content={body} />
+      <span className="fh-medium fh-text">{word}</span> <Rich content={body} />
     </p>
   );
 }
@@ -96,7 +90,7 @@ function Block({ block }: { block: DocBlock }) {
       );
 
     case "h3":
-      return <h3 className="mb-3 mt-8 text-item-title font-medium text-text">{block.text}</h3>;
+      return <h3 className="fh-doc-blocks-title fh-item-title fh-medium fh-text">{block.text}</h3>;
 
     case "note":
       return <Callout tone="neutral" word="Note." body={block.body} />;
@@ -106,14 +100,12 @@ function Block({ block }: { block: DocBlock }) {
 
     case "steps":
       return (
-        <ol className="my-4 space-y-3">
+        <ol className="fh-doc-blocks-list">
           {block.items.map((item, i) => (
-            <li key={i} className="flex gap-3 text-subhead leading-relaxed text-text-secondary">
+            <li key={i} className="fh-doc-blocks-item fh-subhead fh-relaxed fh-soft">
               {/* Recova hand-writes "01", "02"; derived here so a step cannot
                   be inserted without its number following. */}
-              <span className="shrink-0 font-mono text-accent-text">
-                {String(i + 1).padStart(2, "0")}
-              </span>
+              <span className="cap-keep fh-mono fh-accent">{String(i + 1).padStart(2, "0")}</span>
               <span>
                 <Rich content={item} />
               </span>
@@ -124,7 +116,7 @@ function Block({ block }: { block: DocBlock }) {
 
     case "list":
       return (
-        <ul className="my-4 list-inside list-disc space-y-2 text-subhead leading-relaxed text-text-secondary">
+        <ul className="fh-doc-blocks-list-2 fh-subhead fh-relaxed fh-soft">
           {block.items.map((item, i) => (
             <li key={i}>
               <Rich content={item} />
@@ -141,7 +133,7 @@ function Block({ block }: { block: DocBlock }) {
     case "table":
       return (
         <div
-          className="cap-table-wrap my-6"
+          className="fh-doc-blocks-block cap-table-wrap"
           data-cap="table"
           role="region"
           aria-label={block.label}
