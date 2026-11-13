@@ -4,7 +4,7 @@
    AdminShell and its time and tooltip use, and the Overview's parts (panels,
    the attention list and the row list under it, empty states, the spinner), and
    the Users page's table. The layer order is declared at the top
-   of app.css, so Capsomer sits above Tailwind's base and below its utilities.
+   of app.css, so Capsomer sits above Foxhound's base and below its site layer.
    Foxhound's family is amber (Dustin's answer 1 of 2026-10-13): its tokens come
    after the themes, so the accents are amber in both. */
 @import "capsomer/tokens.css";
@@ -26,8 +26,8 @@
 @import "capsomer/skeleton.css";
 @import "capsomer/table.css";
 
-/* The admin pages are written with Foxhound's Tailwind utilities (bg-surface,
-   text-text-tertiary, border-border, the brand accent, the status triads). Inside the
+/* The admin pages are written with Foxhound's roles and parts (surfaces, text
+   tones, lines, the brand accent, the status triads). Inside the
    admin those names resolve to Capsomer's tokens, so the pages wear Capsomer's
    palette and faces without a second set of components. --surface, --sunken and
    --text already share a name with Capsomer's and need no line here. The brand

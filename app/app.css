@@ -1,27 +1,19 @@
-/* Capsomer's layers (the admin only, app/admin.css) sit above Tailwind's base
-   and below its components and utilities: its element rules win inside the
-   admin shell, and Tailwind classes on page content still win over Capsomer.
-   Pages that never load Capsomer have no cap layer, so this changes nothing
-   for them.
-
-   capbase holds Capsomer's tokens on the public site and the merchant app
-   (app/site-header.css), below everything else: the site header and the
-   dashboard shell read them, and where a Capsomer token shares a name with
-   one of Tailwind's (--radius-xl, --ease-out) Tailwind's still wins, so no
-   page's own look moves.
-
-   site holds Foxhound's own classes, which replace Tailwind's utilities page by page (the move off
-   Tailwind, 2026-11-13): above Capsomer's parts, as the utilities were. */
-@layer capbase, theme, base, cap, components, utilities, site;
-@import "tailwindcss";
+/* Layers, lowest first. capbase holds Capsomer's tokens on the public site and the merchant app
+   (app/site-header.css): the site header and the dashboard shell read them. base holds the element
+   reset (Capsomer's copy of Tailwind's preflight) and Foxhound's base rules over it. cap holds
+   Capsomer's parts (the admin's and the merchant shell's), with its own sublayers. site holds
+   Foxhound's own classes: the type and color roles and each page's parts, above Capsomer's parts. */
+@layer capbase, base, cap, site;
+/* The element reset (Capsomer's copy of Tailwind's preflight), under Foxhound's own base rules. */
+@import "capsomer/reset.css" layer(base);
 @import "capsomer/site-foxhound.css";
 /* Capsomer's utility classes alone (.cap-sr-only and its siblings), without
    base.css's reset and body rules. They land in cap.utilities, inside the cap
-   layer declared above, so Tailwind's utilities still win. */
+   layer declared above, so Foxhound's site layer still wins. */
 @import "capsomer/utilities.css";
 /* Capsomer's link system, without the rest of base.css, in Foxhound's look from its Capsomer entry
    (root.tsx puts data-cap-site on <html>): semibold in amber with no line, a line under the
-   pointer in place of the tint, the visited color once followed. In cap.base, so a Tailwind class
+   pointer in place of the tint, the visited color once followed. In cap.base, so a site part
    on a link that is a button or a card wins. The public pages add each kind's cue
    (capsomer/link.css, in layouts/marketing.tsx). */
 @import "capsomer/links.css";
@@ -39,14 +31,15 @@
 @import "capsomer/fonts-dm-mono.css";
 /* The focus ring for everything that has none of its own: Capsomer's policy (a 2px --ring outline
    for the keyboard, none for a pointer press) in cap.base, so a Capsomer part keeps its own ring and
-   Tailwind's utilities still win. The forced-colors ring below stays unlayered, so it wins everywhere. */
+   Foxhound's site parts still win. The forced-colors ring below stays unlayered, so it wins everywhere. */
 @import "capsomer/focus.css";
 
+:root,
 /* Design tokens ported from recova-color-system-complete.html (the pre-rebuild
    design system, transcribed verbatim into TASK-foxhound-design-system-port.md
    Appendix A, read via Capsid) per DESIGN.md. Concrete hex values live only in
    :root, :root[data-theme='dark'], and :root[data-theme='light']; every other
-   surface reads var(--*) or the Tailwind utilities below. Chrome tokens
+   surface reads var(--*). Chrome tokens
    (nav/footer/mobile bar) are defined once, dark-only, on purpose: DESIGN.md
    "chrome stays dark in both modes".
 
@@ -63,199 +56,6 @@
    a visible clash, and not worth inventing unreviewed new hex values for.
    Read via the port review (recova/foxhound-design-port-review.md finding 6)
    and Capsid decisions.md before touching any of these four values again. */
-@theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface2: var(--surface2);
-  --color-sunken: var(--sunken);
-  --color-hover: var(--hover);
-  --color-selected: var(--selected);
-  --color-bg-disabled: var(--bg-disabled);
-  --color-border: var(--border);
-  --color-border-sub: var(--border-sub);
-  --color-border-strong: var(--border-strong);
-  --color-border-i: var(--border-i);
-  --color-text: var(--text);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-text-subtle: var(--text-subtle);
-  --color-text-disabled: var(--text-disabled);
-  --color-wordmark: var(--wordmark);
-  --color-brand: var(--brand);
-  --color-brand-dark: var(--brand-dark);
-  --color-brand-bg: var(--brand-bg);
-  --color-brand-text: var(--brand-text);
-  --color-brand-text-hover: var(--brand-text-hover);
-  --color-brand-border: var(--brand-border);
-  --color-brand-border-interactive: var(--brand-border-interactive);
-  --color-on-brand: var(--text-on-brand);
-  /* Caution, named by meaning: the middle band of a red / caution / green
-     scale (near target, watch, deadline soon, a stale cron, MRR at risk,
-     expiring cards). Recova drew it in its accent color, amber, and so does
-     Foxhound again (it took the warning tokens while the accent was teal).
-     Changing the caution palette is these three lines. Text: #f0b429 dark
-     (10.08:1 on --bg), #8a5c06 light (5.37:1 on --bg, 5.34:1 on --brand-bg). */
-  --color-caution: var(--brand-text);
-  --color-caution-bg: var(--brand-bg);
-  --color-caution-border: var(--brand-border-interactive);
-  --color-chrome: var(--chrome);
-  --color-chrome-text: var(--chrome-text);
-  --color-chrome-text-secondary: var(--chrome-text-secondary);
-  --color-chrome-text-tertiary: var(--chrome-text-tertiary);
-  --color-chrome-brand: var(--chrome-brand);
-  --color-cobalt: var(--cobalt-ui);
-  --color-cobalt-text: var(--cobalt-text);
-  --color-green: var(--green);
-  --color-green-bg: var(--green-bg);
-  --color-success-text: var(--success-text);
-  --color-red: var(--red);
-  --color-red-bg: var(--red-bg);
-  --color-error-text: var(--error-text);
-  --color-orange: var(--orange);
-  --color-warning-text: var(--warning-text);
-  --color-blue: var(--blue);
-  --color-purple: var(--purple);
-  --color-purple-bg: var(--purple-bg);
-  --color-violet: var(--violet-ui);
-  --color-presence-online: var(--presence-online);
-  --color-presence-away: var(--presence-away);
-  --color-presence-offline: var(--presence-offline);
-  --color-skeleton: var(--skeleton);
-  --color-skeleton-shimmer: var(--skeleton-shimmer);
-  --color-tooltip-bg: var(--tooltip-bg);
-  --color-tooltip-text: var(--tooltip-text);
-  /* Capsomer's accent roles, as utilities, for content that sits inside an
-     element carrying data-family="amber" (Capsomer's amber family, Dustin's
-     answers of 2026-10-13 and Q11 of 2026-10-14): text-accent-text for a link
-     and hover:text-accent-hover for its hover. Capsomer's own base.css gives
-     every link exactly these two; Foxhound does not load that file, so pages
-     that adopt amber name them. Outside an amber family they take whatever
-     family is in scope (the admin's :root is purple), so set data-family. First used by the legal pages (J51); the
-     site-wide amber job (J81) can reuse them. */
-  --color-accent-text: var(--accent-text);
-  --color-accent-hover: var(--accent-hover);
-  --font-sans: var(--font-dm-sans);
-  --font-mono: var(--font-dm-mono);
-
-  /* Semantic type scale. Rem only, never px (DESIGN.md / task Appendix A
-     rule 2), enforced by scripts/check-tokens.mjs in CI. */
-  --text-display: 1.75rem;
-  --text-title: 1.25rem;
-  --text-body: 1rem;
-  --text-label: 0.8125rem;
-  --text-micro: 0.6875rem;
-
-  /* Marketing type scale (M3 divergence 44, then M4 pricing; ruling 44/60
-     sequencing). Legacy's marketing surface runs its own scale, and several of
-     its sizes have no slot in the app scale above. Named by ROLE so a caller
-     picks the one matching what it is rendering, never the one matching a
-     number.
-
-       role            value       legacy source
-       hero            2.75rem     h1 base, page.tsx
-       hero-lg         4rem        h1 at sm
-       section         1.75rem     section h2 base
-       section-lg      2rem        section h2 at sm
-       subsection      1.5rem      smaller section h2 base, steps to section at sm
-       statement       2.25rem     the full-bleed 44% h2, base
-       statement-md    3.5rem      that h2 at sm
-       statement-lg    4.5rem      that h2 at lg
-       card-title      1.125rem    plan/product card name
-       price           2.5rem      price figure
-       item-title      0.9375rem   card name, FAQ question, h3 subheading
-       subhead         0.9375rem   section subtitles under an h2, header subtext
-       copy            0.875rem    card and paragraph body
-       caption         0.75rem     small labels
-       source          0.625rem    source attribution links
-       page-title      2rem        shared marketing page header h1
-       product-hero    2.5rem      product spoke hero h1
-       product-sub     1.0625rem   product spoke hero sub
-       feature-title   1.375rem    product spoke feature-block h3
-       product-price   3rem        product spoke price figure
-
-     card-title, price and subsection arrived with M4 pricing (legacy
-     pricing/page.tsx:129 card name, :131 price, :179 FAQ h2). A prior note claimed M4 needed only two
-     tokens; reading source showed three, because that note had accounted for
-     the FAQ heading's sm step (1.75rem, already --text-section) and not its
-     1.5rem base. card-title and Tailwind's stock text-lg coincide at 1.125rem;
-     the token exists so the value is ours rather than a framework default.
-
-     item-title arrived with the M5 /products walk (Dustin, 2026-07-29). It
-     carries the SAME 0.9375rem as subhead because legacy runs one value across
-     two roles, and the roles are what the token set names. A complete
-     non-truncated scan of legacy app/(marketing) returns 15 carriers of
-     text-[0.9375rem] font-medium text-text: the products card name
-     (products/page.tsx:82), the pricing FAQ question (pricing/page.tsx:184),
-     docs index card titles (docs/page.tsx:77,:94), the h3 of all five docs
-     guides, blog post-detail item titles (PostDetailBody.tsx:182,:195,:235),
-     the home blog-card h3 (page.tsx:578), and the privacy and terms h3s. That
-     is an item title, not a section subtitle, so it gets its own name rather
-     than borrowing subhead's because the numbers coincide. The pricing FAQ
-     question moved off subhead in the same commit; subhead keeps the header
-     subtext, the home section subtitles and the home hero buttons. Twelve
-     further legacy carriers land here as M11 to M21 are walked.
-
-     page-title arrived with the shared marketing header row (legacy
-     components/MarketingPageHeader.tsx:44, its h1). It is deliberately not
-     --text-section-lg, which holds the same 2rem today but means "section h2 at
-     sm" and may move with the section role. It is also not a retune of
-     --text-display (1.75rem): that token has 15 carriers, mostly font-mono
-     numerics in the console, stat cards and product prices, whose legacy values
-     the parity walk has not read yet.
-
-     The four product-spoke tokens arrived with the M6 walk (Dustin,
-     2026-07-29), from legacy components/product/ProductSections.tsx. Note the
-     trap they were named around: --text-price (2.5rem) holds the PRICING PAGE's
-     price figure, and the product spoke's price figure is 3rem, a different
-     number for a similar-sounding role. Coupling them would have meant either
-     restyling M4's already-fixed and live-verified pricing figure or rendering
-     the spoke price at the wrong size. So --text-product-price is its own token
-     at 3rem, and --text-product-hero carries 2.5rem for the spoke h1: same value
-     as --text-price, different role, exactly the ruling-65 pattern. This is the
-     second time one legacy value has landed on two roles, and the second time
-     the roles have been given separate names rather than one shared token.
-
-     Why these are ADDITIVE and mutate nothing: --text-label (0.8125rem) is
-     shared with the app shell and admin, whose legacy type values have not been
-     read yet, so retuning it would silently restyle surfaces the parity walk has
-     not reached. --text-section deliberately carries the same value as
-     --text-display today; they are separate roles and either may move without
-     the other, so this is not a redundant alias.
-
-     Line-height and letter-spacing stay as arbitrary utilities at the call site,
-     exactly as legacy writes them, because they vary per element rather than per
-     role: legacy's card body is leading-[1.6] on the stat card and leading-[1.55]
-     on the comparison and how-it-works bodies. */
-  --text-hero: 2.75rem;
-  --text-hero-lg: 4rem;
-  --text-section: 1.75rem;
-  --text-section-lg: 2rem;
-  --text-subsection: 1.5rem;
-  --text-statement: 2.25rem;
-  --text-statement-md: 3.5rem;
-  --text-statement-lg: 4.5rem;
-  --text-card-title: 1.125rem;
-  --text-price: 2.5rem;
-  --text-item-title: 0.9375rem;
-  --text-subhead: 0.9375rem;
-  --text-copy: 0.875rem;
-  --text-caption: 0.75rem;
-  --text-source: 0.625rem;
-  --text-page-title: 2rem;
-  --text-product-hero: 2.5rem;
-  --text-product-sub: 1.0625rem;
-  --text-feature-title: 1.375rem;
-  --text-product-price: 3rem;
-  /* Product tag pill on /features (legacy FeatureCard.tsx's local ProductTag,
-     text-[0.625rem]). Its value collides with --text-source, and the two stay
-     separate on purpose: --text-source is home's citation-attribution role and
-     this is a tag role, so coupling them would let a correction to either
-     silently restyle the other. Rulings 65 and 68 rule against merging role
-     tokens on a value match. Marketing scale 20 to 21. */
-  --text-tag: 0.625rem;
-}
-
-:root,
 :root[data-theme="dark"] {
   --font-dm-sans: "DM Sans", "DM Sans Fallback", sans-serif;
   --font-dm-mono: "DM Mono", "DM Mono Fallback", monospace;
@@ -450,10 +250,7 @@
    holding opacity 0 for its whole delay (320ms on the hero's last item) before
    snapping in. The guard prevents that, and it is also what legacy does.
 
-   The delay utilities set animation-delay, deliberately unlike Tailwind's
-   built-in delay-* which set transition-delay. None of 80/160/240/320 is a
-   default Tailwind delay value, so there is no collision with generated
-   utilities. */
+   The delay classes set animation-delay, not transition-delay. */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes fade-up {
     from {
@@ -500,8 +297,7 @@
   }
 }
 
-/* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference (Tailwind's
-   motion-safe: in markup), so a color fade can stay while a slide goes. No global 0.01ms override:
+/* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference, so a color fade can stay while a slide goes. No global 0.01ms override:
    it ends some animations in a jump and breaks scroll-driven effects (Capsomer base.css, which
    also turns smooth scrolling off). */
 
@@ -657,11 +453,11 @@ body {
    display size, small upper-case mono labels with the icon above, Foxhound's greens and reds,
    mono upper-case badges with no glyph (their words say the state), and bare lists. */
 :root {
-  --tile-figure-face: var(--font-mono);
-  --tile-figure-size: var(--text-display);
+  --tile-figure-face: var(--font-dm-mono);
+  --tile-figure-size: 1.75rem;
   --tile-figure-weight: 500;
-  --tile-label-face: var(--font-mono);
-  --tile-label-size: var(--text-micro);
+  --tile-label-face: var(--font-dm-mono);
+  --tile-label-size: 0.6875rem;
   --tile-label-case: uppercase;
   --tile-label-tracking: 0.025em;
   --tile-icon-flow: column;
@@ -672,8 +468,8 @@ body {
   --tile-pad: 1rem;
   --tile-radius: 0.5rem;
   --tiles-gap: 0.75rem;
-  --tag-face: var(--font-mono);
-  --tag-size: var(--text-micro);
+  --tag-face: var(--font-dm-mono);
+  --tag-size: 0.6875rem;
   --tag-weight: 400;
   --tag-case: uppercase;
   --tag-tracking: 0.025em;
@@ -682,7 +478,7 @@ body {
 .cap-tile[data-variant="static"] {
   --muted: var(--text-tertiary);
   --ok: var(--success-text);
-  --warn: var(--color-caution);
+  --warn: var(--brand-text);
   --crit: var(--error-text);
 }
 /* The marketing previews' cards (Recova's preview cards): a panel's padding and corners, a sans
@@ -691,7 +487,7 @@ body {
   --tile-label-face: inherit;
   --tile-label-weight: 500;
   --tile-label-tracking: 0.06em;
-  --tile-figure-size: var(--text-title);
+  --tile-figure-size: 1.25rem;
   --tile-figure-weight: 700;
   --tile-gap: 0.25rem;
   --tile-pad: var(--gap) var(--pad-card);
@@ -891,8 +687,10 @@ body {
   .fh-red {
     color: var(--red);
   }
+  /* Caution, named by meaning: the middle band of a red / caution / green scale (near target,
+     watch, deadline soon, MRR at risk). Recova drew it in its accent color, amber. */
   .fh-caution {
-    color: var(--color-caution);
+    color: var(--brand-text);
   }
   .fh-blue {
     color: var(--blue);
