@@ -265,14 +265,14 @@
 }
 .fh-legal .cap-legal-updated {
   font-size: 0.9375rem;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-legal .cap-legal-body,
 .fh-legal .cap-legal-intro,
 .fh-legal .cap-legal-outro {
   font-size: 0.9375rem;
   line-height: 1.625;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-legal .cap-legal-section-title,
 .fh-legal .cap-legal-intro h2 {
@@ -289,7 +289,7 @@
   font-family: var(--font-dm-mono);
   font-size: 0.6875rem;
   font-weight: 400;
-  color: var(--text-tertiary);
+  color: var(--dim);
 }
 .fh-legal .cap-legal-contents a {
   font-size: 0.8125rem;
@@ -333,7 +333,7 @@
   max-inline-size: none;
   margin: 0 0 2rem;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-home-hero .cap-hero-actions,
 .fh-product-hero .cap-hero-actions {
@@ -390,7 +390,7 @@
   max-inline-size: 520px;
   margin: 0 auto 0.75rem;
   line-height: 1.625;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-product-hero .cap-hero-body {
   max-inline-size: none;
@@ -414,7 +414,7 @@
 }
 .fh-page-hero .cap-hero-eyebrow {
   margin: 0 0 0.75rem;
-  color: var(--text-tertiary);
+  color: var(--dim);
   font: 500 0.6875rem / 1.3 var(--font-dm-sans);
   letter-spacing: 0.1em;
 }
@@ -428,7 +428,7 @@
   max-inline-size: 560px;
   margin: 0;
   line-height: 1.625;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -487,7 +487,7 @@
   margin: 0 auto 1.75rem;
   font-size: 0.9375rem;
   line-height: 1.55;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-closing-band .cap-cta-band-actions {
   margin: 0;
@@ -534,5 +534,5 @@
 .fh-closing-product .cap-cta-band-note {
   margin-block-start: 0.75rem;
   font-size: 0.75rem;
-  color: var(--text-tertiary);
+  color: var(--dim);
 }
