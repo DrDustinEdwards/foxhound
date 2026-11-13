@@ -24,9 +24,6 @@ export interface MarketingEmailCopy {
   body: string;
 }
 
-/** What the generation route answers: an email, or that it could not make one. */
-export type MarketingEmailResult = MarketingEmailCopy | { error: true };
-
 const GENERATE_ACTION = "/marketing/generate-email-sample";
 const SAMPLE_UPDATE_URL = "https://billing.yoursaas.com/update";
 
