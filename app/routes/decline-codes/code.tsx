@@ -62,11 +62,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
   return (
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
     // the pills, panels, FAQ, button and focus ring read the family.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <MarketingPageHeader
         trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
         eyebrow="Decline code"

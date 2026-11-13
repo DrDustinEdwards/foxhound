@@ -26,61 +26,14 @@
 @import "capsomer/reading-progress.css";
 @import "capsomer/reveal.css";
 
-/* Self-hosted fonts. No Google Fonts request at runtime; files vendored
-   into app/assets/fonts/. DM Sans ships as a single variable-weight
-   woff2 (Google serves one file across the weight range to
-   variable-font-capable clients); DM Mono is static per weight.
-
-   font-display: optional matches legacy (ruling 51). These files are
-   preloaded in root.tsx, so a warm cache paints the real face on the first
-   frame; optional then buys a cold visit no reflow at all, where swap
-   repaints the whole page once the face arrives. The tradeoff is that a
-   slow cold visit keeps the fallback for that pageview. */
-@font-face {
-  font-family: "DM Sans";
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: optional;
-  src: url("./assets/fonts/dm-sans-variable.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "DM Mono";
-  font-style: normal;
-  font-weight: 400;
-  font-display: optional;
-  src: url("./assets/fonts/dm-mono-400.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "DM Mono";
-  font-style: normal;
-  font-weight: 500;
-  font-display: optional;
-  src: url("./assets/fonts/dm-mono-500.woff2") format("woff2");
-}
-
-/* Metric-matched fallbacks, as Recova's next/font generated them: Arial
-   scaled to DM Sans's and DM Mono's widths and line metrics. With
-   font-display: optional a slow cold visit keeps the fallback for that page,
-   so the fallback has to set the same size and line breaks as the real face
-   rather than a wider, taller Arial. */
-@font-face {
-  font-family: "DM Sans Fallback";
-  src: local("Arial");
-  ascent-override: 94.9%;
-  descent-override: 29.66%;
-  line-gap-override: 0%;
-  size-adjust: 104.53%;
-}
-@font-face {
-  font-family: "DM Mono Fallback";
-  src: local("Arial");
-  ascent-override: 73.71%;
-  descent-override: 23.03%;
-  line-gap-override: 0%;
-  size-adjust: 134.59%;
-}
+/* Foxhound's faces, DM Sans and DM Mono, are Capsomer's (with every family face, which downloads
+   only when a page draws text in it): the same files, font-display: optional, preloaded in
+   app/lib/preloads.ts, and size-matched fallbacks for a cold visit that misses the face. */
+@import "capsomer/fonts.css";
+/* The focus ring for everything that has none of its own: Capsomer's policy (a 2px --ring outline
+   for the keyboard, none for a pointer press) in cap.base, so a Capsomer part keeps its own ring and
+   Tailwind's utilities still win. The forced-colors ring below stays unlayered, so it wins everywhere. */
+@import "capsomer/focus.css";
 
 /* Design tokens ported from recova-color-system-complete.html (the pre-rebuild
    design system, transcribed verbatim into TASK-foxhound-design-system-port.md
@@ -371,7 +324,6 @@
   --brand-border: #3d3010;
   --brand-border-interactive: #826217;
   --text-on-brand: #0d0e0c;
-  --border-focus: #f0b429;
 
   /* Chrome (nav/footer/mobile bar): dark in both modes, defined once here. */
   --chrome: #1a1c18;
@@ -441,7 +393,7 @@
   --violet-bg-subtle: #200a29;
   --violet-border: #45165a;
 
-  /* Borders: subtle/default/strong/interactive/focus, distinct levels. */
+  /* Borders: subtle/default/strong/interactive, distinct levels. */
   /* Legacy's #2a2b28 (394 C1). Foxhound carried #2e3028. */
   --border: #2a2b28;
   --border-sub: #222420;
@@ -511,7 +463,6 @@
   --brand-border: #f5d98a;
   --brand-border-interactive: #b2861f;
   --text-on-brand: #0d0e0c;
-  --border-focus: #b68508;
   --brand-bg: #fff5d6;
 
   --cobalt-ui: #2965f0;
@@ -655,25 +606,6 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-dm-sans), Arial, sans-serif;
-}
-
-/* The focus ring for everything that has none of its own. In the base layer,
-   below Capsomer's (cap), so a Capsomer part keeps its own ring and corners,
-   and below Tailwind's utilities, so a rounded element's ring follows its
-   shape. The forced-colors ring below stays unlayered, so it wins everywhere. */
-@layer base {
-  *:focus {
-    outline: 2px solid transparent;
-    outline-offset: 2px;
-  }
-  *:focus:not(:focus-visible) {
-    outline: none;
-  }
-  *:focus-visible {
-    outline: 2px solid var(--border-focus);
-    outline-offset: 2px;
-    border-radius: 2px;
-  }
 }
 
 /* Accessibility: forced-colors mode gets surgical border + focus-ring

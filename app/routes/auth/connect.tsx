@@ -260,7 +260,7 @@ function ConnectFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex justify-center px-4 py-[60px]">
       <div
-        className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]"
+        className="fh-cap w-full max-w-[480px]"
         data-cap-site="foxhound"
         data-family="amber"
         data-connect=""

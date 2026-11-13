@@ -26,9 +26,6 @@
 @import "capsomer/skeleton.css";
 @import "capsomer/table.css";
 
-/* Capsomer's faces, Schibsted Grotesk for the UI and Martian Mono for figures. */
-@import "capsomer/fonts.css";
-
 /* The admin pages are written with Foxhound's Tailwind utilities (bg-surface,
    text-text-tertiary, border-border, the brand accent, the status triads). Inside the
    admin those names resolve to Capsomer's tokens, so the pages wear Capsomer's
@@ -46,7 +43,6 @@
   --border-sub: var(--line);
   --border-strong: var(--line-strong);
   --border-i: var(--line-strong);
-  --border-focus: var(--ring);
 
   --text-secondary: var(--muted);
   --text-tertiary: var(--muted);
