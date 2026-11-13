@@ -120,7 +120,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
       // The address the passkey providers are told (the Signal API), only on
       // this person's own page: an admin's view names someone else's passkeys.
-      signalAs: auth.isDemo || auth.viewingAs ? null : auth.email,
+      signalAs: auth.isDemo || auth.viewingAs ? null : { id: auth.userId, email: auth.email },
     },
     account,
     cancelledAt: account.cancelledAt,
