@@ -5,8 +5,8 @@ import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SwitchRow } from "capsomer/react/settings-row";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -264,7 +264,8 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Email"
       lead="Configure how recovery emails appear to your customers, and which ones are sent."
     >
@@ -362,6 +363,6 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       <DemoForm method="post" id={TEST_FORM_ID}>
         <input type="hidden" name="_action" value="test-email" />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

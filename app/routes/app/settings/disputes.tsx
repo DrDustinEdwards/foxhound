@@ -4,8 +4,8 @@ import { SaveBar } from "capsomer/react/save-bar";
 import { Pill } from "capsomer/react/status";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SwitchRow } from "capsomer/react/settings-row";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -141,7 +141,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
   const descriptionHelpId = `${id}-description-help`;
 
   return (
-    <SettingsPage title="Disputes" lead={DISPUTES_SETTINGS_LINE}>
+    <SettingsLayout renderLink={routerRenderLink} title="Disputes" lead={DISPUTES_SETTINGS_LINE}>
       {/* The switch's own form, as Recova's DisputesToggle posted on its own:
           it carries the new value, and the switch below sends it at once
           (SwitchRow submitOnChange; without script its Save button does).
@@ -240,6 +240,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           button={enabled}
         />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

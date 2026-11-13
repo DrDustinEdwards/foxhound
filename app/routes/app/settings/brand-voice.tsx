@@ -7,7 +7,8 @@ import { Select } from "capsomer/react/select";
 import "capsomer/select.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -213,7 +214,8 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
   const saving = useNavigation().state === "submitting";
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Brand voice"
       lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
     >
@@ -268,6 +270,6 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
           }
         />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

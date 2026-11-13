@@ -9,7 +9,8 @@ import "capsomer/banner.css";
 import { DemoForm, useDemoConfirmForm } from "~/lib/demo/use-demo-guard";
 import { InlineConfirm } from "capsomer/react/inline-confirm";
 import "capsomer/inline-confirm.css";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import {
   authContext,
@@ -254,7 +255,11 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   }, [actionData]);
 
   return (
-    <SettingsPage title="Team" lead="Members and pending invites for this account.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="Team"
+      lead="Members and pending invites for this account."
+    >
       <section className="cap-panel">
         <div className="cap-panel-body">
           {removeResult && !removeResult.error ? (
@@ -356,6 +361,6 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
           ) : null}
         </div>
       </section>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

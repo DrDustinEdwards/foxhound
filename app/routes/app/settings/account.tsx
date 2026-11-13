@@ -35,7 +35,8 @@ import {
   type SignedInDevices,
   type SignInSettings,
 } from "~/components/sign-in-settings";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
 import { authContext } from "~/lib/auth/context";
@@ -869,7 +870,11 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   const result = actionData as ActionResult | undefined;
 
   return (
-    <SettingsPage title="My account" lead="Profile, appearance, and account controls.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="My account"
+      lead="Profile, appearance, and account controls."
+    >
       {/* Recova's mb-10 under the form. */}
       <div className="fh-account-top">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
@@ -896,6 +901,6 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
       </div>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

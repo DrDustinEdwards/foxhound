@@ -6,7 +6,8 @@ import { Switch } from "capsomer/react/switch";
 import "capsomer/segmented.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -102,7 +103,11 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const failed = actionData?.ok === false;
 
   return (
-    <SettingsPage title="Audit" lead="Lookback period and monthly digest options.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="Audit"
+      lead="Lookback period and monthly digest options."
+    >
       <DemoForm method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
@@ -169,6 +174,6 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           error={failed ? "Failed to save. Please try again." : null}
         />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

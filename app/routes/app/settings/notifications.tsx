@@ -4,8 +4,8 @@ import { data, useNavigation } from "react-router";
 
 import { AlertsSection } from "~/components/alerts-section";
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SwitchRow } from "capsomer/react/settings-row";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -223,7 +223,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Notifications"
       lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
     >
@@ -291,6 +292,6 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
       </DemoForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />
-    </SettingsPage>
+    </SettingsLayout>
   );
 }
