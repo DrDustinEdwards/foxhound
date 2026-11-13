@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -8,7 +8,7 @@ import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
 import { membershipWord, usersCountSentence } from "~/lib/admin/users";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
+import { merchantHref, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/users";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -38,7 +38,7 @@ const LINK = "inline-block min-h-6 leading-6";
 // Read only: the page has no actions.
 export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const { users } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, "/admin/users");
+  const pending = usePagePending("/admin/users");
 
   return (
     <Panel

@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { AttentionList } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
@@ -10,7 +10,7 @@ import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import { overviewAttention, overviewAttentionGroups, overviewPending } from "~/lib/admin/overview";
+import { overviewAttention, overviewAttentionGroups } from "~/lib/admin/overview";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
@@ -62,7 +62,7 @@ function moneyFigure(amounts: ReadonlyArray<{ cents: number; currency: string }>
 // Foxhound's engine.
 export default function AdminOverview({ loaderData }: Route.ComponentProps) {
   const { overview, d1SizeBytes, recentActions, now } = loaderData;
-  const pending = overviewPending(useNavigation(), useRevalidator().state);
+  const pending = usePagePending("/admin");
   const d1Share = d1SizeBytes / D1_CAP_BYTES;
   const { failedRuns, disabledCount, lastRunAt } = overview.cronHealth;
   const failed = failedRuns.length;

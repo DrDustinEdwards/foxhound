@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -14,7 +14,7 @@ import {
 } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { plural } from "@drdustinedwards/site-helpers/text";
-import { pagePending, type AdminHandle } from "~/lib/admin/page";
+import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/audit-log";
@@ -57,7 +57,7 @@ const LINK = "inline-block min-h-6 leading-6";
 // Read only: nothing here changes an entry.
 export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
   const { entries } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, AUDIT_LOG_PATH);
+  const pending = usePagePending(AUDIT_LOG_PATH);
 
   return (
     <Panel

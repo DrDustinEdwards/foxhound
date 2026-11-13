@@ -1,5 +1,6 @@
 import { useId } from "react";
-import { Form, useNavigation, useRevalidator } from "react-router";
+import { Form } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { ExpandRows } from "capsomer/react/disclosure";
 import { Empty } from "capsomer/react/empty";
@@ -15,7 +16,7 @@ import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
-import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
+import { merchantHref, type AdminHandle } from "~/lib/admin/page";
 import {
   isFiltered,
   parseWebhookFilters,
@@ -67,7 +68,7 @@ const LINK = "inline-block min-h-6 leading-6";
 // list works without script. Read only: nothing here changes an event.
 export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
   const { summary, list, filters } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, WEBHOOKS_PATH);
+  const pending = usePagePending(WEBHOOKS_PATH);
   const filtered = isFiltered(filters);
   const typeId = useId();
 
