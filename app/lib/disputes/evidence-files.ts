@@ -95,21 +95,6 @@ export function fileNameFromPath(path: string): string {
 }
 
 /**
- * Recova's client-side checks before an upload, in its order: type, size,
- * count. The server repeats every one; this only saves the merchant a round
- * trip. Null when the file may go.
- */
-export function precheckEvidenceFile(
-  file: { type: string; size: number },
-  filesSoFar: number,
-): EvidenceFileOutcome | null {
-  if (!isEvidenceFileType(file.type)) return "file_type_not_allowed";
-  if (file.size > DISPUTE_EVIDENCE_MAX_SIZE_BYTES) return "file_too_large";
-  if (filesSoFar >= DISPUTE_EVIDENCE_MAX_FILES) return "max_files_exceeded";
-  return null;
-}
-
-/**
  * Whether the file's first bytes are the type it declares. Recova trusted the
  * browser's declared type; Foxhound serves these files from its own origin and
  * sends them to Stripe, so a file that only claims to be a PNG is refused as

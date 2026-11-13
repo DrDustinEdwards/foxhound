@@ -2,18 +2,10 @@ import { useEffect, useId, useState } from "react";
 import { data, redirect, useNavigation } from "react-router";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
 import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/account does.
-import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -292,7 +284,7 @@ function StripeSection({
                       </div>
                       {isOwner ? (
                         <div className="flex flex-wrap items-center gap-2">
-                          <DemoGuardedForm method="post">
+                          <DemoForm method="post">
                             <input type="hidden" name="_action" value="disconnect-stripe" />
                             <input type="hidden" name="connectionId" value={conn.id} />
                             <Button
@@ -317,7 +309,7 @@ function StripeSection({
                                   ? "Yes, disconnect Stripe"
                                   : "Disconnect Stripe"}
                             </Button>
-                          </DemoGuardedForm>
+                          </DemoForm>
                           {isConfirming && !isDisconnecting ? (
                             <Button onClick={() => keep(conn.id)}>Keep connected</Button>
                           ) : null}
@@ -370,21 +362,15 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
   const result = actionData as DisconnectResult | undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Stripe connections"
-          lead={
-            isOwner
-              ? "Connected Stripe accounts. Add additional accounts or disconnect existing ones."
-              : "Connected Stripe accounts. Only the account owner can add or disconnect accounts."
-          }
-        />
-      </div>
+    <SettingsPage
+      title="Stripe connections"
+      lead={
+        isOwner
+          ? "Connected Stripe accounts. Add additional accounts or disconnect existing ones."
+          : "Connected Stripe accounts. Only the account owner can add or disconnect accounts."
+      }
+    >
       <StripeSection connections={connections} result={result} isOwner={isOwner} />
-    </>
+    </SettingsPage>
   );
 }

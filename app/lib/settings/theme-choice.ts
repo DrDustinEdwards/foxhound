@@ -12,7 +12,7 @@ export type ThemeChoiceOutcome = "saved" | "failed" | "demo";
  * IN THE DEMO IT SAVES NOTHING. /api/theme writes the signed-in person's own
  * active account, so a person viewing the demo over their session would
  * otherwise change their real account from a read-only page. The demo refuses
- * here the way DemoGuardedForm refuses every other demo write, before anything
+ * here the way ReadOnlyForm refuses every other demo write, before anything
  * leaves the browser.
  *
  * A refused response and a lost connection are both "failed": Recova shows the

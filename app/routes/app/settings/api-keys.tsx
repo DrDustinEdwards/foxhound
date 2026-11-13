@@ -1,6 +1,6 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 import { Link } from "capsomer/react/link";
@@ -9,25 +9,18 @@ import { Button } from "capsomer/react/button";
 import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
-import { PageHead } from "capsomer/react/page-head";
+import { SettingsPage } from "~/components/settings-page";
 import { Panel } from "capsomer/react/panel";
+import { SecretReveal } from "capsomer/react/secret-reveal";
 import { Segmented } from "capsomer/react/segmented";
 import "capsomer/banner.css";
-import "capsomer/button.css";
 import "capsomer/copy.css";
 import "capsomer/empty.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
+import "capsomer/secret-reveal.css";
 import "capsomer/segmented.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /help does.
-import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -278,42 +271,29 @@ function ScopePicker() {
   );
 }
 
-function RevealKey({ rawKey }: { rawKey: string }) {
-  const heading = useId();
-  const keyBlock = useRef<HTMLPreElement>(null);
-
-  // The form that had focus is gone once the key shows, which would drop focus
-  // to the page. It moves to the key instead, named by the panel's heading, so a
-  // keyboard or screen reader lands on what has to be copied. Nothing visible
-  // changes.
-  useEffect(() => {
-    keyBlock.current?.focus();
-  }, []);
-
+/** The new key, shown once, in Capsomer's SecretReveal inside the card it
+ *  always had, with Capsomer's CopyButton beside the Done link. */
+function NewKey({ rawKey }: { rawKey: string }) {
   return (
-    <Panel title="Your new API key" headingId={heading}>
-      {/* Capsomer 0.9.0 has no code block for a secret to copy; this is
-          legacy's <pre>, on Foxhound's tokens, until it does. */}
-      <pre
-        ref={keyBlock}
-        tabIndex={-1}
-        aria-labelledby={heading}
-        className="overflow-x-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-4 font-mono text-micro text-text"
-      >
-        {rawKey}
-      </pre>
-      <p className="cap-field-help">
-        This key will not be shown again. Copy it now and store it somewhere safe.
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <CopyButton text={rawKey} variant="default">
-          Copy key
-        </CopyButton>
-        <Link to="?" className="cap-btn" data-variant="quiet">
-          Done
-        </Link>
+    <section className="cap-panel">
+      <div className="cap-panel-body">
+        <SecretReveal
+          title="Your new API key"
+          secret={rawKey}
+          note="This key will not be shown again. Copy it now and store it somewhere safe."
+          copy={
+            <div className="flex flex-wrap items-center gap-3">
+              <CopyButton text={rawKey} variant="default">
+                Copy key
+              </CopyButton>
+              <Link to="?" className="cap-btn" data-variant="quiet">
+                Done
+              </Link>
+            </div>
+          }
+        />
       </div>
-    </Panel>
+    </section>
   );
 }
 
@@ -331,7 +311,7 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
 
   return (
     <Panel title="Generate a new API key">
-      <DemoGuardedForm method="post" className="flex flex-col gap-4">
+      <DemoForm method="post" className="flex flex-col gap-4">
         <input type="hidden" name="_action" value="create" />
         <Field label="Name" error={error} announce>
           <input
@@ -354,7 +334,7 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
             Cancel
           </Link>
         </div>
-      </DemoGuardedForm>
+      </DemoForm>
     </Panel>
   );
 }
@@ -374,28 +354,21 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
   const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="API Keys"
-          lead={
-            <>
-              Connect an AI agent to this account&apos;s Foxhound data at{" "}
-              <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
-              recovery, disputes, billing and customer health, and change your settings: audit,
-              features, notifications, your sender name, your brand voice, your business context,
-              and the alerts it can create, switch off and delete. Leaving a field out of the brand
-              voice or business context leaves it as it is. Every change it makes is logged with the
-              key that made it. It cannot move money, submit dispute evidence, disconnect Stripe or
-              cancel your account, and customer names and full email addresses are never sent.
-            </>
-          }
-        />
-      </div>
-
+    <SettingsPage
+      title="API Keys"
+      lead={
+        <>
+          Connect an AI agent to this account&apos;s Foxhound data at{" "}
+          <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
+          recovery, disputes, billing and customer health, and change your settings: audit,
+          features, notifications, your sender name, your brand voice, your business context, and
+          the alerts it can create, switch off and delete. Leaving a field out of the brand voice or
+          business context leaves it as it is. Every change it makes is logged with the key that
+          made it. It cannot move money, submit dispute evidence, disconnect Stripe or cancel your
+          account, and customer names and full email addresses are never sent.
+        </>
+      }
+    >
       <section className="cap-panel">
         <div className="cap-panel-body">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -457,14 +430,14 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                       <td data-label="Last used">{dateOrNever(k.lastUsedAt)}</td>
                       <td data-label="Actions" data-num>
                         {owner ? (
-                          <DemoGuardedForm method="post">
+                          <DemoForm method="post">
                             <input type="hidden" name="_action" value="revoke" />
                             <input type="hidden" name="keyId" value={k.id} />
                             <Button type="submit" size="xs" pending={revoking === k.id}>
                               Revoke key
                               <span className="sr-only"> {k.label}</span>
                             </Button>
-                          </DemoGuardedForm>
+                          </DemoForm>
                         ) : null}
                       </td>
                     </tr>
@@ -474,7 +447,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
             </div>
           ) : null}
 
-          {rawKey !== undefined ? <RevealKey rawKey={rawKey} /> : null}
+          {rawKey !== undefined ? <NewKey rawKey={rawKey} /> : null}
           {owner && creating && rawKey === undefined ? (
             <GenerateForm isAdmin={isAdmin} error={createError} />
           ) : null}
@@ -482,7 +455,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       </section>
 
       {callLog.state === "owner-only" ? null : <CallLogPanel log={callLog} />}
-    </>
+    </SettingsPage>
   );
 }
 

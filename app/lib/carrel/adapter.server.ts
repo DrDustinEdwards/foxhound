@@ -32,7 +32,7 @@ import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
-import { SLUG_PATTERN, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
+import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
 
 // The Carrel site adapter over Foxhound's blog. Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
@@ -83,8 +83,6 @@ const CARREL_SITE = {
 
 const KIND = "post";
 const DEFAULT_AUTHOR = "Foxhound";
-/** A rename's new id is the post's new address, /blog/<id>. */
-const SLUG = SLUG_PATTERN;
 const REVISION_PREFIX = "rev-";
 /** Every schedule is due by then, so `due` at this time lists every row. A
  *  four-digit year, since the store compares times as ISO text. */
@@ -479,7 +477,8 @@ export function carrelAdapter(
       async rename(id, input) {
         const { row, pending } = await held(id, input.expectedVersion);
         const { newId } = input;
-        if (!SLUG.test(newId)) {
+        // A rename's new id is the post's new address, /blog/<id>.
+        if (!isSlug(newId)) {
           throw new RefusedError(
             "A post's id is its address, /blog/<id>: lower case letters and digits, joined by single hyphens.",
           );

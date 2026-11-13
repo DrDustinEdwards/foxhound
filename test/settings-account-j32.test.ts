@@ -288,7 +288,7 @@ describe("J32 review: only the owner can cancel the account", () => {
 });
 
 describe("J32 review: the theme choice in the demo", () => {
-  it("refuses in the demo without saving anything, as DemoGuardedForm refuses other writes", async () => {
+  it("refuses in the demo without saving anything, as ReadOnlyForm refuses other writes", async () => {
     const chooseTheme = await loadChooseTheme();
     const fetcher = vi.fn();
     expect(await chooseTheme("light", { isDemo: true, fetcher })).toBe("demo");

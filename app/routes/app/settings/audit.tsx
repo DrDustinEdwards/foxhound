@@ -1,22 +1,12 @@
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { SaveBar } from "capsomer/react/save-bar";
-import { PageHead } from "capsomer/react/page-head";
 import { Segmented } from "capsomer/react/segmented";
 import { Switch } from "capsomer/react/switch";
-import "capsomer/button.css";
-import "capsomer/save-bar.css";
-import "capsomer/status.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/segmented.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /settings/alerts and /settings/api-keys load them.
-import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -112,14 +102,8 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const failed = actionData?.ok === false;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Recova's PageHeader sits mb-8 above the first card. */}
-      <div className="mb-8">
-        <PageHead title="Audit" lead="Lookback period and monthly digest options." />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsPage title="Audit" lead="Lookback period and monthly digest options.">
+      <DemoForm method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
         <div className="mb-4">
@@ -184,7 +168,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           saved={saved}
           error={failed ? "Failed to save. Please try again." : null}
         />
-      </DemoGuardedForm>
-    </>
+      </DemoForm>
+    </SettingsPage>
   );
 }

@@ -34,10 +34,10 @@ import "capsomer/status.css";
 // firewall (appShellMiddleware's demoBlocksMethod) refuses it with no new rule
 // written here.
 //
-// IT IS NOT WRAPPED IN DemoGuardedForm, and the reason is that it never renders
+// IT IS NOT WRAPPED IN ReadOnlyForm, and the reason is that it never renders
 // for a demo visitor at all: the disputes route withholds it (see that file),
 // matching legacy, whose demo twin renders DisputesDashboardView alone and no
-// import control. DemoGuardedForm exists to intercept a click that would
+// import control. ReadOnlyForm exists to intercept a click that would
 // otherwise leave the browser, and there is no click to intercept here. The
 // boundary is unchanged either way: a hand-crafted POST still meets
 // appShellMiddleware's demoBlocksMethod.

@@ -1,7 +1,7 @@
 import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
 import { useShownFor } from "capsomer/react/hooks";
-import { data, useNavigation, useRouteLoaderData } from "react-router";
+import { data, useNavigation } from "react-router";
 import { Link } from "capsomer/react/link";
 import { eq } from "drizzle-orm";
 import { PageHead } from "capsomer/react/page-head";
@@ -22,9 +22,8 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { AuditSummary } from "~/components/audit/sections";
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { DemoForm, useDemoGuard } from "~/lib/demo/use-demo-guard";
 import { accounts, getDb } from "~/db";
-import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { listAuditRuns } from "~/lib/audit/persist.server";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { formatTotals, toStoredAuditRun } from "~/lib/audit/render";
@@ -285,10 +284,10 @@ export function AuditSettingsForm({
   result: SaveResult;
   saving: boolean;
 }) {
+  const demo = useDemoGuard({ keepScroll: true });
   const [lookbackDays, setLookbackDays] = useState(String(defaultLookbackDays));
   const [autoRun, setAutoRun] = useState(defaultAutoRun);
   const formRef = useRef<HTMLFormElement>(null);
-  const isDemo = Boolean(useRouteLoaderData<typeof appShellLoader>("app-shell")?.isDemo);
   const digestLabel = useId();
   const lookbackHelp = useId();
   const digestHelp = useId();
@@ -303,7 +302,7 @@ export function AuditSettingsForm({
   // radio or switch that has focus throws focus to the page body. A change
   // made while a save is in flight is held and sent once that save settles
   // (app/lib/audit/save-queue.ts), so saves cannot land out of order and the
-  // last value wins. In the demo DemoGuardedForm refuses the submit in place,
+  // last value wins. In the demo ReadOnlyForm refuses the submit in place,
   // so no save ever starts and nothing is queued.
   const queue = useRef<SaveQueue | null>(null);
   queue.current ??= createSaveQueue(() => formRef.current?.requestSubmit());
@@ -313,12 +312,12 @@ export function AuditSettingsForm({
     wasSaving.current = saving;
   }, [saving]);
   const save = () => {
-    if (isDemo) formRef.current?.requestSubmit();
+    if (demo.readOnly) formRef.current?.requestSubmit();
     else queue.current?.change();
   };
 
   return (
-    <DemoGuardedForm method="post" ref={formRef} preventScrollReset>
+    <DemoForm keepScroll method="post" ref={formRef}>
       <div aria-busy={saving || undefined}>
         <div className="mb-5 min-w-0">
           {/* The visible label repeats the legend's words, which name the group
@@ -378,7 +377,7 @@ export function AuditSettingsForm({
         {!saving && shown?.ok === true ? <span className="text-green">Saved.</span> : null}
         {!saving && shown?.ok === false ? <span className="text-red">Save failed.</span> : null}
       </div>
-    </DemoGuardedForm>
+    </DemoForm>
   );
 }
 

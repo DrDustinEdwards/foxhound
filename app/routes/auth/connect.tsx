@@ -1,5 +1,6 @@
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { TextField } from "capsomer/react/field";
 import { PermissionList } from "capsomer/react/consent";
 import type { ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
@@ -300,24 +301,17 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
         />
         <Form method="post" className="grid gap-4">
           {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
-          {/* Capsomer's field through its HTML contract. The React Field
-              sets the input's required from its own prop, so keeping the
-              browser's required check would also print a "Required" marker
-              (12px, off the five sizes) this step never had. */}
-          <div className="cap-field">
-            <label className="cap-field-label" htmlFor="connect-account-name">
-              Account name
-            </label>
-            <input
-              id="connect-account-name"
-              className="cap-input"
-              name="name"
-              type="text"
-              autoComplete="organization"
-              required
-              defaultValue={loaderData.userName ?? undefined}
-            />
-          </div>
+          {/* The browser's required check, with no "Required" marker: this
+              step has one field and never had one. */}
+          <TextField
+            id="connect-account-name"
+            label="Account name"
+            name="name"
+            autoComplete="organization"
+            required
+            showRequired={false}
+            defaultValue={loaderData.userName ?? undefined}
+          />
           <Button type="submit" variant="primary" pending={busy}>
             {busy ? "Creating..." : "Create account"}
           </Button>

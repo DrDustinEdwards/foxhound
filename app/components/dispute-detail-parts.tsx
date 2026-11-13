@@ -1,24 +1,25 @@
 // Parts of the dispute detail page (routes/app/disputes/detail.tsx split): the
-// approve button, the accept control, field rows and the evidence file forms.
+// approve button, field rows and the evidence file forms.
 
 import { formatDate } from "capsomer/behavior/time";
-import { DISPUTE_EVIDENCE_ALLOWED_TYPES, DISPUTE_EVIDENCE_MAX_FILES } from "~/lib/constants";
-import { useEffect, useId, useRef, useState } from "react";
-import { Form, useFetcher } from "react-router";
+import {
+  DISPUTE_EVIDENCE_ALLOWED_TYPES,
+  DISPUTE_EVIDENCE_MAX_FILES,
+  DISPUTE_EVIDENCE_MAX_SIZE_BYTES,
+} from "~/lib/constants";
+import { useFetcher } from "react-router";
 import { Panel } from "capsomer/react/panel";
-import { Status } from "capsomer/react/status";
-import { ACCEPT_CONFIRM_LINE, UNSAVED_APPROVE_LINE } from "~/lib/disputes/detail";
+import { FileAttach } from "capsomer/react/file-attach";
+import "capsomer/file-attach.css";
+import { UNSAVED_APPROVE_LINE } from "~/lib/disputes/detail";
 import {
   EVIDENCE_DELETE_FORM_ID,
-  EVIDENCE_FILE_MESSAGES,
   EVIDENCE_FILE_REMOVE_CONFIRM,
   EVIDENCE_FILES_LIMITS_LINE,
   EVIDENCE_FILES_UNAVAILABLE_LINE,
   EVIDENCE_UPLOAD_FORM_ID,
   evidenceFileHref,
   fileNameFromPath,
-  precheckEvidenceFile,
-  type EvidenceFileOutcome,
 } from "~/lib/disputes/evidence-files";
 import { confirmSubmit } from "capsomer/behavior/confirm-dialog";
 import type { action } from "~/routes/app/disputes/detail";
@@ -61,86 +62,6 @@ export function ApproveButton({
   );
 }
 
-/**
- * Recova's Accept (DisputeActionBar.tsx): "Accept dispute", then in its place
- * the line, "Yes, accept" and "Cancel". The first button posts a harmless
- * intent so the confirmation also works without script; with script it opens
- * in place. Focus follows the swap so a keyboard user is never left on a button
- * that has gone: opening lands on Cancel (never on "Yes, accept", so a second
- * Enter cannot concede the dispute), and Cancel returns to "Accept dispute".
- */
-export function AcceptControl({
-  open,
-  accepting,
-  returnFocus,
-  onOpen,
-  onCancel,
-}: {
-  open: boolean;
-  accepting: boolean;
-  returnFocus: boolean;
-  onOpen: () => void;
-  onCancel: () => void;
-}) {
-  const lineId = useId();
-  if (!open) {
-    return (
-      <Form method="post">
-        <input type="hidden" name="intent" value="accept_confirm" />
-        <button
-          type="submit"
-          className="cap-btn"
-          // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus returns to the Accept button when the confirm step is canceled
-          autoFocus={returnFocus}
-          onClick={(e) => {
-            e.preventDefault();
-            onOpen();
-          }}
-        >
-          Accept dispute
-        </button>
-      </Form>
-    );
-  }
-  return (
-    <Form
-      method="post"
-      className="flex flex-wrap items-center gap-2"
-      aria-label="Accept this dispute"
-    >
-      <input type="hidden" name="intent" value="accept" />
-      <span id={lineId} className="text-label text-text-secondary">
-        {ACCEPT_CONFIRM_LINE}
-      </span>
-      <button
-        type="submit"
-        className="cap-btn"
-        data-variant="danger"
-        data-size="sm"
-        aria-describedby={lineId}
-        aria-disabled={accepting ? true : undefined}
-        onClick={(e) => {
-          if (accepting) e.preventDefault();
-        }}
-      >
-        {accepting ? "Accepting…" : "Yes, accept"}
-      </button>
-      <button
-        type="button"
-        className="cap-btn"
-        data-variant="quiet"
-        data-size="sm"
-        aria-describedby={lineId}
-        // oxlint-disable-next-line jsx-a11y/no-autofocus -- the confirm step opens on Cancel, so a second Enter cannot concede the dispute
-        autoFocus
-        onClick={onCancel}
-      >
-        Cancel
-      </button>
-    </Form>
-  );
-}
-
 /** Recova's Row (formatters.tsx): the label in a 140px column, the value
  *  beside it. Multi-line evidence keeps its line breaks. */
 export function FieldRow({ label, value }: { label: string; value: string }) {
@@ -177,13 +98,13 @@ export function EvidenceFileForms() {
 }
 
 /**
- * Recova's DisputeFileUploads (1286eb21): the title with the limits line, an
- * "Upload file" control while fewer than five files are on the dispute, the
- * files by name and date with "Remove file", or "No files uploaded.". Choosing
- * a file uploads it at once, as Recova's onChange did, after Recova's own
- * checks; without script the Upload button beside it posts the same form.
- * Read-only once approved or submitted, and in the demo. With no bucket bound,
- * the upload control's place says so.
+ * Recova's DisputeFileUploads (1286eb21) on Capsomer's FileAttach: the title
+ * with the limits line, an "Upload file" control while fewer than five files
+ * are on the dispute, the files by name and date with "Remove file", or "No
+ * files uploaded.". Choosing a file uploads it at once, as Recova's onChange
+ * did, after the part's checks; without script its Upload button posts the same
+ * form. Read-only once approved or submitted, and in the demo: no control and
+ * no Remove file. With no bucket bound, the upload control's place says so.
  */
 export function EvidenceFiles({
   disputeId,
@@ -198,135 +119,56 @@ export function EvidenceFiles({
 }) {
   const upload = useFetcher<typeof action>({ key: UPLOAD_FETCHER_KEY });
   const remove = useFetcher<typeof action>({ key: DELETE_FETCHER_KEY });
-  const inputRef = useRef<HTMLInputElement>(null);
-  const inputId = useId();
-  const [precheck, setPrecheck] = useState<EvidenceFileOutcome | null>(null);
-  const uploading = upload.state !== "idle";
   const canChange = editable && available;
-
-  // A finished upload clears the chosen file, as Recova's did.
-  const uploadDone = upload.state === "idle" && upload.data !== undefined;
-  useEffect(() => {
-    if (uploadDone && inputRef.current) inputRef.current.value = "";
-  }, [uploadDone, upload.data]);
 
   const resultError = (d: unknown) =>
     d && typeof d === "object" && "fileOutcome" in d && "error" in d
       ? String((d as { error: unknown }).error)
       : null;
-  const error = precheck
-    ? EVIDENCE_FILE_MESSAGES[precheck]
-    : (resultError(upload.data) ?? resultError(remove.data));
-
-  let control: React.ReactNode = null;
-  if (editable && !available) {
-    control = (
-      <span className="text-micro text-text-subtle">{EVIDENCE_FILES_UNAVAILABLE_LINE}</span>
-    );
-  } else if (canChange && files.length < DISPUTE_EVIDENCE_MAX_FILES) {
-    control = (
-      <span className="inline-flex items-center gap-2">
-        <span className="inline-flex rounded-md has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-(--ring) has-[:focus-visible]:outline-solid">
-          <label
-            htmlFor={inputId}
-            className="cap-btn"
-            data-size="sm"
-            aria-disabled={uploading ? true : undefined}
-          >
-            {uploading ? "Uploading…" : "Upload file"}
-          </label>
-        </span>
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="file"
-          name="file"
-          accept={DISPUTE_EVIDENCE_ALLOWED_TYPES.join(",")}
-          form={EVIDENCE_UPLOAD_FORM_ID}
-          className="sr-only"
-          disabled={uploading}
-          onChange={(e) => {
-            const input = e.currentTarget;
-            const file = input.files?.[0];
-            if (!file) return;
-            const refused = precheckEvidenceFile(file, files.length);
-            setPrecheck(refused);
-            if (refused) return;
-            if (input.form)
-              void upload.submit(input.form, { method: "post", encType: "multipart/form-data" });
-          }}
-        />
-        <noscript>
-          <button type="submit" form={EVIDENCE_UPLOAD_FORM_ID} className="cap-btn" data-size="sm">
-            Upload
-          </button>
-        </noscript>
-      </span>
-    );
-  }
 
   return (
-    <Panel title="Evidence files" description={EVIDENCE_FILES_LIMITS_LINE} actions={control}>
-      <div className="text-label">
-        <div role="status" className="text-micro">
-          {error ? <Status tone="crit">{error}</Status> : null}
-        </div>
-        {files.length === 0 ? (
-          <p className="m-0 text-micro text-text-subtle">No files uploaded.</p>
-        ) : (
-          <ul className="m-0 list-none space-y-1 p-0">
-            {files.map((f) => {
-              const name = fileNameFromPath(f.fieldValue);
-              return (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between gap-3 border-b border-border-sub py-1.5 last:border-b-0"
+    <Panel title="Evidence files" description={EVIDENCE_FILES_LIMITS_LINE}>
+      <FileAttach
+        files={files.map((f) => ({
+          id: f.id,
+          name: fileNameFromPath(f.fieldValue),
+          href: available ? evidenceFileHref(disputeId, f.id) : undefined,
+          meta: formatDate(f.createdAt, { style: "medium" }) ?? "",
+        }))}
+        form={EVIDENCE_UPLOAD_FORM_ID}
+        accept={DISPUTE_EVIDENCE_ALLOWED_TYPES.join(",")}
+        maxBytes={DISPUTE_EVIDENCE_MAX_SIZE_BYTES}
+        // A locked dispute takes no more files, so the list holds what it has.
+        maxFiles={canChange ? DISPUTE_EVIDENCE_MAX_FILES : files.length}
+        pending={upload.state !== "idle"}
+        onFiles={(_chosen, input) => {
+          if (input.form)
+            void upload.submit(input.form, { method: "post", encType: "multipart/form-data" });
+        }}
+        error={resultError(upload.data) ?? resultError(remove.data)}
+        unavailable={editable && !available ? EVIDENCE_FILES_UNAVAILABLE_LINE : undefined}
+        renderRemove={
+          canChange
+            ? (f) => (
+                <button
+                  type="submit"
+                  form={EVIDENCE_DELETE_FORM_ID}
+                  name="evidence_id"
+                  value={f.id}
+                  className="cap-btn"
+                  data-variant="quiet"
+                  data-size="sm"
+                  aria-label={`Remove file ${f.name}`}
+                  onClick={(e) =>
+                    confirmSubmit(e, { title: EVIDENCE_FILE_REMOVE_CONFIRM, action: "Remove file" })
+                  }
                 >
-                  {available ? (
-                    <a
-                      href={evidenceFileHref(disputeId, f.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-label text-brand-text hover:opacity-80"
-                    >
-                      {name}
-                      <span className="cap-sr-only"> (opens in a new tab)</span>
-                    </a>
-                  ) : (
-                    <span className="text-label text-text">{name}</span>
-                  )}
-                  <span className="flex items-center gap-3">
-                    <span className="text-micro text-text-subtle">
-                      {formatDate(f.createdAt, { style: "medium" }) ?? ""}
-                    </span>
-                    {canChange ? (
-                      <button
-                        type="submit"
-                        form={EVIDENCE_DELETE_FORM_ID}
-                        name="evidence_id"
-                        value={f.id}
-                        className="cap-btn"
-                        data-variant="quiet"
-                        data-size="sm"
-                        aria-label={`Remove file ${name}`}
-                        onClick={(e) => {
-                          setPrecheck(null);
-                          confirmSubmit(e, {
-                            title: EVIDENCE_FILE_REMOVE_CONFIRM,
-                            action: "Remove file",
-                          });
-                        }}
-                      >
-                        Remove file
-                      </button>
-                    ) : null}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+                  Remove file
+                </button>
+              )
+            : undefined
+        }
+      />
     </Panel>
   );
 }

@@ -1,4 +1,16 @@
 import { Outlet } from "react-router";
+// The CSS every settings page reads, loaded once here for all of them: Capsomer's parts, and the
+// tokens and amber family they read (~/site-header.css; the shell loads it too, and this keeps a
+// settings page whole under any layout).
+import "capsomer/button.css";
+import "capsomer/field.css";
+import "capsomer/page-head.css";
+import "capsomer/panel.css";
+import "capsomer/save-bar.css";
+import "capsomer/settings-row.css";
+import "capsomer/status.css";
+import "capsomer/switch.css";
+import "~/site-header.css";
 
 // S25's settings layout, ported from Recova's (app/(app)/settings/layout.tsx,
 // blob `606c17335817`, 700 bytes).

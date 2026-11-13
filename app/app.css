@@ -859,3 +859,14 @@ body {
   --accent-soft: var(--purple-bg);
   --accent-text: var(--purple);
 }
+
+/* The page fills the main column, so on a short page the footer sits at the
+   bottom of the window, not under the last card. AdminShell's main row already
+   stretches to the window (grid row 1fr, min-height 100dvh). */
+.fh-app .cap-admin-main {
+  display: flex;
+  flex-direction: column;
+}
+.fh-app-page {
+  flex: 1 0 auto;
+}

@@ -2,23 +2,12 @@ import { capitalize } from "@drdustinedwards/site-helpers/text";
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
 import { SaveBar } from "capsomer/react/save-bar";
-import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/select.css";
-import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/features does.
-import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -224,18 +213,11 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
   const saving = useNavigation().state === "submitting";
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Brand voice"
-          lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
-        />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsPage
+      title="Brand voice"
+      lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
+    >
+      <DemoForm method="post">
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -285,7 +267,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             result?.ok === false ? (result.error ?? "Failed to save. Please try again.") : null
           }
         />
-      </DemoGuardedForm>
-    </>
+      </DemoForm>
+    </SettingsPage>
   );
 }
