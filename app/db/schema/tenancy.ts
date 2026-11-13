@@ -299,9 +299,8 @@ export const apiKeys = sqliteTable(
     index("api_keys_account_idx").on(t.accountId),
     // Every bearer-token request looks its key up by hash (auth/mcp-tokens.ts),
     // and a hash must name one key, so the lookup can never pick between two.
-    // The unique index came in 0076 as an addition; the plain one it makes
-    // redundant goes in a later contract migration (a drop is hand-run).
-    index("api_keys_key_hash_idx").on(t.keyHash),
+    // The unique index came in 0076 as an addition; 0083 dropped the plain one
+    // it made redundant.
     uniqueIndex("api_keys_key_hash_uq").on(t.keyHash),
   ],
 );
