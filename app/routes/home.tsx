@@ -18,7 +18,8 @@ import { Hero } from "capsomer/react/hero";
 import "capsomer/cta-band.css";
 import "capsomer/hero.css";
 import { EmailSamples } from "~/components/email-samples";
-import { CARD, CTA_BUTTON } from "~/components/marketing-card";
+import { CARD } from "~/components/marketing-card";
+import { ConnectStripeAction } from "~/components/product-sections-cap";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
@@ -150,13 +151,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             lead={
               <>
                 {HERO_LEAD} <span className="fh-mono fh-text">{RECOVERY_FEE}</span> of what Foxhound
-                Foxhound recovers. Anything Stripe would have recovered on its own is free. Nothing
+                recovers. Anything Stripe would have recovered on its own is free. Nothing until you
                 have held the money for <span className="fh-mono fh-text">{MATURITY_DAYS}</span>{" "}
                 days.
               </>
             }
             actions={
-              <div className="fh-mk-wrap-text fh-center" data-density="comfortable">
+              <div className="fh-density" data-density="comfortable">
                 <ButtonLink to="/audit" className="fh-semibold" variant="primary" size="lg">
                   Run your free audit
                 </ButtonLink>
@@ -164,7 +165,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <ButtonLink
                   to="/demos/recovery"
                   rel="nofollow"
-                  className="group [--cap-btn-bg:transparent]"
+                  className="fh-home-link fh-hover-group"
                   size="lg"
                 >
                   See it live
@@ -528,22 +529,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         quiet
         className="fh-closing-band fh-closing-home"
         title="See what your Stripe account is leaking"
-        actions={
-          <div className="fh-mk-wrap-text fh-center" data-density="comfortable">
-            <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
-              Connect Stripe, it is free
-            </ButtonLink>
-          </div>
-        }
+        actions={<ConnectStripeAction />}
         note={
           <>
-            <span className="fh-home-label-2 fh-mono fh-tiny fh-quiet">
+            <span className="fh-home-block-15 fh-line fh-mono fh-caption fh-faint">
               No account required &middot; Results in 30 seconds &middot; Disconnect anytime
             </span>
-            <span className="fh-home-label-2 fh-mono fh-tiny fh-quiet">
+            <span className="fh-home-block-16 fh-line fh-mono fh-caption fh-faint">
               {COMPAT_TAGS.join(" · ")}
             </span>
-            <span className="fh-home-label-2 fh-mono fh-tiny fh-quiet">
+            <span className="fh-home-row-4">
               <Link
                 to="/demos/recovery"
                 rel="nofollow"

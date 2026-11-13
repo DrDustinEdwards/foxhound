@@ -172,11 +172,6 @@
   .fh-cron-run {
     border-radius: 0.25rem;
   }
-  .fh-out-icon {
-    width: 1rem;
-    height: 1rem;
-    flex-shrink: 0;
-  }
   .fh-panel-note {
     border-bottom-style: solid;
     border-bottom-width: 1px;

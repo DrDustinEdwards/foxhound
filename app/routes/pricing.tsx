@@ -3,11 +3,12 @@ import { Icon, iconArrowRight, iconCheck } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { CtaBand } from "capsomer/react/cta-band";
 import { Hero } from "capsomer/react/hero";
-import { Link, ButtonLink } from "capsomer/react/link";
+import { Link } from "capsomer/react/link";
 import "capsomer/cta-band.css";
 import "capsomer/hero.css";
 
-import { CARD, CTA_BUTTON } from "~/components/marketing-card";
+import { CARD } from "~/components/marketing-card";
+import { ConnectStripeAction } from "~/components/product-sections-cap";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
@@ -205,13 +206,7 @@ export default function PricingPage() {
         quiet
         className="fh-closing-band fh-closing-pricing"
         title="See what your Stripe account is leaking"
-        actions={
-          <div className="fh-closing-density" data-density="comfortable">
-            <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
-              Connect Stripe, it is free
-            </ButtonLink>
-          </div>
-        }
+        actions={<ConnectStripeAction />}
         note={
           <>
             {/* 376 item 20: this line used to read "No account required . No Stripe
@@ -221,7 +216,7 @@ export default function PricingPage() {
               estimator needs no connection, the full audit is a connection. The
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
-            <span className="fh-pricing-label fh-mono fh-price fh-medium fh-tight fh-accent">
+            <span className="fh-pricing-block-4 fh-line fh-mono fh-caption fh-faint">
               Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
               that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
             </span>

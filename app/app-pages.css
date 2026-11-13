@@ -878,10 +878,6 @@
   .fh-auditd-digest-label {
     margin-bottom: 0.125rem;
   }
-  .fh-auditd-status {
-    margin-top: 0.75rem;
-    min-height: 1rem;
-  }
   .fh-auditd-block {
     margin-bottom: 1.25rem;
   }
@@ -1278,12 +1274,6 @@
   .fh-customers-foot {
     margin-top: 2rem;
     margin-bottom: 0px;
-  }
-  .fh-customers-filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 0.75rem;
   }
   .fh-intel-section {
     margin-top: 2rem;
