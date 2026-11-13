@@ -1,5 +1,6 @@
 import { Link } from "capsomer/react/link";
 import type { ReactNode } from "react";
+import "~/auth.css";
 
 // Its own module, so a page that needs only the link (the connect pages) does not load the sign-in
 // card's passkey, Turnstile and auth client code with it.
@@ -8,7 +9,7 @@ import type { ReactNode } from "react";
  *  as a target. */
 export function AuthLink({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <Link to={to} className="inline-flex min-h-6 items-center">
+    <Link to={to} className="fh-auth-link">
       {children}
     </Link>
   );

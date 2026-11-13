@@ -82,7 +82,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
         title="You're signed in"
         subtitle="Next time, skip the email. A passkey signs you in with your face, fingerprint or device PIN, and it only works on Foxhound, so it cannot be phished."
       />
-      <div className="grid gap-3">
+      <div className="fh-auth-form">
         <Button
           type="button"
           variant="primary"
