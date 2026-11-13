@@ -538,20 +538,8 @@ body {
    text colors and its faces, one class each, read by every page. Each page's own parts sit beside
    it (admin.css for the admin). */
 @layer site {
-  .fh-hero-lg {
-    font-size: 4rem;
-  }
-  .fh-statement-lg {
-    font-size: 4.5rem;
-  }
-  .fh-statement-md {
-    font-size: 3.5rem;
-  }
   .fh-hero {
     font-size: 2.75rem;
-  }
-  .fh-price {
-    font-size: 2.5rem;
   }
   .fh-statement {
     font-size: 2.25rem;
@@ -564,9 +552,6 @@ body {
   }
   .fh-section {
     font-size: 1.75rem;
-  }
-  .fh-section-lg {
-    font-size: 2rem;
   }
   .fh-item-title {
     font-size: 0.9375rem;
@@ -757,8 +742,7 @@ body {
   .fh-archive-link,
   .fh-archive-text-3,
   .fh-blog-link,
-  .fh-blog-link-3,
-  .fh-features-link {
+  .fh-blog-link-3 {
     transition-property:
       color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
