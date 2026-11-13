@@ -71,9 +71,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-/** Recova's RelLink and TOC link: amber, underlined. */
-const LINK = "text-accent-text underline underline-offset-2 hover:opacity-80";
-
 export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const { guide } = loaderData;
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
@@ -105,7 +102,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
               <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
                 {guide.sections.map((section, i) => (
                   <li key={section.heading} className="text-label leading-6">
-                    <a href={`#${sectionIds[i]}`} className={LINK}>
+                    <a href={`#${sectionIds[i]}`}>
                       Part {i + 1}. {section.heading}
                     </a>
                   </li>

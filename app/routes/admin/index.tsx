@@ -192,10 +192,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         <div className="grid gap-2">
           <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
             {failed === 1 ? (
-              <Link
-                to={cronRunHref(failedRuns[0].id)}
-                className="text-error-text underline underline-offset-2"
-              >
+              <Link to={cronRunHref(failedRuns[0].id)} className="text-error-text">
                 {failedSentence}
               </Link>
             ) : (
@@ -206,9 +203,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
             <ul className="m-0 grid gap-1 p-0 text-label">
               {failedRuns.map((run) => (
                 <li key={run.id}>
-                  <Link to={cronRunHref(run.id)} className="text-text underline underline-offset-2">
-                    {run.cronName}
-                  </Link>{" "}
+                  <Link to={cronRunHref(run.id)}>{run.cronName}</Link>{" "}
                   <span className="text-text-tertiary">
                     failed <Time at={run.finishedAt} empty="never" tip />
                     {run.message ? `: ${run.message}` : null}

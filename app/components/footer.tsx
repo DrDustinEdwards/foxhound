@@ -146,7 +146,12 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
     <footer className="border-t border-border bg-chrome">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
         {hasColumnsAbove ? (
-          <div className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-4 lg:grid-cols-5">
+          // A nav, as Capsomer's family footer groups its links: the link system draws no hover
+          // tint behind a link in a nav (capsomer/links.css), and no footer link has one.
+          <nav
+            aria-label="Footer"
+            className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-4 lg:grid-cols-5"
+          >
             {/* Wordmark column. The brand mark itself is reserved for the
                 bottom row, matching legacy: this column is the wordmark only. */}
             <div>
@@ -173,7 +178,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 />
               ))}
             </div>
-          </div>
+          </nav>
         ) : null}
 
         {/* The inner border separates the column grid from the row, so it is
@@ -201,8 +206,9 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 © {year} Foxhound.
               </span>
             </div>
-            {variant === "auth"
-              ? AUTH_LEGAL_LINKS.map((link) => (
+            {variant === "auth" ? (
+              <nav aria-label="Legal" className="flex items-center gap-4">
+                {AUTH_LEGAL_LINKS.map((link) => (
                   <Link
                     key={link.to}
                     to={link.to}
@@ -210,8 +216,9 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                   >
                     {link.label}
                   </Link>
-                ))
-              : null}
+                ))}
+              </nav>
+            ) : null}
           </div>
           {/* Legacy's bottom row carries three social links here on EVERY
               variant, including app. They stay out under ruling 10 until

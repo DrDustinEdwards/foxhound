@@ -38,7 +38,6 @@
   --prose-image-radius: 10px;
   --prose-table-rule: var(--border);
   --accent-text: var(--brand-text);
-  --link-decoration: underline;
   /* The heading's section link, in Foxhound's tertiary ink. */
   --muted: var(--text-tertiary);
   font-size: var(--fs-prose);
@@ -68,15 +67,6 @@
   --diagram-info: color-mix(in srgb, var(--blue) 10%, transparent);
   --diagram-info-line: var(--blue);
   --diagram-info-ink: var(--blue);
-}
-/* Links in a post: Foxhound's link look (legacy's globals.css), since the public site does not load
-   Capsomer's base.css, where the link system lives. A heading's section link stays Capsomer's. */
-.blog-prose a:not(.heading-anchor) {
-  color: var(--brand-text);
-  text-decoration: underline;
-}
-.blog-prose a:not(.heading-anchor):hover {
-  opacity: 0.8;
 }
 
 /* Foxhound's heading and nested-list spacing, as its posts have always had it: Capsomer's prose

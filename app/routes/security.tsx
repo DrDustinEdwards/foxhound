@@ -10,7 +10,6 @@ import {
   type LegalSectionDef,
 } from "~/components/legal-page";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   RETENTION_AI_CALLS_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
@@ -20,7 +19,8 @@ import {
   STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
-import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/security";
@@ -56,10 +56,7 @@ export const SECURITY_SECTIONS: LegalSectionDef[] = [
   { id: "entity", number: 9, title: "WHO OPERATES FOXHOUND" },
 ];
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

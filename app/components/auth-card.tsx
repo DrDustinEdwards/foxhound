@@ -6,7 +6,6 @@ import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Form } from "react-router";
-import { Link } from "capsomer/react/link";
 
 import { authClient } from "~/lib/auth/client";
 
@@ -132,19 +131,6 @@ function AuthField({
         aria-describedby={errorId}
       />
     </div>
-  );
-}
-
-/** A small text link, amber, underlined so it is not told apart by color
- *  alone, and 24px tall as a target. */
-export function AuthLink({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <Link
-      to={to}
-      className="inline-flex min-h-6 items-center text-brand-text underline underline-offset-2 hover:opacity-80"
-    >
-      {children}
-    </Link>
   );
 }
 

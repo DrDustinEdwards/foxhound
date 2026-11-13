@@ -23,10 +23,6 @@ import { HealthScoreBadge } from "./health-score-badge";
 // TEXT IS AT RECOVA'S SIZES: 0.9375rem for body and H3, 0.8125rem for callouts
 // and tables, through the named type tokens in app.css.
 
-/** Amber, underlined: Recova's RelLink, in the accent text the 2026-10-13 tokens
- *  set. */
-const LINK = "text-accent-text underline underline-offset-2 hover:opacity-80";
-
 function InlineRun({ inline }: { inline: DocInline }) {
   if (typeof inline === "string") return <>{inline}</>;
   if ("code" in inline) {
@@ -50,13 +46,11 @@ function InlineRun({ inline }: { inline: DocInline }) {
   // An in-app path routes through Link so the marketing shell is not torn down;
   // anything else is a plain anchor.
   return inline.to.startsWith("/") ? (
-    <Link to={inline.to} rel={appLinkRel(inline.to)} className={LINK}>
+    <Link to={inline.to} rel={appLinkRel(inline.to)}>
       {inline.link}
     </Link>
   ) : (
-    <a href={inline.to} className={LINK}>
-      {inline.link}
-    </a>
+    <a href={inline.to}>{inline.link}</a>
   );
 }
 

@@ -16,8 +16,7 @@ const KEYS_HEADING_ID = "admin-mcps-keys-heading";
 const TOOLS_HEADING_ID = "admin-mcps-tools-heading";
 const CALLS_HEADING_ID = "admin-mcps-calls-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK =
-  "inline-block min-h-6 leading-6 text-text underline underline-offset-2 hover:text-brand-text";
+const LINK = "inline-block min-h-6 leading-6";
 
 // The MCP part of /admin/operations. It was its own page, /admin/mcps,
 // with no row in the admin menu; Dustin had it folded into Operations on

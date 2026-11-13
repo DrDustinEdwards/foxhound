@@ -11,6 +11,9 @@ import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import { resolveThemeForRequest } from "~/lib/theme.server";
 
 import type { Route } from "./+types/marketing";
+// One cue more per kind of link on the public pages: another site, a file, mail (Capsomer's link
+// system; the base cues are app.css's capsomer/links.css).
+import "capsomer/link.css";
 
 // Anonymous visitors stay zero-DB (task: "Anonymous visitors stay zero-DB
 // exactly as now"). An authenticated visitor additionally resolves their

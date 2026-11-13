@@ -129,7 +129,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         {competitor.priceSource ? (
           <p className="mb-4 text-label text-text-tertiary">
             {competitor.name} pricing:{" "}
-            <a href={competitor.priceSource.url} rel="noopener noreferrer" className="underline">
+            <a href={competitor.priceSource.url} rel="external noopener noreferrer">
               {competitor.priceSource.url}
             </a>
             , read {competitor.priceSource.checked}.

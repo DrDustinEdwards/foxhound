@@ -74,10 +74,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
             style: "medium",
           }) ?? ""}{" "}
           recovered{" "}
-          <Link
-            to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}
-            className="text-brand-text hover:underline"
-          >
+          <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}>
             {formatMoney(recoveredPayment.amountCents, recoveredPayment.currency)}
           </Link>{" "}
           on {formatDate(recoveredPayment.recoveredAt, { style: "medium" }) ?? ""}
@@ -91,10 +88,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
           {dispute.resolvedAt
             ? ` on ${formatDate(dispute.resolvedAt, { style: "medium" }) ?? ""}`
             : ""}
-          .{" "}
-          <Link to={`/disputes/${dispute.id}`} className="text-brand-text hover:underline">
-            View dispute
-          </Link>
+          . <Link to={`/disputes/${dispute.id}`}>View dispute</Link>
         </p>
       ) : null}
 
@@ -134,12 +128,7 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
       </div>
       <p className="text-label text-text-tertiary">
         No Foxhound action preceded this recovery, Stripe's own retry recovered it.{" "}
-        <Link
-          to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}
-          className="text-brand-text hover:underline"
-        >
-          View payment
-        </Link>
+        <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}>View payment</Link>
       </p>
     </ChainRow>
   );

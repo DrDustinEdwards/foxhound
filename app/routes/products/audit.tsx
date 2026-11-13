@@ -10,7 +10,6 @@ import {
   ProductHero,
   ProductPricing,
 } from "~/components/product-sections-cap";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   AUDIT_BLOCKS,
   AUDIT_BOTTOM_CTA,
@@ -21,7 +20,8 @@ import {
   AUDIT_SECTION_LABEL,
   AUDIT_STEPS,
 } from "~/lib/marketing/audit-copy";
-import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
+import { speakableWebPageJsonLd } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
@@ -69,10 +69,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function AuditProductPage() {
   return (

@@ -17,10 +17,6 @@ export const PRODUCT_ICONS = {
   intelligence: TrendingUp,
 } as const;
 
-/** Recova's inline link inside a sentence, in the family's accent. */
-const INLINE_LINK =
-  "text-accent-text underline underline-offset-2 transition-opacity duration-150 hover:opacity-80";
-
 export function Arrow() {
   return (
     <ArrowRight
@@ -39,7 +35,7 @@ export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
     // so "Read-only" goes and Recova's OAuth link stays.
     body: (
       <>
-        <a href="https://stripe.com/docs/connect/oauth-standard-accounts" className={INLINE_LINK}>
+        <a href="https://stripe.com/docs/connect/oauth-standard-accounts" rel="external">
           OAuth
         </a>
         . 60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.
@@ -54,10 +50,8 @@ export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         When a payment fails, Foxhound classifies the decline and starts a{" "}
-        <Link to="/product/recovery" className={INLINE_LINK}>
-          {SEQUENCE_DAYS}-day AI-written email sequence
-        </Link>
-        , with a silent retry ahead of the first email wherever the decline can be retried.
+        <Link to="/product/recovery">{SEQUENCE_DAYS}-day AI-written email sequence</Link>, with a
+        silent retry ahead of the first email wherever the decline can be retried.
       </>
     ),
   },
@@ -66,11 +60,9 @@ export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         Monthly invoice for{" "}
-        <Link to="/pricing" className={INLINE_LINK}>
-          {RECOVERY_FEE} of the prior month&apos;s recoveries
-        </Link>{" "}
-        that have matured for {MATURITY_DAYS}+ days. Nothing owed on failed recoveries or
-        Stripe&apos;s own baseline recoveries. No minimums, no setup fees.
+        <Link to="/pricing">{RECOVERY_FEE} of the prior month&apos;s recoveries</Link> that have
+        matured for {MATURITY_DAYS}+ days. Nothing owed on failed recoveries or Stripe&apos;s own
+        baseline recoveries. No minimums, no setup fees.
       </>
     ),
   },
@@ -82,7 +74,7 @@ export const BILLING_ANSWER = (
       typeof part === "string" ? (
         part
       ) : (
-        <Link key={part.to} to={part.to} className={INLINE_LINK}>
+        <Link key={part.to} to={part.to}>
           {part.label}
         </Link>
       ),

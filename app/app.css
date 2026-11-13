@@ -16,6 +16,12 @@
    base.css's reset and body rules. They land in cap.utilities, inside the cap
    layer declared above, so Tailwind's utilities still win. */
 @import "capsomer/utilities.css";
+/* Capsomer's link system, without the rest of base.css, in Foxhound's look from its Capsomer entry
+   (root.tsx puts data-cap-site on <html>): semibold in amber with no line, a line under the
+   pointer in place of the tint, the visited color once followed. In cap.base, so a Tailwind class
+   on a link that is a button or a card wins. The public pages add each kind's cue
+   (capsomer/link.css, in layouts/marketing.tsx). */
+@import "capsomer/links.css";
 /* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
 @import "capsomer/reading-progress.css";
 @import "capsomer/reveal.css";

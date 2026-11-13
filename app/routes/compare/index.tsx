@@ -5,9 +5,8 @@ import "capsomer/panel.css";
 import { CARD_MD } from "~/components/marketing-card";
 import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { COMPETITOR_ORDER, COMPETITORS } from "~/lib/compare/competitors";
-import { siteUrl } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
@@ -30,10 +29,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function CompareIndex() {
   return (

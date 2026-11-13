@@ -216,13 +216,9 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
                   </Button>
                 </Form>
               ) : null}
-              {/* Recova's small underlined link in the secondary text color. Its
-                  box is Capsomer's minimum target height (--target), so the 13px
-                  line is still a 24px target (WCAG 2.2, 2.5.8). */}
-              <a
-                href="/"
-                className="inline-flex min-h-[var(--target)] items-center text-label text-text-secondary underline underline-offset-2 hover:text-text"
-              >
+              {/* A small text link. Its box is Capsomer's minimum target height
+                  (--target), so the 13px line is still a 24px target (WCAG 2.2, 2.5.8). */}
+              <a href="/" className="inline-flex min-h-[var(--target)] items-center text-label">
                 Return to Foxhound
               </a>
             </>

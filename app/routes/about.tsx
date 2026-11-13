@@ -1,7 +1,7 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { organizationJsonLd, personJsonLd, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { organizationJsonLd, personJsonLd, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
+import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/about";
@@ -40,10 +40,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  return { siteUrl: siteUrl(env) };
-}
+export const loader = siteUrlLoader;
 
 export default function AboutPage() {
   return (
@@ -76,13 +73,7 @@ export default function AboutPage() {
           </p>
           <p>
             Questions, bug reports, or just curious how something works: reach out at{" "}
-            <a
-              href={`mailto:${SUPPORT_EMAIL}`}
-              className="text-brand-text underline underline-offset-2 hover:opacity-80"
-            >
-              {SUPPORT_EMAIL}
-            </a>
-            .
+            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>
         </div>
       </div>
