@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
   useRouteLoaderData,
 } from "react-router";
 
@@ -74,12 +75,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const nonce = useNonce();
 
   const hydrates = usePageHydrates();
+  const { pathname } = useLocation();
 
-  // data-family="amber" puts the amber family's accents in Capsomer's lowest layer (capbase) for the
-  // whole page, so a link outside a .fh-cap wrapper takes amber tints, not Capsomer's default purple.
-  // Foxhound's own unlayered :root tokens still win where they share a name.
+  // data-family="amber" and data-cap-site="foxhound" put Capsomer's Foxhound entry (the amber accents
+  // and Recova's underlined links) in Capsomer's lowest layer (capbase) for the whole page, so a link
+  // outside a .fh-cap wrapper is Foxhound's link. Foxhound's own unlayered :root tokens still win where
+  // they share a name. The admin has its own look (app/admin.css), so it takes no site.
+  const admin = pathname === "/admin" || pathname.startsWith("/admin/");
   return (
-    <html lang="en" data-theme={theme} data-family="amber" className="h-full antialiased">
+    <html
+      lang="en"
+      data-theme={theme}
+      data-family="amber"
+      data-cap-site={admin ? undefined : "foxhound"}
+      className="h-full antialiased"
+    >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

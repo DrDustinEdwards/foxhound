@@ -16,10 +16,10 @@
    base.css's reset and body rules. They land in cap.utilities, inside the cap
    layer declared above, so Tailwind's utilities still win. */
 @import "capsomer/utilities.css";
-/* Capsomer's link system, without the rest of base.css: every text link in the link color,
-   semibold with no underline, a soft tint under the pointer, the visited color once followed.
-   In cap.base, so a Tailwind class on a link that is a button or a card wins. The public pages
-   add each kind's cue (capsomer/link.css, in layouts/marketing.tsx). */
+/* Capsomer's link system, without the rest of base.css, in Foxhound's look from its Capsomer entry
+   (root.tsx puts data-cap-site on <html>): Recova's underlined links at the text's weight, the
+   visited color once followed. In cap.base, so a Tailwind class on a link that is a button or a
+   card wins. The line is the non-color cue, so the kind marks (capsomer/link.css) are not loaded. */
 @import "capsomer/links.css";
 /* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
 @import "capsomer/reading-progress.css";

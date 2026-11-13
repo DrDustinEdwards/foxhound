@@ -16,16 +16,16 @@ import { markup } from "capsomer/behavior/trusted-html";
 // /accessibility: the statement every site in the network carries, from
 // Prelum's accessibilityStatement, so the standard and the wording are the same
 // everywhere. Foxhound is built from Capsomer's components, and its links are
-// Capsomer's link system (capsomer/links.css and link.css in app.css). The page wears the legal pages' shell (/privacy, /terms,
+// Capsomer's link system (capsomer/links.css in app.css) in Recova's underlined look (Capsomer's Foxhound entry). The page wears the legal pages' shell (/privacy, /terms,
 // /security): MarketingPageHeader over the 720px column, its headings, text and
 // links in the legal pages' classes. Prelum escapes every field it writes.
 
 const statement = accessibilityStatement({
   siteName: "Foxhound",
   contact: { href: `mailto:${SUPPORT_EMAIL}`, label: SUPPORT_EMAIL },
-  date: "2026-11-12",
+  date: "2026-11-13",
   capsomer: true,
-  links: "marked",
+  links: "underline",
 });
 
 const BODY =
