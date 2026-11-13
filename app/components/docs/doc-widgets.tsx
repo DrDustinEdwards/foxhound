@@ -1,6 +1,8 @@
 import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { AlertTriangle, CreditCard, Scale, Activity } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { FeatureGrid } from "capsomer/react/feature";
+import { ProcessSteps } from "capsomer/react/process";
 import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
@@ -18,7 +20,9 @@ import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
 import { HealthScoreBadge } from "./health-score-badge";
 
+import "capsomer/feature.css";
 import "capsomer/panel.css";
+import "capsomer/process.css";
 import "capsomer/status.css";
 import "capsomer/stat-tile.css";
 import "capsomer/table.css";
@@ -41,8 +45,9 @@ import "capsomer/table.css";
 
 /** Recova's four audit scope cards (AuditScopeCard, blob `dc1d18dd`), at its
  *  two-column grid, saying what Foxhound's engine computes for each
- *  (app/lib/audit/engine.ts). Recova's text glyphs become drawn icons, as on
- *  the app's step icons (APPROVED-DIFFERENCES, 2026-08-15). */
+ *  (app/lib/audit/engine.ts), as Capsomer's feature cards. Recova's text glyphs
+ *  become drawn icons, as on the app's step icons (APPROVED-DIFFERENCES,
+ *  2026-08-15). */
 function AuditScopes() {
   const scopes: [LucideIcon, string, string][] = [
     [
@@ -63,25 +68,14 @@ function AuditScopes() {
     [Activity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
   ];
   return (
-    <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {scopes.map(([Icon, title, description]) => (
-        <div key={title} className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="flex items-start gap-3">
-              <Icon
-                className="mt-0.5 shrink-0 text-accent-text"
-                size={18}
-                strokeWidth={1.75}
-                aria-hidden
-              />
-              <div>
-                <div className="mb-1 text-label font-medium text-text">{title}</div>
-                <div className="text-label leading-relaxed text-text-secondary">{description}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
+    <div className="my-6">
+      <FeatureGrid
+        items={scopes.map(([Icon, title, text]) => ({
+          icon: <Icon strokeWidth={1.75} aria-hidden />,
+          title,
+          text,
+        }))}
+      />
     </div>
   );
 }
@@ -309,7 +303,8 @@ function CustomerColumns() {
   );
 }
 
-/** The dispute states in order, from `DISPUTE_STATE_LABELS`. Recova's
+/** The dispute states in order, from `DISPUTE_STATE_LABELS`, as Capsomer's
+ *  process rows (the state's badge is the row's title). Recova's
  *  DisputesTablePreview mocks a list with a Triage column Foxhound does not
  *  have; the states are what Foxhound's approval gate turns on. */
 function DisputeStates() {
@@ -324,25 +319,17 @@ function DisputeStates() {
       "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
-    <ol className="my-6 flex list-none flex-col gap-2 p-0">
-      {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
-        <li key={key} className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="flex items-start gap-3">
-              <span className="shrink-0 font-mono text-micro text-accent-text">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <div className="flex flex-col items-start gap-1">
-                <Pill variant="outline">{label}</Pill>
-                <span className="text-label leading-relaxed text-text-secondary">
-                  {meaning[key] ?? ""}
-                </span>
-              </div>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ol>
+    <div className="my-6">
+      <ProcessSteps
+        layout="rows"
+        headingLevel="p"
+        steps={Object.entries(DISPUTE_STATE_LABELS).map(([key, label]) => ({
+          id: key,
+          title: <Pill variant="outline">{label}</Pill>,
+          text: meaning[key] ?? "",
+        }))}
+      />
+    </div>
   );
 }
 

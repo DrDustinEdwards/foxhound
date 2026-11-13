@@ -1,3 +1,7 @@
+import { Eyebrow } from "capsomer/react/eyebrow";
+
+import "capsomer/eyebrow.css";
+
 // Ported from legacy app/(marketing)/blog/BlogHeaderIntro.tsx: the eyebrow /
 // title / subtext stack at the top of /blog.
 //
@@ -19,8 +23,8 @@
 export function BlogHeaderIntro() {
   return (
     <div className="cap-reveal-stack">
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
-        Posts
+      <div className="mb-3">
+        <Eyebrow>Posts</Eyebrow>
       </div>
       <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">Blog</h1>
       <p className="mb-0 max-w-[560px] text-subhead leading-relaxed text-text-secondary">

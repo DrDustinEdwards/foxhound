@@ -1,11 +1,17 @@
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { Eyebrow } from "capsomer/react/eyebrow";
+import { FeatureBlock, Features } from "capsomer/react/feature";
+import { ProcessSteps } from "capsomer/react/process";
 import { Pill } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
 import { FaqList } from "~/components/faq-list";
 
+import "capsomer/eyebrow.css";
+import "capsomer/feature.css";
 import "capsomer/panel.css";
+import "capsomer/process.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
@@ -26,7 +32,8 @@ import "~/site-header.css";
 // audit spoke was the last, and the old file and its product-faq.tsx went
 // with it.
 //
-// Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure. Text is at
+// Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure, the
+// eyebrow, the process steps and the feature blocks (Capsomer 0.132.0). Text is at
 // Recova's sizes, accents amber. Recova's card padding and button heights are
 // set through Capsomer's own variables (--pad-card, --cap-btn-h), not by CSS
 // laid over its parts.
@@ -48,6 +55,21 @@ function PrimaryLink({ cta }: { cta: CTA }) {
     >
       {cta.label}
     </Link>
+  );
+}
+
+/** A section's name: Capsomer's eyebrow as the section heading, centered, as Recova's. */
+function SectionLabel({
+  children,
+  className = "mb-10",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`text-center ${className}`}>
+      <Eyebrow as="h2">{children}</Eyebrow>
+    </div>
   );
 }
 
@@ -110,20 +132,8 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
   return (
     <section className="border-b border-border px-5 py-16 sm:px-8">
       <div className="mx-auto max-w-[760px]">
-        <h2 className="mb-10 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          How it works
-        </h2>
-        <ol className="m-0 grid list-none grid-cols-1 gap-8 p-0 sm:grid-cols-3">
-          {steps.map((step, i) => (
-            <li key={step.title}>
-              <div className="mb-3 font-mono text-micro text-accent-text" aria-hidden="true">
-                0{i + 1}
-              </div>
-              <h3 className="mb-2 text-item-title font-medium text-text">{step.title}</h3>
-              <p className="text-copy leading-relaxed text-text-secondary">{step.body}</p>
-            </li>
-          ))}
-        </ol>
+        <SectionLabel>How it works</SectionLabel>
+        <ProcessSteps steps={steps.map((step) => ({ title: step.title, text: step.body }))} />
       </div>
     </section>
   );
@@ -136,7 +146,7 @@ export interface ProductFeatureBlock {
   ui: React.ReactNode;
   /** Recova's middle block: the whole block on a lifted surface. */
   lifted?: boolean;
-  /** Recova's tall UI (a table): a 480px window that scrolls, named here. */
+  /** Recova's tall UI (a table): a window that scrolls, named here. */
   tallLabel?: string;
 }
 
@@ -150,65 +160,22 @@ export function FeatureBlocks({
   return (
     <section className="speakable-features border-b border-border px-5 py-20 sm:px-8">
       <div className="mx-auto max-w-[1100px]">
-        <div className="mb-16 text-center">
-          <h2 className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
-            {sectionLabel}
-          </h2>
-        </div>
-        <div className="space-y-24">
-          {blocks.map((block) => {
-            const kind = block.lifted ? "lifted" : block.tallLabel ? "tall" : "plain";
-            const inner = (
-              <div className="space-y-6">
-                <div className="mx-auto max-w-[640px] text-center">
-                  <div className="mb-3 text-micro font-medium uppercase tracking-widest text-accent-text">
-                    {block.eyebrow}
-                  </div>
-                  <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">
-                    {block.title}
-                  </h3>
-                  <p className="text-subhead leading-relaxed text-text-secondary">{block.body}</p>
-                </div>
-                {/* Recova's UI card: a bordered surface with no padding of its
-                    own, so each preview sets its own, as Recova's do. */}
-                <div className="cap-panel">
-                  <div className="cap-panel-body" data-flush>
-                    {block.tallLabel ? (
-                      // A window that scrolls is a stop for the keyboard, named
-                      // for what it holds (Recova's has neither).
-                      <div
-                        role="region"
-                        aria-label={block.tallLabel}
-                        tabIndex={0}
-                        className="max-h-[480px] overflow-y-auto overflow-x-hidden"
-                      >
-                        {block.ui}
-                      </div>
-                    ) : (
-                      block.ui
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-            if (block.lifted) {
-              return (
-                // Recova's lifted block: p-8 and 16px corners.
-                <div
-                  key={block.title}
-                  className="cap-panel rounded-2xl [--gap:2rem] [--pad-card:2rem]"
-                  data-block={kind}
-                >
-                  <div className="cap-panel-body">{inner}</div>
-                </div>
-              );
-            }
-            return (
-              <div key={block.title} data-block={kind}>
-                {inner}
-              </div>
-            );
-          })}
+        <SectionLabel className="mb-16">{sectionLabel}</SectionLabel>
+        {/* Recova's 96px between blocks. */}
+        <div className="[--cap-features-gap:6rem]">
+          <Features>
+            {blocks.map((block) => (
+              <FeatureBlock
+                key={block.title}
+                eyebrow={block.eyebrow}
+                title={block.title}
+                body={block.body}
+                media={block.ui}
+                scrollLabel={block.tallLabel}
+                lifted={block.lifted}
+              />
+            ))}
+          </Features>
         </div>
       </div>
     </section>
@@ -229,9 +196,7 @@ export function ProductPricing({
   return (
     <section className="border-b border-border bg-surface px-5 py-16 sm:px-8">
       <div className="mx-auto max-w-[480px]">
-        <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          Pricing
-        </h2>
+        <SectionLabel className="mb-8">Pricing</SectionLabel>
         {/* Recova's price card: the page ground on the surface band, p-8. */}
         <div className="cap-panel [--gap:2rem] [--pad-card:2rem] [--surface:var(--bg)]">
           <div className="cap-panel-body">
@@ -272,9 +237,7 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
   return (
     <section className="border-b border-border px-5 py-16 sm:px-8">
       <div className="mx-auto max-w-[620px]">
-        <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          Questions
-        </h2>
+        <SectionLabel className="mb-8">Questions</SectionLabel>
         <FaqList name={name} faqs={faqs} />
       </div>
     </section>

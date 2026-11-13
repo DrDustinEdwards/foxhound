@@ -1,5 +1,6 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { useMemo, useState } from "react";
+import { AnchorBar } from "capsomer/react/anchor-bar";
 import { Link } from "capsomer/react/link";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
@@ -22,6 +23,7 @@ import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
+import "capsomer/anchor-bar.css";
 import "capsomer/panel.css";
 import "capsomer/chips.css";
 import "capsomer/status.css";
@@ -164,22 +166,15 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           />
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
-            {/* Recova's sticky section nav. Capsomer's anchor bar is a
-                horizontal bar with an "On this page" label, so this stays
-                Recova's vertical list in Foxhound utilities with the amber
-                accent on hover; a vertical anchor bar is a Capsomer gap. */}
+            {/* Recova's sticky section nav: Capsomer's vertical anchor bar,
+                listed on the server so it shows without a script. */}
             <aside className="hidden lg:block">
-              <nav aria-label="Sections" className="sticky top-20 space-y-1">
-                {sections.map((s) => (
-                  <a
-                    key={s.id}
-                    href={`#${s.id}`}
-                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-accent-text hover:text-text"
-                  >
-                    {s.label}
-                  </a>
-                ))}
-              </nav>
+              <AnchorBar
+                always
+                orientation="vertical"
+                label="Sections"
+                sections={sections.map((s) => ({ id: s.id, label: s.label }))}
+              />
             </aside>
 
             {/* Recova wraps this column in <main>; Foxhound renders one main

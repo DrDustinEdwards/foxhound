@@ -3,6 +3,7 @@ import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
+import "capsomer/eyebrow.css";
 import "capsomer/source-line.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here
@@ -11,6 +12,7 @@ import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
 import { faqPage } from "@drdustinedwards/site-helpers/schema";
 import { Link } from "capsomer/react/link";
+import { Eyebrow } from "capsomer/react/eyebrow";
 import { SourceLine } from "capsomer/react/source-line";
 import { EmailSamples } from "~/components/email-samples";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
@@ -311,9 +313,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="overflow-hidden border-t border-border-sub px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
-              The gap Stripe leaves open
-            </p>
+            <div className="mb-6 text-center">
+              <Eyebrow variant="mono">The gap Stripe leaves open</Eyebrow>
+            </div>
             <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
               {STRIPE_GAP} of failed payments
               <br />
