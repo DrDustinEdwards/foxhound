@@ -15,7 +15,6 @@ import type {
 } from "~/lib/marketing/recovery-preview";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
-import "capsomer/table.css";
 
 // The three previews on /product/recovery, Recova's three feature-block
 // UIs: the category sequences (page.tsx's CategorySequencePreview with
