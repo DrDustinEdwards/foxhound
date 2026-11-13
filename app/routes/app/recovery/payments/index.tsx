@@ -18,7 +18,7 @@ import { Banner } from "capsomer/react/banner";
 import { useShownFor } from "capsomer/react/hooks";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
-import { clearedHref, FilterBar, hasFilters, withParams } from "capsomer/react/filter-bar";
+import { clearedHref, FilterBar, isFiltered, withParams } from "capsomer/react/filter-bar";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { RangeSlider } from "capsomer/react/range-slider";
@@ -528,7 +528,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     }
   }
 
-  const hasActiveFilters = hasFilters(paramsFor(filters, bounds), [
+  const hasActiveFilters = isFiltered(paramsFor(filters, bounds), [
     "q",
     "status",
     "category",
