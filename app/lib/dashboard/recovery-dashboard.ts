@@ -10,7 +10,8 @@ import { recoveryFeeCents } from "~/lib/billing/fees";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { formatMoney, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
-import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
+import { dayKey } from "@dustinedwards/site-runtime/time";
+import type { DailyRatePoint, RecoveryTimingBucket } from "./recovery-window";
 import { percent } from "capsomer/behavior/meter";
 
 // The /recovery/dashboard page's display arithmetic: pure, no

@@ -17,6 +17,7 @@ import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron
 import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { lockHealth } from "@dustinedwards/site-runtime/cron-lock";
+import { withTimeout } from "@dustinedwards/site-runtime/time";
 import {
   accounts,
   aiCalls,
@@ -376,14 +377,4 @@ export async function readCronLocks(env: Env, now: number = Date.now()): Promise
       heldUntil: health.heldUntil === null ? null : new Date(health.heldUntil),
     };
   });
-}
-
-/** The read, or a rejection once `ms` has passed without an answer. The timer
- *  is cleared as soon as the read settles either way, so none outlives it. */
-function withTimeout<T>(read: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`no answer in ${ms} ms`)), ms);
-  });
-  return Promise.race([read, late]).finally(() => clearTimeout(timer));
 }
