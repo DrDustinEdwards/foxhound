@@ -1,5 +1,5 @@
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -16,6 +16,7 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/docs.css";
 
 // The /docs index. Recova's spec is app/(marketing)/docs/page.tsx
 // (blob 4562a1ed) and components/MarketingPageHeader.tsx (blob 118a5104), read
@@ -63,16 +64,12 @@ export default function DocsIndexPage() {
           Recova's 720px column, in Capsomer's amber family with Foxhound's own
           neutrals (.fh-cap, as the site header and the /products hub); the focus
           ring reads the family's amber ring here, as in Capsomer's own parts. */}
-      <div
-        className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]"
-        data-cap-site="foxhound"
-        data-family="amber"
-      >
-        <div className="flex flex-col gap-4">
+      <div className="fh-mk-article fh-cap" data-cap-site="foxhound" data-family="amber">
+        <div className="cap-stack" data-gap="5">
           {/* Platform: full width, the same card as the product guides below. */}
           <GuideCard guide={platform} />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="fh-mk-cards-2">
             {productGuides.map((g) => (
               <GuideCard key={g.slug} guide={g} />
             ))}
@@ -81,7 +78,7 @@ export default function DocsIndexPage() {
 
         {/* Recova's cross-links. leading-6 makes each link a 24px target, as
             the /pricing Learn more links. */}
-        <div className="mt-12 flex flex-wrap items-center gap-6 text-label">
+        <div className="cap-cluster fh-docs-block fh-small" data-gap="6">
           <Link to="/features" className={CROSS_LINK}>
             See all features <Arrow />
           </Link>
@@ -92,7 +89,7 @@ export default function DocsIndexPage() {
 
         {/* The support address, so a reader who did not find the answer here
             has the next step on the same page (parity audit, 2026-11-10). */}
-        <p className="mt-6 text-label text-text-secondary">
+        <p className="fh-docs-text fh-small fh-soft">
           Not covered here? Email{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className={CROSS_LINK}>
             {SUPPORT_EMAIL}
@@ -104,19 +101,11 @@ export default function DocsIndexPage() {
   );
 }
 
-const CROSS_LINK =
-  "group leading-6 text-accent-text no-underline transition-opacity duration-150 hover:opacity-80";
+const CROSS_LINK = "fh-hover-group fh-docs-cross fh-accent";
 
 /** Recova's 13px arrow, nudged on the link's hover. Decorative. */
 function Arrow() {
-  return (
-    <ArrowRight
-      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-      size={13}
-      strokeWidth={1.5}
-      aria-hidden
-    />
-  );
+  return <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />;
 }
 
 /**
@@ -127,18 +116,13 @@ function Arrow() {
  */
 function GuideCard({ guide }: { guide: DocGuide }) {
   return (
-    <Link
-      to={`/docs/${guide.slug}`}
-      className="cap-panel group rounded-lg [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]"
-    >
+    <Link to={`/docs/${guide.slug}`} className="fh-docs-link cap-panel fh-hover-group">
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div>
-          <div className="mb-2 text-item-title font-medium text-text">{guide.title}</div>
-          <div className="mb-4 text-label leading-relaxed text-text-secondary">
-            {guide.description}
-          </div>
-          <div className="text-label text-accent-text">
+          <div className="fh-docs-block-2 fh-item-title fh-medium fh-text">{guide.title}</div>
+          <div className="fh-docs-block-3 fh-small fh-relaxed fh-soft">{guide.description}</div>
+          <div className="fh-small fh-accent">
             Read guide <Arrow />
           </div>
         </div>

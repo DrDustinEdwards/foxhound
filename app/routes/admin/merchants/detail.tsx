@@ -1,3 +1,4 @@
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { Table } from "capsomer/react/table";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
@@ -18,7 +19,6 @@ import { Time } from "capsomer/react/time";
 import { data, Form, useNavigation } from "react-router";
 
 import { ViewAsForm } from "~/components/admin-merchants-parts";
-import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
@@ -32,8 +32,7 @@ import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatMoney } from "@dustinedwards/site-runtime/money";
-import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
+import { parseMoneyInput, formatMoney } from "@dustinedwards/site-runtime/money";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/detail";
@@ -208,7 +207,7 @@ function CancelForm({ accountId }: { accountId: string }) {
   return (
     <Form method="post" className="cap-cluster">
       <input type="hidden" name="intent" value="cancel" />
-      <span className="text-label text-error-text">
+      <span className="fh-small fh-error">
         Disconnects Stripe and stops all processing for {accountId}. Already-matured, unbilled fees
         still bill. Confirm?
       </span>
@@ -242,7 +241,7 @@ function AdjustmentForm({
       <input type="hidden" name="idempotencyToken" value={idempotencyToken} />
       {actionData?.error ? <Alert>{actionData.error}</Alert> : null}
       {actionData?.adjustmentInvoiceId ? <Banner tone="ok">Adjustment recorded.</Banner> : null}
-      <div className="cap-cluster items-start">
+      <div className="cap-cluster" data-align="start">
         <Field label="Direction">
           <Select
             native
@@ -307,7 +306,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
   } = loaderData;
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       <Panel
         title="Account"
         actions={
@@ -408,7 +407,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
               <Row
                 key={c.id}
                 title={c.name ?? c.stripeUserId}
-                meta={<span className="font-mono">{c.stripeUserId}</span>}
+                meta={<span className="fh-mono">{c.stripeUserId}</span>}
                 actions={
                   <>
                     {c.isPrimary && !c.disconnectedAt ? (
@@ -452,18 +451,18 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         )}
       </Panel>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="fh-halves">
         <Panel title="Recovery activity" size="sm">
-          <p className="text-label text-text-tertiary">
-            <span className="font-mono text-text">{recoveryActivity.activeCount}</span> active,{" "}
-            <span className="font-mono text-text">{recoveryActivity.recoveredCount}</span> recovered
+          <p className="fh-small fh-quiet">
+            <span className="fh-mono fh-text">{recoveryActivity.activeCount}</span> active,{" "}
+            <span className="fh-mono fh-text">{recoveryActivity.recoveredCount}</span> recovered
           </p>
         </Panel>
         <Panel title="Dispute activity" size="sm">
-          <p className="text-label text-text-tertiary">
-            <span className="font-mono text-text">{disputeActivity.openCount}</span> open,{" "}
-            <span className="font-mono text-text">{disputeActivity.resolvedWonCount}</span> won,{" "}
-            <span className="font-mono text-text">{disputeActivity.resolvedLostCount}</span> lost
+          <p className="fh-small fh-quiet">
+            <span className="fh-mono fh-text">{disputeActivity.openCount}</span> open,{" "}
+            <span className="fh-mono fh-text">{disputeActivity.resolvedWonCount}</span> won,{" "}
+            <span className="fh-mono fh-text">{disputeActivity.resolvedLostCount}</span> lost
           </p>
         </Panel>
       </div>
@@ -490,7 +489,7 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
             <tbody>
               {recentInvoices.map((inv) => (
                 <tr key={inv.id}>
-                  <th scope="row" className="font-normal">
+                  <th scope="row" className="fh-regular">
                     {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
                   </th>
                   <td data-label="Total" data-num="">

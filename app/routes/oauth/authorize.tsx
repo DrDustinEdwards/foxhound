@@ -34,6 +34,7 @@ import type { Route } from "./+types/authorize";
 import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import "~/auth.css";
 
 // /oauth/authorize: the page where a signed-in merchant
 // lets an external agent connect to one Foxhound account.
@@ -259,11 +260,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 // it, a registered client's is only its own claim.
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="fh-cap flex min-h-screen items-center bg-bg [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-auth-screen-left fh-cap" data-cap-site="foxhound" data-family="amber">
       {children}
     </div>
   );

@@ -184,24 +184,24 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="mx-auto max-w-[720px] px-5 sm:px-8 py-8 md:py-10">
+    <div className="fh-billing">
       {/* Ruling 147 f1-f3, legacy app/(app)/billing/page.tsx: max-w-[720px]
       mx-auto px-5 sm:px-8 py-8 md:py-10. NOTE 147 recorded billing as "half
       legacy's width"; that was WRONG. Legacy is 720px and max-w-3xl is 768px,
       so Foxhound was 48px WIDER, not 512px narrower. Legacy also steps
       horizontal padding at sm, not md, and starts from px-5 not px-4. Same
       720/px-5 kit legacy uses on /help and the legal pages. */}
-      <div className="mb-8">
+      <div className="fh-billing-head">
         <PageHead title="Billing" lead="Invoices, subscriptions, and payment method." />
       </div>
 
       {actionData && "error" in actionData ? (
-        <div className="mb-6">
+        <div className="fh-billing-banner">
           <Alert tone="crit">{actionData.error}</Alert>
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-6">
+      <div className="cap-stack" data-gap="6">
         <RecoverySection
           attributedThisMonth={preview.attributedThisMonth}
           estimatedRecoveryFees={preview.estimatedRecoveryFees}
@@ -223,12 +223,12 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
 
         <Panel title="Evidence ledger">
           {entries.length === 0 ? (
-            <p className="text-label text-text-tertiary">
+            <p className="fh-small fh-quiet">
               Nothing to show yet. Every fee Foxhound ever charges, and every free recovery, will
               appear here with its full evidence.
             </p>
           ) : (
-            <ol className="flex flex-col">{entries.map((e) => e.node)}</ol>
+            <ol className="fh-ledger">{entries.map((e) => e.node)}</ol>
           )}
         </Panel>
       </div>

@@ -1,6 +1,6 @@
 """Generate the static DM Sans instances the OG card needs (ruling 96).
 
-Run once, by hand, when app/assets/fonts/dm-sans-variable.woff2 changes:
+Run once, by hand, when Capsomer's fonts/dm-sans-variable.woff2 changes:
 
     python3 scripts/build-og-fonts.py
 
@@ -27,7 +27,7 @@ from fontTools.varLib import instancer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(HERE, os.pardir, "app", "assets", "fonts")
-SRC = os.path.join(FONTS, "dm-sans-variable.woff2")
+SRC = os.path.join(HERE, os.pardir, "node_modules", "capsomer", "fonts", "dm-sans-variable.woff2")
 REFERENCE = os.path.join(FONTS, "dm-mono-500.ttf")
 
 # Weights the card actually uses: 400 body/footer, 500 eyebrow, 600 title/pill.

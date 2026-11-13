@@ -60,7 +60,7 @@ const SECTIONS: LegalSection[] = [
           access depending on what you are doing.
         </p>
         <p>
-          <strong className="text-text">
+          <strong className="fh-text">
             The free audit requests {STRIPE_AUDIT_SCOPE} scope too.
           </strong>{" "}
           Stripe no longer offers read-only access to platforms like Foxhound, so Stripe asks you
@@ -70,7 +70,7 @@ const SECTIONS: LegalSection[] = [
           unless you connect a Foxhound account.
         </p>
         <p>
-          <strong className="text-text">
+          <strong className="fh-text">
             Merchant onboarding requests {STRIPE_CONNECT_SCOPE} scope
           </strong>
           , because recovery involves writes. Foxhound writes for these things and no others:
@@ -186,9 +186,9 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          Email <span className="font-mono">{SUPPORT_EMAIL}</span> with what you found and how to
+          Email <span className="fh-mono">{SUPPORT_EMAIL}</span> with what you found and how to
           reproduce it. The same address is published at{" "}
-          <span className="font-mono">/.well-known/security.txt</span> per RFC 9116, with an expiry
+          <span className="fh-mono">/.well-known/security.txt</span> per RFC 9116, with an expiry
           date so you can tell the contact is current.
         </p>
         <p>
@@ -207,7 +207,7 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           A data processing agreement is available on request. Email{" "}
-          <span className="font-mono">{SUPPORT_EMAIL}</span>.
+          <span className="fh-mono">{SUPPORT_EMAIL}</span>.
         </p>
       </>
     ),

@@ -24,7 +24,7 @@ export function RecommendationBanner({
   prediction,
   surface,
   nowMs,
-  className = "mb-6",
+  className = "fh-rec-gap",
 }: {
   prediction: { result: CustomerRecommendation; currency: string } | null;
   surface: BannerSurface;
@@ -41,9 +41,9 @@ export function RecommendationBanner({
       <Banner
         tone={bannerToneFor(action)}
         title={
-          <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span className="fh-rec-head">
             <span>{bannerHeadline(action, surface)}</span>
-            {atRisk ? <span className="whitespace-nowrap">{atRisk}</span> : null}
+            {atRisk ? <span className="fh-nowrap">{atRisk}</span> : null}
           </span>
         }
         // body, not children: children sit inside Capsomer's p.cap-banner-text,
@@ -52,13 +52,13 @@ export function RecommendationBanner({
         // demo's payment and customer pages, parity audit 2026-11-10).
         body={
           <>
-            <p className="m-0 mb-2 text-label text-text">{p.recommendation.rationale}</p>
-            <p className="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-micro text-text-secondary">
+            <p className="fh-rec-why fh-small fh-text">{p.recommendation.rationale}</p>
+            <p className="fh-rec-facts fh-tiny fh-soft">
               <span>{engagementEvidence(p.engagement, nowMs)}</span>
               <span>{historyEvidence(p.history)}</span>
               <span>{valueEvidence(p.value, prediction.currency)}</span>
             </p>
-            <p className="m-0 mt-2 text-micro text-text-tertiary">
+            <p className="fh-rec-note fh-tiny fh-quiet">
               Confidence: {p.recommendation.confidence}
             </p>
           </>

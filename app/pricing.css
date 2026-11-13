@@ -1,0 +1,98 @@
+/* The parts only the pricing page uses, as Recova laid them out. In the site layer
+   (app.css), after the public pages' shared parts (marketing.css). */
+@layer site {
+  .fh-pricing-link {
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  .fh-pricing-band {
+    padding-inline: 1.25rem;
+    padding-bottom: 3rem;
+  }
+  @media (width >= 40rem) {
+    .fh-pricing-band {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-pricing-wrap {
+    margin-inline: auto;
+    max-width: 1200px;
+  }
+  .fh-pricing-grid {
+    position: relative;
+    display: grid;
+    scroll-margin-top: 60px;
+  }
+  .fh-pricing-title {
+    margin-bottom: 1rem;
+  }
+  .fh-pricing-block-2 {
+    margin-bottom: 0.25rem;
+  }
+  .fh-pricing-label {
+    letter-spacing: -0.02em;
+  }
+  .fh-pricing-text {
+    margin-bottom: 1.25rem;
+    line-height: 1.55;
+  }
+  .fh-pricing-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    line-height: 1.45;
+  }
+  .fh-pricing-block-3 {
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+  .fh-pricing-link {
+    margin-top: 1.25rem;
+    line-height: 1.5rem;
+    text-decoration-line: none;
+  }
+  @media (hover: hover) {
+    .fh-pricing-link:hover {
+      opacity: 80%;
+    }
+  }
+  .fh-pricing-text-2 {
+    margin-top: -1rem;
+    margin-bottom: 0px;
+    padding-inline: 1.25rem;
+    padding-bottom: 3rem;
+  }
+  @media (width >= 40rem) {
+    .fh-pricing-text-2 {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-pricing-title-2 {
+    margin-bottom: 2.5rem;
+    letter-spacing: -0.01em;
+  }
+  @media (width >= 40rem) {
+    .fh-pricing-title-2 {
+      font-size: 1.75rem;
+    }
+  }
+  .fh-pricing-title-3 {
+    margin-bottom: 0.5rem;
+  }
+  .fh-pricing-text-3 {
+    line-height: 1.6;
+  }
+  .fh-pricing-title-4 {
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+  }
+  @media (width >= 40rem) {
+    .fh-pricing-title-4 {
+      font-size: 2rem;
+    }
+  }
+  .fh-pricing-block-4 {
+    margin-top: 1.25rem;
+  }
+}

@@ -14,17 +14,11 @@ import "~/site-header.css";
 /**
  * The frame the legal pages' Capsomer LegalDoc sits in: Recova's 720px column in Capsomer's amber
  * family with Foxhound's own neutrals (.fh-cap, the pairing the site header uses). One main landmark
- * stays the layout's. Foxhound's global focus ring reads --border-focus (app.css); inside this
- * column it reads the family's --ring instead, so a keyboard user sees amber here as in Capsomer's
- * own components. The sizes Recova sets on the text are the .fh-legal rules in app.css.
+ * stays the layout's. The sizes Recova sets on the text are the .fh-legal rules in marketing.css.
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="fh-cap fh-legal mx-auto max-w-[720px] px-6 pb-16 pt-16 [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-mk-article fh-legal fh-cap" data-cap-site="foxhound" data-family="amber">
       {children}
     </div>
   );

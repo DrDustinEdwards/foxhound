@@ -1,5 +1,5 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { TrendingUp } from "lucide-react";
+import { iconTrendingUp } from "capsomer/react/icons";
 
 import {
   ChurnBandsPreview,
@@ -31,6 +31,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/intelligence";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/products.css";
 
 // The Intelligence spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/intelligence/page.tsx (blob 4f258429) and the files
@@ -94,17 +95,11 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
   const { dashboard, score, churn } = intelligenceBlocks(preview.dashboard.activeCustomers);
 
   return (
-    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
-    // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    // Capsomer's amber family with Foxhound's neutrals.
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Intelligence"
-        Icon={TrendingUp}
+        icon={iconTrendingUp}
         headline={INTELLIGENCE_HERO.headline}
         sub={INTELLIGENCE_HERO.sub}
         pricing={INTELLIGENCE_HERO.pricing}

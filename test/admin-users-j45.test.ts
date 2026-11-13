@@ -14,7 +14,6 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // Looked up so a missing export fails the assertion that names it, not the
 // whole file.
 const serverLib: Record<string, unknown> = await import("~/lib/admin/users.server");
-const pageLib: Record<string, unknown> = await import("~/lib/admin/page");
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
 const DAY = 24 * 60 * 60 * 1000;
@@ -262,30 +261,5 @@ describe("listPlatformUsers, invites (code review)", () => {
   it("matches invites only to a verified email", async () => {
     const rows = await list(await seedInvites());
     expect(rows.find((r) => r.id === "u_eve")!.memberships).toEqual([]);
-  });
-});
-
-describe("pagePending (shared by the admin pages)", () => {
-  it("treats a trailing slash as the same page", () => {
-    expect(typeof pageLib.pagePending).toBe("function");
-    const pending = pageLib.pagePending as (
-      nav: { state: string; location?: { pathname: string } },
-      r: string,
-      pathname: string,
-    ) => boolean;
-    expect(
-      pending(
-        { state: "loading", location: { pathname: "/admin/users/" } },
-        "idle",
-        "/admin/users",
-      ),
-    ).toBe(true);
-    expect(pending({ state: "loading", location: { pathname: "/admin/" } }, "idle", "/admin")).toBe(
-      true,
-    );
-    expect(
-      pending({ state: "loading", location: { pathname: "/admin/users" } }, "idle", "/admin"),
-    ).toBe(false);
-    expect(pending({ state: "idle" }, "loading", "/admin/users")).toBe(true);
   });
 });

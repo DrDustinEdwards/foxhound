@@ -31,6 +31,7 @@ import { listActiveConnections } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 import type { Route } from "./+types/card-update";
+import "~/auth.css";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -491,19 +492,14 @@ function CardUpdateFrame({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto w-full max-w-md px-4 py-8 md:py-16">
-      <div
-        className="fh-cap [--border-focus:var(--ring)]"
-        data-cap-site="foxhound"
-        data-family="amber"
-        data-card-update=""
-      >
+    <main className="fh-card-update">
+      <div className="fh-cap" data-cap-site="foxhound" data-family="amber" data-card-update="">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <Wordmark />
-            <div className="flex flex-col gap-1">
-              <h1 className="text-title font-medium text-text">{title}</h1>
-              {subtitle ? <p className="text-label text-text-tertiary">{subtitle}</p> : null}
+            <div className="fh-card-update-head">
+              <h1 className="fh-title fh-medium fh-text">{title}</h1>
+              {subtitle ? <p className="fh-small fh-quiet">{subtitle}</p> : null}
             </div>
             {children}
           </div>

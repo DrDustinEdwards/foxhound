@@ -71,7 +71,7 @@ function Amounts({
 }) {
   if (rows.length === 0) return <span className={className}>{fmt(0, "usd", fee)}</span>;
   return (
-    <span className="flex flex-col items-end">
+    <span className="fh-billing-figure">
       {rows.map((r) => (
         <span key={r.currency} className={className}>
           {fmt(r.cents, r.currency, fee)}
@@ -91,7 +91,7 @@ function creditSuffix(creditedCents: number, currency: string): string {
  *  Capsomer has no key-value block for a panel body; this composes one from
  *  Foxhound's tokens and is listed in the PR as a Capsomer gap. */
 function SummaryBox({ children }: { children: ReactNode }) {
-  return <div className="mb-5 rounded-lg border border-border bg-bg px-4 py-4">{children}</div>;
+  return <div className="fh-billing-box">{children}</div>;
 }
 
 function SummaryRow({
@@ -106,14 +106,12 @@ function SummaryRow({
   fee?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className={`text-label ${muted ? "text-text-tertiary" : "text-text-secondary"}`}>
-        {label}
-      </span>
+    <div className="fh-billing-line">
+      <span className={`fh-small ${muted ? "fh-quiet" : "fh-soft"}`}>{label}</span>
       <Amounts
         rows={value}
         fee={fee}
-        className={`font-mono text-body tabular-nums ${muted ? "text-text-tertiary" : "text-text"}`}
+        className={`fh-mono fh-body cap-num ${muted ? "fh-quiet" : "fh-text"}`}
       />
     </div>
   );
@@ -132,16 +130,12 @@ function StatusPill({ label, tone }: { label: string; tone: FeeStatusTone }) {
 function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | null }) {
   if (url) {
     return (
-      <AwayLink
-        href={url}
-        newTab
-        className="inline-flex min-h-6 items-center gap-0.5 text-micro text-accent-text hover:text-accent-hover"
-      >
+      <AwayLink href={url} newTab className="fh-invoice-link fh-tiny">
         View invoice
       </AwayLink>
     );
   }
-  if (stripeId) return <span className="font-mono text-micro text-text-tertiary">{stripeId}</span>;
+  if (stripeId) return <span className="fh-mono fh-tiny fh-quiet">{stripeId}</span>;
   return null;
 }
 
@@ -182,7 +176,7 @@ export function RecoverySection({
       }
     >
       <SummaryBox>
-        <div className="flex flex-col gap-2">
+        <div className="cap-stack" data-gap="3">
           <SummaryRow label="Recovered this month" value={attributedThisMonth} />
           <SummaryRow
             label={`Estimated fee (${RECOVERY_FEE_PERCENT}%)`}
@@ -191,11 +185,11 @@ export function RecoverySection({
             fee
           />
         </div>
-        <p className="mt-3 text-micro text-text-subtle">
+        <p className="fh-billing-note fh-tiny fh-faint">
           {stateNote ?? `Next invoice: ${formatLongDate(nextRunAtMs)}`}
         </p>
         {accountBillingState.cancelledAt && !stateNote ? (
-          <p className="mt-1 text-micro text-text-subtle">
+          <p className="fh-billing-fine fh-tiny fh-faint">
             This account is canceled. Fees already earned still appear on the next invoice.
           </p>
         ) : null}
@@ -204,7 +198,7 @@ export function RecoverySection({
             run after it is 30 days old (PRICING.md, maturity-window billing), so
             the estimate is the next run's recovery fees and this line says why
             it is not the rate times the line above, in PRICING's own words. */}
-        <p className="mt-1 text-micro text-text-subtle">
+        <p className="fh-billing-fine fh-tiny fh-faint">
           We never bill a recovery until you&apos;ve held the money for {RECOVERY_MATURITY_DAYS}{" "}
           days.
         </p>
@@ -213,7 +207,7 @@ export function RecoverySection({
       {rows.length === 0 ? (
         // Truthfulness fix: Recova promised the first invoice "on the 1st of next
         // month", which maturity makes false for a recovery made after the 1st.
-        <p className="text-label text-text-subtle">
+        <p className="fh-small fh-faint">
           No billing history yet. Your first invoice comes on the {INVOICE_DAY} of a month, once a
           recovery Foxhound earned is {RECOVERY_MATURITY_DAYS} days old.
         </p>
@@ -228,7 +222,7 @@ export function RecoverySection({
               renderLink={routerRenderLink}
               detail={`Recovered: ${formatMoneyShort(r.recoveredCents, r.currency)} · Fee: ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
-                <span className="flex flex-wrap items-center gap-3">
+                <span className="cap-cluster" data-gap="4">
                   <StatusPill label={r.statusLabel} tone={r.statusTone} />
                   <InvoiceRef url={r.invoiceUrl} stripeId={r.stripeInvoiceId} />
                 </span>
@@ -268,13 +262,13 @@ export function DisputeFeesSection({
     >
       <SummaryBox>
         <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} fee />
-        <p className="mt-1 text-micro text-text-subtle">
+        <p className="fh-billing-fine fh-tiny fh-faint">
           {stateNote ?? `Added to your next monthly invoice on ${formatLongDate(nextRunAtMs)}.`}
         </p>
       </SummaryBox>
 
       {rows.length === 0 ? (
-        <p className="text-label text-text-subtle">No dispute fees yet.</p>
+        <p className="fh-small fh-faint">No dispute fees yet.</p>
       ) : (
         <RowList label="Dispute fees" gap="sm">
           {rows.map((r) => (
@@ -286,7 +280,7 @@ export function DisputeFeesSection({
               renderLink={routerRenderLink}
               detail={`Fee (${r.feeCapped ? "capped" : `${DISPUTE_FEE_PERCENT}%`}): ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
-                <span className="flex flex-wrap items-center gap-3">
+                <span className="cap-cluster" data-gap="4">
                   <StatusPill label={r.statusLabel} tone={r.statusTone} />
                   <InvoiceRef url={r.invoiceUrl} stripeId={r.stripeInvoiceId} />
                 </span>
@@ -331,9 +325,7 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
               renderLink={PRODUCT_HREF[s.product] ? routerRenderLink : plainTitle}
               detail={
                 detail ? (
-                  <span className={detail.warn ? "text-accent-text" : undefined}>
-                    {detail.text}
-                  </span>
+                  <span className={detail.warn ? "fh-accent" : undefined}>{detail.text}</span>
                 ) : undefined
               }
               actions={
@@ -353,23 +345,23 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
 export function PaymentMethodSection({ card, busy }: { card: CardSummary | null; busy: boolean }) {
   return (
     <Panel title="Payment method">
-      <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="fh-setting-row">
         {card ? (
           <div>
-            <p className="text-label text-text">
+            <p className="fh-small fh-text">
               {capitalize(card.brand)} ending {card.last4}
             </p>
-            <p className="mt-1 text-micro text-text-subtle">
+            <p className="fh-billing-fine fh-tiny fh-faint">
               Expires {String(card.expMonth).padStart(2, "0")}/{card.expYear}
             </p>
           </div>
         ) : (
           <div>
-            <p className="text-label text-text-subtle">No payment method on file.</p>
+            <p className="fh-small fh-faint">No payment method on file.</p>
             {/* Truthfulness fix: Recova said "We'll email you a payment link with
                 each invoice". Foxhound's invoices are charge_automatically with
                 no emailed link (app/lib/billing/stripe-invoice.ts). */}
-            <p className="mt-1 text-micro text-text-subtle">
+            <p className="fh-billing-fine fh-tiny fh-faint">
               Add one so Foxhound can charge each monthly invoice automatically on the {INVOICE_DAY}
               .
             </p>

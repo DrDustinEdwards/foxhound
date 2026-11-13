@@ -119,20 +119,3 @@ describe("J43: the loader and the action, scoped to the caller's account", () =>
     }
   });
 });
-
-describe("J43 review: a change made during a save is queued, and the last value wins", async () => {
-  const { createSaveQueue } = await import("~/lib/audit/save-queue");
-
-  it("holds every change made mid-save and sends one more save, after the first settles", () => {
-    const submit = vi.fn();
-    const q = createSaveQueue(submit);
-    q.change();
-    q.change();
-    q.change();
-    expect(submit).toHaveBeenCalledTimes(1);
-    q.settled();
-    expect(submit).toHaveBeenCalledTimes(2);
-    q.settled();
-    expect(submit).toHaveBeenCalledTimes(2);
-  });
-});

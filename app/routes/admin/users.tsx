@@ -1,5 +1,5 @@
 import { Table } from "capsomer/react/table";
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -9,7 +9,7 @@ import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
 import { membershipWord, usersCountSentence } from "~/lib/admin/users";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { merchantHref, pagePending, type AdminHandle } from "~/lib/admin/page";
+import { merchantHref, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/users";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -29,7 +29,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 const HEADING_ID = "admin-users-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-block min-h-6 leading-6";
+const LINK = "fh-row-link";
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14):
 // one page name (the shell's "Users"), a plain sentence with the count, then
@@ -39,7 +39,7 @@ const LINK = "inline-block min-h-6 leading-6";
 // Read only: the page has no actions.
 export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const { users } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, "/admin/users");
+  const pending = usePagePending("/admin/users");
 
   return (
     <Panel
@@ -77,28 +77,28 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <th scope="row" className="font-normal">
-                  <span className="block text-text">{u.name}</span>
-                  <span className="block text-text-tertiary">{u.email}</span>
+                <th scope="row" className="fh-regular">
+                  <span className="fh-line fh-text">{u.name}</span>
+                  <span className="fh-line fh-quiet">{u.email}</span>
                 </th>
                 <td data-label="Accounts">
                   {u.memberships.length === 0 ? (
-                    <span className="text-text-tertiary">No account</span>
+                    <span className="fh-quiet">No account</span>
                   ) : (
-                    <ul className="m-0 grid list-none gap-1 p-0">
+                    <ul className="cap-stack" data-gap="2">
                       {u.memberships.map((m) => (
                         <li key={m.accountId}>
                           <Link to={merchantHref(m.accountId)} className={LINK}>
                             {m.accountName ?? m.accountId}
                           </Link>{" "}
-                          <span className="text-text-tertiary">{membershipWord(m)}</span>
+                          <span className="fh-quiet">{membershipWord(m)}</span>
                         </li>
                       ))}
                     </ul>
                   )}
                 </td>
                 <td data-label="Platform role">
-                  {u.isAdmin ? "Admin" : <span className="text-text-tertiary">Merchant</span>}
+                  {u.isAdmin ? "Admin" : <span className="fh-quiet">Merchant</span>}
                 </td>
                 <td data-label="Last sign-in">
                   <Time at={u.lastSignInAt} empty="No sign-in on record" tip />
@@ -106,10 +106,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
                 <td data-label="Joined">
                   <Time at={u.createdAt} empty="never" tip />
                 </td>
-                <td
-                  data-label="User ID"
-                  className="font-mono text-micro break-all text-text-tertiary"
-                >
+                <td data-label="User ID" className="fh-mono fh-tiny fh-break fh-quiet">
                   {u.id}
                 </td>
               </tr>

@@ -178,20 +178,20 @@ export default function Help({ loaderData }: Route.ComponentProps) {
   // landmark, and every other app page renders inside it the same
   // way. The 720px column and its padding are legacy's page layout.
   return (
-    <div className="mx-auto max-w-[720px] px-5 py-10 sm:px-8">
-      <div className="mb-8">
+    <div className="fh-help">
+      <div className="fh-help-head">
         <PageHead title="Help" lead="Quick answers, guides, and platform status." />
       </div>
 
       {/* Section 1: Quick answers. Prose, so no shared component: a heading and
           its answer on the five text sizes. */}
-      <section className="mb-12">
+      <section className="fh-help-section">
         <h2 className={SECTION_LABEL}>Common questions</h2>
-        <div className="space-y-6">
+        <div className="fh-help-faq">
           {QUICK_ANSWERS.map((item) => (
             <div key={item.q}>
-              <h3 className="mb-1 text-body font-medium text-text">{item.q}</h3>
-              <p className="text-body leading-relaxed text-text-secondary">{item.a}</p>
+              <h3 className="fh-help-question fh-body fh-medium fh-text">{item.q}</h3>
+              <p className="fh-body fh-relaxed fh-soft">{item.a}</p>
             </div>
           ))}
         </div>
@@ -204,11 +204,11 @@ export default function Help({ loaderData }: Route.ComponentProps) {
           content. Legacy's arrangement (Platform full width, the four products
           two to a row from sm) is the page's own grid, one panel per cell, and
           no Capsomer class is restyled. */}
-      <section className="mb-12">
+      <section className="fh-help-section">
         <h2 className={SECTION_LABEL}>Guides</h2>
-        <div className="flex flex-col gap-3">
+        <div className="cap-stack" data-gap="4">
           <GuideCard guide={PLATFORM_GUIDE} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="fh-help-cards">
             {PRODUCT_GUIDES.map((guide) => (
               <GuideCard key={guide.href} guide={guide} />
             ))}
@@ -220,10 +220,10 @@ export default function Help({ loaderData }: Route.ComponentProps) {
           Capsomer table in its named scroll region, flush to the panel's
           edges. Each cron's name is its row header, so a screen reader hears
           the job with its time and its status. */}
-      <section className="mb-12">
+      <section className="fh-help-section">
         <h2 className={SECTION_LABEL}>Platform status</h2>
 
-        <div className="mb-4">
+        <div className="fh-help-contact">
           <StatusTable
             title="Background jobs"
             headingId="help-background-jobs"
@@ -285,7 +285,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
 
 /** Legacy's micro uppercase section label, on the five text sizes. A page
  *  heading style, not a shared component, so it stays the page's own. */
-const SECTION_LABEL = "mb-6 text-micro font-medium uppercase tracking-widest text-text-tertiary";
+const SECTION_LABEL = "fh-help-label fh-tiny fh-medium fh-caps-wide fh-quiet";
 
 /**
  * Legacy's four cron states on Capsomer's status tones. Legacy drew a colored
@@ -323,7 +323,7 @@ function StatusTable({
   return (
     <Panel title={title} level={3} headingId={headingId} flush>
       <Table caption={title} captionHidden labelledBy={headingId} reflow>
-        <thead className="sr-only">
+        <thead className="cap-sr-only">
           <tr>
             {columns.map((name) => (
               <th key={name} scope="col">

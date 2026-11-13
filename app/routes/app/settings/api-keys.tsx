@@ -4,13 +4,13 @@ import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
-import { ButtonLink, Link } from "capsomer/react/link";
+import { Link, routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
 import { Panel } from "capsomer/react/panel";
 import { SecretReveal } from "capsomer/react/secret-reveal";
 import { Segmented } from "capsomer/react/segmented";
@@ -240,7 +240,7 @@ function GenerateDisabled() {
       >
         Generate new key
       </button>
-      <span id={reason} className="sr-only">
+      <span id={reason} className="cap-sr-only">
         Finish with the key below first.
       </span>
     </>
@@ -283,7 +283,7 @@ function NewKey({ rawKey }: { rawKey: string }) {
           secret={rawKey}
           note="This key will not be shown again. Copy it now and store it somewhere safe."
           copy={
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="cap-cluster" data-gap="4">
               <CopyButton text={rawKey} variant="default">
                 Copy key
               </CopyButton>
@@ -312,7 +312,7 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
 
   return (
     <Panel title="Generate a new API key">
-      <DemoForm method="post" className="flex flex-col gap-4">
+      <DemoForm method="post" className="cap-stack" data-gap="5">
         <input type="hidden" name="_action" value="create" />
         <Field label="Name" error={error} announce>
           <input
@@ -327,7 +327,7 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
           />
         </Field>
         {isAdmin ? <ScopePicker /> : null}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="cap-cluster" data-gap="4">
           <Button type="submit" variant="primary" pending={generating}>
             {generating ? "Generating..." : "Generate key"}
           </Button>
@@ -355,31 +355,32 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
   const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="API Keys"
       lead={
         <>
           Connect an AI agent to this account&apos;s Foxhound data at{" "}
-          <span className="font-mono">/mcp</span>. A key lets an agent read your audit runs,
-          recovery, disputes, billing and customer health, and change your settings: audit,
-          features, notifications, your sender name, your brand voice, your business context, and
-          the alerts it can create, switch off and delete. Leaving a field out of the brand voice or
-          business context leaves it as it is. Every change it makes is logged with the key that
-          made it. It cannot move money, submit dispute evidence, disconnect Stripe or cancel your
-          account, and customer names and full email addresses are never sent.
+          <span className="fh-mono">/mcp</span>. A key lets an agent read your audit runs, recovery,
+          disputes, billing and customer health, and change your settings: audit, features,
+          notifications, your sender name, your brand voice, your business context, and the alerts
+          it can create, switch off and delete. Leaving a field out of the brand voice or business
+          context leaves it as it is. Every change it makes is logged with the key that made it. It
+          cannot move money, submit dispute evidence, disconnect Stripe or cancel your account, and
+          customer names and full email addresses are never sent.
         </>
       }
     >
       <section className="cap-panel">
         <div className="cap-panel-body">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="fh-keys-head">
             {keys ? (
-              <p className="text-label text-text-secondary">{plural(keys.length, "active key")}</p>
+              <p className="fh-small fh-soft">{plural(keys.length, "active key")}</p>
             ) : (
               <span />
             )}
             {!owner ? (
-              <p className="text-label text-text-secondary">{OWNER_ONLY}</p>
+              <p className="fh-small fh-soft">{OWNER_ONLY}</p>
             ) : panelOpen ? (
               <GenerateDisabled />
             ) : (
@@ -395,7 +396,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
             </Alert>
           ) : null}
           {revokeError ? <Alert tone="crit">{revokeError}</Alert> : null}
-          <p role="status" className="sr-only">
+          <p role="status" className="cap-sr-only">
             {result?.action === "revoke" && result.ok ? "Key revoked." : ""}
           </p>
 
@@ -447,7 +448,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       </section>
 
       {callLog.state === "owner-only" ? null : <CallLogPanel log={callLog} />}
-    </SettingsPage>
+    </SettingsLayout>
   );
 }
 
@@ -456,12 +457,12 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
   const headingId = useId();
   const last = log.state === "ok" ? log.calls.at(-1) : undefined;
   return (
-    <section className="cap-panel mt-6" aria-labelledby={headingId}>
+    <section className="fh-keys-panel cap-panel" aria-labelledby={headingId}>
       <div className="cap-panel-body">
-        <h2 id={headingId} className="text-heading">
+        <h2 id={headingId} className="">
           Agent activity
         </h2>
-        <p className="text-label text-text-secondary">
+        <p className="fh-small fh-soft">
           Every call an agent made with this account&apos;s keys, newest first, {MCP_CALLS_SHOWN} at
           a time. Revoke a key above to stop an agent.
         </p>
@@ -493,15 +494,13 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
                   <th scope="row">
                     {formatDate(new Date(call.createdAt), { style: "medium", time: true }) ?? ""}
                   </th>
-                  <td data-label="Tool" className="font-mono">
+                  <td data-label="Tool" className="fh-mono">
                     {call.tool}
                   </td>
                   <td data-label="Key">{call.keyLabel ?? "A deleted key"}</td>
                   <td data-label="Result">
                     {outcomeWords(call.outcome)}
-                    {call.error ? (
-                      <span className="block text-text-secondary">{call.error}</span>
-                    ) : null}
+                    {call.error ? <span className="fh-line fh-soft">{call.error}</span> : null}
                   </td>
                 </tr>
               ))}
@@ -509,7 +508,7 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
           </Table>
         )}
         {log.state === "ok" && (log.more || log.newer) ? (
-          <div className="flex flex-wrap gap-3">
+          <div className="fh-keys-actions">
             {log.newer ? <Link to="?">Newest calls</Link> : null}
             {log.more && last ? (
               <Link to={`?calls_before=${new Date(last.createdAt).getTime()}.${last.id}`}>

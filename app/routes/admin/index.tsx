@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { AttentionList } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
@@ -10,7 +10,7 @@ import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import { overviewAttention, overviewAttentionGroups, overviewPending } from "~/lib/admin/overview";
+import { overviewAttention, overviewAttentionGroups } from "~/lib/admin/overview";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
@@ -62,7 +62,7 @@ function moneyFigure(amounts: ReadonlyArray<{ cents: number; currency: string }>
 // Foxhound's engine.
 export default function AdminOverview({ loaderData }: Route.ComponentProps) {
   const { overview, d1SizeBytes, recentActions, now } = loaderData;
-  const pending = overviewPending(useNavigation(), useRevalidator().state);
+  const pending = usePagePending("/admin");
   const d1Share = d1SizeBytes / D1_CAP_BYTES;
   const { failedRuns, disabledCount, lastRunAt } = overview.cronHealth;
   const failed = failedRuns.length;
@@ -77,7 +77,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
   // the attention list's and each panel's `reading`.
 
   return (
-    <div className="grid gap-6">
+    <div className="cap-stack" data-gap="6">
       <StatTiles label="Platform">
         <StatTile
           href="/admin/merchants"
@@ -189,10 +189,10 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         reading={pending}
         more={<Link to="/admin/platform/crons">View crons</Link>}
       >
-        <div className="grid gap-2">
-          <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
+        <div className="cap-stack" data-gap="3">
+          <p className={`fh-small ${failed > 0 ? "fh-error" : "fh-success"}`}>
             {failed === 1 ? (
-              <Link to={cronRunHref(failedRuns[0].id)} className="text-error-text">
+              <Link to={cronRunHref(failedRuns[0].id)} className="fh-error">
                 {failedSentence}
               </Link>
             ) : (
@@ -200,11 +200,11 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
             )}
           </p>
           {failed > 0 ? (
-            <ul className="m-0 grid gap-1 p-0 text-label">
+            <ul className="cap-stack fh-small" data-gap="2">
               {failedRuns.map((run) => (
                 <li key={run.id}>
                   <Link to={cronRunHref(run.id)}>{run.cronName}</Link>{" "}
-                  <span className="text-text-tertiary">
+                  <span className="fh-quiet">
                     failed <Time at={run.finishedAt} empty="never" tip />
                     {run.message ? `: ${run.message}` : null}
                   </span>
@@ -212,7 +212,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
               ))}
             </ul>
           ) : null}
-          <p className="m-0 text-label text-text-tertiary">
+          <p className="fh-small fh-quiet">
             Last run <Time at={lastRunAt} empty="never" tip />
             {disabledCount > 0
               ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`

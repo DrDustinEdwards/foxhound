@@ -1,6 +1,6 @@
 import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { and, count, eq, isNull, notInArray } from "drizzle-orm";
-import { ChevronRight } from "lucide-react";
+import { Icon, iconChevronRight } from "capsomer/react/icons";
 import { routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Row, RowList } from "capsomer/react/row-list";
@@ -138,7 +138,7 @@ function EntryRow({ entry }: { entry: SettingsHubEntry }) {
       href={entry.to}
       renderLink={routerRenderLink}
       detail={entry.description}
-      meta={<ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />}
+      meta={<Icon d={iconChevronRight} className="fh-icon-16" />}
     />
   );
 }
@@ -161,8 +161,8 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
     <>
       {/* Phone: the section list. The sub-nav aside is hidden below md, so
           this is the only navigation on a phone, which is Recova's shape. */}
-      <div className="md:hidden">
-        <h1 className="mb-6 text-title font-semibold text-text">Settings</h1>
+      <div className="fh-phone-only">
+        <h1 className="fh-hub-title fh-title fh-semibold fh-text">Settings</h1>
         <nav aria-label="Settings sections">
           <RowList label="Settings sections" gap="xs">
             {SETTINGS_HUB_ENTRIES.map((entry) => (
@@ -173,15 +173,15 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* Desktop: the overview. */}
-      <div className="hidden md:block">
-        <div className="mb-6">
+      <div className="fh-wide-only">
+        <div className="fh-hub-block">
           <PageHead
             title="Settings"
             lead="Your account, integrations, and recovery configuration."
           />
         </div>
 
-        <div className="mb-6">
+        <div className="fh-hub-block">
           <StatTiles label="Settings overview">
             <StatTile
               href="/settings/stripe"
@@ -211,15 +211,11 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
             is the heading that names the grid. */}
         <h2
           id={CONFIG_HEADING_ID}
-          className="mb-3 font-mono text-micro font-normal uppercase tracking-widest text-text-tertiary"
+          className="fh-hub-group-title fh-mono fh-tiny fh-regular fh-quiet fh-caps-wide"
         >
           Configuration
         </h2>
-        <ul
-          role="list"
-          aria-labelledby={CONFIG_HEADING_ID}
-          className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-        >
+        <ul role="list" aria-labelledby={CONFIG_HEADING_ID} className="fh-hub-grid">
           {SETTINGS_HUB_ENTRIES.map((entry) => (
             <li key={entry.to}>
               <RowList>

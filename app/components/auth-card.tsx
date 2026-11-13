@@ -14,6 +14,7 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "~/site-header.css";
+import "~/auth.css";
 
 // The parts the sign-in pages share. Recova is the spec
 // for the frame: each of its pages (app/(auth)/login and signup page.tsx) is
@@ -40,16 +41,16 @@ import "~/site-header.css";
  */
 export function AuthCard({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg">
+    <div className="fh-auth-screen">
       <div
-        className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)] [--control:2.625rem] [&_.cap-btn]:[--cap-btn-fs:var(--text-subhead)] [&_.cap-btn]:[--cap-btn-h:2.9375rem] [&_.cap-btn]:font-semibold"
+        className="fh-auth-card fh-cap"
         data-cap-site="foxhound"
         data-family="amber"
         data-auth-card=""
       >
         {/* Recova's card: p-12, its fields 42px tall (py-2.5 at 14px). */}
-        <Panel className="[--gap:0px] [--pad-card:0px]">
-          <div className="p-12">{children}</div>
+        <Panel className="fh-auth-panel">
+          <div className="fh-auth-inset">{children}</div>
         </Panel>
       </div>
     </div>
@@ -61,13 +62,11 @@ export function AuthHeading({ title, subtitle }: { title: string; subtitle?: Rea
   return (
     <>
       <h1
-        className={`${subtitle ? "mb-2" : "mb-6"} text-center text-subsection font-semibold text-text`}
+        className={`${subtitle ? "fh-auth-title-sub" : "fh-auth-title"} fh-subsection fh-semibold fh-text`}
       >
         {title}
       </h1>
-      {subtitle ? (
-        <p className="mb-8 text-center text-copy leading-relaxed text-text-subtle">{subtitle}</p>
-      ) : null}
+      {subtitle ? <p className="fh-auth-lede fh-copy fh-faint">{subtitle}</p> : null}
     </>
   );
 }
@@ -102,17 +101,17 @@ function AuthField({
   errorId?: string;
 }) {
   const labelEl = (
-    <label className="cap-field-label font-normal text-text-tertiary" htmlFor={id}>
-      <span className="text-label">
+    <label className="cap-field-label fh-regular fh-quiet" htmlFor={id}>
+      <span className="fh-small">
         {label}
-        {hint ? <span className="text-text-subtle"> {hint}</span> : null}
+        {hint ? <span className="fh-faint"> {hint}</span> : null}
       </span>
     </label>
   );
   return (
     <div className="cap-field">
       {aside ? (
-        <div className="flex items-center justify-between gap-3">
+        <div className="fh-auth-label-row">
           {labelEl}
           {aside}
         </div>
@@ -136,7 +135,7 @@ function AuthField({
 
 /** Recova's closing line under the card's form. */
 export function AuthFootnote({ children }: { children: ReactNode }) {
-  return <p className="mt-6 text-center text-label text-text-subtle">{children}</p>;
+  return <p className="fh-auth-foot fh-small fh-faint">{children}</p>;
 }
 
 /** Which ways in a page offers: the loader's signInMethods(env, { social: true }). */
@@ -191,7 +190,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   }, []);
 
   return (
-    <div className="mb-3 grid gap-3">
+    <div className="fh-auth-providers">
       <Button
         type="button"
         variant="primary"
@@ -255,7 +254,7 @@ export function SocialContinue({
   return (
     <>
       {providers.map((p) => (
-        <Form key={p.id} method="post" action={`/auth/${p.id}`} className="mb-3 grid">
+        <Form key={p.id} method="post" action={`/auth/${p.id}`} className="fh-auth-provider">
           {/* Where to land afterwards, validated again by the start
               route. Recova carried it in a pending_redirect cookie. */}
           {next ? <input type="hidden" name="next" value={next} /> : null}
@@ -266,10 +265,10 @@ export function SocialContinue({
         </Form>
       ))}
       {providers.length === 0 && !afterPasskey ? null : (
-        <div className="mb-5 mt-5 flex items-center gap-3">
-          <span className="h-px flex-1 bg-border" />
-          <span className="font-mono text-caption text-text-subtle">or</span>
-          <span className="h-px flex-1 bg-border" />
+        <div className="fh-auth-or">
+          <span className="fh-auth-or-line" />
+          <span className="fh-mono fh-caption fh-faint">or</span>
+          <span className="fh-auth-or-line" />
         </div>
       )}
     </>
@@ -314,7 +313,7 @@ export function SignInLinkForm({
   return (
     <Form method="post">
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <div className="mb-4">
+      <div className="fh-auth-gap">
         <AuthField
           id={`${idPrefix}-email`}
           errorId={errorId}
@@ -324,9 +323,9 @@ export function SignInLinkForm({
           autoComplete="username webauthn"
         />
       </div>
-      {turnstileSiteKey ? <div ref={widget} className="mb-4" /> : null}
+      {turnstileSiteKey ? <div ref={widget} className="fh-auth-gap" /> : null}
       {error ? (
-        <div id={errorId} className="mb-4">
+        <div id={errorId} className="fh-auth-gap">
           <Alert tone="crit">{error}</Alert>
         </div>
       ) : null}
@@ -374,21 +373,18 @@ export function SignInLinkSent({
         We sent a sign-in link and a code to {email}. They work once and expire in{" "}
         {SIGN_IN_EXPIRES_IN_WORDS}.
       </Banner>
-      <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="mt-6">
+      <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="fh-auth-code">
         {/* site-runtime ./sign-in-form SIGN_IN_INTENT: signInFormAction reads a typed code by it. */}
         <input type="hidden" name="intent" value="code" />
         <input type="hidden" name="email" value={email} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
-        <div className="cap-field mb-4">
-          <label
-            className="cap-field-label font-normal text-text-tertiary"
-            htmlFor={`${idPrefix}-code`}
-          >
-            <span className="text-label">Or enter the code from the email</span>
+        <div className="fh-auth-gap cap-field">
+          <label className="cap-field-label fh-regular fh-quiet" htmlFor={`${idPrefix}-code`}>
+            <span className="fh-small">Or enter the code from the email</span>
           </label>
           <input
             id={`${idPrefix}-code`}
-            className="cap-input tracking-widest"
+            className="fh-code-input cap-input"
             name="code"
             type="text"
             inputMode="numeric"
@@ -401,7 +397,7 @@ export function SignInLinkSent({
           />
         </div>
         {error ? (
-          <div id={errorId} className="mb-4">
+          <div id={errorId} className="fh-auth-gap">
             <Alert tone="crit">{error}</Alert>
           </div>
         ) : null}

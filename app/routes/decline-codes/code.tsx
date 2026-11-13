@@ -23,6 +23,7 @@ import type { Route } from "./+types/code";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "capsomer/button.css";
 import "capsomer/panel.css";
+import "~/reference.css";
 
 // NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
 // Category, retryability, and whether the code rides classifyDecline()'s
@@ -62,11 +63,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
   return (
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
     // the pills, panels, FAQ, button and focus ring read the family.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <MarketingPageHeader
         trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
         eyebrow="Decline code"
@@ -74,9 +71,9 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
         subtext={content.meaning}
       />
 
-      <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
-        <div className="mb-8 flex flex-wrap items-center gap-2">
-          <span className="cap-pill font-mono font-normal" data-variant="outline" data-tone="muted">
+      <div className="fh-code-wrap">
+        <div className="cap-cluster fh-code-block-2" data-gap="3">
+          <span className="cap-pill fh-mono fh-regular" data-variant="outline" data-tone="muted">
             {view.code}
           </span>
           <Pill {...BADGE_PILL[categoryBadgeTone(view.category)]}>
@@ -84,42 +81,40 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           </Pill>
         </div>
 
-        <section className="mb-10">
-          <h2 className="mb-3 text-title font-medium text-text">Why it happens</h2>
-          <p className="text-body leading-relaxed text-text-secondary">{content.whyItHappens}</p>
+        <section className="fh-code-band">
+          <h2 className="fh-code-title fh-title fh-medium fh-text">Why it happens</h2>
+          <p className="fh-body fh-relaxed fh-soft">{content.whyItHappens}</p>
         </section>
 
-        <section className="mb-10">
-          <h2 className="mb-3 text-title font-medium text-text">How to fix it</h2>
-          <p className="text-body leading-relaxed text-text-secondary">{content.howToFix}</p>
+        <section className="fh-code-band">
+          <h2 className="fh-code-title fh-title fh-medium fh-text">How to fix it</h2>
+          <p className="fh-body fh-relaxed fh-soft">{content.howToFix}</p>
         </section>
 
-        <section className={`${CARD_MD} mb-10`}>
+        <section className={`fh-code-band ${CARD_MD}`}>
           <div className="cap-panel-body">
             <div>
-              <h2 className="mb-3 text-title font-medium text-text">How Foxhound recovers it</h2>
-              <p className="text-body leading-relaxed text-text-secondary">
-                {recoveryApproach(view)}
-              </p>
+              <h2 className="fh-code-title fh-title fh-medium fh-text">How Foxhound recovers it</h2>
+              <p className="fh-body fh-relaxed fh-soft">{recoveryApproach(view)}</p>
             </div>
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="mb-4 text-title font-medium text-text">Questions</h2>
+        <section className="fh-code-band">
+          <h2 className="fh-code-title-2 fh-title fh-medium fh-text">Questions</h2>
           <FaqList
             name="decline-code-faq"
             faqs={content.faqs.map((f) => ({ q: f.question, a: f.answer }))}
           />
         </section>
 
-        <div className={`${CARD} text-center`}>
+        <div className={`${CARD} fh-center`}>
           <div className="cap-panel-body">
             <div>
-              <p className="mb-2 text-body font-medium text-text">
+              <p className="fh-code-text fh-body fh-medium fh-text">
                 See what this looks like on your account
               </p>
-              <p className="mb-5 text-label text-text-secondary">
+              <p className="fh-code-text-2 fh-small fh-soft">
                 The free audit shows what Stripe already recovered and what is still dying, no
                 signup required.
               </p>

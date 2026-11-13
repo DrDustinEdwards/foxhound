@@ -91,11 +91,11 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
   const single = currencies.length === 1 ? currencies[0]! : null;
   const title = `Recovered revenue · ${w.rangeLabel}`;
   return (
-    <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-[2fr_1fr]">
+    <div className="fh-recchart-grid">
       <Panel
         title={title}
         more={
-          <span className="font-mono text-body font-semibold tabular-nums text-text">
+          <span className="fh-mono fh-body fh-semibold cap-num fh-text">
             {formatCurrencyTotals(w.recoveredRevenue)}
           </span>
         }
@@ -129,7 +129,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
             })
           }
         />
-        <div className="flex justify-between text-micro text-text-tertiary">
+        <div className="fh-recchart-axis fh-tiny fh-quiet">
           <span>{days}d ago</span>
           <span>Today</span>
         </div>
@@ -139,10 +139,10 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
           Recova's query had no date filter (lib/dashboard-data.ts), so its
           label was untrue; here the figures are the range's, so it is true. */}
       <Panel title="Email performance">
-        <div className="flex flex-col gap-4">
+        <div className="cap-stack" data-gap="5">
           <div>
-            <p className="m-0 text-micro text-text-tertiary">Emails sent ({w.rangeLabel})</p>
-            <p className="m-0 font-mono text-title font-semibold tabular-nums text-text">
+            <p className="fh-tiny fh-quiet">Emails sent ({w.rangeLabel})</p>
+            <p className="fh-mono fh-title fh-semibold cap-num fh-text">
               {w.emailsSentInRange.sent}
             </p>
           </div>
@@ -173,9 +173,9 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <Panel title="Decline breakdown">
       {w.totalFailedCount === 0 ? (
-        <p className="m-0 text-label text-text-subtle">No declined payments yet.</p>
+        <p className="fh-small fh-faint">No declined payments yet.</p>
       ) : (
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
+        <ul className="cap-stack" data-gap="4">
           {rows.map((row) => (
             <Meter
               as="li"
@@ -185,10 +185,10 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
               value={row.pct}
               max={100}
               display={
-                <span className="inline-flex items-center gap-3">
+                <span className="fh-recchart-key">
                   {row.spark.some((v) => v > 0) ? (
                     <span
-                      className="inline-flex"
+                      className="fh-recchart-swatch"
                       // A sparkline beside a figure needs no frame (Capsomer's
                       // chart frame, "When not to"): Enarratio's inline SVG is
                       // named by its own sentence (count, first, last, lowest,
@@ -205,9 +205,7 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
                       )}
                     />
                   ) : null}
-                  <span className="font-mono text-micro text-text-subtle">
-                    {declineRowText(row)}
-                  </span>
+                  <span className="fh-mono fh-tiny fh-faint">{declineRowText(row)}</span>
                 </span>
               }
               valueText={`${row.count} failed payments, ${row.pct}% of all${row.recoveredPct !== null ? `, ${row.recoveredPct}% recovered` : ""}.`}

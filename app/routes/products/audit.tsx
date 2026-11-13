@@ -1,5 +1,5 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { ScanSearch } from "lucide-react";
+import { iconScanSearch } from "capsomer/react/icons";
 
 import { AISummaryPreview, AuditHistoryPreview, AuditScopeCard } from "~/components/audit-previews";
 import {
@@ -26,6 +26,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/products.css";
 
 // The Audit spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/audit/page.tsx (blob 210ce79d) and the files it draws
@@ -75,14 +76,10 @@ export default function AuditProductPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals, and the family's focus
     // ring inside the page, as on the other three spokes.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Audit"
-        Icon={ScanSearch}
+        icon={iconScanSearch}
         headline={AUDIT_HERO.headline}
         sub={AUDIT_HERO.sub}
         pricing={AUDIT_HERO.pricing}

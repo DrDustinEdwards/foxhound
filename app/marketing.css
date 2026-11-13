@@ -1,48 +1,358 @@
+/* The public pages' own parts: bands, columns, cards and their spacing, as Recova laid them out.
+   In the site layer (app.css). Loaded by the marketing layout; the blog post's are in
+   blog-prose.css, the parts the app pages share in app.css. */
+@layer site {
+  /* The opacity fades (the color fades are in app.css). */
+  .fh-mk-heading {
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.025em;
+  }
+  .fh-mk-measure {
+    margin-bottom: 0px;
+    max-width: 560px;
+  }
+  .fh-mk-chips {
+    --ui: var(--mono);
+  }
+  .fh-mk-chips .cap-chip {
+    min-height: 30px;
+    font-size: 0.75rem;
+  }
+  .fh-mk-arrow {
+    display: inline-block;
+    transition-duration: 150ms;
+  }
+  @media (hover: hover) {
+    :is(.fh-hover-group:hover .fh-mk-arrow) {
+      translate: 0.125rem 0;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .fh-mk-arrow {
+      transition-property: transform, translate, scale, rotate;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 150ms;
+    }
+  }
+  .fh-mk-article {
+    margin-inline: auto;
+    max-width: 720px;
+    padding-inline: 1.5rem;
+    padding-bottom: 4rem;
+  }
+  .fh-legal-band {
+    margin-bottom: 3rem;
+  }
+  .fh-mk-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    column-gap: 1.5rem;
+    row-gap: 0.375rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .fh-legal-block {
+    margin-block: 2.5rem;
+    border-color: var(--border);
+  }
+  .fh-legal-title {
+    scroll-margin-top: 5rem;
+  }
+  .fh-legal-title-2 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    scroll-margin-top: 5rem;
+  }
+  .fh-legal-text {
+    margin-bottom: 1rem;
+  }
+  .fh-legal-list {
+    margin-bottom: 1rem;
+    list-style-type: disc;
+    padding-left: 1.5rem;
+  }
+  :where(.fh-legal-list > :not(:last-child)) {
+    margin-block: 0 0.375rem;
+  }
+  .fh-mkhead-wrap {
+    margin-inline: auto;
+    max-width: 1080px;
+    padding-inline: 1.25rem;
+    padding-top: 4rem;
+    padding-bottom: 2.5rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mkhead-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mkhead-block {
+    margin-bottom: 1.5rem;
+  }
+  .fh-mkhead-block-2 {
+    margin-bottom: 0.75rem;
+  }
+  .fh-mk-big-button {
+    padding-inline: 1.5rem;
+    --cap-btn-h: 3rem;
+  }
+  /* 12px: the badge sizes a drawn glyph at 1em. */
+  .fh-mk-quiet-link {
+    line-height: 1.5rem;
+  }
+  @media (hover: hover) {
+    .fh-mk-quiet-link:hover {
+      color: var(--text);
+    }
+  }
+  .fh-mk-wrap-text {
+    margin-inline: auto;
+    max-width: 760px;
+  }
+  .fh-mk-wrap {
+    margin-inline: auto;
+    max-width: 1100px;
+  }
+  .fh-mk-lede {
+    margin-inline: auto;
+    max-width: 480px;
+  }
+  .fh-mk-column {
+    display: flex;
+    flex-direction: column;
+  }
+  .fh-section-trail-block .cap-breadcrumb {
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+  }
+  .fh-section-trail-block .cap-breadcrumb-page {
+    font-weight: 400;
+    color: var(--text-tertiary);
+  }
+  .fh-section-trail-block a {
+    color: var(--text-tertiary);
+    text-decoration-line: none;
+  }
+  .fh-section-trail-block a:hover {
+    color: var(--text);
+  }
+  .fh-mk-narrow {
+    margin-inline: auto;
+    max-width: 42rem;
+    padding-inline: 1rem;
+    padding-bottom: 5rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-narrow {
+      padding-inline: 2rem;
+    }
+  }
+  @media (hover: hover) {
+    :is(.fh-hover-group:hover .fh-archive-text-3) {
+      color: var(--brand-text);
+    }
+  }
+  .fh-mk-cover {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+  }
+  .fh-mk-band-wrap {
+    margin-inline: auto;
+    max-width: 1100px;
+    padding: 4rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-band-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mk-point {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .fh-contact-title {
+    margin-bottom: 0.5rem;
+  }
+  .fh-contact-list {
+    list-style-type: disc;
+    padding-left: 1.25rem;
+  }
+  :where(.fh-contact-list > :not(:last-child)) {
+    margin-block: 0 0.25rem;
+  }
+  .fh-mk-cards-4 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-cards-4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-mk-cards-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .fh-mk-cards-2 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-cards-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (hover: hover) {
+    :is(.fh-hover-group:hover .fh-home-block-2) {
+      translate: 0.125rem 0;
+    }
+  }
+  .fh-mk-band {
+    border-top: 1px solid var(--border-sub);
+    padding: 5rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-band {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mk-band-short {
+    border-top: 1px solid var(--border-sub);
+    padding: 4rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-band-short {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mk-tile-icon {
+    margin-bottom: 1rem;
+    display: inline-flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background-color: var(--surface2);
+  }
+  .fh-mk-sub {
+    margin-inline: auto;
+    margin-bottom: 1.75rem;
+    max-width: 560px;
+    line-height: 1.55;
+  }
+  .fh-privacy-block {
+    margin-block: 2rem;
+  }
+  .fh-privacy-title {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .fh-legal-heading {
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+  }
+  .fh-trail-gap {
+    margin-bottom: 2rem;
+  }
+  .fh-statement-body h2 {
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .fh-statement-body p {
+    margin-bottom: 1rem;
+    font-size: 0.9375rem;
+    line-height: 1.625;
+    color: var(--text-secondary);
+  }
+  .fh-statement-body ul {
+    margin-bottom: 1rem;
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    font-size: 0.9375rem;
+    line-height: 1.625;
+    color: var(--text-secondary);
+  }
+  :where(.fh-statement-body ul > :not(:last-child)) {
+    margin-block: 0 0.375rem;
+  }
+  .fh-card-lg {
+    --gap: 1.5rem;
+    --pad-card: 1.5rem;
+  }
+  .fh-card-md {
+    --gap: 1.25rem;
+  }
+  .fh-card-sm {
+    --gap: 1rem;
+    --pad-card: 1rem;
+  }
+  .fh-cta-button {
+    padding-inline: 1.5rem;
+    --cap-btn-fs: 1rem;
+    --cap-btn-h: 3rem;
+  }
+}
+
 /* The public pages' own looks (legal pages, heroes, closing bands), on Capsomer's legal page, hero and CTA band.
    Loaded by the marketing layout only, so the merchant app and admin do not carry them. */
 
 /* The legal pages (privacy, terms, security, accessibility): Capsomer's legal page at Recova's sizes
    and colors. The 0.9375rem body, the 1.25rem section heads and the mono micro contents heading, as
    Recova writes them. Links are the network's (capsomer/links.css, Foxhound's entry). */
+.fh-legal {
+  padding-block-start: 4rem;
+}
 .fh-legal .cap-legal {
   --measure: 100%;
 }
 .fh-legal .cap-legal-title {
-  font-size: var(--text-page-title);
+  font-size: 2rem;
   font-weight: 500;
   letter-spacing: -0.025em;
   color: var(--text);
 }
 .fh-legal .cap-legal-updated {
-  font-size: var(--text-subhead);
+  font-size: 0.9375rem;
   color: var(--text-secondary);
 }
 .fh-legal .cap-legal-body,
 .fh-legal .cap-legal-intro,
 .fh-legal .cap-legal-outro {
-  font-size: var(--text-subhead);
+  font-size: 0.9375rem;
   line-height: 1.625;
   color: var(--text-secondary);
 }
 .fh-legal .cap-legal-section-title,
 .fh-legal .cap-legal-intro h2 {
-  font-size: var(--text-title);
+  font-size: 1.25rem;
   font-weight: 500;
   color: var(--text);
 }
 .fh-legal .cap-legal-body h3 {
-  font-size: var(--text-item-title);
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text);
 }
 .fh-legal .cap-legal-contents-title {
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-family: var(--font-dm-mono);
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-tertiary);
 }
 .fh-legal .cap-legal-contents a {
-  font-size: var(--text-label);
+  font-size: 0.8125rem;
 }
 
 /* Capsomer's hero at Foxhound's three heroes (home, product spokes, page heads): Recova's sizes
@@ -54,13 +364,13 @@
   margin: 0;
 }
 .fh-home-hero {
-  --hero-title: var(--text-hero);
-  --hero-lead-size: var(--text-body);
+  --hero-title: 2.75rem;
+  --hero-lead-size: 1rem;
   --hero-gap: 3rem;
 }
 @media (min-width: 640px) {
   .fh-home-hero {
-    --hero-title: var(--text-hero-lg);
+    --hero-title: 4rem;
   }
 }
 .fh-home-hero .cap-hero-text {
@@ -108,8 +418,8 @@
 }
 
 .fh-product-hero {
-  --hero-title: var(--text-product-hero);
-  --hero-lead-size: var(--text-product-sub);
+  --hero-title: 2.5rem;
+  --hero-lead-size: 1.0625rem;
   border-bottom: 1px solid var(--border);
   padding: 5rem 1.25rem;
 }
@@ -148,8 +458,8 @@
 }
 
 .fh-page-hero {
-  --hero-title: var(--text-page-title);
-  --hero-lead-size: var(--text-subhead);
+  --hero-title: 2rem;
+  --hero-lead-size: 0.9375rem;
   max-inline-size: 1080px;
   margin-inline: auto;
   padding: 4rem 1.25rem 2.5rem;
@@ -165,7 +475,7 @@
 .fh-page-hero .cap-hero-eyebrow {
   margin: 0 0 0.75rem;
   color: var(--text-tertiary);
-  font: 500 var(--text-micro) / 1.3 var(--font-sans);
+  font: 500 0.6875rem / 1.3 var(--font-dm-sans);
   letter-spacing: 0.1em;
 }
 .fh-page-hero .cap-hero-title {
@@ -228,14 +538,14 @@
 .fh-closing-band .cap-cta-band-title {
   margin-block-end: 1rem;
   color: var(--text);
-  font-size: var(--text-subsection);
+  font-size: 1.5rem;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
 .fh-closing-band .cap-cta-band-text {
   max-inline-size: min(560px, var(--fh-closing-w));
   margin: 0 auto 1.75rem;
-  font-size: var(--text-subhead);
+  font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--text-secondary);
 }
@@ -248,22 +558,26 @@
   color: inherit;
 }
 .fh-closing-home .cap-cta-band-title {
-  font-size: var(--text-section);
+  font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 @media (min-width: 640px) {
   .fh-closing-home .cap-cta-band-title {
-    font-size: var(--text-section-lg);
+    font-size: 2rem;
   }
 }
 .fh-closing-pricing .cap-cta-band-title {
-  font-size: var(--text-section);
+  font-size: 1.75rem;
 }
 @media (min-width: 640px) {
   .fh-closing-pricing .cap-cta-band-title {
-    font-size: var(--text-section-lg);
+    font-size: 2rem;
   }
+}
+/* The pricing closing's button sits in a box of its own only to carry the comfortable density. */
+.fh-closing-density {
+  display: contents;
 }
 /* The product spokes' closing: no rule (the FAQ above ends the page's last band), a 480px column. */
 .fh-closing-band.fh-closing-product {
@@ -279,6 +593,6 @@
 }
 .fh-closing-product .cap-cta-band-note {
   margin-block-start: 0.75rem;
-  font-size: var(--text-caption);
+  font-size: 0.75rem;
   color: var(--text-tertiary);
 }

@@ -1,0 +1,207 @@
+/* The parts only the free audit's pages (/audit, its connect step and results) use, as Recova laid them out. In the site layer
+   (app.css), after the public pages' shared parts (marketing.css). */
+@layer site {
+  .fh-audit-link-2 {
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+  }
+  .fh-audit-wrap {
+    margin-inline: auto;
+    max-width: 680px;
+    padding: 2.5rem 1rem;
+  }
+  @media (width >= 48rem) {
+    .fh-audit-wrap {
+      padding-inline: 2rem;
+      padding-block: 5rem;
+    }
+  }
+  .fh-audit-block {
+    margin-bottom: 1.5rem;
+  }
+  .fh-audit-label {
+    letter-spacing: 0.06em;
+    --_bg: color-mix(in srgb, var(--primary) 13%, transparent);
+    --_fg: var(--accent-text);
+    --_line: color-mix(in srgb, var(--primary) 27%, transparent);
+  }
+  .fh-audit-title {
+    margin-bottom: 1.25rem;
+    font-size: clamp(1.75rem, 5vw, 2.75rem);
+    line-height: 1.15;
+    letter-spacing: -1px;
+  }
+  .fh-audit-text {
+    margin-bottom: 2.5rem;
+    line-height: 1.6;
+  }
+  .fh-audit-grid {
+    margin-bottom: 2.5rem;
+    display: grid;
+  }
+  .fh-audit-grid-2 {
+    margin-bottom: 1.5rem;
+    display: grid;
+  }
+  .fh-audit-band {
+    border-radius: 1rem;
+    --gap: 1.5rem;
+    --pad-card: 1.5rem;
+  }
+  @media (width >= 48rem) {
+    .fh-audit-band {
+      --gap: 2.5rem;
+      --pad-card: 2.5rem;
+    }
+  }
+  .fh-audit-title-2 {
+    margin-bottom: 1.25rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .fh-audit-list {
+    margin-bottom: 2rem;
+  }
+  .fh-audit-item {
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .fh-audit-label-2 {
+    margin-top: 7px;
+    height: 0.375rem;
+    width: 0.375rem;
+    flex-shrink: 0;
+    border-radius: calc(infinity * 1px);
+    background-color: var(--accent);
+  }
+  .fh-audit-label-3 {
+    margin-bottom: 0.125rem;
+  }
+  .fh-audit-grid-3 {
+    display: grid;
+  }
+  .fh-audit-link {
+    border-radius: 10px;
+    --cap-btn-fs: 1rem;
+    --cap-btn-h: 3.5rem;
+  }
+  .fh-audit-text-2 {
+    margin-top: 0.5rem;
+  }
+  .fh-audit-grid-4 {
+    margin-block: 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 48rem) {
+    .fh-audit-grid-4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .fh-audit-text-3 {
+    margin-bottom: 0.25rem;
+  }
+  .fh-audit-text-4 {
+    margin-bottom: 0.25rem;
+    color: var(--blue);
+  }
+  .fh-audit-text-5 {
+    margin-bottom: 1rem;
+  }
+  .fh-audit-link-2 {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    text-decoration-line: none;
+  }
+  @media (hover: hover) {
+    .fh-audit-link-2:hover {
+      opacity: 80%;
+    }
+  }
+  .fh-audit-grid-5 {
+    margin-top: 2.5rem;
+    display: grid;
+  }
+  .fh-audit-text-6 {
+    margin-bottom: 0.5rem;
+  }
+  .fh-audit-text-7 {
+    margin-bottom: 1.25rem;
+  }
+  .fh-audit-text-8 {
+    margin-top: 1rem;
+  }
+  .fh-audit-text-9 {
+    margin-bottom: 0.75rem;
+  }
+  .fh-auditconnect-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 1rem;
+  }
+  .fh-auditconnect-block {
+    width: 100%;
+    max-width: 480px;
+  }
+  .fh-auditconnect-block-2 {
+    padding: 2.25rem 2rem;
+  }
+  .fh-auditconnect-title {
+    margin-bottom: 0.5rem;
+  }
+  .fh-auditconnect-text {
+    margin-bottom: 2rem;
+  }
+  .fh-auditconnect-block-3 {
+    margin-bottom: 1.5rem;
+  }
+  .fh-auditconnect-grid {
+    margin-bottom: 1.5rem;
+    display: grid;
+    gap: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    padding: 1rem;
+  }
+  .fh-auditconnect-grid-2 {
+    display: grid;
+  }
+  .fh-auditconnect-label {
+    white-space: normal;
+  }
+  .fh-auditconnect-text-2 {
+    margin-top: 1rem;
+  }
+  .fh-results-text {
+    margin-bottom: 1rem;
+  }
+  .fh-results-link {
+    padding-block: 0.5rem;
+  }
+  .fh-results-label {
+    white-space: normal;
+  }
+  .fh-results-text-2 {
+    margin-top: 0.5rem;
+  }
+  .fh-results-text-3 {
+    margin-top: 0.25rem;
+  }
+  .fh-results-block {
+    min-width: 0px;
+    padding-block: 2.5rem;
+  }
+  .fh-results-block-2 {
+    margin-bottom: 1.5rem;
+  }
+  .fh-results-block-3 {
+    margin-bottom: 0.5rem;
+  }
+}

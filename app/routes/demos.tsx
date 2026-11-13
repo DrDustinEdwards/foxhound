@@ -1,7 +1,6 @@
+import { Icon, iconOverview, iconRefresh, iconShield, iconTrendingUp } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { RefreshCw, Shield, TrendingUp, LayoutDashboard } from "lucide-react";
 import { ButtonLink } from "capsomer/react/link";
-
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -14,6 +13,7 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/demos";
+import "~/products.css";
 
 // The demo ENTRY point (audit priority #2). Not mock cards: each card is a
 // real anchor into the REAL app surface for that product (recovery, disputes,
@@ -48,25 +48,25 @@ export const loader = siteUrlLoader;
 const PRODUCT_ENTRIES = [
   {
     href: "/demos/dashboard",
-    Icon: LayoutDashboard,
+    icon: iconOverview,
     name: "Dashboard",
     blurb: "Recovered revenue, recovery rate, and free MRR analytics at a glance.",
   },
   {
     href: "/demos/recovery",
-    Icon: RefreshCw,
+    icon: iconRefresh,
     name: "Recovery",
     blurb: "AI-drafted email sequences and silent retries for a seeded account of 200 customers.",
   },
   {
     href: "/demos/disputes",
-    Icon: Shield,
+    icon: iconShield,
     name: "Disputes",
     blurb: "Evidence drafted for review, across won, lost, and needs-response states.",
   },
   {
     href: "/demos/intelligence",
-    Icon: TrendingUp,
+    icon: iconTrendingUp,
     name: "Intelligence",
     blurb: "Every customer scored, MRR-at-risk exposure, and a monthly narrative.",
   },
@@ -86,11 +86,7 @@ export default function DemosPage() {
           /products hub). The buttons are the only focusable parts here; their
           amber ring is Capsomer's own, handed back by app.css
           (.fh-cap .cap-btn:focus-visible). */}
-      <div
-        className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8"
-        data-cap-site="foxhound"
-        data-family="amber"
-      >
+      <div className="fh-demos-wrap fh-cap" data-cap-site="foxhound" data-family="amber">
         {/* Four cards against legacy's three: legacy filters to products with a
             demoHref, Foxhound also entry-points the console demo. Ratified
             (Dustin, 2026-07-31, "Four demo cards, in Recova's treatment") on
@@ -107,21 +103,18 @@ export default function DemosPage() {
             The panel's body does not fill the panel, so a button sits under
             its own blurb rather than at the foot of a taller neighbor, as
             on the blog's cards; that is the layer's too. */}
-        <div
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-          data-density="comfortable"
-        >
+        <div className="fh-mk-cards-4" data-density="comfortable">
           {PRODUCT_ENTRIES.map((entry) => (
-            <div key={entry.href} className="cap-reveal grid">
+            <div key={entry.href} className="fh-demos-grid cap-reveal">
               <div className="cap-panel">
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
-                    <p className="text-body font-medium text-text">{entry.name}</p>
-                    <p className="mb-6 mt-2 text-label text-text-secondary">{entry.blurb}</p>
+                    <p className="fh-body fh-medium fh-text">{entry.name}</p>
+                    <p className="fh-demos-text fh-small fh-soft">{entry.blurb}</p>
                     {/* Capsomer's primary button as the link Recova draws full width. */}
                     <ButtonLink to={entry.href} rel="nofollow" variant="primary" block>
-                      <entry.Icon data-icon="start" strokeWidth={2} aria-hidden />
+                      <Icon d={entry.icon} data-icon="start" />
                       View {entry.name} demo
                     </ButtonLink>
                   </div>
@@ -131,7 +124,7 @@ export default function DemosPage() {
           ))}
         </div>
 
-        <p className="mt-8 text-center text-label text-text-subtle">
+        <p className="fh-demos-text-2 fh-center fh-small fh-faint">
           The demo is read-only. When you're done, you can leave it from the banner at the top of
           the app.
         </p>

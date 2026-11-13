@@ -1,10 +1,10 @@
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { AwayLink } from "capsomer/react/link";
 import "capsomer/link.css";
 import { formatDate } from "capsomer/behavior/time";
 import { LedgerLineItemRow } from "~/components/billing-ledger-row";
-import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
@@ -32,40 +32,40 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
   const { invoice, lineItems } = loaderData;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <div className="flex items-start justify-between gap-4">
+    <div className="fh-invoice">
+      <div className="fh-box">
+        <div className="fh-split">
           <div>
-            <h1 className="text-title font-medium text-text">
+            <h1 className="fh-title fh-medium fh-text">
               {formatDate(invoice.periodStart, { style: "medium" }) ?? ""} -{" "}
               {formatDate(invoice.periodEnd, { style: "medium" }) ?? ""}
             </h1>
-            <p className="mt-1 text-label text-text-tertiary">{invoice.currency.toUpperCase()}</p>
+            <p className="fh-invoice-currency fh-small fh-quiet">
+              {invoice.currency.toUpperCase()}
+            </p>
           </div>
-          <p className="font-mono text-title text-text">
+          <p className="fh-mono fh-title fh-text">
             {formatMoney(invoice.totalCents, invoice.currency)}
           </p>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="fh-invoice-actions">
           <Pill {...BADGE_PILL[billingInvoiceStatusTone(invoice.status)]}>
             {BILLING_INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
           </Pill>
           {invoice.stripeInvoiceUrl ? (
-            <AwayLink href={invoice.stripeInvoiceUrl} newTab className="text-label">
+            <AwayLink href={invoice.stripeInvoiceUrl} newTab className="fh-small">
               View Stripe invoice
             </AwayLink>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-6 rounded-lg border border-border bg-surface p-4">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-          Line items
-        </p>
+      <div className="fh-box fh-invoice-lines">
+        <p className="fh-mono fh-tiny fh-quiet fh-caps">Line items</p>
         {lineItems.length === 0 ? (
-          <p className="mt-2 text-label text-text-tertiary">No line items on this invoice.</p>
+          <p className="fh-invoice-empty fh-small fh-quiet">No line items on this invoice.</p>
         ) : (
-          <ol className="mt-3 flex flex-col">
+          <ol className="fh-invoice-list">
             {lineItems.map((entry) => (
               <LedgerLineItemRow key={entry.lineItem.id} entry={entry} />
             ))}

@@ -827,7 +827,7 @@ const SECTIONS: LegalSection[] = [
   },
 ];
 
-const SUMMARY_TERM = "font-medium text-text";
+const SUMMARY_TERM = "fh-medium fh-text";
 
 /** A pointer from the summary to its section, in the summary's own words. */
 function More({ to, children }: { to: string; children: string }) {
@@ -868,23 +868,20 @@ export default function PrivacyPage() {
               concerns, please contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
               .
             </p>
-            <div className="my-8">
+            <div className="fh-privacy-block">
               {/* Recova's summary card: p-6, its heading a mono label inside. */}
               <section className={CARD} aria-labelledby="privacy-summary">
                 <div className="cap-panel-body">
-                  <h2
-                    id="privacy-summary"
-                    className="m-0 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary"
-                  >
+                  <h2 id="privacy-summary" className="fh-privacy-title fh-mono fh-tiny fh-quiet">
                     Summary of key points
                   </h2>
-                  <p className="m-0 text-copy leading-relaxed text-text-secondary">
+                  <p className="fh-copy fh-relaxed fh-soft">
                     This summary provides key points from our Privacy Notice, but you can find out
                     more details about any of these topics by clicking the link following each key
                     point or by using our table of contents below to find the section you are
                     looking for.
                   </p>
-                  <ul className="m-0 flex list-none flex-col gap-3 p-0 text-copy leading-relaxed text-text-secondary">
+                  <ul className="cap-stack fh-copy fh-relaxed fh-soft" data-gap="4">
                     <li>
                       <strong className={SUMMARY_TERM}>
                         What personal information do we process?

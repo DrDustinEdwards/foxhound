@@ -19,6 +19,7 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/page";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/docs.css";
 
 // The five docs guides on one :slug route. Recova's spec is
 // app/(marketing)/docs/{platform,audit,recovery,disputes,intelligence}/page.tsx
@@ -76,32 +77,21 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
-    <div
-      className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-doc-wrap fh-cap" data-cap-site="foxhound" data-family="amber">
       <SectionTrail items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]} />
 
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
-        User Guide
-      </div>
-      <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{guide.heading}</h1>
-      <p className="mb-10 text-subhead leading-relaxed text-text-secondary">{guide.lead}</p>
+      <div className="fh-doc-block fh-tiny fh-medium fh-quiet fh-caps-wide">User Guide</div>
+      <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">{guide.heading}</h1>
+      <p className="fh-doc-text fh-subhead fh-relaxed fh-soft">{guide.lead}</p>
 
       {guide.sections.length > 1 ? (
-        <nav
-          aria-label="Contents"
-          className="cap-panel mb-12 rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]"
-        >
+        <nav aria-label="Contents" className="fh-doc-nav cap-panel">
           <div className="cap-panel-body">
             <div>
-              <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-                Contents
-              </div>
-              <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
+              <div className="fh-mk-kicker-gap fh-mono fh-tiny fh-quiet">Contents</div>
+              <ol className="fh-mk-grid-2">
                 {guide.sections.map((section, i) => (
-                  <li key={section.heading} className="text-label leading-6">
+                  <li key={section.heading} className="fh-doc-item fh-small">
                     <a href={`#${sectionIds[i]}`}>
                       Part {i + 1}. {section.heading}
                     </a>
@@ -115,10 +105,10 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
       {guide.sections.map((section, i) => (
         <section key={section.heading}>
-          <div className="mb-2 mt-16 text-micro font-medium uppercase tracking-widest text-accent-text">
+          <div className="fh-doc-block-2 fh-tiny fh-medium fh-accent fh-caps-wide">
             Part {i + 1}
           </div>
-          <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 text-title font-medium text-text">
+          <h2 id={sectionIds[i]} className="fh-doc-title fh-title fh-medium fh-text">
             {section.heading}
           </h2>
           <DocBlocks blocks={section.body} />

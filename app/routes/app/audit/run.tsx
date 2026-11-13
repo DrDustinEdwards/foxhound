@@ -124,8 +124,8 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
   // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
   // the page's one <main>.
   return (
-    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
-      <div className="mb-5">
+    <div className="fh-auditd-page cap-admin-page" data-width="page">
+      <div className="fh-auditd-block">
         <PageHead
           title={`This audit was run on ${formatDate(run.runAt, { style: "medium" }) ?? ""}.`}
           lead="Data reflects your Stripe account at that point in time."

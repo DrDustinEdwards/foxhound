@@ -1,5 +1,5 @@
 import { Table } from "capsomer/react/table";
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { AwayLink, Link } from "capsomer/react/link";
 import "capsomer/link.css";
 import { Banner } from "capsomer/react/banner";
@@ -25,7 +25,7 @@ import {
   type SentryState,
 } from "~/lib/admin/errors.server";
 import { capitalize, formatCount, plural } from "@drdustinedwards/site-helpers/text";
-import { pagePending, type AdminHandle } from "~/lib/admin/page";
+import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/errors";
@@ -58,7 +58,7 @@ const ERRORS_PATH = "/admin/platform/errors";
 const ISSUES_HEADING_ID = "admin-errors-issues-heading";
 const FAILED_HEADING_ID = "admin-errors-failed-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-flex min-h-6 items-center gap-1";
+const LINK = "fh-row-link-out";
 
 // Sentry's levels in words, with Capsomer's status glyph and tone.
 const LEVELS: Record<string, { tone: StatusTone; word: string }> = {
@@ -89,10 +89,10 @@ function levelOf(level: string): { tone: StatusTone; word: string } {
 // until then the page says so plainly. Read only.
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
   const { sentry, failed } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, ERRORS_PATH);
+  const pending = usePagePending(ERRORS_PATH);
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       <SentryNotice sentry={sentry} />
 
       {sentry.state === "ready" || sentry.state === "failed" ? (
@@ -158,24 +158,24 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                     <Time at={e.createdAt} empty="never" tip />
                   </td>
                   <td data-label="Action">{e.action}</td>
-                  <td data-label="Actor" className="break-all">
+                  <td data-label="Actor" className="fh-break">
                     {e.actor}
                   </td>
                   <td data-label="Target" data-wrap="">
                     {e.target === null ? (
-                      <span className="text-text-tertiary">None</span>
+                      <span className="fh-quiet">None</span>
                     ) : e.target.href ? (
                       <Link to={e.target.href} className={LINK}>
                         {e.target.label}
                       </Link>
                     ) : (
-                      <span className="break-all">{e.target.label}</span>
+                      <span className="fh-break">{e.target.label}</span>
                     )}
                   </td>
                   <td
                     data-label="Detail"
                     data-wrap=""
-                    className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}
+                    className={e.detail === null ? "fh-quiet" : "fh-soft"}
                   >
                     {e.detail ?? "None"}
                   </td>
@@ -241,22 +241,22 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
               <td data-wrap="">
                 {issue.permalink ? (
                   <AwayLink href={issue.permalink} newTab className={LINK}>
-                    <span className="break-all">{issue.title}</span>
+                    <span className="fh-break">{issue.title}</span>
                   </AwayLink>
                 ) : (
-                  <span className="break-all">{issue.title}</span>
+                  <span className="fh-break">{issue.title}</span>
                 )}
-                <span className="block font-mono text-micro text-text-secondary break-all">
+                <span className="fh-line fh-mono fh-tiny fh-soft fh-break">
                   {issue.culprit ? `${issue.shortId}, ${issue.culprit}` : issue.shortId}
                 </span>
               </td>
               <td data-label="Level">
                 <Status tone={level.tone}>{level.word}</Status>
               </td>
-              <td data-label="Events" className="tabular-nums">
+              <td data-label="Events" className="cap-num">
                 {formatCount(issue.count)}
               </td>
-              <td data-label="Users" className="tabular-nums">
+              <td data-label="Users" className="cap-num">
                 {formatCount(issue.userCount)}
               </td>
               <td data-label="Last seen">

@@ -1,8 +1,9 @@
 // Parts of the admin merchants page (routes/admin/merchants/index.tsx split):
 // the merchant list and rows, platform figures, undo posts and the posted result.
 
-import { useCallback, useEffect, useRef } from "react";
-import { Form, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
+import { useCallback, useEffect } from "react";
+import { useFetcherPromise, usePagePending } from "capsomer/react/route-hooks";
+import { Form, useFetcher, useFetchers } from "react-router";
 import { Link, routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { Table } from "capsomer/react/table";
 import { Empty } from "capsomer/react/empty";
@@ -27,7 +28,7 @@ import {
 } from "~/lib/admin/merchants";
 import type { AdminMerchantRow } from "~/lib/admin/merchants.server";
 import { plural } from "@drdustinedwards/site-helpers/text";
-import { merchantHref, pagePending } from "~/lib/admin/page";
+import { merchantHref } from "~/lib/admin/page";
 import { recoveryRateBand, recoveryRateStatusTone } from "~/lib/dashboard/recovery-rate";
 import type { Route } from "../routes/admin/merchants/+types/index";
 import type { ActionData } from "../routes/admin/merchants/index";
@@ -40,7 +41,7 @@ const HEADING_ID = "admin-merchants-heading";
 // (hover and focus show the exact time), so my own wrapper lifts them too,
 // until Capsomer lifts every focusable element;
 // then this wrapper goes.
-const ABOVE_ROW_LINK = "relative z-[1]";
+const ABOVE_ROW_LINK = "fh-above-row";
 
 type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
 
@@ -95,17 +96,15 @@ export function MerchantsList({
   figures: Figures | null;
   actionData: ActionData | undefined;
 }) {
-  const navigation = useNavigation();
-  const revalidating = useRevalidator().state;
   // A row's change reads the rows again; the table is busy until it has.
   const rowsReading = useFetchers().some((f) => f.state === "loading");
-  const pending = pagePending(navigation, revalidating, merchantViewPath(view)) || rowsReading;
+  const pending = usePagePending(merchantViewPath(view)) || rowsReading;
   const action = merchantsActionFor(view);
   const undoPost = useUndoPost(action);
   const words = VIEW_WORDS[view];
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       {actionData ? <PostedResult result={actionData} action={action} /> : null}
 
       {figures ? <PlatformFigures figures={figures} reading={pending} /> : null}
@@ -190,7 +189,7 @@ function PlatformFigures({ figures, reading }: { figures: Figures; reading: bool
   const mrrAccounts = figures.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
   return (
     <Panel title="Platform" reading={reading} description="Demo accounts are not counted.">
-      <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <dl className="fh-halves" data-cols="5">
         <Figure
           label="Estimated MRR"
           figure={moneyWords(
@@ -230,10 +229,10 @@ function PlatformFigures({ figures, reading }: { figures: Figures; reading: bool
 
 function Figure({ label, figure, detail }: { label: string; figure: string; detail: string }) {
   return (
-    <div className="grid content-start gap-0.5">
-      <dt className="text-label text-text-secondary">{label}</dt>
-      <dd className="m-0 font-mono text-title text-text tabular-nums">{figure}</dd>
-      <dd className="m-0 text-label text-text-tertiary">{detail}</dd>
+    <div className="fh-figure">
+      <dt className="fh-small fh-soft">{label}</dt>
+      <dd className="fh-mono fh-title fh-text cap-num">{figure}</dd>
+      <dd className="fh-small fh-quiet">{detail}</dd>
     </div>
   );
 }
@@ -243,36 +242,19 @@ type UndoPost = (intent: ToggleIntent, accountId: string, value: boolean) => Pro
 /** Undo posts the other value through one shared fetcher and settles when the
  *  answer is back, so Capsomer's message can say it was undone, or why not. */
 function useUndoPost(action: string): UndoPost {
-  const fetcher = useFetcher<ActionData>({ key: "admin-merchants-undo" });
-  const waiting = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null);
-  const { submit, state, data: answer } = fetcher;
-
-  useEffect(() => {
-    if (state !== "idle" || !waiting.current) return;
-    const settle = waiting.current;
-    waiting.current = null;
-    if (answer?.ok) settle.resolve();
-    else
-      settle.reject(
-        new Error(answer && !answer.ok ? answer.error : "The server did not answer. Try again."),
-      );
-  }, [state, answer]);
-
+  const post = useFetcherPromise<ActionData>({
+    key: "admin-merchants-undo",
+    busyMessage: "Another Undo is still running. Try again in a moment.",
+  });
   return useCallback(
-    (intent, accountId, value) =>
-      new Promise<void>((resolve, reject) => {
-        // One Undo at a time: the message that asked keeps its Undo and says why.
-        if (waiting.current) {
-          reject(new Error("Another Undo is still running. Try again in a moment."));
-          return;
-        }
-        waiting.current = { resolve, reject };
-        void submit(
-          { intent, accountId, value: String(value), undo: "1" },
-          { method: "post", action },
-        );
-      }),
-    [submit, action],
+    async (intent, accountId, value) => {
+      const answer = await post({ intent, accountId, value: String(value), undo: "1" }, { action });
+      if (answer?.ok) return;
+      throw new Error(
+        answer && !answer.ok ? answer.error : "The server did not answer. Try again.",
+      );
+    },
+    [post, action],
   );
 }
 
@@ -329,7 +311,7 @@ function MerchantRow({
       </td>
       <td data-label="Recovery rate">
         {m.recoveryRatePct === null ? (
-          <span className="text-text-tertiary">{recoveryRateBand(null)}</span>
+          <span className="fh-quiet">{recoveryRateBand(null)}</span>
         ) : (
           // The band as words beside the rate: a hover title would sit under
           // the row's stretched link and never reach a mouse (PR 140 review).
@@ -358,8 +340,8 @@ function MerchantRow({
         </span>
       </td>
       {/* In the card layout (data-reflow) the buttons take the card's full width. */}
-      <td data-label="Actions" className="[grid-column:1/-1]">
-        <div className="flex flex-wrap items-center gap-2">
+      <td data-label="Actions" className="fh-row-actions">
+        <div className="cap-cluster" data-gap="3">
           {m.stripeUserId ? (
             <ButtonLink
               href={`https://dashboard.stripe.com/${encodeURIComponent(m.stripeUserId)}`}

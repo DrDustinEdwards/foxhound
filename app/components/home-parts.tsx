@@ -1,7 +1,14 @@
 // Pieces of the home page (routes/home.tsx split): product icons, arrows, the
 // how-it-works steps and the billing answer.
 
-import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
+import {
+  Icon,
+  iconArrowRight,
+  iconRefresh,
+  iconScanSearch,
+  iconShield,
+  iconTrendingUp,
+} from "capsomer/react/icons";
 import { Link } from "capsomer/react/link";
 import {
   BILLING_FAQ_PARTS,
@@ -11,21 +18,14 @@ import {
 } from "~/lib/marketing/home-copy";
 
 export const PRODUCT_ICONS = {
-  audit: ScanSearch,
-  recovery: RefreshCw,
-  disputes: Shield,
-  intelligence: TrendingUp,
+  audit: iconScanSearch,
+  recovery: iconRefresh,
+  disputes: iconShield,
+  intelligence: iconTrendingUp,
 } as const;
 
 export function Arrow() {
-  return (
-    <ArrowRight
-      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-      size={13}
-      strokeWidth={1.5}
-      aria-hidden
-    />
-  );
+  return <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />;
 }
 
 export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [

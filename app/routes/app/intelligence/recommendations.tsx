@@ -1,5 +1,5 @@
 import { Table } from "capsomer/react/table";
-import { Check } from "lucide-react";
+import { Icon, iconCheck } from "capsomer/react/icons";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Pagination, pageCountOf, pageHref, parsePage } from "capsomer/react/pagination";
@@ -110,15 +110,15 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
   // the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8" data-width="page">
-      <div className="mb-6">
+    <div className="fh-intel-page cap-admin-page" data-width="page">
+      <div className="fh-intel-head">
         <PageHead title="Recommendations" lead="Customers that need your attention right now." />
       </div>
 
       {totalCount === 0 ? (
         <NothingToDo />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="cap-stack" data-gap="6">
           {SECTIONS.map((section) => {
             const sectionRows = rows.filter((r) => section.actions.includes(r.recommendedAction));
             if (sectionRows.length === 0) return null;
@@ -129,7 +129,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
 
       {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form). */}
       {totalPages > 1 ? (
-        <div className="mt-4">
+        <div className="fh-pager">
           <Pagination
             form="steps"
             page={page}
@@ -154,7 +154,7 @@ function NothingToDo() {
       <div className="cap-panel-body">
         <div className="cap-empty" data-kind="all-clear" data-flush="">
           <div className="cap-empty-media" aria-hidden="true">
-            <Check width={40} height={40} strokeWidth={2} className="text-success-text" />
+            <Icon d={iconCheck} className="fh-icon-40 fh-success" />
           </div>
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">No action needed right now.</h2>
@@ -197,15 +197,13 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                   {c.customerName ?? "(unnamed)"}
                 </Link>
                 {/* Recova's second line under the name: the Stripe id, micro and mono. */}
-                <span className="block font-mono text-micro text-text-subtle">
-                  {c.stripeCustomerId}
-                </span>
+                <span className="fh-line fh-mono fh-tiny fh-faint">{c.stripeCustomerId}</span>
               </th>
               <td data-label="Plan">
                 <Pill variant="outline">{c.planName ?? "-"}</Pill>
               </td>
               <td data-label="MRR" data-num="">
-                <span className="font-mono">
+                <span className="fh-mono">
                   {c.mrrContributionCents > 0
                     ? formatMoney(c.mrrContributionCents, c.currency)
                     : "-"}
@@ -213,17 +211,15 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
               </td>
               <td data-label="Health" data-num="">
                 {c.healthScore == null ? (
-                  <span className="font-mono text-text-tertiary">-</span>
+                  <span className="fh-mono fh-quiet">-</span>
                 ) : (
-                  <span
-                    className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
-                  >
+                  <span className={`fh-mono fh-semibold ${healthScoreClassName(c.healthScore)}`}>
                     {c.healthScore}
                   </span>
                 )}
               </td>
               <td data-label="Recommendation">
-                <span className="text-micro text-text-subtle">
+                <span className="fh-tiny fh-faint">
                   {ACTION_LABEL[c.recommendedAction] ?? c.recommendedAction}
                 </span>
               </td>

@@ -79,13 +79,9 @@ export function EarlyFraudWarnings({
   const shown = confirming ?? lastConfirm;
 
   return (
-    <section
-      id={EARLY_FRAUD_WARNINGS_ANCHOR}
-      className="mt-8 scroll-mt-24"
-      aria-labelledby="efw-heading"
-    >
+    <section id={EARLY_FRAUD_WARNINGS_ANCHOR} className="fh-warnings" aria-labelledby="efw-heading">
       {result && result !== dismissedResult ? (
-        <div className="mb-4">
+        <div className="fh-warnings-head">
           <Banner tone={result.ok ? "ok" : "crit"} onDismiss={() => setDismissedResult(result)}>
             {result.message}
           </Banner>
@@ -93,7 +89,7 @@ export function EarlyFraudWarnings({
       ) : null}
 
       {pageConfirm ? (
-        <div className="mb-4">
+        <div className="fh-warnings-head">
           <ConfirmPage
             hidden={{ intent: "refund_warning", warning_id: pageConfirm.id }}
             title={`Refund ${formatMoney(pageConfirm.amountCents, pageConfirm.currency)} to ${warningCustomerLabel(pageConfirm)}?`}
@@ -112,9 +108,7 @@ export function EarlyFraudWarnings({
         flush
       >
         {warnings.length === 0 ? (
-          <p className="m-0 px-4 py-6 text-label text-text-secondary">
-            No open early fraud warnings.
-          </p>
+          <p className="fh-warnings-empty fh-small fh-soft">No open early fraud warnings.</p>
         ) : (
           <Table caption="Early fraud warnings" captionHidden reflow="medium">
             <thead>
@@ -127,7 +121,7 @@ export function EarlyFraudWarnings({
                 <th scope="col">Date</th>
                 <th scope="col">Charge</th>
                 <th scope="col">
-                  <span className="sr-only">Actions</span>
+                  <span className="cap-sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
@@ -137,29 +131,26 @@ export function EarlyFraudWarnings({
                 return (
                   <tr key={w.id} data-warning={w.id}>
                     <td>
-                      <div className="text-label text-text">{label}</div>
+                      <div className="fh-small fh-text">{label}</div>
                       {w.customerName && w.customerEmail ? (
-                        <div className="text-micro text-text-subtle">{w.customerEmail}</div>
+                        <div className="fh-tiny fh-faint">{w.customerEmail}</div>
                       ) : null}
                     </td>
                     <td data-label="Amount" data-num="">
                       {formatMoney(w.amountCents, w.currency)}
                     </td>
-                    <td data-label="Fraud type" className="text-label text-text-secondary">
+                    <td data-label="Fraud type" className="fh-small fh-soft">
                       {fraudTypeWords(w.fraudType)}
                     </td>
-                    <td data-label="Date" className="font-mono text-label">
+                    <td data-label="Date" className="fh-mono fh-small">
                       {formatDate(toDate(w.createdAt), { style: "medium" }) ?? ""}
                     </td>
-                    <td
-                      data-label="Charge"
-                      className="font-mono text-micro break-all text-text-secondary"
-                    >
+                    <td data-label="Charge" className="fh-mono fh-tiny fh-break fh-soft">
                       {w.stripeChargeId}
                     </td>
-                    <td data-label="Actions" className="[grid-column:1/-1]">
+                    <td data-label="Actions" className="fh-warnings-actions-cell">
                       {readOnly ? (
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="fh-warnings-actions">
                           <button
                             type="button"
                             className="cap-btn"
@@ -169,7 +160,7 @@ export function EarlyFraudWarnings({
                             aria-describedby={DEMO_REASON_ID}
                           >
                             Refund this charge
-                            <span className="sr-only"> from {label}</span>
+                            <span className="cap-sr-only"> from {label}</span>
                           </button>
                           <button
                             type="button"
@@ -180,11 +171,11 @@ export function EarlyFraudWarnings({
                             aria-describedby={DEMO_REASON_ID}
                           >
                             Dismiss
-                            <span className="sr-only"> the warning for {label}</span>
+                            <span className="cap-sr-only"> the warning for {label}</span>
                           </button>
                         </div>
                       ) : (
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="fh-warnings-actions">
                           {canRefund ? (
                             <Form method="post">
                               <input type="hidden" name="intent" value="refund_warning_confirm" />
@@ -201,11 +192,11 @@ export function EarlyFraudWarnings({
                                 }}
                               >
                                 Refund this charge
-                                <span className="sr-only"> from {label}</span>
+                                <span className="cap-sr-only"> from {label}</span>
                               </button>
                             </Form>
                           ) : (
-                            <span className="self-center text-micro text-text-subtle">
+                            <span className="fh-warnings-note fh-tiny fh-faint">
                               Only the account owner can refund.
                             </span>
                           )}
@@ -236,7 +227,7 @@ export function EarlyFraudWarnings({
           </Table>
         )}
         {readOnly && warnings.length > 0 ? (
-          <p className="m-0 px-4 pb-4">
+          <p className="fh-warnings-foot">
             <span className="cap-btn-reason" id={DEMO_REASON_ID}>
               The demo is read-only, so Refund and Dismiss do nothing here.
             </span>

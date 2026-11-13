@@ -6,7 +6,8 @@ import { Switch } from "capsomer/react/switch";
 import "capsomer/segmented.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -102,14 +103,18 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const failed = actionData?.ok === false;
 
   return (
-    <SettingsPage title="Audit" lead="Lookback period and monthly digest options.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="Audit"
+      lead="Lookback period and monthly digest options."
+    >
       <DemoForm method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
-        <div className="mb-4">
+        <div className="fh-field-block">
           <div className="cap-panel">
             <div className="cap-panel-body">
-              <div className="min-w-0">
+              <div className="fh-shrink">
                 {/* Recova shows the label, then the helper, then the four
                     choices. The visible label is the same words as the
                     fieldset's legend, which names the group for screen
@@ -120,14 +125,14 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                     base.css (app/site-header.css). The legend keeps Capsomer's
                     margin below it, so the helper's own margin is the rest of
                     Recova's 12px. */}
-                <div className="mb-0.5 text-label text-text" aria-hidden="true">
+                <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
                   Lookback period
                 </div>
-                <p id={lookbackHelp} className="m-0 mb-1 text-micro text-text-subtle">
+                <p id={lookbackHelp} className="fh-audit-help fh-tiny fh-faint">
                   How far back we look when calculating your audit.
                 </p>
                 <Segmented
-                  legend={<span className="sr-only">Lookback period</span>}
+                  legend={<span className="cap-sr-only">Lookback period</span>}
                   name="audit_lookback_days"
                   describedBy={lookbackHelp}
                   value={lookbackDays}
@@ -136,12 +141,12 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                 />
               </div>
 
-              <div className="flex min-w-0 items-center justify-between gap-4 border-t border-border pt-4">
-                <div className="pr-4">
-                  <div className="mb-0.5 text-label text-text" aria-hidden="true">
+              <div className="fh-audit-switch">
+                <div className="fh-audit-switch-text">
+                  <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
                     Monthly audit digest
                   </div>
-                  <p id={digestHelp} className="m-0 text-micro text-text-subtle">
+                  <p id={digestHelp} className="fh-tiny fh-faint">
                     On the 1st of each month, we run a fresh audit and email you a comparison versus
                     the prior month. No extra charge.
                   </p>
@@ -149,7 +154,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                 {/* Unchecked posts nothing, which the action reads as off, so
                     the form works with no script as well. */}
                 <Switch
-                  label={<span className="sr-only">Monthly audit digest</span>}
+                  label={<span className="cap-sr-only">Monthly audit digest</span>}
                   name="audit_auto_run"
                   value="true"
                   checked={autoRun}
@@ -169,6 +174,6 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           error={failed ? "Failed to save. Please try again." : null}
         />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

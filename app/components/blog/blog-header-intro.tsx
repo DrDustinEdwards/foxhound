@@ -19,11 +19,11 @@
 export function BlogHeaderIntro() {
   return (
     <div className="cap-reveal-stack">
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
+      <div className="fh-blog-header-intro-block fh-tiny fh-medium fh-quiet fh-caps-wide">
         Posts
       </div>
-      <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">Blog</h1>
-      <p className="mb-0 max-w-[560px] text-subhead leading-relaxed text-text-secondary">
+      <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">Blog</h1>
+      <p className="fh-mk-measure fh-subhead fh-relaxed fh-soft">
         Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
       </p>
     </div>

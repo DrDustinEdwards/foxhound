@@ -1,3 +1,4 @@
+import { BADGE_PILL } from "~/lib/recovery/labels";
 import { Table } from "capsomer/react/table";
 import { data, Form, useNavigation } from "react-router";
 import { Alert, Banner } from "capsomer/react/banner";
@@ -11,7 +12,6 @@ import "capsomer/field.css";
 import "capsomer/status.css";
 
 import { ConfirmPhraseField } from "~/components/admin-confirm-phrase";
-import { BADGE_PILL } from "~/lib/recovery/labels";
 import { getDb } from "~/db";
 import {
   confirmStagedChange,
@@ -103,8 +103,8 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
   const busy = useNavigation().state !== "idle";
 
   return (
-    <div className="grid grid-cols-1 gap-6">
-      <p className="text-body text-text-tertiary">
+    <div className="cap-stack" data-gap="6">
+      <p className="fh-body fh-quiet">
         Changes the admin AI asked for that start or change money. Nothing here has happened yet.
         Confirming one applies it now, under your name.
       </p>
@@ -141,7 +141,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
                   <ConfirmButton busy={busy} />
                 )}
               </Form>
-              <Form method="post" className="self-end">
+              <Form method="post" className="fh-staged-submit">
                 <input type="hidden" name="intent" value="reject" />
                 <input type="hidden" name="id" value={row.id} />
                 <button type="submit" className="cap-btn" disabled={busy}>
@@ -172,7 +172,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
             <tbody>
               {recent.map((row) => (
                 <tr key={row.id}>
-                  <th scope="row" className="font-normal" data-wrap="">
+                  <th scope="row" className="fh-regular" data-wrap="">
                     {row.summary}
                   </th>
                   <td data-label="Outcome">

@@ -1,4 +1,4 @@
-import { ButtonLink } from "capsomer/react/link";
+import { routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { useEffect, useId, useState } from "react";
 import { data, redirect, useNavigation } from "react-router";
 import { Alert } from "capsomer/react/banner";
@@ -6,7 +6,7 @@ import { Button } from "capsomer/react/button";
 import "capsomer/banner.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -254,20 +254,20 @@ function StripeSection({
     <section className="cap-panel">
       <div className="cap-panel-body">
         {feedback?.kind === "warning" ? (
-          <div className="mb-3">
+          <div className="fh-stripe-head">
             <Alert tone="warn">{feedback.message}</Alert>
           </div>
         ) : null}
 
         {connections.length === 0 ? (
-          <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-label text-text">No Stripe account connected</p>
+          <div className="fh-setting-row">
+            <p className="fh-small fh-text">No Stripe account connected</p>
             <ButtonLink href="/connect" variant="primary">
               Connect Stripe
             </ButtonLink>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="cap-stack" data-gap="4">
             {connections.map((conn) => {
               const isConfirming = confirmingId === conn.id;
               const isDisconnecting = runningId === conn.id;
@@ -276,15 +276,13 @@ function StripeSection({
               return (
                 <div key={conn.id} className="cap-panel" data-size="sm">
                   <div className="cap-panel-body">
-                    <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="fh-setting-row">
                       <div>
-                        <div className="mb-0.5 text-label text-text">{label}</div>
-                        {connected ? (
-                          <div className="text-micro text-text-subtle">{connected}</div>
-                        ) : null}
+                        <div className="fh-setting-label fh-small fh-text">{label}</div>
+                        {connected ? <div className="fh-tiny fh-faint">{connected}</div> : null}
                       </div>
                       {isOwner ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="cap-cluster" data-gap="3">
                           <DemoForm method="post">
                             <input type="hidden" name="_action" value="disconnect-stripe" />
                             <input type="hidden" name="connectionId" value={conn.id} />
@@ -316,13 +314,13 @@ function StripeSection({
                           ) : null}
                         </div>
                       ) : (
-                        <p className="m-0 text-micro text-text-subtle">
+                        <p className="fh-tiny fh-faint">
                           Only the account owner can disconnect Stripe.
                         </p>
                       )}
                     </div>
                     {conn.healthWarning?.length ? (
-                      <div className="mt-3">
+                      <div className="fh-stripe-more">
                         <Alert
                           tone="warn"
                           title="Your Stripe account needs attention."
@@ -340,7 +338,7 @@ function StripeSection({
                 </div>
               );
             })}
-            <div className="pt-2">
+            <div className="fh-stripe-foot">
               <ButtonLink href="/connect/additional">Add Stripe account</ButtonLink>
             </div>
           </div>
@@ -355,7 +353,8 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
   const result = actionData as DisconnectResult | undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Stripe connections"
       lead={
         isOwner
@@ -364,6 +363,6 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
       }
     >
       <StripeSection connections={connections} result={result} isOwner={isOwner} />
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

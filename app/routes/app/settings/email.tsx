@@ -5,8 +5,8 @@ import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SwitchRow } from "capsomer/react/settings-row";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -264,7 +264,8 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Email"
       lead="Configure how recovery emails appear to your customers, and which ones are sent."
     >
@@ -273,7 +274,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="mb-5">
+            <div className="fh-email-block">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"
@@ -289,7 +290,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
               />
             </div>
 
-            <div className="mb-6">
+            <div className="fh-email-group">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"
@@ -315,7 +316,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
               <Button type="submit" form={TEST_FORM_ID} pending={pendingAction === "test-email"}>
                 {pendingAction === "test-email" ? TEST_SENDING : (outcome ?? TEST_IDLE)}
               </Button>
-              <span role="status" className="sr-only">
+              <span role="status" className="cap-sr-only">
                 {outcome ?? ""}
               </span>
             </div>
@@ -332,9 +333,9 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       </DemoForm>
 
       {/* The recovery emails card, once /settings/features. */}
-      <DemoForm method="post" className="mt-10">
+      <DemoForm method="post" className="fh-email-sequence">
         <input type="hidden" name="_action" value="features" />
-        <h2 className="m-0 mb-3 text-heading font-semibold text-text">Recovery emails</h2>
+        <h2 className="fh-email-sequence-title fh-semibold fh-text">Recovery emails</h2>
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SwitchRow
@@ -362,6 +363,6 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       <DemoForm method="post" id={TEST_FORM_ID}>
         <input type="hidden" name="_action" value="test-email" />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

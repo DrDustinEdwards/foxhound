@@ -87,7 +87,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
+    <div className="fh-page-frame fh-text">
       <Header
         isAuthenticated={loaderData.isAuthenticated}
         theme={loaderData.theme}
@@ -100,7 +100,7 @@ export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
         email={loaderData.email}
         skipTo="#main"
       />
-      <main id="main" className="flex-1">
+      <main id="main" className="fh-marketing-block">
         <Outlet />
       </main>
       <Footer />

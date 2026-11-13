@@ -181,11 +181,11 @@ function EventLine({
   label: string;
   event: { actorEmail: string; at: Date; count: number | null } | null;
 }) {
-  if (!event) return <p className="text-label text-text-tertiary">{label}: never</p>;
+  if (!event) return <p className="fh-small fh-quiet">{label}: never</p>;
   return (
-    <p className="text-label text-text-tertiary">
+    <p className="fh-small fh-quiet">
       {label}: <Time at={event.at} empty="never" tip /> by{" "}
-      <span className="font-mono text-text-secondary">{event.actorEmail}</span>
+      <span className="fh-mono fh-soft">{event.actorEmail}</span>
       {/* "intended", because the umbrella row is written before the account
           writes so that a partial failure still leaves a record of the attempt.
           The live truth is the count in the facts above. */}
@@ -200,7 +200,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
   const engaged = status.brakePausedCount > 0;
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       {actionData?.error ? <Alert>{actionData.error}</Alert> : null}
       {actionData?.ok && actionData.message ? (
         <Banner tone="ok">{actionData.message}</Banner>
@@ -258,7 +258,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         description="Pauses processing for every account except demo accounts, accounts already paused, and canceled accounts. Merchants paused outside the brake keep their pause and are never resumed by a release."
       >
         <div className="cap-stack">
-          <p className="text-label text-text-tertiary">
+          <p className="fh-small fh-quiet">
             What this does not stop: a canceled account still pays fees it already owed, because
             those were earned before it canceled and the brake has no lever over them. Everything
             else, including billing-exempt accounts, stops.
