@@ -43,7 +43,7 @@ export default function CompareIndex() {
       {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
           the cards' accent edge and the focus ring read the family. */}
       <div
-        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8"
         data-cap-site="foxhound"
         data-family="amber"
       >

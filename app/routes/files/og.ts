@@ -22,7 +22,7 @@ import { ImageResponse } from "workers-og";
 // sans throughout (app/og/route.tsx, `system-ui, sans-serif`), and a STATIC
 // per-weight DM Sans instance parses exactly as DM Mono's static file does.
 // scripts/build-og-fonts.py derives dm-sans-{400,500,600}.ttf from the same
-// dm-sans-variable.woff2 the app already ships, stripping fvar/gvar/avar/
+// dm-sans-variable.woff2 the app already ships (Capsomer's), stripping fvar/gvar/avar/
 // HVAR/STAT so the table set matches dm-mono-500.ttf, the file already proven
 // to parse at request time. A constraint that rules out an artifact is not a
 // license to change the design, and recording that change as deliberate
