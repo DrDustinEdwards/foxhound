@@ -5,7 +5,7 @@ import { Link, routerRenderLink } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
-import { Pagination } from "capsomer/react/pagination";
+import { Pagination, pageHref, parsePage } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
 import "capsomer/empty.css";
@@ -94,8 +94,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const tier = params.get("tier") || null;
   const healthBand = parseHealthBand(params.get("band"));
   const sort: CustomerDirectorySort = params.get("sort") === "mrr_desc" ? "mrr_desc" : "health_asc";
-  const pageParam = Number(params.get("page") ?? "1");
-  const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+  const page = parsePage(params.get("page"));
 
   const nowMs = Date.now();
   const [result, tiers] = await Promise.all([
@@ -142,17 +141,18 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   };
 }
 
-/** Preserve every current filter param, only overriding `page`, so paging
- *  never drops a filter. */
-function pageHref(filters: Filters, page: number): string {
-  const params = new URLSearchParams();
-  if (filters.search) params.set("q", filters.search);
-  if (filters.tier) params.set("tier", filters.tier);
-  if (filters.healthBand) params.set("band", filters.healthBand);
-  if (filters.sort !== "health_asc") params.set("sort", filters.sort);
-  if (page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/intelligence/customers?${qs}` : "/intelligence/customers";
+/** Every current filter, defaults left out, so paging never drops one. */
+function customersHref(filters: Filters, page: number): string {
+  return pageHref(
+    "/intelligence/customers",
+    {
+      q: filters.search,
+      tier: filters.tier,
+      band: filters.healthBand,
+      sort: filters.sort === "health_asc" ? null : filters.sort,
+    },
+    page,
+  );
 }
 
 type Filters = { search: string; tier: string; healthBand: string; sort: CustomerDirectorySort };
@@ -367,7 +367,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             form="steps"
             page={result.page}
             pageCount={result.totalPages}
-            hrefFor={(n) => pageHref(filters, n)}
+            hrefFor={(n) => customersHref(filters, n)}
             renderLink={routerRenderLink}
             label="Customer pages"
           />
