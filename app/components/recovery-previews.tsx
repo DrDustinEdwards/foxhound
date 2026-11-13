@@ -1,5 +1,6 @@
 import { Icon, iconAlert, iconPercent, iconTrendingUp } from "capsomer/react/icons";
 import { plural } from "@drdustinedwards/site-helpers/text";
+import { Table } from "capsomer/react/table";
 import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 
@@ -261,80 +262,70 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
             ))}
           </ul>
           <div className="fh-recprev-block-7">
-            <div
-              className="cap-table-wrap"
-              data-reflow=""
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Customer</th>
-                    <th scope="col">Amount</th>
-                    <th scope="col">Decline</th>
-                    <th scope="col">Steps</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Detected</th>
+            <Table caption="Failed payments" captionHidden labelledBy={HEADING_ID} reflow>
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Decline</th>
+                  <th scope="col">Steps</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Detected</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <th scope="row">
+                      <div className="cap-cluster" data-gap="3">
+                        <span className="fh-small fh-medium fh-text">{row.customer}</span>
+                        <FailureCount row={row} />
+                      </div>
+                      {row.email ? (
+                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
+                          {row.email}
+                        </div>
+                      ) : null}
+                      {row.plan ? (
+                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
+                          {row.plan}
+                        </div>
+                      ) : null}
+                    </th>
+                    <td data-label="Amount" className="fh-nowrap">
+                      <span className="fh-mono fh-small fh-accent">{row.amount}</span>
+                    </td>
+                    <td data-label="Decline">
+                      <CategoryPill category={row.category} />
+                      {row.declineCode ? (
+                        <div className="fh-recprev-block-4 fh-mono fh-tiny fh-faint">
+                          {row.declineCode}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td data-label="Steps">
+                      <span
+                        className={`fh-mono fh-tiny ${row.stepsDone > 0 ? "fh-text" : "fh-faint"}`}
+                      >
+                        {row.stepsDone}/{row.stepsTotal}
+                      </span>
+                      {row.nextStep ? (
+                        <div className="fh-recprev-block-8 fh-tiny fh-accent">
+                          Next: {row.nextStep}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td data-label="Status">
+                      <StatusPill row={row} />
+                    </td>
+                    <td data-label="Detected" className="fh-nowrap">
+                      <div className="fh-tiny fh-faint">{row.detectedAgo}</div>
+                      <div className="fh-recprev-block-8 fh-tiny fh-faint">{row.detectedDate}</div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id}>
-                      <th scope="row">
-                        <div className="cap-cluster" data-gap="3">
-                          <span className="fh-small fh-medium fh-text">{row.customer}</span>
-                          <FailureCount row={row} />
-                        </div>
-                        {row.email ? (
-                          <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
-                            {row.email}
-                          </div>
-                        ) : null}
-                        {row.plan ? (
-                          <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
-                            {row.plan}
-                          </div>
-                        ) : null}
-                      </th>
-                      <td data-label="Amount" className="fh-nowrap">
-                        <span className="fh-mono fh-small fh-accent">{row.amount}</span>
-                      </td>
-                      <td data-label="Decline">
-                        <CategoryPill category={row.category} />
-                        {row.declineCode ? (
-                          <div className="fh-recprev-block-4 fh-mono fh-tiny fh-faint">
-                            {row.declineCode}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td data-label="Steps">
-                        <span
-                          className={`fh-mono fh-tiny ${row.stepsDone > 0 ? "fh-text" : "fh-faint"}`}
-                        >
-                          {row.stepsDone}/{row.stepsTotal}
-                        </span>
-                        {row.nextStep ? (
-                          <div className="fh-recprev-block-8 fh-tiny fh-accent">
-                            Next: {row.nextStep}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td data-label="Status">
-                        <StatusPill row={row} />
-                      </td>
-                      <td data-label="Detected" className="fh-nowrap">
-                        <div className="fh-tiny fh-faint">{row.detectedAgo}</div>
-                        <div className="fh-recprev-block-8 fh-tiny fh-faint">
-                          {row.detectedDate}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </Table>
           </div>
         </div>
       </section>

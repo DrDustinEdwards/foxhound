@@ -1,5 +1,5 @@
 import { useCountUp } from "capsomer/react/count-up";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
@@ -238,18 +238,14 @@ function RecoveryCta({ state }: { state: CtaState }) {
           recover.
         </p>
         <div>
-          <Link to="/connect" className="cap-btn" data-variant="primary">
+          <ButtonLink to="/connect" variant="primary">
             Connect Stripe to start
-          </Link>
+          </ButtonLink>
         </div>
       </div>
     );
   }
-  return (
-    <Link to="/recovery/dashboard" className="cap-btn">
-      View Recovery dashboard
-    </Link>
-  );
+  return <ButtonLink to="/recovery/dashboard">View Recovery dashboard</ButtonLink>;
 }
 
 export function AuditRecoverySection({
@@ -297,16 +293,11 @@ export function AuditRecoverySection({
 
             {activeSequences !== null && activeSequences > 0 ? (
               <div className="fh-auditsec-block-7">
-                <Link
-                  to="/recovery/payments?status=active"
-                  className="cap-btn"
-                  data-variant="link"
-                  data-size="sm"
-                >
+                <ButtonLink to="/recovery/payments?status=active" variant="link" size="sm">
                   {activeSequences} {activeSequences === 1 ? "is" : "are"} in active recovery
                   sequences
                   <span aria-hidden="true"> →</span>
-                </Link>
+                </ButtonLink>
               </div>
             ) : null}
 
@@ -401,11 +392,7 @@ function recoverableTotals(failed: MoneyTotals): MoneyTotals {
 
 function DisputesCta({ state }: { state: CtaState }) {
   if (state === "active") {
-    return (
-      <Link to="/disputes/dashboard" className="cap-btn">
-        View Disputes dashboard
-      </Link>
-    );
+    return <ButtonLink to="/disputes/dashboard">View Disputes dashboard</ButtonLink>;
   }
   return (
     <div className="cap-stack" data-gap="4">
@@ -416,9 +403,9 @@ function DisputesCta({ state }: { state: CtaState }) {
         {formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute.
       </p>
       <div>
-        <Link to="/connect" className="cap-btn" data-variant="primary">
+        <ButtonLink to="/connect" variant="primary">
           Enable Disputes
-        </Link>
+        </ButtonLink>
       </div>
     </div>
   );

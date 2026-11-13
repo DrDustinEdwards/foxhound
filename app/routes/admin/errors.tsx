@@ -1,6 +1,7 @@
+import { Table } from "capsomer/react/table";
 import { usePagePending } from "capsomer/react/route-hooks";
-import { Link } from "capsomer/react/link";
-import { Icon, iconExternal } from "capsomer/react/icons";
+import { AwayLink, Link } from "capsomer/react/link";
+import "capsomer/link.css";
 import { Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -135,60 +136,53 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
             revoke, is listed here.
           </Empty>
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-labelledby={FAILED_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Failed actions from the audit log, newest first."
+            captionHidden
+            labelledBy={FAILED_HEADING_ID}
+            reflow
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Failed actions from the audit log, newest first.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Time</th>
-                  <th scope="col">Action</th>
-                  <th scope="col">Actor</th>
-                  <th scope="col">Target</th>
-                  <th scope="col">Detail</th>
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Action</th>
+                <th scope="col">Actor</th>
+                <th scope="col">Target</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {failed.map((e) => (
+                <tr key={e.id}>
+                  <td>
+                    <Time at={e.createdAt} empty="never" tip />
+                  </td>
+                  <td data-label="Action">{e.action}</td>
+                  <td data-label="Actor" className="fh-break">
+                    {e.actor}
+                  </td>
+                  <td data-label="Target" data-wrap="">
+                    {e.target === null ? (
+                      <span className="fh-quiet">None</span>
+                    ) : e.target.href ? (
+                      <Link to={e.target.href} className={LINK}>
+                        {e.target.label}
+                      </Link>
+                    ) : (
+                      <span className="fh-break">{e.target.label}</span>
+                    )}
+                  </td>
+                  <td
+                    data-label="Detail"
+                    data-wrap=""
+                    className={e.detail === null ? "fh-quiet" : "fh-soft"}
+                  >
+                    {e.detail ?? "None"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {failed.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <Time at={e.createdAt} empty="never" tip />
-                    </td>
-                    <td data-label="Action">{e.action}</td>
-                    <td data-label="Actor" className="fh-break">
-                      {e.actor}
-                    </td>
-                    <td data-label="Target" data-wrap="">
-                      {e.target === null ? (
-                        <span className="fh-quiet">None</span>
-                      ) : e.target.href ? (
-                        <Link to={e.target.href} className={LINK}>
-                          {e.target.label}
-                        </Link>
-                      ) : (
-                        <span className="fh-break">{e.target.label}</span>
-                      )}
-                    </td>
-                    <td
-                      data-label="Detail"
-                      data-wrap=""
-                      className={e.detail === null ? "fh-quiet" : "fh-soft"}
-                    >
-                      {e.detail ?? "None"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
     </div>
@@ -223,65 +217,58 @@ function SentryNotice({ sentry }: { sentry: SentryState }) {
 
 function IssuesTable({ issues }: { issues: SentryIssue[] }) {
   return (
-    <div
-      className="cap-table-wrap"
-      data-reflow=""
-      data-cap="table"
-      role="region"
-      aria-labelledby={ISSUES_HEADING_ID}
-      tabIndex={0}
+    <Table
+      caption="Unresolved errors from Sentry, most recent first."
+      captionHidden
+      labelledBy={ISSUES_HEADING_ID}
+      reflow
     >
-      <table className="cap-table">
-        <caption className="cap-sr-only">Unresolved errors from Sentry, most recent first.</caption>
-        <thead>
-          <tr>
-            <th scope="col">Error</th>
-            <th scope="col">Level</th>
-            <th scope="col">Events</th>
-            <th scope="col">Users</th>
-            <th scope="col">Last seen</th>
-            <th scope="col">First seen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {issues.map((issue) => {
-            const level = levelOf(issue.level);
-            return (
-              <tr key={issue.id}>
-                <td data-wrap="">
-                  {issue.permalink ? (
-                    <a href={issue.permalink} target="_blank" rel="noreferrer" className={LINK}>
-                      <span className="fh-break">{issue.title}</span>
-                      <Icon d={iconExternal} className="fh-out-icon fh-quiet" />
-                      <span className="cap-sr-only"> (opens Sentry in a new tab)</span>
-                    </a>
-                  ) : (
+      <thead>
+        <tr>
+          <th scope="col">Error</th>
+          <th scope="col">Level</th>
+          <th scope="col">Events</th>
+          <th scope="col">Users</th>
+          <th scope="col">Last seen</th>
+          <th scope="col">First seen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {issues.map((issue) => {
+          const level = levelOf(issue.level);
+          return (
+            <tr key={issue.id}>
+              <td data-wrap="">
+                {issue.permalink ? (
+                  <AwayLink href={issue.permalink} newTab className={LINK}>
                     <span className="fh-break">{issue.title}</span>
-                  )}
-                  <span className="fh-line fh-mono fh-tiny fh-soft fh-break">
-                    {issue.culprit ? `${issue.shortId}, ${issue.culprit}` : issue.shortId}
-                  </span>
-                </td>
-                <td data-label="Level">
-                  <Status tone={level.tone}>{level.word}</Status>
-                </td>
-                <td data-label="Events" className="cap-num">
-                  {formatCount(issue.count)}
-                </td>
-                <td data-label="Users" className="cap-num">
-                  {formatCount(issue.userCount)}
-                </td>
-                <td data-label="Last seen">
-                  <Time at={issue.lastSeen} empty="Not known" tip />
-                </td>
-                <td data-label="First seen">
-                  <Time at={issue.firstSeen} empty="Not known" tip />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  </AwayLink>
+                ) : (
+                  <span className="fh-break">{issue.title}</span>
+                )}
+                <span className="fh-line fh-mono fh-tiny fh-soft fh-break">
+                  {issue.culprit ? `${issue.shortId}, ${issue.culprit}` : issue.shortId}
+                </span>
+              </td>
+              <td data-label="Level">
+                <Status tone={level.tone}>{level.word}</Status>
+              </td>
+              <td data-label="Events" className="cap-num">
+                {formatCount(issue.count)}
+              </td>
+              <td data-label="Users" className="cap-num">
+                {formatCount(issue.userCount)}
+              </td>
+              <td data-label="Last seen">
+                <Time at={issue.lastSeen} empty="Not known" tip />
+              </td>
+              <td data-label="First seen">
+                <Time at={issue.firstSeen} empty="Not known" tip />
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </Table>
   );
 }

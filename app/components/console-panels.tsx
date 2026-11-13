@@ -1,5 +1,5 @@
 import { Icon, iconArrowRight } from "capsomer/react/icons";
-import { Link, routerRenderLink } from "capsomer/react/link";
+import { routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
 import { StatTile } from "capsomer/react/stat-tile";
@@ -223,16 +223,9 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
           </span>
           {row.href ? (
             <div className="cap-row-actions">
-              <Link
-                to={row.href}
-                aria-label={row.ariaLabel}
-                className="cap-btn"
-                data-variant="quiet"
-                data-size="xs"
-                data-icon-only=""
-              >
+              <ButtonLink to={row.href} label={row.ariaLabel} variant="quiet" size="xs" iconOnly>
                 <Icon d={iconArrowRight} className="fh-icon-14 fh-icon-fine" />
-              </Link>
+              </ButtonLink>
             </div>
           ) : null}
         </li>

@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { usePagePending } from "capsomer/react/route-hooks";
 import { Empty } from "capsomer/react/empty";
 import { Meter } from "capsomer/react/meter";
@@ -133,34 +134,25 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             Each cron in Foxhound&apos;s registry takes its own lock while it runs.
           </Empty>
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-labelledby={LOCKS_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Cron locks, one per cron in the registry's order. A lock not released ran out while still stored: its run stopped without releasing it, or is running past its lease. The next run takes it anyway."
+            captionHidden
+            labelledBy={LOCKS_HEADING_ID}
+            reflow
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Cron locks, one per cron in the registry&apos;s order. A lock not released ran out
-                while still stored: its run stopped without releasing it, or is running past its
-                lease. The next run takes it anyway.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Cron</th>
-                  <th scope="col">Lock</th>
-                  <th scope="col">Lease</th>
-                </tr>
-              </thead>
-              <tbody>
-                {locks.map((lock) => (
-                  <LockRow key={lock.name} lock={lock} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <thead>
+              <tr>
+                <th scope="col">Cron</th>
+                <th scope="col">Lock</th>
+                <th scope="col">Lease</th>
+              </tr>
+            </thead>
+            <tbody>
+              {locks.map((lock) => (
+                <LockRow key={lock.name} lock={lock} />
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
 
@@ -188,44 +180,37 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         {growthTables.length === 0 ? (
           <Empty kind="nothing-yet" title="No tables with a retention rule." />
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-labelledby={GROWTH_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Row counts for each table with a retention rule."
+            captionHidden
+            labelledBy={GROWTH_HEADING_ID}
+            reflow
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Row counts for each table with a retention rule.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Table</th>
-                  <th scope="col">Kept for</th>
-                  <th scope="col" data-num="">
-                    Rows
+            <thead>
+              <tr>
+                <th scope="col">Table</th>
+                <th scope="col">Kept for</th>
+                <th scope="col" data-num="">
+                  Rows
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {growthTables.map((t) => (
+                <tr key={t.label}>
+                  <th scope="row" className="fh-regular fh-text">
+                    {t.label}
                   </th>
+                  <td data-label="Kept for" className="fh-soft">
+                    {t.retentionPolicy}
+                  </td>
+                  <td data-label="Rows" data-num="">
+                    {formatCount(t.rowCount)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {growthTables.map((t) => (
-                  <tr key={t.label}>
-                    <th scope="row" className="fh-regular fh-text">
-                      {t.label}
-                    </th>
-                    <td data-label="Kept for" className="fh-soft">
-                      {t.retentionPolicy}
-                    </td>
-                    <td data-label="Rows" data-num="">
-                      {formatCount(t.rowCount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
 
@@ -249,44 +234,37 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         {migrations.rows.length === 0 ? (
           <Empty kind="nothing-yet" title="No migrations are recorded in this build." />
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-labelledby={MIGRATIONS_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Each migration in this build, in order, and when it was applied."
+            captionHidden
+            labelledBy={MIGRATIONS_HEADING_ID}
+            reflow
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Each migration in this build, in order, and when it was applied.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Migration</th>
-                  <th scope="col">State</th>
-                  <th scope="col">Applied</th>
+            <thead>
+              <tr>
+                <th scope="col">Migration</th>
+                <th scope="col">State</th>
+                <th scope="col">Applied</th>
+              </tr>
+            </thead>
+            <tbody>
+              {migrations.rows.map((m) => (
+                <tr key={m.name}>
+                  <th scope="row" className="fh-regular fh-mono fh-break fh-text">
+                    {m.name}
+                  </th>
+                  <td data-label="State">
+                    <Status tone={m.applied ? "ok" : "crit"}>
+                      {m.applied ? "Applied" : "Not applied"}
+                    </Status>
+                  </td>
+                  <td data-label="Applied">
+                    <Time at={m.appliedAt} empty="Not yet" tip />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {migrations.rows.map((m) => (
-                  <tr key={m.name}>
-                    <th scope="row" className="fh-regular fh-mono fh-break fh-text">
-                      {m.name}
-                    </th>
-                    <td data-label="State">
-                      <Status tone={m.applied ? "ok" : "crit"}>
-                        {m.applied ? "Applied" : "Not applied"}
-                      </Status>
-                    </td>
-                    <td data-label="Applied">
-                      <Time at={m.appliedAt} empty="Not yet" tip />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
 
@@ -297,48 +275,39 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         description="Whether each binding, variable and secret the Worker uses is set, and whether the Stripe key is a live one. Names only: values are never shown here."
         flush
       >
-        <div
-          className="cap-table-wrap"
-          data-reflow=""
-          data-cap="table"
-          role="region"
-          aria-labelledby={SETTINGS_HEADING_ID}
-          tabIndex={0}
+        <Table
+          caption="Each setting the Worker uses, its kind, and whether it is set."
+          captionHidden
+          labelledBy={SETTINGS_HEADING_ID}
+          reflow
         >
-          <table className="cap-table">
-            <caption className="cap-sr-only">
-              Each setting the Worker uses, its kind, and whether it is set.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Kind</th>
-                <th scope="col">State</th>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Kind</th>
+              <th scope="col">State</th>
+            </tr>
+          </thead>
+          <tbody>
+            {envSanity.map((row) => (
+              <tr key={row.name}>
+                <th scope="row" className="fh-regular fh-mono fh-break fh-text">
+                  {row.name}
+                </th>
+                <td data-label="Kind" className="fh-soft">
+                  {settingKindWord(row.kind)}
+                </td>
+                <td data-label="State">
+                  {row.problem ? (
+                    <Status tone="crit">{row.problem}</Status>
+                  ) : (
+                    <Status tone={row.set ? "ok" : "nodata"}>{row.set ? "Set" : "Not set"}</Status>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {envSanity.map((row) => (
-                <tr key={row.name}>
-                  <th scope="row" className="fh-regular fh-mono fh-break fh-text">
-                    {row.name}
-                  </th>
-                  <td data-label="Kind" className="fh-soft">
-                    {settingKindWord(row.kind)}
-                  </td>
-                  <td data-label="State">
-                    {row.problem ? (
-                      <Status tone="crit">{row.problem}</Status>
-                    ) : (
-                      <Status tone={row.set ? "ok" : "nodata"}>
-                        {row.set ? "Set" : "Not set"}
-                      </Status>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </Table>
       </Panel>
 
       {/* Once /admin/mcps, folded in here (Dustin, 2026-10-29). */}

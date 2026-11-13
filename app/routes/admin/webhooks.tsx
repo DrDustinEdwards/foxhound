@@ -1,3 +1,5 @@
+import { FilterBar } from "capsomer/react/filter-bar";
+import { Table } from "capsomer/react/table";
 import { useId } from "react";
 import { Form } from "react-router";
 import { usePagePending } from "capsomer/react/route-hooks";
@@ -13,6 +15,7 @@ import "capsomer/disclosure.css";
 import "capsomer/field.css";
 import "capsomer/pagination.css";
 import "capsomer/table.css";
+import "capsomer/filter-bar.css";
 
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
@@ -112,46 +115,52 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         flush
       >
         {/* Keyed by the filters so the fields show the address after Back. */}
-        <Form
-          key={JSON.stringify(filters)}
-          method="get"
-          action={WEBHOOKS_PATH}
-          className="fh-filter-bar"
-        >
-          <div className="cap-field fh-filter-search">
-            <label className="cap-field-label" htmlFor={typeId}>
-              Event type
-            </label>
-            <input
-              className="cap-input"
-              id={typeId}
-              name="type"
-              type="search"
-              defaultValue={filters.type}
-              placeholder="For example: invoice.payment_failed"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-          <label className="cap-check fh-check-row">
-            <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
-            Errors only
-          </label>
-          <label className="cap-check fh-check-row">
-            <input type="checkbox" name="pending" value="1" defaultChecked={filters.pendingOnly} />{" "}
-            Pending only
-          </label>
-          <div className="cap-cluster" data-gap="4">
-            <button type="submit" className="cap-btn">
-              Filter
-            </button>
-            {filtered ? (
-              <Link to={WEBHOOKS_PATH} className={LINK}>
-                Clear filter
+        <div className="fh-filter-frame">
+          <FilterBar
+            key={JSON.stringify(filters)}
+            label="Filter webhook events"
+            Form={Form}
+            action={WEBHOOKS_PATH}
+            className="fh-filter-panel"
+            applyLabel="Filter"
+            clearHref={filtered ? WEBHOOKS_PATH : null}
+            clearLabel="Clear filter"
+            renderLink={({ href, children }) => (
+              <Link to={href} className={LINK}>
+                {children}
               </Link>
-            ) : null}
-          </div>
-        </Form>
+            )}
+          >
+            <div className="cap-field fh-filter-search">
+              <label className="cap-field-label" htmlFor={typeId}>
+                Event type
+              </label>
+              <input
+                className="cap-input"
+                id={typeId}
+                name="type"
+                type="search"
+                defaultValue={filters.type}
+                placeholder="For example: invoice.payment_failed"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <label className="cap-check fh-check-row">
+              <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
+              Errors only
+            </label>
+            <label className="cap-check fh-check-row">
+              <input
+                type="checkbox"
+                name="pending"
+                value="1"
+                defaultChecked={filters.pendingOnly}
+              />{" "}
+              Pending only
+            </label>
+          </FilterBar>
+        </div>
 
         {list.events.length === 0 ? (
           filtered ? (
@@ -170,34 +179,27 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
             </Empty>
           )
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-labelledby={HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Webhook events, newest first. Open an event type to see its payload."
+            captionHidden
+            labelledBy={HEADING_ID}
+            reflow
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Webhook events, newest first. Open an event type to see its payload.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Event type</th>
-                  <th scope="col">Account</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Received</th>
-                  <th scope="col">Error</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.events.map((e) => (
-                  <EventRows key={e.id} event={e} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <thead>
+              <tr>
+                <th scope="col">Event type</th>
+                <th scope="col">Account</th>
+                <th scope="col">Status</th>
+                <th scope="col">Received</th>
+                <th scope="col">Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.events.map((e) => (
+                <EventRows key={e.id} event={e} />
+              ))}
+            </tbody>
+          </Table>
         )}
 
         {list.pageCount > 1 ? (

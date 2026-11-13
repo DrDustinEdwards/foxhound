@@ -172,11 +172,6 @@
   .fh-cron-run {
     border-radius: 0.25rem;
   }
-  .fh-out-icon {
-    width: 1rem;
-    height: 1rem;
-    flex-shrink: 0;
-  }
   .fh-panel-note {
     border-bottom-style: solid;
     border-bottom-width: 1px;
@@ -197,12 +192,7 @@
   .fh-staged-submit {
     align-self: flex-end;
   }
-  .fh-filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    column-gap: 1rem;
-    row-gap: 0.75rem;
+  .fh-filter-frame {
     border-bottom-style: solid;
     border-bottom-width: 1px;
     border-color: var(--border);

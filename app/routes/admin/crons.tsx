@@ -1,7 +1,8 @@
-import { data, Form, useNavigation } from "react-router";
 import { usePagePending } from "capsomer/react/route-hooks";
+import { Table } from "capsomer/react/table";
+import { data, Form, useNavigation } from "react-router";
 import { Alert } from "capsomer/react/banner";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -185,35 +186,28 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
             Every job in Foxhound&apos;s cron registry appears here.
           </Empty>
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow="medium"
-            data-cap="table"
-            role="region"
-            aria-labelledby={HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Scheduled jobs, in the order the registry runs them, with each one's last run."
+            captionHidden
+            labelledBy={HEADING_ID}
+            reflow="medium"
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Scheduled jobs, in the order the registry runs them, with each one&apos;s last run.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Cron</th>
-                  <th scope="col">State</th>
-                  <th scope="col">Last run</th>
-                  <th scope="col">Last succeeded</th>
-                  <th scope="col">Last message</th>
-                  <th scope="col">Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {crons.map((c) => (
-                  <CronTableRow key={c.name} cron={c} busy={busy} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <thead>
+              <tr>
+                <th scope="col">Cron</th>
+                <th scope="col">State</th>
+                <th scope="col">Last run</th>
+                <th scope="col">Last succeeded</th>
+                <th scope="col">Last message</th>
+                <th scope="col">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {crons.map((c) => (
+                <CronTableRow key={c.name} cron={c} busy={busy} />
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
     </div>
@@ -283,9 +277,9 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
             </button>
           </Form>
         ) : (
-          <Link to={cronEnableHref(c.name)} className="cap-btn" data-size="sm">
+          <ButtonLink to={cronEnableHref(c.name)} size="sm">
             Enable<span className="cap-sr-only"> {c.name}</span>
-          </Link>
+          </ButtonLink>
         )}
       </td>
     </tr>

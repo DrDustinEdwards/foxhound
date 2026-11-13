@@ -1,3 +1,4 @@
+import { routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { useEffect, useId, useState } from "react";
 import { data, redirect, useNavigation } from "react-router";
 import { Alert } from "capsomer/react/banner";
@@ -6,7 +7,6 @@ import "capsomer/banner.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { SettingsLayout } from "capsomer/react/settings-row";
-import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -262,9 +262,9 @@ function StripeSection({
         {connections.length === 0 ? (
           <div className="fh-setting-row">
             <p className="fh-small fh-text">No Stripe account connected</p>
-            <a href="/connect" className="cap-btn" data-variant="primary">
+            <ButtonLink href="/connect" variant="primary">
               Connect Stripe
-            </a>
+            </ButtonLink>
           </div>
         ) : (
           <div className="cap-stack" data-gap="4">
@@ -325,15 +325,9 @@ function StripeSection({
                           tone="warn"
                           title="Your Stripe account needs attention."
                           action={
-                            <a
-                              href={STRIPE_DASHBOARD_URL}
-                              className="cap-btn"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
+                            <ButtonLink href={STRIPE_DASHBOARD_URL} away newTab>
                               Open Stripe dashboard
-                              <span className="cap-sr-only"> (opens in a new tab)</span>
-                            </a>
+                            </ButtonLink>
                           }
                         >
                           {conn.healthWarning.join(" ")}
@@ -345,9 +339,7 @@ function StripeSection({
               );
             })}
             <div className="fh-stripe-foot">
-              <a href="/connect/additional" className="cap-btn">
-                Add Stripe account
-              </a>
+              <ButtonLink href="/connect/additional">Add Stripe account</ButtonLink>
             </div>
           </div>
         )}

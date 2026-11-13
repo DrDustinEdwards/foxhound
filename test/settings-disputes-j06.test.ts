@@ -171,7 +171,7 @@ describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () 
     expect(html).toContain(
       "Enable Disputes above to configure auto-submit, product description, and shipping settings.",
     );
-    expect(html).not.toContain("Save changes");
+    expect(html).toContain("Enable Disputes above to save these settings.");
 
     const claim = {
       stripeEventId: "evt_1",

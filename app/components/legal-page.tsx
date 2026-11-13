@@ -1,130 +1,26 @@
 import type { ReactNode } from "react";
-import { Link } from "capsomer/react/link";
 
 import { DISPUTE_AUTO_SUBMIT_HOURS } from "~/lib/disputes/approval";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 
-import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the Panel, the
-// link roles and the focus ring read. The site header loads the same file;
-// importing it here keeps these pages whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the legal page, the link roles and
+// the focus ring read. The site header loads the same file; importing it here keeps these pages
+// whole under any layout.
 import "~/site-header.css";
 
-// The legal pages' one chrome kit. Recova's privacy and
-// terms pages share their wrapper, Section, H3, P, contents list, rule and link
-// classes byte for byte (app/(marketing)/privacy/page.tsx and
-// app/(marketing)/terms/page.tsx, read whole at blobs 8f8dfb8e and 88005fad), so
-// Foxhound's two pages take them from one place too.
-//
-// Layout is Recova's: the 720px column with 24px sides and 64px below, the
-// numbered h2 at the title size with 48px above, 16px below and an 80px scroll
-// margin, the contents grid, the rule and every margin as Recova writes them.
-// Look is Capsomer's: the column sits in Capsomer's amber family with
-// Foxhound's own neutrals (.fh-cap, the same pairing the site header uses),
-// links take Capsomer's link roles (accent text, accent hover), the focus ring
-// is the family's amber ring, and the summary card is Capsomer's Panel.
-// Text is at Recova's sizes: the 0.9375rem body, the 1.25rem section heads and
-// the 0.875rem summary.
-
-export interface LegalSectionDef {
-  id: string;
-  number: number;
-  title: string;
-}
+// The legal pages' frame and the one paragraph two of them share. The page itself (title, date,
+// contents, numbered sections) is Capsomer's LegalDoc.
 
 /**
- * Recova's legal column, in Capsomer's amber family. One main landmark stays the
- * layout's.
+ * The frame the legal pages' Capsomer LegalDoc sits in: Recova's 720px column in Capsomer's amber
+ * family with Foxhound's own neutrals (.fh-cap, the pairing the site header uses). One main landmark
+ * stays the layout's. The sizes Recova sets on the text are the .fh-legal rules in marketing.css.
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
-    <div className="fh-mk-article fh-cap" data-cap-site="foxhound" data-family="amber">
+    <div className="fh-mk-article fh-legal fh-cap" data-cap-site="foxhound" data-family="amber">
       {children}
     </div>
-  );
-}
-
-/** Recova's contents block: a mono micro heading over a two-column numbered list. */
-export function LegalContents({
-  heading,
-  sections,
-}: {
-  heading: string;
-  sections: LegalSectionDef[];
-}) {
-  return (
-    <section className="fh-legal-band">
-      <h2 className="fh-mk-kicker-gap fh-mono fh-tiny fh-quiet">{heading}</h2>
-      <ol className="fh-mk-grid-2">
-        {sections.map((s) => (
-          <li key={s.id} className="fh-small">
-            <a href={`#${s.id}`}>
-              {s.number}. {s.title}
-            </a>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-export function LegalRule() {
-  return <hr className="fh-legal-block" />;
-}
-
-const LEGAL_H2 = "fh-legal-heading fh-title fh-medium fh-text";
-
-export function LegalSection({
-  id,
-  number,
-  title,
-  children,
-}: LegalSectionDef & { children: ReactNode }) {
-  return (
-    <section>
-      <h2 id={id} className={`fh-legal-title ${LEGAL_H2}`}>
-        {number}. {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-/** Terms' unnumbered preamble heading: Recova gives it no scroll margin, being in no contents list. */
-export function LegalPreambleHeading({ children }: { children: ReactNode }) {
-  return <h2 className={LEGAL_H2}>{children}</h2>;
-}
-
-export function LegalH3({ id, children }: { id?: string; children: ReactNode }) {
-  return (
-    <h3 id={id} className="fh-legal-title-2 fh-item-title fh-medium fh-text">
-      {children}
-    </h3>
-  );
-}
-
-export function LegalP({ children }: { children: ReactNode }) {
-  return <p className="fh-legal-text fh-subhead fh-relaxed fh-soft">{children}</p>;
-}
-
-export function LegalList({ children }: { children: ReactNode }) {
-  return <ul className="fh-legal-list fh-subhead fh-relaxed fh-soft">{children}</ul>;
-}
-
-export function LegalMailto({ email }: { email: string }) {
-  return <a href={`mailto:${email}`}>{email}</a>;
-}
-
-export function LegalLink({ to, children }: { to: string; children: ReactNode }) {
-  return <Link to={to}>{children}</Link>;
-}
-
-/** A link off the site, in the same tab as every public link (link-rules), marked as leaving it. */
-export function LegalExternal({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a href={href} rel="external noopener noreferrer">
-      {children}
-    </a>
   );
 }
 

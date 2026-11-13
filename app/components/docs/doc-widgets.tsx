@@ -1,5 +1,6 @@
 import { Icon, iconActivity, iconCard, iconScale, iconWarning } from "capsomer/react/icons";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
+import { Table } from "capsomer/react/table";
 import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
@@ -273,31 +274,22 @@ function CustomerColumns() {
     ["Signals", "Marks for an active recovery and a dispute history."],
   ];
   return (
-    <div
-      className="fh-doc-widgets-block-3 cap-table-wrap"
-      data-reflow=""
-      data-cap="table"
-      role="region"
-      aria-label="Customers page columns"
-      tabIndex={0}
-    >
-      <table className="cap-table">
-        <thead>
-          <tr>
-            <th scope="col">Column</th>
-            <th scope="col">What it shows</th>
+    <Table caption="Customers page columns" captionHidden reflow className="fh-doc-widgets-block-3">
+      <thead>
+        <tr>
+          <th scope="col">Column</th>
+          <th scope="col">What it shows</th>
+        </tr>
+      </thead>
+      <tbody>
+        {columns.map(([name, description]) => (
+          <tr key={name}>
+            <th scope="row">{name}</th>
+            <td data-label="What it shows">{description}</td>
           </tr>
-        </thead>
-        <tbody>
-          {columns.map(([name, description]) => (
-            <tr key={name}>
-              <th scope="row">{name}</th>
-              <td data-label="What it shows">{description}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </Table>
   );
 }
 
