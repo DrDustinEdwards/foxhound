@@ -78,7 +78,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
 
   // data-family="amber" and data-cap-site="foxhound" put Capsomer's Foxhound entry (the amber accents
-  // and Recova's underlined links) in Capsomer's lowest layer (capbase) for the whole page, so a link
+  // and its links' line on hover) in Capsomer's lowest layer (capbase) for the whole page, so a link
   // outside a .fh-cap wrapper is Foxhound's link. Foxhound's own unlayered :root tokens still win where
   // they share a name. The admin has its own look (app/admin.css), so it takes no site.
   const admin = pathname === "/admin" || pathname.startsWith("/admin/");
