@@ -8,7 +8,24 @@ import {
   useRouteLoaderData,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
-import { Icon, type IconName } from "capsomer/react/icons";
+import {
+  Icon,
+  iconArrowLeft,
+  iconCalendarClock,
+  iconCard,
+  iconDocument,
+  iconIdea,
+  iconListOrdered,
+  iconOverview,
+  iconPeople,
+  iconReceipt,
+  iconReset,
+  iconScale,
+  iconSettings,
+  iconStats,
+  iconTrendingDown,
+  iconUndo,
+} from "capsomer/react/icons";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
 import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
@@ -179,25 +196,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 // own neutrals (.fh-cap, app.css), so only the accents are amber, and every
 // page keeps its own column.
 
-const ICONS: Record<string, IconName> = {
-  "/console": "overview",
-  "/recovery/dashboard": "reset",
-  "/recovery/payments": "card",
-  "/recovery/sequence": "list-ordered",
-  "/recovery/winback": "undo",
-  "/recovery/expiring-cards": "calendar-clock",
-  "/disputes/dashboard": "scale",
-  "/intelligence/dashboard": "stats",
-  "/intelligence/customers": "people",
-  "/intelligence/recommendations": "idea",
-  "/intelligence/churn": "trending-down",
-  "/intelligence/reports": "document",
-  "/settings": "settings",
-  "/billing": "receipt",
+const ICONS: Record<string, string> = {
+  "/console": iconOverview,
+  "/recovery/dashboard": iconReset,
+  "/recovery/payments": iconCard,
+  "/recovery/sequence": iconListOrdered,
+  "/recovery/winback": iconUndo,
+  "/recovery/expiring-cards": iconCalendarClock,
+  "/disputes/dashboard": iconScale,
+  "/intelligence/dashboard": iconStats,
+  "/intelligence/customers": iconPeople,
+  "/intelligence/recommendations": iconIdea,
+  "/intelligence/churn": iconTrendingDown,
+  "/intelligence/reports": iconDocument,
+  "/settings": iconSettings,
+  "/billing": iconReceipt,
 };
 
 function icon(href: string) {
-  return <Icon name={ICONS[href] ?? "overview"} className="cap-admin-icon" />;
+  return <Icon d={ICONS[href] ?? iconOverview} className="cap-admin-icon" />;
 }
 
 // A product's pages, or the product itself when it has one page.
@@ -247,14 +264,14 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           id: "back",
           label: `Back to ${activeProduct.label}`,
           href: activeProduct.href,
-          icon: <Icon name="arrow-left" className="cap-admin-icon" />,
+          icon: <Icon d={iconArrowLeft} className="cap-admin-icon" />,
           group: "Settings",
         },
         {
           id: "/settings",
           label: "Overview",
           href: "/settings",
-          icon: <Icon name="overview" className="cap-admin-icon" />,
+          icon: <Icon d={iconOverview} className="cap-admin-icon" />,
           group: "Settings",
           current: pathname === "/settings",
         },
@@ -264,7 +281,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             label,
             href: to,
             group: g.label,
-            icon: <Icon name={name} className="cap-admin-icon" />,
+            icon: <Icon d={name} className="cap-admin-icon" />,
             current: isSettingsItemActive(pathname, to),
           })),
         ),

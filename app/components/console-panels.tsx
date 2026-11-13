@@ -1,4 +1,4 @@
-import { Icon } from "capsomer/react/icons";
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
@@ -231,7 +231,7 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
                 data-size="xs"
                 data-icon-only=""
               >
-                <Icon name="arrow-right" className="fh-icon-14 fh-icon-fine" />
+                <Icon d={iconArrowRight} className="fh-icon-14 fh-icon-fine" />
               </Link>
             </div>
           ) : null}

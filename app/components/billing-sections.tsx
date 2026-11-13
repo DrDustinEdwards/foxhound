@@ -1,7 +1,7 @@
 import { capitalize } from "@drdustinedwards/site-helpers/text";
 import type { ReactNode } from "react";
 import { routerRenderLink } from "capsomer/react/link";
-import { Icon } from "capsomer/react/icons";
+import { Icon, iconArrowUpRight } from "capsomer/react/icons";
 import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";
 import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
@@ -133,7 +133,7 @@ function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | 
   if (url) {
     return (
       <a href={url} target="_blank" rel="noreferrer" className="fh-invoice-link fh-tiny">
-        View invoice <Icon name="arrow-up-right" className="fh-icon-12 fh-icon-fine" />
+        View invoice <Icon d={iconArrowUpRight} className="fh-icon-12 fh-icon-fine" />
         <span className="cap-sr-only"> (opens in a new tab)</span>
       </a>
     );

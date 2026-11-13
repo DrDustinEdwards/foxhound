@@ -1,6 +1,6 @@
 import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { and, count, eq, isNull, notInArray } from "drizzle-orm";
-import { Icon } from "capsomer/react/icons";
+import { Icon, iconChevronRight } from "capsomer/react/icons";
 import { routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Row, RowList } from "capsomer/react/row-list";
@@ -138,7 +138,7 @@ function EntryRow({ entry }: { entry: SettingsHubEntry }) {
       href={entry.to}
       renderLink={routerRenderLink}
       detail={entry.description}
-      meta={<Icon name="chevron-right" className="fh-icon-16" />}
+      meta={<Icon d={iconChevronRight} className="fh-icon-16" />}
     />
   );
 }

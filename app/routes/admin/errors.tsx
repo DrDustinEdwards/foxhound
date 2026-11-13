@@ -1,6 +1,6 @@
 import { useNavigation, useRevalidator } from "react-router";
 import { Link } from "capsomer/react/link";
-import { Icon } from "capsomer/react/icons";
+import { Icon, iconExternal } from "capsomer/react/icons";
 import { Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -252,7 +252,7 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
                   {issue.permalink ? (
                     <a href={issue.permalink} target="_blank" rel="noreferrer" className={LINK}>
                       <span className="fh-break">{issue.title}</span>
-                      <Icon name="external" className="fh-out-icon fh-quiet" />
+                      <Icon d={iconExternal} className="fh-out-icon fh-quiet" />
                       <span className="cap-sr-only"> (opens Sentry in a new tab)</span>
                     </a>
                   ) : (

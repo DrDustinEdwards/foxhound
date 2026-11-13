@@ -1,4 +1,14 @@
-import type { IconName } from "capsomer/react/icons";
+import {
+  iconAccount,
+  iconBell,
+  iconKey,
+  iconMail,
+  iconMic,
+  iconPeople,
+  iconPlug,
+  iconScanSearch,
+  iconShield,
+} from "capsomer/react/icons";
 
 // S25's settings sub-nav, ported from legacy's SettingsSidebar. On a settings
 // page the app shell's left menu shows these rows in place of the product's
@@ -16,7 +26,7 @@ import type { IconName } from "capsomer/react/icons";
 interface SettingsNavItem {
   to: string;
   label: string;
-  icon: IconName;
+  icon: string;
 }
 
 export interface SettingsNavGroup {
@@ -31,32 +41,32 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   {
     label: "Recovery",
     items: [
-      { to: "/settings/stripe", label: "Stripe connections", icon: "plug" },
-      { to: "/settings/email", label: "Email", icon: "mail" },
-      { to: "/settings/brand-voice", label: "Brand voice", icon: "mic" },
+      { to: "/settings/stripe", label: "Stripe connections", icon: iconPlug },
+      { to: "/settings/email", label: "Email", icon: iconMail },
+      { to: "/settings/brand-voice", label: "Brand voice", icon: iconMic },
     ],
   },
   {
     label: "Products",
     items: [
-      { to: "/settings/disputes", label: "Disputes", icon: "shield" },
-      { to: "/settings/audit", label: "Audit", icon: "scan-search" },
+      { to: "/settings/disputes", label: "Disputes", icon: iconShield },
+      { to: "/settings/audit", label: "Audit", icon: iconScanSearch },
     ],
   },
   {
     label: "Notifications",
-    items: [{ to: "/settings/notifications", label: "Notifications and alerts", icon: "bell" }],
+    items: [{ to: "/settings/notifications", label: "Notifications and alerts", icon: iconBell }],
   },
   {
     label: "Workspace",
     items: [
-      { to: "/settings/team", label: "Team", icon: "people" },
-      { to: "/settings/api-keys", label: "API keys", icon: "key" },
+      { to: "/settings/team", label: "Team", icon: iconPeople },
+      { to: "/settings/api-keys", label: "API keys", icon: iconKey },
     ],
   },
   {
     label: "Account",
-    items: [{ to: "/settings/account", label: "My account", icon: "account" }],
+    items: [{ to: "/settings/account", label: "My account", icon: iconAccount }],
   },
 ];
 

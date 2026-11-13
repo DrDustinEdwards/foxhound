@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Form, useFetcher, useFetchers, useNavigation, useRevalidator } from "react-router";
 import { Link, routerRenderLink } from "capsomer/react/link";
-import { Icon } from "capsomer/react/icons";
+import { Icon, iconExternal } from "capsomer/react/icons";
 import { Empty } from "capsomer/react/empty";
 import { useMessage } from "capsomer/react/message";
 import { Panel } from "capsomer/react/panel";
@@ -382,7 +382,7 @@ function MerchantRow({
               data-variant="quiet"
             >
               Stripe
-              <Icon name="external" data-icon="end" />
+              <Icon d={iconExternal} data-icon="end" />
               <span className="cap-sr-only"> dashboard for {who} (opens in a new tab)</span>
             </a>
           ) : null}
