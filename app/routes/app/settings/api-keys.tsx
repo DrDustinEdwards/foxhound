@@ -3,13 +3,13 @@ import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useState } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
 import { Panel } from "capsomer/react/panel";
 import { SecretReveal } from "capsomer/react/secret-reveal";
 import { Segmented } from "capsomer/react/segmented";
@@ -354,7 +354,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
   const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout renderLink={routerRenderLink}
       title="API Keys"
       lead={
         <>
@@ -455,7 +455,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       </section>
 
       {callLog.state === "owner-only" ? null : <CallLogPanel log={callLog} />}
-    </SettingsPage>
+    </SettingsLayout>
   );
 }
 

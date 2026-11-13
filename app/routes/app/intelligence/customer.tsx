@@ -2,7 +2,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useCallback, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
 import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
 import { Panel } from "capsomer/react/panel";
@@ -143,11 +143,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             { label: "Customers", href: "/intelligence/customers" },
             { label: customer.customerName ?? customer.stripeCustomerId },
           ]}
-          renderLink={({ href, className, children }) => (
-            <Link to={href} className={className}>
-              {children}
-            </Link>
-          )}
+          renderLink={routerRenderLink}
         />
       </div>
 

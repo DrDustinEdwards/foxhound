@@ -5,7 +5,8 @@ import { Button } from "capsomer/react/button";
 import "capsomer/banner.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -362,7 +363,7 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
   const result = actionData as DisconnectResult | undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout renderLink={routerRenderLink}
       title="Stripe connections"
       lead={
         isOwner
@@ -371,6 +372,6 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
       }
     >
       <StripeSection connections={connections} result={result} isOwner={isOwner} />
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

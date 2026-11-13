@@ -1,5 +1,5 @@
 import { Breadcrumb } from "capsomer/react/breadcrumb";
-import { Link } from "capsomer/react/link";
+import { routerRenderLink } from "capsomer/react/link";
 
 import "capsomer/breadcrumb.css";
 
@@ -19,11 +19,7 @@ export function SectionTrail({
     >
       <Breadcrumb
         items={items}
-        renderLink={({ href, className: linkClass, children }) => (
-          <Link to={href} className={linkClass}>
-            {children}
-          </Link>
-        )}
+        renderLink={routerRenderLink}
       />
     </div>
   );

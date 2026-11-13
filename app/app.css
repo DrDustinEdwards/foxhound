@@ -145,7 +145,6 @@
   --color-chrome-brand: var(--chrome-brand);
   --color-cobalt: var(--cobalt-ui);
   --color-cobalt-hover: var(--cobalt-hover);
-  --color-cobalt-active: var(--cobalt-active);
   --color-cobalt-subtle: var(--cobalt-subtle);
   --color-cobalt-bg: var(--cobalt-bg);
   --color-cobalt-border: var(--cobalt-border);
@@ -174,20 +173,10 @@
   --color-purple: var(--purple);
   --color-purple-bg: var(--purple-bg);
   --color-purple-border: var(--purple-border);
-  --color-purple-border-interactive: var(--purple-border-interactive);
   --color-violet: var(--violet-ui);
-  --color-violet-vivid: var(--violet-vivid);
-  --color-violet-muted: var(--violet-muted);
   --color-violet-subtle: var(--violet-subtle);
   --color-violet-bg: var(--violet-bg);
   --color-violet-border: var(--violet-border);
-  --color-presence-online: var(--presence-online);
-  --color-presence-away: var(--presence-away);
-  --color-presence-offline: var(--presence-offline);
-  --color-skeleton: var(--skeleton);
-  --color-skeleton-shimmer: var(--skeleton-shimmer);
-  --color-tooltip-bg: var(--tooltip-bg);
-  --color-tooltip-text: var(--tooltip-text);
   /* Capsomer's accent roles, as utilities, for content that sits inside an
      element carrying data-family="amber" (Capsomer's amber family, Dustin's
      answers of 2026-10-13 and Q11 of 2026-10-14): text-accent-text for a link
@@ -310,13 +299,6 @@
   --text-product-sub: 1.0625rem;
   --text-feature-title: 1.375rem;
   --text-product-price: 3rem;
-  /* Product tag pill on /features (legacy FeatureCard.tsx's local ProductTag,
-     text-[0.625rem]). Its value collides with --text-source, and the two stay
-     separate on purpose: --text-source is home's citation-attribution role and
-     this is a tag role, so coupling them would let a correction to either
-     silently restyle the other. Rulings 65 and 68 rule against merging role
-     tokens on a value match. Marketing scale 20 to 21. */
-  --text-tag: 0.625rem;
 }
 
 :root,
