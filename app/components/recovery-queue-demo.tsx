@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { AppFrame } from "capsomer/react/app-frame";
+import { Eyebrow } from "capsomer/react/eyebrow";
 import { usePrefersReducedMotion } from "capsomer/react/hooks";
 import { Check, RefreshCw, X } from "lucide-react";
 
@@ -17,6 +19,9 @@ import {
   STEPS,
 } from "~/lib/marketing/queue-demo-frames";
 
+import "capsomer/app-frame.css";
+import "capsomer/eyebrow.css";
+
 // The home hero visual: a looping, self-running view of the recovery queue
 // working a batch of failed payments (ruling 6, adapted from legacy's animated
 // hero). It shows the thing the product actually does, which a static screen
@@ -34,6 +39,9 @@ import {
 //   - It honors prefers-reduced-motion by settling on the final frame and
 //     scheduling nothing. An indefinite auto-playing loop with no pause
 //     control is a WCAG 2.2.2 problem, and the canon target is 2.2 AA.
+//
+// The window around it is Capsomer's app frame (decorative, with the sentence a
+// screen reader hears in place of the invented rows).
 //
 // The frames and their classes are lib/marketing/queue-demo-frames.ts. On a page
 // that does not hydrate, the queue-demo island (islands/queue-demo.ts) plays
@@ -101,8 +109,8 @@ function Stat({
 }) {
   return (
     <div className="px-3 py-2.5">
-      <div className="mb-1 font-mono text-micro uppercase tracking-widest text-text-subtle">
-        {label}
+      <div className="mb-1">
+        <Eyebrow variant="mono">{label}</Eyebrow>
       </div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
@@ -142,30 +150,16 @@ export function RecoveryQueueDemo() {
 
   return (
     <div className="w-full" data-island="queue-demo">
-      <p className="sr-only">
-        An illustration of the recovery queue working three sample failed payments. A Foxhound email
-        sequence runs, a retry is attempted, and two of the three payments are recovered.
-      </p>
-
-      <div
-        aria-hidden="true"
-        className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-surface"
+      <AppFrame
+        decorative
+        description="An illustration of the recovery queue working three sample failed payments. A Foxhound email sequence runs, a retry is attempted, and two of the three payments are recovered."
+        address="foxhoundapp.com/recovery/dashboard"
+        foot={<Eyebrow variant="mono">Sample data</Eyebrow>}
       >
-        <div className="flex items-center gap-1.5 border-b border-border-sub bg-bg px-3 py-2">
-          <div className="h-2.5 w-2.5 rounded-full bg-border" />
-          <div className="h-2.5 w-2.5 rounded-full bg-border" />
-          <div className="h-2.5 w-2.5 rounded-full bg-border" />
-          <div className="mx-3 flex-1">
-            <div className="rounded border border-border-sub bg-surface px-2 py-0.5 text-center font-mono text-micro text-text-subtle">
-              foxhoundapp.com/recovery/dashboard
-            </div>
-          </div>
-        </div>
-
         <div className="flex items-center justify-between border-b border-border-sub px-4 py-3">
-          <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+          <Eyebrow as="span" variant="mono">
             Recovery queue
-          </span>
+          </Eyebrow>
           <div className="flex items-center gap-1.5">
             <span
               className="h-1.5 w-1.5 rounded-full bg-green transition-opacity duration-300"
@@ -223,13 +217,7 @@ export function RecoveryQueueDemo() {
           <Stat name="rate" label="Rate" value={frame.rate} />
           <Stat name="active" label="Active" value={String(frame.active)} />
         </div>
-
-        <div className="border-t border-border-sub bg-bg px-4 py-2">
-          <span className="font-mono text-micro uppercase tracking-widest text-text-subtle">
-            Sample data
-          </span>
-        </div>
-      </div>
+      </AppFrame>
     </div>
   );
 }
