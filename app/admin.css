@@ -12,8 +12,6 @@
 @import "capsomer/family-amber.css" layer(cap.tokens);
 @import "capsomer/base.css";
 @import "capsomer/site-header.css";
-/* Capsomer's icons, before the admin shell so its menu icon sizes win. */
-@import "capsomer/icons.css";
 @import "capsomer/admin-shell.css";
 @import "capsomer/dialog.css";
 @import "capsomer/popover.css";

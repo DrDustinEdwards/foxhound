@@ -207,7 +207,7 @@ type RunView = Route.ComponentProps["loaderData"]["runs"][number];
  *  not read on that run. Recova prints a zero here; a zero that means unknown
  *  is what 362 ruling 2 forbids. */
 function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: string | null }) {
-  if (totals === null) return <span className="text-text-tertiary">Not read</span>;
+  if (totals === null) return <span className="fh-quiet">Not read</span>;
   const lines = formatTotals(totals, currency ?? "usd");
   if (lines.length === 1) return <>{lines[0]}</>;
   return (
@@ -237,13 +237,13 @@ function TrendRow({
   const lines = compareTotals(current, previous, higherIsBetter);
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border-sub py-2 last:border-b-0">
-      <div className="text-label text-text-secondary">{label}</div>
+      <div className="fh-small fh-soft">{label}</div>
       {lines === null ? (
-        <div className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label">
-          <span className="text-text">
+        <div className="flex flex-wrap items-baseline justify-end gap-2 fh-mono fh-small">
+          <span className="fh-text">
             <Amount totals={current.totals} currency={current.currency} />
           </span>
-          <span className="text-text-subtle">
+          <span className="fh-faint">
             vs <Amount totals={previous.totals} currency={previous.currency} />
           </span>
         </div>
@@ -252,12 +252,10 @@ function TrendRow({
           {lines.map((line) => (
             <div
               key={line.currency}
-              className="flex flex-wrap items-baseline justify-end gap-2 font-mono text-label"
+              className="flex flex-wrap items-baseline justify-end gap-2 fh-mono fh-small"
             >
-              <span className="text-text">
-                {formatMoneyShort(line.currentCents, line.currency)}
-              </span>
-              <span className="text-text-subtle">
+              <span className="fh-text">{formatMoneyShort(line.currentCents, line.currency)}</span>
+              <span className="fh-faint">
                 vs {formatMoneyShort(line.previousCents, line.currency)}
               </span>
               <Delta delta={line.comparison} />
@@ -322,14 +320,14 @@ export function AuditSettingsForm({
         <div className="mb-5 min-w-0">
           {/* The visible label repeats the legend's words, which name the group
             for a screen reader, so it is hidden from one to be read once. */}
-          <div className="mb-1 text-label font-medium text-text" aria-hidden="true">
+          <div className="mb-1 fh-small fh-medium fh-text" aria-hidden="true">
             Lookback period
           </div>
-          <p id={lookbackHelp} className="m-0 mb-1 text-micro text-text-subtle">
+          <p id={lookbackHelp} className="mb-1 fh-tiny fh-faint">
             How far back we look when calculating your audit.
           </p>
           <Segmented
-            legend={<span className="sr-only">Lookback period</span>}
+            legend={<span className="cap-sr-only">Lookback period</span>}
             name="audit_lookback_days"
             describedBy={lookbackHelp}
             value={lookbackDays}
@@ -347,10 +345,10 @@ export function AuditSettingsForm({
 
         <div className="flex min-w-0 items-start justify-between gap-4 border-t border-border py-3">
           <div className="pr-4">
-            <div id={digestLabel} className="mb-0.5 text-label text-text">
+            <div id={digestLabel} className="mb-0.5 fh-small fh-text">
               Monthly audit digest
             </div>
-            <p id={digestHelp} className="m-0 text-micro text-text-subtle">
+            <p id={digestHelp} className="fh-tiny fh-faint">
               On the 1st of each month, we run a fresh audit and email you a comparison versus the
               prior month. No extra charge.
             </p>
@@ -372,8 +370,8 @@ export function AuditSettingsForm({
         </div>
       </div>
 
-      <div role="status" className="mt-3 min-h-4 text-micro">
-        {saving ? <span className="text-text-subtle">Saving…</span> : null}
+      <div role="status" className="mt-3 min-h-4 fh-tiny">
+        {saving ? <span className="fh-faint">Saving…</span> : null}
         {!saving && shown?.ok === true ? <span className="text-green">Saved.</span> : null}
         {!saving && shown?.ok === false ? <span className="text-red">Save failed.</span> : null}
       </div>
@@ -510,7 +508,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                     MRR
                   </th>
                   <th scope="col" data-num="">
-                    <span className="sr-only">View</span>
+                    <span className="cap-sr-only">View</span>
                   </th>
                 </tr>
               </thead>
@@ -518,19 +516,19 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
                 {runs.map((run) => (
                   <tr key={run.id}>
                     <th scope="row">{formatDate(run.runAt, { style: "medium" }) ?? ""}</th>
-                    <td data-label="Failed" data-num="" className="font-mono">
+                    <td data-label="Failed" data-num="" className="fh-mono">
                       <Amount totals={run.failedInvoices} currency={run.currency} />
                     </td>
-                    <td data-label="Disputes" data-num="" className="font-mono">
+                    <td data-label="Disputes" data-num="" className="fh-mono">
                       <Amount totals={run.openDisputes} currency={run.currency} />
                     </td>
-                    <td data-label="MRR" data-num="" className="font-mono">
+                    <td data-label="MRR" data-num="" className="fh-mono">
                       <Amount totals={run.mrr} currency={run.currency} />
                     </td>
                     <td data-label="View" data-num="">
                       <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
                         View
-                        <span className="sr-only">
+                        <span className="cap-sr-only">
                           {" "}
                           the run of {formatDate(run.runAt, { style: "medium" }) ?? ""}
                         </span>

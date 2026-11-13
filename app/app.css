@@ -28,6 +28,9 @@
 /* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
 @import "capsomer/reading-progress.css";
 @import "capsomer/reveal.css";
+/* Capsomer's icons (Foxhound's entry draws them at Lucide's stroke, 2). Before any page's admin-shell.css, so
+   the shell's menu icon sizes win. */
+@import "capsomer/icons.css";
 
 /* Self-hosted fonts. No Google Fonts request at runtime; files vendored
    into app/assets/fonts/. DM Sans ships as a single variable-weight
@@ -977,6 +980,9 @@ body {
   .fh-brand {
     color: var(--brand-text);
   }
+  .fh-accent {
+    color: var(--accent-text);
+  }
   .fh-mono {
     font-family: var(--font-dm-mono);
   }
@@ -997,5 +1003,35 @@ body {
   }
   .fh-nowrap {
     white-space: nowrap;
+  }
+  .fh-caps {
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+  }
+  .fh-caps-wide {
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .fh-relaxed {
+    line-height: 1.625;
+  }
+  .fh-center {
+    text-align: center;
+  }
+  /* Icon sizes and the finer stroke some icons were drawn at (lucide-react's size and strokeWidth). */
+  .fh-icon-12 {
+    --icon-size: 0.75rem;
+  }
+  .fh-icon-13 {
+    --icon-size: 13px;
+  }
+  .fh-icon-14 {
+    --icon-size: 0.875rem;
+  }
+  .fh-icon-16 {
+    --icon-size: 1rem;
+  }
+  .fh-icon-fine {
+    --icon-stroke: 1.5;
   }
 }

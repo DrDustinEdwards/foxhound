@@ -33,15 +33,15 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div>
-        <h1 className="text-title font-medium text-text">Expiring cards</h1>
-        <p className="mt-1 text-label text-text-tertiary">
+        <h1 className="fh-title fh-medium fh-text">Expiring cards</h1>
+        <p className="mt-1 fh-small fh-quiet">
           Foxhound flags cards before they expire, so the payment never has to fail in the first
           place.
         </p>
       </div>
 
       {alerts.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
+        <p className="mt-6 rounded-lg border border-dashed border-border p-6 fh-body fh-quiet">
           No expiring cards detected yet.
         </p>
       ) : (
@@ -74,15 +74,15 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                 return (
                   <tr key={alert.id}>
                     <td>
-                      <p className="text-text">{alert.customerName ?? alert.customerEmail}</p>
-                      <p className="text-micro text-text-subtle">{alert.customerEmail}</p>
+                      <p className="fh-text">{alert.customerName ?? alert.customerEmail}</p>
+                      <p className="fh-tiny fh-faint">{alert.customerEmail}</p>
                     </td>
-                    <td data-label="Card" className="text-text-tertiary">
+                    <td data-label="Card" className="fh-quiet">
                       {noPaymentMethod
                         ? "No payment method"
                         : `${alert.cardBrand ?? "Card"} ${alert.cardLast4 ? `•••• ${alert.cardLast4}` : ""}`}
                     </td>
-                    <td data-label="Expires" className="font-mono text-text">
+                    <td data-label="Expires" className="fh-mono fh-text">
                       {noPaymentMethod ? `Trial ends ${month}` : month}
                     </td>
                     <td data-label="Status">
@@ -100,7 +100,7 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                         </Pill>
                       )}
                     </td>
-                    <td data-label="Alert" className="text-text-tertiary">
+                    <td data-label="Alert" className="fh-quiet">
                       {alert.alertSentAt
                         ? `Sent ${formatDate(alert.alertSentAt, { style: "medium" }) ?? ""}`
                         : "Not sent yet"}

@@ -19,9 +19,9 @@ export function healthScoreBand(score: number): HealthScoreBand {
 }
 
 const CLASS_NAME: Record<HealthScoreBand, string> = {
-  at_risk: "text-error-text",
-  watch: "text-caution",
-  healthy: "text-success-text",
+  at_risk: "fh-error",
+  watch: "fh-brand",
+  healthy: "fh-success",
 };
 
 export function healthScoreClassName(score: number): string {

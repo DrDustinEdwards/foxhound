@@ -1,5 +1,4 @@
-import { Bell, CircleUser, Key, Mail, Mic, Plug, ScanSearch, Shield, Users } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import type { IconName } from "capsomer/react/icons";
 
 // S25's settings sub-nav, ported from legacy's SettingsSidebar. On a settings
 // page the app shell's left menu shows these rows in place of the product's
@@ -17,7 +16,7 @@ import type { LucideIcon } from "lucide-react";
 interface SettingsNavItem {
   to: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconName;
 }
 
 export interface SettingsNavGroup {
@@ -32,32 +31,32 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   {
     label: "Recovery",
     items: [
-      { to: "/settings/stripe", label: "Stripe connections", icon: Plug },
-      { to: "/settings/email", label: "Email", icon: Mail },
-      { to: "/settings/brand-voice", label: "Brand voice", icon: Mic },
+      { to: "/settings/stripe", label: "Stripe connections", icon: "plug" },
+      { to: "/settings/email", label: "Email", icon: "mail" },
+      { to: "/settings/brand-voice", label: "Brand voice", icon: "mic" },
     ],
   },
   {
     label: "Products",
     items: [
-      { to: "/settings/disputes", label: "Disputes", icon: Shield },
-      { to: "/settings/audit", label: "Audit", icon: ScanSearch },
+      { to: "/settings/disputes", label: "Disputes", icon: "shield" },
+      { to: "/settings/audit", label: "Audit", icon: "scan-search" },
     ],
   },
   {
     label: "Notifications",
-    items: [{ to: "/settings/notifications", label: "Notifications and alerts", icon: Bell }],
+    items: [{ to: "/settings/notifications", label: "Notifications and alerts", icon: "bell" }],
   },
   {
     label: "Workspace",
     items: [
-      { to: "/settings/team", label: "Team", icon: Users },
-      { to: "/settings/api-keys", label: "API keys", icon: Key },
+      { to: "/settings/team", label: "Team", icon: "people" },
+      { to: "/settings/api-keys", label: "API keys", icon: "key" },
     ],
   },
   {
     label: "Account",
-    items: [{ to: "/settings/account", label: "My account", icon: CircleUser }],
+    items: [{ to: "/settings/account", label: "My account", icon: "account" }],
   },
 ];
 

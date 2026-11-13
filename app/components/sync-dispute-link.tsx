@@ -103,7 +103,7 @@ export function SyncDisputeLink({
 
   if (!open) {
     return (
-      <div className="mt-8 text-center">
+      <div className="mt-8 fh-center">
         <Button variant="link" size="xs" onClick={() => setOpen(true)}>
           {copy.linkLabel}
         </Button>
@@ -112,13 +112,13 @@ export function SyncDisputeLink({
   }
 
   return (
-    <div className="mt-8 text-center">
+    <div className="mt-8 fh-center">
       <Form method="post" className="cap-panel mx-auto max-w-md text-left">
         {/* The card's text at the label size, Recova's small type in this card
             (RULES 5.2). The field label has no size of its own and would
             otherwise inherit the body size, since Capsomer's base.css is not
             loaded in the app. */}
-        <div className="cap-panel-body text-label">
+        <div className="cap-panel-body fh-small">
           <input type="hidden" name="intent" value="sync_dispute" />
           <label htmlFor="sync_dispute_id" className="cap-field-label">
             Stripe dispute ID
@@ -150,10 +150,10 @@ export function SyncDisputeLink({
               Cancel
             </Button>
           </div>
-          <div role="status" className="mt-2 text-micro">
+          <div role="status" className="mt-2 fh-tiny">
             {shown ? <Status tone={shown.ok ? "ok" : "crit"}>{shown.message}</Status> : null}
           </div>
-          {copy.note ? <div className="mt-2 text-micro text-text-subtle">{copy.note}</div> : null}
+          {copy.note ? <div className="mt-2 fh-tiny fh-faint">{copy.note}</div> : null}
         </div>
       </Form>
     </div>

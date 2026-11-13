@@ -151,13 +151,13 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
         />
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center gap-4 text-label">
+      <div className="mb-5 flex flex-wrap items-center gap-4 fh-small">
         {/* Recova computes `account.name ?? 'Customers'`, so an account with no
             name read "All Customers customers"; with no name this reads "All
             customers". */}
         <Link
           to="/intelligence/customers"
-          className="inline-flex min-h-6 items-center font-mono text-accent-text no-underline hover:text-accent-hover"
+          className="inline-flex min-h-6 items-center fh-mono text-accent-text no-underline hover:text-accent-hover"
         >
           <span aria-hidden="true">←&nbsp;</span>
           {accountName ? `All ${accountName} customers` : "All customers"}
@@ -215,9 +215,9 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             so the heading is true of every customer that has one. */}
         {customer.aiAssessment ? (
           <Panel title="Why this customer needs attention">
-            <p className="m-0 text-body leading-relaxed text-text">{customer.aiAssessment}</p>
+            <p className="fh-body fh-relaxed fh-text">{customer.aiAssessment}</p>
             {customer.aiAssessmentGeneratedAt ? (
-              <p className="m-0 mt-3 font-mono text-micro text-text-subtle">
+              <p className="mt-3 fh-mono fh-tiny fh-faint">
                 Updated {formatDate(customer.aiAssessmentGeneratedAt, { style: "medium" }) ?? ""}
               </p>
             ) : null}
@@ -226,7 +226,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
       </div>
 
       {recoveryCount > 0 || hasDisputeHistory ? (
-        <p className="mt-5 mb-2 text-center text-micro text-text-subtle">
+        <p className="mt-5 mb-2 fh-center fh-tiny fh-faint">
           This customer&apos;s data is shared across Recovery, Disputes, and Intelligence.
           {recoveryCount > 0 ? (
             <>
@@ -306,12 +306,10 @@ function HeaderCard({
       <div className="cap-panel-body">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="m-0 text-title font-semibold text-text">
-              {customer.customerName ?? "(no name)"}
-            </h1>
-            <p className="m-0 mt-1 break-all font-mono text-label text-text-subtle">
+            <h1 className="fh-title fh-semibold fh-text">{customer.customerName ?? "(no name)"}</h1>
+            <p className="mt-1 fh-break fh-mono fh-small fh-faint">
               {customer.customerEmail ?? "-"} ·{" "}
-              <span className="text-text-tertiary">{customer.stripeCustomerId}</span>
+              <span className="fh-quiet">{customer.stripeCustomerId}</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -322,7 +320,7 @@ function HeaderCard({
             <span className="cap-pill" data-tone={pill.tone} data-variant="outline">
               {customer.currentPlanName ?? pill.label}
             </span>
-            <span className="font-mono text-body text-text">
+            <span className="fh-mono fh-body fh-text">
               {/* Recova: any value, zero included, as "$X/mo"; "-" only when
                   there is none. */}
               {customer.mrrContributionCents != null
@@ -334,13 +332,13 @@ function HeaderCard({
         {/* A planned change or cancellation from the customer's Stripe
             subscription schedule or cancel_at, beside what they pay now. */}
         {customer.scheduled ? (
-          <p className="m-0 mt-3 text-right text-label text-text-secondary">{customer.scheduled}</p>
+          <p className="mt-3 text-right fh-small fh-soft">{customer.scheduled}</p>
         ) : null}
-        <dl className="m-0 mt-5 grid grid-cols-2 gap-4 border-t border-border-sub pt-4 md:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-border-sub pt-4 md:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label}>
-              <dt className="text-micro uppercase tracking-wide text-text-tertiary">{s.label}</dt>
-              <dd className="m-0 mt-1 font-mono text-label text-text">{s.value}</dd>
+              <dt className="fh-tiny fh-quiet fh-caps">{s.label}</dt>
+              <dd className="mt-1 fh-mono fh-small fh-text">{s.value}</dd>
             </div>
           ))}
         </dl>
@@ -363,13 +361,13 @@ function SignalCard({
   return (
     <Panel title={title} size="sm">
       {fields === null ? (
-        <p className="m-0 text-label italic text-text-subtle">{empty}</p>
+        <p className="fh-small italic fh-faint">{empty}</p>
       ) : (
-        <dl className="m-0 flex flex-col gap-2 text-label">
+        <dl className="flex flex-col gap-2 fh-small">
           {fields.map((f) => (
             <div key={f.label} className="flex items-baseline justify-between gap-3">
-              <dt className="text-text-secondary">{f.label}</dt>
-              <dd className="m-0 text-right font-mono text-text">{f.value}</dd>
+              <dt className="fh-soft">{f.label}</dt>
+              <dd className="text-right fh-mono fh-text">{f.value}</dd>
             </div>
           ))}
         </dl>
@@ -388,15 +386,15 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
   );
   return (
     <Panel title="Health score">
-      <p className="m-0 flex items-baseline justify-end gap-3">
+      <p className="flex items-baseline justify-end gap-3">
         <span
-          className={`font-mono text-display font-semibold leading-none ${
+          className={`fh-mono fh-display fh-semibold leading-none ${
             score === null ? "text-text-tertiary" : healthScoreClassName(score)
           }`}
         >
           {score ?? "-"}
         </span>
-        <span className="text-label text-text-subtle">/ 100</span>
+        <span className="fh-small fh-faint">/ 100</span>
       </p>
       {readings.length >= 2 ? <ChartFrame draw={draw} /> : null}
     </Panel>
@@ -410,9 +408,9 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
   return (
     <>
       <section className="mt-8">
-        <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">Factors</p>
+        <p className="fh-mono fh-tiny fh-quiet fh-caps">Factors</p>
         {factors.length === 0 ? (
-          <p className="mt-2 text-body text-text-tertiary">
+          <p className="mt-2 fh-body fh-quiet">
             No factors moved this score away from the baseline.
           </p>
         ) : (
@@ -422,9 +420,9 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
                 key={f.signal}
                 className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface p-3"
               >
-                <span className="text-label text-text">{f.detail}</span>
+                <span className="fh-small fh-text">{f.detail}</span>
                 <span
-                  className={`font-mono text-label ${f.deltaPoints < 0 ? "text-error-text" : "text-success-text"}`}
+                  className={`fh-mono fh-small ${f.deltaPoints < 0 ? "text-error-text" : "text-success-text"}`}
                 >
                   {f.deltaPoints > 0 ? "+" : ""}
                   {f.deltaPoints}
@@ -437,9 +435,7 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
 
       {customer.predictions.length > 0 ? (
         <section className="mt-8">
-          <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
-            Predictions
-          </p>
+          <p className="fh-mono fh-tiny fh-quiet fh-caps">Predictions</p>
           <div
             className="mt-3 cap-table-wrap rounded-lg border border-border"
             data-cap="table"
@@ -460,16 +456,16 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
               <tbody>
                 {customer.predictions.map((p, i) => (
                   <tr key={i}>
-                    <td className="text-text-tertiary">
+                    <td className="fh-quiet">
                       {formatDate(p.predictedAt, { style: "medium" }) ?? ""}
                     </td>
-                    <td data-label="Score" className="font-mono text-text">
+                    <td data-label="Score" className="fh-mono fh-text">
                       {p.score}
                     </td>
-                    <td data-label="Horizon" className="text-text-tertiary">
+                    <td data-label="Horizon" className="fh-quiet">
                       {p.horizonDays}d
                     </td>
-                    <td data-label="Outcome" className="text-text-tertiary">
+                    <td data-label="Outcome" className="fh-quiet">
                       {p.realizedOutcome ?? "pending"}
                     </td>
                   </tr>
