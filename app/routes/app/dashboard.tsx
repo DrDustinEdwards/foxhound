@@ -86,8 +86,8 @@ export default function Console({ loaderData }: Route.ComponentProps) {
   }));
 
   return (
-    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
-      <div className="mb-6">
+    <div className="fh-console cap-admin-page" data-width="page">
+      <div className="fh-console-head">
         <PageHead title="Console" />
       </div>
 
@@ -95,7 +95,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
       <ConsoleTileRow tiles={consoleView.tiles} nowMs={nowMs} />
       <ConsoleAttentionFeed rows={consoleView.attention} />
 
-      <div className="mt-10">
+      <div className="fh-console-section">
         <StatTiles layout="grid" label="Recovery figures">
           <StaticStatTile
             label="Revenue recovered"
@@ -132,18 +132,18 @@ export default function Console({ loaderData }: Route.ComponentProps) {
         </StatTiles>
       </div>
 
-      <section className="mt-10" aria-labelledby="mrr-analytics">
-        <h2 id="mrr-analytics" className="m-0 text-title font-medium text-text">
+      <section className="fh-console-section" aria-labelledby="mrr-analytics">
+        <h2 id="mrr-analytics" className="fh-title fh-medium fh-text">
           MRR analytics
         </h2>
 
         {latest ? (
-          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="fh-console-charts">
             <ChartPanel
               title="MRR trend"
               level={3}
               more={
-                <span className="font-mono text-body font-medium tabular-nums text-text">
+                <span className="fh-mono fh-body fh-medium cap-num fh-text">
                   {formatMoney(latest.totalMrrCents, latest.currency)}
                 </span>
               }
@@ -161,7 +161,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
             />
 
             <Panel title="Churn rate" level={3}>
-              <p className="m-0 font-mono text-title tabular-nums text-text">
+              <p className="fh-mono fh-title cap-num fh-text">
                 {((latest.voluntaryChurnRateBps ?? 0) / 100).toFixed(1)}% voluntary,{" "}
                 {((latest.involuntaryChurnRateBps ?? 0) / 100).toFixed(1)}% involuntary
               </p>
@@ -178,7 +178,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
             ) : null}
           </div>
         ) : (
-          <div className="mt-4">
+          <div className="fh-console-more">
             {/* Foxhound's intelligence-sync writes the first MRR snapshot on its
                 daily run, but only for an account with Stripe connected that
                 is neither paused nor canceled. Only that account is promised

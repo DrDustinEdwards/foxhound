@@ -14,7 +14,7 @@ import { relative } from "capsomer/behavior/time";
 
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { cronRunHref } from "~/lib/admin/crons";
-import { merchantHref, pagePending } from "~/lib/admin/page";
+import { merchantHref } from "~/lib/admin/page";
 import type { AdminOverview } from "~/lib/admin/overview.server";
 import { daysUntilDeadline, deadlineLabel, humanizeDisputeReason } from "~/lib/disputes/labels";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
@@ -131,15 +131,4 @@ export function overviewAttentionGroups(
       view: { href: "/admin/platform/crons", label: "Crons" },
     },
   };
-}
-
-/** The Overview's lists are pending while its own data is read again (a
- *  revalidation, or a navigation back to /admin), never while the admin is
- *  leaving for another page. The last good data stays on screen meanwhile.
- *  A thin wrapper over the admin's one pagePending. */
-export function overviewPending(
-  navigation: { state: string; location?: { pathname: string } },
-  revalidatorState: string,
-): boolean {
-  return pagePending(navigation, revalidatorState, "/admin");
 }

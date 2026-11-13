@@ -52,8 +52,8 @@ export default function AboutPage() {
       />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
-      <div className="mx-auto max-w-2xl px-4 pb-20 sm:px-8">
-        <div className="flex flex-col gap-6 text-body leading-relaxed text-text-secondary">
+      <div className="fh-mk-narrow">
+        <div className="cap-stack fh-body fh-relaxed fh-soft" data-gap="6">
           <p>
             Foxhound is built and run by Dustin Edwards. It started as a rebuild of an earlier
             payment recovery product, this time built around a stricter promise: Foxhound only earns

@@ -14,6 +14,7 @@ import type { Route } from "./+types/marketing";
 // One cue more per kind of link on the public pages: another site, a file, mail (Capsomer's link
 // system; the base cues are app.css's capsomer/links.css).
 import "capsomer/link.css";
+import "~/marketing.css";
 
 // Anonymous visitors stay zero-DB (task: "Anonymous visitors stay zero-DB
 // exactly as now"). An authenticated visitor additionally resolves their
@@ -86,7 +87,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
+    <div className="fh-page-frame fh-text">
       <Header
         isAuthenticated={loaderData.isAuthenticated}
         theme={loaderData.theme}
@@ -99,7 +100,7 @@ export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
         email={loaderData.email}
         skipTo="#main"
       />
-      <main id="main" className="flex-1">
+      <main id="main" className="fh-marketing-block">
         <Outlet />
       </main>
       <Footer />

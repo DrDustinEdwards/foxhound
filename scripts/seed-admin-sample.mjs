@@ -53,35 +53,29 @@ const sql = [
 
   // Cron runs on registered crons. weekly-digest failed 5 hours ago: the run
   // the Overview counts and links to, shown on its cron on /admin/crons.
-  row("cron_run_history", {
-    id: "sample_run_digest_failed",
-    cron_name: "weekly-digest",
+  row("cron_run_log", {
+    id: 900001,
+    name: "weekly-digest",
     started_at: ago(5 * HOUR + 4000),
     finished_at: ago(5 * HOUR),
-    status: "failed",
-    rows_processed: 0,
-    message: "Email binding unavailable",
-    created_at: ago(5 * HOUR),
+    outcome: "failed",
+    reason: "Email binding unavailable",
   }),
-  row("cron_run_history", {
-    id: "sample_run_tick_1",
-    cron_name: "recovery-tick",
+  row("cron_run_log", {
+    id: 900002,
+    name: "recovery-tick",
     started_at: ago(20 * 60 * 1000 + 3000),
     finished_at: ago(20 * 60 * 1000),
-    status: "success",
-    rows_processed: 4,
-    message: null,
-    created_at: ago(20 * 60 * 1000),
+    outcome: "ok",
+    reason: "4 rows",
   }),
-  row("cron_run_history", {
-    id: "sample_run_backup",
-    cron_name: "d1-backup",
+  row("cron_run_log", {
+    id: 900003,
+    name: "d1-backup",
     started_at: ago(15 * HOUR + 9000),
     finished_at: ago(15 * HOUR),
-    status: "success",
-    rows_processed: 31,
-    message: null,
-    created_at: ago(15 * HOUR),
+    outcome: "ok",
+    reason: "31 rows",
   }),
 
   // Webhook events.

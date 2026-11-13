@@ -3,18 +3,18 @@
 // deliverability and the payments table. Presentational.
 
 import { relative, toMs, until } from "capsomer/behavior/time";
-import type { ComponentType } from "react";
 import {
-  Activity,
-  AlertCircle,
-  Clock,
-  CreditCard,
-  Percent,
-  RefreshCw,
-  Send,
-  Tag,
-  TrendingUp,
-} from "lucide-react";
+  Icon,
+  iconActivity,
+  iconAlert,
+  iconCard,
+  iconClock,
+  iconPercent,
+  iconRefresh,
+  iconSend,
+  iconTag,
+  iconTrendingUp,
+} from "capsomer/react/icons";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
@@ -126,17 +126,16 @@ export const ONBOARDING_READY = {
 /** Recova's PrimaryCard and SecondaryCard: an icon, the label, the figure and
  *  an optional line under it, here as a small Capsomer panel (Capsomer's stat
  *  tile is always a link or a button, and Recova's cards lead nowhere). */
-type Icon = ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
 
 function StatCard({
-  icon: IconComponent,
+  icon,
   label,
   value,
   sub,
   valueClassName,
   primary,
 }: {
-  icon: Icon;
+  icon: string;
   label: string;
   value: string;
   sub?: string;
@@ -147,18 +146,18 @@ function StatCard({
     <Panel
       size="sm"
       title={
-        <span className="flex items-center gap-2">
-          <IconComponent className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+        <span className="fh-recpanel-label">
+          <Icon d={icon} className="fh-icon-16 fh-icon-fine" />
           {label}
         </span>
       }
     >
       <p
-        className={`m-0 font-mono font-medium tabular-nums ${primary ? "text-display" : "text-title"} ${valueClassName ?? "text-text"}`}
+        className={`fh-mono fh-medium cap-num ${primary ? "fh-display" : "fh-title"} ${valueClassName ?? "fh-text"}`}
       >
         {value}
       </p>
-      {sub ? <p className="m-0 text-micro text-text-subtle">{sub}</p> : null}
+      {sub ? <p className="fh-tiny fh-faint">{sub}</p> : null}
     </Panel>
   );
 }
@@ -166,16 +165,16 @@ function StatCard({
 export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
   const atRiskPct = atRiskPctOfMrr(w.atRiskRevenue, w.connection?.mrrEstimateCents ?? null);
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+    <div className="fh-recpanel-hero">
       <StatCard
         primary
-        icon={TrendingUp}
+        icon={iconTrendingUp}
         label="Recovered (30d)"
         value={formatCurrencyTotals(w.recoveredRevenue)}
       />
       <StatCard
         primary
-        icon={AlertCircle}
+        icon={iconAlert}
         label="Currently at risk"
         value={formatCurrencyTotals(w.atRiskRevenue)}
         sub={atRiskPct !== null ? `${atRiskPct}% of MRR` : undefined}
@@ -184,7 +183,7 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
           why, where Recova printed 0%. */}
       <StatCard
         primary
-        icon={Percent}
+        icon={iconPercent}
         label="Recovery rate"
         value={w.recoveryRatePct === null ? "-" : `${w.recoveryRatePct}%`}
         valueClassName={
@@ -198,24 +197,28 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
 
 export function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
-      <StatCard icon={Activity} label="Active sequences" value={String(w.activePaymentsCount)} />
-      <StatCard icon={RefreshCw} label="Win-backs active" value={String(w.activeWinbacksCount)} />
-      <StatCard icon={CreditCard} label="Cards expiring" value={String(w.expiringCardsCount)} />
+    <div className="fh-recpanel-tiles">
       <StatCard
-        icon={Clock}
+        icon={iconActivity}
+        label="Active sequences"
+        value={String(w.activePaymentsCount)}
+      />
+      <StatCard icon={iconRefresh} label="Win-backs active" value={String(w.activeWinbacksCount)} />
+      <StatCard icon={iconCard} label="Cards expiring" value={String(w.expiringCardsCount)} />
+      <StatCard
+        icon={iconClock}
         label="Avg days to recovery"
         value={w.avgDaysToRecovery === null ? "-" : `${w.avgDaysToRecovery}d`}
         sub={w.avgDaysToRecovery === null ? "No data" : `across ${w.recoveryDaysCount}`}
       />
       <StatCard
-        icon={Tag}
+        icon={iconTag}
         label="Best category"
         value={w.bestCategory ? DECLINE_CATEGORY_LABELS[w.bestCategory.cat] : "-"}
         sub={w.bestCategory ? `${w.bestCategory.rate}% recovery` : "Need more"}
       />
       <StatCard
-        icon={Send}
+        icon={iconSend}
         label="Emails sent"
         value={String(w.emailsSentInRange.sent)}
         sub={`${w.emailsSentInRange.openRatePct}% open · ${w.emailsSentInRange.clickRatePct}% click`}
@@ -228,11 +231,9 @@ export function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
 
 function RoiLine({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-label text-text-secondary">{label}</dt>
-      <dd
-        className={`m-0 font-mono text-body tabular-nums ${strong ? "font-semibold text-text" : "text-text-tertiary"}`}
-      >
+    <div className="fh-recpanel-line">
+      <dt className="fh-small fh-soft">{label}</dt>
+      <dd className={`fh-mono fh-body cap-num ${strong ? "fh-semibold fh-text" : "fh-quiet"}`}>
         {value}
       </dd>
     </div>
@@ -257,16 +258,14 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
       }
     >
       {empty ? (
-        <p className="m-0 text-label text-text-subtle">
+        <p className="fh-small fh-faint">
           No attributed recoveries yet. Foxhound monitors every failed payment automatically.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="fh-recpanel-pair">
           <div>
-            <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">
-              This month
-            </h3>
-            <dl className="m-0 flex flex-col gap-2">
+            <h3 className="fh-recpanel-title fh-tiny fh-medium fh-quiet fh-caps">This month</h3>
+            <dl className="cap-stack" data-gap="3">
               <RoiLine label="Recovered" value={formatCurrencyTotals(roi.thisMonth.recovered)} />
               <RoiLine
                 label={`Foxhound fee (${RECOVERY_FEE_LABEL}, billed after ${RECOVERY_MATURITY_DAYS} days)`}
@@ -276,10 +275,8 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
             </dl>
           </div>
           <div>
-            <h3 className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">
-              All time
-            </h3>
-            <dl className="m-0 flex flex-col gap-2">
+            <h3 className="fh-recpanel-title fh-tiny fh-medium fh-quiet fh-caps">All time</h3>
+            <dl className="cap-stack" data-gap="3">
               <RoiLine
                 label="Total recovered"
                 value={formatCurrencyTotals(roi.allTime.recovered)}
@@ -301,28 +298,26 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
     <Panel title={`Win-back attribution · ${w.rangeLabel}`}>
       {w.reactivatedCount === 0 ? (
         <div>
-          <p className="m-0 mb-3 text-label text-text-subtle">No reactivations yet</p>
+          <p className="fh-recpanel-title fh-small fh-faint">No reactivations yet</p>
           {/* Recova's sentence named a 90-day window its engine kept; Foxhound
               credits a reactivation to the win-back sequence named in the
               checkout the email's link opens, with no window
               (app/lib/recovery/winback-reactivation.server.ts). */}
-          <p className="m-0 text-micro text-text-subtle">
+          <p className="fh-tiny fh-faint">
             When a customer who canceled reactivates their subscription from a win-back email, it
             appears here.
           </p>
         </div>
       ) : (
         <div>
-          <p className="m-0 font-mono text-display font-semibold tabular-nums text-text">
-            {w.reactivatedCount}
-          </p>
-          <p className="m-0 text-micro text-text-tertiary">
+          <p className="fh-mono fh-display fh-semibold cap-num fh-text">{w.reactivatedCount}</p>
+          <p className="fh-tiny fh-quiet">
             customer{w.reactivatedCount !== 1 ? "s" : ""} reactivated
           </p>
           {w.reactivatedRevenue.length > 0 ? (
-            <div className="mt-4 border-t border-border pt-4">
-              <p className="m-0 text-micro text-text-tertiary">Monthly revenue recovered</p>
-              <p className="m-0 font-mono text-title font-semibold tabular-nums text-text">
+            <div className="fh-recpanel-foot">
+              <p className="fh-tiny fh-quiet">Monthly revenue recovered</p>
+              <p className="fh-mono fh-title fh-semibold cap-num fh-text">
                 {formatCurrencyTotals(w.reactivatedRevenue)}
               </p>
             </div>
@@ -344,7 +339,7 @@ export function RecoveryQueue({
 }) {
   if (w.upcomingSteps.length === 0) {
     return (
-      <p className="m-0 px-1 py-3 text-label text-text-subtle">
+      <p className="fh-recpanel-empty fh-small fh-faint">
         Nothing in the queue. All your recent payments came through clean.
       </p>
     );
@@ -359,9 +354,7 @@ export function RecoveryQueue({
             title={s.customerName ?? s.customerEmail}
             detail={`${formatStepType(s.stepType)} · ${formatMoney(s.amountCents, s.currency)}`}
             meta={
-              <span className="font-mono text-micro text-brand-text">
-                {until(toMs(s.scheduledAt), nowMs)}
-              </span>
+              <span className="fh-mono fh-tiny fh-brand">{until(toMs(s.scheduledAt), nowMs)}</span>
             }
           />
         ))}
@@ -388,17 +381,17 @@ function DeliverabilityFigure({
   small?: boolean;
 }) {
   return (
-    <p className="m-0">
+    <p className="">
       <span
         className={
           small
-            ? "font-mono text-label tabular-nums text-text-subtle"
-            : "font-mono text-title font-semibold tabular-nums text-text"
+            ? "fh-mono fh-small cap-num fh-faint"
+            : "fh-mono fh-title fh-semibold cap-num fh-text"
         }
       >
         {value}
       </span>{" "}
-      <span className="text-micro text-text-tertiary">{label}</span>
+      <span className="fh-tiny fh-quiet">{label}</span>
     </p>
   );
 }
@@ -417,14 +410,12 @@ export function DeliverabilityPanel({
   const f = deliverabilityFigures(counts);
   const rate = (pct: number | null) => (pct === null ? "-" : `${pct}%`);
   return (
-    <div className="mb-5">
+    <div className="fh-recpanel-figures">
       <Panel title={`Email deliverability · ${rangeLabel}`}>
         {f === null ? (
-          <p className="m-0 text-label text-text-subtle">
-            No bounces or spam reports in this range.
-          </p>
+          <p className="fh-small fh-faint">No bounces or spam reports in this range.</p>
         ) : (
-          <div className="flex flex-wrap items-baseline gap-6">
+          <div className="fh-recpanel-figure-row">
             <DeliverabilityFigure value={rate(f.bounceRatePct)} label="bounced" />
             <DeliverabilityFigure value={rate(f.spamRatePct)} label="spam" />
             <DeliverabilityFigure value={String(f.sent)} label="sent" small />
@@ -450,13 +441,13 @@ export function PaymentsTable({
       title="Failed payments"
       flush
       actions={
-        <span className="flex items-center gap-4 text-label">
+        <span className="fh-recpanel-legend fh-small">
           {/* Recova counted "active" among the eight rows on show; this is
               every payment in recovery now, which is what the word claims. */}
-          <span className="text-text-subtle">
+          <span className="fh-faint">
             {w.totalFailedCount} total · {w.activePaymentsCount} active
           </span>
-          <Link to="/recovery/payments" className="text-brand-text">
+          <Link to="/recovery/payments" className="fh-brand">
             View all
           </Link>
         </span>
@@ -469,14 +460,14 @@ export function PaymentsTable({
       ) : (
         <>
           {/* Recova's phone layout: one card per payment. */}
-          <ul className="cap-rows sm:hidden" role="list">
+          <ul className="fh-phone-list cap-rows" role="list">
             {payments.map((p) => (
               <Row
                 variant="outline"
                 key={p.id}
                 title={p.customerName ?? p.customerEmail}
                 detail={
-                  <span className="flex flex-wrap items-center gap-2">
+                  <span className="cap-cluster" data-gap="3">
                     <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
                     <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
                       {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
@@ -484,7 +475,7 @@ export function PaymentsTable({
                   </span>
                 }
                 meta={
-                  <span className="font-mono text-label text-text">
+                  <span className="fh-mono fh-small fh-text">
                     {formatMoney(p.amountCents, p.currency)}
                   </span>
                 }
@@ -492,7 +483,7 @@ export function PaymentsTable({
                   <Link
                     to={`/recovery/payments/${p.id}`}
                     aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}
-                    className="text-micro text-brand-text"
+                    className="fh-tiny fh-brand"
                   >
                     View
                   </Link>
@@ -501,7 +492,7 @@ export function PaymentsTable({
             ))}
           </ul>
 
-          <div className="hidden sm:block">
+          <div className="fh-wide-list">
             <div
               className="cap-table-wrap"
               data-reflow="medium"
@@ -531,42 +522,42 @@ export function PaymentsTable({
                     return (
                       <tr key={p.id}>
                         <th scope="row">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium text-text">
+                          <span className="cap-cluster" data-gap="3">
+                            <span className="fh-medium fh-text">
                               {p.customerName ?? p.customerEmail}
                             </span>
                             {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
                           </span>
                           {p.customerName ? (
-                            <span className="block text-micro font-normal text-text-subtle">
+                            <span className="fh-line fh-tiny fh-regular fh-faint">
                               {p.customerEmail}
                             </span>
                           ) : null}
                           {p.planName ? (
-                            <span className="block text-micro font-normal text-text-subtle">
+                            <span className="fh-line fh-tiny fh-regular fh-faint">
                               {p.planName}
                             </span>
                           ) : null}
                         </th>
-                        <td data-label="Amount" className="whitespace-nowrap font-mono">
+                        <td data-label="Amount" className="fh-nowrap fh-mono">
                           {formatMoney(p.amountCents, p.currency)}
                         </td>
                         <td data-label="Decline">
                           <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
                           {p.declineCode ? (
-                            <span className="block font-mono text-micro text-text-subtle">
+                            <span className="fh-line fh-mono fh-tiny fh-faint">
                               {p.declineCode}
                             </span>
                           ) : null}
                         </td>
                         <td data-label="Steps">
                           <span
-                            className={`font-mono text-micro ${s.completed > 0 ? "text-text" : "text-text-subtle"}`}
+                            className={`fh-mono fh-tiny ${s.completed > 0 ? "fh-text" : "fh-faint"}`}
                           >
                             {s.completed}/{s.total}
                           </span>
                           {s.next ? (
-                            <span className="block text-micro text-brand-text">Next: {s.next}</span>
+                            <span className="fh-line fh-tiny fh-brand">Next: {s.next}</span>
                           ) : null}
                         </td>
                         <td data-label="Status">
@@ -574,20 +565,17 @@ export function PaymentsTable({
                             {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                           </Pill>
                         </td>
-                        <td
-                          data-label="Detected"
-                          className="whitespace-nowrap text-micro text-text-subtle"
-                        >
-                          <span className="block">
+                        <td data-label="Detected" className="fh-nowrap fh-tiny fh-faint">
+                          <span className="fh-line">
                             {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
                           </span>
-                          <span className="block">{formatLongDate(p.detectedAt)}</span>
+                          <span className="fh-line">{formatLongDate(p.detectedAt)}</span>
                         </td>
                         <td data-label="Actions">
                           <Link
                             to={`/recovery/payments/${p.id}`}
                             aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}
-                            className="whitespace-nowrap text-micro text-brand-text"
+                            className="fh-nowrap fh-tiny fh-brand"
                           >
                             View
                           </Link>

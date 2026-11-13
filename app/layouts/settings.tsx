@@ -28,8 +28,8 @@ import "~/site-header.css";
 // two main landmarks, so the page column is a plain div.
 export default function SettingsLayout() {
   return (
-    <div className="min-w-0 px-4 py-8 md:px-10 md:py-10">
-      <div className="max-w-[800px]">
+    <div className="fh-settings-main">
+      <div className="fh-settings-column">
         <Outlet />
       </div>
     </div>

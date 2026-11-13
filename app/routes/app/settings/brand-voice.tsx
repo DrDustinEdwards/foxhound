@@ -7,7 +7,8 @@ import { Select } from "capsomer/react/select";
 import "capsomer/select.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -167,12 +168,12 @@ function CategoryVoice({
   const helpId = `${useId()}-help`;
 
   return (
-    <div className={first ? "pb-5" : "border-t border-border-sub py-5 last:pb-0"}>
-      <div className="mb-2.5 flex items-center gap-2">
-        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${row.dotClass}`}></span>
+    <div className={first ? "fh-voice-first" : "fh-voice-row"}>
+      <div className="fh-voice-head">
+        <span aria-hidden="true" className="fh-voice-dot" data-tone={row.dot}></span>
         <div>
-          <div className="text-label font-medium text-text">{row.label}</div>
-          <div id={helpId} className="mt-px text-micro text-text-subtle">
+          <div className="fh-small fh-medium fh-text">{row.label}</div>
+          <div id={helpId} className="fh-voice-help fh-tiny fh-faint">
             {row.description}
           </div>
         </div>
@@ -192,7 +193,7 @@ function CategoryVoice({
       />
 
       {preset === CUSTOM_PRESET ? (
-        <div className="mt-2.5">
+        <div className="fh-voice-control">
           <textarea
             className="cap-input"
             aria-label={`Custom brand voice for ${row.label}`}
@@ -213,7 +214,8 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
   const saving = useNavigation().state === "submitting";
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Brand voice"
       lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
     >
@@ -224,7 +226,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             {/* One child, so the body's grid gap does not add to Recova's
                 20px rhythm between the line and the rows. */}
             <div>
-              <p className="mb-5 text-micro text-text-subtle">
+              <p className="fh-voice-intro fh-tiny fh-faint">
                 Set a different tone for each failure category. The AI will use the matching voice
                 when writing recovery emails.
               </p>
@@ -235,12 +237,12 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
           </div>
         </section>
 
-        <div className="mt-6">
+        <div className="fh-voice-preview">
           <Panel
             title="Sample emails"
             description="Paste two to five emails you wrote to customers yourself. Recovery and win-back emails are written to sound like these, in the tone set above. A draft that copies a link, an address or a sentence from them is not sent. Leave out card numbers and anything private: the AI that writes your emails reads them."
           >
-            <div className="grid gap-4">
+            <div className="fh-voice-rows">
               {Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => (
                 <textarea
                   key={i}
@@ -268,6 +270,6 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
           }
         />
       </DemoForm>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

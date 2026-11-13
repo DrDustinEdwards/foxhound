@@ -1,0 +1,266 @@
+/* The parts only the blog's lists (index, archive, tag) use, as Recova laid them out. In the site layer
+   (app.css), after the public pages' shared parts (marketing.css). */
+@layer site {
+  .fh-blog-header-intro-block {
+    margin-bottom: 0.75rem;
+  }
+  .fh-blog-post-card-link {
+    --card-lift: 0px;
+    --gap: 1.25rem;
+    --pad-card: 1.25rem;
+  }
+  .fh-blog-post-card-label {
+    width: fit-content;
+  }
+  .fh-blog-post-card-block {
+    line-height: 1.375;
+  }
+  .fh-blog-wrap {
+    margin-inline: auto;
+    max-width: 1080px;
+    padding-inline: 1.25rem;
+    padding-top: 4rem;
+    padding-bottom: 2.5rem;
+  }
+  @media (width >= 40rem) {
+    .fh-blog-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mk-wide {
+    margin-inline: auto;
+    max-width: 80rem;
+    padding: 2.5rem 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-wide {
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-mk-wide {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-archive-title {
+    margin-top: 0.75rem;
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  .fh-archive-text {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .fh-archive-nav {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+  .fh-archive-text-2 {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .fh-archive-col {
+    display: flex;
+    flex-direction: column;
+  }
+  :where(.fh-archive-col > :not(:last-child)) {
+    border-bottom: 1px solid var(--border-sub);
+  }
+  .fh-archive-link {
+    margin-inline: -0.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    border-radius: 0.5rem;
+    padding: 1rem 0.5rem;
+    text-decoration-line: none;
+  }
+  @media (hover: hover) {
+    .fh-archive-link:hover {
+      background-color: var(--surface);
+    }
+  }
+  .fh-archive-text-3 {
+    font-size: 0.875rem;
+    line-height: 1.375;
+  }
+  .fh-archive-text-4 {
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-blog-block-2 {
+      flex-direction: row;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+  }
+  .fh-blog-link {
+    flex-shrink: 0;
+    line-height: 1.5rem;
+  }
+  @media (hover: hover) {
+    .fh-blog-link:hover {
+      color: var(--text);
+    }
+  }
+  .fh-blog-wrap-2 {
+    margin-inline: auto;
+    max-width: 36rem;
+    padding-inline: 1rem;
+    padding-top: 1rem;
+    padding-bottom: 5rem;
+  }
+  @media (width >= 40rem) {
+    .fh-blog-wrap-2 {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-blog-link-2 {
+    margin-top: 1rem;
+    display: inline-block;
+    line-height: 1.5rem;
+  }
+  @media (hover: hover) {
+    .fh-blog-link-2:hover {
+      opacity: 80%;
+    }
+  }
+  .fh-blog-band {
+    border-bottom: 1px solid var(--border-sub);
+    background-color: var(--surface);
+  }
+  .fh-blog-grid {
+    margin-inline: auto;
+    display: grid;
+    max-width: 80rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    align-items: center;
+    gap: 2rem;
+    padding: 3rem 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-blog-grid {
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-blog-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-inline: 2rem;
+      padding-block: 4rem;
+    }
+  }
+  .fh-blog-title {
+    margin-top: 0.75rem;
+    font-size: 1.875rem;
+    line-height: 1.25;
+  }
+  @media (width >= 64rem) {
+    .fh-blog-title {
+      font-size: 2.25rem;
+    }
+  }
+  @media (hover: hover) {
+    .fh-blog-link-3:hover {
+      color: var(--accent-text);
+    }
+  }
+  .fh-blog-text {
+    margin-top: 0.75rem;
+  }
+  .fh-blog-block-3 {
+    margin-top: 1rem;
+  }
+  .fh-blog-label {
+    opacity: 40%;
+  }
+  .fh-blog-block-4 {
+    margin-top: 1.5rem;
+  }
+  .fh-blog-link-4 {
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-sub);
+    background-color: var(--bg);
+  }
+  .fh-blog-block-5 {
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-sub);
+  }
+  .fh-blog-band-2 {
+    border-bottom: 1px solid var(--border-sub);
+    background-color: var(--bg);
+  }
+  .fh-blog-text-2 {
+    margin-top: 0.25rem;
+    max-width: 42rem;
+  }
+  .fh-blog-link-5 {
+    line-height: 1.5rem;
+  }
+  .fh-blog-grid-2 {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-blog-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-blog-grid-2 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .fh-blog-band-3 {
+    background-color: var(--bg);
+  }
+  .fh-blog-grid-3 {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-blog-grid-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-blog-grid-3 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .fh-tag-title {
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.025em;
+  }
+  .fh-tag-text {
+    margin-bottom: 2.5rem;
+  }
+  .fh-tag-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  @media (width >= 40rem) {
+    .fh-tag-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-tag-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}

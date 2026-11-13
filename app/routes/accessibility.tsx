@@ -28,10 +28,7 @@ const statement = accessibilityStatement({
   links: "marked",
 });
 
-const BODY =
-  "[&_h2]:mb-4 [&_h2]:mt-12 [&_h2]:text-title [&_h2]:font-medium [&_h2]:text-text " +
-  "[&_p]:mb-4 [&_p]:text-subhead [&_p]:leading-relaxed [&_p]:text-text-secondary " +
-  "[&_ul]:mb-4 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-6 [&_ul]:text-subhead [&_ul]:leading-relaxed [&_ul]:text-text-secondary";
+const BODY = "fh-statement-body";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

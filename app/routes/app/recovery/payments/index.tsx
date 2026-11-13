@@ -1,7 +1,7 @@
+import { Icon, iconArrowRight, iconTrendingUp } from "capsomer/react/icons";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { pageEnvelope, statusText } from "capsomer/behavior/pagination";
 import { relative, toMs } from "capsomer/behavior/time";
-import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   Form,
@@ -555,9 +555,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   const cards: { label: string; value: string; className?: string }[] = [
     { label: "Showing", value: String(showingCountFor(globalCounts, filters.status)) },
-    { label: "Active", value: String(globalCounts.active), className: "text-brand-text" },
-    { label: "Recovered", value: String(globalCounts.recovered), className: "text-green" },
-    { label: "Canceled", value: String(globalCounts.cancelled), className: "text-text-subtle" },
+    { label: "Active", value: String(globalCounts.active), className: "fh-brand" },
+    { label: "Recovered", value: String(globalCounts.recovered), className: "fh-green" },
+    { label: "Canceled", value: String(globalCounts.cancelled), className: "fh-faint" },
     {
       label: "Recovery rate",
       value: `${globalRecoveryRatePct}%`,
@@ -568,8 +568,8 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
     // the page's one <main>, so this is a plain wrapper.
-    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
-      <div className="mb-6">
+    <div className="fh-payments cap-admin-page" data-width="page">
+      <div className="fh-payments-head">
         <PageHead
           title="Payments"
           lead={paymentsHeaderLine(header)}
@@ -582,16 +582,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       </div>
 
       {/* Recova's PaymentsStats: five cards, label over a mono figure. */}
-      <div
-        role="group"
-        aria-label="Payment counts"
-        className="mb-5 grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 md:grid-cols-5"
-      >
+      <div role="group" aria-label="Payment counts" className="fh-payments-tiles">
         {cards.map((card) => (
           <Panel key={card.label} size="sm" title={card.label}>
-            <p
-              className={`m-0 font-mono text-title font-bold tabular-nums ${card.className ?? "text-text"}`}
-            >
+            <p className={`fh-mono fh-title fh-bold cap-num ${card.className ?? "fh-text"}`}>
               {card.value}
             </p>
           </Panel>
@@ -604,7 +598,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           so the itemised result is Capsomer's banner markup with the title,
           the list and the note as siblings in .cap-banner-body. */}
       {shownBulk ? (
-        <div className="mb-4">
+        <div className="fh-payments-bulk">
           {isBulkRefusal(shownBulk) ? (
             <Banner tone="crit" onDismiss={dismissBulk}>
               {shownBulk.refused === "empty"
@@ -626,20 +620,22 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   {bulkResultLine(shownBulk.intent, shownBulk.results)}
                 </p>
                 <div className="cap-banner-text">
-                  <ul className="m-0 flex list-none flex-col gap-1 p-0 text-label">
+                  <ul className="cap-stack fh-small" data-gap="2">
                     {orderForDisplay(shownBulk.results).map((r) => (
                       <li key={r.id}>
-                        <span className="font-bold">
+                        <span className="fh-bold">
                           {r.ok
                             ? (bulkCopy(shownBulk.intent)?.didLabel ?? "Applied")
                             : (bulkCopy(shownBulk.intent)?.didNotLabel ?? "Not applied")}
                         </span>
-                        <span className="ml-2">{rowLabel(r.id)}</span>
+                        <span className="fh-payments-gap">{rowLabel(r.id)}</span>
                         {r.reason ? (
-                          <span className="ml-2">{BULK_REASON_LABELS[r.reason]}</span>
+                          <span className="fh-payments-gap">{BULK_REASON_LABELS[r.reason]}</span>
                         ) : null}
                         {/* The dispatcher's own detail, carried rather than folded. */}
-                        {r.detail ? <span className="ml-2 font-mono">{r.detail}</span> : null}
+                        {r.detail ? (
+                          <span className="fh-payments-gap fh-mono">{r.detail}</span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -682,9 +678,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         }}
       >
         <div className="cap-panel-body">
-          <div className="flex flex-col gap-4 text-label">
-            <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
-              <div className="w-full md:min-w-[180px] md:flex-1">
+          <div className="cap-stack fh-small" data-gap="5">
+            <div className="fh-payments-filters">
+              <div className="fh-payments-search">
                 <input
                   className="cap-input"
                   type="text"
@@ -698,13 +694,13 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   aria-label="Search payments"
                 />
               </div>
-              <div className="max-w-full overflow-x-auto">
+              <div className="fh-payments-scroll">
                 {/* Capsomer's segmented control, as its markup: its React
                     wrapper hides the legend with cap-sr-only, which lives in
                     Capsomer's base.css, which the app does not load, so the
                     legend would show where Recova shows none. */}
                 <fieldset className="cap-seg">
-                  <legend className="sr-only">Filter by status</legend>
+                  <legend className="cap-sr-only">Filter by status</legend>
                   <div className="cap-seg-options">
                     {STATUS_PILLS.map((pill) => (
                       <label key={pill.value}>
@@ -716,7 +712,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           onChange={() => go({ status: pill.value })}
                         />{" "}
                         {pill.label}{" "}
-                        <span className="font-mono">{countFor(pillCounts, pill.value)}</span>
+                        <span className="fh-mono">{countFor(pillCounts, pill.value)}</span>
                       </label>
                     ))}
                   </div>
@@ -724,7 +720,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               </div>
             </div>
 
-            <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
+            <div className="fh-payments-filters">
               <div className="cap-select-wrap">
                 <select
                   className="cap-select"
@@ -795,7 +791,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                 </div>
               ) : null}
               <RangeSlider
-                className="md:min-w-[220px] md:flex-[0_0_240px]"
+                className="fh-payments-select"
                 label="Amount"
                 min={bounds.minCents}
                 max={bounds.maxCents}
@@ -814,10 +810,8 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   })
                 }
               />
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="whitespace-nowrap text-micro text-text-subtle">
-                  {plural(resultCount, "result")}
-                </span>
+              <div className="cap-cluster" data-gap="4">
+                <span className="fh-nowrap fh-tiny fh-faint">{plural(resultCount, "result")}</span>
                 {hasActiveFilters ? (
                   <Link
                     to={clearHref(filters, bounds)}
@@ -841,11 +835,11 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
       {/* Recova's rows-per-page links, right-aligned between the panel and the
           table, as Capsomer's link chips. */}
-      <nav aria-label="Rows per page" className="mb-2 mt-4 flex items-center justify-end gap-1.5">
-        <span className="mr-1 text-micro text-text-tertiary" aria-hidden="true">
+      <nav aria-label="Rows per page" className="fh-payments-rows">
+        <span className="fh-payments-rows-label fh-tiny fh-quiet" aria-hidden="true">
           Rows per page
         </span>
-        <ul className="cap-chips m-0 list-none p-0">
+        <ul className="cap-chips">
           {PAYMENTS_PAGE_SIZE_OPTIONS.map((n) => (
             <li key={n}>
               <Link
@@ -891,7 +885,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             checked={headerChecked}
                             onChange={() => setSelected(toggleAllVisible(selected, rows))}
                           />
-                          <span className="sr-only">Select all payments</span>
+                          <span className="cap-sr-only">Select all payments</span>
                         </label>
                       </th>
                     ) : null}
@@ -917,24 +911,23 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                                 checked={isSelected}
                                 onChange={() => setSelected(toggleOne(selected, p.id))}
                               />
-                              <span className="sr-only">Select payment from {name}</span>
+                              <span className="cap-sr-only">Select payment from {name}</span>
                             </label>
                           </td>
                         ) : null}
                         <th scope="row">
                           {/* Recova's whole row opens the payment: Capsomer's
                               stretched row link, under the box and the pills. */}
-                          <span className="flex flex-wrap items-center gap-1.5">
+                          <span className="fh-payments-name">
                             <Link className="cap-table-open" to={`${BASE}/${p.id}`}>
                               {name}
                             </Link>
                             {/* Recova's personal-outreach mark after the name (PaymentRow.tsx). */}
                             {p.outreach ? (
-                              <TrendingUp
-                                role="img"
-                                aria-label="Intelligence: personal outreach recommended"
-                                className="h-3 w-3 text-accent-text"
-                                strokeWidth={1.5}
+                              <Icon
+                                d={iconTrendingUp}
+                                className="fh-icon-12 fh-icon-fine fh-accent"
+                                label="Intelligence: personal outreach recommended"
                               />
                             ) : null}
                             {p.priorFailures > 0 ? (
@@ -943,37 +936,37 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                             {p.hasNote ? <Pill>note</Pill> : null}
                           </span>
                           {p.customerName ? (
-                            <span className="mt-0.5 block text-micro font-normal break-all text-text-subtle">
+                            <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-break fh-faint">
                               {p.customerEmail}
                             </span>
                           ) : null}
                           {p.planName ? (
-                            <span className="mt-0.5 block text-micro font-normal text-text-subtle">
+                            <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-faint">
                               {p.planName}
                             </span>
                           ) : null}
                         </th>
                         <td data-label="Amount">
-                          <span className="whitespace-nowrap font-mono text-label text-brand-text">
+                          <span className="fh-nowrap fh-mono fh-small fh-brand">
                             {formatMoney(p.amountCents, p.currency)}
                           </span>
                         </td>
                         <td data-label="Decline">
                           <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
                           {p.declineCode ? (
-                            <span className="mt-0.5 block font-mono text-micro break-all text-text-subtle">
+                            <span className="fh-payments-sub fh-line fh-mono fh-tiny fh-break fh-faint">
                               {p.declineCode}
                             </span>
                           ) : null}
                         </td>
                         <td data-label="Steps">
                           <span
-                            className={`font-mono text-micro ${p.steps.completed > 0 ? "text-text" : "text-text-subtle"}`}
+                            className={`fh-mono fh-tiny ${p.steps.completed > 0 ? "fh-text" : "fh-faint"}`}
                           >
                             {p.steps.completed}/{p.steps.total}
                           </span>
                           {p.steps.next ? (
-                            <span className="mt-0.5 block text-micro text-brand-text">
+                            <span className="fh-payments-sub fh-line fh-tiny fh-brand">
                               Next: {p.steps.next}
                             </span>
                           ) : null}
@@ -984,12 +977,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           </Pill>
                         </td>
                         <td data-label="Detected">
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-micro text-text-subtle">
-                              <span className="block whitespace-nowrap">
+                          <span className="fh-payments-amount">
+                            <span className="fh-tiny fh-faint">
+                              <span className="fh-line fh-nowrap">
                                 {relative(toMs(p.detectedAt), nowMs, "UTC")}
                               </span>
-                              <span className="mt-0.5 block whitespace-nowrap">
+                              <span className="fh-payments-sub fh-line fh-nowrap">
                                 {formatLongDate(p.detectedAt)}
                               </span>
                             </span>
@@ -1000,14 +993,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                               to={`${BASE}/${p.id}`}
                               tabIndex={-1}
                               aria-hidden="true"
-                              className="whitespace-nowrap font-mono text-micro text-text-tertiary no-underline opacity-0 [tr:hover_&]:opacity-100"
+                              className="fh-payments-open fh-nowrap fh-mono fh-tiny fh-quiet"
                             >
                               View{" "}
-                              <ArrowRight
-                                className="inline-block"
-                                size={13}
-                                strokeWidth={1.5}
-                                aria-hidden
+                              <Icon
+                                d={iconArrowRight}
+                                className="fh-icon-13 fh-icon-fine fh-inline-icon"
                               />
                             </Link>
                           </span>
@@ -1025,7 +1016,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       {/* Recova's pager: the range on the left, Previous and Next on the
           right, each present and disabled when it leads nowhere. */}
       {result.totalCount > 0 ? (
-        <div className="mt-4">
+        <div className="fh-payments-pager">
           <nav className="cap-pagination" aria-label="Payment pages">
             <p className="cap-pagination-status">{showing}</p>
             <ul className="cap-pagination-list">
@@ -1075,7 +1066,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           once; above 25 it asks first, naming every payment; above 100 it
           does nothing and says why (approved 2026-09-19). */}
       {!isDemo && selectionCount > 0 ? (
-        <Form method="post" className="sticky bottom-6 z-[100] mt-6">
+        <Form method="post" className="fh-payments-bar">
           {actionable.map((id) => (
             <input key={id} type="hidden" name="ids" value={id} />
           ))}
@@ -1120,7 +1111,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                 : null}
             </div>
             {overCeiling ? (
-              <p id="bulk-ceiling" className="m-0 text-label text-text-subtle">
+              <p id="bulk-ceiling" className="fh-small fh-faint">
                 {actionable.length} payments selected. Bulk actions take at most{" "}
                 {BULK_ACTION_MAX_PER_SUBMISSION} at a time, and nothing is trimmed to fit. Narrow
                 the selection to {BULK_ACTION_MAX_PER_SUBMISSION} or fewer.

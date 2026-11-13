@@ -4,7 +4,7 @@
    app/layouts/app-shell.tsx); the admin loads its own copy in app/admin.css.
 
    Capsomer's tokens go into the capbase layer, the lowest (declared first in
-   app.css): Foxhound's own tokens and Tailwind's stay as they are, and the
+   app.css): Foxhound's own tokens stay as they are, and the
    header, its panels and the shell read Capsomer's where Foxhound has none.
    Foxhound's colors over them are in app.css (.fh-cap). Capsomer's base
    element rules (capsomer/base.css) are not loaded here, so no page's own

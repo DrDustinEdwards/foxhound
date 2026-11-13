@@ -1,5 +1,5 @@
 import { plural } from "@drdustinedwards/site-helpers/text";
-import { Scale } from "lucide-react";
+import { Icon, iconScale } from "capsomer/react/icons";
 import { Form } from "react-router";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
@@ -181,8 +181,8 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell
   // owns the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
-      <div className="mb-6">
+    <div className="fh-intel-page-tall cap-admin-page" data-width="page">
+      <div className="fh-intel-head">
         <PageHead
           title={heading}
           lead={
@@ -196,7 +196,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             in PageHead's actions slot, which is for controls. "1 customer" is
             singular; Recova's "1 customers" is not copied. */}
         {result.totalCount > 0 ? (
-          <p className="mt-2 mb-0 font-mono text-label text-text-tertiary">
+          <p className="fh-customers-count fh-mono fh-small fh-quiet">
             {plural(result.totalCount, "customer")} · {formatMoney(result.totalMrrCents, "usd")}/mo
             total MRR
           </p>
@@ -209,14 +209,14 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         // Capsomer part that keeps the heading is a Panel, as on /intelligence/
         // churn (gap named in the J30 notes).
         <Panel title="No customer data yet">
-          <p className="m-0 text-label text-text-tertiary">
+          <p className="fh-small fh-quiet">
             Intelligence populates as customers transact in your Stripe account. Check back as data
             accumulates.
           </p>
         </Panel>
       ) : (
         <>
-          <div className="mb-6">
+          <div className="fh-intel-head">
             <FilterBar filters={filters} tiers={tiers} />
           </div>
 
@@ -261,27 +261,27 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                   over the Signals tooltips and the Stripe id.
                                   min-h-6 keeps a 24px target. */}
                               <Link
-                                className="inline-flex min-h-6 items-center font-semibold text-text no-underline hover:text-accent-hover"
+                                className="fh-customers-name fh-semibold fh-text"
                                 to={`/intelligence/customers/${c.stripeCustomerId}`}
                               >
                                 {c.customerName ?? "(unnamed)"}
                               </Link>
                               {/* Recova's recommended-action chip after the name. */}
                               {c.chip ? (
-                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">
+                                <span className="fh-customers-email fh-mono fh-tiny fh-regular fh-quiet">
                                   {c.chip}
                                 </span>
                               ) : null}
                               {/* Recova's second line under the name: the Stripe
                                   id, micro and mono. */}
-                              <span className="block font-mono text-micro text-text-subtle">
+                              <span className="fh-line fh-mono fh-tiny fh-faint">
                                 {c.stripeCustomerId}
                               </span>
                               {/* A planned change or cancellation from the
                                   customer's Stripe subscription schedule or
                                   cancel_at, under the id. */}
                               {c.scheduled ? (
-                                <span className="block text-micro font-normal text-text-secondary">
+                                <span className="fh-line fh-tiny fh-regular fh-soft">
                                   {c.scheduled}
                                 </span>
                               ) : null}
@@ -299,7 +299,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               </span>
                             </td>
                             <td data-label="MRR" data-num="">
-                              <span className="font-mono">
+                              <span className="fh-mono">
                                 {c.mrrContributionCents > 0
                                   ? formatMoney(c.mrrContributionCents, c.currency)
                                   : "-"}
@@ -307,43 +307,43 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                             </td>
                             <td data-label="Health" data-num="">
                               {c.healthScore == null ? (
-                                <span className="font-mono text-text-tertiary">-</span>
+                                <span className="fh-mono fh-quiet">-</span>
                               ) : (
                                 <span
-                                  className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
+                                  className={`fh-mono fh-semibold ${healthScoreClassName(c.healthScore)}`}
                                 >
                                   {c.healthScore}
                                 </span>
                               )}
                             </td>
                             <td data-label="Last seen">
-                              <span className="font-mono text-text-tertiary">
+                              <span className="fh-mono fh-quiet">
                                 {formatRelativeLastSeen(c.lastSeenAt, now)}
                               </span>
                             </td>
                             <td data-label="Signals">
                               {/* Recova's two signals under Recova's names. An
                                   empty cell is blank, as Recova's is. */}
-                              <div className="flex items-center gap-2">
+                              <div className="fh-customers-flag">
                                 {c.hasActiveRecovery ? (
                                   <span
                                     role="img"
-                                    className="h-2 w-2 shrink-0 rounded-full bg-red"
+                                    className="fh-customers-dot"
                                     title="Active recovery"
                                     aria-label="Active recovery"
                                   />
                                 ) : null}
                                 {c.hasDisputeHistory ? (
-                                  <Scale
-                                    width={14}
-                                    height={14}
-                                    strokeWidth={1.75}
-                                    className="shrink-0 text-text-tertiary"
-                                    role="img"
-                                    aria-label="Dispute history"
+                                  <span
+                                    className="fh-customers-scale fh-quiet"
+                                    title="Dispute history"
                                   >
-                                    <title>Dispute history</title>
-                                  </Scale>
+                                    <Icon
+                                      d={iconScale}
+                                      className="fh-icon-14"
+                                      label="Dispute history"
+                                    />
+                                  </span>
                                 ) : null}
                               </div>
                             </td>
@@ -362,7 +362,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form;
           Recova's mt-4 sits on a wrapper so the nav carries no Foxhound class). */}
       {result.totalPages > 1 ? (
-        <div className="mt-4">
+        <div className="fh-pager">
           <Pagination
             form="steps"
             page={result.page}
@@ -375,7 +375,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       ) : null}
 
       {otherDemoName ? (
-        <p className="mt-8 mb-0 text-center text-caption text-text-subtle">
+        <p className="fh-customers-foot fh-center fh-caption fh-faint">
           Switch accounts in the top nav to see {otherDemoName} customers.
         </p>
       ) : null}
@@ -393,7 +393,7 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
         {/* The bar's layout and its text at the label size (RULES 5.2) on a
             wrapper of the page's own: Capsomer's field label has no size of its
             own, and its base.css is not loaded in the app. */}
-        <div className="flex flex-wrap items-end gap-3 text-label">
+        <div className="fh-customers-filters fh-small">
           <div className="cap-field">
             <label className="cap-field-label" htmlFor="customers-q">
               Name or email

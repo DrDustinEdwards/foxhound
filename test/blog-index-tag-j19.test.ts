@@ -55,8 +55,6 @@ function seed(
   });
 }
 
-// Tailwind text-* utilities that are colors or alignment, not sizes.
-
 describe("/blog loader (J19, row M11)", () => {
   it("hides a section whose tag no published post carries, even when its curated posts resolve", async () => {
     const { db } = createInMemoryDb();

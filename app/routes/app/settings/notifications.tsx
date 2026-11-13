@@ -4,8 +4,8 @@ import { data, useNavigation } from "react-router";
 
 import { AlertsSection } from "~/components/alerts-section";
 import { DemoForm } from "~/lib/demo/use-demo-guard";
-import { SwitchRow } from "capsomer/react/settings-row";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -223,14 +223,15 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <SettingsPage
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Notifications"
       lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
     >
       <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="mb-5">
+            <div className="fh-email-block">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"
@@ -244,7 +245,7 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
             </div>
 
             {/* The rule under the webhook field stands above the first switch row. */}
-            <div className="border-y border-border pt-4 pb-5">
+            <div className="fh-notify-group">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"
@@ -291,6 +292,6 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
       </DemoForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

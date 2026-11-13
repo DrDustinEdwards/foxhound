@@ -93,15 +93,15 @@ export function showDisputesSection(run: AuditRunView): boolean {
  *  knows which figure is missing. */
 function Unread({ label }: { label: string }) {
   return (
-    <div className="py-2">
-      <div className="text-label text-text">{label}</div>
-      <p className="m-0 mt-0.5 text-micro text-text-tertiary">{SCOPE_UNREAD}</p>
+    <div className="fh-auditsec-block">
+      <div className="fh-small fh-text">{label}</div>
+      <p className="fh-auditsec-text fh-tiny fh-quiet">{SCOPE_UNREAD}</p>
     </div>
   );
 }
 
 function NoneDetected() {
-  return <p className="m-0 mb-5 text-label text-text-subtle">None detected in this period.</p>;
+  return <p className="fh-auditsec-text-2 fh-small fh-faint">None detected in this period.</p>;
 }
 
 /** One line per currency, stacked, each an element of its own. A single
@@ -109,7 +109,7 @@ function NoneDetected() {
 function Lines({ lines }: { lines: readonly string[] }) {
   if (lines.length === 1) return <>{lines[0]}</>;
   return (
-    <span className="flex flex-col items-end">
+    <span className="fh-auditsec-col">
       {lines.map((line) => (
         <span key={line}>{line}</span>
       ))}
@@ -121,7 +121,7 @@ function StatRow({
   label,
   primary,
   secondary,
-  primaryClassName = "text-text",
+  primaryClassName = "fh-text",
 }: {
   label: string;
   primary: string | readonly string[];
@@ -129,12 +129,12 @@ function StatRow({
   primaryClassName?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2">
+    <div className="fh-auditsec-row">
       <div>
-        <div className="text-label text-text">{label}</div>
-        {secondary ? <div className="mt-0.5 text-micro text-text-subtle">{secondary}</div> : null}
+        <div className="fh-small fh-text">{label}</div>
+        {secondary ? <div className="fh-auditsec-text fh-tiny fh-faint">{secondary}</div> : null}
       </div>
-      <div className={`whitespace-nowrap font-mono text-body font-semibold ${primaryClassName}`}>
+      <div className={`fh-nowrap fh-mono fh-body fh-semibold ${primaryClassName}`}>
         {typeof primary === "string" ? primary : <Lines lines={primary} />}
       </div>
     </div>
@@ -153,10 +153,10 @@ function Headline({
   valueClassName: string;
 }) {
   return (
-    <div className="mb-2">
-      <div className="mb-1 text-micro uppercase tracking-wide text-text-tertiary">{label}</div>
+    <div className="fh-auditsec-block-2">
+      <div className="fh-auditsec-block-3 fh-tiny fh-quiet fh-caps">{label}</div>
       {value.map((line) => (
-        <div key={line} className={`font-mono text-display font-bold ${valueClassName}`}>
+        <div key={line} className={`fh-mono fh-display fh-bold ${valueClassName}`}>
           {line}
         </div>
       ))}
@@ -169,9 +169,9 @@ function Headline({
 export function AuditSummary({ summary }: { summary: string | null }) {
   if (!summary) return null;
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel title="AI Summary">
-        <p className="m-0 text-body leading-relaxed text-text">{summary}</p>
+        <p className="fh-body fh-relaxed fh-text">{summary}</p>
       </Panel>
     </div>
   );
@@ -201,10 +201,10 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
       ? `Card Updater: data unavailable for the last ${days} days.`
       : `Card Updater: ${plural(cardUpdater.eventsInWindow, "card")} auto-updated in the last ${days} days (${plural(cardUpdater.expiredCardDeclinesInWindow, "expired-card decline")} in the same window).`;
   return (
-    <div className="mb-4 ml-5 mt-3">
-      <div className="text-micro text-text-secondary">{summary}</div>
+    <div className="fh-auditsec-block-4">
+      <div className="fh-tiny fh-soft">{summary}</div>
       {cardUpdater?.advisory ? (
-        <div className="mt-2">
+        <div className="fh-auditsec-block-5">
           <Banner tone="info">{cardUpdater.advisory}</Banner>
         </div>
       ) : null}
@@ -218,7 +218,7 @@ function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<stri
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
   return (
-    <div className="mt-4 min-w-0">
+    <div className="fh-auditsec-block-6">
       <ChartFrame draw={(width, fit) => drawExpiringCardsTimeline(months, width, fit)} />
     </div>
   );
@@ -227,8 +227,8 @@ function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<stri
 function RecoveryCta({ state }: { state: CtaState }) {
   if (state === "unauthenticated") {
     return (
-      <div className="flex flex-col gap-3">
-        <p className="m-0 text-label text-text-secondary">
+      <div className="cap-stack" data-gap="4">
+        <p className="fh-small fh-soft">
           Recovery is free until we recover something. You pay {RECOVERY_FEE_PERCENT}% of what we
           recover.
         </p>
@@ -270,7 +270,7 @@ export function AuditRecoverySection({
     (failed?.count ?? 0) > 0 || (expiring?.count ?? 0) > 0 || (pastDue?.count ?? 0) > 0;
 
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel
         title="Revenue leaking now"
         description="What your Stripe account is losing or about to lose."
@@ -291,7 +291,7 @@ export function AuditRecoverySection({
             )}
 
             {activeSequences !== null && activeSequences > 0 ? (
-              <div className="ml-5 mt-1">
+              <div className="fh-auditsec-block-7">
                 <Link
                   to="/recovery/payments?status=active"
                   className="cap-btn"
@@ -306,11 +306,11 @@ export function AuditRecoverySection({
             ) : null}
 
             {failed !== null && failed.count > 0 ? (
-              <div className="mb-4 ml-5 mt-3 space-y-2">
+              <div className="fh-auditsec-block-8">
                 {BREAKDOWN_ORDER.map((key) => (
-                  <div key={key} className="flex items-start justify-between text-micro">
-                    <span className="text-text-tertiary">{BREAKDOWN_ROWS[key]}</span>
-                    <span className="whitespace-nowrap font-mono text-text-secondary">
+                  <div key={key} className="fh-auditsec-row-2 fh-tiny">
+                    <span className="fh-quiet">{BREAKDOWN_ROWS[key]}</span>
+                    <span className="fh-nowrap fh-mono fh-soft">
                       <Lines lines={formatTotals(failed.byCategory[key] ?? [], cur)} />
                     </span>
                   </div>
@@ -369,16 +369,14 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
   }));
   return (
     <>
-      <div className="my-5 border-t border-border" />
-      <div className="mb-2">
-        <div className="mb-1 text-micro uppercase tracking-[0.06em] text-text-tertiary">
-          Recoverable estimate
-        </div>
-        <div className="font-mono text-title font-bold text-success-text">
+      <div className="fh-auditsec-block-9" />
+      <div className="fh-auditsec-block-2">
+        <div className="fh-mk-kicker fh-tiny fh-quiet">Recoverable estimate</div>
+        <div className="fh-mono fh-title fh-bold fh-success">
           <Lines lines={formatTotals(shown, currency)} />
         </div>
       </div>
-      <p className="m-0 text-micro text-text-subtle">
+      <p className="fh-tiny fh-faint">
         Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. This is an
         assumption, not a measured rate.
       </p>
@@ -405,10 +403,10 @@ function DisputesCta({ state }: { state: CtaState }) {
     );
   }
   return (
-    <div className="flex flex-col gap-3">
+    <div className="cap-stack" data-gap="4">
       {/* Truthfulness fix: the fee is capped per dispute (PRICING.md), which
           Recova's line left out; /billing says the same. */}
-      <p className="m-0 text-label text-text-secondary">
+      <p className="fh-small fh-soft">
         Disputes is free until we win. You pay {DISPUTE_FEE_PERCENT}% of disputes we win, capped at{" "}
         {formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute.
       </p>
@@ -435,7 +433,7 @@ export function AuditDisputesSection({
   const cur = run.currency;
   const data = run.disputes;
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel
         title="Disputes unmanaged"
         description="Where responses were skipped or evidence was thin."
@@ -493,36 +491,36 @@ function DisputeFigures({
           status colors are not accents, so the one-accent rule leaves them
           alone. */}
       {foxhoundWinRate !== null ? (
-        <div className="mt-2 text-label text-text-secondary">
+        <div className="fh-auditsec-block-5 fh-small fh-soft">
           Foxhound win rate:{" "}
           <span
-            className={`font-mono font-medium ${
+            className={`fh-mono fh-medium ${
               foxhoundWinRate >= 70
-                ? "text-success-text"
+                ? "fh-success"
                 : foxhoundWinRate >= 50
-                  ? "text-caution"
-                  : "text-error-text"
+                  ? "fh-caution"
+                  : "fh-error"
             }`}
           >
             {foxhoundWinRate}%
           </span>
           {winRatePct !== null ? (
-            <span className="text-text-tertiary"> vs your historical {winRatePct}%</span>
+            <span className="fh-quiet"> vs your historical {winRatePct}%</span>
           ) : null}
         </div>
       ) : null}
 
       {anyAbove(accepted.totals) ? (
-        <div className="mt-5 border-t border-border pt-5">
+        <div className="fh-auditsec-block-10">
           <Headline
             label="Revenue left on the table"
             value={formatTotals(accepted.totals, cur)}
-            valueClassName="text-red"
+            valueClassName="fh-red"
           />
           {/* Truthfulness fix: Recova's line says it "submits structured
               evidence automatically". Foxhound builds the evidence on its own
               and the merchant approves it before it is sent. */}
-          <p className="m-0 text-micro text-text-subtle">
+          <p className="fh-tiny fh-faint">
             Disputes you lost without submitting evidence. Foxhound builds structured evidence
             automatically, and you approve it before it is submitted.
           </p>
@@ -558,7 +556,7 @@ export function AuditHealthSection({
       health.involuntaryChurnRateBps > 0);
 
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel
         title="Business snapshot"
         description={
@@ -570,7 +568,7 @@ export function AuditHealthSection({
           // Truthfulness fix: Recova's line adds "and forecasting", which
           // Foxhound's Intelligence does not have. Cohort analysis it does
           // (app/lib/intelligence/mrr.ts buildCohortBreakdown), so that stays.
-          <p className="m-0 text-micro text-text-subtle">
+          <p className="fh-tiny fh-faint">
             Full trend history and cohort analysis available in Intelligence.
           </p>
         }
@@ -581,16 +579,16 @@ export function AuditHealthSection({
           <NoneDetected />
         ) : (
           <>
-            <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="fh-auditsec-grid">
               <Headline
                 label="MRR"
                 value={formatTotals(health.mrr, cur)}
-                valueClassName="text-text"
+                valueClassName="fh-text"
               />
               <Headline
                 label="ARR"
                 value={formatTotals(health.arr, cur)}
-                valueClassName="text-text"
+                valueClassName="fh-text"
               />
             </div>
             <StatRow

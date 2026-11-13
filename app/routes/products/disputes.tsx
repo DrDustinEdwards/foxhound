@@ -1,5 +1,5 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { Shield } from "lucide-react";
+import { iconShield } from "capsomer/react/icons";
 
 import {
   DashboardPreview,
@@ -31,6 +31,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/disputes";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/products.css";
 
 // The Disputes spoke. Recova's spec, read whole at HEAD:
 // app/(marketing)/product/disputes/page.tsx (blob c412d54f) and the files it
@@ -91,7 +92,7 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Disputes"
-        Icon={Shield}
+        icon={iconShield}
         headline={DISPUTES_HERO.headline}
         sub={DISPUTES_HERO.sub}
         pricing={DISPUTES_HERO.pricing}

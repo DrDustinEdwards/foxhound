@@ -125,36 +125,34 @@ function stepStateAt(index: number, done: number): StepState {
 }
 
 const STATUS_ICON_CLASS: Record<Status, string> = {
-  failed: "bg-red-bg text-red",
-  running: "bg-brand-bg text-brand-text",
-  recovered: "bg-green-bg text-green",
+  failed: "fh-queue-icon-failed",
+  running: "fh-queue-icon-running",
+  recovered: "fh-queue-icon-recovered",
 };
 
 const AMOUNT_CLASS: Record<Status, string> = {
-  failed: "text-text-subtle",
-  running: "text-brand-text",
-  recovered: "text-green",
+  failed: "fh-faint",
+  running: "fh-brand",
+  recovered: "fh-green",
 };
 
 const STEP_CLASS: Record<StepState, string> = {
-  done: "border-green bg-green-bg text-green",
-  active: "border-brand-border-interactive bg-brand-bg text-brand-text",
-  pending: "border-border text-text-subtle",
+  done: "fh-queue-step-done",
+  active: "fh-queue-step-active",
+  pending: "fh-queue-step-pending",
 };
 
 /** A payment's row, tinted once it is recovered. */
 export function rowClass(status: Status): string {
-  return `flex items-center gap-3 border-b border-border-sub px-4 py-3 transition-colors duration-300 ${
-    status === "recovered" ? "bg-surface2" : ""
-  }`;
+  return status === "recovered" ? "fh-queue-row fh-queue-row-done" : "fh-queue-row";
 }
 
 export function iconClass(status: Status): string {
-  return `flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${STATUS_ICON_CLASS[status]}`;
+  return `fh-queue-icon ${STATUS_ICON_CLASS[status]}`;
 }
 
 export function amountClass(status: Status): string {
-  return `shrink-0 font-mono text-label font-medium transition-colors duration-300 ${AMOUNT_CLASS[status]}`;
+  return `fh-queue-amount fh-mono fh-small fh-medium ${AMOUNT_CLASS[status]}`;
 }
 
 // w-8 and NO shrink-0, both legacy's (components/hero/RecoveryDemo.tsx stepClass). This row previously
@@ -164,11 +162,11 @@ export function amountClass(status: Status): string {
 // shrink-0, which turns a flexible 248px row into a rigid one, and then narrowed the chips to make the
 // rigid row fit. The narrowing compensated for a self-inflicted constraint, not for anything legacy does.
 export function stepClass(index: number, done: number): string {
-  return `flex h-5 w-8 items-center justify-center rounded border font-mono text-micro transition-colors duration-300 ${STEP_CLASS[stepStateAt(index, done)]}`;
+  return `fh-queue-step fh-mono fh-tiny ${STEP_CLASS[stepStateAt(index, done)]}`;
 }
 
 export function statValueClass(tone?: string): string {
-  return `font-mono text-label font-medium transition-colors duration-300 ${tone ?? "text-text"}`;
+  return `fh-queue-stat fh-mono fh-small fh-medium ${tone ?? "fh-text"}`;
 }
 
 export function recoveredText(recovered: number): string {
@@ -176,5 +174,5 @@ export function recoveredText(recovered: number): string {
 }
 
 export function recoveredTone(recovered: number): string {
-  return recovered > 0 ? "text-green" : "text-text";
+  return recovered > 0 ? "fh-green" : "fh-text";
 }

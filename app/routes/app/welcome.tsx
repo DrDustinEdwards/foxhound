@@ -74,16 +74,16 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
   const allDone = senderNameSet && notificationEmailSet;
 
   return (
-    <div className="mx-auto max-w-[640px] px-4 py-16 md:px-8">
-      <div className="mb-10 text-center">
-        <h1 className="m-0 mb-2 text-section font-medium text-text">You&apos;re connected.</h1>
-        <div className="mb-6 font-mono text-copy text-text-tertiary">{connectionLabel}</div>
-        <p className="m-0 text-subhead leading-[1.6] text-text">
+    <div className="fh-welcome">
+      <div className="fh-welcome-head fh-center">
+        <h1 className="fh-welcome-title fh-section fh-medium fh-text">You&apos;re connected.</h1>
+        <div className="fh-welcome-account fh-mono fh-copy fh-quiet">{connectionLabel}</div>
+        <p className="fh-welcome-lede fh-subhead fh-text">
           Recovery is active. No commitment. Nothing until we recover.
         </p>
       </div>
 
-      <div className="mb-8">
+      <div className="fh-welcome-steps">
         <SetupChecklist
           title="Two quick steps"
           steps={[
@@ -113,17 +113,17 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
         />
       </div>
 
-      <div className="text-center">
+      <div className="fh-center fh-center">
         <Link
           to="/recovery/dashboard"
-          className="cap-btn font-mono"
+          className="cap-btn fh-mono"
           data-variant={allDone ? "primary" : undefined}
           data-size="lg"
         >
           {allDone ? "Go to dashboard" : "Skip for now → Dashboard"}
         </Link>
         {allDone ? null : (
-          <p className="m-0 mt-3 text-caption text-text-subtle">
+          <p className="fh-welcome-note fh-caption fh-faint">
             You can finish these later from the dashboard.
           </p>
         )}

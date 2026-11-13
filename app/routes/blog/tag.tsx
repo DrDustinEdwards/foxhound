@@ -17,6 +17,7 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/tag";
 import { SectionTrail } from "~/components/section-trail";
+import "~/blog-index.css";
 
 // Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
 // 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5.
@@ -87,16 +88,14 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap), the focus
     // ring reading the family's ring, as on /blog.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
-      <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
+      <div className="fh-mk-band-wrap">
         <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label }]} />
-        <h1 className="mb-2 text-section font-medium tracking-tight text-text">{label}</h1>
-        <p className="mb-10 font-mono text-label text-text-tertiary">
-          {plural(posts.length, "article")}
-        </p>
+        <h1 className="fh-tag-title fh-section fh-medium fh-text">{label}</h1>
+        <p className="fh-tag-text fh-mono fh-small fh-quiet">{plural(posts.length, "article")}</p>
         {posts.length === 0 ? (
-          <p className="text-body text-text-secondary">No articles tagged {label} yet.</p>
+          <p className="fh-body fh-soft">No articles tagged {label} yet.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="fh-tag-grid">
             {posts.map((post) => (
               <BlogPostCard key={post.id} post={post} level={2} />
             ))}

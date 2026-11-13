@@ -117,11 +117,13 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
 
   return (
     <AuthCard>
-      <div className="text-center">
+      <div className="fh-center">
         {error ? (
           <div role="alert">
-            <h1 className="mb-2 text-subsection font-semibold text-text">Invite invalid</h1>
-            <p className="text-copy text-text-subtle">{error}</p>
+            <h1 className="fh-auth-title-tight fh-subsection fh-semibold fh-text">
+              Invite invalid
+            </h1>
+            <p className="fh-copy fh-faint">{error}</p>
           </div>
         ) : (
           <>
@@ -129,16 +131,13 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
               title="You've been invited"
               subtitle={
                 <>
-                  Join <strong className="text-text">{loaderData.accountName ?? "a team"}</strong>{" "}
-                  on Foxhound
+                  Join <strong className="fh-text">{loaderData.accountName ?? "a team"}</strong> on
+                  Foxhound
                 </>
               }
             />
             {/* Recova's button: full width, text-sm, py-3. */}
-            <Form
-              method="post"
-              className="grid [&_.cap-btn]:[--cap-btn-fs:var(--text-copy)] [&_.cap-btn]:[--cap-btn-h:2.75rem]"
-            >
+            <Form method="post" className="fh-invite-actions">
               <Button type="submit" variant="primary" size="lg" pending={busy}>
                 {busy ? "Accepting…" : "Accept invite"}
               </Button>

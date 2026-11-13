@@ -88,7 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       data-theme={theme}
       data-family="amber"
       data-cap-site={admin ? undefined : "foxhound"}
-      className="h-full antialiased"
+      className="fh-root-block"
     >
       <head>
         <meta charSet="utf-8" />
@@ -115,7 +115,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="min-h-full">
+      <body className="fh-root-block-2">
         <LinkPrefetch exclude={NO_PREFETCH}>{children}</LinkPrefetch>
         {hydrates ? (
           <>
@@ -144,7 +144,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const { title, text } = recovaWords(error, import.meta.env.DEV);
   return (
     <div
-      className="fh-cap fh-error-page flex min-h-screen flex-col bg-bg"
+      className="fh-page-frame fh-cap fh-error-page"
       data-cap-site="foxhound"
       data-family="amber"
     >
@@ -154,7 +154,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         title={title}
         text={text}
         homeLabel={HOME_LABEL}
-        className="flex-1"
+        className="fh-root-block-3"
         siteHeader={<ErrorBar />}
         siteFooter={<ErrorFooter />}
         actions={errorActions(routeError?.status === 404)}

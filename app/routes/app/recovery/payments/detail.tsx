@@ -1,7 +1,15 @@
+import {
+  Icon,
+  iconArrowRight,
+  iconArrowUpRight,
+  iconCheck,
+  iconCircle,
+  iconMail,
+  iconReset,
+  iconShield,
+} from "capsomer/react/icons";
 import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
 import { useId, useState } from "react";
-
-import { ArrowRight, ArrowUpRight, Check, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
 import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -358,39 +366,36 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   }));
 
   return (
-    <div className="mx-auto max-w-[1000px] px-8 py-10">
+    <div className="fh-payment">
       {/* Recova's width and padding, PaymentDetailClient.tsx 227:
           max-w-[1000px] mx-auto px-8 py-10, flat at every width. */}
 
       {/* Recova's back link and bare header, PaymentDetailClient.tsx 230-271:
           no box, the name with the open-dispute badge, the email line, and the
           status pill top right. */}
-      <header className="mb-7">
-        <Link
-          to={backLink.href}
-          className="mb-4 inline-flex min-h-6 items-center text-label text-text-subtle no-underline transition-opacity hover:opacity-80"
-        >
+      <header className="fh-payment-header">
+        <Link to={backLink.href} className="fh-payment-back fh-small fh-faint">
           &larr; {backLink.label}
         </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <h1 className="m-0 text-title font-medium text-text">
+        <div className="fh-payment-top">
+          <div className="cap-shrink">
+            <div className="cap-cluster fh-payment-badges" data-gap="3">
+              <h1 className="fh-title fh-medium fh-text">
                 {failedPayment.customerName ?? failedPayment.customerEmail}
               </h1>
               {/* The open-dispute badge, gated on the live dispute predicate
                   alone. */}
               {openDisputes.length > 0 ? (
                 <Pill variant="outline" href={`/disputes/${openDisputes[0].id}`}>
-                  <Shield className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                  <Icon d={iconShield} className="fh-icon-12 fh-icon-fine" />
                   {openDisputes.length === 1
                     ? "1 open dispute"
                     : `${openDisputes.length} open disputes`}
-                  <ArrowRight className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                  <Icon d={iconArrowRight} className="fh-icon-12 fh-icon-fine" />
                 </Pill>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-label text-text-subtle">
+            <div className="cap-cluster fh-small fh-faint" data-gap="4">
               {/* The email shows here only when a name took the heading. */}
               {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
               <CopyButton text={failedPayment.customerEmail} size="xs">
@@ -410,7 +415,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 
       {/* Recova's action result banner, PaymentDetailClient.tsx 277-287. */}
       {actionResult ? (
-        <div className="mb-5">
+        <div className="fh-payment-block">
           <Banner tone={actionResult.tone}>{actionResult.message}</Banner>
         </div>
       ) : null}
@@ -419,7 +424,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           the payment is active; in the demo the same buttons,
           disabled and titled as Recova's are. */}
       {actionsVisible && !isDemo ? (
-        <div className="mb-6 flex flex-wrap gap-2.5">
+        <div className="fh-payment-chips">
           {visibleActions.map((a) => {
             const pressed = pressedIntent === a.intent;
             return (
@@ -442,7 +447,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </div>
       ) : null}
       {actionsVisible && isDemo ? (
-        <div className="mb-6 flex flex-wrap gap-2.5">
+        <div className="fh-payment-chips">
           {visibleActions.map((a) => (
             <button
               key={a.intent}
@@ -460,7 +465,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       ) : null}
 
       {/* Recova's two Stripe links, PaymentDetailClient.tsx 329-360. */}
-      <div className="mb-6 flex flex-wrap gap-2.5">
+      <div className="fh-payment-chips">
         {isDemo ? (
           <>
             <button
@@ -494,7 +499,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               rel="noopener noreferrer"
             >
               View invoice in Stripe
-              <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
+              <Icon d={iconArrowUpRight} className="fh-icon-12 fh-icon-fine" data-icon="end" />
               <span className="cap-sr-only"> (opens in a new tab)</span>
             </a>
             <a
@@ -505,7 +510,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               rel="noopener noreferrer"
             >
               View customer in Stripe
-              <ArrowUpRight data-icon="end" size={12} strokeWidth={1.5} aria-hidden="true" />
+              <Icon d={iconArrowUpRight} className="fh-icon-12 fh-icon-fine" data-icon="end" />
               <span className="cap-sr-only"> (opens in a new tab)</span>
             </a>
           </>
@@ -514,7 +519,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {isDemo ? (
         // Capsomer's disabled buttons keep focus and say why in visible text
         // (button.md); Recova's say it only in a title.
-        <p className="-mt-4 mb-6">
+        <p className="fh-payment-pull">
           <span className="cap-btn-reason" id={demoReasonId}>
             {DEMO_DISABLED_REASON}
           </span>
@@ -524,34 +529,32 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {/* Recova's four info cards, PaymentDetailClient.tsx 362-368. Capsomer has
           no plain stat card (its tile is always a link), so each is a small
           Panel, as on the payments list. */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="fh-payment-tiles">
         <Panel size="sm" title="Amount">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-brand-text">
+          <p className="fh-mono fh-title fh-bold cap-num fh-brand">
             {formatMoney(failedPayment.amountCents, failedPayment.currency)}
           </p>
         </Panel>
         <Panel size="sm" title="Decline">
-          <p
-            className={`m-0 text-title font-bold ${declineValueClass(failedPayment.declineCategory)}`}
-          >
+          <p className={`fh-title fh-bold ${declineValueClass(failedPayment.declineCategory)}`}>
             {declineWord(failedPayment.declineCategory)}
           </p>
         </Panel>
         <Panel size="sm" title="Detected">
-          <p className="m-0 text-title font-bold text-text">
+          <p className="fh-title fh-bold fh-text">
             {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
           </p>
-          <p className="m-0 mt-1 text-micro text-text-subtle">
+          <p className="fh-payment-tile-note fh-tiny fh-faint">
             {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
           </p>
         </Panel>
         <Panel size="sm" title="Customer age">
-          <p className="m-0 font-mono text-title font-bold tabular-nums text-text">
+          <p className="fh-mono fh-title fh-bold cap-num fh-text">
             {failedPayment.customerAgeDays != null ? `${failedPayment.customerAgeDays}d` : "-"}
           </p>
           {/* Recova shows no subtext below two recovered payments. */}
           {estimatedLtvCents != null ? (
-            <p className="m-0 mt-1 text-micro text-text-subtle">
+            <p className="fh-payment-tile-note fh-tiny fh-faint">
               ~{formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV
             </p>
           ) : null}
@@ -559,9 +562,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       </div>
 
       {/* Recova's Decline details and Email engagement cards, 371-421. */}
-      <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="fh-payment-panels">
         <Panel title="Decline details">
-          <dl className="m-0">
+          <dl className="">
             <DetailRow
               label="Category"
               value={declineWord(failedPayment.declineCategory)}
@@ -593,25 +596,25 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 
         <Panel title="Email engagement">
           {emailSteps.length === 0 ? (
-            <p className="m-0 text-label text-text-subtle">No emails sent yet</p>
+            <p className="fh-small fh-faint">No emails sent yet</p>
           ) : (
-            <dl className="m-0">
+            <dl className="">
               <DetailRow label="Emails sent" value={String(emailSteps.length)} />
               <DetailRow
                 label="Opened"
                 value={`${openedEmails.length} of ${emailSteps.length}`}
-                valueClass={openedEmails.length > 0 ? "text-green" : "text-text-subtle"}
+                valueClass={openedEmails.length > 0 ? "fh-green" : "fh-faint"}
               />
               <DetailRow
                 label="Clicked"
                 value={`${clickedEmails.length} of ${emailSteps.length}`}
-                valueClass={clickedEmails.length > 0 ? "text-green" : "text-text-subtle"}
+                valueClass={clickedEmails.length > 0 ? "fh-green" : "fh-faint"}
               />
               {recovery ? (
                 <DetailRow
                   label="Recovery method"
                   value={ATTRIBUTION_KIND_LABELS[attributionKind ?? "stripe_baseline"]}
-                  valueClass="text-green"
+                  valueClass="fh-green"
                 />
               ) : null}
             </dl>
@@ -619,22 +622,19 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 
           {previousFailures.length > 0 ? (
             <>
-              <p className="m-0 mt-4 mb-3 border-t border-border pt-4 text-micro font-medium text-text-subtle">
+              <p className="fh-payment-links-title fh-tiny fh-medium fh-faint">
                 Previous failures ({previousFailures.length})
               </p>
-              <ul className="m-0 list-none p-0">
+              <ul className="">
                 {previousFailures.map((p) => (
                   <li key={p.id}>
-                    <a
-                      href={`/recovery/payments/${p.id}`}
-                      className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
-                    >
-                      <span className="text-micro text-text-subtle">
+                    <a href={`/recovery/payments/${p.id}`} className="fh-payment-link">
+                      <span className="fh-tiny fh-faint">
                         {relative(toMs(p.detectedAt), nowMs, "UTC")}
                       </span>
-                      <span className="flex items-center gap-2">
+                      <span className="fh-payment-link-label">
                         <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
-                        <span className={`font-mono text-micro ${statusValueClass(p.status)}`}>
+                        <span className={`fh-mono fh-tiny ${statusValueClass(p.status)}`}>
                           {formatMoney(p.amountCents, p.currency)}
                         </span>
                       </span>
@@ -650,54 +650,46 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {/* The Outcome card has no Recova counterpart and stays beside Recova's
           success banner, distinct from every other card (approved 2026-08-10).
           It is the receipt for the attribution fee. */}
-      <div className="mb-5 rounded-lg border border-brand bg-brand-bg p-4">
-        <h2 className="m-0 font-mono text-micro uppercase tracking-wide text-brand-text">
-          Outcome
-        </h2>
+      <div className="fh-payment-outcome">
+        <h2 className="fh-mono fh-tiny fh-brand fh-caps">Outcome</h2>
         {recovery ? (
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="cap-stack fh-payment-note" data-gap="3">
+            <div className="cap-cluster" data-gap="3">
               <Pill tone={PILL_TONE[recoveryLifecycleTone(recovery)]}>
                 {RECOVERY_LIFECYCLE_LABELS[recoveryLifecycleStatus(recovery)]}
               </Pill>
             </div>
             {attributionKind ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-micro uppercase tracking-wide text-text-secondary">
-                  Attribution
-                </span>
+              <div className="cap-cluster" data-gap="3">
+                <span className="fh-mono fh-tiny fh-soft fh-caps">Attribution</span>
                 <Pill variant="outline">
                   {ATTRIBUTION_KIND_LABELS[attributionKind]}
                   {attributionKind === "stripe_baseline" ? " - FREE" : ""}
                 </Pill>
                 {creditedStep ? (
-                  <span className="text-label text-text-secondary">
-                    Credited to {creditedStep.label}
-                  </span>
+                  <span className="fh-small fh-soft">Credited to {creditedStep.label}</span>
                 ) : null}
               </div>
             ) : null}
           </div>
         ) : (
-          <p className="m-0 mt-2 text-label text-text-secondary">
-            Still in recovery, no outcome yet.
-          </p>
+          <p className="fh-payment-note fh-small fh-soft">Still in recovery, no outcome yet.</p>
         )}
       </div>
 
       {/* Recova's recovery timeline, PaymentDetailClient.tsx 423-571. */}
-      <div className="mb-5">
+      <div className="fh-payment-block">
         <Panel
           title="Recovery timeline"
           src={`${executedSteps.length} of ${steps.length} steps executed`}
           flush
         >
           {steps.length === 0 ? (
-            <div className="px-6 py-10 text-center">
-              <p className="m-0 text-label text-text-subtle">No recovery steps scheduled</p>
+            <div className="fh-payment-empty fh-center">
+              <p className="fh-small fh-faint">No recovery steps scheduled</p>
             </div>
           ) : (
-            <ol className="m-0 list-none p-0 py-2">
+            <ol className="fh-payment-steps">
               {steps.map((step) => {
                 const executed = step.executedAt !== null;
                 const pending = !executed && step.result === null;
@@ -708,24 +700,21 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 const showExpander = executed && step.previewHtml !== null;
                 const expanded = expandedStepId === step.id;
                 return (
-                  <li
-                    key={step.id}
-                    className="flex gap-4 border-b border-border px-6 py-4 last:border-0"
-                  >
+                  <li key={step.id} className="fh-payment-step">
                     <StepGlyph
                       executed={executed}
                       isEmail={email}
                       tone={stepResultTone(step.result)}
                     />
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <span className="text-label font-medium text-text">{step.label}</span>
+                    <div className="cap-grow">
+                      <div className="fh-payment-step-top">
+                        <div className="fh-payment-step-meta">
+                          <span className="fh-small fh-medium fh-text">{step.label}</span>
                           <Pill tone={PILL_TONE[stepResultTone(step.result)]}>
                             {stepResultWords(step.result, executed)}
                           </Pill>
                         </div>
-                        <span className="whitespace-nowrap font-mono text-micro text-text-subtle">
+                        <span className="fh-nowrap fh-mono fh-tiny fh-faint">
                           {executed
                             ? relative(toMs(step.executedAt), nowMs, "UTC")
                             : pending
@@ -734,33 +723,30 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                         </span>
                       </div>
                       {email && step.aiSubject ? (
-                        <p className="m-0 mb-1 text-micro text-text-subtle">
+                        <p className="fh-payment-step-subject fh-tiny fh-faint">
                           &quot;{step.aiSubject}&quot;
                         </p>
                       ) : null}
-                      <p className="m-0 text-micro text-text-subtle">
+                      <p className="fh-tiny fh-faint">
                         {executed
                           ? `Executed ${formatDate(step.executedAt, { style: "medium" }) ?? ""}`
                           : `Scheduled ${formatDate(step.scheduledAt, { style: "medium" }) ?? ""}`}
                       </p>
 
                       {showEngagement || showExpander ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-4">
+                        <div className="cap-cluster fh-payment-note" data-gap="5">
                           {showEngagement ? (
                             <>
                               <span
-                                className={`inline-flex items-center gap-1 text-micro ${
-                                  step.openedAt ? "text-green" : "text-text-subtle"
+                                data-gap="2"
+                                className={`cap-cluster fh-tiny ${
+                                  step.openedAt ? "fh-green" : "fh-faint"
                                 }`}
                               >
                                 {step.openedAt ? (
-                                  <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                  <Icon d={iconCheck} className="fh-icon-12 fh-icon-fine" />
                                 ) : (
-                                  <Circle
-                                    className="h-3 w-3"
-                                    strokeWidth={1.5}
-                                    aria-hidden="true"
-                                  />
+                                  <Icon d={iconCircle} className="fh-icon-12 fh-icon-fine" />
                                 )}
                                 {step.openedAt
                                   ? `Opened ${relative(toMs(step.openedAt), nowMs, "UTC")}`
@@ -769,20 +755,17 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                               {/* A suspect click is shown as what it is:
                                   something fetched the link, and it is not billed. */}
                               <span
-                                className={`inline-flex items-center gap-1 text-micro ${
+                                data-gap="2"
+                                className={`cap-cluster fh-tiny ${
                                   step.clickedAt && !step.clickSuspectReason
-                                    ? "text-green"
-                                    : "text-text-subtle"
+                                    ? "fh-green"
+                                    : "fh-faint"
                                 }`}
                               >
                                 {step.clickedAt && !step.clickSuspectReason ? (
-                                  <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                  <Icon d={iconCheck} className="fh-icon-12 fh-icon-fine" />
                                 ) : (
-                                  <Circle
-                                    className="h-3 w-3"
-                                    strokeWidth={1.5}
-                                    aria-hidden="true"
-                                  />
+                                  <Icon d={iconCircle} className="fh-icon-12 fh-icon-fine" />
                                 )}
                                 {step.clickedAt
                                   ? step.clickSuspectReason
@@ -793,7 +776,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                             </>
                           ) : null}
                           {showExpander ? (
-                            <span className="text-micro">
+                            <span className="fh-tiny">
                               <ExpandToggle
                                 label="View email"
                                 openLabel="Hide email"
@@ -808,7 +791,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       {step.previewHtml && expanded ? (
                         <div
                           id={`step-email-${step.id}`}
-                          className="mt-3 rounded-lg border border-border bg-bg p-4 text-label text-text"
+                          className="fh-box fh-payment-preview fh-small fh-text"
                           // Sanitized in the loader by sanitizeEmailPreviewHtml;
                           // the raw body is never sent to the browser.
                           dangerouslySetInnerHTML={markup(step.previewHtml)}
@@ -826,7 +809,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {/* Recova's internal notes, 573-597, hidden in the demo as Recova hides
           it. Saved in place through a fetcher, so the page does not move. */}
       {!isDemo ? (
-        <div className="mb-5">
+        <div className="fh-payment-block">
           <Panel title="Internal notes">
             <noteFetcher.Form method="post">
               <input type="hidden" name="intent" value="note" />
@@ -838,7 +821,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 placeholder="Add a note about this payment or customer..."
                 rows={3}
               />
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="cap-cluster fh-payment-pull-gap" data-gap="4">
                 <button
                   type="submit"
                   className="cap-btn"
@@ -850,13 +833,13 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 >
                   {noteSaving ? "Saving..." : "Save note"}
                 </button>
-                <span role="status" className="text-micro">
+                <span role="status" className="fh-tiny">
                   {noteSaved ? (
-                    <span className="inline-flex items-center gap-1 text-green">
-                      Saved <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                    <span className="fh-payment-saved fh-green">
+                      Saved <Icon d={iconCheck} className="fh-icon-12 fh-icon-fine" />
                     </span>
                   ) : noteError ? (
-                    <span className="text-error-text">Could not save note. Please try again.</span>
+                    <span className="fh-error">Could not save note. Please try again.</span>
                   ) : null}
                 </span>
               </div>
@@ -872,7 +855,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           tone="ok"
           title="Payment recovered"
           actions={
-            <span className="font-mono text-title font-bold">
+            <span className="fh-mono fh-title fh-bold">
               {formatMoney(recovery.amountCents, recovery.currency)}
             </span>
           }
@@ -883,7 +866,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           {/* Only once Stripe's balance transaction has been read. Billing stays
               on the gross amount above. */}
           {recovery.netAmountCents != null && recovery.netCurrency ? (
-            <span className="mt-1 block text-label text-text-secondary">
+            <span className="fh-payment-tile-note fh-line fh-small fh-soft">
               Net after Stripe fees {formatMoney(recovery.netAmountCents, recovery.netCurrency)}
             </span>
           ) : null}
@@ -911,18 +894,15 @@ function StepGlyph({
   tone: Tone;
 }) {
   const skin = !executed
-    ? "border-border bg-border text-text-tertiary"
+    ? "fh-payment-dot-pending"
     : tone === "success"
-      ? "border-green bg-green-bg text-green"
+      ? "fh-payment-dot-success"
       : tone === "failure"
-        ? "border-red bg-red-bg text-error-text"
-        : "border-border-sub bg-surface2 text-text-subtle";
-  const Glyph = isEmail ? Mail : RotateCcw;
+        ? "fh-payment-dot-failure"
+        : "fh-payment-dot-neutral";
   return (
-    <span
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${skin}`}
-    >
-      <Glyph className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+    <span className={`fh-payment-step-dot ${skin}`}>
+      <Icon d={isEmail ? iconMail : iconReset} className="fh-icon-14 fh-icon-fine" />
     </span>
   );
 }
@@ -943,12 +923,12 @@ function DetailRow({
   valueClass?: string;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-border-sub py-2 last:border-0">
-      <dt className="shrink-0 text-micro text-text-subtle">{label}</dt>
+    <div className="fh-payment-fact">
+      <dt className="cap-keep fh-tiny fh-faint">{label}</dt>
       <dd
-        className={`m-0 ml-3 max-w-[200px] truncate text-right ${small ? "text-micro" : "text-label"} ${
-          mono ? "font-mono" : ""
-        } ${valueClass ?? "text-text"}`}
+        className={`fh-payment-fact-value fh-truncate fh-right ${small ? "fh-tiny" : "fh-small"} ${
+          mono ? "fh-mono" : ""
+        } ${valueClass ?? "fh-text"}`}
       >
         {value}
       </dd>

@@ -32,7 +32,7 @@ export default function start(el: HTMLElement): void {
       if (icon) {
         icon.className = iconClass(status);
         for (const svg of icon.querySelectorAll("[data-queue-status]")) {
-          svg.classList.toggle("hidden", svg.getAttribute("data-queue-status") !== status);
+          svg.toggleAttribute("hidden", svg.getAttribute("data-queue-status") !== status);
         }
       }
       const meta = row.querySelector("[data-queue-meta]");

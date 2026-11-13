@@ -35,7 +35,8 @@ import {
   type SignedInDevices,
   type SignInSettings,
 } from "~/components/sign-in-settings";
-import { SettingsPage } from "~/components/settings-page";
+import { SettingsLayout } from "capsomer/react/settings-row";
+import { routerRenderLink } from "capsomer/react/link";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
 import { authContext } from "~/lib/auth/context";
@@ -518,10 +519,10 @@ function ProfileForm({
       </section>
 
       {/* AccountProfileSection, 16px under the name card as Recova's mb-4. */}
-      <div className="mt-4">
+      <div className="fh-account-confirm">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="mb-5">
+            <div className="fh-account-field">
               <Field announce label="Industry">
                 {(p) => (
                   <Select
@@ -534,11 +535,11 @@ function ProfileForm({
               </Field>
             </div>
 
-            <div className="mb-5">
+            <div className="fh-account-field">
               <fieldset className="cap-field">
                 <legend className="cap-field-label">Customer Type</legend>
                 {/* Recova's two radios side by side, 16px apart. */}
-                <div className="flex gap-4">
+                <div className="fh-account-pair">
                   {CUSTOMER_TYPES.map((option) => (
                     <label key={option} className="cap-check">
                       <input
@@ -638,7 +639,7 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   return (
     <section className="cap-panel">
       <div className="cap-panel-body">
-        <p className="mb-4 text-label text-text-tertiary">
+        <p className="fh-account-intro fh-small fh-quiet">
           Choose how Foxhound looks. Saved to your account and synced across devices.
         </p>
         <Segmented
@@ -647,18 +648,18 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
           // Capsomer's hideLegend: that sets .cap-sr-only, which lives in
           // capsomer/base.css, and the merchant app does not load base.css
           // (app/site-header.css), as /settings/audit records.
-          legend={<span className="sr-only">Theme</span>}
+          legend={<span className="cap-sr-only">Theme</span>}
           options={THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] }))}
           value={theme}
           onChange={(next) => void select(next)}
         />
         {error ? (
-          <p role="alert" className="mt-2 text-label">
+          <p role="alert" className="fh-account-alert fh-small">
             <Status tone="crit">{error}</Status>
           </p>
         ) : null}
         {refused ? (
-          <div className="mt-3">
+          <div className="fh-account-actions">
             <Alert tone="neutral">{DEMO_READ_ONLY_MESSAGE}</Alert>
           </div>
         ) : null}
@@ -670,8 +671,8 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
 /** AccountSection's top row: the signed-in address, and Sign out beside it. */
 function SignedIn({ userEmail }: { userEmail: string }) {
   return (
-    <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="text-label text-text">{userEmail}</div>
+    <div className="fh-setting-row">
+      <div className="fh-small fh-text">{userEmail}</div>
       <Form method="post" action="/logout">
         <Button type="submit">Sign out</Button>
       </Form>
@@ -696,7 +697,7 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
   const showForm = (open || Boolean(refused)) && !mine?.ok;
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="fh-account-list">
       {mine?.ok ? (
         <Alert tone="ok">
           We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the
@@ -800,12 +801,12 @@ function DangerZone({
   });
 
   return (
-    <div className="mt-5 border-t border-border pt-5">
-      <h2 className="mb-3 text-label font-normal text-text-subtle">Danger zone</h2>
+    <div className="fh-settings-group">
+      <h2 className="fh-danger-title fh-small fh-regular fh-faint">Danger zone</h2>
 
-      <div className="flex flex-col gap-3">
+      <div className="cap-stack" data-gap="4">
         {cancelledAt ? (
-          <p className="text-label text-text-tertiary">
+          <p className="fh-small fh-quiet">
             This account is canceled. Recovery processing is stopped. Fees already earned on
             recoveries Foxhound attributed remain owed.
           </p>
@@ -827,7 +828,7 @@ function DangerZone({
         ) : null}
         {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
 
-        <div className="flex flex-col items-end gap-3">
+        <div className="fh-account-end">
           {/* The owner's control only: a member cannot cancel (the action
               refuses with a 403), so a member is not offered it. */}
           {cancelledAt || !isOwner ? null : (
@@ -869,20 +870,24 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   const result = actionData as ActionResult | undefined;
 
   return (
-    <SettingsPage title="My account" lead="Profile, appearance, and account controls.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="My account"
+      lead="Profile, appearance, and account controls."
+    >
       {/* Recova's mb-10 under the form. */}
-      <div className="mb-10">
+      <div className="fh-account-top">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
       </div>
 
       <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
 
-      <div className="mt-10">
+      <div className="fh-account-part">
         <SignInMethodsPanel initial={loaderData.signIn} isDemo={Boolean(isDemo)} />
       </div>
 
       {/* Recova's mt-6 over the account card, after the appearance card's mb-4. */}
-      <div className="mt-10">
+      <div className="fh-account-part">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SignedIn userEmail={userEmail} />
@@ -896,6 +901,6 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
       </div>
-    </SettingsPage>
+    </SettingsLayout>
   );
 }

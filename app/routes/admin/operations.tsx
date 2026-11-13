@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Empty } from "capsomer/react/empty";
 import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
@@ -20,7 +20,7 @@ import {
 } from "~/lib/admin/operations";
 import { loadMcpOverview } from "~/lib/admin/mcps.server";
 import { formatCount, plural } from "@drdustinedwards/site-helpers/text";
-import { pagePending, type AdminHandle } from "~/lib/admin/page";
+import { type AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,
   getEnvSanity,
@@ -85,34 +85,30 @@ const SETTINGS_HEADING_ID = "admin-operations-settings-heading";
 // /admin/mcps). Read only.
 export default function AdminOperations({ loaderData }: Route.ComponentProps) {
   const { queue, locks, sizeBytes, migrations, growthTables, envSanity, mcp } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, OPERATIONS_PATH);
+  const pending = usePagePending(OPERATIONS_PATH);
   const share = sizeBytes / D1_CAP_BYTES;
   const overHalf = share >= D1_ALERT_THRESHOLD;
   const appliedCount = migrations.rows.filter((m) => m.applied).length;
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       <Panel
         title="Recovery queue"
         reading={pending}
         description="Recovery work waiting on the recovery tick. Demo accounts are not counted."
       >
-        <dl className="m-0 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <dl className="fh-halves">
           <div>
-            <dt className="text-label text-text-secondary">Payments in recovery</dt>
-            <dd className="m-0 font-mono text-title tabular-nums text-text">
+            <dt className="fh-small fh-soft">Payments in recovery</dt>
+            <dd className="fh-mono fh-title cap-num fh-text">
               {formatCount(queue.activePayments)}
             </dd>
-            <dd className="m-0 text-label text-text-secondary">
-              Failed payments in an active sequence.
-            </dd>
+            <dd className="fh-small fh-soft">Failed payments in an active sequence.</dd>
           </div>
           <div>
-            <dt className="text-label text-text-secondary">Steps due now</dt>
-            <dd className="m-0 font-mono text-title tabular-nums text-text">
-              {formatCount(queue.dueSteps)}
-            </dd>
-            <dd className="m-0 text-label text-text-secondary">
+            <dt className="fh-small fh-soft">Steps due now</dt>
+            <dd className="fh-mono fh-title cap-num fh-text">{formatCount(queue.dueSteps)}</dd>
+            <dd className="fh-small fh-soft">
               {queue.oldestDueAt ? (
                 <>
                   Oldest due <Time at={queue.oldestDueAt} empty="never" tip />. Steps on paused or
@@ -217,10 +213,10 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
               <tbody>
                 {growthTables.map((t) => (
                   <tr key={t.label}>
-                    <th scope="row" className="font-normal text-text">
+                    <th scope="row" className="fh-regular fh-text">
                       {t.label}
                     </th>
-                    <td data-label="Kept for" className="text-text-secondary">
+                    <td data-label="Kept for" className="fh-soft">
                       {t.retentionPolicy}
                     </td>
                     <td data-label="Rows" data-num="">
@@ -246,7 +242,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
         flush
       >
         {migrations.unexpectedApplied.length > 0 ? (
-          <p className="m-0 border-b border-border px-4 py-3 text-label text-error-text">
+          <p className="fh-panel-note fh-small fh-error">
             {plural(migrations.unexpectedApplied.length, "migration is", "migrations are")} applied
             but not in this build: {migrations.unexpectedApplied.join(", ")}.
           </p>
@@ -276,7 +272,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
               <tbody>
                 {migrations.rows.map((m) => (
                   <tr key={m.name}>
-                    <th scope="row" className="font-normal font-mono break-all text-text">
+                    <th scope="row" className="fh-regular fh-mono fh-break fh-text">
                       {m.name}
                     </th>
                     <td data-label="State">
@@ -324,10 +320,10 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
             <tbody>
               {envSanity.map((row) => (
                 <tr key={row.name}>
-                  <th scope="row" className="font-normal font-mono break-all text-text">
+                  <th scope="row" className="fh-regular fh-mono fh-break fh-text">
                     {row.name}
                   </th>
-                  <td data-label="Kind" className="text-text-secondary">
+                  <td data-label="Kind" className="fh-soft">
                     {settingKindWord(row.kind)}
                   </td>
                   <td data-label="State">
@@ -347,7 +343,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
       </Panel>
 
       {/* Once /admin/mcps, folded in here (Dustin, 2026-10-29). */}
-      <h2 className="m-0 mt-4 text-heading font-semibold text-text">MCP servers</h2>
+      <h2 className="fh-section-title fh-semibold fh-text">MCP servers</h2>
       <AdminMcpPanels data={mcp} reading={pending} />
     </div>
   );
@@ -357,7 +353,7 @@ function LockRow({ lock }: { lock: CronLockRow }) {
   const status = LOCK_STATUS[lock.state];
   return (
     <tr>
-      <th scope="row" className="font-normal font-mono break-all text-text">
+      <th scope="row" className="fh-regular fh-mono fh-break fh-text">
         {lock.name}
       </th>
       <td data-label="Lock">
@@ -373,9 +369,7 @@ function LockRow({ lock }: { lock: CronLockRow }) {
             Ran out <Time at={lock.heldUntil} empty="never" tip />
           </>
         ) : (
-          <span className="text-text-tertiary">
-            {lock.state === "unreadable" ? "Not known" : "None"}
-          </span>
+          <span className="fh-quiet">{lock.state === "unreadable" ? "Not known" : "None"}</span>
         )}
       </td>
     </tr>
