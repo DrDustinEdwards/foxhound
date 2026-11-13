@@ -209,7 +209,11 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           Capsomer's badge in Recova's treatment: mono at 0.75rem with 0.06em
           tracking, amber words on a 13% amber tint inside a 27% amber edge. */}
       <div className="fh-audit-block">
-        <span className="fh-audit-label cap-pill fh-mono fh-caption fh-regular">
+        <span
+          className="fh-audit-label cap-pill fh-mono fh-caption fh-regular"
+          data-variant="tag"
+          data-family="amber"
+        >
           FREE LOST REVENUE AUDIT
         </span>
       </div>

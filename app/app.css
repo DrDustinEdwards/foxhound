@@ -297,6 +297,14 @@ body {
 .cap-pill[data-variant="tag"] {
   --muted: var(--dim);
 }
+/* A badge that is a tag for its edge alone keeps the badge's own word. */
+.fh-pill-word {
+  --tag-face: var(--ui);
+  --tag-size: var(--fs-detail);
+  --tag-weight: 600;
+  --tag-case: none;
+  --tag-tracking: normal;
+}
 .cap-pill[data-variant="tag"][data-family="purple"] {
   --accent-soft: var(--purple-bg);
   --accent-text: var(--purple);
@@ -730,9 +738,6 @@ body {
     align-items: flex-start;
     gap: 0.25rem;
   }
-  .fh-health-score-badge-label {
-    --_line: var(--_fg);
-  }
   .fh-error-view-row {
     display: flex;
     height: 3.5rem;
@@ -1034,18 +1039,6 @@ body {
   }
   .fh-footer-bar-ruled {
     border-top: 1px solid var(--line);
-  }
-  .fh-pill-edge {
-    --_line: var(--_fg);
-  }
-  .fh-pill-accent {
-    --_bg: var(--accent-soft);
-    --_fg: var(--accent-text);
-  }
-  .fh-pill-plain {
-    --_bg: var(--raised);
-    --_fg: var(--dim);
-    --_line: var(--line);
   }
   .fh-chrome-text {
     color: var(--chrome-text);
