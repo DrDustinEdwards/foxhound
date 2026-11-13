@@ -260,7 +260,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div
-      className="fh-cap flex min-h-screen items-center bg-bg [--border-focus:var(--ring)]"
+      className="fh-cap flex min-h-screen items-center bg-bg"
       data-cap-site="foxhound"
       data-family="amber"
     >

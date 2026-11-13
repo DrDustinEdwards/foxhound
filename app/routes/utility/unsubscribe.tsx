@@ -197,7 +197,7 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
           and the wordmark is not one. It names the outcome, so the result is
           in the heading as well as the status paragraph. */}
       <div
-        className="fh-cap flex flex-1 items-center bg-bg [--border-focus:var(--ring)]"
+        className="fh-cap flex flex-1 items-center bg-bg"
         data-cap-site="foxhound"
         data-family="amber"
       >

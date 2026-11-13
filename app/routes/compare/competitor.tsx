@@ -51,11 +51,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
   return (
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
     // the panels, the button and the focus ring read the family.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <MarketingPageHeader
         trail={[
           { label: "Compare", href: "/compare" },

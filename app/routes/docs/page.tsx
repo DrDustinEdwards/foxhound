@@ -77,7 +77,7 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div
-      className="fh-cap mx-auto max-w-[760px] px-6 py-16 [--border-focus:var(--ring)]"
+      className="fh-cap mx-auto max-w-[760px] px-6 py-16"
       data-cap-site="foxhound"
       data-family="amber"
     >
