@@ -44,9 +44,10 @@ export type SignInSettings = {
   /** The latest sign-ins and sign-in changes (site-runtime securityHistory),
    *  newest first; null when not shown. */
   history: SecurityHistoryEntry[] | null;
-  /** The address the passkey providers show (the Signal API); null when the
-   *  page is not this person's own (the demo, an admin's view). */
-  signalAs: string | null;
+  /** The account's id and the address the passkey providers show (the Signal
+   *  API); null when the page is not this person's own (the demo, an admin's
+   *  view). */
+  signalAs: { id: string; email: string } | null;
 };
 
 /**
@@ -83,8 +84,9 @@ export function SignInMethodsPanel({
   useEffect(() => {
     if (!initial.signalAs) return;
     void signalPasskeys({
+      user: initial.signalAs.id,
       credentialIds: credentialIds.split(" ").filter(Boolean),
-      name: initial.signalAs,
+      name: initial.signalAs.email,
     });
   }, [credentialIds, initial.signalAs]);
 

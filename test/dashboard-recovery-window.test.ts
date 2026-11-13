@@ -1,3 +1,4 @@
+import { dayKey } from "@dustinedwards/site-runtime/time";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,7 +8,6 @@ import {
   countByDay,
   countByDayAndCategory,
   cumulativeRecoveryRateDaily,
-  dayKey,
   recoveryTimingBuckets,
   resolveRangeCutoff,
   sumCentsByDayWindow,

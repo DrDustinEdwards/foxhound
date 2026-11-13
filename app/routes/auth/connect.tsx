@@ -355,8 +355,8 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
       {!loaderData.isOwner ? (
         <p className="fh-center fh-small fh-quiet">{OWNER_REQUIRED_MESSAGE}</p>
       ) : loaderData.stripeEnabled ? (
-        <Form method="post" className="fh-auth-actions">
-          <Button type="submit" variant="primary" pending={busy}>
+        <Form method="post">
+          <Button type="submit" variant="primary" pending={busy} block>
             {busy ? "Redirecting..." : "Connect Stripe"}
           </Button>
         </Form>

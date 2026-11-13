@@ -7,6 +7,8 @@
 // result set back out without telling the visitor. The export was the worst
 // case, since the downloaded file disagreed with the list on screen.
 
+import type { Params } from "capsomer/behavior/filter-bar";
+
 import type { AmountBounds } from "./queries.server";
 import type { PaymentTimeRange } from "./time-range";
 
@@ -35,34 +37,25 @@ export interface BuildPaymentParamsOptions {
 }
 
 /**
- * Build the search params representing `filters`, preserving every dimension
- * including the amount range.
+ * The query params representing `filters`, preserving every dimension including
+ * the amount range, for Capsomer's `withParams`, which leaves out an empty or
+ * null value. A value at its default (all time, newest first, the default page
+ * size) is null here, so one view has one address.
  */
 export function buildPaymentParams(
   filters: PaymentFilterState,
   { bounds, defaultPageSize, overrides = {} }: BuildPaymentParamsOptions,
-): URLSearchParams {
-  const params = new URLSearchParams();
-  if (filters.search) params.set("q", filters.search);
-  if (filters.status) params.set("status", filters.status);
-  if (filters.declineCategory) params.set("category", filters.declineCategory);
-  if (filters.time !== "all") params.set("time", filters.time);
-  if (filters.sort !== "newest") params.set("sort", filters.sort);
-  if (filters.pageSize !== defaultPageSize) params.set("perPage", String(filters.pageSize));
-  if (bounds.currency !== bounds.defaultCurrency) params.set("currency", bounds.currency);
-  if (filters.amountMinCents > bounds.minCents)
-    params.set("amountMin", String(filters.amountMinCents));
-  if (filters.amountMaxCents < bounds.maxCents)
-    params.set("amountMax", String(filters.amountMaxCents));
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value) params.set(key, value);
-    else params.delete(key);
-  }
-  return params;
-}
-
-/** `path` with `params` appended, or bare `path` when there are none. */
-export function withParams(path: string, params: URLSearchParams): string {
-  const qs = params.toString();
-  return qs ? `${path}?${qs}` : path;
+): Params {
+  return {
+    q: filters.search,
+    status: filters.status,
+    category: filters.declineCategory,
+    time: filters.time === "all" ? null : filters.time,
+    sort: filters.sort === "newest" ? null : filters.sort,
+    perPage: filters.pageSize === defaultPageSize ? null : String(filters.pageSize),
+    currency: bounds.currency === bounds.defaultCurrency ? null : bounds.currency,
+    amountMin: filters.amountMinCents > bounds.minCents ? String(filters.amountMinCents) : null,
+    amountMax: filters.amountMaxCents < bounds.maxCents ? String(filters.amountMaxCents) : null,
+    ...overrides,
+  };
 }

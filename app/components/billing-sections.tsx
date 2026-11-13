@@ -1,7 +1,6 @@
 import { capitalize } from "@drdustinedwards/site-helpers/text";
 import type { ReactNode } from "react";
-import { routerRenderLink } from "capsomer/react/link";
-import { Icon, iconArrowUpRight } from "capsomer/react/icons";
+import { routerRenderLink, AwayLink } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";
 import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
@@ -10,6 +9,7 @@ import "capsomer/button.css";
 import "capsomer/panel.css";
 import "capsomer/row-list.css";
 import "capsomer/status.css";
+import "capsomer/link.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
 import type { CardSummary } from "~/lib/billing/platform-customer";
@@ -130,10 +130,9 @@ function StatusPill({ label, tone }: { label: string; tone: FeeStatusTone }) {
 function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | null }) {
   if (url) {
     return (
-      <a href={url} target="_blank" rel="noreferrer" className="fh-invoice-link fh-tiny">
-        View invoice <Icon d={iconArrowUpRight} className="fh-icon-12 fh-icon-fine" />
-        <span className="cap-sr-only"> (opens in a new tab)</span>
-      </a>
+      <AwayLink href={url} newTab className="fh-invoice-link fh-tiny">
+        View invoice
+      </AwayLink>
     );
   }
   if (stripeId) return <span className="fh-mono fh-tiny fh-quiet">{stripeId}</span>;
