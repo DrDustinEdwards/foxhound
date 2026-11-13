@@ -34,14 +34,12 @@ export interface LegalSectionDef {
 
 /**
  * Recova's legal column, in Capsomer's amber family. One main landmark stays the
- * layout's. Foxhound's global focus ring reads --border-focus (app.css);
- * inside this column it reads the family's --ring instead, so a keyboard user
- * sees amber here as in Capsomer's own components.
+ * layout's.
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
     <div
-      className="fh-cap mx-auto max-w-[720px] px-6 pb-16 [--border-focus:var(--ring)]"
+      className="fh-cap mx-auto max-w-[720px] px-6 pb-16"
       data-cap-site="foxhound"
       data-family="amber"
     >

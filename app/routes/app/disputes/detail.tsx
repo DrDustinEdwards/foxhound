@@ -10,7 +10,7 @@ import "capsomer/status.css";
 // the disputes list and the payment pages load them.
 import "~/site-header.css";
 import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
-import { useEffect, useReducer } from "react";
+import { useDraftDirty } from "capsomer/react/form-hooks";
 import { Form, useFetcher, useNavigation, useSearchParams } from "react-router";
 import { InlineConfirm } from "capsomer/react/inline-confirm";
 import "capsomer/inline-confirm.css";
@@ -35,8 +35,6 @@ import {
   SHIPPING_TRACKING_FIELD,
   deadlineRemaining,
   disputeFeeTerms,
-  draftAfter,
-  draftDirty,
   evidenceFieldLabel,
   outcomeWord,
   splitEvidence,
@@ -208,13 +206,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   // The draft locks once an approval row exists: the approval's
   // hash attests the saved evidence, so it is not edited after.
   const draftEditable = editable && !approval;
-  const [draft, dispatchDraft] = useReducer(draftAfter, { edits: 0, submitted: 0, saved: 0 });
   const savedOk =
     saveFetcher.state === "idle" && saveFetcher.data !== undefined && "ok" in saveFetcher.data;
-  useEffect(() => {
-    if (savedOk) dispatchDraft({ type: "saved" });
-  }, [savedOk, saveFetcher.data]);
-  const dirty = draftDirty(draft);
+  const {
+    dirty,
+    edit: draftEdited,
+    submit: draftSubmitted,
+  } = useDraftDirty(savedOk ? saveFetcher.data : undefined);
   const resolved = isDisputeResolved(state);
   const outcome = outcomeWord(state);
   const fee = disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS);
@@ -539,10 +537,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         onChange={(e) => {
           // The evidence file input sits in this markup but belongs to the
           // upload form; choosing a file is not a draft edit.
-          if ((e.target as unknown as HTMLInputElement).form === e.currentTarget)
-            dispatchDraft({ type: "edit" });
+          if ((e.target as unknown as HTMLInputElement).form === e.currentTarget) draftEdited();
         }}
-        onSubmit={() => dispatchDraft({ type: "submit" })}
+        onSubmit={() => draftSubmitted()}
       >
         <input type="hidden" name="intent" value="save" />
         <div className="mb-6">

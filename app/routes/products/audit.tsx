@@ -75,11 +75,7 @@ export default function AuditProductPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals, and the family's focus
     // ring inside the page, as on the other three spokes.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Audit"
         Icon={ScanSearch}

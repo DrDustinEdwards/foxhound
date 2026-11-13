@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Empty } from "capsomer/react/empty";
 import { Meter } from "capsomer/react/meter";
 import { Panel } from "capsomer/react/panel";
@@ -19,7 +19,7 @@ import {
 } from "~/lib/admin/operations";
 import { loadMcpOverview } from "~/lib/admin/mcps.server";
 import { formatCount, plural } from "@drdustinedwards/site-helpers/text";
-import { pagePending, type AdminHandle } from "~/lib/admin/page";
+import { type AdminHandle } from "~/lib/admin/page";
 import {
   getD1SizeBytes,
   getEnvSanity,
@@ -84,7 +84,7 @@ const SETTINGS_HEADING_ID = "admin-operations-settings-heading";
 // /admin/mcps). Read only.
 export default function AdminOperations({ loaderData }: Route.ComponentProps) {
   const { queue, locks, sizeBytes, migrations, growthTables, envSanity, mcp } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, OPERATIONS_PATH);
+  const pending = usePagePending(OPERATIONS_PATH);
   const share = sizeBytes / D1_CAP_BYTES;
   const overHalf = share >= D1_ALERT_THRESHOLD;
   const appliedCount = migrations.rows.filter((m) => m.applied).length;

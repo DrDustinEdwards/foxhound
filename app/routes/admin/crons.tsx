@@ -1,4 +1,5 @@
-import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { data, Form, useNavigation } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Alert } from "capsomer/react/banner";
 import { Link } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
@@ -31,7 +32,7 @@ import {
   describeCronSchedule,
   failedRunsWords,
 } from "~/lib/admin/crons";
-import { pagePending, type AdminHandle } from "~/lib/admin/page";
+import { type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/crons";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -135,7 +136,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
   const { crons, confirmEnable } = loaderData;
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
-  const pending = pagePending(navigation, useRevalidator().state, CRONS_PATH);
+  const pending = usePagePending(CRONS_PATH);
   const error = actionData && "error" in actionData ? actionData.error : null;
 
   if (confirmEnable) {

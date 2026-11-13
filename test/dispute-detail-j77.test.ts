@@ -502,20 +502,6 @@ describe("J77 review: Approve never sends a draft with unsaved edits", () => {
     expect(html).not.toContain("aria-disabled");
     expect(html).not.toContain("unsaved changes");
   });
-
-  it("counts an edit made during a save as still unsaved", async () => {
-    const { draftAfter } = await import("~/lib/disputes/detail");
-    let s = { edits: 0, submitted: 0, saved: 0 };
-    s = draftAfter(s, { type: "edit" });
-    expect(s.edits !== s.saved).toBe(true);
-    s = draftAfter(s, { type: "submit" });
-    s = draftAfter(s, { type: "edit" }); // typed while the save was in flight
-    s = draftAfter(s, { type: "saved" });
-    expect(s.edits !== s.saved).toBe(true);
-    s = draftAfter(s, { type: "submit" });
-    s = draftAfter(s, { type: "saved" });
-    expect(s.edits !== s.saved).toBe(false);
-  });
 });
 
 describe("J77 review: one row per field, the same one everywhere", () => {
