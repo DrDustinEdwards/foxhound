@@ -24,7 +24,7 @@ import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import "capsomer/anchor-bar.css";
-import "capsomer/feature.css";
+import "capsomer/feature-grid.css";
 import "capsomer/panel.css";
 import "capsomer/chips.css";
 import "capsomer/status.css";

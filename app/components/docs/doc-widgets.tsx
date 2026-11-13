@@ -20,7 +20,7 @@ import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
 import { HealthScoreBadge } from "./health-score-badge";
 
-import "capsomer/feature.css";
+import "capsomer/feature-grid.css";
 import "capsomer/panel.css";
 import "capsomer/process.css";
 import "capsomer/status.css";
