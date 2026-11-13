@@ -1,3 +1,7 @@
+import { Eyebrow } from "capsomer/react/eyebrow";
+
+import "capsomer/eyebrow.css";
+
 // Ported from legacy app/(marketing)/blog/BlogHeaderIntro.tsx: the eyebrow /
 // title / subtext stack at the top of /blog.
 //
@@ -19,9 +23,7 @@
 export function BlogHeaderIntro() {
   return (
     <div className="cap-reveal-stack">
-      <div className="fh-blog-header-intro-block fh-tiny fh-medium fh-quiet fh-caps-wide">
-        Posts
-      </div>
+      <Eyebrow className="fh-blog-header-intro-block">Posts</Eyebrow>
       <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">Blog</h1>
       <p className="fh-mk-measure fh-subhead fh-relaxed fh-soft">
         Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
