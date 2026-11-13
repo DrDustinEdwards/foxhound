@@ -11,6 +11,7 @@
    base.css's reset and body rules. They land in cap.utilities, inside the cap
    layer declared above, so Foxhound's site layer still wins. */
 @import "capsomer/utilities.css";
+@import "capsomer/layout.css";
 /* Capsomer's link system, without the rest of base.css, in Foxhound's look from its Capsomer entry
    (root.tsx puts data-cap-site on <html>): semibold in amber with no line, a line under the
    pointer in place of the tint, the visited color once followed. In cap.base, so a site part

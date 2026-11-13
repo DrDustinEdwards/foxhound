@@ -3,7 +3,8 @@
 
 import type { Block } from "capsomer/email";
 import type { CurrencyCents } from "~/lib/audit/full-audit.server";
-import { formatBps, formatTotals, SCOPE_UNREAD } from "~/lib/audit/render";
+import { formatBps } from "capsomer/behavior/format";
+import { formatTotals, SCOPE_UNREAD } from "~/lib/audit/render";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
 import { percent } from "capsomer/behavior/meter";
@@ -222,11 +223,11 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
     ),
     row(
       "Voluntary churn",
-      figure(result.health, (h) => formatBps(h.voluntaryChurnRateBps)),
+      figure(result.health, (h) => formatBps(h.voluntaryChurnRateBps, { digits: 1 })),
     ),
     row(
       "Involuntary churn",
-      figure(result.health, (h) => formatBps(h.involuntaryChurnRateBps)),
+      figure(result.health, (h) => formatBps(h.involuntaryChurnRateBps, { digits: 1 })),
     ),
     ...(openDisputes
       ? moneyRows(

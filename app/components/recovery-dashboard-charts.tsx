@@ -3,9 +3,10 @@
 
 import { areaChart } from "enarratio/lite/area";
 import { barChart } from "enarratio/lite/bar";
-import { sparkline } from "enarratio";
+import { sparkline } from "enarratio/lite/sparkline";
 import { Meter } from "capsomer/react/meter";
-import { ChartFrame } from "capsomer/react/chart-frame";
+import { ChartPanel } from "capsomer/react/chart-frame";
+import { drawWith } from "capsomer/behavior/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "~/components/charts.css";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
@@ -44,43 +45,36 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
   const title = `Recovery rate · ${w.rangeLabel}`;
   if (!w.recoveryRateDaily.some((p) => p.rate !== null)) {
     return (
-      <Panel title={title}>
-        <ChartFrame
-          noData={{
-            title,
-            reason: "Not enough data yet. Recovery rate will appear after your first recovery.",
-          }}
-        />
-      </Panel>
+      <ChartPanel
+        title={title}
+        empty={{
+          reason: "Not enough data yet. Recovery rate will appear after your first recovery.",
+        }}
+      />
     );
   }
   const rows = w.recoveryRateDaily.map((p) => ({ Day: p.date, rate: p.rate }));
   return (
-    <Panel title={title}>
-      <ChartFrame
-        gridlines="none"
-        width={HALF_WIDTH}
-        draw={(width, fit) =>
-          areaChart({
-            title,
-            data: rows,
-            x: "Day",
-            y: "rate",
-            // Recova's green line and fill.
-            colors: { "Recovery rate (%)": "var(--green)" },
-            xLabel: null,
-            yLabel: "Recovery rate (%)",
-            formatValue: pctText,
-            formatX: (d) => formatShortDate(d instanceof Date ? d : new Date(d)),
-            alt: recoveryRateAlt(w.recoveryRateDaily, w.rangeLabel),
-            hoverTitles: false,
-            width,
-            height: RATE_HEIGHT,
-            ...fit,
-          })
-        }
-      />
-    </Panel>
+    <ChartPanel
+      title={title}
+      gridlines="none"
+      width={HALF_WIDTH}
+      draw={drawWith(areaChart, {
+        title,
+        data: rows,
+        x: "Day" as const,
+        y: "rate" as const,
+        // Recova's green line and fill.
+        colors: { "Recovery rate (%)": "var(--green)" },
+        xLabel: null,
+        yLabel: "Recovery rate (%)",
+        formatValue: pctText,
+        formatX: (d) => formatShortDate(d instanceof Date ? d : new Date(d)),
+        alt: recoveryRateAlt(w.recoveryRateDaily, w.rangeLabel),
+        hoverTitles: false,
+        height: RATE_HEIGHT,
+      })}
+    />
   );
 }
 
@@ -92,48 +86,42 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
   const title = `Recovered revenue · ${w.rangeLabel}`;
   return (
     <div className="fh-recchart-grid">
-      <Panel
+      <ChartPanel
         title={title}
         more={
           <span className="fh-mono fh-body fh-semibold cap-num fh-text">
             {formatCurrencyTotals(w.recoveredRevenue)}
           </span>
         }
+        gridlines="none"
+        width={SIDE_WIDTH}
+        draw={drawWith(barChart, {
+          title,
+          data: rows,
+          x: "Day" as const,
+          xType: "time" as const,
+          interval: "day" as const,
+          y: "amount" as const,
+          // One series per currency, only when there is more than one,
+          // because a sum across currencies is meaningless.
+          ...(single ? {} : { series: "currency" as const, layout: "grouped" as const }),
+          colors: single ? { Recovered: "var(--green)" } : undefined,
+          xLabel: null,
+          yLabel: "Recovered",
+          formatValue: (v) =>
+            single ? formatMoney(fromMajorUnits(v, single), single) : v.toFixed(2),
+          formatX: (d) => formatShortDate(d),
+          maxXTicks: 4,
+          alt: recoveredRevenueAlt(rows, days),
+          hoverTitles: false,
+          height: REVENUE_HEIGHT,
+        })}
       >
-        <ChartFrame
-          gridlines="none"
-          width={SIDE_WIDTH}
-          draw={(width, fit) =>
-            barChart({
-              title,
-              data: rows,
-              x: "Day",
-              xType: "time",
-              interval: "day",
-              y: "amount",
-              // One series per currency, only when there is more than one,
-              // because a sum across currencies is meaningless.
-              ...(single ? {} : { series: "currency" as const, layout: "grouped" as const }),
-              colors: single ? { Recovered: "var(--green)" } : undefined,
-              xLabel: null,
-              yLabel: "Recovered",
-              formatValue: (v) =>
-                single ? formatMoney(fromMajorUnits(v, single), single) : v.toFixed(2),
-              formatX: (d) => formatShortDate(d),
-              maxXTicks: 4,
-              alt: recoveredRevenueAlt(rows, days),
-              hoverTitles: false,
-              width,
-              height: REVENUE_HEIGHT,
-              ...fit,
-            })
-          }
-        />
         <div className="fh-recchart-axis fh-tiny fh-quiet">
           <span>{days}d ago</span>
           <span>Today</span>
         </div>
-      </Panel>
+      </ChartPanel>
 
       {/* Recova's email side panel, labeled with the range as Recova's was.
           Recova's query had no date filter (lib/dashboard-data.ts), so its
@@ -200,7 +188,6 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
                           width: 60,
                           height: 24,
                           endDot: false,
-                          inline: true,
                         }),
                       )}
                     />
@@ -221,41 +208,32 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
   const { rows, totalSent } = emailCategoryRows(w.emailCategoryPerformance);
   const title = "Email performance by decline type";
   if (totalSent === 0) {
-    return (
-      <Panel title={title}>
-        <ChartFrame noData={{ title, reason: "No recovery emails sent yet." }} />
-      </Panel>
-    );
+    return <ChartPanel title={title} empty={{ reason: "No recovery emails sent yet." }} />;
   }
   return (
-    <Panel title={title}>
-      <ChartFrame
-        gridlines="none"
-        width={SIDE_WIDTH}
-        draw={(width, fit) =>
-          barChart({
-            title,
-            data: rows,
-            x: "Category",
-            y: "rate",
-            series: "series",
-            layout: "grouped",
-            orientation: "horizontal",
-            // Recova's legend order and colors: Open rate green, Click rate blue.
-            seriesDomain: ["Open rate", "Click rate"],
-            colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)" },
-            xLabel: null,
-            yLabel: "Rate (%)",
-            formatValue: pctText,
-            alt: emailCategoryAlt(w.emailCategoryPerformance),
-            hoverTitles: false,
-            width,
-            height: EMAIL_HEIGHT,
-            ...fit,
-          })
-        }
-      />
-    </Panel>
+    <ChartPanel
+      title={title}
+      gridlines="none"
+      width={SIDE_WIDTH}
+      draw={drawWith(barChart, {
+        title,
+        data: rows,
+        x: "Category" as const,
+        y: "rate" as const,
+        series: "series" as const,
+        layout: "grouped" as const,
+        orientation: "horizontal" as const,
+        // Recova's legend order and colors: Open rate green, Click rate blue.
+        seriesDomain: ["Open rate", "Click rate"],
+        colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)" },
+        xLabel: null,
+        yLabel: "Rate (%)",
+        formatValue: pctText,
+        alt: emailCategoryAlt(w.emailCategoryPerformance),
+        hoverTitles: false,
+        height: EMAIL_HEIGHT,
+      })}
+    />
   );
 }
 
@@ -263,39 +241,30 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
   const title = "When recoveries happen";
   const total = w.recoveryTimingBuckets.reduce((s, b) => s + b.count, 0);
   if (total === 0) {
-    return (
-      <Panel title={title}>
-        <ChartFrame noData={{ title, reason: "No recoveries yet." }} />
-      </Panel>
-    );
+    return <ChartPanel title={title} empty={{ reason: "No recoveries yet." }} />;
   }
   // Recova draws the counts and prints each bar's share on top of it; the
   // share has the same shape, so it is what is drawn, against a % axis.
   const rows = w.recoveryTimingBuckets.map((b) => ({ Bucket: b.dayBucket, share: b.percentage }));
   return (
-    <Panel title={title}>
-      <ChartFrame
-        gridlines="none"
-        width={HALF_WIDTH}
-        draw={(width, fit) =>
-          barChart({
-            title,
-            data: rows,
-            x: "Bucket",
-            y: "share",
-            xDomain: w.recoveryTimingBuckets.map((b) => b.dayBucket),
-            colors: { "Share of recoveries (%)": "var(--green)" },
-            xLabel: null,
-            yLabel: "Share of recoveries (%)",
-            formatValue: pctText,
-            alt: recoveryTimingAlt(w.recoveryTimingBuckets),
-            hoverTitles: false,
-            width,
-            height: TIMING_HEIGHT,
-            ...fit,
-          })
-        }
-      />
-    </Panel>
+    <ChartPanel
+      title={title}
+      gridlines="none"
+      width={HALF_WIDTH}
+      draw={drawWith(barChart, {
+        title,
+        data: rows,
+        x: "Bucket" as const,
+        y: "share" as const,
+        xDomain: w.recoveryTimingBuckets.map((b) => b.dayBucket),
+        colors: { "Share of recoveries (%)": "var(--green)" },
+        xLabel: null,
+        yLabel: "Share of recoveries (%)",
+        formatValue: pctText,
+        alt: recoveryTimingAlt(w.recoveryTimingBuckets),
+        hoverTitles: false,
+        height: TIMING_HEIGHT,
+      })}
+    />
   );
 }
