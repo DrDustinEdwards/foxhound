@@ -39,7 +39,7 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
       ) : (
         <ol className="cap-stack fh-reports-list" data-gap="5">
           {reports.map((r) => (
-            <li key={r.id} className="fh-reports-item">
+            <li key={r.id} className="fh-box">
               <p className="fh-mono fh-tiny fh-quiet fh-caps">{monthLabel(r.reportMonth)}</p>
               <p className="fh-reports-line fh-body fh-text">{r.narrative}</p>
               <p className="fh-reports-line fh-tiny fh-faint">

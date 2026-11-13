@@ -72,7 +72,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
 
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
         <div className="mb-8 flex flex-wrap items-center gap-2">
-          <span className="cap-pill font-mono font-normal" data-variant="outline" data-tone="muted">
+          <span className="cap-pill fh-mono fh-regular" data-variant="outline" data-tone="muted">
             {view.code}
           </span>
           <Pill {...BADGE_PILL[categoryBadgeTone(view.category)]}>
@@ -81,41 +81,39 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
         </div>
 
         <section className="mb-10">
-          <h2 className="mb-3 text-title font-medium text-text">Why it happens</h2>
-          <p className="text-body leading-relaxed text-text-secondary">{content.whyItHappens}</p>
+          <h2 className="mb-3 fh-title fh-medium fh-text">Why it happens</h2>
+          <p className="fh-body fh-relaxed fh-soft">{content.whyItHappens}</p>
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-3 text-title font-medium text-text">How to fix it</h2>
-          <p className="text-body leading-relaxed text-text-secondary">{content.howToFix}</p>
+          <h2 className="mb-3 fh-title fh-medium fh-text">How to fix it</h2>
+          <p className="fh-body fh-relaxed fh-soft">{content.howToFix}</p>
         </section>
 
         <section className={`${CARD_MD} mb-10`}>
           <div className="cap-panel-body">
             <div>
-              <h2 className="mb-3 text-title font-medium text-text">How Foxhound recovers it</h2>
-              <p className="text-body leading-relaxed text-text-secondary">
-                {recoveryApproach(view)}
-              </p>
+              <h2 className="mb-3 fh-title fh-medium fh-text">How Foxhound recovers it</h2>
+              <p className="fh-body fh-relaxed fh-soft">{recoveryApproach(view)}</p>
             </div>
           </div>
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-4 text-title font-medium text-text">Questions</h2>
+          <h2 className="mb-4 fh-title fh-medium fh-text">Questions</h2>
           <FaqList
             name="decline-code-faq"
             faqs={content.faqs.map((f) => ({ q: f.question, a: f.answer }))}
           />
         </section>
 
-        <div className={`${CARD} text-center`}>
+        <div className={`${CARD} fh-center`}>
           <div className="cap-panel-body">
             <div>
-              <p className="mb-2 text-body font-medium text-text">
+              <p className="mb-2 fh-body fh-medium fh-text">
                 See what this looks like on your account
               </p>
-              <p className="mb-5 text-label text-text-secondary">
+              <p className="mb-5 fh-small fh-soft">
                 The free audit shows what Stripe already recovered and what is still dying, no
                 signup required.
               </p>

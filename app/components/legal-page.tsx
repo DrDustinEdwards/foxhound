@@ -58,12 +58,10 @@ export function LegalContents({
 }) {
   return (
     <section className="mb-12">
-      <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-        {heading}
-      </h2>
-      <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
+      <h2 className="mb-3 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">{heading}</h2>
+      <ol className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {sections.map((s) => (
-          <li key={s.id} className="list-none text-label">
+          <li key={s.id} className="fh-small">
             <a href={`#${s.id}`}>
               {s.number}. {s.title}
             </a>
@@ -103,21 +101,19 @@ export function LegalPreambleHeading({ children }: { children: ReactNode }) {
 
 export function LegalH3({ id, children }: { id?: string; children: ReactNode }) {
   return (
-    <h3 id={id} className="mb-2 mt-6 scroll-mt-20 text-item-title font-medium text-text">
+    <h3 id={id} className="mb-2 mt-6 scroll-mt-20 fh-item-title fh-medium fh-text">
       {children}
     </h3>
   );
 }
 
 export function LegalP({ children }: { children: ReactNode }) {
-  return <p className="mb-4 text-subhead leading-relaxed text-text-secondary">{children}</p>;
+  return <p className="mb-4 fh-subhead fh-relaxed fh-soft">{children}</p>;
 }
 
 export function LegalList({ children }: { children: ReactNode }) {
   return (
-    <ul className="mb-4 list-disc space-y-1.5 pl-6 text-subhead leading-relaxed text-text-secondary">
-      {children}
-    </ul>
+    <ul className="mb-4 list-disc space-y-1.5 pl-6 fh-subhead fh-relaxed fh-soft">{children}</ul>
   );
 }
 

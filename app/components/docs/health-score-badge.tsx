@@ -25,12 +25,9 @@ export function HealthScoreBadge({ score }: { score: number }) {
   return (
     // Recova's badge: the score in mono on the band's tint, edged in its color,
     // with no glyph; the band's word is for screen readers.
-    <span
-      className="cap-pill font-mono text-micro [--_line:var(--_fg)]"
-      data-tone={METER_TONE[band]}
-    >
+    <span className="cap-pill fh-mono fh-tiny [--_line:var(--_fg)]" data-tone={METER_TONE[band]}>
       {score}
-      <span className="sr-only">, {BAND_WORD[band]}</span>
+      <span className="cap-sr-only">, {BAND_WORD[band]}</span>
     </span>
   );
 }

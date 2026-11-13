@@ -82,19 +82,13 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
             <tbody>
               {competitor.rows.map((row) => (
                 <tr key={row.dimension}>
-                  <th scope="row" className="align-top font-medium text-text">
+                  <th scope="row" className="align-top fh-medium fh-text">
                     {row.dimension}
                   </th>
-                  <td
-                    data-label="Foxhound"
-                    className="align-top leading-relaxed text-text-secondary"
-                  >
+                  <td data-label="Foxhound" className="align-top fh-relaxed fh-soft">
                     {row.foxhound}
                   </td>
-                  <td
-                    data-label={competitor.name}
-                    className="align-top leading-relaxed text-text-secondary"
-                  >
+                  <td data-label={competitor.name} className="align-top fh-relaxed fh-soft">
                     {row.competitor}
                   </td>
                 </tr>
@@ -106,8 +100,8 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         <section className={`${CARD_MD} mb-10`}>
           <div className="cap-panel-body">
             <div>
-              <h2 className="mb-3 text-title font-medium text-text">Where Foxhound is behind</h2>
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-relaxed text-text-secondary">
+              <h2 className="mb-3 fh-title fh-medium fh-text">Where Foxhound is behind</h2>
+              <ul className="flex flex-col gap-2.5 fh-small fh-relaxed fh-soft">
                 {competitor.foxhoundCons.map((con) => (
                   <li key={con} className="flex items-start gap-2">
                     <span
@@ -123,7 +117,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         </section>
 
         {competitor.priceSource ? (
-          <p className="mb-4 text-label text-text-tertiary">
+          <p className="mb-4 fh-small fh-quiet">
             {competitor.name} pricing:{" "}
             <a href={competitor.priceSource.url} rel="external noopener noreferrer">
               {competitor.priceSource.url}
@@ -133,14 +127,14 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         ) : null}
 
         {competitor.omittedNote ? (
-          <p className="mb-10 text-label text-text-tertiary">{competitor.omittedNote}</p>
+          <p className="mb-10 fh-small fh-quiet">{competitor.omittedNote}</p>
         ) : null}
 
-        <div className={`${CARD} text-center`}>
+        <div className={`${CARD} fh-center`}>
           <div className="cap-panel-body">
             <div>
-              <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
-              <p className="mb-5 text-label text-text-secondary">
+              <p className="mb-2 fh-body fh-medium fh-text">See Foxhound's pricing in full</p>
+              <p className="mb-5 fh-small fh-soft">
                 {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of
                 won disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
                 {RECOVERY_MATURITY_DAYS} days.

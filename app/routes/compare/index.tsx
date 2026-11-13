@@ -55,14 +55,10 @@ export default function CompareIndex() {
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
-                    <p className="mb-1 font-mono text-micro uppercase tracking-wide text-text-tertiary">
-                      {c.category}
-                    </p>
-                    <p className="mb-2 text-body font-medium text-text">Foxhound vs {c.name}</p>
-                    <p className="mb-4 text-label leading-relaxed text-text-secondary">
-                      {c.oneLiner}
-                    </p>
-                    <div className="text-label text-brand-text">
+                    <p className="mb-1 fh-mono fh-tiny fh-quiet fh-caps">{c.category}</p>
+                    <p className="mb-2 fh-body fh-medium fh-text">Foxhound vs {c.name}</p>
+                    <p className="mb-4 fh-small fh-relaxed fh-soft">{c.oneLiner}</p>
+                    <div className="fh-small fh-brand">
                       See the comparison <Arrow />
                     </div>
                   </div>

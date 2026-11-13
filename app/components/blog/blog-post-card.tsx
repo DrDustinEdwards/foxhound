@@ -29,7 +29,7 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
     >
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
-        <div className="flex flex-col gap-3">
+        <div className="cap-stack" data-gap="4">
           {tag ? (
             <span className="w-fit">
               <span className="cap-pill" data-variant="outline">
@@ -37,11 +37,9 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
               </span>
             </span>
           ) : null}
-          <Title className="text-copy font-semibold leading-snug text-text">{post.title}</Title>
-          <p className="text-caption leading-relaxed text-text-secondary">{post.excerpt}</p>
-          <span className="font-mono text-micro text-text-tertiary">
-            {post.readingTimeMinutes} min read
-          </span>
+          <Title className="fh-copy fh-semibold leading-snug fh-text">{post.title}</Title>
+          <p className="fh-caption fh-relaxed fh-soft">{post.excerpt}</p>
+          <span className="fh-mono fh-tiny fh-quiet">{post.readingTimeMinutes} min read</span>
         </div>
       </div>
     </Link>

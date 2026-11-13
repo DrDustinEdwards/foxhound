@@ -81,7 +81,7 @@ export function RecoveryCalculator() {
             <RangeField
               id="mrr-slider"
               label={
-                <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+                <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">
                   Monthly recurring revenue
                 </span>
               }
@@ -91,8 +91,8 @@ export function RecoveryCalculator() {
               value={mrr}
               onChange={setMrr}
               format={fmt}
-              minLabel={<span className="font-mono text-source text-text-subtle">$1k</span>}
-              maxLabel={<span className="font-mono text-source text-text-subtle">$500k</span>}
+              minLabel={<span className="fh-mono fh-source fh-faint">$1k</span>}
+              maxLabel={<span className="fh-mono fh-source fh-faint">$500k</span>}
               // React itself injects a client-only style.caretColor on controlled
               // range inputs during hydration (a Firefox thumb-rendering
               // workaround baked into react-dom, not app markup), which is absent
@@ -106,7 +106,7 @@ export function RecoveryCalculator() {
             <RangeField
               id="failure-share-slider"
               label={
-                <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+                <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">
                   Assumed share of MRR that fails
                 </span>
               }
@@ -116,8 +116,8 @@ export function RecoveryCalculator() {
               value={failureShare}
               onChange={setFailureShare}
               format={percent}
-              minLabel={<span className="font-mono text-source text-text-subtle">0%</span>}
-              maxLabel={<span className="font-mono text-source text-text-subtle">20%</span>}
+              minLabel={<span className="fh-mono fh-source fh-faint">0%</span>}
+              maxLabel={<span className="fh-mono fh-source fh-faint">20%</span>}
               // Same react-dom hydration workaround as the slider above.
               suppressHydrationWarning
             />
@@ -127,7 +127,7 @@ export function RecoveryCalculator() {
             <RangeField
               id="recovery-share-slider"
               label={
-                <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+                <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">
                   Assumed recovery of the remainder
                 </span>
               }
@@ -137,8 +137,8 @@ export function RecoveryCalculator() {
               value={recoveryShare}
               onChange={setRecoveryShare}
               format={percent}
-              minLabel={<span className="font-mono text-source text-text-subtle">0%</span>}
-              maxLabel={<span className="font-mono text-source text-text-subtle">100%</span>}
+              minLabel={<span className="fh-mono fh-source fh-faint">0%</span>}
+              maxLabel={<span className="fh-mono fh-source fh-faint">100%</span>}
               // Same react-dom hydration workaround as the slider above.
               suppressHydrationWarning
             />
@@ -156,53 +156,53 @@ export function RecoveryCalculator() {
               label="Stripe Smart Retries recover"
               sub={`${STRIPE_RECOVERY_RATE_PERCENT}% average, stripe.com/billing, read ${STAT_AS_OF}`}
               value={fmt(stripeRecovers)}
-              valueClassName="text-text-secondary"
+              valueClassName="fh-soft"
             />
             <Row
               name="remaining"
               label="Your recoverable opportunity"
               sub="What Stripe's own retries could not get back"
               value={fmt(remaining)}
-              valueClassName="text-accent-text"
+              valueClassName="fh-accent"
             />
             <Row
               name="foxhoundRecovers"
               label="Foxhound recovers from that"
               sub="Billable only when a Foxhound action provably preceded payment"
               value={fmt(foxhoundRecovers)}
-              valueClassName="text-success-text"
+              valueClassName="fh-success"
             />
             <Row
               name="foxhoundFee"
               label="Foxhound fee"
               sub={`${RECOVERY_FEE_BPS / 100}% of what Foxhound recovers, nothing else, ever`}
               value={`-${fmt(foxhoundFee)}`}
-              valueClassName="text-text-secondary"
+              valueClassName="fh-soft"
             />
             <div className="flex items-center justify-between py-3">
               <div>
-                <p className="text-subhead font-medium text-text">Net revenue retained</p>
-                <p className="mt-0.5 font-mono text-micro text-text-tertiary">
+                <p className="fh-subhead fh-medium fh-text">Net revenue retained</p>
+                <p className="mt-0.5 fh-mono fh-tiny fh-quiet">
                   Nothing is billed until the recovery has matured for {RECOVERY_MATURITY_DAYS}{" "}
                   days.
                 </p>
               </div>
-              <div className="text-right">
-                <p className="font-mono text-title font-semibold text-success-text">
+              <div className="fh-right">
+                <p className="fh-mono fh-title fh-semibold fh-success">
                   <span data-calc="netGainAnnual">{`+${fmt(netGainAnnual)}`}</span>
-                  <span className="text-caption font-normal text-text-tertiary">/yr</span>
+                  <span className="fh-caption fh-regular fh-quiet">/yr</span>
                 </p>
                 {/* Recova dims this line to 70%, which takes it and its "/mo" under
                 4.5:1 in both themes (measured 3.02 and 3.29). Full strength here. */}
-                <p className="mt-0.5 font-mono text-subhead font-medium text-success-text">
+                <p className="mt-0.5 fh-mono fh-subhead fh-medium fh-success">
                   <span data-calc="netGain">{`+${fmt(netGain)}`}</span>
-                  <span className="text-micro font-normal text-text-tertiary">/mo</span>
+                  <span className="fh-tiny fh-regular fh-quiet">/mo</span>
                 </p>
               </div>
             </div>
           </div>
 
-          <p className="mb-6 text-center font-mono text-source text-text-subtle">
+          <p className="mb-6 fh-center fh-mono fh-source fh-faint">
             Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}.
             The failure and recovery shares are assumptions you set, not Foxhound results: Foxhound
             does not project a failure or recovery rate.
@@ -211,7 +211,7 @@ export function RecoveryCalculator() {
           <div className="flex justify-center">
             <Link
               to="/audit"
-              className="cap-btn w-full px-6 font-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:3rem]"
+              className="cap-btn w-full px-6 fh-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:3rem]"
               data-variant="primary"
               data-size="lg"
             >
@@ -222,7 +222,7 @@ export function RecoveryCalculator() {
           Stripe access", but Stripe gives read_only only to Extensions
           (2026-10-29), so the audit asks for read_write, only reads, and
           disconnects itself when its window ends (audit-access.ts). */}
-          <p className="mt-3 text-center font-mono text-micro text-text-subtle">
+          <p className="mt-3 fh-center fh-mono fh-tiny fh-faint">
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>
         </div>
@@ -236,7 +236,7 @@ function Row({
   label,
   sub,
   value,
-  valueClassName = "text-text",
+  valueClassName = "fh-text",
 }: {
   /** What the calculator island calls this figure (data-calc). */
   name: string;
@@ -248,12 +248,12 @@ function Row({
   return (
     <div className="flex items-center justify-between border-b border-border-sub py-3">
       <div>
-        <p className="text-copy text-text">{label}</p>
-        <p className="mt-0.5 font-mono text-micro text-text-tertiary" data-calc={`${name}-sub`}>
+        <p className="fh-copy fh-text">{label}</p>
+        <p className="mt-0.5 fh-mono fh-tiny fh-quiet" data-calc={`${name}-sub`}>
           {sub}
         </p>
       </div>
-      <div className={`font-mono text-subhead font-medium ${valueClassName}`} data-calc={name}>
+      <div className={`fh-mono fh-subhead fh-medium ${valueClassName}`} data-calc={name}>
         {value}
       </div>
     </div>

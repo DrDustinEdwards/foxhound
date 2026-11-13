@@ -69,14 +69,14 @@ function AuditScopes() {
           <div className="cap-panel-body">
             <div className="flex items-start gap-3">
               <Icon
-                className="mt-0.5 shrink-0 text-accent-text"
+                className="mt-0.5 shrink-0 fh-accent"
                 size={18}
                 strokeWidth={1.75}
                 aria-hidden
               />
               <div>
-                <div className="mb-1 text-label font-medium text-text">{title}</div>
-                <div className="text-label leading-relaxed text-text-secondary">{description}</div>
+                <div className="mb-1 fh-small fh-medium fh-text">{title}</div>
+                <div className="fh-small fh-relaxed fh-soft">{description}</div>
               </div>
             </div>
           </div>
@@ -104,7 +104,7 @@ function PaymentStatuses() {
   return (
     <div className="cap-panel my-4">
       <div className="cap-panel-body">
-        <ul className="m-0 flex list-none flex-wrap gap-4 p-0">
+        <ul className="flex flex-wrap gap-4">
           {Object.entries(FAILED_PAYMENT_STATUS_LABELS).map(([key, label]) => {
             const pill = STATUS_PILL[key] ?? { variant: "outline" as const, caption: "" };
             return (
@@ -112,7 +112,7 @@ function PaymentStatuses() {
                 <Pill tone={pill.tone} variant={pill.variant}>
                   {label}
                 </Pill>
-                <span className="text-micro text-text-tertiary">{pill.caption}</span>
+                <span className="fh-tiny fh-quiet">{pill.caption}</span>
               </li>
             );
           })}
@@ -142,7 +142,7 @@ const CATEGORY_CODES: Record<DeclineCategory, { codes: string[]; note: string }>
 
 function DeclineCategories() {
   return (
-    <ul className="my-4 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
+    <ul className="my-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
       {(Object.keys(CATEGORY_CODES) as DeclineCategory[]).map((category) => {
         const { codes, note } = CATEGORY_CODES[category];
         return (
@@ -150,16 +150,14 @@ function DeclineCategories() {
             <div className="cap-panel-body">
               <div className="flex items-start gap-3">
                 <CategoryPill category={category} />
-                <span className="min-w-0 break-words text-label leading-relaxed text-text-secondary">
-                  <span className="font-medium text-text">
-                    {DECLINE_CATEGORY_LABELS[category]}.
-                  </span>{" "}
+                <span className="min-w-0 break-words fh-small fh-relaxed fh-soft">
+                  <span className="fh-medium fh-text">{DECLINE_CATEGORY_LABELS[category]}.</span>{" "}
                   {note}
                   {codes.length > 0 ? ": " : null}
                   {codes.map((code, i) => (
                     <span key={code}>
                       {i > 0 ? ", " : null}
-                      <code className="break-all font-mono">{code}</code>
+                      <code className="fh-break fh-mono">{code}</code>
                     </span>
                   ))}
                 </span>
@@ -196,17 +194,17 @@ function PaymentTimeline() {
     <div className="cap-panel my-6">
       <div className="cap-panel-body" data-flush>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <span className="text-label font-medium text-text">Example: a soft decline</span>
+          <span className="fh-small fh-medium fh-text">Example: a soft decline</span>
           <CategoryPill category="soft" />
         </div>
-        <ol className="m-0 list-none divide-y divide-border p-0">
+        <ol className="divide-y divide-border">
           {steps.map((step, i) => (
             <li key={step.stepType} className="flex items-center gap-4 px-4 py-3">
-              <span className="w-6 font-mono text-micro text-text-tertiary">{i + 1}</span>
-              <span className="min-w-0 flex-1 break-words text-label text-text-secondary">
+              <span className="w-6 fh-mono fh-tiny fh-quiet">{i + 1}</span>
+              <span className="min-w-0 flex-1 break-words fh-small fh-soft">
                 {formatStepType(step.stepType)}
               </span>
-              <span className="whitespace-nowrap font-mono text-micro text-text-tertiary">
+              <span className="fh-nowrap fh-mono fh-tiny fh-quiet">
                 {timingLabel(step.offsetHours)}
               </span>
               {i === 0 && isRetryStep(step.stepType) ? (
@@ -324,19 +322,17 @@ function DisputeStates() {
       "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
-    <ol className="my-6 flex list-none flex-col gap-2 p-0">
+    <ol className="my-6 flex flex-col gap-2">
       {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
         <li key={key} className="cap-panel">
           <div className="cap-panel-body">
             <div className="flex items-start gap-3">
-              <span className="shrink-0 font-mono text-micro text-accent-text">
+              <span className="cap-keep fh-mono fh-tiny fh-accent">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div className="flex flex-col items-start gap-1">
                 <Pill variant="outline">{label}</Pill>
-                <span className="text-label leading-relaxed text-text-secondary">
-                  {meaning[key] ?? ""}
-                </span>
+                <span className="fh-small fh-relaxed fh-soft">{meaning[key] ?? ""}</span>
               </div>
             </div>
           </div>

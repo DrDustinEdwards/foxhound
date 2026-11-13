@@ -45,11 +45,11 @@ function StatePill({ row }: { row: PreviewDisputeRow }) {
 
 /** Recova's TriagePill: "Fight 82%" in green, "Accept 68%" plain. */
 function TriagePill({ row }: { row: PreviewDisputeRow }) {
-  if (!row.triage) return <span className="text-label text-text-tertiary">-</span>;
+  if (!row.triage) return <span className="fh-small fh-quiet">-</span>;
   const label = row.triage.recommendation === "fight" ? "Fight" : "Accept";
   const confidence =
     row.triage.confidence === null ? null : (
-      <span className="font-mono">{row.triage.confidence}%</span>
+      <span className="fh-mono">{row.triage.confidence}%</span>
     );
   return row.triage.recommendation === "fight" ? (
     <Pill tone="ok">
@@ -97,7 +97,7 @@ function DeadlineDays({ row }: { row: PreviewDisputeRow }) {
   if (row.resolved || row.deadlineDays === null) return null;
   // A passed deadline reads 0d in the overdue color, never a negative count.
   return (
-    <span className={`font-mono text-label ${deadlineClassName(row.deadlineUrgency)}`}>
+    <span className={`fh-mono fh-small ${deadlineClassName(row.deadlineUrgency)}`}>
       {Math.max(0, row.deadlineDays)}d
     </span>
   );
@@ -122,13 +122,13 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
             tabIndex={0}
           >
             <table className="cap-table">
-              <caption id={DASHBOARD_CAPTION} className="sr-only">
+              <caption id={DASHBOARD_CAPTION} className="cap-sr-only">
                 Disputes
               </caption>
               <thead>
                 <tr>
                   <th scope="col">Customer</th>
-                  <th scope="col" className="text-right">
+                  <th scope="col" className="fh-right">
                     Amount
                   </th>
                   <th scope="col">Reason</th>
@@ -140,16 +140,16 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
                 {preview.dashboard.map((row) => (
                   <tr key={row.id}>
                     <th scope="row">
-                      <div className="text-label font-normal text-text">{row.customer}</div>
+                      <div className="fh-small fh-regular fh-text">{row.customer}</div>
                       {row.email ? (
-                        <div className="text-micro font-normal text-text-subtle">{row.email}</div>
+                        <div className="fh-tiny fh-regular fh-faint">{row.email}</div>
                       ) : null}
                     </th>
-                    <td data-label="Amount" className="whitespace-nowrap text-right">
-                      <span className="font-mono text-label text-text">{row.amount}</span>
+                    <td data-label="Amount" className="fh-nowrap fh-right">
+                      <span className="fh-mono fh-small fh-text">{row.amount}</span>
                     </td>
                     <td data-label="Reason">
-                      <span className="text-label text-text-secondary">{row.reason}</span>
+                      <span className="fh-small fh-soft">{row.reason}</span>
                     </td>
                     <td data-label="Foxhound status">
                       <StatePill row={row} />
@@ -182,7 +182,7 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
         tabIndex={0}
       >
         <table className="cap-table">
-          <caption id={TABLE_CAPTION} className="sr-only">
+          <caption id={TABLE_CAPTION} className="cap-sr-only">
             Disputes and their evidence deadlines
           </caption>
           <thead>
@@ -199,13 +199,13 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
             {preview.table.map((row) => (
               <tr key={row.id}>
                 <th scope="row">
-                  <span className="text-label font-normal text-text">{row.customer}</span>
+                  <span className="fh-small fh-regular fh-text">{row.customer}</span>
                 </th>
-                <td data-label="Amount" className="whitespace-nowrap">
-                  <span className="font-mono text-label text-text">{row.amount}</span>
+                <td data-label="Amount" className="fh-nowrap">
+                  <span className="fh-mono fh-small fh-text">{row.amount}</span>
                 </td>
                 <td data-label="Reason">
-                  <span className="text-label text-text-secondary">{row.reason}</span>
+                  <span className="fh-small fh-soft">{row.reason}</span>
                 </td>
                 <td data-label="Triage">
                   <TriagePill row={row} />
@@ -213,11 +213,11 @@ export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
                 <td data-label="Status">
                   <StatePill row={row} />
                 </td>
-                <td data-label="Deadline" className="whitespace-nowrap">
+                <td data-label="Deadline" className="fh-nowrap">
                   {/* A closed dispute's deadline is history: no band color. */}
                   <span
-                    className={`font-mono text-label ${
-                      row.resolved ? "text-text-tertiary" : deadlineClassName(row.deadlineUrgency)
+                    className={`fh-mono fh-small ${
+                      row.resolved ? "fh-quiet" : deadlineClassName(row.deadlineUrgency)
                     }`}
                   >
                     {row.deadlineDate || "-"}

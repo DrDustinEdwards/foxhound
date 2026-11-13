@@ -15,13 +15,13 @@ export function Wordmark({
   size?: "header" | "title";
 }) {
   const textClass = tone === "chrome" ? "text-chrome-text" : "text-wordmark";
-  const sizeClass = size === "title" ? "text-title" : "text-lg";
+  const sizeClass = size === "title" ? "fh-title" : "text-lg";
   // The x is the brand accent, amber: the chrome's own amber on the
   // always-dark chrome, the page's brand text on a theme-switching surface.
-  const xClass = tone === "chrome" ? "text-chrome-brand" : "text-brand-text";
+  const xClass = tone === "chrome" ? "text-chrome-brand" : "fh-brand";
   return (
     <span
-      className={`-translate-y-px font-mono ${sizeClass} font-medium tracking-[-0.5px] transition-opacity duration-500 hover:opacity-80 ${textClass}`}
+      className={`-translate-y-px fh-mono ${sizeClass} fh-medium tracking-[-0.5px] transition-opacity duration-500 hover:opacity-80 ${textClass}`}
     >
       fo<span className={xClass}>x</span>hound
     </span>

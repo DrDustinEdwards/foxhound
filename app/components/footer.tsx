@@ -91,10 +91,10 @@ function LinkColumn({
 }) {
   return (
     <div>
-      <h2 className="m-0 mb-3 font-mono text-[0.6875rem] uppercase tracking-[0.06em] text-chrome-text-secondary">
+      <h2 className="mb-3 fh-mono text-[0.6875rem] uppercase tracking-[0.06em] text-chrome-text-secondary">
         {heading}
       </h2>
-      <ul className="m-0 list-none space-y-2 p-0">
+      <ul className="space-y-2">
         {links.map((link) => {
           const isActive = pathname === link.to;
           return (
@@ -158,15 +158,13 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
               <Link to="/" className="no-underline">
                 <Wordmark tone="chrome" />
               </Link>
-              <p className="mt-3 max-w-[240px] text-[0.875rem] leading-relaxed text-chrome-text-secondary">
+              <p className="mt-3 max-w-[240px] text-[0.875rem] fh-relaxed text-chrome-text-secondary">
                 The recovery layer for Stripe merchants.
               </p>
               {/* Legacy's own line and legacy's own treatment, read from
                   components/SiteFooter.tsx: a plain <p> under the blurb, not a
                   link, mt-3 font-mono at 0.6875rem on chrome-text-secondary. */}
-              <p className="mt-3 font-mono text-[0.6875rem] text-chrome-text-secondary">
-                {MCP_LINE}
-              </p>
+              <p className="mt-3 fh-mono text-[0.6875rem] text-chrome-text-secondary">{MCP_LINE}</p>
             </div>
             <div className="grid grid-cols-2 gap-6 sm:col-span-3 lg:col-span-4 lg:grid-cols-4">
               {COLUMNS.map((col) => (
@@ -202,7 +200,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 className="size-7 shrink-0"
                 aria-hidden
               />
-              <span className="font-mono text-[0.6875rem] text-chrome-text-secondary">
+              <span className="fh-mono text-[0.6875rem] text-chrome-text-secondary">
                 © {year} Foxhound.
               </span>
             </div>
@@ -212,7 +210,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                   <Link
                     key={link.to}
                     to={link.to}
-                    className="inline-flex min-h-6 shrink-0 items-center font-mono text-micro text-chrome-text-secondary no-underline transition-colors hover:text-chrome-brand"
+                    className="inline-flex min-h-6 shrink-0 items-center fh-mono fh-tiny text-chrome-text-secondary no-underline transition-colors hover:text-chrome-brand"
                   >
                     {link.label}
                   </Link>

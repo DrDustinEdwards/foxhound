@@ -35,11 +35,7 @@ export function ErrorBar() {
 
 export function ErrorFooter() {
   const [year] = useState(() => new Date().getFullYear());
-  return (
-    <footer className="w-full p-6 text-center text-label text-text-tertiary">
-      &copy; {year} Foxhound
-    </footer>
-  );
+  return <footer className="w-full p-6 fh-center fh-small fh-quiet">&copy; {year} Foxhound</footer>;
 }
 
 // Recova's words (its not-found.tsx and error.tsx), passed to ErrorPage in place of Capsomer's: a 404

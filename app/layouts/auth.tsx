@@ -34,7 +34,7 @@ export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
 
 export default function AuthLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
+    <div className="flex min-h-screen flex-col bg-bg fh-text">
       <main className="flex-1">
         <Outlet />
       </main>

@@ -231,11 +231,7 @@ function CallRow({ call: c }: { call: AdminMcpCallRow }) {
       <td data-label="When">
         <Time at={c.createdAt} empty="never" tip />
       </td>
-      <td
-        data-label="Error"
-        data-wrap=""
-        className={c.error ? "text-error-text" : "text-text-tertiary"}
-      >
+      <td data-label="Error" data-wrap="" className={c.error ? "fh-error" : "fh-quiet"}>
         {c.error === null ? "None" : maskSecretsInText(c.error)}
       </td>
     </tr>

@@ -49,7 +49,7 @@ export function FeatureFilter({
             {f}
           </button>
         ))}
-        <span className="sr-only" role="status">
+        <span className="cap-sr-only" role="status">
           {active === "All"
             ? `Showing all ${totalCount} features`
             : `Showing ${shownCount} of ${totalCount} features: ${active}`}

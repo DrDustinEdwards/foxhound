@@ -264,7 +264,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
           <td
             data-label="Error"
             data-wrap=""
-            className={event.errorMessage ? "text-error-text" : "text-text-tertiary"}
+            className={event.errorMessage ? "fh-error" : "fh-quiet"}
           >
             {event.errorMessage ?? "None"}
           </td>

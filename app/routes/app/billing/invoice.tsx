@@ -31,7 +31,7 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="fh-invoice">
-      <div className="fh-invoice-card">
+      <div className="fh-box">
         <div className="fh-split">
           <div>
             <h1 className="fh-title fh-medium fh-text">
@@ -64,7 +64,7 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <div className="fh-invoice-lines">
+      <div className="fh-box fh-invoice-lines">
         <p className="fh-mono fh-tiny fh-quiet fh-caps">Line items</p>
         {lineItems.length === 0 ? (
           <p className="fh-invoice-empty fh-small fh-quiet">No line items on this invoice.</p>

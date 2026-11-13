@@ -190,7 +190,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         more={<Link to="/admin/platform/crons">View crons</Link>}
       >
         <div className="cap-stack" data-gap="3">
-          <p className={`fh-small ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
+          <p className={`fh-small ${failed > 0 ? "fh-error" : "fh-success"}`}>
             {failed === 1 ? (
               <Link to={cronRunHref(failedRuns[0].id)} className="fh-error">
                 {failedSentence}

@@ -238,7 +238,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
 
-          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 fh-mono fh-small fh-quiet">
             {showPublished ? (
               <time dateTime={post.publishedAt!.toISOString()}>
                 {formatDate(post.publishedAt, { style: "medium" }) ?? ""}
@@ -265,10 +265,10 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             <span>{post.author}</span>
           </div>
 
-          <h1 className="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">
+          <h1 className="mb-4 fh-page-title fh-medium leading-tight tracking-tight fh-text">
             {post.title}
           </h1>
-          <p className="mb-8 border-b border-border pb-8 text-product-sub leading-relaxed text-text-secondary">
+          <p className="mb-8 border-b border-border pb-8 fh-product-sub fh-relaxed fh-soft">
             {post.excerpt}
           </p>
 
@@ -317,11 +317,11 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           className="h-11 w-11 shrink-0 rounded-[10px]"
         />
         <div>
-          <p className="mb-0.5 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+          <p className="mb-0.5 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
             Published by
           </p>
-          <p className="mb-1 text-item-title font-medium text-text">{post.author}</p>
-          <p className="m-0 text-copy leading-relaxed text-text-secondary">
+          <p className="mb-1 fh-item-title fh-medium fh-text">{post.author}</p>
+          <p className="fh-copy fh-relaxed fh-soft">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
             intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing
             until then.
@@ -340,7 +340,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             <Link to={`/blog/${previous.slug}`} className={`${CARD_MD} group`}>
               <div className="cap-panel-body">
                 <div>
-                  <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                  <div className="mb-1 inline-flex items-center gap-1 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
                     <ArrowLeft
                       className="motion-safe:transition-transform group-hover:-translate-x-0.5"
                       size={13}
@@ -349,7 +349,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                     />
                     Previous post
                   </div>
-                  <div className="text-item-title font-medium leading-snug text-text">
+                  <div className="fh-item-title fh-medium leading-snug fh-text">
                     {previous.title}
                   </div>
                 </div>
@@ -362,7 +362,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             <Link to={`/blog/${next.slug}`} className={`${CARD_MD} group sm:text-right`}>
               <div className="cap-panel-body">
                 <div>
-                  <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                  <div className="mb-1 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
                     Next post{" "}
                     <ArrowRight
                       className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
@@ -371,9 +371,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
                       aria-hidden
                     />
                   </div>
-                  <div className="text-item-title font-medium leading-snug text-text">
-                    {next.title}
-                  </div>
+                  <div className="fh-item-title fh-medium leading-snug fh-text">{next.title}</div>
                 </div>
               </div>
             </Link>
@@ -384,14 +382,12 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div
-        className="fh-cap mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center"
+        className="fh-cap mx-auto mt-16 max-w-[760px] border-t border-border pt-12 fh-center"
         data-cap-site="foxhound"
         data-family="amber"
       >
-        <h2 className="mb-2 text-feature-title font-medium text-text">
-          Run your free Stripe audit
-        </h2>
-        <p className="mx-auto mb-6 max-w-[480px] text-item-title leading-relaxed text-text-secondary">
+        <h2 className="mb-2 fh-feature-title fh-medium fh-text">Run your free Stripe audit</h2>
+        <p className="mx-auto mb-6 max-w-[480px] fh-item-title fh-relaxed fh-soft">
           See exactly what your account is leaking. Free, no account required.
         </p>
         <Link to="/audit" className={`${CTA_BUTTON} group`} data-variant="primary" data-size="lg">

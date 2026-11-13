@@ -168,7 +168,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
     <div className="cap-stack" data-gap="6">
       {error ? <Alert>{error}</Alert> : null}
       {/* Present and empty until a change, so it is announced when filled. */}
-      <p role="status" className={done ? "text-label text-text" : "cap-sr-only"}>
+      <p role="status" className={done ? "fh-small fh-text" : "cap-sr-only"}>
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}
       </p>
 
@@ -268,7 +268,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
       <td
         data-label="Last message"
         data-wrap=""
-        className={c.lastRun?.message ? "text-text" : "text-text-tertiary"}
+        className={c.lastRun?.message ? "fh-text" : "fh-quiet"}
       >
         {c.lastRun?.message ?? "None"}
       </td>

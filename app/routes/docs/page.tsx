@@ -83,11 +83,9 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
     >
       <SectionTrail items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]} />
 
-      <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
-        User Guide
-      </div>
-      <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{guide.heading}</h1>
-      <p className="mb-10 text-subhead leading-relaxed text-text-secondary">{guide.lead}</p>
+      <div className="mb-3 fh-tiny fh-medium fh-quiet fh-caps-wide">User Guide</div>
+      <h1 className="mb-3 fh-page-title fh-medium tracking-tight fh-text">{guide.heading}</h1>
+      <p className="mb-10 fh-subhead fh-relaxed fh-soft">{guide.lead}</p>
 
       {guide.sections.length > 1 ? (
         <nav
@@ -96,12 +94,12 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
         >
           <div className="cap-panel-body">
             <div>
-              <div className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+              <div className="mb-3 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
                 Contents
               </div>
-              <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
+              <ol className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
                 {guide.sections.map((section, i) => (
-                  <li key={section.heading} className="text-label leading-6">
+                  <li key={section.heading} className="fh-small leading-6">
                     <a href={`#${sectionIds[i]}`}>
                       Part {i + 1}. {section.heading}
                     </a>
@@ -115,10 +113,8 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
       {guide.sections.map((section, i) => (
         <section key={section.heading}>
-          <div className="mb-2 mt-16 text-micro font-medium uppercase tracking-widest text-accent-text">
-            Part {i + 1}
-          </div>
-          <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 text-title font-medium text-text">
+          <div className="mb-2 mt-16 fh-tiny fh-medium fh-accent fh-caps-wide">Part {i + 1}</div>
+          <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 fh-title fh-medium fh-text">
             {section.heading}
           </h2>
           <DocBlocks blocks={section.body} />

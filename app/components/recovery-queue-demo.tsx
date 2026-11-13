@@ -101,9 +101,7 @@ function Stat({
 }) {
   return (
     <div className="px-3 py-2.5">
-      <div className="mb-1 font-mono text-micro uppercase tracking-widest text-text-subtle">
-        {label}
-      </div>
+      <div className="mb-1 fh-mono fh-tiny fh-faint fh-caps-wide">{label}</div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -142,7 +140,7 @@ export function RecoveryQueueDemo() {
 
   return (
     <div className="w-full" data-island="queue-demo">
-      <p className="sr-only">
+      <p className="cap-sr-only">
         An illustration of the recovery queue working three sample failed payments. A Foxhound email
         sequence runs, a retry is attempted, and two of the three payments are recovered.
       </p>
@@ -156,23 +154,21 @@ export function RecoveryQueueDemo() {
           <div className="h-2.5 w-2.5 rounded-full bg-border" />
           <div className="h-2.5 w-2.5 rounded-full bg-border" />
           <div className="mx-3 flex-1">
-            <div className="rounded border border-border-sub bg-surface px-2 py-0.5 text-center font-mono text-micro text-text-subtle">
+            <div className="rounded border border-border-sub bg-surface px-2 py-0.5 fh-center fh-mono fh-tiny fh-faint">
               foxhoundapp.com/recovery/dashboard
             </div>
           </div>
         </div>
 
         <div className="flex items-center justify-between border-b border-border-sub px-4 py-3">
-          <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
-            Recovery queue
-          </span>
+          <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">Recovery queue</span>
           <div className="flex items-center gap-1.5">
             <span
               className="h-1.5 w-1.5 rounded-full bg-green transition-opacity duration-300"
               style={{ opacity: pulse ? 1 : 0.3 }}
               data-queue-pulse=""
             />
-            <span className="font-mono text-micro text-green">live</span>
+            <span className="fh-mono fh-tiny fh-green">live</span>
           </div>
         </div>
 
@@ -182,11 +178,11 @@ export function RecoveryQueueDemo() {
               <span className={iconClass(frame.statuses[i])} data-queue-icon="">
                 <StatusIcons status={frame.statuses[i]} />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-label font-medium text-text">
+              <span className="cap-grow">
+                <span className="fh-line fh-truncate fh-small fh-medium fh-text">
                   {payment.name}
                 </span>
-                <span className="block font-mono text-micro text-text-tertiary" data-queue-meta="">
+                <span className="fh-line fh-mono fh-tiny fh-quiet" data-queue-meta="">
                   {frame.metas[i]}
                 </span>
               </span>
@@ -198,10 +194,7 @@ export function RecoveryQueueDemo() {
         </ol>
 
         <div className="border-b border-border-sub bg-bg px-4 py-3">
-          <div
-            className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle"
-            data-queue-sequence=""
-          >
+          <div className="mb-2 fh-mono fh-tiny fh-faint fh-caps-wide" data-queue-sequence="">
             {`${activePayment.name} sequence`}
           </div>
           <div className="flex items-center gap-1">
@@ -225,9 +218,7 @@ export function RecoveryQueueDemo() {
         </div>
 
         <div className="border-t border-border-sub bg-bg px-4 py-2">
-          <span className="font-mono text-micro uppercase tracking-widest text-text-subtle">
-            Sample data
-          </span>
+          <span className="fh-mono fh-tiny fh-faint fh-caps-wide">Sample data</span>
         </div>
       </div>
     </div>

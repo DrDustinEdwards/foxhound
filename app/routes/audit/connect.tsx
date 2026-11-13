@@ -178,10 +178,8 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
 
   return (
     <AuditConnectFrame>
-      <h1 className="mb-2 text-center text-title font-semibold text-text">
-        Connect your Stripe account
-      </h1>
-      <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">
+      <h1 className="mb-2 fh-center fh-title fh-semibold fh-text">Connect your Stripe account</h1>
+      <p className="mb-8 fh-center fh-small fh-relaxed fh-faint">
         {AUDIT_ACCESS_ASK} We only read, to scan your failed payments from the last{" "}
         {loaderData.lookbackDays} days. We disconnect ourselves after {AUDIT_GRANT_MINUTES} minutes
         unless you connect a Foxhound account. We never store your data permanently.
@@ -221,17 +219,17 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
               Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
             </span>
           </Button>
-          <span role="status" aria-live="polite" className="sr-only">
+          <span role="status" aria-live="polite" className="cap-sr-only">
             {busy ? PENDING_LABEL : ""}
           </span>
         </Form>
       ) : (
-        <p className="text-center text-label text-text-tertiary">
+        <p className="fh-center fh-small fh-quiet">
           Stripe Connect is not configured in this environment yet.
         </p>
       )}
 
-      <p className="mt-4 text-center text-micro text-text-subtle">
+      <p className="mt-4 fh-center fh-tiny fh-faint">
         {"Reads only · Secure · Free · "}
         <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>

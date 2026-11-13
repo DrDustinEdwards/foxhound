@@ -106,30 +106,26 @@ export default function PricingPage() {
                   <div className="cap-panel-body">
                     {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                     <div className="flex flex-col">
-                      <h2 className="mb-4 text-card-title font-medium text-text">{card.name}</h2>
+                      <h2 className="mb-4 fh-card-title fh-medium fh-text">{card.name}</h2>
                       <div className="mb-1">
-                        <span className="font-mono text-price font-medium leading-none tracking-[-0.02em] text-accent-text">
+                        <span className="fh-mono fh-price fh-medium fh-tight tracking-[-0.02em] fh-accent">
                           {card.price}
                         </span>
                       </div>
                       {card.priceLabel ? (
-                        <div className="mb-4 font-mono text-caption text-text-tertiary">
-                          {card.priceLabel}
-                        </div>
+                        <div className="mb-4 fh-mono fh-caption fh-quiet">{card.priceLabel}</div>
                       ) : (
                         <div className="mb-4">&nbsp;</div>
                       )}
-                      <p className="m-0 mb-5 text-label leading-[1.55] text-text-secondary">
-                        {card.description}
-                      </p>
-                      <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-[1.45] text-text-secondary">
+                      <p className="mb-5 fh-small leading-[1.55] fh-soft">{card.description}</p>
+                      <ul className="flex flex-col gap-2.5 fh-small leading-[1.45] fh-soft">
                         {card.features.map((feature) => (
                           <li key={feature} className="flex items-start gap-2">
                             <Check
                               width={14}
                               height={14}
                               strokeWidth={2.5}
-                              className="mt-[3px] flex-shrink-0 text-accent-text"
+                              className="mt-[3px] flex-shrink-0 fh-accent"
                               aria-hidden
                             />
                             <span>{feature}</span>
@@ -143,9 +139,9 @@ export default function PricingPage() {
                           the link a 24px target. */}
                       <Link
                         to={PRODUCTS[card.id].href}
-                        className="group mt-5 text-label leading-6 text-accent-text no-underline transition-opacity duration-150 hover:opacity-80"
+                        className="group mt-5 fh-small leading-6 fh-accent no-underline transition-opacity duration-150 hover:opacity-80"
                       >
-                        Learn more<span className="sr-only"> about {card.name}</span>{" "}
+                        Learn more<span className="cap-sr-only"> about {card.name}</span>{" "}
                         <ArrowRight
                           className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                           size={13}
@@ -170,13 +166,13 @@ export default function PricingPage() {
           billed on its own recoveries at the same rates. The annual term stays
           off: PRICING.md rev 3 item 3 keeps it off /pricing until a checkout can
           sell it (377(8), beside the Intelligence bullets in pricing-copy.ts). */}
-      <p className="-mt-4 mb-0 px-5 pb-12 text-center text-label text-text-secondary sm:px-8">
+      <p className="-mt-4 mb-0 px-5 pb-12 fh-center fh-small fh-soft sm:px-8">
         Multiple Stripe accounts supported at the same per-account rate.
       </p>
 
       <section className="speakable-pricing-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
-          <h2 className="mb-10 text-center text-subsection font-medium tracking-[-0.01em] text-text sm:text-section">
+          <h2 className="mb-10 fh-center fh-subsection fh-medium tracking-[-0.01em] fh-text sm:text-section">
             Questions
           </h2>
           {/* Static list, not the shared FaqAccordion. Legacy makes this choice
@@ -186,13 +182,13 @@ export default function PricingPage() {
               Foxhound had flattened both onto the accordion. Ruled 2026-07-28:
               match legacy per surface, so home keeps the accordion. Each item
               is Capsomer's panel, as the cards are. */}
-          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+          <ul className="cap-stack" data-gap="4">
             {PRICING_FAQS.map((faq) => (
               <li key={faq.question} className={CARD}>
                 <div className="cap-panel-body">
                   <div>
-                    <h3 className="mb-2 text-item-title font-medium text-text">{faq.question}</h3>
-                    <p className="m-0 text-copy leading-[1.6] text-text-secondary">{faq.answer}</p>
+                    <h3 className="mb-2 fh-item-title fh-medium fh-text">{faq.question}</h3>
+                    <p className="fh-copy leading-[1.6] fh-soft">{faq.answer}</p>
                   </div>
                 </div>
               </li>
@@ -203,13 +199,13 @@ export default function PricingPage() {
 
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         {/* Recova's 48px closing button at 1rem. */}
-        <div className="mx-auto max-w-[760px] text-center">
-          <h2 className="mb-4 text-section font-medium tracking-[-0.01em] text-text sm:text-section-lg">
+        <div className="mx-auto max-w-[760px] fh-center">
+          <h2 className="mb-4 fh-section fh-medium tracking-[-0.01em] fh-text sm:text-section-lg">
             See what your Stripe account is leaking
           </h2>
-          <p className="mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
+          <p className="mx-auto mb-7 max-w-[560px] fh-subhead leading-[1.55] fh-soft">
             Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes,
-            and business health. Results in <span className="font-mono">30</span> seconds.
+            and business health. Results in <span className="fh-mono">30</span> seconds.
           </p>
           <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
             Connect Stripe, it is free
@@ -221,7 +217,7 @@ export default function PricingPage() {
               estimator needs no connection, the full audit is a connection. The
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
-          <div className="mt-5 font-mono text-caption text-text-subtle">
+          <div className="mt-5 fh-mono fh-caption fh-faint">
             Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
             that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
           </div>

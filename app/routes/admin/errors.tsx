@@ -180,7 +180,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                     <td
                       data-label="Detail"
                       data-wrap=""
-                      className={e.detail === null ? "text-text-tertiary" : "text-text-secondary"}
+                      className={e.detail === null ? "fh-quiet" : "fh-soft"}
                     >
                       {e.detail ?? "None"}
                     </td>

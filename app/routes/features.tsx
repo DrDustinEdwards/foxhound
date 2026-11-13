@@ -69,12 +69,10 @@ function FeatureCard({ feature }: { feature: Feature }) {
       <div className="cap-panel-body">
         <div>
           <div className="mb-2 flex items-start justify-between gap-3">
-            <span className="text-copy font-medium text-text">{feature.name}</span>
+            <span className="fh-copy fh-medium fh-text">{feature.name}</span>
             <ProductTag product={feature.product} />
           </div>
-          <p className="m-0 text-label leading-relaxed text-text-secondary">
-            {feature.description}
-          </p>
+          <p className="fh-small fh-relaxed fh-soft">{feature.description}</p>
         </div>
       </div>
     </div>
@@ -94,7 +92,7 @@ function SectionInlineExample({ id }: { id: string }) {
   }
   if (id === "intelligence") {
     return (
-      <div className="my-6 flex items-center gap-3 text-label text-text-secondary">
+      <div className="my-6 flex items-center gap-3 fh-small fh-soft">
         {healthBandExampleScores().map((score) => (
           <HealthScoreBadge key={score} score={score} />
         ))}
@@ -168,7 +166,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
                   <a
                     key={s.id}
                     href={`#${s.id}`}
-                    className="block border-l border-border py-1 pl-3 text-label text-text-secondary transition-colors hover:border-accent-text hover:text-text"
+                    className="fh-line border-l border-border py-1 pl-3 fh-small fh-soft transition-colors hover:border-accent-text hover:text-text"
                   >
                     {s.label}
                   </a>
@@ -183,8 +181,8 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
               {sections.map((s) => (
                 <section key={s.id} id={s.id} className="scroll-mt-20">
                   <div className="mb-6">
-                    <h2 className="mb-1 text-title font-medium text-text">{s.title}</h2>
-                    <p className="m-0 text-copy leading-relaxed text-text-secondary">{s.intro}</p>
+                    <h2 className="mb-1 fh-title fh-medium fh-text">{s.title}</h2>
+                    <p className="fh-copy fh-relaxed fh-soft">{s.intro}</p>
                   </div>
                   <SectionInlineExample id={s.id} />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -198,8 +196,8 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
 
-        <div className="mt-24 border-t border-border pt-12 text-center">
-          <p className="mx-auto mb-6 max-w-[400px] text-subhead text-text-secondary">
+        <div className="mt-24 border-t border-border pt-12 fh-center">
+          <p className="mx-auto mb-6 max-w-[400px] fh-subhead fh-soft">
             See what your Stripe account is leaking. Free diagnostic, no account required.
           </p>
           {/* Comfortable density for Capsomer's lg button, as /pricing: 40px

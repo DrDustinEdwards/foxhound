@@ -68,7 +68,7 @@ export default function DocsIndexPage() {
         data-cap-site="foxhound"
         data-family="amber"
       >
-        <div className="flex flex-col gap-4">
+        <div className="cap-stack" data-gap="5">
           {/* Platform: full width, the same card as the product guides below. */}
           <GuideCard guide={platform} />
 
@@ -81,7 +81,7 @@ export default function DocsIndexPage() {
 
         {/* Recova's cross-links. leading-6 makes each link a 24px target, as
             the /pricing Learn more links. */}
-        <div className="mt-12 flex flex-wrap items-center gap-6 text-label">
+        <div className="mt-12 flex flex-wrap items-center gap-6 fh-small">
           <Link to="/features" className={CROSS_LINK}>
             See all features <Arrow />
           </Link>
@@ -92,7 +92,7 @@ export default function DocsIndexPage() {
 
         {/* The support address, so a reader who did not find the answer here
             has the next step on the same page (parity audit, 2026-11-10). */}
-        <p className="mt-6 text-label text-text-secondary">
+        <p className="mt-6 fh-small fh-soft">
           Not covered here? Email{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className={CROSS_LINK}>
             {SUPPORT_EMAIL}
@@ -134,11 +134,9 @@ function GuideCard({ guide }: { guide: DocGuide }) {
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div>
-          <div className="mb-2 text-item-title font-medium text-text">{guide.title}</div>
-          <div className="mb-4 text-label leading-relaxed text-text-secondary">
-            {guide.description}
-          </div>
-          <div className="text-label text-accent-text">
+          <div className="mb-2 fh-item-title fh-medium fh-text">{guide.title}</div>
+          <div className="mb-4 fh-small fh-relaxed fh-soft">{guide.description}</div>
+          <div className="fh-small fh-accent">
             Read guide <Arrow />
           </div>
         </div>

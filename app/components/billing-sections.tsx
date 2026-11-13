@@ -107,13 +107,11 @@ function SummaryRow({
 }) {
   return (
     <div className="fh-billing-line">
-      <span className={`fh-small ${muted ? "text-text-tertiary" : "text-text-secondary"}`}>
-        {label}
-      </span>
+      <span className={`fh-small ${muted ? "fh-quiet" : "fh-soft"}`}>{label}</span>
       <Amounts
         rows={value}
         fee={fee}
-        className={`fh-mono fh-body cap-num ${muted ? "text-text-tertiary" : "text-text"}`}
+        className={`fh-mono fh-body cap-num ${muted ? "fh-quiet" : "fh-text"}`}
       />
     </div>
   );

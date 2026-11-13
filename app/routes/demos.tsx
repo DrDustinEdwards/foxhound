@@ -116,8 +116,8 @@ export default function DemosPage() {
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
-                    <p className="text-body font-medium text-text">{entry.name}</p>
-                    <p className="mb-6 mt-2 text-label text-text-secondary">{entry.blurb}</p>
+                    <p className="fh-body fh-medium fh-text">{entry.name}</p>
+                    <p className="mb-6 mt-2 fh-small fh-soft">{entry.blurb}</p>
                     {/* Capsomer's primary button as the link Recova draws full
                         width: the one-column grid stretches it, so the button
                         carries no Foxhound class. */}
@@ -139,7 +139,7 @@ export default function DemosPage() {
           ))}
         </div>
 
-        <p className="mt-8 text-center text-label text-text-subtle">
+        <p className="mt-8 fh-center fh-small fh-faint">
           The demo is read-only. When you're done, you can leave it from the banner at the top of
           the app.
         </p>

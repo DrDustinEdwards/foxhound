@@ -41,11 +41,11 @@ export function CategoryPill({ category }: { category: DeclineCategory }) {
 export function StepChip({ retry, timing }: { retry: boolean; timing: string }) {
   return (
     <span
-      className={`cap-pill flex-col gap-0 rounded-lg px-3 py-1.5 text-micro font-medium ${EDGE} ${retry ? ACCENT : ""}`}
+      className={`cap-pill flex-col gap-0 rounded-lg px-3 py-1.5 fh-tiny fh-medium ${EDGE} ${retry ? ACCENT : ""}`}
       data-tone={retry ? undefined : "info"}
     >
       {retry ? "Retry" : "Email"}
-      <span className="font-mono text-source font-normal">{timing}</span>
+      <span className="fh-mono fh-source fh-regular">{timing}</span>
     </span>
   );
 }
@@ -62,7 +62,7 @@ export function ProductTag({ product }: { product: Feature["product"] }) {
   const tone = product === "Disputes" ? "info" : product === "Intelligence" ? "ok" : undefined;
   return (
     <span
-      className={`cap-pill shrink-0 font-mono text-source ${EDGE} ${PRODUCT_TONE[product]}`}
+      className={`cap-keep cap-pill fh-mono fh-source ${EDGE} ${PRODUCT_TONE[product]}`}
       data-tone={tone}
     >
       {product}

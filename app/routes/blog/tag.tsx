@@ -89,12 +89,10 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
         <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label }]} />
-        <h1 className="mb-2 text-section font-medium tracking-tight text-text">{label}</h1>
-        <p className="mb-10 font-mono text-label text-text-tertiary">
-          {plural(posts.length, "article")}
-        </p>
+        <h1 className="mb-2 fh-section fh-medium tracking-tight fh-text">{label}</h1>
+        <p className="mb-10 fh-mono fh-small fh-quiet">{plural(posts.length, "article")}</p>
         {posts.length === 0 ? (
-          <p className="text-body text-text-secondary">No articles tagged {label} yet.</p>
+          <p className="fh-body fh-soft">No articles tagged {label} yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (

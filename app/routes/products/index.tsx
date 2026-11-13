@@ -90,18 +90,12 @@ export default function ProductsIndexPage() {
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
                     <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                      <Icon
-                        className="h-[18px] w-[18px] text-accent-text"
-                        strokeWidth={1.8}
-                        aria-hidden
-                      />
+                      <Icon className="h-[18px] w-[18px] fh-accent" strokeWidth={1.8} aria-hidden />
                     </div>
-                    <div className="mb-2 text-item-title font-medium text-text">{p.name}</div>
-                    <div className="mb-3 text-label leading-relaxed text-text-secondary">
-                      {copy.description}
-                    </div>
-                    <div className="mb-4 font-mono text-label text-accent-text">{copy.price}</div>
-                    <div className="text-label text-accent-text">
+                    <div className="mb-2 fh-item-title fh-medium fh-text">{p.name}</div>
+                    <div className="mb-3 fh-small fh-relaxed fh-soft">{copy.description}</div>
+                    <div className="mb-4 fh-mono fh-small fh-accent">{copy.price}</div>
+                    <div className="fh-small fh-accent">
                       Learn more{" "}
                       <ArrowRight
                         className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"

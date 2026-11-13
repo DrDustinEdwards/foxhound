@@ -69,28 +69,28 @@ export function ProductHero({
   secondaryCTA: CTA;
 }) {
   return (
-    <section className="speakable-hero border-b border-border px-5 py-20 text-center sm:px-8">
+    <section className="speakable-hero border-b border-border px-5 py-20 fh-center sm:px-8">
       <div className="mx-auto max-w-[680px]">
         <div className="mb-6">
           <Pill variant="outline">
-            <Icon className="h-3 w-3 flex-shrink-0 text-accent-text" strokeWidth={2} aria-hidden />
+            <Icon className="h-3 w-3 flex-shrink-0 fh-accent" strokeWidth={2} aria-hidden />
             {productName}
           </Pill>
         </div>
         {/* Recova's mechanism: a literal newline in the string is a line break. */}
-        <h1 className="mb-4 whitespace-pre-line text-product-hero font-medium leading-[1.1] tracking-tight text-text">
+        <h1 className="mb-4 fh-pre-line fh-product-hero fh-medium leading-[1.1] tracking-tight fh-text">
           {headline}
         </h1>
-        <p className="speakable-description mx-auto mb-3 max-w-[520px] text-product-sub leading-relaxed text-text-secondary">
+        <p className="speakable-description mx-auto mb-3 max-w-[520px] fh-product-sub fh-relaxed fh-soft">
           {sub}
         </p>
-        <p className="mb-8 font-mono text-label text-text-tertiary">{pricing}</p>
+        <p className="mb-8 fh-mono fh-small fh-quiet">{pricing}</p>
         <div className="flex flex-wrap items-center justify-center gap-4">
           <PrimaryLink cta={primaryCTA} />
           {/* leading-6 keeps the link a 24px target. */}
           <Link
             to={secondaryCTA.href}
-            className="group text-subhead leading-6 text-text-secondary transition-colors hover:text-text"
+            className="group fh-subhead leading-6 fh-soft transition-colors hover:text-text"
           >
             {secondaryCTA.label}{" "}
             <ArrowRight
@@ -110,17 +110,15 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
   return (
     <section className="border-b border-border px-5 py-16 sm:px-8">
       <div className="mx-auto max-w-[760px]">
-        <h2 className="mb-10 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          How it works
-        </h2>
-        <ol className="m-0 grid list-none grid-cols-1 gap-8 p-0 sm:grid-cols-3">
+        <h2 className="mb-10 fh-center fh-tiny fh-medium fh-quiet fh-caps-wide">How it works</h2>
+        <ol className="grid grid-cols-1 gap-8 sm:grid-cols-3">
           {steps.map((step, i) => (
             <li key={step.title}>
-              <div className="mb-3 font-mono text-micro text-accent-text" aria-hidden="true">
+              <div className="mb-3 fh-mono fh-tiny fh-accent" aria-hidden="true">
                 0{i + 1}
               </div>
-              <h3 className="mb-2 text-item-title font-medium text-text">{step.title}</h3>
-              <p className="text-copy leading-relaxed text-text-secondary">{step.body}</p>
+              <h3 className="mb-2 fh-item-title fh-medium fh-text">{step.title}</h3>
+              <p className="fh-copy fh-relaxed fh-soft">{step.body}</p>
             </li>
           ))}
         </ol>
@@ -150,24 +148,22 @@ export function FeatureBlocks({
   return (
     <section className="speakable-features border-b border-border px-5 py-20 sm:px-8">
       <div className="mx-auto max-w-[1100px]">
-        <div className="mb-16 text-center">
-          <h2 className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
-            {sectionLabel}
-          </h2>
+        <div className="mb-16 fh-center">
+          <h2 className="fh-tiny fh-medium fh-quiet fh-caps-wide">{sectionLabel}</h2>
         </div>
         <div className="space-y-24">
           {blocks.map((block) => {
             const kind = block.lifted ? "lifted" : block.tallLabel ? "tall" : "plain";
             const inner = (
               <div className="space-y-6">
-                <div className="mx-auto max-w-[640px] text-center">
-                  <div className="mb-3 text-micro font-medium uppercase tracking-widest text-accent-text">
+                <div className="mx-auto max-w-[640px] fh-center">
+                  <div className="mb-3 fh-tiny fh-medium fh-accent fh-caps-wide">
                     {block.eyebrow}
                   </div>
-                  <h3 className="mb-3 text-feature-title font-medium leading-snug text-text">
+                  <h3 className="mb-3 fh-feature-title fh-medium leading-snug fh-text">
                     {block.title}
                   </h3>
-                  <p className="text-subhead leading-relaxed text-text-secondary">{block.body}</p>
+                  <p className="fh-subhead fh-relaxed fh-soft">{block.body}</p>
                 </div>
                 {/* Recova's UI card: a bordered surface with no padding of its
                     own, so each preview sets its own, as Recova's do. */}
@@ -229,21 +225,19 @@ export function ProductPricing({
   return (
     <section className="border-b border-border bg-surface px-5 py-16 sm:px-8">
       <div className="mx-auto max-w-[480px]">
-        <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          Pricing
-        </h2>
+        <h2 className="mb-8 fh-center fh-tiny fh-medium fh-quiet fh-caps-wide">Pricing</h2>
         {/* Recova's price card: the page ground on the surface band, p-8. */}
         <div className="cap-panel [--gap:2rem] [--pad-card:2rem] [--surface:var(--bg)]">
           <div className="cap-panel-body">
             <div>
-              <div className="mb-1 font-mono text-product-price font-medium leading-none text-text">
+              <div className="mb-1 fh-mono fh-product-price fh-medium fh-tight fh-text">
                 {price}
               </div>
-              <div className="mb-6 text-copy text-text-secondary">{priceLabel}</div>
-              <ul className="m-0 mb-8 list-none space-y-3 p-0">
+              <div className="mb-6 fh-copy fh-soft">{priceLabel}</div>
+              <ul className="mb-8 space-y-3">
                 {points.map((point) => (
-                  <li key={point} className="flex items-start gap-3 text-copy text-text-secondary">
-                    <span aria-hidden="true" className="mt-0.5 flex-shrink-0 text-green">
+                  <li key={point} className="flex items-start gap-3 fh-copy fh-soft">
+                    <span aria-hidden="true" className="mt-0.5 flex-shrink-0 fh-green">
                       &#10003;
                     </span>
                     <span>{point}</span>
@@ -272,9 +266,7 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
   return (
     <section className="border-b border-border px-5 py-16 sm:px-8">
       <div className="mx-auto max-w-[620px]">
-        <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          Questions
-        </h2>
+        <h2 className="mb-8 fh-center fh-tiny fh-medium fh-quiet fh-caps-wide">Questions</h2>
         <FaqList name={name} faqs={faqs} />
       </div>
     </section>
@@ -293,12 +285,12 @@ export function BottomCTA({
   note: string;
 }) {
   return (
-    <section className="px-5 py-20 text-center sm:px-8">
+    <section className="px-5 py-20 fh-center sm:px-8">
       <div className="mx-auto max-w-[480px]">
-        <h2 className="mb-3 text-subsection font-medium tracking-tight text-text">{title}</h2>
-        <p className="mb-8 text-subhead leading-relaxed text-text-secondary">{sub}</p>
+        <h2 className="mb-3 fh-subsection fh-medium tracking-tight fh-text">{title}</h2>
+        <p className="mb-8 fh-subhead fh-relaxed fh-soft">{sub}</p>
         <PrimaryLink cta={cta} />
-        <p className="mt-3 text-caption text-text-tertiary">{note}</p>
+        <p className="mt-3 fh-caption fh-quiet">{note}</p>
       </div>
     </section>
   );

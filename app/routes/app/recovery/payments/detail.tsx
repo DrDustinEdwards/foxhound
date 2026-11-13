@@ -789,7 +789,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       {step.previewHtml && expanded ? (
                         <div
                           id={`step-email-${step.id}`}
-                          className="fh-payment-preview fh-small fh-text"
+                          className="fh-box fh-payment-preview fh-small fh-text"
                           // Sanitized in the loader by sanitizeEmailPreviewHtml;
                           // the raw body is never sent to the browser.
                           dangerouslySetInnerHTML={markup(step.previewHtml)}

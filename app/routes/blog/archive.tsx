@@ -75,10 +75,8 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: activeLabel }]} />
 
-      <h1 className="mt-3 text-2xl font-bold text-text">{activeLabel}</h1>
-      <p className="mt-1 font-mono text-sm text-text-secondary">
-        {plural(posts.length, "article")}
-      </p>
+      <h1 className="mt-3 text-2xl fh-bold fh-text">{activeLabel}</h1>
+      <p className="mt-1 fh-mono text-sm fh-soft">{plural(posts.length, "article")}</p>
 
       {/* Recova's tag filter: mono chips, the current one filled amber. Link
           chips (Capsomer chips.md): the tag is in the address. */}
@@ -116,7 +114,7 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
       </nav>
 
       {posts.length === 0 ? (
-        <p className="text-sm text-text-secondary">No articles found.</p>
+        <p className="text-sm fh-soft">No articles found.</p>
       ) : (
         <div className="flex flex-col divide-y divide-border-sub">
           {posts.map((post) => (
@@ -125,13 +123,13 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
               to={`/blog/${post.slug}`}
               className="group -mx-2 flex items-start gap-4 rounded-lg px-2 py-4 no-underline transition-colors hover:bg-surface"
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-snug text-text transition-colors group-hover:text-brand-text">
+              <div className="cap-grow">
+                <p className="text-sm fh-semibold leading-snug fh-text transition-colors group-hover:text-brand-text">
                   {post.title}
                 </p>
-                <p className="mt-0.5 text-xs text-text-secondary">{post.excerpt}</p>
+                <p className="mt-0.5 text-xs fh-soft">{post.excerpt}</p>
               </div>
-              <span className="mt-0.5 shrink-0 font-mono text-micro text-text-tertiary">
+              <span className="mt-0.5 shrink-0 fh-mono fh-tiny fh-quiet">
                 {post.readingTimeMinutes} min
               </span>
             </Link>

@@ -134,28 +134,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="mx-auto max-w-[1100px]">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="flex flex-col">
-              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-hero font-semibold leading-[1.02] tracking-[-0.03em] text-text sm:text-hero-lg sm:tracking-[-0.04em]">
+              <h1 className="animate-fade-up delay-80 mb-5 fh-hero fh-semibold leading-[1.02] tracking-[-0.03em] fh-text sm:text-hero-lg sm:tracking-[-0.04em]">
                 You pay when
                 <br />
                 you recover.
                 <br />
-                <span className="text-accent-text">Not before.</span>
+                <span className="fh-accent">Not before.</span>
               </h1>
 
-              <p className="animate-fade-up delay-160 m-0 mb-8 text-body leading-[1.6] text-text-secondary">
-                {HERO_LEAD} <span className="font-mono text-text">{RECOVERY_FEE}</span> of what
-                Foxhound recovers. Anything Stripe would have recovered on its own is free. Nothing
-                until you have held the money for{" "}
-                <span className="font-mono text-text">{MATURITY_DAYS}</span> days.
+              <p className="animate-fade-up delay-160 mb-8 fh-body leading-[1.6] fh-soft">
+                {HERO_LEAD} <span className="fh-mono fh-text">{RECOVERY_FEE}</span> of what Foxhound
+                recovers. Anything Stripe would have recovered on its own is free. Nothing until you
+                have held the money for <span className="fh-mono fh-text">{MATURITY_DAYS}</span>{" "}
+                days.
               </p>
 
               <div
-                className="animate-fade-up delay-240 flex flex-wrap items-center gap-4"
+                className="cap-cluster animate-fade-up delay-240"
+                data-gap="5"
                 data-density="comfortable"
               >
                 <Link
                   to="/audit"
-                  className="cap-btn font-semibold"
+                  className="cap-btn fh-semibold"
                   data-variant="primary"
                   data-size="lg"
                 >
@@ -187,12 +188,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
           {/* Trust row: full width, below both columns. */}
           <div className="mt-5 border-t border-border-sub pt-4">
-            <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-x-5 gap-y-2 p-0">
+            <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
               <li className="flex items-center gap-3">
                 {/* leading-6 keeps the link a 24px target. */}
                 <a
                   href="https://stripe.com/connect"
-                  className="font-mono text-caption leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
+                  className="fh-mono fh-caption leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
                 >
                   Built on Stripe Connect
                 </a>
@@ -202,7 +203,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </li>
               {TRUST_ITEMS.map((label, i, arr) => (
                 <li key={label} className="flex items-center gap-3">
-                  <span className="font-mono text-caption text-text-subtle">{label}</span>
+                  <span className="fh-mono fh-caption fh-faint">{label}</span>
                   {i < arr.length - 1 ? (
                     <span aria-hidden="true" className="text-border-sub">
                       &middot;
@@ -219,9 +220,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <div className="mb-12 text-center">
+            <div className="mb-12 fh-center">
               <h2 className={H2}>The revenue you&apos;re losing isn&apos;t showing up as churn.</h2>
-              <p className="m-0 text-subhead text-text-secondary">
+              <p className="fh-subhead fh-soft">
                 Stripe&apos;s own data on failed payments and what happens next.
               </p>
             </div>
@@ -232,12 +233,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <div className={CARD}>
                   <div className="cap-panel-body">
                     <div className="flex h-full flex-col">
-                      <div className="mb-4 font-mono text-hero font-semibold leading-none text-accent-text">
+                      <div className="mb-4 fh-mono fh-hero fh-semibold fh-tight fh-accent">
                         {item.stat}
                       </div>
-                      <p className="m-0 mb-4 flex-1 text-copy leading-[1.6] text-text-secondary">
-                        {item.body}
-                      </p>
+                      <p className="mb-4 flex-1 fh-copy leading-[1.6] fh-soft">{item.body}</p>
                       {/* RULES.md 2.3: the exact page and the day it was read. */}
                       <SourceLine href={item.href} name={citation(item.href)} read={STAT_AS_OF} />
                     </div>
@@ -253,11 +252,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <div className="mb-12 text-center">
+            <div className="mb-12 fh-center">
               <h2 className={H2}>Stripe plus Foxhound</h2>
-              <p className="m-0 text-subhead text-text-secondary">
-                What Stripe does, and what Foxhound adds on top.
-              </p>
+              <p className="fh-subhead fh-soft">What Stripe does, and what Foxhound adds on top.</p>
             </div>
           </div>
           <div className="space-y-4">
@@ -269,27 +266,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <div className={CARD}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-3 text-caption text-text-tertiary">Stripe does this</div>
-                      <div className="mb-2 text-body font-medium text-text">{row.stripeTitle}</div>
-                      <p className="m-0 text-copy leading-[1.55] text-text-secondary">
-                        {row.stripeBody}
-                      </p>
+                      <div className="mb-3 fh-caption fh-quiet">Stripe does this</div>
+                      <div className="mb-2 fh-body fh-medium fh-text">{row.stripeTitle}</div>
+                      <p className="fh-copy leading-[1.55] fh-soft">{row.stripeBody}</p>
                     </div>
                   </div>
                 </div>
                 <Link to={row.foxhoundHref} className={`${CARD} group`}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-3 text-caption font-medium text-accent-text">
-                        Foxhound adds this
-                      </div>
-                      <div className="mb-2 text-body font-semibold text-text">
-                        {row.foxhoundTitle}
-                      </div>
-                      <p className="m-0 text-copy leading-[1.55] text-text-secondary">
-                        {row.foxhoundBody}
-                      </p>
-                      <div className="mt-4 font-mono text-caption text-accent-text">
+                      <div className="mb-3 fh-caption fh-medium fh-accent">Foxhound adds this</div>
+                      <div className="mb-2 fh-body fh-semibold fh-text">{row.foxhoundTitle}</div>
+                      <p className="fh-copy leading-[1.55] fh-soft">{row.foxhoundBody}</p>
+                      <div className="mt-4 fh-mono fh-caption fh-accent">
                         Learn more <Arrow />
                       </div>
                     </div>
@@ -305,15 +294,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="overflow-hidden border-t border-border-sub px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <p className="mb-6 text-center font-mono text-micro uppercase tracking-widest text-text-subtle">
+            <p className="mb-6 fh-center fh-mono fh-tiny fh-faint fh-caps-wide">
               The gap Stripe leaves open
             </p>
-            <h2 className="m-0 text-center text-statement font-semibold leading-[1.0] tracking-[-0.04em] text-text sm:text-statement-md lg:text-statement-lg">
+            <h2 className="fh-center fh-statement fh-semibold leading-[1.0] tracking-[-0.04em] fh-text sm:text-statement-md lg:text-statement-lg">
               {STRIPE_GAP} of failed payments
               <br />
-              <span className="text-accent-text">never come back.</span>
+              <span className="fh-accent">never come back.</span>
             </h2>
-            <p className="mx-auto mt-8 max-w-[560px] text-center text-subhead leading-[1.6] text-text-secondary sm:text-product-sub">
+            <p className="mx-auto mt-8 max-w-[560px] fh-center fh-subhead leading-[1.6] fh-soft sm:text-product-sub">
               {STATEMENT_BODY}
             </p>
             <div className="mt-8 flex justify-center">
@@ -331,11 +320,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="speakable-how-it-works border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <div className="mb-12 text-center">
+            <div className="mb-12 fh-center">
               <h2 className={H2}>How it works</h2>
-              <p className="m-0 text-subhead text-text-secondary">
-                Live in an afternoon. No code, no setup fees.
-              </p>
+              <p className="fh-subhead fh-soft">Live in an afternoon. No code, no setup fees.</p>
             </div>
           </div>
           {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
@@ -347,8 +334,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     key={s.title}
                     className={`cap-reveal p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
                   >
-                    <div className="mb-2 text-body font-medium text-text">{s.title}</div>
-                    <p className="m-0 text-copy leading-[1.55] text-text-secondary">{s.body}</p>
+                    <div className="mb-2 fh-body fh-medium fh-text">{s.title}</div>
+                    <p className="fh-copy leading-[1.55] fh-soft">{s.body}</p>
                   </div>
                 ))}
               </div>
@@ -361,11 +348,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <div className="mb-10 text-center">
+            <div className="mb-10 fh-center">
               <h2 className={H2}>How much are you leaving on the table?</h2>
-              <p className="m-0 mx-auto max-w-[480px] text-subhead text-text-secondary">
+              <p className="mx-auto max-w-[480px] fh-subhead fh-soft">
                 Adjust your MRR and see the estimated recovery. Foxhound takes{" "}
-                <span className="font-mono">{RECOVERY_FEE}</span> of what it recovers. Nothing if it
+                <span className="fh-mono">{RECOVERY_FEE}</span> of what it recovers. Nothing if it
                 recovers nothing.
               </p>
             </div>
@@ -383,9 +370,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       >
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <div className="mb-12 text-center">
+            <div className="mb-12 fh-center">
               <h2 className={H2}>Start with recovery.</h2>
-              <p className="m-0 text-subhead text-text-secondary">Add the rest when you need it.</p>
+              <p className="fh-subhead fh-soft">Add the rest when you need it.</p>
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -399,18 +386,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <div>
                         <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
                           <Icon
-                            className="h-[18px] w-[18px] text-accent-text"
+                            className="h-[18px] w-[18px] fh-accent"
                             strokeWidth={1.8}
                             aria-hidden
                           />
                         </div>
-                        <div className="mb-1.5 text-body font-medium text-text">
-                          {PRODUCTS[key].name}
-                        </div>
-                        <p className="m-0 mb-4 min-h-[60px] text-label leading-[1.55] text-text-secondary">
+                        <div className="mb-1.5 fh-body fh-medium fh-text">{PRODUCTS[key].name}</div>
+                        <p className="mb-4 min-h-[60px] fh-small leading-[1.55] fh-soft">
                           {card.description}
                         </p>
-                        <div className="font-mono text-label text-accent-text">{card.price}</div>
+                        <div className="fh-mono fh-small fh-accent">{card.price}</div>
                       </div>
                     </div>
                   </Link>
@@ -425,13 +410,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="border-t border-border-sub px-5 py-20 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <div className="mb-10 text-center">
+            <div className="mb-10 fh-center">
               {/* Recova: "The actual email Recova would send" and "Same AI, same
                   prompts, same output as the product." The sample runs its own
                   prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
                   fictional customer, so neither claim holds here. */}
               <h2 className={H2}>What a Foxhound recovery email looks like</h2>
-              <p className="m-0 mx-auto max-w-[480px] text-subhead text-text-secondary">
+              <p className="mx-auto max-w-[480px] fh-subhead fh-soft">
                 Pick a decline type and generate a real recovery email. Every account customizes its
                 own brand voice.
               </p>
@@ -448,11 +433,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="speakable-faq border-t border-border-sub px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-[760px]">
           <div className="cap-reveal">
-            <div className="mb-12 text-center">
+            <div className="mb-12 fh-center">
               <h2 className={H2}>Common questions</h2>
             </div>
           </div>
-          <ul className="m-0 flex list-none flex-col gap-3 p-0">
+          <ul className="cap-stack" data-gap="4">
             {FAQS.map((faq) => (
               <li key={faq.question}>
                 <div className="cap-reveal">
@@ -463,7 +448,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   >
                     <summary>{faq.question}</summary>
                     <div className="cap-disclosure-body">
-                      <p className="m-0 text-copy leading-[1.6] text-text-secondary">
+                      <p className="fh-copy leading-[1.6] fh-soft">
                         {faq.question === BILLING_FAQ_QUESTION ? BILLING_ANSWER : faq.answer}
                       </p>
                     </div>
@@ -479,11 +464,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="border-t border-border-sub px-5 py-10 sm:px-8">
         <div className="mx-auto max-w-[1100px]">
           <div className="cap-reveal">
-            <ul className="m-0 flex list-none flex-wrap items-center justify-center gap-3 p-0">
+            <ul className="flex flex-wrap items-center justify-center gap-3">
               {SECURITY_CHIPS.map((label) => (
                 <li
                   key={label}
-                  className="cap-pill font-mono font-normal"
+                  className="cap-pill fh-mono fh-regular"
                   data-variant="outline"
                   data-tone="muted"
                 >
@@ -493,7 +478,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     viewBox="0 0 12 12"
                     fill="none"
                     aria-hidden="true"
-                    className="text-green"
+                    className="fh-green"
                   >
                     <path
                       d="M2 6l2.5 2.5L10 3.5"
@@ -520,10 +505,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mx-auto max-w-[1100px]">
             <div className="cap-reveal">
               <div className="mb-8 flex items-center justify-between">
-                <h2 className="m-0 text-copy font-normal text-text-secondary">From the blog</h2>
+                <h2 className="fh-copy fh-regular fh-soft">From the blog</h2>
                 <Link
                   to="/blog"
-                  className="group text-caption leading-6 text-text-tertiary transition-colors hover:text-text"
+                  className="group fh-caption leading-6 fh-quiet transition-colors hover:text-text"
                 >
                   All articles <Arrow />
                 </Link>
@@ -540,14 +525,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     <div className="cap-panel-body">
                       <div className="flex h-full flex-col gap-3">
                         {post.tags[0] ? (
-                          <div className="font-mono text-micro text-text-tertiary">
+                          <div className="fh-mono fh-tiny fh-quiet">
                             {post.tags[0].replace(/-/g, " ")}
                           </div>
                         ) : null}
-                        <h3 className="m-0 text-item-title font-medium leading-snug text-text">
+                        <h3 className="fh-item-title fh-medium leading-snug fh-text">
                           {post.title}
                         </h3>
-                        <span className="mt-auto font-mono text-micro text-text-tertiary">
+                        <span className="mt-auto fh-mono fh-tiny fh-quiet">
                           {post.readingTimeMinutes} min read
                         </span>
                       </div>
@@ -562,35 +547,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
       <section className="border-t border-border-sub px-5 py-24 sm:px-8">
-        <div className="mx-auto max-w-[760px] text-center" data-density="comfortable">
-          <h2 className="m-0 mb-4 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
+        <div className="mx-auto max-w-[760px] fh-center" data-density="comfortable">
+          <h2 className="mb-4 fh-section fh-semibold tracking-[-0.02em] fh-text sm:text-section-lg">
             See what your Stripe account is leaking
           </h2>
-          <p className="m-0 mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
-            Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span>{" "}
+          <p className="mx-auto mb-7 max-w-[560px] fh-subhead leading-[1.55] fh-soft">
+            Connect Stripe for a free diagnostic. Results in <span className="fh-mono">30</span>{" "}
             seconds. No setup, no card.
           </p>
           <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
             Connect Stripe, it is free
           </Link>
-          <div className="mt-5 font-mono text-caption text-text-subtle">
+          <div className="mt-5 fh-mono fh-caption fh-faint">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
           </div>
-          <div className="mt-2 font-mono text-caption text-text-subtle">
-            {COMPAT_TAGS.join(" · ")}
-          </div>
+          <div className="mt-2 fh-mono fh-caption fh-faint">{COMPAT_TAGS.join(" · ")}</div>
           <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
             <Link
               to="/demos/recovery"
               rel="nofollow"
-              className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
+              className="group fh-copy leading-6 fh-soft transition-colors hover:text-text"
             >
               View Recovery demo <Arrow />
             </Link>
             <Link
               to="/demos/disputes"
               rel="nofollow"
-              className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
+              className="group fh-copy leading-6 fh-soft transition-colors hover:text-text"
             >
               View Disputes demo <Arrow />
             </Link>

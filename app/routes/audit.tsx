@@ -198,7 +198,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
     // and /pricing), comfortable density so each panel takes Capsomer's roomier
     // padding.
     <div
-      className="fh-cap mx-auto max-w-[680px] px-4 py-10 text-center md:px-8 md:py-20"
+      className="fh-cap mx-auto max-w-[680px] px-4 py-10 fh-center md:px-8 md:py-20"
       data-cap-site="foxhound"
       data-family="amber"
       data-density="comfortable"
@@ -208,7 +208,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           Capsomer's badge in Recova's treatment: mono at 0.75rem with 0.06em
           tracking, amber words on a 13% amber tint inside a 27% amber edge. */}
       <div className="mb-6">
-        <span className="cap-pill font-mono text-caption font-normal tracking-[0.06em] [--_bg:color-mix(in_srgb,var(--primary)_13%,transparent)] [--_fg:var(--accent-text)] [--_line:color-mix(in_srgb,var(--primary)_27%,transparent)]">
+        <span className="cap-pill fh-mono fh-caption fh-regular tracking-[0.06em] [--_bg:color-mix(in_srgb,var(--primary)_13%,transparent)] [--_fg:var(--accent-text)] [--_line:color-mix(in_srgb,var(--primary)_27%,transparent)]">
           FREE LOST REVENUE AUDIT
         </span>
       </div>
@@ -216,11 +216,11 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       {/* Recova's clamp(28px,5vw,44px) h1, in rem. The words are Recova's,
           drift fixed on sight: they describe the audit, not the
           estimator, so they hold in every state of the form below. */}
-      <h1 className="m-0 mb-5 text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-[1.15] tracking-[-1px] text-text">
+      <h1 className="mb-5 text-[clamp(1.75rem,5vw,2.75rem)] fh-semibold leading-[1.15] tracking-[-1px] fh-text">
         See everything leaking from your Stripe account
       </h1>
 
-      <p className="m-0 mb-10 text-product-sub leading-[1.6] text-text-subtle">
+      <p className="mb-10 fh-product-sub leading-[1.6] fh-faint">
         Enter your MRR and customer count for a directional estimate. No signup, no credit card, 30
         seconds.
       </p>
@@ -230,8 +230,8 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       <div className="mb-10 grid">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="flex flex-col gap-4 text-left">
-              <h2 className="m-0 font-mono text-micro font-normal uppercase tracking-wide text-text-tertiary">
+            <div className="cap-stack fh-left" data-gap="5">
+              <h2 className="fh-mono fh-tiny fh-regular fh-quiet fh-caps">
                 Free leakage estimator
               </h2>
 
@@ -272,19 +272,19 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         <section className="cap-panel rounded-2xl [--gap:1.5rem] [--pad-card:1.5rem] md:[--gap:2.5rem] md:[--pad-card:2.5rem]">
           <div className="cap-panel-body">
             <div>
-              <h2 className="m-0 mb-5 text-caption font-medium uppercase tracking-[0.06em] text-text-tertiary">
+              <h2 className="mb-5 fh-caption fh-medium uppercase tracking-[0.06em] fh-quiet">
                 What the audit covers
               </h2>
-              <ul className="m-0 mb-8 list-none p-0">
+              <ul className="mb-8">
                 {COVERS.map(([title, desc]) => (
-                  <li key={title} className="mb-3 flex items-start gap-3 text-left">
+                  <li key={title} className="mb-3 flex items-start gap-3 fh-left">
                     <span
                       className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]"
                       aria-hidden="true"
                     />
                     <span>
-                      <span className="mb-0.5 block text-copy font-medium text-text">{title}</span>
-                      <span className="block text-label text-text-subtle">{desc}</span>
+                      <span className="mb-0.5 fh-line fh-copy fh-medium fh-text">{title}</span>
+                      <span className="fh-line fh-small fh-faint">{desc}</span>
                     </span>
                   </li>
                 ))}
@@ -294,14 +294,14 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               <div className="grid">
                 <Link
                   to="/audit/connect"
-                  className="cap-btn rounded-[10px] font-bold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3.5rem]"
+                  className="cap-btn rounded-[10px] fh-bold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3.5rem]"
                   data-variant="primary"
                   data-size="lg"
                 >
                   See my numbers
                 </Link>
               </div>
-              <p className="m-0 mt-2 text-label text-text-subtle">
+              <p className="mt-2 fh-small fh-faint">
                 {AUDIT_ACCESS_CHIP}. 30 seconds. No account required.
               </p>
             </div>
@@ -319,31 +319,27 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         <div className="cap-panel">
           <div className="cap-panel-body">
             <div>
-              <p className="m-0 mb-1 font-mono text-display font-bold text-green">
-                {AUDIT_LOOKBACK_DAYS} days
-              </p>
-              <p className="m-0 text-caption text-text-subtle">
-                of failed invoices the audit reads
-              </p>
+              <p className="mb-1 fh-mono fh-display fh-bold fh-green">{AUDIT_LOOKBACK_DAYS} days</p>
+              <p className="fh-caption fh-faint">of failed invoices the audit reads</p>
             </div>
           </div>
         </div>
         <div className="cap-panel">
           <div className="cap-panel-body">
             <div>
-              <p className="m-0 mb-1 font-mono text-display font-bold text-blue">$0</p>
-              <p className="m-0 text-caption text-text-subtle">cost to run this estimate today</p>
+              <p className="mb-1 fh-mono fh-display fh-bold text-blue">$0</p>
+              <p className="fh-caption fh-faint">cost to run this estimate today</p>
             </div>
           </div>
         </div>
       </div>
 
-      <p className="m-0 mb-4 text-label text-text-subtle">Want to see the app before connecting?</p>
+      <p className="mb-4 fh-small fh-faint">Want to see the app before connecting?</p>
       {/* A 24px target (min-h-6) for a link that stands alone. */}
       <a
         href="/demos/recovery"
         rel="nofollow"
-        className="inline-flex min-h-6 items-center text-copy text-accent-text no-underline transition-opacity duration-500 hover:opacity-80"
+        className="inline-flex min-h-6 items-center fh-copy fh-accent no-underline transition-opacity duration-500 hover:opacity-80"
       >
         View live demo &rarr;
       </a>
@@ -356,10 +352,10 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 what the RESULTS page offers afterwards, which is where Recova
                 puts it too. */}
             <div>
-              <p className="m-0 mb-2 text-body font-medium text-text">
+              <p className="mb-2 fh-body fh-medium fh-text">
                 Want your real numbers instead of an estimate?
               </p>
-              <p className="m-0 mb-5 text-label leading-relaxed text-text-secondary">
+              <p className="mb-5 fh-small fh-relaxed fh-soft">
                 Connect Stripe and Foxhound runs the full audit on the spot: what failed and why,
                 what is expiring, where your disputes stand, and your recurring revenue. No account
                 needed. Foxhound only reads, writes nothing back to Stripe, and disconnects itself
@@ -368,7 +364,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               <Link to="/audit/connect" className="cap-btn" data-variant="primary">
                 Run the free audit
               </Link>
-              <p className="m-0 mt-4 font-mono text-micro text-text-subtle">
+              <p className="mt-4 fh-mono fh-tiny fh-faint">
                 No account required &middot; The audit only reads &middot; Nothing is stored
               </p>
             </div>
@@ -398,7 +394,7 @@ function EstimatorForm({
     return mountTurnstile(widget.current, siteKey);
   }, [siteKey, attempt]);
   return (
-    <Form method="post" className="flex flex-col gap-4">
+    <Form method="post" className="cap-stack" data-gap="5">
       <Field label="Monthly recurring revenue (MRR)">
         <input className="cap-input" name="mrr" type="number" autoComplete="off" required />
       </Field>
@@ -446,11 +442,11 @@ function formatRatePercent(fraction: number): string {
 function EstimatorResultCard({ result, currency }: { result: EstimatorResult; currency: string }) {
   return (
     <div>
-      <p className="m-0 mb-1 font-mono text-micro text-text-subtle">Estimated monthly leakage</p>
-      <p className="m-0 mb-3 font-mono text-display font-semibold text-text">
+      <p className="mb-1 fh-mono fh-tiny fh-faint">Estimated monthly leakage</p>
+      <p className="mb-3 fh-mono fh-display fh-semibold fh-text">
         {formatMoney(result.estimatedLeakageCents, currency)}
       </p>
-      <p className="m-0 mb-4 text-label leading-relaxed text-text-secondary">
+      <p className="mb-4 fh-small fh-relaxed fh-soft">
         An estimate from your inputs, not a measurement: your MRR times an assumed{" "}
         {formatRatePercent(result.medianPct)} of MRR failing each month at your revenue. The rate is
         an assumption, not data about your account or anyone else's. Connect Stripe for your

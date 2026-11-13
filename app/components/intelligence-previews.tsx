@@ -45,11 +45,7 @@ const BAND_LABEL: Record<HealthScoreBand, string> = {
 
 /** A label over a figure, as Recova's cards have: micro, uppercase, tertiary. */
 function CardLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="m-0 mb-1 text-micro font-medium uppercase tracking-[0.06em] text-text-tertiary">
-      {children}
-    </p>
-  );
+  return <p className="mb-1 fh-tiny fh-medium uppercase tracking-[0.06em] fh-quiet">{children}</p>;
 }
 
 /** The width a 320 px phone leaves the chart inside the preview's two panels. */
@@ -109,9 +105,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
         <div className="cap-panel-body">
           <div>
             <CardLabel>{dashboard.narrativeMonth} narrative</CardLabel>
-            <p className="m-0 text-label leading-relaxed text-text-secondary">
-              {dashboard.narrative}
-            </p>
+            <p className="fh-small fh-relaxed fh-soft">{dashboard.narrative}</p>
           </div>
         </div>
       </div>
@@ -133,7 +127,7 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
         tabIndex={0}
       >
         <table className="cap-table">
-          <caption id={TABLE_CAPTION} className="sr-only">
+          <caption id={TABLE_CAPTION} className="cap-sr-only">
             Customers by health score, lowest first
           </caption>
           <thead>
@@ -148,7 +142,7 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
             {preview.customers.map((row) => (
               <tr key={row.id}>
                 <th scope="row">
-                  <span className="text-label font-normal text-text">{row.name}</span>
+                  <span className="fh-small fh-regular fh-text">{row.name}</span>
                 </th>
                 <td data-label="Plan">
                   {/* Capsomer's pill markup rather than its Pill component,
@@ -165,8 +159,8 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
                 <td data-label="Health">
                   <Pill tone={METER_TONE[row.band]}>{row.healthScore}</Pill>
                 </td>
-                <td data-label="MRR" className="whitespace-nowrap">
-                  <span className="font-mono text-label text-text">{row.mrr}</span>
+                <td data-label="MRR" className="fh-nowrap">
+                  <span className="fh-mono fh-small fh-text">{row.mrr}</span>
                 </td>
               </tr>
             ))}
@@ -181,21 +175,16 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
 export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="p-5">
-      <ul
-        className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-3"
-        aria-label="MRR by health band"
-      >
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="MRR by health band">
         {preview.bands.map((b) => (
           <li key={b.band} className="cap-panel">
             <div className="cap-panel-body">
               <div>
-                <p className="m-0 mb-1">
+                <p className="mb-1">
                   <Pill tone={METER_TONE[b.band]}>{BAND_LABEL[b.band]}</Pill>
                 </p>
-                <p className="m-0 font-mono text-title font-medium tabular-nums text-text">
-                  {b.customerCount}
-                </p>
-                <p className="m-0 mt-0.5 font-mono text-label text-text-secondary">
+                <p className="fh-mono fh-title fh-medium cap-num fh-text">{b.customerCount}</p>
+                <p className="mt-0.5 fh-mono fh-small fh-soft">
                   {b.mrr}/mo{b.band === "at_risk" ? " at risk" : ""}
                 </p>
               </div>

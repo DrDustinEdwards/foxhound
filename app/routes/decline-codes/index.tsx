@@ -62,7 +62,7 @@ export default function DeclineCodesIndex() {
         {byCategory.map((group) => (
           <section key={group.category} className="border-b border-border-sub py-8 last:border-0">
             <div className="mb-4 flex items-center gap-2">
-              <h2 className="text-title font-medium text-text">{CATEGORY_LABEL[group.category]}</h2>
+              <h2 className="fh-title fh-medium fh-text">{CATEGORY_LABEL[group.category]}</h2>
               <Pill {...BADGE_PILL[categoryBadgeTone(group.category)]}>
                 {CATEGORY_STATUS_LABEL[group.category]}
               </Pill>
@@ -76,13 +76,11 @@ export default function DeclineCodesIndex() {
                 >
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-2 font-mono text-label font-medium text-text">
+                      <div className="mb-2 fh-mono fh-small fh-medium fh-text">
                         {code.displayName}
                       </div>
-                      <div className="mb-3 font-mono text-micro text-text-tertiary">
-                        {code.code}
-                      </div>
-                      <div className="text-label text-brand-text">
+                      <div className="mb-3 fh-mono fh-tiny fh-quiet">{code.code}</div>
+                      <div className="fh-small fh-brand">
                         Read more <Arrow />
                       </div>
                     </div>

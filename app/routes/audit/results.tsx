@@ -159,7 +159,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
       <Panel title="What's next">
         {notSaved === null ? (
           <>
-            <p className="m-0 mb-4 text-label text-text-secondary">
+            <p className="mb-4 fh-small fh-soft">
               This run is saved to your audit history. Trends show up after the second run.
             </p>
             <Link to="/audit/dashboard" className="cap-btn">
@@ -169,7 +169,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
         ) : (
           // The refusal, said out loud. A run that quietly did
           // not save is the same shape of lie as a zero that means unknown.
-          <p className="m-0 text-label text-text-secondary">
+          <p className="fh-small fh-soft">
             This run was not saved to your audit history, because the Stripe account you just
             authorized is not the one connected to your Foxhound account. The numbers above are
             correct for the account you authorized.
@@ -184,22 +184,22 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
   // grant that stays. The fee is Foxhound's constant.
   return (
     <Panel title="What's next">
-      <div className="text-center">
+      <div className="fh-center">
         {/* Capsomer's button never wraps, so this 48-character label ran past
             the panel's edge on a phone. The label wraps between its two
             sentences, never inside one, and py-2 gives two lines room; on a
             wide screen it is one line and the button keeps its height. */}
         <Link to="/signup" className="cap-btn py-2" data-variant="primary">
           <span className="whitespace-normal">
-            <span className="whitespace-nowrap">Start recovering this revenue.</span>{" "}
-            <span className="whitespace-nowrap">Free until we do.</span>
+            <span className="fh-nowrap">Start recovering this revenue.</span>{" "}
+            <span className="fh-nowrap">Free until we do.</span>
           </span>
         </Link>
-        <p className="m-0 mt-2 text-label text-text-secondary">
+        <p className="mt-2 fh-small fh-soft">
           Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}%
           of what we recover. Nothing until then.
         </p>
-        <p className="m-0 mt-1 text-micro text-text-subtle">
+        <p className="mt-1 fh-tiny fh-faint">
           These results are from a {AUDIT_GRANT_MINUTES}-minute session. Create an account to save
           them.
         </p>
@@ -218,13 +218,11 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   return (
     <div className="fh-cap cap-page min-w-0 py-10" data-cap-site="foxhound" data-family="amber">
       <div className="mb-6">
-        <div className="mb-2 font-mono text-micro uppercase tracking-widest text-text-subtle">
-          Stripe Account Diagnostic
-        </div>
+        <div className="mb-2 fh-mono fh-tiny fh-faint fh-caps-wide">Stripe Account Diagnostic</div>
         <PageHead
           title={`Analyzed last ${run.lookbackDays} days of payment history`}
           lead={
-            <span className="font-mono text-micro text-text-subtle">
+            <span className="fh-mono fh-tiny fh-faint">
               Subscription health and disputes reflect current account state.
               <br />
               Run at {formatRanAt(run.runAt)}

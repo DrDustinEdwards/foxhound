@@ -86,7 +86,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export default function MarketingLayout({ loaderData }: Route.ComponentProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
+    <div className="flex min-h-screen flex-col bg-bg fh-text">
       <Header
         isAuthenticated={loaderData.isAuthenticated}
         theme={loaderData.theme}

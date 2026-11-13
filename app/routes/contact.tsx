@@ -39,21 +39,21 @@ export default function ContactPage() {
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
       <div className="mx-auto max-w-2xl px-4 pb-20 sm:px-8">
-        <div className="flex flex-col gap-6 text-body leading-relaxed text-text-secondary">
+        <div className="cap-stack fh-body fh-relaxed fh-soft" data-gap="6">
           <p>
             Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Responses within 24 hours
             on business days.
           </p>
           <div>
-            <h2 className="mb-2 text-subhead font-medium text-text">What to include</h2>
-            <ul className="m-0 list-disc space-y-1 pl-5">
+            <h2 className="mb-2 fh-subhead fh-medium fh-text">What to include</h2>
+            <ul className="list-disc space-y-1 pl-5">
               <li>Write from the address you sign in to Foxhound with.</li>
               <li>
-                For a payment, its Stripe invoice ID (<code className="font-mono">in_</code>) or
-                payment ID (<code className="font-mono">pi_</code>).
+                For a payment, its Stripe invoice ID (<code className="fh-mono">in_</code>) or
+                payment ID (<code className="fh-mono">pi_</code>).
               </li>
               <li>
-                For a dispute, its Stripe dispute ID (<code className="font-mono">dp_</code>).
+                For a dispute, its Stripe dispute ID (<code className="fh-mono">dp_</code>).
               </li>
             </ul>
           </div>

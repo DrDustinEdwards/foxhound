@@ -107,15 +107,13 @@ function EmailGeneratorView({
       <div className="cap-panel-body" data-flush>
         <div>
           <div className="flex items-center justify-between border-b border-border-sub px-5 py-4">
-            <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
-              Live email generator
-            </span>
+            <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">Live email generator</span>
             <span className="flex items-center gap-1.5">
               <span
                 className="h-1.5 w-1.5 motion-safe:animate-pulse rounded-full bg-green"
                 aria-hidden
               />
-              <span className="font-mono text-source text-green">Calls real AI</span>
+              <span className="fh-mono fh-source fh-green">Calls real AI</span>
             </span>
           </div>
 
@@ -123,9 +121,7 @@ function EmailGeneratorView({
             <div className="mb-4">
               <Segmented
                 legend={
-                  <span className="text-micro font-medium uppercase tracking-widest text-text-tertiary">
-                    Decline type
-                  </span>
+                  <span className="fh-tiny fh-medium fh-quiet fh-caps-wide">Decline type</span>
                 }
                 name="decline-type"
                 layout="cards"
@@ -135,11 +131,9 @@ function EmailGeneratorView({
                   value: c.id,
                   tone: c.tone,
                   label: (
-                    <span className="block text-caption">
-                      <span className="block font-medium">{c.label}</span>
-                      <span className="mt-0.5 block font-mono text-source opacity-80">
-                        {c.desc}
-                      </span>
+                    <span className="fh-line fh-caption">
+                      <span className="fh-line fh-medium">{c.label}</span>
+                      <span className="mt-0.5 fh-line fh-mono fh-source opacity-80">{c.desc}</span>
                     </span>
                   ),
                 }))}
@@ -153,7 +147,7 @@ function EmailGeneratorView({
                 data-email-generate=""
                 disabled={busy}
                 aria-busy={busy ? "true" : undefined}
-                className="cap-btn w-full px-6 font-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:2.5rem]"
+                className="cap-btn w-full px-6 fh-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:2.5rem]"
                 data-variant="primary"
               >
                 {/* Recova (EmailGenerator.tsx): "Generating..." with no arrow
@@ -173,31 +167,27 @@ function EmailGeneratorView({
                 a real failed payment." The sample uses its own model
                 (MODEL_MARKETING_EMAIL_SAMPLE, not MODEL_RECOVERY_EMAIL) on a
                 fictional customer, so the line says what it is. */}
-            <p className="mt-2 text-center font-mono text-source text-text-subtle">
+            <p className="mt-2 fh-center fh-mono fh-source fh-faint">
               A live AI call on a sample failed payment, for a fictional customer.
             </p>
           </div>
 
           <div aria-live="polite">
             {busy ? null : result && "error" in result ? (
-              <div className="border-t border-border-sub p-5 text-label text-error-text">
+              <div className="border-t border-border-sub p-5 fh-small fh-error">
                 Generation failed. Try again.
               </div>
             ) : result ? (
               <div className="border-t border-border-sub p-5">
-                <p className="mb-3 font-mono text-source uppercase tracking-widest text-text-subtle">
-                  Subject
-                </p>
-                <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-copy font-medium text-text">
+                <p className="mb-3 fh-mono fh-source fh-faint fh-caps-wide">Subject</p>
+                <div className="mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 fh-copy fh-medium fh-text">
                   {result.subject}
                 </div>
-                <p className="mb-2 font-mono text-source uppercase tracking-widest text-text-subtle">
-                  Body
-                </p>
-                <div className="whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-[1.7] text-text-secondary">
+                <p className="mb-2 fh-mono fh-source fh-faint fh-caps-wide">Body</p>
+                <div className="fh-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 fh-mono fh-small leading-[1.7] fh-soft">
                   {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
                 </div>
-                <p className="mt-3 font-mono text-source text-text-subtle">
+                <p className="mt-3 fh-mono fh-source fh-faint">
                   Generated in real time by AI, for a fictional customer.
                 </p>
               </div>
