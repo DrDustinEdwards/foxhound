@@ -1,5 +1,6 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { Link } from "capsomer/react/link";
+import { Table } from "capsomer/react/table";
+import { ButtonLink } from "capsomer/react/link";
 
 import { CARD, CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -67,45 +68,38 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
       />
 
       <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-8">
-        <div
-          className="cap-table-wrap mb-10 rounded-lg border border-border"
-          data-cap="table"
-          data-reflow=""
-          role="region"
-          aria-label={`Foxhound vs ${competitor.name}`}
-          tabIndex={0}
+        <Table
+          caption={`Foxhound vs ${competitor.name}`}
+          captionHidden
+          reflow
+          className="mb-10 rounded-lg border border-border"
         >
-          <table className="cap-table">
-            <thead>
-              <tr>
-                <th scope="col">Dimension</th>
-                <th scope="col">Foxhound</th>
-                <th scope="col">{competitor.name}</th>
+          <thead>
+            <tr>
+              <th scope="col">Dimension</th>
+              <th scope="col">Foxhound</th>
+              <th scope="col">{competitor.name}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {competitor.rows.map((row) => (
+              <tr key={row.dimension}>
+                <th scope="row" className="align-top font-medium text-text">
+                  {row.dimension}
+                </th>
+                <td data-label="Foxhound" className="align-top leading-relaxed text-text-secondary">
+                  {row.foxhound}
+                </td>
+                <td
+                  data-label={competitor.name}
+                  className="align-top leading-relaxed text-text-secondary"
+                >
+                  {row.competitor}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {competitor.rows.map((row) => (
-                <tr key={row.dimension}>
-                  <th scope="row" className="align-top font-medium text-text">
-                    {row.dimension}
-                  </th>
-                  <td
-                    data-label="Foxhound"
-                    className="align-top leading-relaxed text-text-secondary"
-                  >
-                    {row.foxhound}
-                  </td>
-                  <td
-                    data-label={competitor.name}
-                    className="align-top leading-relaxed text-text-secondary"
-                  >
-                    {row.competitor}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </Table>
 
         <section className={`${CARD_MD} mb-10`}>
           <div className="cap-panel-body">
@@ -149,9 +143,9 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
                 won disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
                 {RECOVERY_MATURITY_DAYS} days.
               </p>
-              <Link to="/pricing" className="cap-btn" data-variant="primary">
+              <ButtonLink to="/pricing" variant="primary">
                 View pricing
-              </Link>
+              </ButtonLink>
             </div>
           </div>
         </div>

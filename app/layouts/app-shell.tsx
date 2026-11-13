@@ -1,4 +1,5 @@
 import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
+import { ButtonLink } from "capsomer/react/link";
 import {
   Outlet,
   useLocation,
@@ -441,13 +442,13 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             actions={
               <>
                 {demoSignedIn ? null : (
-                  <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
+                  <ButtonLink href="/signup" variant="primary" size="sm">
                     Connect Stripe
-                  </a>
+                  </ButtonLink>
                 )}
-                <a href="/demo/exit" className="cap-btn" data-size="sm">
+                <ButtonLink href="/demo/exit" size="sm">
                   {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
-                </a>
+                </ButtonLink>
               </>
             }
           />

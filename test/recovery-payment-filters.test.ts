@@ -1,3 +1,4 @@
+import { withParams } from "capsomer/behavior/filter-bar";
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db";
@@ -36,18 +37,18 @@ describe("buildPaymentParams carries the amount range", () => {
     const params = build(filters({ amountMinCents: 5_000, amountMaxCents: 40_000 }), {
       status: "active",
     });
-    expect(params.get("status")).toBe("active");
-    expect(params.get("amountMin")).toBe("5000");
-    expect(params.get("amountMax")).toBe("40000");
+    expect(params.status).toBe("active");
+    expect(params.amountMin).toBe("5000");
+    expect(params.amountMax).toBe("40000");
   });
 
   // A handle resting on its own bound is not a filter; emitting it would put a
   // redundant full-width range on every link.
   it("omits a bound that does not narrow anything", () => {
     const params = build(filters());
-    expect(params.has("amountMin")).toBe(false);
-    expect(params.has("amountMax")).toBe(false);
-    expect(params.toString()).toBe("");
+    expect(params.amountMin).toBeNull();
+    expect(params.amountMax).toBeNull();
+    expect(withParams("/payments", params)).toBe("/payments");
   });
 
   it("still round-trips the other dimensions", () => {
@@ -60,16 +61,14 @@ describe("buildPaymentParams carries the amount range", () => {
         pageSize: 25,
       }),
     );
-    expect(params.get("q")).toBe("acme");
-    expect(params.get("category")).toBe("soft");
-    expect(params.get("time")).toBe("30d");
-    expect(params.get("sort")).toBe("amount_desc");
-    expect(params.get("perPage")).toBe("25");
+    expect(withParams("/payments", params)).toBe(
+      "/payments?q=acme&category=soft&time=30d&sort=amount_desc&perPage=25",
+    );
   });
 
   it("clears a param when an override is empty", () => {
     const params = build(filters({ status: "active" }), { status: "" });
-    expect(params.has("status")).toBe(false);
+    expect(withParams("/payments", params)).toBe("/payments");
   });
 });
 

@@ -5,7 +5,7 @@ import "capsomer/status.css";
 import { SetupChecklist } from "capsomer/react/setup-checklist";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 
 import { accounts, getDb, stripeConnections } from "~/db";
 import { authContext } from "~/lib/auth/context";
@@ -93,9 +93,9 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
               detail: "The name customers see in recovery emails.",
               done: senderNameSet,
               action: (
-                <Link to="/settings" className="cap-btn" data-size="sm">
+                <ButtonLink to="/settings" size="sm">
                   Open settings
-                </Link>
+                </ButtonLink>
               ),
             },
             {
@@ -104,9 +104,9 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
               detail: "We'll alert you when a payment is recovered.",
               done: notificationEmailSet,
               action: (
-                <Link to="/settings" className="cap-btn" data-size="sm">
+                <ButtonLink to="/settings" size="sm">
                   Open settings
-                </Link>
+                </ButtonLink>
               ),
             },
           ]}
@@ -114,14 +114,14 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
       </div>
 
       <div className="text-center">
-        <Link
+        <ButtonLink
           to="/recovery/dashboard"
-          className="cap-btn font-mono"
-          data-variant={allDone ? "primary" : undefined}
-          data-size="lg"
+          className="font-mono"
+          variant={allDone ? "primary" : undefined}
+          size="lg"
         >
           {allDone ? "Go to dashboard" : "Skip for now → Dashboard"}
-        </Link>
+        </ButtonLink>
         {allDone ? null : (
           <p className="m-0 mt-3 text-caption text-text-subtle">
             You can finish these later from the dashboard.

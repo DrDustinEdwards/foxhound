@@ -870,3 +870,317 @@ body {
 .fh-app-page {
   flex: 1 0 auto;
 }
+
+/* The audit dashboard's save line (Capsomer's save bar with no button, saving as each control
+   changes): left, close under the controls, in the small type Recova's status line used, where the
+   bar's default ends the row on the right and sits further below. */
+.fh-audit-autosave {
+  justify-content: flex-start;
+  margin-block-start: var(--space-3);
+  min-block-size: 1rem;
+}
+.fh-audit-autosave .cap-save-bar-status {
+  font-size: var(--text-micro);
+}
+
+/* A filter bar inside a Capsomer panel (the payments page): the panel is the frame, so the bar's own
+   bottom margin goes, and its count sits at the end of the row beside Clear, as Recova's did. */
+.fh-filter-panel {
+  margin: 0;
+}
+.fh-filter-panel .cap-filter-bar-count {
+  flex-basis: auto;
+}
+
+/* A filter bar whose Apply is the view's primary action (customers): amber, as Capsomer's primary
+   button, which the bar's own Apply does not offer. */
+.fh-filter-primary .cap-filter-bar-actions > button[type="submit"].cap-btn {
+  --cap-btn-fg: var(--primary-fg);
+  --cap-btn-bg: var(--primary);
+  --cap-btn-line: var(--primary-line);
+  --cap-btn-hover: var(--primary-hover);
+  --cap-btn-press: var(--primary-hover);
+  font-weight: 600;
+}
+
+/* The legal pages (privacy, terms, security, accessibility): Capsomer's legal page at Recova's sizes
+   and colors. The 0.9375rem body, the 1.25rem section heads and the mono micro contents heading, as
+   Recova writes them. Links are the network's (capsomer/links.css, Foxhound's entry). */
+.fh-legal .cap-legal {
+  --measure: 100%;
+}
+.fh-legal .cap-legal-title {
+  font-size: var(--text-page-title);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+.fh-legal .cap-legal-updated {
+  font-size: var(--text-subhead);
+  color: var(--text-secondary);
+}
+.fh-legal .cap-legal-body,
+.fh-legal .cap-legal-intro,
+.fh-legal .cap-legal-outro {
+  font-size: var(--text-subhead);
+  line-height: 1.625;
+  color: var(--text-secondary);
+}
+.fh-legal .cap-legal-section-title,
+.fh-legal .cap-legal-intro h2 {
+  font-size: var(--text-title);
+  font-weight: 500;
+  color: var(--text);
+}
+.fh-legal .cap-legal-body h3 {
+  font-size: var(--text-item-title);
+  font-weight: 500;
+  color: var(--text);
+}
+.fh-legal .cap-legal-contents-title {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+.fh-legal .cap-legal-contents a {
+  font-size: var(--text-label);
+}
+
+/* Capsomer's hero at Foxhound's three heroes (home, product spokes, page heads): Recova's sizes
+   through the hero's tokens, and the staggered fade-up Recova puts on each line, on the text's
+   children (the keyframes are the ones above). */
+.fh-home-hero,
+.fh-product-hero,
+.fh-page-hero {
+  margin: 0;
+}
+.fh-home-hero {
+  --hero-title: var(--text-hero);
+  --hero-lead-size: var(--text-body);
+  --hero-gap: 3rem;
+}
+@media (min-width: 640px) {
+  .fh-home-hero {
+    --hero-title: var(--text-hero-lg);
+  }
+}
+.fh-home-hero .cap-hero-text {
+  max-inline-size: none;
+}
+.fh-home-hero .cap-hero-title {
+  margin: 0 0 1.25rem;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  text-wrap: initial;
+  color: var(--text);
+}
+@media (min-width: 640px) {
+  .fh-home-hero .cap-hero-title {
+    letter-spacing: -0.04em;
+  }
+}
+.fh-home-hero .cap-hero-lead {
+  max-inline-size: none;
+  margin: 0 0 2rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.fh-home-hero .cap-hero-actions,
+.fh-product-hero .cap-hero-actions {
+  align-items: center;
+  gap: 1rem;
+}
+.fh-home-hero .cap-hero-aside {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fh-home-hero[data-aside] {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+@container cap-hero (inline-size >= 60rem) {
+  .fh-home-hero[data-aside] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 4rem;
+  }
+}
+
+.fh-product-hero {
+  --hero-title: var(--text-product-hero);
+  --hero-lead-size: var(--text-product-sub);
+  border-bottom: 1px solid var(--border);
+  padding: 5rem 1.25rem;
+}
+@media (min-width: 640px) {
+  .fh-product-hero {
+    padding-inline: 2rem;
+  }
+}
+.fh-product-hero .cap-hero-text {
+  max-inline-size: 680px;
+}
+.fh-product-hero .cap-hero-eyebrow {
+  margin: 0 0 1.5rem;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.fh-product-hero .cap-hero-title {
+  margin: 0 0 1rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  white-space: pre-line;
+  color: var(--text);
+}
+.fh-product-hero .cap-hero-lead {
+  max-inline-size: 520px;
+  margin: 0 auto 0.75rem;
+  line-height: 1.625;
+  color: var(--text-secondary);
+}
+.fh-product-hero .cap-hero-body {
+  max-inline-size: none;
+  margin: 0 0 2rem;
+}
+
+.fh-page-hero {
+  --hero-title: var(--text-page-title);
+  --hero-lead-size: var(--text-subhead);
+  max-inline-size: 1080px;
+  margin-inline: auto;
+  padding: 4rem 1.25rem 2.5rem;
+}
+@media (min-width: 640px) {
+  .fh-page-hero {
+    padding-inline: 2rem;
+  }
+}
+.fh-page-hero .cap-hero-text {
+  max-inline-size: none;
+}
+.fh-page-hero .cap-hero-eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--text-tertiary);
+  font: 500 var(--text-micro) / 1.3 var(--font-sans);
+  letter-spacing: 0.1em;
+}
+.fh-page-hero .cap-hero-title {
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+.fh-page-hero .cap-hero-lead {
+  max-inline-size: 560px;
+  margin: 0;
+  line-height: 1.625;
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fh-home-hero .cap-hero-text > *,
+  .fh-page-hero .cap-hero-text > * {
+    animation: fade-up 0.5s ease both;
+  }
+  .fh-home-hero .cap-hero-title {
+    animation-delay: 80ms;
+  }
+  .fh-home-hero .cap-hero-lead {
+    animation-delay: 160ms;
+  }
+  .fh-home-hero .cap-hero-actions {
+    animation-delay: 240ms;
+  }
+  .fh-home-hero .cap-hero-aside {
+    animation: fade-in 0.4s ease both;
+    animation-delay: 320ms;
+  }
+  .fh-page-hero .cap-hero-title {
+    animation-delay: 80ms;
+  }
+  .fh-page-hero .cap-hero-lead {
+    animation-delay: 160ms;
+  }
+}
+
+/* Capsomer's quiet CTA band as Foxhound's closing sections: a plain section with a rule above, the
+   words centered in a column, Recova's sizes. --fh-closing-w is the column. */
+.fh-closing-band {
+  --fh-closing-w: 760px;
+  gap: 0;
+  margin: 0;
+  padding: 5rem 1.25rem;
+  border-color: var(--border-sub);
+}
+@media (min-width: 640px) {
+  .fh-closing-band {
+    padding-inline: 2rem;
+  }
+}
+.fh-closing-band > * {
+  inline-size: 100%;
+  max-inline-size: var(--fh-closing-w);
+}
+.fh-closing-band .cap-cta-band-title {
+  margin-block-end: 1rem;
+  color: var(--text);
+  font-size: var(--text-subsection);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.fh-closing-band .cap-cta-band-text {
+  max-inline-size: min(560px, var(--fh-closing-w));
+  margin: 0 auto 1.75rem;
+  font-size: var(--text-subhead);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.fh-closing-band .cap-cta-band-actions {
+  margin: 0;
+}
+.fh-closing-band .cap-cta-band-note {
+  margin: 0;
+  font-size: inherit;
+  color: inherit;
+}
+.fh-closing-home .cap-cta-band-title {
+  font-size: var(--text-section);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 640px) {
+  .fh-closing-home .cap-cta-band-title {
+    font-size: var(--text-section-lg);
+  }
+}
+.fh-closing-pricing .cap-cta-band-title {
+  font-size: var(--text-section);
+}
+@media (min-width: 640px) {
+  .fh-closing-pricing .cap-cta-band-title {
+    font-size: var(--text-section-lg);
+  }
+}
+/* The product spokes' closing: no rule (the FAQ above ends the page's last band), a 480px column. */
+.fh-closing-band.fh-closing-product {
+  --fh-closing-w: 480px;
+  border-width: 0;
+}
+.fh-closing-product .cap-cta-band-title {
+  margin-block-end: 0.75rem;
+}
+.fh-closing-product .cap-cta-band-text {
+  margin-bottom: 2rem;
+  line-height: 1.625;
+}
+.fh-closing-product .cap-cta-band-note {
+  margin-block-start: 0.75rem;
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+}

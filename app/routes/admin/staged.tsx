@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { data, Form, useNavigation } from "react-router";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
@@ -154,49 +155,43 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
 
       {recent.length > 0 ? (
         <Panel title="Decided" headingId={DECIDED_HEADING_ID} flush>
-          <div
-            className="cap-table-wrap"
-            data-reflow="medium"
-            role="region"
-            aria-labelledby={DECIDED_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="Staged changes already confirmed, rejected or failed, most recently asked for first."
+            captionHidden
+            labelledBy={DECIDED_HEADING_ID}
+            reflow="medium"
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">
-                Staged changes already confirmed, rejected or failed, most recently asked for first.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Change</th>
-                  <th scope="col">Outcome</th>
-                  <th scope="col">Decided by</th>
-                  <th scope="col">When</th>
+            <thead>
+              <tr>
+                <th scope="col">Change</th>
+                <th scope="col">Outcome</th>
+                <th scope="col">Decided by</th>
+                <th scope="col">When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((row) => (
+                <tr key={row.id}>
+                  <th scope="row" className="font-normal" data-wrap="">
+                    {row.summary}
+                  </th>
+                  <td data-label="Outcome">
+                    <Pill
+                      {...BADGE_PILL[
+                        STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"
+                      ]}
+                    >
+                      {row.status}
+                    </Pill>
+                  </td>
+                  <td data-label="Decided by">{row.decidedBy ?? "-"}</td>
+                  <td data-label="When">
+                    <Time at={row.decidedAt} empty="-" tip />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {recent.map((row) => (
-                  <tr key={row.id}>
-                    <th scope="row" className="font-normal" data-wrap="">
-                      {row.summary}
-                    </th>
-                    <td data-label="Outcome">
-                      <Pill
-                        {...BADGE_PILL[
-                          STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"
-                        ]}
-                      >
-                        {row.status}
-                      </Pill>
-                    </td>
-                    <td data-label="Decided by">{row.decidedBy ?? "-"}</td>
-                    <td data-label="When">
-                      <Time at={row.decidedAt} empty="-" tip />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </Panel>
       ) : null}
     </div>

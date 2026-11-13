@@ -1,10 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { CtaBand } from "capsomer/react/cta-band";
+import { Hero } from "capsomer/react/hero";
 import { Pill } from "capsomer/react/status";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
 import { FaqList } from "~/components/faq-list";
 
+import "capsomer/cta-band.css";
+import "capsomer/hero.css";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
@@ -39,15 +43,15 @@ interface CTA {
 /** A Capsomer primary button that is a link, at the large size. */
 function PrimaryLink({ cta }: { cta: CTA }) {
   return (
-    <Link
+    <ButtonLink
       to={cta.href}
       rel={appLinkRel(cta.href)}
-      className="cap-btn px-6 [--cap-btn-h:3rem]"
-      data-variant="primary"
-      data-size="lg"
+      className="px-6 [--cap-btn-h:3rem]"
+      variant="primary"
+      size="lg"
     >
       {cta.label}
-    </Link>
+    </ButtonLink>
   );
 }
 
@@ -69,23 +73,19 @@ export function ProductHero({
   secondaryCTA: CTA;
 }) {
   return (
-    <section className="speakable-hero border-b border-border px-5 py-20 text-center sm:px-8">
-      <div className="mx-auto max-w-[680px]">
-        <div className="mb-6">
-          <Pill variant="outline">
-            <Icon className="h-3 w-3 flex-shrink-0 text-accent-text" strokeWidth={2} aria-hidden />
-            {productName}
-          </Pill>
-        </div>
-        {/* Recova's mechanism: a literal newline in the string is a line break. */}
-        <h1 className="mb-4 whitespace-pre-line text-product-hero font-medium leading-[1.1] tracking-tight text-text">
-          {headline}
-        </h1>
-        <p className="speakable-description mx-auto mb-3 max-w-[520px] text-product-sub leading-relaxed text-text-secondary">
-          {sub}
-        </p>
-        <p className="mb-8 font-mono text-label text-text-tertiary">{pricing}</p>
-        <div className="flex flex-wrap items-center justify-center gap-4">
+    <Hero
+      className="speakable-hero fh-product-hero"
+      align="center"
+      eyebrow={
+        <Pill variant="outline">
+          <Icon className="h-3 w-3 flex-shrink-0 text-accent-text" strokeWidth={2} aria-hidden />
+          {productName}
+        </Pill>
+      }
+      title={headline}
+      lead={<span className="speakable-description">{sub}</span>}
+      actions={
+        <>
           <PrimaryLink cta={primaryCTA} />
           {/* leading-6 keeps the link a 24px target. */}
           <Link
@@ -100,9 +100,11 @@ export function ProductHero({
               aria-hidden
             />
           </Link>
-        </div>
-      </div>
-    </section>
+        </>
+      }
+    >
+      <p className="font-mono text-label text-text-tertiary">{pricing}</p>
+    </Hero>
   );
 }
 
@@ -293,13 +295,14 @@ export function BottomCTA({
   note: string;
 }) {
   return (
-    <section className="px-5 py-20 text-center sm:px-8">
-      <div className="mx-auto max-w-[480px]">
-        <h2 className="mb-3 text-subsection font-medium tracking-tight text-text">{title}</h2>
-        <p className="mb-8 text-subhead leading-relaxed text-text-secondary">{sub}</p>
-        <PrimaryLink cta={cta} />
-        <p className="mt-3 text-caption text-text-tertiary">{note}</p>
-      </div>
-    </section>
+    <CtaBand
+      quiet
+      className="fh-closing-band fh-closing-product"
+      title={title}
+      actions={<PrimaryLink cta={cta} />}
+      note={note}
+    >
+      {sub}
+    </CtaBand>
   );
 }

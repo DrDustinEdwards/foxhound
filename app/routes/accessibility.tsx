@@ -4,8 +4,10 @@ import {
   accessibilityStatement,
 } from "@drdustinedwards/site-helpers/accessibility";
 
+import { LegalDoc } from "capsomer/react/legal-doc";
+import "capsomer/legal-doc.css";
+
 import { LegalBody } from "~/components/legal-page";
-import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -17,21 +19,18 @@ import { markup } from "capsomer/behavior/trusted-html";
 // Prelum's accessibilityStatement, so the standard and the wording are the same
 // everywhere. Foxhound is built from Capsomer's components, and its links are
 // Capsomer's link system (capsomer/links.css in app.css, link.css on the public pages) with a line on hover (Capsomer's Foxhound entry). The page wears the legal pages' shell (/privacy, /terms,
-// /security): MarketingPageHeader over the 720px column, its headings, text and
-// links in the legal pages' classes. Prelum escapes every field it writes.
+// /security): Capsomer's legal page in the 720px column, its headings and text
+// in the legal pages' classes. Prelum escapes every field it writes.
+
+const REVIEWED = "2026-11-13";
 
 const statement = accessibilityStatement({
   siteName: "Foxhound",
   contact: { href: `mailto:${SUPPORT_EMAIL}`, label: SUPPORT_EMAIL },
-  date: "2026-11-13",
+  date: REVIEWED,
   capsomer: true,
   links: "marked",
 });
-
-const BODY =
-  "[&_h2]:mb-4 [&_h2]:mt-12 [&_h2]:text-title [&_h2]:font-medium [&_h2]:text-text " +
-  "[&_p]:mb-4 [&_p]:text-subhead [&_p]:leading-relaxed [&_p]:text-text-secondary " +
-  "[&_ul]:mb-4 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-6 [&_ul]:text-subhead [&_ul]:leading-relaxed [&_ul]:text-text-secondary";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -46,16 +45,15 @@ export const loader = siteUrlLoader;
 
 export default function AccessibilityPage() {
   return (
-    <>
-      <MarketingPageHeader
-        eyebrow="Legal"
+    <LegalBody>
+      <LegalDoc
         title={statement.title}
-        subtext="Last reviewed November 1, 2026"
+        updated={REVIEWED}
+        updatedLabel="Last reviewed"
+        intro={<div dangerouslySetInnerHTML={markup(statement.html)} />}
+        sections={[]}
       />
-      <LegalBody>
-        <div className={BODY} dangerouslySetInnerHTML={markup(statement.html)} />
-      </LegalBody>
-    </>
+    </LegalBody>
   );
 }
 

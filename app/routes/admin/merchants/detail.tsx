@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
@@ -471,43 +472,39 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
         {recentInvoices.length === 0 ? (
           <Empty kind="nothing-yet" title="No invoices yet." />
         ) : (
-          <div
-            className="cap-table-wrap"
-            data-reflow="medium"
-            role="region"
-            aria-labelledby={INVOICES_HEADING_ID}
-            tabIndex={0}
+          <Table
+            caption="This merchant's recent invoices."
+            captionHidden
+            labelledBy={INVOICES_HEADING_ID}
+            reflow="medium"
           >
-            <table className="cap-table">
-              <caption className="cap-sr-only">This merchant&apos;s recent invoices.</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Period</th>
-                  <th scope="col" data-num="">
-                    Total
+            <thead>
+              <tr>
+                <th scope="col">Period</th>
+                <th scope="col" data-num="">
+                  Total
+                </th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentInvoices.map((inv) => (
+                <tr key={inv.id}>
+                  <th scope="row" className="font-normal">
+                    {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
                   </th>
-                  <th scope="col">Status</th>
+                  <td data-label="Total" data-num="">
+                    {formatMoney(inv.totalCents, inv.currency)}
+                  </td>
+                  <td data-label="Status">
+                    <Pill {...BADGE_PILL[billingInvoiceStatusTone(inv.status)]}>
+                      {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
+                    </Pill>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {recentInvoices.map((inv) => (
-                  <tr key={inv.id}>
-                    <th scope="row" className="font-normal">
-                      {inv.periodStart.toLocaleDateString()} - {inv.periodEnd.toLocaleDateString()}
-                    </th>
-                    <td data-label="Total" data-num="">
-                      {formatMoney(inv.totalCents, inv.currency)}
-                    </td>
-                    <td data-label="Status">
-                      <Pill {...BADGE_PILL[billingInvoiceStatusTone(inv.status)]}>
-                        {BILLING_INVOICE_STATUS_LABELS[inv.status] ?? inv.status}
-                      </Pill>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
       </Panel>
     </div>

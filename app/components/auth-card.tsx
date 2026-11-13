@@ -330,11 +330,15 @@ export function SignInLinkForm({
           <Alert tone="crit">{error}</Alert>
         </div>
       ) : null}
-      <div className="grid">
-        <Button type="submit" variant={primary ? "primary" : undefined} size="lg" pending={busy}>
-          {busy ? "Sending..." : "Email me a sign-in link"}
-        </Button>
-      </div>
+      <Button
+        type="submit"
+        variant={primary ? "primary" : undefined}
+        size="lg"
+        pending={busy}
+        block
+      >
+        {busy ? "Sending..." : "Email me a sign-in link"}
+      </Button>
     </Form>
   );
 }
@@ -401,11 +405,9 @@ export function SignInLinkSent({
             <Alert tone="crit">{error}</Alert>
           </div>
         ) : null}
-        <div className="grid">
-          <Button type="submit" size="lg" pending={busy}>
-            {busy ? "Signing in..." : "Sign in with the code"}
-          </Button>
-        </div>
+        <Button type="submit" size="lg" pending={busy} block>
+          {busy ? "Signing in..." : "Sign in with the code"}
+        </Button>
       </Form>
     </>
   );

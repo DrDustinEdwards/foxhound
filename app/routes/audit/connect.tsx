@@ -206,24 +206,18 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
       </div>
 
       {loaderData.stripeEnabled ? (
-        <Form method="post" className="grid">
-          <Button type="submit" variant="primary" size="lg" pending={busy}>
-            {/* The label stays the same while pending: Capsomer 0.9.0 does not
-                paint it then (only the spinner shows), and the status region
-                below says "Connecting to Stripe...", so the name does not
-                change under a screen reader as well (review round 1).
-                The one Foxhound class inside a Capsomer part, and it is on this
-                page's own label, not the button: Capsomer's button never wraps,
-                so Recova's 33-character label is clipped below about 400px,
-                where Recova's own button wraps to two lines. Named in the PR
-                for the per-site layer. */}
-            <span className="whitespace-normal">
-              Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
-            </span>
+        <Form method="post">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            block
+            wrap
+            pending={busy}
+            pendingLabel={PENDING_LABEL}
+          >
+            Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
           </Button>
-          <span role="status" aria-live="polite" className="sr-only">
-            {busy ? PENDING_LABEL : ""}
-          </span>
         </Form>
       ) : (
         <p className="text-center text-label text-text-tertiary">

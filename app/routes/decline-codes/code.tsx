@@ -1,7 +1,7 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
 import { FaqList } from "~/components/faq-list";
@@ -123,9 +123,9 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
                 The free audit shows what Stripe already recovered and what is still dying, no
                 signup required.
               </p>
-              <Link to="/audit" className="cap-btn" data-variant="primary">
+              <ButtonLink to="/audit" variant="primary">
                 Run your free audit
-              </Link>
+              </ButtonLink>
             </div>
           </div>
         </div>

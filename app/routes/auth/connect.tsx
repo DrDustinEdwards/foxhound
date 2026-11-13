@@ -354,8 +354,8 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
       {!loaderData.isOwner ? (
         <p className="text-center text-label text-text-tertiary">{OWNER_REQUIRED_MESSAGE}</p>
       ) : loaderData.stripeEnabled ? (
-        <Form method="post" className="grid">
-          <Button type="submit" variant="primary" pending={busy}>
+        <Form method="post">
+          <Button type="submit" variant="primary" pending={busy} block>
             {busy ? "Redirecting..." : "Connect Stripe"}
           </Button>
         </Form>

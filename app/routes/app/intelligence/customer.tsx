@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useCallback, useMemo } from "react";
@@ -440,43 +441,39 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
           <p className="font-mono text-micro uppercase tracking-wide text-text-tertiary">
             Predictions
           </p>
-          <div
-            className="mt-3 cap-table-wrap rounded-lg border border-border"
-            data-cap="table"
-            data-reflow=""
-            role="region"
-            aria-label="Churn predictions"
-            tabIndex={0}
+          <Table
+            caption="Churn predictions"
+            captionHidden
+            reflow
+            className="mt-3 rounded-lg border border-border"
           >
-            <table className="cap-table">
-              <thead>
-                <tr>
-                  <th scope="col">Predicted</th>
-                  <th scope="col">Score</th>
-                  <th scope="col">Horizon</th>
-                  <th scope="col">Outcome</th>
+            <thead>
+              <tr>
+                <th scope="col">Predicted</th>
+                <th scope="col">Score</th>
+                <th scope="col">Horizon</th>
+                <th scope="col">Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customer.predictions.map((p, i) => (
+                <tr key={i}>
+                  <td className="text-text-tertiary">
+                    {formatDate(p.predictedAt, { style: "medium" }) ?? ""}
+                  </td>
+                  <td data-label="Score" className="font-mono text-text">
+                    {p.score}
+                  </td>
+                  <td data-label="Horizon" className="text-text-tertiary">
+                    {p.horizonDays}d
+                  </td>
+                  <td data-label="Outcome" className="text-text-tertiary">
+                    {p.realizedOutcome ?? "pending"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {customer.predictions.map((p, i) => (
-                  <tr key={i}>
-                    <td className="text-text-tertiary">
-                      {formatDate(p.predictedAt, { style: "medium" }) ?? ""}
-                    </td>
-                    <td data-label="Score" className="font-mono text-text">
-                      {p.score}
-                    </td>
-                    <td data-label="Horizon" className="text-text-tertiary">
-                      {p.horizonDays}d
-                    </td>
-                    <td data-label="Outcome" className="text-text-tertiary">
-                      {p.realizedOutcome ?? "pending"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </section>
       ) : null}
     </>

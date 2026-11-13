@@ -1,7 +1,7 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { ArrowRight } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
 import { Picture } from "capsomer/react/picture";
@@ -206,12 +206,7 @@ function BlogHero({
           {/* Wrapped so the spacing above is the page's, not a class on the button. */}
           <div className="mt-6">
             {/* "group" carries no style; it drives Recova's arrow nudge on hover. */}
-            <Link
-              to={`/blog/${post.slug}`}
-              className="cap-btn group"
-              data-variant="primary"
-              data-size="lg"
-            >
+            <ButtonLink to={`/blog/${post.slug}`} className="group" variant="primary" size="lg">
               Read the guide
               <ArrowRight
                 data-icon="end"
@@ -220,7 +215,7 @@ function BlogHero({
                 strokeWidth={1.5}
                 aria-hidden
               />
-            </Link>
+            </ButtonLink>
           </div>
         </div>
         {cover ? (

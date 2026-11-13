@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { frameHtml } from "capsomer/behavior/chart-frame";
 import { Pill } from "capsomer/react/status";
 
@@ -8,6 +9,7 @@ import { drawPlans } from "~/lib/intelligence/dashboard-charts";
 import { METER_TONE, type HealthScoreBand } from "~/lib/intelligence/health-band";
 import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 import { markup } from "capsomer/behavior/trusted-html";
+import "capsomer/table.css";
 
 // The previews on /product/intelligence, Recova's three feature-block
 // UIs: the Intelligence dashboard (IntelligenceDashboardPreview.tsx, blob
@@ -119,60 +121,47 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
   );
 }
 
-const TABLE_CAPTION = "preview-intelligence-customers";
-
 /** Block 2: Recova's customer table, worst health first. */
 export function CustomerTablePreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="p-5">
-      <div
-        className="cap-table-wrap"
-        data-reflow=""
-        role="region"
-        aria-labelledby={TABLE_CAPTION}
-        tabIndex={0}
-      >
-        <table className="cap-table">
-          <caption id={TABLE_CAPTION} className="sr-only">
-            Customers by health score, lowest first
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Customer</th>
-              <th scope="col">Plan</th>
-              <th scope="col">Health</th>
-              <th scope="col">MRR</th>
-            </tr>
-          </thead>
-          <tbody>
-            {preview.customers.map((row) => (
-              <tr key={row.id}>
-                <th scope="row">
-                  <span className="text-label font-normal text-text">{row.name}</span>
-                </th>
-                <td data-label="Plan">
-                  {/* Capsomer's pill markup rather than its Pill component,
+      <Table caption="Customers by health score, lowest first" captionHidden reflow>
+        <thead>
+          <tr>
+            <th scope="col">Customer</th>
+            <th scope="col">Plan</th>
+            <th scope="col">Health</th>
+            <th scope="col">MRR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {preview.customers.map((row) => (
+            <tr key={row.id}>
+              <th scope="row">
+                <span className="text-label font-normal text-text">{row.name}</span>
+              </th>
+              <td data-label="Plan">
+                {/* Capsomer's pill markup rather than its Pill component,
                       which adds a status glyph to any toned pill; a plan is
                       not a status. The same choice as the directory. */}
-                  <span
-                    className="cap-pill"
-                    data-tone={row.planTone ?? undefined}
-                    data-variant="outline"
-                  >
-                    {row.planLabel}
-                  </span>
-                </td>
-                <td data-label="Health">
-                  <Pill tone={METER_TONE[row.band]}>{row.healthScore}</Pill>
-                </td>
-                <td data-label="MRR" className="whitespace-nowrap">
-                  <span className="font-mono text-label text-text">{row.mrr}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                <span
+                  className="cap-pill"
+                  data-tone={row.planTone ?? undefined}
+                  data-variant="outline"
+                >
+                  {row.planLabel}
+                </span>
+              </td>
+              <td data-label="Health">
+                <Pill tone={METER_TONE[row.band]}>{row.healthScore}</Pill>
+              </td>
+              <td data-label="MRR" className="whitespace-nowrap">
+                <span className="font-mono text-label text-text">{row.mrr}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
     </div>
   );
 }

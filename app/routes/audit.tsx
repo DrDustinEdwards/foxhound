@@ -5,7 +5,7 @@ import { Field } from "capsomer/react/field";
 import { mountTurnstile, verifyTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { useEffect, useId, useRef } from "react";
 import { data, Form, useNavigation } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -291,16 +291,15 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
               </ul>
 
               {/* Recova's full-width button: py-4 at 1rem bold, 10px corners. */}
-              <div className="grid">
-                <Link
-                  to="/audit/connect"
-                  className="cap-btn rounded-[10px] font-bold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3.5rem]"
-                  data-variant="primary"
-                  data-size="lg"
-                >
-                  See my numbers
-                </Link>
-              </div>
+              <ButtonLink
+                to="/audit/connect"
+                className="rounded-[10px] font-bold [--cap-btn-fs:var(--text-body)] [--cap-btn-h:3.5rem]"
+                variant="primary"
+                size="lg"
+                block
+              >
+                See my numbers
+              </ButtonLink>
               <p className="m-0 mt-2 text-label text-text-subtle">
                 {AUDIT_ACCESS_CHIP}. 30 seconds. No account required.
               </p>
@@ -365,9 +364,9 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 needed. Foxhound only reads, writes nothing back to Stripe, and disconnects itself
                 after {AUDIT_GRANT_MINUTES} minutes.
               </p>
-              <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+              <ButtonLink to="/audit/connect" variant="primary">
                 Run the free audit
-              </Link>
+              </ButtonLink>
               <p className="m-0 mt-4 font-mono text-micro text-text-subtle">
                 No account required &middot; The audit only reads &middot; Nothing is stored
               </p>
@@ -428,12 +427,9 @@ function EstimatorForm({
 
       <div ref={widget} />
 
-      {/* Full width, as the form's own submit was: the grid stretches it. */}
-      <div className="grid">
-        <Button type="submit" variant="primary" pending={busy}>
-          Estimate my leakage
-        </Button>
-      </div>
+      <Button type="submit" variant="primary" pending={busy} block>
+        Estimate my leakage
+      </Button>
     </Form>
   );
 }
@@ -459,9 +455,9 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
       {/* The estimator's own next step: the audit reads the merchant's actual
           account, takes no account to run, and is what this card has been
           promising as "your real numbers" all along. */}
-      <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+      <ButtonLink to="/audit/connect" variant="primary">
         Run the free audit on your real numbers
-      </Link>
+      </ButtonLink>
     </div>
   );
 }

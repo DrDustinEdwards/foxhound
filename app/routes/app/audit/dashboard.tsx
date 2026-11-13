@@ -1,19 +1,22 @@
+import { Table } from "capsomer/react/table";
 import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId, useRef, useState } from "react";
 import { useShownFor } from "capsomer/react/hooks";
 import { data, useNavigation } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 import { eq } from "drizzle-orm";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { compareFigures, Delta, type DeltaValue } from "capsomer/react/delta";
 import { Segmented } from "capsomer/react/segmented";
+import { SaveBar } from "capsomer/react/save-bar";
 import { Switch } from "capsomer/react/switch";
 import "capsomer/button.css";
 import "capsomer/delta.css";
 import "capsomer/empty.css";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
+import "capsomer/save-bar.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
@@ -372,11 +375,15 @@ export function AuditSettingsForm({
         </div>
       </div>
 
-      <div role="status" className="mt-3 min-h-4 text-micro">
-        {saving ? <span className="text-text-subtle">Saving…</span> : null}
-        {!saving && shown?.ok === true ? <span className="text-green">Saved.</span> : null}
-        {!saving && shown?.ok === false ? <span className="text-red">Save failed.</span> : null}
-      </div>
+      {/* Saves as each control changes: no button, "Saving…" while a save is out, then the
+          result ("Saved." clears after three seconds; a failure stays until the next try). */}
+      <SaveBar
+        button={false}
+        className="fh-audit-autosave"
+        pending={saving}
+        saved={shown?.ok === true && "Saved."}
+        error={shown?.ok === false ? "Save failed." : null}
+      />
     </DemoForm>
   );
 }
@@ -407,9 +414,9 @@ function SettingsPanel({
 
 function RunNewAudit({ children }: { children: string }) {
   return (
-    <Link to="/audit/connect" className="cap-btn" data-variant="primary">
+    <ButtonLink to="/audit/connect" variant="primary">
       {children}
-    </Link>
+    </ButtonLink>
   );
 }
 
@@ -488,59 +495,50 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
       <div className="mb-5">
         <Panel title="History" flush>
-          <div
-            className="cap-table-wrap"
-            data-reflow=""
-            data-cap="table"
-            role="region"
-            aria-label="Audit runs"
-            tabIndex={0}
-          >
-            <table className="cap-table">
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col" data-num="">
-                    Failed
-                  </th>
-                  <th scope="col" data-num="">
-                    Disputes
-                  </th>
-                  <th scope="col" data-num="">
-                    MRR
-                  </th>
-                  <th scope="col" data-num="">
-                    <span className="sr-only">View</span>
-                  </th>
+          <Table caption="Audit runs" captionHidden reflow>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col" data-num="">
+                  Failed
+                </th>
+                <th scope="col" data-num="">
+                  Disputes
+                </th>
+                <th scope="col" data-num="">
+                  MRR
+                </th>
+                <th scope="col" data-num="">
+                  <span className="sr-only">View</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((run) => (
+                <tr key={run.id}>
+                  <th scope="row">{formatDate(run.runAt, { style: "medium" }) ?? ""}</th>
+                  <td data-label="Failed" data-num="" className="font-mono">
+                    <Amount totals={run.failedInvoices} currency={run.currency} />
+                  </td>
+                  <td data-label="Disputes" data-num="" className="font-mono">
+                    <Amount totals={run.openDisputes} currency={run.currency} />
+                  </td>
+                  <td data-label="MRR" data-num="" className="font-mono">
+                    <Amount totals={run.mrr} currency={run.currency} />
+                  </td>
+                  <td data-label="View" data-num="">
+                    <ButtonLink to={`/audit/results/${run.id}`} variant="link">
+                      View
+                      <span className="sr-only">
+                        {" "}
+                        the run of {formatDate(run.runAt, { style: "medium" }) ?? ""}
+                      </span>
+                    </ButtonLink>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {runs.map((run) => (
-                  <tr key={run.id}>
-                    <th scope="row">{formatDate(run.runAt, { style: "medium" }) ?? ""}</th>
-                    <td data-label="Failed" data-num="" className="font-mono">
-                      <Amount totals={run.failedInvoices} currency={run.currency} />
-                    </td>
-                    <td data-label="Disputes" data-num="" className="font-mono">
-                      <Amount totals={run.openDisputes} currency={run.currency} />
-                    </td>
-                    <td data-label="MRR" data-num="" className="font-mono">
-                      <Amount totals={run.mrr} currency={run.currency} />
-                    </td>
-                    <td data-label="View" data-num="">
-                      <Link to={`/audit/results/${run.id}`} className="cap-btn" data-variant="link">
-                        View
-                        <span className="sr-only">
-                          {" "}
-                          the run of {formatDate(run.runAt, { style: "medium" }) ?? ""}
-                        </span>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         </Panel>
       </div>
 

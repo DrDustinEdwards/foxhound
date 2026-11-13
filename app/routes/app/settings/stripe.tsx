@@ -1,3 +1,4 @@
+import { ButtonLink } from "capsomer/react/link";
 import { useEffect, useId, useState } from "react";
 import { data, redirect, useNavigation } from "react-router";
 import { Alert } from "capsomer/react/banner";
@@ -261,9 +262,9 @@ function StripeSection({
         {connections.length === 0 ? (
           <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-label text-text">No Stripe account connected</p>
-            <a href="/connect" className="cap-btn" data-variant="primary">
+            <ButtonLink href="/connect" variant="primary">
               Connect Stripe
-            </a>
+            </ButtonLink>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -326,15 +327,9 @@ function StripeSection({
                           tone="warn"
                           title="Your Stripe account needs attention."
                           action={
-                            <a
-                              href={STRIPE_DASHBOARD_URL}
-                              className="cap-btn"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
+                            <ButtonLink href={STRIPE_DASHBOARD_URL} away newTab>
                               Open Stripe dashboard
-                              <span className="cap-sr-only"> (opens in a new tab)</span>
-                            </a>
+                            </ButtonLink>
                           }
                         >
                           {conn.healthWarning.join(" ")}
@@ -346,9 +341,7 @@ function StripeSection({
               );
             })}
             <div className="pt-2">
-              <a href="/connect/additional" className="cap-btn">
-                Add Stripe account
-              </a>
+              <ButtonLink href="/connect/additional">Add Stripe account</ButtonLink>
             </div>
           </div>
         )}

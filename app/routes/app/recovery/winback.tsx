@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { formatDate } from "capsomer/behavior/time";
@@ -51,58 +52,54 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
           here.
         </p>
       ) : (
-        <div
-          className="mt-6 cap-table-wrap rounded-lg border border-border"
-          data-cap="table"
-          data-reflow=""
-          role="region"
-          aria-label="Win-back customers"
-          tabIndex={0}
+        <Table
+          caption="Win-back customers"
+          captionHidden
+          reflow
+          className="mt-6 rounded-lg border border-border"
         >
-          <table className="cap-table">
-            <thead>
-              <tr>
-                <th scope="col">Customer</th>
-                <th scope="col">Plan</th>
-                <th scope="col">Canceled</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sequences.map((seq) => (
-                <tr key={seq.id}>
-                  <td>
-                    <p className="text-text">{seq.customerName ?? seq.customerEmail}</p>
-                    <p className="text-micro text-text-subtle">{seq.customerEmail}</p>
-                  </td>
-                  <td data-label="Plan" className="text-text-tertiary">
-                    {seq.planName ?? "-"}
-                    {seq.amountCents != null && seq.currency ? (
-                      <span className="ml-2 font-mono text-text">
-                        {formatMoney(seq.amountCents, seq.currency)}
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col">Plan</th>
+              <th scope="col">Canceled</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sequences.map((seq) => (
+              <tr key={seq.id}>
+                <td>
+                  <p className="text-text">{seq.customerName ?? seq.customerEmail}</p>
+                  <p className="text-micro text-text-subtle">{seq.customerEmail}</p>
+                </td>
+                <td data-label="Plan" className="text-text-tertiary">
+                  {seq.planName ?? "-"}
+                  {seq.amountCents != null && seq.currency ? (
+                    <span className="ml-2 font-mono text-text">
+                      {formatMoney(seq.amountCents, seq.currency)}
+                    </span>
+                  ) : null}
+                </td>
+                <td data-label="Canceled" className="text-text-tertiary">
+                  {formatDate(seq.createdAt, { style: "medium" }) ?? ""}
+                </td>
+                <td data-label="Status">
+                  <div className="flex flex-col items-start gap-1">
+                    <Pill {...BADGE_PILL[statusTone(seq.status)]}>
+                      {STATUS_LABEL[seq.status] ?? seq.status}
+                    </Pill>
+                    {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
+                      <span className="text-micro text-text-subtle">
+                        Won back {formatDate(seq.reactivatedAt, { style: "medium" }) ?? ""}
                       </span>
                     ) : null}
-                  </td>
-                  <td data-label="Canceled" className="text-text-tertiary">
-                    {formatDate(seq.createdAt, { style: "medium" }) ?? ""}
-                  </td>
-                  <td data-label="Status">
-                    <div className="flex flex-col items-start gap-1">
-                      <Pill {...BADGE_PILL[statusTone(seq.status)]}>
-                        {STATUS_LABEL[seq.status] ?? seq.status}
-                      </Pill>
-                      {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
-                        <span className="text-micro text-text-subtle">
-                          Won back {formatDate(seq.reactivatedAt, { style: "medium" }) ?? ""}
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       )}
     </div>
   );

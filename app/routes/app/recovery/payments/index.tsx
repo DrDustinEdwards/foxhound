@@ -1,8 +1,9 @@
-import { plural } from "@drdustinedwards/site-helpers/text";
+import { Table } from "capsomer/react/table";
+import { countText } from "capsomer/content";
 import { pageEnvelope, statusText } from "capsomer/behavior/pagination";
 import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Form,
   data,
@@ -11,12 +12,13 @@ import {
   useRouteLoaderData,
   useSubmit,
 } from "react-router";
-import { Link } from "capsomer/react/link";
+import { ButtonLink, Link } from "capsomer/react/link";
 import { dismissBanner } from "capsomer/behavior/banner";
 import { Banner } from "capsomer/react/banner";
 import { useShownFor } from "capsomer/react/hooks";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
+import { clearedHref, FilterBar, hasFilters, withParams } from "capsomer/react/filter-bar";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { RangeSlider } from "capsomer/react/range-slider";
@@ -29,6 +31,7 @@ import "capsomer/confirm-dialog.css";
 import "capsomer/dialog.css";
 import "capsomer/empty.css";
 import "capsomer/field.css";
+import "capsomer/filter-bar.css";
 import "capsomer/page-head.css";
 import "capsomer/pagination.css";
 import "capsomer/panel.css";
@@ -62,7 +65,7 @@ import type {
   FailedPaymentPageSize,
   FailedPaymentSort,
 } from "~/lib/recovery/queries.server";
-import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { buildPaymentParams } from "~/lib/recovery/payment-filters";
 import { sliderAmount } from "~/lib/recovery/payments-list";
 import {
   amountSliderStep,
@@ -299,20 +302,14 @@ function exportHref(filters: Filters, bounds: AmountBounds, page: number): strin
   );
 }
 
-/** Recova's Clear filters keeps the sort and the page size and drops the rest. */
+function paramsFor(filters: Filters, bounds: AmountBounds) {
+  return buildPaymentParams(filters, { bounds, defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE });
+}
+
+/** Recova's Clear filters keeps the sort and the page size and drops the rest. The currency is
+ *  which amounts the range shows, not a filter, so it stays too. */
 function clearHref(filters: Filters, bounds: AmountBounds): string {
-  return hrefWith(
-    {
-      ...filters,
-      search: "",
-      status: "",
-      declineCategory: "",
-      time: "all",
-      amountMinCents: bounds.minCents,
-      amountMaxCents: bounds.maxCents,
-    },
-    bounds,
-  );
+  return clearedHref(BASE, paramsFor(filters, bounds), ["sort", "perPage", "currency"]);
 }
 
 // Recova's STATUS_TABS, in order (PaymentsFilters.tsx).
@@ -355,8 +352,6 @@ const SORTS: { value: FailedPaymentSort; label: string }[] = [
   { value: "amount_desc", label: "Highest amount" },
   { value: "amount_asc", label: "Lowest amount" },
 ];
-
-const SEARCH_DELAY_MS = 300;
 
 /** Why one payment did not take the action, in the merchant's words. */
 const BULK_REASON_LABELS: Record<BulkFailureReason, string> = {
@@ -501,49 +496,46 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       : id;
   };
 
-  // Recova applies a filter on change. The search waits a moment after typing
-  // stops, so each key is not its own page load.
+  // Recova applies a filter on change: the filter bar submits the form as you
+  // type (after a pause, never mid-composition) and on each change of a
+  // control. The box follows the address when the address changes under it
+  // (Clear, Back), but not while a search it has already sent comes back.
   const [search, setSearch] = useState(filters.search);
   const sentSearch = useRef(filters.search);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (filters.search !== sentSearch.current) {
       sentSearch.current = filters.search;
       setSearch(filters.search);
     }
   }, [filters.search]);
-  useEffect(
-    () => () => {
-      if (searchTimer.current) clearTimeout(searchTimer.current);
-    },
-    [],
-  );
-  // An IME (Japanese, Chinese and Korean input, many phone keyboards) fires change events while a word is still being
-  // composed; the search waits for compositionend, which commits it (UI Events, Composition Events), as Capsomer's
-  // catalog search does.
-  function onSearch(value: string, composing = false) {
-    setSearch(value);
-    if (composing) return;
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      sentSearch.current = value.trim();
-      void navigate(hrefWith(filters, bounds, { q: value.trim() }), {
-        replace: true,
-        preventScrollReset: true,
-      });
-    }, SEARCH_DELAY_MS);
+  // Every control shows the address; the bar's submit is what changes it.
+  const followsAddress = () => undefined;
+  function onFilterSubmit(e: FormEvent<HTMLFormElement>) {
+    sentSearch.current = search.trim();
+    // A new currency starts its amount range over: the handles hold the old
+    // currency's amounts, so they are not sent with it.
+    const picked = new FormData(e.currentTarget).get("currency");
+    if (typeof picked === "string" && picked !== bounds.currency) {
+      e.preventDefault();
+      void navigate(
+        hrefWith(filters, bounds, {
+          currency: picked === bounds.defaultCurrency ? "" : picked,
+          amountMin: "",
+          amountMax: "",
+        }),
+        { preventScrollReset: true },
+      );
+    }
   }
-  const go = (overrides: Partial<Record<string, string>>) =>
-    void navigate(hrefWith(filters, bounds, overrides), { preventScrollReset: true });
 
-  const hasActiveFilters = Boolean(
-    filters.search ||
-    filters.status ||
-    filters.declineCategory ||
-    filters.time !== "all" ||
-    filters.amountMinCents > bounds.minCents ||
-    filters.amountMaxCents < bounds.maxCents,
-  );
+  const hasActiveFilters = hasFilters(paramsFor(filters, bounds), [
+    "q",
+    "status",
+    "category",
+    "time",
+    "amountMin",
+    "amountMax",
+  ]);
   const resultCount = result.totalCount;
 
   async function performConfirmed(intent: BulkActionIntent) {
@@ -574,9 +566,9 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           title="Payments"
           lead={paymentsHeaderLine(header)}
           actions={
-            <Link to={exportHref(filters, bounds, result.page)} className="cap-btn" reloadDocument>
+            <ButtonLink to={exportHref(filters, bounds, result.page)} reloadDocument>
               Export CSV
-            </Link>
+            </ButtonLink>
           }
         />
       </div>
@@ -674,170 +666,149 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       ) : null}
 
       {/* Recova's PaymentsFilters: one panel, two rows. */}
-      <Form
-        method="get"
-        className="cap-panel"
-        onSubmit={() => {
-          if (searchTimer.current) clearTimeout(searchTimer.current);
-        }}
-      >
+      <div className="cap-panel">
         <div className="cap-panel-body">
-          <div className="flex flex-col gap-4 text-label">
-            <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
-              <div className="w-full md:min-w-[180px] md:flex-1">
-                <input
-                  className="cap-input"
-                  type="text"
-                  name="q"
-                  value={search}
-                  onChange={(e) =>
-                    onSearch(e.target.value, (e.nativeEvent as InputEvent).isComposing)
-                  }
-                  onCompositionEnd={(e) => onSearch(e.currentTarget.value)}
-                  placeholder="Search by name, email, or plan..."
-                  aria-label="Search payments"
-                />
-              </div>
-              <div className="max-w-full overflow-x-auto">
-                {/* Capsomer's segmented control, as its markup: its React
+          <FilterBar
+            label="Filter payments"
+            Form={Form}
+            live
+            className="fh-filter-panel"
+            onSubmit={onFilterSubmit}
+            count={countText(resultCount, resultCount, { noun: "result", plural: "results" })}
+            clearHref={hasActiveFilters ? clearHref(filters, bounds) : null}
+            clearLabel="Clear filters"
+            renderLink={({ href, children }) => (
+              <ButtonLink to={href} variant="quiet" size="sm">
+                {children}
+              </ButtonLink>
+            )}
+          >
+            <div className="flex w-full flex-col gap-4 text-label">
+              <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
+                <div className="w-full md:min-w-[180px] md:flex-1">
+                  <input
+                    className="cap-input"
+                    type="text"
+                    name="q"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, email, or plan..."
+                    aria-label="Search payments"
+                  />
+                </div>
+                <div className="max-w-full overflow-x-auto">
+                  {/* Capsomer's segmented control, as its markup: its React
                     wrapper hides the legend with cap-sr-only, which lives in
                     Capsomer's base.css, which the app does not load, so the
                     legend would show where Recova shows none. */}
-                <fieldset className="cap-seg">
-                  <legend className="sr-only">Filter by status</legend>
-                  <div className="cap-seg-options">
-                    {STATUS_PILLS.map((pill) => (
-                      <label key={pill.value}>
-                        <input
-                          type="radio"
-                          name="status"
-                          value={pill.value}
-                          checked={filters.status === pill.value}
-                          onChange={() => go({ status: pill.value })}
-                        />{" "}
-                        {pill.label}{" "}
-                        <span className="font-mono">{countFor(pillCounts, pill.value)}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+                  <fieldset className="cap-seg">
+                    <legend className="sr-only">Filter by status</legend>
+                    <div className="cap-seg-options">
+                      {STATUS_PILLS.map((pill) => (
+                        <label key={pill.value}>
+                          <input
+                            type="radio"
+                            name="status"
+                            value={pill.value}
+                            checked={filters.status === pill.value}
+                            onChange={followsAddress}
+                          />{" "}
+                          {pill.label}{" "}
+                          <span className="font-mono">{countFor(pillCounts, pill.value)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
               </div>
-            </div>
 
-            <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
-              <div className="cap-select-wrap">
-                <select
-                  className="cap-select"
-                  name="time"
-                  aria-label="Filter by date range"
-                  value={filters.time}
-                  onChange={(e) => go({ time: e.target.value === "all" ? "" : e.target.value })}
-                >
-                  {DATE_RANGES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="cap-select-wrap">
-                <select
-                  className="cap-select"
-                  name="category"
-                  aria-label="Filter by decline category"
-                  value={filters.declineCategory}
-                  onChange={(e) => go({ category: e.target.value })}
-                >
-                  <option value="">All declines</option>
-                  {Object.keys(DECLINE_CATEGORY_WORDS).map((c) => (
-                    <option key={c} value={c}>
-                      {declineWord(c)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="cap-select-wrap">
-                <select
-                  className="cap-select"
-                  name="sort"
-                  aria-label="Filter by sort order"
-                  value={filters.sort}
-                  onChange={(e) => go({ sort: e.target.value === "newest" ? "" : e.target.value })}
-                >
-                  {SORTS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {bounds.currencies.length > 1 ? (
+              <div className="flex flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
                 <div className="cap-select-wrap">
                   <select
                     className="cap-select"
-                    name="currency"
-                    aria-label="Currency of the amount range"
-                    value={bounds.currency}
-                    onChange={(e) =>
-                      go({
-                        currency: e.target.value === bounds.defaultCurrency ? "" : e.target.value,
-                        amountMin: "",
-                        amountMax: "",
-                      })
-                    }
+                    name="time"
+                    aria-label="Filter by date range"
+                    value={filters.time}
+                    onChange={followsAddress}
                   >
-                    {bounds.currencies.map((c) => (
-                      <option key={c} value={c}>
-                        {c.toUpperCase()}
+                    {DATE_RANGES.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
                       </option>
                     ))}
                   </select>
                 </div>
-              ) : null}
-              <RangeSlider
-                className="md:min-w-[220px] md:flex-[0_0_240px]"
-                label="Amount"
-                min={bounds.minCents}
-                max={bounds.maxCents}
-                low={filters.amountMinCents}
-                high={filters.amountMaxCents}
-                step={amountSliderStep(bounds.currency)}
-                names={["amountMin", "amountMax"]}
-                handleLabels={["Minimum amount", "Maximum amount"]}
-                format={(minor, which) =>
-                  sliderAmount(minor, bounds.currency, which === "high", bounds.maxCents)
-                }
-                onCommit={(nextMin, nextMax) =>
-                  go({
-                    amountMin: nextMin > bounds.minCents ? String(nextMin) : "",
-                    amountMax: nextMax < bounds.maxCents ? String(nextMax) : "",
-                  })
-                }
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="whitespace-nowrap text-micro text-text-subtle">
-                  {plural(resultCount, "result")}
-                </span>
-                {hasActiveFilters ? (
-                  <Link
-                    to={clearHref(filters, bounds)}
-                    className="cap-btn"
-                    data-variant="quiet"
-                    data-size="sm"
+                <div className="cap-select-wrap">
+                  <select
+                    className="cap-select"
+                    name="category"
+                    aria-label="Filter by decline category"
+                    value={filters.declineCategory}
+                    onChange={followsAddress}
                   >
-                    Clear filters
-                  </Link>
+                    <option value="">All declines</option>
+                    {Object.keys(DECLINE_CATEGORY_WORDS).map((c) => (
+                      <option key={c} value={c}>
+                        {declineWord(c)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="cap-select-wrap">
+                  <select
+                    className="cap-select"
+                    name="sort"
+                    aria-label="Filter by sort order"
+                    value={filters.sort}
+                    onChange={followsAddress}
+                  >
+                    {SORTS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {bounds.currencies.length > 1 ? (
+                  <div className="cap-select-wrap">
+                    <select
+                      className="cap-select"
+                      name="currency"
+                      aria-label="Currency of the amount range"
+                      value={bounds.currency}
+                      onChange={followsAddress}
+                    >
+                      {bounds.currencies.map((c) => (
+                        <option key={c} value={c}>
+                          {c.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 ) : null}
+                <RangeSlider
+                  className="md:min-w-[220px] md:flex-[0_0_240px]"
+                  label="Amount"
+                  min={bounds.minCents}
+                  max={bounds.maxCents}
+                  low={filters.amountMinCents}
+                  high={filters.amountMaxCents}
+                  step={amountSliderStep(bounds.currency)}
+                  names={["amountMin", "amountMax"]}
+                  handleLabels={["Minimum amount", "Maximum amount"]}
+                  format={(minor, which) =>
+                    sliderAmount(minor, bounds.currency, which === "high", bounds.maxCents)
+                  }
+                />
               </div>
             </div>
-          </div>
+            {/* The page size rides along when the form submits. */}
+            {filters.pageSize !== PAYMENTS_DEFAULT_PAGE_SIZE ? (
+              <input type="hidden" name="perPage" value={String(filters.pageSize)} />
+            ) : null}
+          </FilterBar>
         </div>
-        {/* The page size and the sort ride along when the form submits without
-            script; with script every control navigates on change. */}
-        {filters.pageSize !== PAYMENTS_DEFAULT_PAGE_SIZE ? (
-          <input type="hidden" name="perPage" value={String(filters.pageSize)} />
-        ) : null}
-      </Form>
+      </div>
 
       {/* Recova's rows-per-page links, right-aligned between the panel and the
           table, as Capsomer's link chips. */}
@@ -870,154 +841,145 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-label="Payments"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    {/* Recova gates both boxes on !isDemo, so the demo has no
+            <Table caption="Payments" captionHidden reflow="medium">
+              <thead>
+                <tr>
+                  {/* Recova gates both boxes on !isDemo, so the demo has no
                         column at all. The 405 middleware is the boundary. */}
-                    {!isDemo ? (
-                      <th scope="col">
-                        <label className="cap-check">
-                          <input
-                            type="checkbox"
-                            checked={headerChecked}
-                            onChange={() => setSelected(toggleAllVisible(selected, rows))}
-                          />
-                          <span className="sr-only">Select all payments</span>
-                        </label>
-                      </th>
-                    ) : null}
-                    <th scope="col">Customer</th>
-                    <th scope="col">Amount</th>
-                    <th scope="col">Decline</th>
-                    <th scope="col">Steps</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Detected</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((p) => {
-                    const name = p.customerName ?? p.customerEmail;
-                    const isSelected = selected.has(p.id);
-                    return (
-                      <tr key={p.id} data-state={isSelected ? "selected" : undefined}>
-                        {!isDemo ? (
-                          <td>
-                            <label className="cap-check">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => setSelected(toggleOne(selected, p.id))}
-                              />
-                              <span className="sr-only">Select payment from {name}</span>
-                            </label>
-                          </td>
-                        ) : null}
-                        <th scope="row">
-                          {/* Recova's whole row opens the payment: Capsomer's
+                  {!isDemo ? (
+                    <th scope="col">
+                      <label className="cap-check">
+                        <input
+                          type="checkbox"
+                          checked={headerChecked}
+                          onChange={() => setSelected(toggleAllVisible(selected, rows))}
+                        />
+                        <span className="sr-only">Select all payments</span>
+                      </label>
+                    </th>
+                  ) : null}
+                  <th scope="col">Customer</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Decline</th>
+                  <th scope="col">Steps</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Detected</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((p) => {
+                  const name = p.customerName ?? p.customerEmail;
+                  const isSelected = selected.has(p.id);
+                  return (
+                    <tr key={p.id} data-state={isSelected ? "selected" : undefined}>
+                      {!isDemo ? (
+                        <td>
+                          <label className="cap-check">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => setSelected(toggleOne(selected, p.id))}
+                            />
+                            <span className="sr-only">Select payment from {name}</span>
+                          </label>
+                        </td>
+                      ) : null}
+                      <th scope="row">
+                        {/* Recova's whole row opens the payment: Capsomer's
                               stretched row link, under the box and the pills. */}
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <Link className="cap-table-open" to={`${BASE}/${p.id}`}>
-                              {name}
-                            </Link>
-                            {/* Recova's personal-outreach mark after the name (PaymentRow.tsx). */}
-                            {p.outreach ? (
-                              <TrendingUp
-                                role="img"
-                                aria-label="Intelligence: personal outreach recommended"
-                                className="h-3 w-3 text-accent-text"
-                                strokeWidth={1.5}
-                              />
-                            ) : null}
-                            {p.priorFailures > 0 ? (
-                              <Pill tone="warn">{p.priorFailures + 1}x failure</Pill>
-                            ) : null}
-                            {p.hasNote ? <Pill>note</Pill> : null}
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <Link className="cap-table-open" to={`${BASE}/${p.id}`}>
+                            {name}
+                          </Link>
+                          {/* Recova's personal-outreach mark after the name (PaymentRow.tsx). */}
+                          {p.outreach ? (
+                            <TrendingUp
+                              role="img"
+                              aria-label="Intelligence: personal outreach recommended"
+                              className="h-3 w-3 text-accent-text"
+                              strokeWidth={1.5}
+                            />
+                          ) : null}
+                          {p.priorFailures > 0 ? (
+                            <Pill tone="warn">{p.priorFailures + 1}x failure</Pill>
+                          ) : null}
+                          {p.hasNote ? <Pill>note</Pill> : null}
+                        </span>
+                        {p.customerName ? (
+                          <span className="mt-0.5 block text-micro font-normal break-all text-text-subtle">
+                            {p.customerEmail}
                           </span>
-                          {p.customerName ? (
-                            <span className="mt-0.5 block text-micro font-normal break-all text-text-subtle">
-                              {p.customerEmail}
-                            </span>
-                          ) : null}
-                          {p.planName ? (
-                            <span className="mt-0.5 block text-micro font-normal text-text-subtle">
-                              {p.planName}
-                            </span>
-                          ) : null}
-                        </th>
-                        <td data-label="Amount">
-                          <span className="whitespace-nowrap font-mono text-label text-brand-text">
-                            {formatMoney(p.amountCents, p.currency)}
+                        ) : null}
+                        {p.planName ? (
+                          <span className="mt-0.5 block text-micro font-normal text-text-subtle">
+                            {p.planName}
                           </span>
-                        </td>
-                        <td data-label="Decline">
-                          <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
-                          {p.declineCode ? (
-                            <span className="mt-0.5 block font-mono text-micro break-all text-text-subtle">
-                              {p.declineCode}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td data-label="Steps">
-                          <span
-                            className={`font-mono text-micro ${p.steps.completed > 0 ? "text-text" : "text-text-subtle"}`}
-                          >
-                            {p.steps.completed}/{p.steps.total}
+                        ) : null}
+                      </th>
+                      <td data-label="Amount">
+                        <span className="whitespace-nowrap font-mono text-label text-brand-text">
+                          {formatMoney(p.amountCents, p.currency)}
+                        </span>
+                      </td>
+                      <td data-label="Decline">
+                        <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
+                        {p.declineCode ? (
+                          <span className="mt-0.5 block font-mono text-micro break-all text-text-subtle">
+                            {p.declineCode}
                           </span>
-                          {p.steps.next ? (
-                            <span className="mt-0.5 block text-micro text-brand-text">
-                              Next: {p.steps.next}
+                        ) : null}
+                      </td>
+                      <td data-label="Steps">
+                        <span
+                          className={`font-mono text-micro ${p.steps.completed > 0 ? "text-text" : "text-text-subtle"}`}
+                        >
+                          {p.steps.completed}/{p.steps.total}
+                        </span>
+                        {p.steps.next ? (
+                          <span className="mt-0.5 block text-micro text-brand-text">
+                            Next: {p.steps.next}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td data-label="Status">
+                        <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
+                          {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                        </Pill>
+                      </td>
+                      <td data-label="Detected">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-micro text-text-subtle">
+                            <span className="block whitespace-nowrap">
+                              {relative(toMs(p.detectedAt), nowMs, "UTC")}
                             </span>
-                          ) : null}
-                        </td>
-                        <td data-label="Status">
-                          <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
-                            {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
-                          </Pill>
-                        </td>
-                        <td data-label="Detected">
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-micro text-text-subtle">
-                              <span className="block whitespace-nowrap">
-                                {relative(toMs(p.detectedAt), nowMs, "UTC")}
-                              </span>
-                              <span className="mt-0.5 block whitespace-nowrap">
-                                {formatLongDate(p.detectedAt)}
-                              </span>
+                            <span className="mt-0.5 block whitespace-nowrap">
+                              {formatLongDate(p.detectedAt)}
                             </span>
-                            {/* Recova's View, shown on hover. The row link above
+                          </span>
+                          {/* Recova's View, shown on hover. The row link above
                                 is the keyboard's way in, so this one is not a
                                 second tab stop. */}
-                            <Link
-                              to={`${BASE}/${p.id}`}
-                              tabIndex={-1}
-                              aria-hidden="true"
-                              className="whitespace-nowrap font-mono text-micro text-text-tertiary no-underline opacity-0 [tr:hover_&]:opacity-100"
-                            >
-                              View{" "}
-                              <ArrowRight
-                                className="inline-block"
-                                size={13}
-                                strokeWidth={1.5}
-                                aria-hidden
-                              />
-                            </Link>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <Link
+                            to={`${BASE}/${p.id}`}
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            className="whitespace-nowrap font-mono text-micro text-text-tertiary no-underline opacity-0 [tr:hover_&]:opacity-100"
+                          >
+                            View{" "}
+                            <ArrowRight
+                              className="inline-block"
+                              size={13}
+                              strokeWidth={1.5}
+                              aria-hidden
+                            />
+                          </Link>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           </div>
         </div>
       )}

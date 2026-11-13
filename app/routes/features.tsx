@@ -1,6 +1,6 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { useMemo, useState } from "react";
-import { Link } from "capsomer/react/link";
+import { ButtonLink } from "capsomer/react/link";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
 import { SequenceSteps } from "~/components/recovery-previews";
@@ -211,14 +211,9 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           {/* Comfortable density for Capsomer's lg button, as /pricing: 40px
               tall with a pointer, 44px on a touch screen. */}
           <div data-density="comfortable">
-            <Link
-              to="/audit"
-              className="cap-btn px-6 [--cap-btn-h:3rem]"
-              data-variant="primary"
-              data-size="lg"
-            >
+            <ButtonLink to="/audit" className="px-6 [--cap-btn-h:3rem]" variant="primary" size="lg">
               Run your free audit
-            </Link>
+            </ButtonLink>
           </div>
         </div>
       </div>

@@ -1,9 +1,12 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight, Check } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { CtaBand } from "capsomer/react/cta-band";
+import { Hero } from "capsomer/react/hero";
+import { Link, ButtonLink } from "capsomer/react/link";
+import "capsomer/cta-band.css";
+import "capsomer/hero.css";
 
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
-import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
@@ -88,10 +91,11 @@ export default function PricingPage() {
       data-cap-site="foxhound"
       data-family="amber"
     >
-      <MarketingPageHeader
+      <Hero
+        className="fh-page-hero"
         eyebrow="Pricing"
         title="Pricing"
-        subtext="Two outcome-based products. Intelligence and Audit are always free."
+        lead="Two outcome-based products. Intelligence and Audit are always free."
       />
 
       {/* Legacy's pricing card grid is max-w-[1200px], NOT the 1100px the home
@@ -207,32 +211,37 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
-        {/* Recova's 48px closing button at 1rem. */}
-        <div className="mx-auto max-w-[760px] text-center">
-          <h2 className="mb-4 text-section font-medium tracking-[-0.01em] text-text sm:text-section-lg">
-            See what your Stripe account is leaking
-          </h2>
-          <p className="mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
-            Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes,
-            and business health. Results in <span className="font-mono">30</span> seconds.
-          </p>
-          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
-            Connect Stripe, it is free
-          </Link>
-          {/* 376 item 20: this line used to read "No account required . No Stripe
+      {/* Recova's 48px closing button at 1rem. */}
+      <CtaBand
+        quiet
+        className="fh-closing-band fh-closing-pricing"
+        title="See what your Stripe account is leaking"
+        actions={
+          <div className="contents" data-density="comfortable">
+            <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
+              Connect Stripe, it is free
+            </ButtonLink>
+          </div>
+        }
+        note={
+          <>
+            {/* 376 item 20: this line used to read "No account required . No Stripe
               connection needed . Results in 30 seconds" directly under a button
               that says Connect Stripe. Both halves were true of DIFFERENT
               products, which is what made the pair a contradiction: the
               estimator needs no connection, the full audit is a connection. The
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
-          <div className="mt-5 font-mono text-caption text-text-subtle">
-            Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
-            that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
-          </div>
-        </div>
-      </section>
+            <span className="mt-5 block font-mono text-caption text-text-subtle">
+              Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
+              that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
+            </span>
+          </>
+        }
+      >
+        Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
+        business health. Results in <span className="font-mono">30</span> seconds.
+      </CtaBand>
     </div>
   );
 }

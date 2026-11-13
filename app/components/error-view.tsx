@@ -1,6 +1,7 @@
-import { useState } from "react";
 import { isRouteErrorResponse } from "react-router";
 import { ErrorPage } from "capsomer/react/error-page";
+import { ButtonLink } from "capsomer/react/link";
+import { copyright } from "capsomer/behavior/family-footer";
 
 import { WITHDRAWN_BLOG_HEADING, WITHDRAWN_BLOG_REASON } from "~/lib/blog/withdrawn";
 import { errorDetails } from "~/lib/errors/boundary-message";
@@ -34,10 +35,9 @@ export function ErrorBar() {
 }
 
 export function ErrorFooter() {
-  const [year] = useState(() => new Date().getFullYear());
   return (
     <footer className="w-full p-6 text-center text-label text-text-tertiary">
-      &copy; {year} Foxhound
+      {copyright("Foxhound")}
     </footer>
   );
 }
@@ -63,14 +63,8 @@ export function recovaWords(error: unknown, isDev: boolean): { title: string; te
 export function errorActions(notFound: boolean) {
   return (
     <>
-      <a href="/recovery/dashboard" className="cap-btn">
-        Go to dashboard
-      </a>
-      {notFound ? (
-        <a href="/demos/recovery" className="cap-btn">
-          View demo
-        </a>
-      ) : null}
+      <ButtonLink href="/recovery/dashboard">Go to dashboard</ButtonLink>
+      {notFound ? <ButtonLink href="/demos/recovery">View demo</ButtonLink> : null}
     </>
   );
 }

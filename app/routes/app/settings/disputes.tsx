@@ -228,16 +228,16 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
 
-        {/* Recova's SaveBar: right-aligned, the result beside the button. Only
-            while Disputes is on: with the settings hidden there is nothing to
-            save, and a save would post them empty. */}
+        {/* Recova's SaveBar: right-aligned, the result beside the button. While
+            Disputes is off the settings are hidden and a save would post them
+            empty, so Save stays, unusable, and says why. */}
         <SaveBar
           pending={saving}
           saved={result?.ok === true && !result.toggled}
           error={
             result?.ok === false ? (result.error ?? "Failed to save. Please try again.") : null
           }
-          button={enabled}
+          disabledReason={enabled ? undefined : "Enable Disputes above to save these settings."}
         />
       </DemoForm>
     </SettingsPage>

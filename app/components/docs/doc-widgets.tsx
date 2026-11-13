@@ -1,4 +1,5 @@
 import { titleCase } from "@drdustinedwards/site-helpers/text";
+import { Table } from "capsomer/react/table";
 import { AlertTriangle, CreditCard, Scale, Activity } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Pill, type Tone } from "capsomer/react/status";
@@ -281,31 +282,22 @@ function CustomerColumns() {
     ["Signals", "Marks for an active recovery and a dispute history."],
   ];
   return (
-    <div
-      className="cap-table-wrap my-6"
-      data-reflow=""
-      data-cap="table"
-      role="region"
-      aria-label="Customers page columns"
-      tabIndex={0}
-    >
-      <table className="cap-table">
-        <thead>
-          <tr>
-            <th scope="col">Column</th>
-            <th scope="col">What it shows</th>
+    <Table caption="Customers page columns" captionHidden reflow className="my-6">
+      <thead>
+        <tr>
+          <th scope="col">Column</th>
+          <th scope="col">What it shows</th>
+        </tr>
+      </thead>
+      <tbody>
+        {columns.map(([name, description]) => (
+          <tr key={name}>
+            <th scope="row">{name}</th>
+            <td data-label="What it shows">{description}</td>
           </tr>
-        </thead>
-        <tbody>
-          {columns.map(([name, description]) => (
-            <tr key={name}>
-              <th scope="row">{name}</th>
-              <td data-label="What it shows">{description}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </Table>
   );
 }
 

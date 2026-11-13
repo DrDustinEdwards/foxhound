@@ -10,8 +10,12 @@ import "capsomer/source-line.css";
 import "~/site-header.css";
 import { ArrowRight } from "lucide-react";
 import { faqPage } from "@drdustinedwards/site-helpers/schema";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
+import { CtaBand } from "capsomer/react/cta-band";
+import { Hero } from "capsomer/react/hero";
+import "capsomer/cta-band.css";
+import "capsomer/hero.css";
 import { EmailSamples } from "~/components/email-samples";
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
@@ -136,43 +140,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       data-family="amber"
     >
       {/* 1. Hero */}
-      <section className="speakable-hero border-b border-border-sub px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
+      <div className="speakable-hero border-b border-border-sub px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
         <div className="mx-auto max-w-[1100px]">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div className="flex flex-col">
-              <h1 className="animate-fade-up delay-80 m-0 mb-5 text-hero font-semibold leading-[1.02] tracking-[-0.03em] text-text sm:text-hero-lg sm:tracking-[-0.04em]">
+          <Hero
+            className="fh-home-hero"
+            title={
+              <>
                 You pay when
                 <br />
                 you recover.
                 <br />
                 <span className="text-accent-text">Not before.</span>
-              </h1>
-
-              <p className="animate-fade-up delay-160 m-0 mb-8 text-body leading-[1.6] text-text-secondary">
+              </>
+            }
+            lead={
+              <>
                 {HERO_LEAD} <span className="font-mono text-text">{RECOVERY_FEE}</span> of what
                 Foxhound recovers. Anything Stripe would have recovered on its own is free. Nothing
                 until you have held the money for{" "}
                 <span className="font-mono text-text">{MATURITY_DAYS}</span> days.
-              </p>
-
-              <div
-                className="animate-fade-up delay-240 flex flex-wrap items-center gap-4"
-                data-density="comfortable"
-              >
-                <Link
-                  to="/audit"
-                  className="cap-btn font-semibold"
-                  data-variant="primary"
-                  data-size="lg"
-                >
+              </>
+            }
+            actions={
+              <div className="contents" data-density="comfortable">
+                <ButtonLink to="/audit" className="font-semibold" variant="primary" size="lg">
                   Run your free audit
-                </Link>
+                </ButtonLink>
                 {/* Recova's outlined button: no fill at rest, amber sweeping in under the pointer. */}
-                <Link
+                <ButtonLink
                   to="/demos/recovery"
                   rel="nofollow"
-                  className="cap-btn group [--cap-btn-bg:transparent]"
-                  data-size="lg"
+                  className="group [--cap-btn-bg:transparent]"
+                  size="lg"
                 >
                   See it live
                   <ArrowRight
@@ -182,14 +181,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     strokeWidth={1.5}
                     aria-hidden
                   />
-                </Link>
+                </ButtonLink>
               </div>
-            </div>
-
-            <div className="animate-fade-in delay-320 flex items-center justify-center">
-              <RecoveryQueueDemo />
-            </div>
-          </div>
+            }
+            aside={<RecoveryQueueDemo />}
+          />
 
           {/* Trust row: full width, below both columns. */}
           <div className="mt-5 border-t border-border-sub pt-4">
@@ -219,7 +215,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </ul>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Stats: the problem */}
       <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
@@ -567,42 +563,47 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
-      <section className="border-t border-border-sub px-5 py-24 sm:px-8">
-        <div className="mx-auto max-w-[760px] text-center" data-density="comfortable">
-          <h2 className="m-0 mb-4 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg">
-            See what your Stripe account is leaking
-          </h2>
-          <p className="m-0 mx-auto mb-7 max-w-[560px] text-subhead leading-[1.55] text-text-secondary">
-            Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span>{" "}
-            seconds. No setup, no card.
-          </p>
-          <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
-            Connect Stripe, it is free
-          </Link>
-          <div className="mt-5 font-mono text-caption text-text-subtle">
-            No account required &middot; Results in 30 seconds &middot; Disconnect anytime
+      <CtaBand
+        quiet
+        className="fh-closing-band fh-closing-home"
+        title="See what your Stripe account is leaking"
+        actions={
+          <div className="contents" data-density="comfortable">
+            <ButtonLink to="/audit" className={CTA_BUTTON} variant="primary" size="lg">
+              Connect Stripe, it is free
+            </ButtonLink>
           </div>
-          <div className="mt-2 font-mono text-caption text-text-subtle">
-            {COMPAT_TAGS.join(" · ")}
-          </div>
-          <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
-            <Link
-              to="/demos/recovery"
-              rel="nofollow"
-              className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
-            >
-              View Recovery demo <Arrow />
-            </Link>
-            <Link
-              to="/demos/disputes"
-              rel="nofollow"
-              className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
-            >
-              View Disputes demo <Arrow />
-            </Link>
-          </div>
-        </div>
-      </section>
+        }
+        note={
+          <>
+            <span className="mt-5 block font-mono text-caption text-text-subtle">
+              No account required &middot; Results in 30 seconds &middot; Disconnect anytime
+            </span>
+            <span className="mt-2 block font-mono text-caption text-text-subtle">
+              {COMPAT_TAGS.join(" · ")}
+            </span>
+            <span className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
+              <Link
+                to="/demos/recovery"
+                rel="nofollow"
+                className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
+              >
+                View Recovery demo <Arrow />
+              </Link>
+              <Link
+                to="/demos/disputes"
+                rel="nofollow"
+                className="group text-copy leading-6 text-text-secondary transition-colors hover:text-text"
+              >
+                View Disputes demo <Arrow />
+              </Link>
+            </span>
+          </>
+        }
+      >
+        Connect Stripe for a free diagnostic. Results in <span className="font-mono">30</span>{" "}
+        seconds. No setup, no card.
+      </CtaBand>
     </div>
   );
 }
