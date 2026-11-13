@@ -1,5 +1,6 @@
 import { formatDate } from "capsomer/behavior/time";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { useSaveQueue } from "capsomer/react/form-hooks";
 import { useShownFor } from "capsomer/react/hooks";
 import { data, useNavigation } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -27,7 +28,6 @@ import { accounts, getDb } from "~/db";
 import { listAuditRuns } from "~/lib/audit/persist.server";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { formatTotals, toStoredAuditRun } from "~/lib/audit/render";
-import { createSaveQueue, type SaveQueue } from "~/lib/audit/save-queue";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -301,19 +301,13 @@ export function AuditSettingsForm({
   // The controls are never disabled during a save, because disabling the
   // radio or switch that has focus throws focus to the page body. A change
   // made while a save is in flight is held and sent once that save settles
-  // (app/lib/audit/save-queue.ts), so saves cannot land out of order and the
+  // (Capsomer's useSaveQueue), so saves cannot land out of order and the
   // last value wins. In the demo ReadOnlyForm refuses the submit in place,
   // so no save ever starts and nothing is queued.
-  const queue = useRef<SaveQueue | null>(null);
-  queue.current ??= createSaveQueue(() => formRef.current?.requestSubmit());
-  const wasSaving = useRef(saving);
-  useEffect(() => {
-    if (wasSaving.current && !saving) queue.current?.settled();
-    wasSaving.current = saving;
-  }, [saving]);
+  const queueSave = useSaveQueue(() => formRef.current?.requestSubmit(), saving);
   const save = () => {
     if (demo.readOnly) formRef.current?.requestSubmit();
-    else queue.current?.change();
+    else queueSave();
   };
 
   return (

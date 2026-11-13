@@ -1,4 +1,4 @@
-import { useNavigation, useRevalidator } from "react-router";
+import { usePagePending } from "capsomer/react/route-hooks";
 import { Link } from "capsomer/react/link";
 import { ExternalLink } from "lucide-react";
 import { Banner } from "capsomer/react/banner";
@@ -24,7 +24,7 @@ import {
   type SentryState,
 } from "~/lib/admin/errors.server";
 import { capitalize, formatCount, plural } from "@drdustinedwards/site-helpers/text";
-import { pagePending, type AdminHandle } from "~/lib/admin/page";
+import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/errors";
@@ -88,7 +88,7 @@ function levelOf(level: string): { tone: StatusTone; word: string } {
 // until then the page says so plainly. Read only.
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
   const { sentry, failed } = loaderData;
-  const pending = pagePending(useNavigation(), useRevalidator().state, ERRORS_PATH);
+  const pending = usePagePending(ERRORS_PATH);
 
   return (
     <div className="grid grid-cols-1 gap-6">
