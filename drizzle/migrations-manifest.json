@@ -80,6 +80,7 @@
     "0079_account_id_not_null.sql": "9077e8134cb6711dee11253d1f78f57eded251a1262808c2c2615b9423245ce6",
     "0080_shared_media_store.sql": "7819fd16f8b8069cd5ccaf4d584b1b06801c0c1a87ad6567dafe4956731640c0",
     "0081_cron_run_log.sql": "0c244ae7b1cb0bee36fb454eab78dca7b8aedb48e4731bb92771713ab4b05cc6",
-    "0082_drop_cron_run_history.sql": "6def7a346ba35b8e1550749a71bb57fc524bbd37336aab89e2e64786fefa4c10"
+    "0082_drop_cron_run_history.sql": "6def7a346ba35b8e1550749a71bb57fc524bbd37336aab89e2e64786fefa4c10",
+    "0083_drop_api_keys_key_hash_idx.sql": "42a743682639ded06881ed3013e5e25bea8ca9d7e0a7b768dd0027e14d7bf5bc"
   }
 }

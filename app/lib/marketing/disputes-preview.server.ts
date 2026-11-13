@@ -28,8 +28,9 @@ import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 // Stripe) and reads them the way the merchant dashboard
 // (app/routes/app/disputes/index.tsx) reads its own rows:
 //
-// - The order: sortDisputesNewestFirst, the order listDisputes returns.
-// - The cards: the dashboard's five, from computeDisputeStats, totaled per
+// - The order: sortDisputesNewestFirst, the order listDisputesPage reads.
+// - The cards: the dashboard's five, from computeDisputeStats (the same sums
+//   the dashboard's computeDisputeStatsFromGroups makes), totaled per
 //   currency with groupSumByCurrency and written with formatAmounts, and Win
 //   rate's words from winRateCard.
 // - The status words: disputeListStatus, with "has evidence" decided from the

@@ -554,6 +554,13 @@
       "when": 1794480932147,
       "tag": "0082_drop_cron_run_history",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "6",
+      "when": 1794542736660,
+      "tag": "0083_drop_api_keys_key_hash_idx",
+      "breakpoints": true
     }
   ]
 }

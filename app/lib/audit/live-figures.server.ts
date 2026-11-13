@@ -3,8 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { disputes } from "~/db";
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
-import { SUBMITTED_EXTERNALLY } from "~/lib/disputes/labels";
-import { computeDisputeStats } from "~/lib/disputes/stats";
+import { computeDisputeStats, submittedByFoxhound } from "~/lib/disputes/stats";
 
 // The three live figures Recova's saved-run page reads beside the stored run
 // (app/audit/results/[id]/page.tsx, blob a0dbf6ef, UI-GAP-05, UI-GAP-06 and
@@ -50,9 +49,7 @@ export async function readSavedRunLiveFigures(
       .where(eq(disputes.accountId, accountId)),
   ]);
 
-  const foxhoundSubmitted = disputeRows.filter(
-    (row) => row.submittedAt !== null && row.submittedBy !== SUBMITTED_EXTERNALLY,
-  );
+  const foxhoundSubmitted = disputeRows.filter(submittedByFoxhound);
 
   return {
     activeSequences: stats.activeFailedCount,

@@ -13,7 +13,7 @@ import {
   disputes,
   stripeConnections,
 } from "~/db";
-import { sortDisputesNewestFirst } from "~/lib/disputes/order";
+import type { DisputeStatGroup } from "~/lib/disputes/stats";
 import type { DisputeFundsEntry } from "~/lib/disputes/timeline";
 import {
   approveAndSubmit,
@@ -25,7 +25,7 @@ import {
   buildSubmissionConfirmationBatch,
 } from "~/lib/disputes/approval.server";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
-import { SUBMITTED_AUTOMATICALLY } from "~/lib/disputes/labels";
+import { SUBMITTED_AUTOMATICALLY, SUBMITTED_EXTERNALLY } from "~/lib/disputes/labels";
 import { readEvidenceFilesForSubmission } from "~/lib/disputes/evidence-files.server";
 import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/disputes/submission";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
@@ -56,15 +56,28 @@ export type DisputeRow = typeof disputes.$inferSelect;
 export type DisputeEvidenceRow = typeof disputeEvidence.$inferSelect;
 type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
 
-/** Every dispute for the account, newest first. The disputes page needs them
- *  all for its stats; an agent reads one page at a time (listDisputesPage). */
-export async function listDisputes(db: Db, accountId: string): Promise<DisputeRow[]> {
-  const rows = await db.select().from(disputes).where(eq(disputes.accountId, accountId));
-  return sortDisputesNewestFirst(rows);
+/** The account's disputes grouped for the /disputes stat cards
+ *  (computeDisputeStatsFromGroups), counted and summed in SQL so the page never
+ *  reads every row. */
+export async function disputeStatGroups(db: Db, accountId: string): Promise<DisputeStatGroup[]> {
+  const foxhoundSubmitted = sql<number>`(${disputes.submittedAt} is not null and coalesce(${disputes.submittedBy}, '') <> ${SUBMITTED_EXTERNALLY})`;
+  const rows = await db
+    .select({
+      state: disputes.state,
+      currency: disputes.currency,
+      foxhoundSubmitted,
+      count: count(),
+      amountCents: sql<number>`sum(${disputes.amountCents})`,
+    })
+    .from(disputes)
+    .where(eq(disputes.accountId, accountId))
+    .groupBy(disputes.state, disputes.currency, foxhoundSubmitted);
+  return rows.map((r) => ({ ...r, foxhoundSubmitted: Boolean(r.foxhoundSubmitted) }));
 }
 
-/** One page of the account's disputes, newest first (id breaks a tie), read
- *  bounded in SQL, with the total for the page count. */
+/** One page of the account's disputes, newest first as Recova orders them
+ *  (id breaks a tie), read bounded in SQL, with the total for the page count.
+ *  The /disputes table and the agent's list both read through it. */
 export async function listDisputesPage(
   db: Db,
   accountId: string,

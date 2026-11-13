@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
-import { Pagination } from "capsomer/react/pagination";
+import { Pagination, pageCountOf, pageHref, parsePage } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
 import "capsomer/empty.css";
@@ -94,17 +94,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const db = getDb(env);
   const accountId = auth.membership.accountId;
 
-  const pageParam = Number(new URL(request.url).searchParams.get("page") ?? "1");
-  const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+  const page = parsePage(new URL(request.url).searchParams.get("page"));
   const { rows, totalCount } = await listActionableRecommendations(db, accountId, page);
-  const totalPages = Math.max(1, Math.ceil(totalCount / RECOMMENDATIONS_PAGE_SIZE));
+  const totalPages = pageCountOf(totalCount, RECOMMENDATIONS_PAGE_SIZE);
 
   return { rows, totalCount, page, totalPages };
 }
 
-function pageHref(page: number): string {
-  return page > 1 ? `/intelligence/recommendations?page=${page}` : "/intelligence/recommendations";
-}
+const recommendationsHref = (page: number) => pageHref("/intelligence/recommendations", {}, page);
 
 export default function IntelligenceRecommendationsPage({ loaderData }: Route.ComponentProps) {
   const { rows, totalCount, page, totalPages } = loaderData;
@@ -136,7 +133,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
             form="steps"
             page={page}
             pageCount={totalPages}
-            hrefFor={pageHref}
+            hrefFor={recommendationsHref}
             renderLink={routerRenderLink}
             label="Recommendation pages"
           />
