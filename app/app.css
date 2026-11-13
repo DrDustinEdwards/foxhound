@@ -1083,22 +1083,10 @@ body {
   .fh-recprev-block-2 {
     padding-bottom: 0.5rem;
   }
-  .fh-recprev-list {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: 0.25rem;
-    row-gap: 0.5rem;
-  }
   .fh-mk-inline {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-  }
-  .fh-recprev-label {
-    height: 1px;
-    width: 1rem;
-    background-color: var(--border);
   }
   .fh-recprev-block-3 {
     padding: 1.25rem;

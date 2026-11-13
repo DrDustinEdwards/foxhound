@@ -6,6 +6,7 @@ import { appLinkRel } from "~/lib/marketing/app-links";
 
 import { DocWidget } from "./doc-widgets";
 import { HealthScoreBadge } from "./health-score-badge";
+import "capsomer/step-indicator.css";
 import "capsomer/table.css";
 
 // Recova's docs block vocabulary, on Capsomer's parts.
@@ -102,18 +103,22 @@ function Block({ block }: { block: DocBlock }) {
 
     case "steps":
       return (
-        <ol className="fh-doc-blocks-list">
-          {block.items.map((item, i) => (
-            <li key={i} className="fh-doc-blocks-item fh-subhead fh-relaxed fh-soft">
-              {/* Recova hand-writes "01", "02"; derived here so a step cannot
-                  be inserted without its number following. */}
-              <span className="cap-keep fh-mono fh-accent">{String(i + 1).padStart(2, "0")}</span>
-              <span>
-                <Rich content={item} />
-              </span>
-            </li>
-          ))}
-        </ol>
+        <div className="cap-steps fh-doc-blocks-list" data-variant="ordered">
+          <ol className="cap-steps-list" aria-label="Steps">
+            {block.items.map((item, i) => (
+              <li key={i} className="cap-step">
+                {/* Recova hand-writes "01", "02"; derived here so a step cannot
+                    be inserted without its number following. */}
+                <span className="cap-step-number" aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="cap-step-name">
+                  <Rich content={item} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
       );
 
     case "list":
