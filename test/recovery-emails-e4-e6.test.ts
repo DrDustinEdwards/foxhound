@@ -40,7 +40,7 @@ const schema = await import("~/db/schema");
 const constants = await import("~/lib/constants");
 const { RECOVERY_SCHEDULES, planRecoverySteps } = await import("~/lib/recovery/schedule");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
-const { htmlToBlocks } = await import("~/lib/email/templates");
+const { htmlToBlocks } = await import("capsomer/email");
 const { processEmailJob } = await import("~/lib/email/dispatch");
 const { executeEmailStep, buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 
