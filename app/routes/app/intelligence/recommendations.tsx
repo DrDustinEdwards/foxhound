@@ -128,7 +128,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
 
       {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form). */}
       {totalPages > 1 ? (
-        <div className="fh-recs-more">
+        <div className="fh-pager">
           <Pagination
             form="steps"
             page={page}

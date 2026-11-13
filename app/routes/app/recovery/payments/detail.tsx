@@ -738,7 +738,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                           {showEngagement ? (
                             <>
                               <span
-                                className={`inline-flex items-center gap-1 fh-tiny ${
+                                data-gap="2"
+                                className={`cap-cluster fh-tiny ${
                                   step.openedAt ? "fh-green" : "fh-faint"
                                 }`}
                               >
@@ -754,7 +755,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                               {/* A suspect click is shown as what it is:
                                   something fetched the link, and it is not billed. */}
                               <span
-                                className={`inline-flex items-center gap-1 fh-tiny ${
+                                data-gap="2"
+                                className={`cap-cluster fh-tiny ${
                                   step.clickedAt && !step.clickSuspectReason
                                     ? "fh-green"
                                     : "fh-faint"

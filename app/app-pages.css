@@ -1271,7 +1271,8 @@
     border-radius: calc(infinity * 1px);
     background-color: var(--red);
   }
-  .fh-customers-pager {
+  /* The page links under a paged list. */
+  .fh-pager {
     margin-top: 1rem;
   }
   .fh-customers-foot {
@@ -1343,9 +1344,6 @@
   }
   .fh-intel-month-label {
     min-width: 120px;
-  }
-  .fh-recs-more {
-    margin-top: 1rem;
   }
   .fh-reports {
     margin-inline: auto;

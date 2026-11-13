@@ -362,7 +362,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form;
           Recova's mt-4 sits on a wrapper so the nav carries no Foxhound class). */}
       {result.totalPages > 1 ? (
-        <div className="fh-customers-pager">
+        <div className="fh-pager">
           <Pagination
             form="steps"
             page={result.page}

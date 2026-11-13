@@ -347,7 +347,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       )}
 
       {pagination.pageCount > 1 ? (
-        <div className="mt-4">
+        <div className="fh-pager">
           <Pagination
             page={pagination.page}
             pageCount={pagination.pageCount}
