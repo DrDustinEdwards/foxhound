@@ -46,7 +46,11 @@ export async function generateEmailSample(data: FormData): Promise<AiSampleResul
   return {
     fields: [
       { label: "Subject", value: result.subject },
-      { label: "Body", value: result.body.replace("{{update_url}}", SAMPLE_UPDATE_URL), mono: true },
+      {
+        label: "Body",
+        value: result.body.replace("{{update_url}}", SAMPLE_UPDATE_URL),
+        mono: true,
+      },
     ],
     note: "Generated in real time by AI, for a fictional customer.",
   };
