@@ -874,24 +874,87 @@ body {
   flex: 1 0 auto;
 }
 
-/* Foxhound's type and color roles: its type scale (Recova's sizes), its four text grays, the status
+/* Foxhound's type and color roles: its type scale (one class per size token, kept apart on a value match as rulings 65 and 68 say), its four text grays, the status
    text colors and its faces, one class each, read by every page. Each page's own parts sit beside
    it (admin.css for the admin). */
 @layer site {
+  .fh-hero-lg {
+    font-size: 4rem;
+  }
+  .fh-statement-lg {
+    font-size: 4.5rem;
+  }
+  .fh-statement-md {
+    font-size: 3.5rem;
+  }
+  .fh-product-price {
+    font-size: 3rem;
+  }
+  .fh-hero {
+    font-size: 2.75rem;
+  }
+  .fh-price {
+    font-size: 2.5rem;
+  }
+  .fh-statement {
+    font-size: 2.25rem;
+  }
+  .fh-page-title {
+    font-size: 2rem;
+  }
   .fh-display {
     font-size: 1.75rem;
+  }
+  .fh-section {
+    font-size: 1.75rem;
+  }
+  .fh-section-lg {
+    font-size: 2rem;
+  }
+  .fh-product-hero {
+    font-size: 2.5rem;
+  }
+  .fh-item-title {
+    font-size: 0.9375rem;
+  }
+  .fh-tag {
+    font-size: 0.625rem;
+  }
+  .fh-subsection {
+    font-size: 1.5rem;
+  }
+  .fh-feature-title {
+    font-size: 1.375rem;
   }
   .fh-title {
     font-size: 1.25rem;
   }
+  .fh-card-title {
+    font-size: 1.125rem;
+  }
+  .fh-product-sub {
+    font-size: 1.0625rem;
+  }
   .fh-body {
     font-size: 1rem;
+  }
+  .fh-subhead {
+    font-size: 0.9375rem;
+  }
+  .fh-copy {
+    font-size: 0.875rem;
   }
   .fh-small {
     font-size: 0.8125rem;
   }
+  .fh-caption {
+    font-size: 0.75rem;
+  }
   .fh-tiny {
     font-size: 0.6875rem;
+  }
+  .fh-source {
+    font-size: 0.625rem;
   }
   .fh-text {
     color: var(--text);

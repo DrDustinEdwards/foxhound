@@ -34,6 +34,7 @@ import { setStateCookie } from "~/lib/stripe/state-cookie";
 import type { Route } from "./+types/connect";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import "~/auth.css";
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -201,7 +202,7 @@ const CONNECTION_CANNOT = [
  *  as Capsomer's permission lists. */
 function AccessDisclosure() {
   return (
-    <div className="mb-6 grid gap-4 rounded-lg border border-border bg-bg p-4">
+    <div className="fh-connect-note">
       <PermissionList
         id="connect-can"
         heading="What Foxhound can do"
@@ -258,9 +259,9 @@ const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
  */
 function ConnectFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex justify-center px-4 py-[60px]">
+    <div className="fh-connect-page">
       <div
-        className="fh-cap w-full max-w-[480px] [--border-focus:var(--ring)]"
+        className="fh-connect-card fh-cap"
         data-cap-site="foxhound"
         data-family="amber"
         data-connect=""
@@ -278,8 +279,8 @@ function ConnectFrame({ children }: { children: ReactNode }) {
 function ConnectHeading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <>
-      <h1 className="mb-2 text-center text-title font-semibold text-text">{title}</h1>
-      <p className="mb-8 text-center text-label leading-relaxed text-text-subtle">{subtitle}</p>
+      <h1 className="fh-auth-title-sub fh-title fh-semibold fh-text">{title}</h1>
+      <p className="fh-auth-lede fh-small fh-faint">{subtitle}</p>
     </>
   );
 }
@@ -299,7 +300,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
           title="Name your account"
           subtitle="One more step before you connect Stripe."
         />
-        <Form method="post" className="grid gap-4">
+        <Form method="post" className="fh-connect-form">
           {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
           {/* The browser's required check, with no "Required" marker: this
               step has one field and never had one. */}
@@ -331,7 +332,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
         <Banner tone="ok">
           Your Stripe account is connected. Foxhound can now recover failed payments for you.
         </Banner>
-        <p className="mt-4 text-center text-label">
+        <p className="fh-auth-after fh-small">
           <AuthLink to="/console">Go to dashboard</AuthLink>
         </p>
       </ConnectFrame>
@@ -346,28 +347,28 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
         subtitle="Foxhound needs read/write access to retry failed invoices on your behalf. You can disconnect at any time."
       />
       {oauthError || actionData?.error ? (
-        <div className="mb-6">
+        <div className="fh-connect-block">
           <Alert tone="crit">{oauthError ?? actionData?.error}</Alert>
         </div>
       ) : null}
       <AccessDisclosure />
       {!loaderData.isOwner ? (
-        <p className="text-center text-label text-text-tertiary">{OWNER_REQUIRED_MESSAGE}</p>
+        <p className="fh-center fh-small fh-quiet">{OWNER_REQUIRED_MESSAGE}</p>
       ) : loaderData.stripeEnabled ? (
-        <Form method="post" className="grid">
+        <Form method="post" className="fh-auth-actions">
           <Button type="submit" variant="primary" pending={busy}>
             {busy ? "Redirecting..." : "Connect Stripe"}
           </Button>
         </Form>
       ) : (
-        <p className="text-center text-label text-text-tertiary">
+        <p className="fh-center fh-small fh-quiet">
           Stripe Connect is not configured in this environment yet.
         </p>
       )}
-      <p className="mt-4 text-center text-micro text-text-subtle">
+      <p className="fh-auth-after fh-tiny fh-faint">
         Not ready? <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>
-      <p className="mt-2 text-center text-micro text-text-subtle">
+      <p className="fh-connect-fine fh-tiny fh-faint">
         <AuthLink to="/settings">Manage account</AuthLink>
       </p>
     </ConnectFrame>
