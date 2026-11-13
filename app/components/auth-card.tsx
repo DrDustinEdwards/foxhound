@@ -165,7 +165,11 @@ export function PasskeyContinue({ next }: { next: string }) {
         ?.id;
       if (credentialId) {
         const session = await authClient.getSession().catch(() => null);
-        await signalPasskeys({ credentialIds: [credentialId], name: session?.data?.user.email });
+        await signalPasskeys({
+          user: session?.data?.user.id ?? null,
+          credentialIds: [credentialId],
+          name: session?.data?.user.email,
+        });
       }
       window.location.assign(next);
       return;

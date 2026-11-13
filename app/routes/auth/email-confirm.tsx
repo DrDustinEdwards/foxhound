@@ -33,11 +33,11 @@ export function meta() {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const result = emailLinkResult(request.url);
-  if (result.done !== "changed") return { ...result, newEmail: null };
-  // The change is made and this browser signed in to it: the new address, for
-  // the passkey providers (the Signal API, below).
+  if (result.done !== "changed") return { ...result, newEmail: null, userId: null };
+  // The change is made and this browser signed in to it: the new address and
+  // the account's id, for the passkey providers (the Signal API, below).
   const session = await getSession(context.get(cloudflareContext).env, request);
-  return { ...result, newEmail: session?.user.email ?? null };
+  return { ...result, newEmail: session?.user.email ?? null, userId: session?.user.id ?? null };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -83,12 +83,12 @@ const PROBLEM: Record<EmailLinkProblem, { title: string; text: string }> = {
 };
 
 export default function EmailConfirm({ loaderData, actionData }: Route.ComponentProps) {
-  const { done, problem, newEmail } = loaderData;
+  const { done, problem, newEmail, userId } = loaderData;
 
   // The passkey providers show the new address on this account's passkeys.
   useEffect(() => {
-    if (newEmail) void signalCurrentUserDetails({ name: newEmail });
-  }, [newEmail]);
+    if (newEmail) void signalCurrentUserDetails({ user: userId, name: newEmail });
+  }, [newEmail, userId]);
 
   if (done || problem) {
     const said = done ? DONE[done] : PROBLEM[problem as EmailLinkProblem];
