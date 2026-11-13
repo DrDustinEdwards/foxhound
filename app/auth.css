@@ -6,6 +6,10 @@
     margin-bottom: var(--space-6);
     display: grid;
     gap: var(--space-5);
+    border-radius: 0.5rem;
+    border-style: solid;
+    border-width: var(--line-w);
+    border-color: var(--border);
     background-color: var(--bg);
     padding: var(--space-5);
   }

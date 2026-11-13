@@ -173,11 +173,20 @@
   .fh-cron-run {
     border-radius: 0.25rem;
   }
+  .fh-panel-note,
+  .fh-filter-frame {
+    border-bottom-style: solid;
+    border-bottom-width: var(--line-w);
+    border-color: var(--border);
+  }
   .fh-panel-note {
     padding-inline: var(--space-5);
     padding-block: var(--space-4);
   }
   .fh-panel-foot {
+    border-top-style: solid;
+    border-top-width: var(--line-w);
+    border-color: var(--border);
     padding-inline: var(--space-5);
     padding-block: var(--space-4);
   }
@@ -213,6 +222,11 @@
     border-color: var(--border);
     background-color: var(--sunken);
     padding: var(--space-4);
+  }
+  .fh-halves {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-halves {

@@ -189,6 +189,13 @@
   .fh-home-block-4 {
     margin-bottom: var(--space-8);
   }
+  .fh-home-grid-2,
+  .fh-home-grid-4,
+  .fh-home-grid-6 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
   @media (width >= 48rem) {
     .fh-home-grid-2 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -395,6 +402,11 @@
     .fh-home-h2 {
       font-size: 2rem;
     }
+  }
+  .fh-home-step-ruled {
+    border-bottom-style: solid;
+    border-bottom-width: var(--line-w);
+    border-color: var(--border);
   }
   @media (width >= 48rem) {
     .fh-home-step-ruled {

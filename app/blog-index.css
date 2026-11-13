@@ -199,6 +199,12 @@
   .fh-blog-link-5 {
     line-height: 1.5rem;
   }
+  .fh-blog-grid-2,
+  .fh-blog-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
   .fh-blog-grid-2 {
     margin-top: var(--space-6);
   }
@@ -234,6 +240,11 @@
   }
   .fh-tag-text {
     margin-bottom: 2.5rem;
+  }
+  .fh-tag-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-tag-grid {

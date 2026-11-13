@@ -57,6 +57,11 @@
   .fh-intelprev-block-2 {
     padding: 1.25rem;
   }
+  .fh-intelprev-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
   @media (width >= 40rem) {
     .fh-intelprev-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -538,17 +538,18 @@ body {
    text colors and its faces, one class each, read by every page. Each page's own parts sit beside
    it (admin.css for the admin). */
 @layer site {
+  .fh-mk-cards-4,
+  .fh-mk-cards-2,
+  .fh-mk-cards-3 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
   .fh-post-grid,
   .fh-features-grid {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: var(--space-8);
-  }
-  .fh-recpanel-pair,
-  .fh-tag-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: var(--space-6);
   }
   .fh-blog-wrap,
   .fh-mkhead-wrap {
@@ -558,73 +559,9 @@ body {
     padding-top: var(--space-9);
     padding-bottom: 2.5rem;
   }
-  .fh-panel-note,
-  .fh-filter-frame,
-  .fh-team-member,
-  .fh-intel-table-head,
-  .fh-payment-step,
-  .fh-post-text,
-  .fh-home-step-ruled {
-    border-bottom-style: solid;
-    border-bottom-width: var(--line-w);
-    border-color: var(--border);
-  }
-  .fh-box,
-  .fh-billing-box,
-  .fh-customer-factor,
-  .fh-customer-table,
-  .fh-intel-table-wrap,
-  .fh-list-table,
-  .fh-connect-note {
-    border-radius: 0.5rem;
-    border-style: solid;
-    border-width: var(--line-w);
-    border-color: var(--border);
-  }
-  .fh-help-cards,
-  .fh-console-charts,
-  .fh-console-tiles,
-  .fh-recpanel-hero,
-  .fh-dispute-fields,
-  .fh-churn-bands,
-  .fh-mk-doc-cards,
-  .fh-doc-widgets-grid,
-  .fh-recprev-grid,
-  .fh-payment-panels,
-  .fh-intelprev-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: var(--space-4);
-  }
-  .fh-panel-foot,
-  .fh-team-invite,
-  .fh-settings-group,
-  .fh-audit-switch,
-  .fh-signin-providers,
-  .fh-recpanel-foot,
-  .fh-auditd-digest,
-  .fh-payment-links-title,
-  .fh-post-row-3,
-  .fh-post-grid-2,
-  .fh-post-wrap {
-    border-top-style: solid;
-    border-top-width: var(--line-w);
-    border-color: var(--border);
-  }
-  .fh-halves,
-  .fh-customer-panels,
-  .fh-recovery-declines,
   .fh-auditsec-grid,
   .fh-recovery-charts,
-  .fh-audit-grid-4,
-  .fh-blog-grid-2,
-  .fh-blog-grid-3,
-  .fh-home-grid-2,
-  .fh-home-grid-4,
-  .fh-home-grid-6,
-  .fh-mk-cards-4,
-  .fh-mk-cards-2,
-  .fh-mk-cards-3 {
+  .fh-audit-grid-4 {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: var(--space-5);
@@ -859,6 +796,14 @@ body {
     transition-property: opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
+  }
+  .fh-mk-doc-cards,
+  .fh-doc-widgets-grid,
+  .fh-recprev-grid,
+  .fh-payment-panels {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-4);
   }
   .fh-mk-doc-cards {
     margin-block: var(--space-6);

@@ -185,7 +185,17 @@
   }
   .fh-post-text {
     margin-bottom: var(--space-7);
+    border-bottom-style: solid;
+    border-bottom-width: var(--line-w);
+    border-color: var(--border);
     padding-bottom: var(--space-7);
+  }
+  .fh-post-row-3,
+  .fh-post-grid-2,
+  .fh-post-wrap {
+    border-top-style: solid;
+    border-top-width: var(--line-w);
+    border-color: var(--border);
   }
   .fh-post-row-3 {
     margin-top: var(--space-8);
