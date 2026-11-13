@@ -196,7 +196,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
             in PageHead's actions slot, which is for controls. "1 customer" is
             singular; Recova's "1 customers" is not copied. */}
         {result.totalCount > 0 ? (
-          <p className="mt-2 mb-0 font-mono text-label text-text-tertiary">
+          <p className="mt-2 mb-0 fh-mono fh-small fh-quiet">
             {plural(result.totalCount, "customer")} · {formatMoney(result.totalMrrCents, "usd")}/mo
             total MRR
           </p>
@@ -209,7 +209,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         // Capsomer part that keeps the heading is a Panel, as on /intelligence/
         // churn (gap named in the J30 notes).
         <Panel title="No customer data yet">
-          <p className="m-0 text-label text-text-tertiary">
+          <p className="fh-small fh-quiet">
             Intelligence populates as customers transact in your Stripe account. Check back as data
             accumulates.
           </p>
@@ -261,27 +261,27 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                   over the Signals tooltips and the Stripe id.
                                   min-h-6 keeps a 24px target. */}
                               <Link
-                                className="inline-flex min-h-6 items-center font-semibold text-text no-underline hover:text-accent-hover"
+                                className="inline-flex min-h-6 items-center fh-semibold fh-text no-underline hover:text-accent-hover"
                                 to={`/intelligence/customers/${c.stripeCustomerId}`}
                               >
                                 {c.customerName ?? "(unnamed)"}
                               </Link>
                               {/* Recova's recommended-action chip after the name. */}
                               {c.chip ? (
-                                <span className="ml-2 font-mono text-micro font-normal text-text-tertiary">
+                                <span className="ml-2 fh-mono fh-tiny fh-regular fh-quiet">
                                   {c.chip}
                                 </span>
                               ) : null}
                               {/* Recova's second line under the name: the Stripe
                                   id, micro and mono. */}
-                              <span className="block font-mono text-micro text-text-subtle">
+                              <span className="fh-line fh-mono fh-tiny fh-faint">
                                 {c.stripeCustomerId}
                               </span>
                               {/* A planned change or cancellation from the
                                   customer's Stripe subscription schedule or
                                   cancel_at, under the id. */}
                               {c.scheduled ? (
-                                <span className="block text-micro font-normal text-text-secondary">
+                                <span className="fh-line fh-tiny fh-regular fh-soft">
                                   {c.scheduled}
                                 </span>
                               ) : null}
@@ -299,7 +299,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               </span>
                             </td>
                             <td data-label="MRR" data-num="">
-                              <span className="font-mono">
+                              <span className="fh-mono">
                                 {c.mrrContributionCents > 0
                                   ? formatMoney(c.mrrContributionCents, c.currency)
                                   : "-"}
@@ -307,17 +307,17 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                             </td>
                             <td data-label="Health" data-num="">
                               {c.healthScore == null ? (
-                                <span className="font-mono text-text-tertiary">-</span>
+                                <span className="fh-mono fh-quiet">-</span>
                               ) : (
                                 <span
-                                  className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
+                                  className={`fh-mono fh-semibold ${healthScoreClassName(c.healthScore)}`}
                                 >
                                   {c.healthScore}
                                 </span>
                               )}
                             </td>
                             <td data-label="Last seen">
-                              <span className="font-mono text-text-tertiary">
+                              <span className="fh-mono fh-quiet">
                                 {formatRelativeLastSeen(c.lastSeenAt, now)}
                               </span>
                             </td>
@@ -338,7 +338,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                     width={14}
                                     height={14}
                                     strokeWidth={1.75}
-                                    className="shrink-0 text-text-tertiary"
+                                    className="shrink-0 fh-quiet"
                                     role="img"
                                     aria-label="Dispute history"
                                   >
@@ -375,7 +375,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       ) : null}
 
       {otherDemoName ? (
-        <p className="mt-8 mb-0 text-center text-caption text-text-subtle">
+        <p className="mt-8 mb-0 fh-center fh-caption fh-faint">
           Switch accounts in the top nav to see {otherDemoName} customers.
         </p>
       ) : null}
@@ -393,7 +393,7 @@ function FilterBar({ filters, tiers }: { filters: Filters; tiers: string[] }) {
         {/* The bar's layout and its text at the label size (RULES 5.2) on a
             wrapper of the page's own: Capsomer's field label has no size of its
             own, and its base.css is not loaded in the app. */}
-        <div className="flex flex-wrap items-end gap-3 text-label">
+        <div className="flex flex-wrap items-end gap-3 fh-small">
           <div className="cap-field">
             <label className="cap-field-label" htmlFor="customers-q">
               Name or email

@@ -54,7 +54,7 @@ export function ApproveButton({
         {approving ? "Submitting…" : label}
       </button>
       {dirty ? (
-        <span id="dispute_approve_unsaved" className="text-label text-text-secondary">
+        <span id="dispute_approve_unsaved" className="fh-small fh-soft">
           {UNSAVED_APPROVE_LINE}
         </span>
       ) : null}
@@ -67,8 +67,8 @@ export function ApproveButton({
 export function FieldRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-4">
-      <dt className="w-[140px] shrink-0 text-text-tertiary">{label}</dt>
-      <dd className="m-0 flex-1 whitespace-pre-line text-text">{value}</dd>
+      <dt className="w-[140px] shrink-0 fh-quiet">{label}</dt>
+      <dd className="flex-1 whitespace-pre-line fh-text">{value}</dd>
     </div>
   );
 }

@@ -11,9 +11,9 @@ export function recoveryRateTone(pct: number): RecoveryRateTone {
 }
 
 const TONE_CLASS_NAME: Record<RecoveryRateTone, string> = {
-  red: "text-error-text",
-  caution: "text-caution",
-  green: "text-success-text",
+  red: "fh-error",
+  caution: "fh-brand",
+  green: "fh-success",
 };
 
 /** The band as a Capsomer status tone (StatTile, Pill). */
@@ -46,5 +46,5 @@ export function recoveryRateBand(pct: number | null): string {
 /** Class name for a possibly-absent rate. Mirrors recoveryRateBand's null
  *  handling so a no-history account renders subtle rather than alarming red. */
 export function recoveryRateClassNameOrNull(pct: number | null): string {
-  return pct === null ? "text-text-subtle" : recoveryRateClassName(pct);
+  return pct === null ? "fh-faint" : recoveryRateClassName(pct);
 }

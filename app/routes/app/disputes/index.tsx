@@ -281,7 +281,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                     <th scope="col">Foxhound status</th>
                     <th scope="col">Deadline</th>
                     <th scope="col">
-                      <span className="sr-only">View</span>
+                      <span className="cap-sr-only">View</span>
                     </th>
                   </tr>
                 </thead>
@@ -300,23 +300,23 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                     return (
                       <tr key={d.id} data-dispute={d.id}>
                         <td>
-                          <div className="text-label text-text">
+                          <div className="fh-small fh-text">
                             {name}
                             {score === undefined ? null : (
                               <span
-                                className={`ml-1.5 font-mono text-micro ${healthScoreClassName(score)}`}
+                                className={`ml-1.5 fh-mono fh-tiny ${healthScoreClassName(score)}`}
                               >
-                                <span className="sr-only">Intelligence health score </span>
+                                <span className="cap-sr-only">Intelligence health score </span>
                                 {score}
                               </span>
                             )}
                           </div>
-                          <div className="text-micro text-text-subtle">{d.customerEmail || ""}</div>
+                          <div className="fh-tiny fh-faint">{d.customerEmail || ""}</div>
                         </td>
                         <td data-label="Amount" data-num="">
                           {formatMoney(d.amountCents, d.currency)}
                         </td>
-                        <td data-label="Reason" className="text-label text-text-secondary">
+                        <td data-label="Reason" className="fh-small fh-soft">
                           {humanizeDisputeReason(d.reason)}
                         </td>
                         <td data-label="Foxhound status">
@@ -324,16 +324,16 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                         </td>
                         <td
                           data-label="Deadline"
-                          className={`font-mono text-label ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
+                          className={`fh-mono fh-small ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
                         >
                           {deadlineShort(days, resolved)}
                         </td>
                         <td data-label="View">
                           <Link
                             to={`/disputes/${d.id}`}
-                            className="inline-flex min-h-6 items-center text-label text-brand-text no-underline hover:text-brand-text-hover"
+                            className="inline-flex min-h-6 items-center fh-small fh-brand no-underline hover:text-brand-text-hover"
                           >
-                            View<span className="sr-only"> the dispute from {name}</span>
+                            View<span className="cap-sr-only"> the dispute from {name}</span>
                           </Link>
                         </td>
                       </tr>

@@ -88,12 +88,10 @@ function StatCard({
 }) {
   return (
     <Panel size="sm" title={label}>
-      <p
-        className={`m-0 font-mono text-title font-semibold tabular-nums ${valueClassName ?? "text-text"}`}
-      >
+      <p className={`fh-mono fh-title fh-semibold cap-num ${valueClassName ?? "text-text"}`}>
         {value}
       </p>
-      {sub ? <p className="m-0 text-micro text-text-subtle">{sub}</p> : null}
+      {sub ? <p className="fh-tiny fh-faint">{sub}</p> : null}
     </Panel>
   );
 }
@@ -155,12 +153,8 @@ function Figure({
 }) {
   return (
     <div className="text-right">
-      <p
-        className={`m-0 font-mono text-body font-semibold tabular-nums ${className ?? "text-text"}`}
-      >
-        {value}
-      </p>
-      <p className="m-0 text-micro uppercase tracking-wide text-text-tertiary">{label}</p>
+      <p className={`fh-mono fh-body fh-semibold cap-num ${className ?? "text-text"}`}>{value}</p>
+      <p className="fh-tiny fh-quiet fh-caps">{label}</p>
     </div>
   );
 }
@@ -168,23 +162,23 @@ function Figure({
 function StepFigures({ card }: { card: StepCard }) {
   if (card.kind === "retry") {
     if (card.attempted === 0 || card.successRatePct === null) {
-      return <span className="text-micro text-text-subtle">No data yet</span>;
+      return <span className="fh-tiny fh-faint">No data yet</span>;
     }
     return (
       <div className="text-right">
         <p
-          className={`m-0 font-mono text-body font-semibold tabular-nums ${sequenceRateClassName(card.successRatePct, "click")}`}
+          className={`fh-mono fh-body fh-semibold cap-num ${sequenceRateClassName(card.successRatePct, "click")}`}
         >
           {card.successRatePct}%
         </p>
-        <p className="m-0 text-micro text-text-subtle">
+        <p className="fh-tiny fh-faint">
           {card.recovered} of {card.attempted} recovered
         </p>
       </div>
     );
   }
   if (card.sent === 0 || card.openRatePct === null || card.clickRatePct === null) {
-    return <span className="text-micro text-text-subtle">No data yet</span>;
+    return <span className="fh-tiny fh-faint">No data yet</span>;
   }
   return (
     <div className="flex gap-5">
@@ -226,7 +220,7 @@ function StepCardView({ card }: { card: StepCard }) {
       }
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <p className="m-0 min-w-0 flex-1 truncate text-micro text-text-subtle">{line}</p>
+        <p className="min-w-0 flex-1 truncate fh-tiny fh-faint">{line}</p>
         <div className="shrink-0">
           <StepFigures card={card} />
         </div>
@@ -236,7 +230,7 @@ function StepCardView({ card }: { card: StepCard }) {
           {/* latestBodyHtml is sanitized server-side in the loader before it
               ever reaches this component (email-preview.server.ts). */}
           <div
-            className="overflow-x-auto text-label leading-relaxed text-text-subtle"
+            className="overflow-x-auto fh-small fh-relaxed fh-faint"
             dangerouslySetInnerHTML={markup(preview)}
           />
         </Disclosure>
@@ -249,12 +243,10 @@ function CategorySectionView({ section }: { section: CategorySection }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId} className="m-0 mb-1.5">
+      <h2 id={headingId} className="mb-1.5">
         <Pill variant="outline">{SEQUENCE_CATEGORY_NAMES[section.category]}</Pill>
       </h2>
-      <p className="m-0 mb-3 text-label text-text-subtle">
-        {SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}
-      </p>
+      <p className="mb-3 fh-small fh-faint">{SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}</p>
       <div className="flex flex-col gap-3">
         {section.stepCards.map((card) => (
           <StepCardView key={card.stepType} card={card} />

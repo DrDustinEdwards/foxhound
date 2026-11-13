@@ -111,9 +111,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
         // Capsomer part that keeps the heading is a Panel (gap named in the
         // J29 notes).
         <Panel title="Health scores are being calculated.">
-          <p className="m-0 text-label text-text-tertiary">
-            Check back after the next Intelligence sync.
-          </p>
+          <p className="fh-small fh-quiet">Check back after the next Intelligence sync.</p>
         </Panel>
       ) : (
         <>
@@ -122,10 +120,10 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
               const row = byBand.get(band) ?? { band, customerCount: 0, mrrCents: 0 };
               return (
                 <Panel key={band} title={BAND_LABEL[band]} src={BAND_RANGE_LABEL[band]} size="sm">
-                  <p className="m-0 font-mono text-display font-medium tabular-nums text-text">
+                  <p className="fh-mono fh-display fh-medium cap-num fh-text">
                     {formatMoney(row.mrrCents, currency)}
                   </p>
-                  <p className="m-0 text-label text-text-tertiary">
+                  <p className="fh-small fh-quiet">
                     {plural(row.customerCount, "customer")} ·{" "}
                     {percent(row.mrrCents, view.scoredMrrCents)}% of scored MRR
                   </p>
@@ -176,7 +174,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                           </Link>
                           {/* Recova's second line under the name: the Stripe id,
                               micro and mono. */}
-                          <span className="block font-mono text-micro text-text-subtle">
+                          <span className="fh-line fh-mono fh-tiny fh-faint">
                             {row.stripeCustomerId}
                           </span>
                         </th>
@@ -191,12 +189,12 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                               query pre-filters to the high-risk band today, but a
                               widened predicate should not leave the color lying. */}
                           <span
-                            className={`font-mono font-semibold ${healthScoreClassName(row.healthScore)}`}
+                            className={`fh-mono fh-semibold ${healthScoreClassName(row.healthScore)}`}
                           >
                             {row.healthScore}
                           </span>
                         </td>
-                        <td data-label="MRR" data-num="" className="font-mono">
+                        <td data-label="MRR" data-num="" className="fh-mono">
                           {row.mrrContributionCents > 0
                             ? formatMoney(row.mrrContributionCents, currency)
                             : "-"}

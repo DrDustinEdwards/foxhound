@@ -153,7 +153,7 @@ function NothingToDo() {
       <div className="cap-panel-body">
         <div className="cap-empty" data-kind="all-clear" data-flush="">
           <div className="cap-empty-media" aria-hidden="true">
-            <Check width={40} height={40} strokeWidth={2} className="text-success-text" />
+            <Check width={40} height={40} strokeWidth={2} className="fh-success" />
           </div>
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">No action needed right now.</h2>
@@ -204,15 +204,13 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                     {c.customerName ?? "(unnamed)"}
                   </Link>
                   {/* Recova's second line under the name: the Stripe id, micro and mono. */}
-                  <span className="block font-mono text-micro text-text-subtle">
-                    {c.stripeCustomerId}
-                  </span>
+                  <span className="fh-line fh-mono fh-tiny fh-faint">{c.stripeCustomerId}</span>
                 </th>
                 <td data-label="Plan">
                   <Pill variant="outline">{c.planName ?? "-"}</Pill>
                 </td>
                 <td data-label="MRR" data-num="">
-                  <span className="font-mono">
+                  <span className="fh-mono">
                     {c.mrrContributionCents > 0
                       ? formatMoney(c.mrrContributionCents, c.currency)
                       : "-"}
@@ -220,17 +218,15 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                 </td>
                 <td data-label="Health" data-num="">
                   {c.healthScore == null ? (
-                    <span className="font-mono text-text-tertiary">-</span>
+                    <span className="fh-mono fh-quiet">-</span>
                   ) : (
-                    <span
-                      className={`font-mono font-semibold ${healthScoreClassName(c.healthScore)}`}
-                    >
+                    <span className={`fh-mono fh-semibold ${healthScoreClassName(c.healthScore)}`}>
                       {c.healthScore}
                     </span>
                   )}
                 </td>
                 <td data-label="Recommendation">
-                  <span className="text-micro text-text-subtle">
+                  <span className="fh-tiny fh-faint">
                     {ACTION_LABEL[c.recommendedAction] ?? c.recommendedAction}
                   </span>
                 </td>

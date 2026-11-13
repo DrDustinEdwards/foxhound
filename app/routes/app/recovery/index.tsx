@@ -247,8 +247,8 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
                   </Status>
                 ) : null}
                 {data.lastRecoveryAgo ? (
-                  <p className="m-0 text-micro text-text-subtle">
-                    Last recovery <span className="text-success-text">{data.lastRecoveryAgo}</span>
+                  <p className="fh-tiny fh-faint">
+                    Last recovery <span className="fh-success">{data.lastRecoveryAgo}</span>
                   </p>
                 ) : null}
               </div>
@@ -277,9 +277,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
 
       {/* ROW 4: decline analysis, 3/2. */}
       <div className="mb-5">
-        <p className="m-0 mb-3 text-micro font-medium uppercase tracking-wide text-text-tertiary">
-          Decline analysis
-        </p>
+        <p className="mb-3 fh-tiny fh-medium fh-quiet fh-caps">Decline analysis</p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div className="min-w-0 md:col-span-3">
             <DeclineBreakdown w={data} />
@@ -315,7 +313,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
         <Link
           to="/recovery/payments"
           aria-label="View all failed payments"
-          className="text-label text-brand-text"
+          className="fh-small fh-brand"
         >
           View all payments{" "}
           <ArrowRight className="inline-block" size={13} strokeWidth={1.5} aria-hidden />

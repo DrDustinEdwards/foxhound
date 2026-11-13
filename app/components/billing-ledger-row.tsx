@@ -16,11 +16,7 @@ import { ATTRIBUTION_KIND_LABELS, formatStepType } from "~/lib/recovery/labels";
 // what the billing engine already stored, never recomputes an amount.
 
 function ChainRow({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex flex-col gap-2 border-b border-border-sub py-3 last:border-0">
-      {children}
-    </li>
-  );
+  return <li className="fh-ledger-row">{children}</li>;
 }
 
 function Header({
@@ -35,16 +31,12 @@ function Header({
   date: Date;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex items-center gap-2">
+    <div className="fh-split">
+      <div className="fh-inline-row">
         <Pill {...BADGE_PILL.neutral}>{typeLabel}</Pill>
-        <span className="text-micro text-text-subtle">
-          {formatDate(date, { style: "medium" }) ?? ""}
-        </span>
+        <span className="fh-tiny fh-faint">{formatDate(date, { style: "medium" }) ?? ""}</span>
       </div>
-      <p className="font-mono text-body font-medium text-text">
-        {formatMoney(amountCents, currency)}
-      </p>
+      <p className="fh-mono fh-body fh-medium fh-text">{formatMoney(amountCents, currency)}</p>
     </div>
   );
 }
@@ -66,7 +58,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
       />
 
       {lineItem.type === "recovery_fee" && recoveredPayment ? (
-        <p className="text-label text-text-tertiary">
+        <p className="fh-small fh-quiet">
           {ATTRIBUTION_KIND_LABELS[recoveredPayment.attributionKind as AttributionKind] ??
             recoveredPayment.attributionKind}
           {creditedStepType ? ` (${formatStepType(creditedStepType)})` : ""} on{" "}
@@ -82,7 +74,7 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
       ) : null}
 
       {lineItem.type === "dispute_fee" && dispute ? (
-        <p className="text-label text-text-tertiary">
+        <p className="fh-small fh-quiet">
           {dispute.customerName ?? dispute.customerEmail ?? dispute.stripeChargeId} won a{" "}
           {dispute.reason} dispute for {formatMoney(dispute.amountCents, dispute.currency)}
           {dispute.resolvedAt
@@ -93,13 +85,11 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
       ) : null}
 
       {lineItem.type === "subscription" ? (
-        <p className="text-label text-text-tertiary">
-          {lineItem.description ?? "Intelligence subscription"}
-        </p>
+        <p className="fh-small fh-quiet">{lineItem.description ?? "Intelligence subscription"}</p>
       ) : null}
 
       {lineItem.type === "adjustment" ? (
-        <p className="text-label text-text-tertiary">
+        <p className="fh-small fh-quiet">
           {lineItem.description ?? "Manual adjustment"}
           {adminAuditEntry
             ? ` - approved by ${adminAuditEntry.actorEmail} (${adminAuditEntry.action})`
@@ -115,18 +105,18 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
   const { recoveredPayment } = entry;
   return (
     <ChainRow>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2">
+      <div className="fh-split">
+        <div className="fh-inline-row">
           <Pill {...BADGE_PILL.neutral}>Stripe baseline - FREE</Pill>
-          <span className="text-micro text-text-subtle">
+          <span className="fh-tiny fh-faint">
             {formatDate(recoveredPayment.recoveredAt, { style: "medium" }) ?? ""}
           </span>
         </div>
-        <p className="font-mono text-body font-medium text-text-tertiary">
+        <p className="fh-mono fh-body fh-medium fh-quiet">
           {formatMoney(recoveredPayment.amountCents, recoveredPayment.currency)}
         </p>
       </div>
-      <p className="text-label text-text-tertiary">
+      <p className="fh-small fh-quiet">
         No Foxhound action preceded this recovery, Stripe's own retry recovered it.{" "}
         <Link to={`/recovery/payments/${recoveredPayment.failedPaymentId}`}>View payment</Link>
       </p>

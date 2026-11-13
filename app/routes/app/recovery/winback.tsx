@@ -43,10 +43,10 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-title font-medium text-text">Win-back</h1>
+      <h1 className="fh-title fh-medium fh-text">Win-back</h1>
 
       {sequences.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-body text-text-tertiary">
+        <p className="mt-6 rounded-lg border border-dashed border-border p-6 fh-body fh-quiet">
           No cancellations yet. Foxhound reaches out to every customer who cancels, and lists them
           here.
         </p>
@@ -72,18 +72,18 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
               {sequences.map((seq) => (
                 <tr key={seq.id}>
                   <td>
-                    <p className="text-text">{seq.customerName ?? seq.customerEmail}</p>
-                    <p className="text-micro text-text-subtle">{seq.customerEmail}</p>
+                    <p className="fh-text">{seq.customerName ?? seq.customerEmail}</p>
+                    <p className="fh-tiny fh-faint">{seq.customerEmail}</p>
                   </td>
-                  <td data-label="Plan" className="text-text-tertiary">
+                  <td data-label="Plan" className="fh-quiet">
                     {seq.planName ?? "-"}
                     {seq.amountCents != null && seq.currency ? (
-                      <span className="ml-2 font-mono text-text">
+                      <span className="ml-2 fh-mono fh-text">
                         {formatMoney(seq.amountCents, seq.currency)}
                       </span>
                     ) : null}
                   </td>
-                  <td data-label="Canceled" className="text-text-tertiary">
+                  <td data-label="Canceled" className="fh-quiet">
                     {formatDate(seq.createdAt, { style: "medium" }) ?? ""}
                   </td>
                   <td data-label="Status">
@@ -92,7 +92,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                         {STATUS_LABEL[seq.status] ?? seq.status}
                       </Pill>
                       {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
-                        <span className="text-micro text-text-subtle">
+                        <span className="fh-tiny fh-faint">
                           Won back {formatDate(seq.reactivatedAt, { style: "medium" }) ?? ""}
                         </span>
                       ) : null}

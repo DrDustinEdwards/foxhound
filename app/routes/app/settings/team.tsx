@@ -258,7 +258,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
       <section className="cap-panel">
         <div className="cap-panel-body">
           {removeResult && !removeResult.error ? (
-            <p role="status" className="sr-only">
+            <p role="status" className="cap-sr-only">
               Member removed.
             </p>
           ) : null}
@@ -268,20 +268,17 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               wrapped line lines up with the rows that fit. A confirming row
               puts the question and its two buttons before the pills, and
               wraps them under the name when the card is too narrow. */}
-          <ul className="flex flex-col" aria-label="Members">
+          <ul className="fh-team-list" aria-label="Members">
             {loaderData.members.map((m) => {
               const name = displayName(m);
               const confirming = m.removable && confirmingId === m.id;
               return (
-                <li
-                  key={m.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0"
-                >
-                  <span className="min-w-0 wrap-anywhere text-label text-text">{name}</span>
+                <li key={m.id} className="fh-team-member">
+                  <span className="fh-team-name fh-small fh-text">{name}</span>
                   {/* `removable` is legacy's three refusals, resolved in the
                       loader. The server enforces them again. The two steps work
                       without script: the first is a link to ?confirm=<id>. */}
-                  <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                  <span className="fh-team-actions">
                     {m.removable ? (
                       <InlineConfirm
                         key={confirming ? "open" : "closed"}
@@ -313,7 +310,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
           </ul>
 
           {loaderData.isOwner ? (
-            <DemoForm ref={inviteForm} method="post" className="border-t border-border pt-5">
+            <DemoForm ref={inviteForm} method="post" className="fh-team-invite">
               <input type="hidden" name="_action" value="invite" />
               {/* Recova's invite row: the input and its button on one line,
                   with no "Required" marker, as Recova has it. */}
@@ -339,19 +336,19 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                     wrong. Showing it at the row instead is a question for
                     Dustin. */}
               {removeResult?.error ? (
-                <div className="mt-2">
+                <div className="fh-field-gap">
                   <Alert tone="crit">{removeResult.error}</Alert>
                 </div>
               ) : null}
               {inviteResult?.inviteUrl ? (
-                <div className="mt-2">
+                <div className="fh-field-gap">
                   <Banner tone="ok">
                     Invited {inviteResult.invited}. Share this link: {inviteResult.inviteUrl}
                   </Banner>
                 </div>
               ) : null}
               {inviteResult && "emailError" in inviteResult && inviteResult.emailError ? (
-                <div className="mt-2">
+                <div className="fh-field-gap">
                   <Alert tone="crit">{inviteResult.emailError}</Alert>
                 </div>
               ) : null}
